@@ -22,35 +22,43 @@ class TestAutoCompleteAeroplane(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/aeroplane/autocomplete/registration/", data={
-            "request": 1,
-            "search": "reg"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/aeroplane/autocomplete/registration/", data={"request": 1, "search": "reg"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/aeroplane/autocomplete/registration/", data={
-            "request": 1,
-            "search": "reg"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/aeroplane/autocomplete/registration/", data={"request": 1, "search": "reg"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/aeroplane/autocomplete/registration/", data={
-            "request": 1,
-            "search": "reg",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/aeroplane/autocomplete/registration/",
+            data={
+                "request": 1,
+                "search": "reg",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual(["registration"], result.json())
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/aeroplane/autocomplete/registration/", data={
-            "request": 2,
-            "search": "registration",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/aeroplane/autocomplete/registration/",
+            data={
+                "request": 2,
+                "search": "registration",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
         self.assertEqual(1, len(result))
@@ -67,38 +75,47 @@ class TestAutoCompleteClub(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/club/autocomplete/name/", data={
-            "request": 1,
-            "search": "nam"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/club/autocomplete/name/", data={"request": 1, "search": "nam"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/club/autocomplete/name/", data={
-            "request": 1,
-            "search": "nam"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/club/autocomplete/name/", data={"request": 1, "search": "nam"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/club/autocomplete/name/", data={
-            "request": 1,
-            "search": "nam",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/club/autocomplete/name/",
+            data={
+                "request": 1,
+                "search": "nam",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
-        self.assertListEqual([{'label': 'name ()', 'value': 'name'}], result.json())
+        self.assertListEqual([{"label": "name ()", "value": "name"}], result.json())
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/club/autocomplete/name/", data={
-            "request": 2,
-            "search": "name",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/club/autocomplete/name/",
+            data={
+                "request": 2,
+                "search": "name",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
-        self.assertDictEqual({'country': '', 'country_flag_url': None, 'id': 1, 'logo': None, 'name': 'name'},
-                             result.json()[0])
+        response = result.json()[0]
+        del response["id"]
+        self.assertDictEqual({"country": "", "country_flag_url": None, "logo": None, "name": "name"}, response)
 
 
 TraccarMock = Mock()
@@ -109,8 +126,9 @@ class TestAutoCompletePersonFirstName(APITestCase):
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
-        self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
-                              phone="+471234678")
+        self.person = Person.objects.create(
+            first_name="first_name", last_name="last_name", email="mail@address.com", phone="+471234678"
+        )
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
         self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
@@ -118,44 +136,57 @@ class TestAutoCompletePersonFirstName(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/contestant/autocomplete/firstname/", data={
-            "request": 1,
-            "search": "nam"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/firstname/", data={"request": 1, "search": "nam"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/contestant/autocomplete/firstname/", data={
-            "request": 1,
-            "search": "first"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/firstname/", data={"request": 1, "search": "first"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/firstname/", data={
-            "request": 1,
-            "search": "first",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/firstname/",
+            data={
+                "request": 1,
+                "search": "first",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
-        self.assertListEqual([{'label': 'first_name last_name', 'value': self.person.id}], result.json())
+        self.assertListEqual([{"label": "first_name last_name", "value": self.person.id}], result.json())
 
     def test_search_fail(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/firstname/", data={
-            "request": 1,
-            "search": "different",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/firstname/",
+            data={
+                "request": 1,
+                "search": "different",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([], result.json())
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/firstname/", data={
-            "request": 2,
-            "search": self.person.id,
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/firstname/",
+            data={
+                "request": 2,
+                "search": self.person.id,
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
         self.assertEqual(1, len(result))
@@ -168,8 +199,9 @@ class TestAutoCompletePersonLastname(APITestCase):
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
-        self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
-                              phone="+471234678")
+        self.person = Person.objects.create(
+            first_name="first_name", last_name="last_name", email="mail@address.com", phone="+471234678"
+        )
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
         self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
@@ -177,44 +209,57 @@ class TestAutoCompletePersonLastname(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/contestant/autocomplete/lastname/", data={
-            "request": 1,
-            "search": "nam"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/lastname/", data={"request": 1, "search": "nam"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/contestant/autocomplete/lastname/", data={
-            "request": 1,
-            "search": "last"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/lastname/", data={"request": 1, "search": "last"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/lastname/", data={
-            "request": 1,
-            "search": "last",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/lastname/",
+            data={
+                "request": 1,
+                "search": "last",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
-        self.assertListEqual([{'label': 'first_name last_name', 'value': self.person.id}], result.json())
+        self.assertListEqual([{"label": "first_name last_name", "value": self.person.id}], result.json())
 
     def test_search_fail(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/lastname/", data={
-            "request": 1,
-            "search": "different",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/lastname/",
+            data={
+                "request": 1,
+                "search": "different",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([], result.json())
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/lastname/", data={
-            "request": 2,
-            "search": self.person.id,
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/lastname/",
+            data={
+                "request": 2,
+                "search": self.person.id,
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
         self.assertEqual(1, len(result))
@@ -227,8 +272,9 @@ class TestAutoCompletePersonPhone(APITestCase):
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
-        Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
-                              phone="+471234678")
+        Person.objects.create(
+            first_name="first_name", last_name="last_name", email="mail@address.com", phone="+471234678"
+        )
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
         self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
@@ -236,44 +282,57 @@ class TestAutoCompletePersonPhone(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/contestant/autocomplete/phone/", data={
-            "request": 1,
-            "search": "123"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/phone/", data={"request": 1, "search": "123"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/contestant/autocomplete/phone/", data={
-            "request": 1,
-            "search": "123"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/phone/", data={"request": 1, "search": "123"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/phone/", data={
-            "request": 1,
-            "search": "123",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/phone/",
+            data={
+                "request": 1,
+                "search": "123",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
-        self.assertListEqual(['+471234678'], result.json())
+        self.assertListEqual(["+471234678"], result.json())
 
     def test_search_fail(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/phone/", data={
-            "request": 1,
-            "search": "321",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/phone/",
+            data={
+                "request": 1,
+                "search": "321",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([], result.json())
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/phone/", data={
-            "request": 2,
-            "search": "+471234678",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/phone/",
+            data={
+                "request": 2,
+                "search": "+471234678",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
         self.assertEqual(1, len(result))
@@ -286,8 +345,9 @@ class TestAutoCompletePersonEmail(APITestCase):
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
-        Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
-                              phone="+471234678")
+        Person.objects.create(
+            first_name="first_name", last_name="last_name", email="mail@address.com", phone="+471234678"
+        )
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
         self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
@@ -295,44 +355,57 @@ class TestAutoCompletePersonEmail(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/contestant/autocomplete/email/", data={
-            "request": 1,
-            "search": "mail"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/email/", data={"request": 1, "search": "mail"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/contestant/autocomplete/email/", data={
-            "request": 1,
-            "search": "mail"
-        }, format="json")
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/email/", data={"request": 1, "search": "mail"}, format="json"
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/email/", data={
-            "request": 1,
-            "search": "mail",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/email/",
+            data={
+                "request": 1,
+                "search": "mail",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
-        self.assertListEqual(['mail@address.com'], result.json())
+        self.assertListEqual(["mail@address.com"], result.json())
 
     def test_search_fail(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/email/", data={
-            "request": 1,
-            "search": "321",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/email/",
+            data={
+                "request": 1,
+                "search": "321",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([], result.json())
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/email/", data={
-            "request": 2,
-            "search": "mail@address.com",
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/email/",
+            data={
+                "request": 2,
+                "search": "mail@address.com",
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
         self.assertEqual(1, len(result))
@@ -345,8 +418,9 @@ class TestAutoCompletePersonId(APITestCase):
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
-        self.person = Person.objects.create(first_name="first_name", last_name="last_name", email="mail@address.com",
-                              phone="+471234678")
+        self.person = Person.objects.create(
+            first_name="first_name", last_name="last_name", email="mail@address.com", phone="+471234678"
+        )
         self.user_without_permissions = get_user_model().objects.create(email="test_without_permissions")
         self.user = get_user_model().objects.create(email="test")
         permission = Permission.objects.get(codename="add_contest")
@@ -354,44 +428,67 @@ class TestAutoCompletePersonId(APITestCase):
 
     def test_search_without_permission(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/contestant/autocomplete/id/", data={
-            "request": 1,
-            "search": self.person.pk,
-        }, format="json")
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/id/",
+            data={
+                "request": 1,
+                "search": self.person.pk,
+            },
+            format="json",
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search_not_logged_in(self):
         self.client.force_login(self.user_without_permissions)
-        result = self.client.post("/display/api/contestant/autocomplete/id/", data={
-            "request": 1,
-            "search": self.person.pk,
-        }, format="json")
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/id/",
+            data={
+                "request": 1,
+                "search": self.person.pk,
+            },
+            format="json",
+        )
         self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/id/", data={
-            "request": 1,
-            "search": self.person.pk,
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/id/",
+            data={
+                "request": 1,
+                "search": self.person.pk,
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
-        self.assertListEqual(['+471234678'], result.json())
+        self.assertListEqual(["+471234678"], result.json())
 
     def test_search_fail(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/id/", data={
-            "request": 1,
-            "search": -321,
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/id/",
+            data={
+                "request": 1,
+                "search": -321,
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([], result.json())
 
     def test_fetch(self):
         self.client.force_login(self.user)
-        result = self.client.post("/display/api/contestant/autocomplete/id/", data={
-            "request": 2,
-            "search": self.person.pk,
-        }, format="json", **AJAX_HEADER)
+        result = self.client.post(
+            "/display/api/contestant/autocomplete/id/",
+            data={
+                "request": 2,
+                "search": self.person.pk,
+            },
+            format="json",
+            **AJAX_HEADER
+        )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
         self.assertEqual(1, len(result))

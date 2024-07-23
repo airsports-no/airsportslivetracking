@@ -1,7 +1,6 @@
 import datetime
 import logging
 import threading
-from abc import ABC
 from queue import Queue
 from typing import List, Optional, Tuple, Dict
 
@@ -19,7 +18,6 @@ from websocket_channels import WebsocketFacade
 
 from display.utilities.traccar_factory import get_traccar_instance
 
-from display.calculators.positions_and_gates import Position
 from display.utilities.coordinate_utilities import (
     calculate_distance_lat_lon,
     calculate_fractional_distance_point_lat_lon,
@@ -122,7 +120,9 @@ class ContestantProcessor:
             self.update_score_from_thread(score)
             self.score_processing_queue.task_done()
 
-    def interpolate_track(self, last_position: Optional[Position], position: Position) -> List[Position]:
+    def interpolate_track(
+        self, last_position: Optional[ContestantReceivedPosition], position: ContestantReceivedPosition
+    ) -> List[ContestantReceivedPosition]:
         """
         If last_position is provided, perform a linear interpolation for each second with missing position data between
         the time of last_position and position. Return the resulting list of positions.
@@ -146,16 +146,15 @@ class ContestantProcessor:
                     step * fraction,
                 )
                 positions.append(
-                    Position(
-                        (initial_time + datetime.timedelta(seconds=step)),
-                        new_position[0],
-                        new_position[1],
-                        position.altitude,
-                        position.speed,
-                        position.course,
-                        position.battery_level,
-                        0,
-                        0,
+                    ContestantReceivedPosition(
+                        contestant=position.contestant,
+                        time=(initial_time + datetime.timedelta(seconds=step)),
+                        latitude=new_position[0],
+                        longitude=new_position[1],
+                        altitude=position.altitude,
+                        speed=position.speed,
+                        course=position.course,
+                        battery_level=position.battery_level,
                         interpolated=True,
                         calculator_received_time=datetime.datetime.now(datetime.timezone.utc),
                     )
@@ -262,11 +261,10 @@ class ContestantProcessor:
             all_positions = []
             generated_positions = []
             for position_to_process in positions_to_process:
-                data = self.contestant.generate_position_block_for_contestant(
+                p = self.contestant.generate_position_block_for_contestant(
                     position_to_process, position_to_process["device_time"]
                 )
 
-                p = Position(**data)
                 if self.previous_position and (
                     (p.latitude == self.previous_position.latitude and p.longitude == self.previous_position.longitude)
                     or self.previous_position.time >= p.time
@@ -275,22 +273,8 @@ class ContestantProcessor:
                     continue
                 all_positions.append(p)
                 for position in self.interpolate_track(self.previous_position, p):
-                    generated_positions.append(
-                        ContestantReceivedPosition(
-                            contestant=self.contestant,
-                            time=position.time,
-                            latitude=position.latitude,
-                            longitude=position.longitude,
-                            course=position.course,
-                            speed=position.speed,
-                            altitude=position.altitude,
-                            processor_received_time=p.processor_received_time,
-                            calculator_received_time=p.calculator_received_time,
-                            websocket_transmitted_time=datetime.datetime.now(datetime.timezone.utc),
-                            server_time=p.server_time,
-                            interpolated=position.interpolated,
-                        )
-                    )
+                    position.websocket_transmitted_time = datetime.datetime.now(datetime.timezone.utc)
+                    generated_positions.append(position)
                 self.previous_position = p
             ContestantReceivedPosition.objects.bulk_create(generated_positions)
             for position in all_positions:
@@ -325,7 +309,7 @@ class ContestantProcessor:
         self.contestant_track.set_calculator_finished()
         self.track_terminated = True
 
-    def check_termination_is_commanded(self, position: Optional[Position]):
+    def check_termination_is_commanded(self, position: Optional[ContestantReceivedPosition]):
         """
         Checks if termination has been manually triggered. If it has been triggered, create a score log entry to
         reflect this and notify termination.

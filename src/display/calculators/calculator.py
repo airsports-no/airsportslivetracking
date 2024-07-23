@@ -3,9 +3,10 @@ from abc import abstractmethod
 from multiprocessing import Queue
 from typing import List, Optional, Tuple
 
-from display.calculators.positions_and_gates import Position, Gate
+from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Contestant, Scorecard, Route
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.gate_definitions import SECRETPOINT
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ class Calculator:
     def update_score(self, update_score_message: UpdateScoreMessage) -> None:
         self.score_processing_queue.put_nowait(update_score_message)
 
-    def get_danger_level_and_accumulated_score(self, track: List["Position"]) -> Tuple[float, float]:
+    def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]) -> Tuple[float, float]:
         return 0, 0
 
     def get_last_non_secret_gate(self, last_gate: "Gate") -> Optional["Gate"]:
@@ -52,18 +53,22 @@ class Calculator:
 
     @abstractmethod
     def calculate_enroute(
-        self, track: List["Position"], last_gate: "Gate", in_range_of_gate: "Gate", next_gate: Optional["Gate"]
+        self,
+        track: List[ContestantReceivedPosition],
+        last_gate: "Gate",
+        in_range_of_gate: "Gate",
+        next_gate: Optional["Gate"],
     ):
         pass
 
     @abstractmethod
-    def calculate_outside_route(self, track: List["Position"], last_gate: "Gate"):
+    def calculate_outside_route(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         pass
 
     @abstractmethod
-    def passed_finishpoint(self, track: List["Position"], last_gate: "Gate"):
+    def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         pass
 
     @abstractmethod
-    def missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: Position):
+    def missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: ContestantReceivedPosition):
         pass

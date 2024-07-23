@@ -7,14 +7,14 @@ from queue import Queue
 from typing import List, Optional, Callable
 
 from display.calculators.update_score_message import UpdateScoreMessage
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from websocket_channels import WebsocketFacade
 
-from display.calculators.positions_and_gates import Gate, Position, MultiGate
+from display.calculators.positions_and_gates import Gate, MultiGate
 from display.utilities.route_building_utilities import calculate_extended_gate
 from display.utilities.coordinate_utilities import Projector
 
 from display.models import Contestant
-from display.waypoint import Waypoint
 
 DANGER_LEVEL_REPORT_INTERVAL = 5
 CHECK_BUFFERED_DATA_TIME_LIMIT = 6
@@ -49,7 +49,7 @@ class Gatekeeper(ABC):
         self.contestant = contestant
         self.score_processing_queue = score_processing_queue
 
-        self.track = []  # type: List[Position]
+        self.track: list[ContestantReceivedPosition] = []
         self.has_passed_finishpoint = False
         self.last_gate_index = 0
         self.last_danger_level_report = 0
@@ -188,7 +188,7 @@ class Gatekeeper(ABC):
     def check_gates(self):
         raise NotImplementedError
 
-    def execute_missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: Position):
+    def execute_missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: ContestantReceivedPosition):
         """
         Call the missed_gate event in all calculators.
         """
@@ -211,7 +211,7 @@ class Gatekeeper(ABC):
             self.contestant, final_danger_level, final_accumulated_score
         )
 
-    def calculate_score(self, position: Position):
+    def calculate_score(self, position: ContestantReceivedPosition):
         """
         Calculate the score. Is called once for every received (or interpolated) position.
         """

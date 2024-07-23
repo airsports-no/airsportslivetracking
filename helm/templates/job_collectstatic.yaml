@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tracker-collect-static-{{ now | unixEpoch }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    metadata:
+      labels:
+        date: "{{ now | unixEpoch }}"
+    spec:
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: wait-for-db
+          image: "alpine:3.6"
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z -w 2 {{ include "live_tracking.mysqlHost" . }} 3306 && echo mysql ok;
+                do sleep 2;
+              done
+      containers:
+      - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
+        command: [ "bash", "-c", "python3 manage.py collectstatic --noinput" ]
+        name: tracker-collect-static
+        resources:
+          requests:
+            cpu: 200m
+            memory: 200Mi
+        envFrom:
+          - configMapRef:
+              name: envs-production-other
+          - secretRef:
+              name: pw-secrets
+        volumeMounts:
+          - mountPath: /secret
+            readOnly: true
+            name: firebase
+      volumes:
+        - name: firebase
+          secret:
+            secretName: firebase-secrets

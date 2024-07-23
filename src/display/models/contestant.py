@@ -12,13 +12,13 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, IntegrityError
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 from display.calculators.calculator_utilities import round_time_second
-from display.calculators.positions_and_gates import Position
 from display.fields.my_pickled_object_field import MyPickledObjectField
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
@@ -333,7 +333,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         # return "{}: {} in {} ({}, {})".format(self.contestant_number, self.team, self.navigation_task.name, self.takeoff_time,
         #                                       self.finished_by_time)
 
-    def calculate_progress(self, latest_time: datetime, ignore_finished: bool = False) -> float:
+    def calculate_progress(self, latest_time: datetime.datetime, ignore_finished: bool = False) -> float:
         """
         Calculate a number between 0 and 100 to describe the progress of the contestant through the track.  Uses
         expected timing to calculate expected duration and progress.
@@ -659,25 +659,28 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             )
         return devices
 
-    @staticmethod
-    def generate_position_block_for_contestant(position_data: dict, device_time: datetime.datetime) -> dict:
+    def generate_position_block_for_contestant(
+        self, position_data: dict, device_time: datetime.datetime
+    ) -> ContestantReceivedPosition:
         """
-        Helper function that constructs a position dictionary block from a traccar position message.
+        Helper function that constructs a position object from a traccar position message.
         """
-        return {
-            "time": device_time,
-            "position_id": position_data["id"],
-            "device_id": position_data["deviceId"],
-            "latitude": float(position_data["latitude"]),
-            "longitude": float(position_data["longitude"]),
-            "altitude": float(position_data["altitude"]),
-            "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
-            "speed": float(position_data["speed"]),
-            "course": float(position_data["course"]),
-            "processor_received_time": position_data.get("processor_received_time"),
-            "calculator_received_time": position_data.get("calculator_received_time"),
-            "server_time": position_data.get("server_time"),
-        }
+
+        return ContestantReceivedPosition(
+            contestant=self,
+            time=device_time,
+            latitude=float(position_data["latitude"]),
+            longitude=float(position_data["longitude"]),
+            altitude=float(position_data["altitude"]),
+            speed=float(position_data["speed"]),
+            course=float(position_data["course"]),
+            battery_level=float(position_data["attributes"].get("batteryLevel", -1.0)),
+            position_id=position_data["id"],
+            device_id=position_data["deviceId"],
+            processor_received_time=position_data.get("processor_received_time"),
+            calculator_received_time=position_data.get("calculator_received_time"),
+            server_time=position_data.get("server_time"),
+        )
 
     @classmethod
     def get_contestant_for_device_at_time(
@@ -798,18 +801,16 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         logger.debug(f"Returned {len(tracks)} with lengths {', '.join([str(len(item)) for item in tracks])}")
         return merge_tracks(tracks)
 
-    def get_track(self) -> list["Position"]:
+    def get_track(self) -> QuerySet[ContestantReceivedPosition]:
         """
         Get the track for the contestant.  We only want the track that is used for the last calculation. This is always
         stored in the ContestantReceivedPosition objects, which is cleared whenever a calculation is restarted. This
         means that this function will always only return the data that is used for the latest calculation up until
         this time.
         """
-        from display.models import ContestantReceivedPosition
+        return self.contestantreceivedposition_set.all()
 
-        return ContestantReceivedPosition.convert_to_traccar(self.contestantreceivedposition_set.all())
-
-    def get_latest_position(self) -> Optional[Position]:
+    def get_latest_position(self) -> Optional[ContestantReceivedPosition]:
         try:
             return self.get_track()[-1]
         except IndexError:

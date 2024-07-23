@@ -794,12 +794,16 @@ def _generate_data(contestant_pk):
     logger.debug("Fetching track for {} {}".format(contestant.pk, contestant))
     # Do not include track if we have not started a calculator yet
     position_data = (
-        contestant.get_track()
+        list(
+            contestant.get_track().values(
+                "latitude", "longitude", "altitude", "time", "progress", "device_id", "position_id"
+            )
+        )
         if hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_started
         else []
     )
     if len(position_data) > 0:
-        global_latest_time = position_data[-1].time
+        global_latest_time = position_data[-1]["time"]
     else:
         global_latest_time = datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
     # progress = 0
@@ -809,10 +813,10 @@ def _generate_data(contestant_pk):
     #         progress = contestant.calculate_progress(item.time, ignore_finished=True)
     #     item.progress = progress
     if len(position_data):
-        position_data[-1].progress = contestant.calculate_progress(position_data[-1].time, ignore_finished=True)
+        position_data[-1]["progress"] = contestant.calculate_progress(position_data[-1]["time"], ignore_finished=True)
     data = generate_contestant_data_block(
         contestant,
-        positions=PositionSerialiser(position_data, many=True).data,
+        positions=position_data,
         annotations=TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data,
         log_entries=ScoreLogEntrySerialiser(contestant.scorelogentry_set.filter(type=ANOMALY), many=True).data,
         latest_time=global_latest_time,

@@ -8,9 +8,8 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from redis import StrictRedis
 
-from display.calculators.positions_and_gates import Position
-
 from display.models import Contestant, Task, TaskTest, MyUser, Team, ANOMALY
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.serialisers import (
     ContestantTrackSerialiser,
     TaskSerialiser,
@@ -57,8 +56,6 @@ def generate_contestant_data_block(
     gate_distance_and_estimate: Dict = None,
     danger_level: Dict = None,
 ):
-    if not hasattr(contestant, "contestanttrack"):
-        include_contestant_track = False
     data = {"contestant_id": contestant.id}
     if positions is not None:
         data["positions"] = positions
@@ -192,7 +189,9 @@ class WebsocketFacade:
             },
         )
 
-    def transmit_navigation_task_position_data(self, contestant: "Contestant", positions: List["Position"]):
+    def transmit_navigation_task_position_data(
+        self, contestant: "Contestant", positions: List[ContestantReceivedPosition]
+    ):
         if len(positions) == 0:
             return
         position_data = PositionSerialiser(positions, many=True).data

@@ -29,3 +29,4 @@ private_values.yml
 /config/firebase-admin.json
 /helm/private_values_gcloud.yml
 /helm/private_values_gcloud.yaml
+private_values_gcloud.yaml
