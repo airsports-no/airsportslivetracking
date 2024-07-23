@@ -2,8 +2,8 @@
 
 NAME="live_tracking_map"                           #Name of the application (*)
 DJANGODIR=/src/                               # Django project directory (*)
-NUM_WORKERS=2                                # how many worker processes should Gunicorn spawn (*)
-NUM_THREADS=5                                 # How many threads should each worker have
+NUM_WORKERS=4                                # how many worker processes should Gunicorn spawn (*)
+NUM_THREADS=4                                 # How many threads should each worker have
 DJANGO_SETTINGS_MODULE=live_tracking_map.settings  # which settings file should Django use (*)
 DJANGO_WSGI_MODULE=live_tracking_map.wsgi          # WSGI module name (*)
 
