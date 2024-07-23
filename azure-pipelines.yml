@@ -27,7 +27,7 @@ stages:
     - task: DockerInstaller@0
       inputs:
         dockerVersion: '24.0.7'
-    - task: DockerCompose@0
+    - task: DockerCompose@1
       displayName: Pull from Azure
       inputs:
         containerregistrytype: 'Azure Container Registry'
@@ -63,7 +63,7 @@ stages:
     - script: |
        docker images
       displayName: List images
-    - task: DockerCompose@0
+    - task: DockerCompose@1
       displayName: Push to Azure
       inputs:
         containerregistrytype: 'Azure Container Registry'
@@ -86,7 +86,7 @@ stages:
     - task: DockerInstaller@0
       inputs:
         dockerVersion: '24.0.7'
-    - task: DockerCompose@0
+    - task: DockerCompose@1
       displayName: Pull from Azure
       inputs:
         containerregistrytype: 'Azure Container Registry'
@@ -98,7 +98,7 @@ stages:
         projectName: '${{variables.IMAGE_TAG}}'
         action: 'Run a Docker Compose command'
         dockerComposeCommand: 'pull'
-    - task: DockerCompose@0
+    - task: DockerCompose@1
       displayName: Run tests
       inputs:
         containerregistrytype: 'Azure Container Registry'
@@ -134,7 +134,7 @@ stages:
         testResultsFiles: 'reports/*.xml'
         mergeTestResults: true
         failTaskOnFailedTests: true
-    - task: DockerCompose@0
+    - task: DockerCompose@1
       inputs:
         containerregistrytype: 'Azure Container Registry'
         azureSubscription: 'Airsports subscription(025b77b1-c02b-4961-a548-38caf9cbffcd)'
@@ -183,7 +183,7 @@ stages:
             displayName: 'Download private values'
             inputs:
               secureFile: 'private_values_gcloud.yaml'
-          - task: DockerCompose@0
+          - task: DockerCompose@1
             displayName: Pull from Azure
             inputs:
               containerregistrytype: 'Azure Container Registry'
@@ -208,7 +208,7 @@ stages:
               docker image tag ${{variables.ACR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}} ${{variables.GCR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}}
               docker image tag ${{variables.ACR_ADDRESS}}${{variables.imageName}}:${{variables.IMAGE_TAG}} ${{variables.GCR_ADDRESS}}${{variables.imageName}}:latest
             displayName: Tag images with google address
-          - task: DockerCompose@0
+          - task: DockerCompose@1
             displayName: Push to Google
             inputs:
               containerregistrytype: 'Container Registry'
