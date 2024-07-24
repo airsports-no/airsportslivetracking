@@ -61,3 +61,5 @@ availableSecrets:
   secretManager:
     - versionName: projects/${PROJECT_ID}/secrets/private_values_gcloud/versions/latest
       env: PRIVATE_VALUES10
+options:
+  logging: CLOUD_LOGGING_ONLY
