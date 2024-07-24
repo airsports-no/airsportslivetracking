@@ -17,6 +17,11 @@ steps:
   args: ['run','tracker_base','pytest','--junitxml=${SHORT_SHA}_test_log.xml']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['copy','${SHORT_SHA}_test_log.xml','./${SHORT_SHA}_test_log.xml']
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args: ['-c','echo','$$PRIVATE_VALUES','>','private_values.yaml']
+  secretEnv:
+    - 'PRIVATE_VALUES'
 # Set up kubectl
 - name: gcr.io/cloud-builders/kubectl
   id: Configure kubectl
@@ -33,7 +38,9 @@ steps:
     - '--install'
     - 'airsportsrelease'
     - './helm'
-    - '--set=image.tag=$PROJECT_ID'
+    - '-f'
+    - 'private_values.yaml'
+    - '--set=image.tag=$BUILD_ID'
     - '--namespace=default'
     - '--timeout 20m0s'
     - '--wait'
@@ -43,10 +50,14 @@ steps:
     - 'CLOUDSDK_COMPUTE_ZONE=europe-north1'
     - 'CLOUDSDK_CONTAINER_CLUSTER=airsports-cluster'
 # Save test logs to Google Cloud Storage
-artifacts:
-  objects:
-    location: gs://${_BUCKET_NAME}/
-    paths:
-      - ${SHORT_SHA}_test_log.xml
+  artifacts:
+    objects:
+      location: gs://${airsports-613ce_cloudbuild}/
+      paths:
+        - ${SHORT_SHA}_test_log.xml
 images:
 - 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}'
+availableSecrets:
+  secretManager:
+    - privateValues: projects/${PROJECT_ID}/secrets/private_values_gcloud/versions/latest
+      env: PRIVATE_VALUES10
