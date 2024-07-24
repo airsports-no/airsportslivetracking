@@ -60,6 +60,6 @@ images:
 availableSecrets:
   secretManager:
     - versionName: projects/${PROJECT_ID}/secrets/private_values_gcloud/versions/latest
-      env: PRIVATE_VALUES10
+      env: PRIVATE_VALUES
 options:
   logging: CLOUD_LOGGING_ONLY
