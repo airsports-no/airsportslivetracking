@@ -1,0 +1,52 @@
+steps:
+- name: 'gcr.io/cloud-builders/git'
+  entrypoint: 'bash'
+  args:
+  - -c
+  - |
+    git submodule update --init
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['pull','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build','-t','tracker_base','--cache-from','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest','.']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['tag','tracker_base:latest','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['run','tracker_base','pytest','--junitxml=${SHORT_SHA}_test_log.xml']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['copy','${SHORT_SHA}_test_log.xml','./${SHORT_SHA}_test_log.xml']
+# Set up kubectl
+- name: gcr.io/cloud-builders/kubectl
+  id: Configure kubectl
+  args:
+    - cluster-info
+  env:
+    - 'CLOUDSDK_COMPUTE_REGION=europe-north1'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=airsports-cluster'
+    - 'KUBECONFIG=/workspace/.kube/config'
+# Set up Helm and deploy the application
+- name: 'gcr.io/cloud-builders/helm'
+  args:
+    - 'upgrade'
+    - '--install'
+    - 'airsportsrelease'
+    - './helm'
+    - '--set=image.tag=$PROJECT_ID'
+    - '--namespace=default'
+    - '--timeout 20m0s'
+    - '--wait'
+  env:
+    - 'HELM_HOME=/workspace'
+    - 'KUBECONFIG=/workspace/.kube/config'
+    - 'CLOUDSDK_COMPUTE_ZONE=europe-north1'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=airsports-cluster'
+# Save test logs to Google Cloud Storage
+artifacts:
+  objects:
+    location: gs://${_BUCKET_NAME}/
+    paths:
+      - ${SHORT_SHA}_test_log.xml
+images:
+- 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}'
