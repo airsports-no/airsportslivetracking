@@ -149,7 +149,7 @@ stages:
         rm -rf reports/*
       displayName: 'Clear reports'
 - stage: Deploy
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/prod'))
+  condition: succeeded()
   jobs:
   - deployment: live_tracking_deployment
   # https://docs.microsoft.com/en-us/azure/devops/pipelines/process/deployment-jobs?view=azure-devops
