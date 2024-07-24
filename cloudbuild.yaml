@@ -59,5 +59,5 @@ images:
 - 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}'
 availableSecrets:
   secretManager:
-    - privateValues: projects/${PROJECT_ID}/secrets/private_values_gcloud/versions/latest
+    - versionName: projects/${PROJECT_ID}/secrets/private_values_gcloud/versions/latest
       env: PRIVATE_VALUES10
