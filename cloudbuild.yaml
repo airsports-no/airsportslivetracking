@@ -50,11 +50,11 @@ steps:
     - 'CLOUDSDK_COMPUTE_ZONE=europe-north1'
     - 'CLOUDSDK_CONTAINER_CLUSTER=airsports-cluster'
 # Save test logs to Google Cloud Storage
-artifacts:
-  objects:
-    location: gs://${airsports-613ce_cloudbuild}/
-    paths:
-      - ${SHORT_SHA}_test_log.xml
+# artifacts:
+#   objects:
+#     location: gs://${airsports-613ce_cloudbuild}/
+#     paths:
+#       - ${SHORT_SHA}_test_log.xml
 images:
 - 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}'
 availableSecrets:
