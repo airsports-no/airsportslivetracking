@@ -37,16 +37,16 @@ steps:
   secretEnv:
     - 'PRIVATE_VALUES'
 # Set up kubectl
-- name: gcr.io/cloud-builders/kubectl
-  id: Configure kubectl
-  args:
-    - cluster-info
-  env:
-    - 'CLOUDSDK_COMPUTE_REGION=europe-north1'
-    - 'CLOUDSDK_CONTAINER_CLUSTER=airsports-cluster'
-    - 'KUBECONFIG=/workspace/.kube/config'
-# Set up Helm and deploy the application
-- name: 'gcr.io/$PROJECT_ID/cloud-builders-helm'
+# - name: gcr.io/cloud-builders/kubectl
+#   id: Configure kubectl
+#   args:
+#     - cluster-info
+#   env:
+#     - 'CLOUDSDK_COMPUTE_REGION=europe-north1'
+#     - 'CLOUDSDK_CONTAINER_CLUSTER=airsports-cluster'
+#     - 'KUBECONFIG=/workspace/.kube/config'
+# Set up Helm and deploy the application. Manually installed community builder.
+- name: 'gcr.io/$PROJECT_ID/helm'
   args:
     - 'upgrade'
     - '--install'
