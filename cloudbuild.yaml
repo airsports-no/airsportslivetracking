@@ -56,7 +56,8 @@ steps:
     - 'private_values.yaml'
     - '--set=image.tag=$BUILD_ID'
     - '--namespace=default'
-    - '--timeout 20m0s'
+    - '--timeout'
+    - '20m0s'
     - '--wait'
   env:
     - 'HELM_HOME=/workspace'
