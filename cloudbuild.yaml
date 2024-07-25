@@ -58,8 +58,8 @@ artifacts:
 images:
 - 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}'
 availableSecrets:
- secretManager:
-#    - versionName: projects/${PROJECT_ID}/secrets/private_values_gcloud/versions/latest
-#      env: PRIVATE_VALUES
+  secretManager:
+  - versionName: projects/${PROJECT_ID}/secrets/private_values_gcloud/versions/latest
+    env: PRIVATE_VALUES
 options:
   logging: CLOUD_LOGGING_ONLY
