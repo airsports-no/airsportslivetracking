@@ -9,6 +9,7 @@ steps:
   args: ['pull','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build','--build-arg', 'BUILDKIT_INLINE_CACHE=1','-t','tracker_base','--cache-from','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest','-t','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest','-t','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}','.']
+  env: ['DOCKER_BUILDKIT=1']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}']
 - name: 'gcr.io/cloud-builders/docker'
