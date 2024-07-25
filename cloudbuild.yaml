@@ -29,6 +29,8 @@ steps:
 #     docker cp tracker_daphne:/src/reports/. reports
 # - name: 'gcr.io/cloud-builders/docker'
 #   args: ['copy','${SHORT_SHA}_test_log.xml','./${SHORT_SHA}_test_log.xml']
+# - name: 'gcr.io/cloud-builders/docker'
+#   args: ['compose','down']
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
   args: ['-c','echo','$$PRIVATE_VALUES','>','private_values.yaml']
@@ -44,7 +46,7 @@ steps:
     - 'CLOUDSDK_CONTAINER_CLUSTER=airsports-cluster'
     - 'KUBECONFIG=/workspace/.kube/config'
 # Set up Helm and deploy the application
-- name: 'gcr.io/cloud-builders/helm'
+- name: 'gcr.io/$PROJECT_ID/cloud-builders-helm'
   args:
     - 'upgrade'
     - '--install'
