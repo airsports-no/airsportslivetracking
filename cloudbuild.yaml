@@ -15,7 +15,7 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['compose','up','-d','tracker_daphe']
+  args: ['compose','up','-d','tracker_daphne']
   # args: ['run','tracker_base','pytest','--junitxml=${SHORT_SHA}_test_log.xml']
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
@@ -70,6 +70,7 @@ artifacts:
       - reports/${SHORT_SHA}_coverage.xml
 images:
 - 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}'
+- 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest'
 availableSecrets:
   secretManager:
   - versionName: projects/${PROJECT_ID}/secrets/private_values_gcloud/versions/latest

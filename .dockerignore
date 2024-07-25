@@ -7,3 +7,5 @@
 !documentation
 !wait-for-it.sh
 !requirements.txt
+!package.json
+!package-lock.json
