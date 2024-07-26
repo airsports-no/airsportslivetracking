@@ -1,0 +1,31 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args: ['-c', 'echo "$$PRIVATE_VALUES" > /workspace/private_values.yaml']
+  secretEnv:
+    - 'PRIVATE_VALUES'
+# Set up Helm and deploy the application. Manually installed community builder.
+- name: 'gcr.io/$PROJECT_ID/helm'
+  args:
+    - 'upgrade'
+    - '--install'
+    - 'airsportsrelease'
+    - './helm'
+    - '-f'
+    - '/workspace/private_values.yaml'
+    - '--set=image.tag=$BUILD_ID'
+    - '--namespace=default'
+    - '--timeout'
+    - '20m0s'
+    - '--wait'
+  env:
+    - 'HELM_HOME=/workspace'
+    - 'KUBECONFIG=/workspace/.kube/config'
+    - 'CLOUDSDK_COMPUTE_ZONE=europe-north1'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=airsports-cluster'
+availableSecrets:
+  secretManager:
+  - versionName: projects/${PROJECT_ID}/secrets/private_values_gcloud/versions/latest
+    env: PRIVATE_VALUES
+options:
+  logging: CLOUD_LOGGING_ONLY

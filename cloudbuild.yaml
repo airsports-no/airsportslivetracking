@@ -8,75 +8,47 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: ['pull','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build','--build-arg', 'BUILDKIT_INLINE_CACHE=1','-t','tracker_base','--cache-from','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest','-t','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest','-t','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}','.']
+  args: ['build','--build-arg', 'BUILDKIT_INLINE_CACHE=1','-t','tracker_base','--cache-from','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest','-t','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest','-t','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}','.']
   env: ['DOCKER_BUILDKIT=1']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}']
+  args: ['push','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest']
-# - name: 'gcr.io/cloud-builders/docker'
-#   args: ['compose','up','-d','tracker_daphne']
-  # args: ['run','tracker_base','pytest','--junitxml=${SHORT_SHA}_test_log.xml']
-# - name: 'gcr.io/cloud-builders/docker'
-#   entrypoint: 'bash'
-#   args:
-#   - '-c'
-#   - |
-#     export IMAGE_TAG=latest
-#     docker exec tracker_daphne /bin/bash -c "mkdir -p reports && rm -rf reports/*"
-#     docker exec tracker_daphne /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
-#     docker exec tracker_daphne /bin/bash -c "pytest --junitxml reports/${SHORT_SHA}_test_results.xml --cov=. --cov-report=xml:reports/${SHORT_SHA}_coverage.xml || test -f reports/${SHORT_SHA}_test_results.xml"
-#     docker cp tracker_daphne:/src/reports/. reports
-# - name: 'gcr.io/cloud-builders/docker'
-#   args: ['copy','${SHORT_SHA}_test_log.xml','./${SHORT_SHA}_test_log.xml']
-# - name: 'gcr.io/cloud-builders/docker'
-#   args: ['compose','down']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['compose','up','-d','tracker_daphne']
+  args: ['run','tracker_base','pytest','--junitxml=${SHORT_SHA}_test_log.xml']
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
-  args: ['-c', 'echo "$$PRIVATE_VALUES" > /workspace/private_values.yaml']
-  secretEnv:
-    - 'PRIVATE_VALUES'
-# Set up kubectl
-# - name: gcr.io/cloud-builders/kubectl
-#   id: Configure kubectl
-#   args:
-#     - cluster-info
-#   env:
-#     - 'CLOUDSDK_COMPUTE_REGION=europe-north1'
-#     - 'CLOUDSDK_CONTAINER_CLUSTER=airsports-cluster'
-#     - 'KUBECONFIG=/workspace/.kube/config'
-# Set up Helm and deploy the application. Manually installed community builder.
-- name: 'gcr.io/$PROJECT_ID/helm'
   args:
-    - 'upgrade'
-    - '--install'
-    - 'airsportsrelease'
-    - './helm'
-    - '-f'
-    - '/workspace/private_values.yaml'
-    - '--set=image.tag=$BUILD_ID'
-    - '--namespace=default'
-    - '--timeout'
-    - '20m0s'
-    - '--wait'
-  env:
-    - 'HELM_HOME=/workspace'
-    - 'KUBECONFIG=/workspace/.kube/config'
-    - 'CLOUDSDK_COMPUTE_ZONE=europe-north1'
-    - 'CLOUDSDK_CONTAINER_CLUSTER=airsports-cluster'
+  - '-c'
+  - |
+    export IMAGE_TAG=latest
+    docker exec tracker_daphne /bin/bash -c "mkdir -p reports && rm -rf reports/*"
+    docker exec tracker_daphne /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
+    docker exec tracker_daphne /bin/bash -c "pytest --junitxml reports/${SHORT_SHA}_test_results.xml --cov=. --cov-report=xml:reports/${SHORT_SHA}_coverage.xml || test -f reports/${SHORT_SHA}_test_results.xml"
+    docker cp tracker_daphne:/src/reports/. reports
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['copy','${SHORT_SHA}_test_log.xml','./${SHORT_SHA}_test_log.xml']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['compose','down']
+- name: gcr.io/cloud-builders/gcloud
+  entrypoint: bash
+  args:
+    - '-c'
+    - |
+      gcloud builds triggers run standard-deploy
+      --branch=main 
+      --region=europe-west1 --project=${PROJECT_ID}
 # Save test logs to Google Cloud Storage
 artifacts:
   objects:
-    location: gs://${airsports-613ce_cloudbuild}/
+    location: gs://airsports-613ce_cloudbuild/
     paths:
       - reports/${SHORT_SHA}_test_log.xml
       - reports/${SHORT_SHA}_coverage.xml
 images:
-- 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${BUILD_ID}'
-- 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest'
-availableSecrets:
-  secretManager:
-  - versionName: projects/${PROJECT_ID}/secrets/private_values_gcloud/versions/latest
-    env: PRIVATE_VALUES
+- 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}'
+- 'europe-west3-docker..dev/${PROJECT_ID}/airsports/tracker_base:latest'
+
 options:
   logging: CLOUD_LOGGING_ONLY
