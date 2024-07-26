@@ -25,7 +25,7 @@ steps:
     docker exec tracker_daphne /bin/bash -c "mkdir -p reports && rm -rf reports/*"
     docker exec tracker_daphne /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
     docker exec tracker_daphne /bin/bash -c "pytest --junitxml reports/${SHORT_SHA}_test_results.xml --cov=. --cov-report=xml:reports/${SHORT_SHA}_coverage.xml || test -f reports/${SHORT_SHA}_test_results.xml"
-    docker cp tracker_daphne:/src/reports/. reports
+    docker cp tracker_daphne:/src/reports/. /workspace
 - name: 'gcr.io/cloud-builders/docker'
   args: ['compose','down']
 - name: gcr.io/cloud-builders/gcloud
@@ -41,8 +41,8 @@ artifacts:
   objects:
     location: gs://airsports-613ce_cloudbuild/
     paths:
-      - reports/${SHORT_SHA}_test_log.xml
-      - reports/${SHORT_SHA}_coverage.xml
+      - workspace/${SHORT_SHA}_test_log.xml
+      - workspace/${SHORT_SHA}_coverage.xml
 images:
 - 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}'
 - 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest'
