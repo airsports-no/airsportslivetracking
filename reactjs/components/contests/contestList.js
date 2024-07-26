@@ -7,23 +7,18 @@ import {DateTime} from "luxon";
 
 export const ContestList = () => {
     const [data, setData] = useState({contests:[],nextContestsUrl:null})
-    const [showAll, setShowAll] = useState()
+    const [showAll, setShowAll] = useState(false)
     const dataFetch = async () => {
         if (!data.nextContestsUrl&&data.contests.length>0){
-            // If there is no next hurl but we have data, we have fetched everything
+            // If there is no next url but we have data, we have fetched everything
             return
         }
         const results = await (
             await fetch(data.nextContestsUrl||document.configuration.CONTEST_FRONT_END)
         ).json()
         setData({contests:data.contests.concat(results.results),nextContestsUrl:results.next})
-        // if (data.contests.length<300){
-        //     dataFetch()
-        // }
     }
     useEffect(() => {
-        setShowAll(false)
-        
         dataFetch()
     }, [data])
 
