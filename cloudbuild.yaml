@@ -34,7 +34,7 @@ steps:
     - |
       if [$BRANCH_NAME = "main"]
       then
-      gcloud builds triggers run standard-deploy  --branch=main --region=europe-west1 --project=${PROJECT_ID}
+      gcloud builds triggers run Deploy --branch=main --region=europe-west1 --project=${PROJECT_ID}
       fi
 images:
 - 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}'
