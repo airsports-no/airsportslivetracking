@@ -121,7 +121,7 @@ class TestAccessContest(APITestCase):
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_200_OK)
-        self.assertEqual(0, len(result.json()))
+        self.assertEqual(0, len(result.json()["results"]))
 
     def test_list_contests_as_owner(self, *args):
         self.client.force_login(user=self.user_owner)
@@ -129,7 +129,7 @@ class TestAccessContest(APITestCase):
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_200_OK)
-        self.assertEqual(1, len(result.json()))
+        self.assertEqual(1, len(result.json()["results"]))
 
     def test_view_contest_from_other_user_with_permissions(self, *args):
         self.client.force_login(user=self.different_user_with_object_permissions)
