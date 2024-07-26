@@ -16,9 +16,13 @@ export const ContestList = () => {
         const results = await (
             await fetch(data.nextContestsUrl||document.configuration.CONTEST_FRONT_END)
         ).json()
-        setData({contests:data.contests.concat(results.results),nextContestsUrl:results.next})
+        const contestList=data.contests.concat(results.results)
+            setData({contests:contestList,nextContestsUrl:results.next})
     }
     useEffect(() => {
+        if (data.contests.length>300){
+            return
+        }
         dataFetch()
     }, [data])
 
