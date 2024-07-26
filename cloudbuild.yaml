@@ -45,7 +45,7 @@ artifacts:
       - reports/${SHORT_SHA}_coverage.xml
 images:
 - 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}'
-- 'europe-west3-docker..dev/${PROJECT_ID}/airsports/tracker_base:latest'
+- 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest'
 
 options:
   logging: CLOUD_LOGGING_ONLY
