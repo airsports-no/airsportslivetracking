@@ -3,7 +3,7 @@ import {connect} from "react-redux";
 import MyParticipatingEventsList from "./myParticipatingEventsList";
 import UpcomingContestsSignupTable from "../participationManagement/upcomingContestsSignupTable";
 import ContestRegistrationForm from "../participationManagement/contestRegistrationForm";
-import {fetchContests, fetchMyParticipatingContests} from "../../actions";
+import {fetchMoreContests, fetchMyParticipatingContests} from "../../actions";
 import Navbar from "../navbar";
 import {withParams} from "../../utilities";
 
@@ -15,7 +15,7 @@ export const mapStateToProps = (state, props) => ({
 })
 export const mapDispatchToProps = {
     fetchMyParticipatingContests,
-    fetchContests
+    fetchMoreContests
 }
 
 
@@ -28,7 +28,7 @@ class ConnectedMyContestParticipationManagement extends Component {
         if (!document.configuration.authenticatedUser) {
             window.location.href = "/accounts/login/?next=" + window.location.pathname
         }
-        this.props.fetchContests()
+        this.props.fetchMoreContests()
     }
 
     componentDidUpdate(prevProps) {

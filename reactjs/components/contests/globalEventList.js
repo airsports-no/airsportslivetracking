@@ -1,7 +1,7 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
 import {
-    displayAboutModal, displayEventSearchModal, hideEventSearchModal, zoomFocusContest
+    displayAboutModal, displayEventSearchModal, hideEventSearchModal, zoomFocusContest,fetchMoreContests
 } from "../../actions";
 import TimePeriodEventList from "./timePeriodEventList";
 import Icon from "@mdi/react";
@@ -29,7 +29,8 @@ export const mapDispatchToProps = {
     displayEventSearchModal: displayEventSearchModal,
     hideEventSearchModal: hideEventSearchModal,
     displayAboutModal,
-    zoomFocusContest
+    zoomFocusContest,
+    fetchMoreContests
 }
 
 class EventSearchModal extends Component {
@@ -83,6 +84,9 @@ class ConnectedGlobalEventList extends Component {
     }
 
     componentDidUpdate(prevProps) {
+        if (this.props.contests!=prevProps.contests){
+            this.props.fetchMoreContests()
+        }
         if (this.props.contestPopupId && this.props.contestPopupId !== prevProps.contestPopupId) {
             this.props.zoomFocusContest(this.props.contestPopupId)
         }

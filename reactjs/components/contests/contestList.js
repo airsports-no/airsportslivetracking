@@ -8,14 +8,17 @@ import {DateTime} from "luxon";
 export const ContestList = () => {
     const [data, setData] = useState()
     const [showAll, setShowAll] = useState()
+    const [nextContestsUrl,setNextContestsUrl]=useState()
+    const dataFetch = async () => {
+        const results = await (
+            await fetch(nextContestsUrl||document.configuration.CONTEST_FRONT_END)
+        ).json()
+        setData((data||[]).concat(results.results))
+        setNextContestsUrl(results.next)
+    }
     useEffect(() => {
         setShowAll(false)
-        const dataFetch = async () => {
-            const data = await (
-                await fetch(document.configuration.CONTEST_FRONT_END)
-            ).json()
-            setData(data)
-        }
+        
         dataFetch()
     }, [])
 
@@ -81,6 +84,7 @@ export const ContestList = () => {
                 <Form.Check type={"checkbox"} onChange={(e) => {
                     setShowAll(e.target.checked)
                 }} label={"Show all"}/> : null}
+                {nextContestsUrl?<a href="#" onClick={dataFetch}>Fetch more</a>:null}
                 <ASTable columns={columns}
                          data={data.filter((item) => showAll || item.is_editor)}
                          className={"table table-striped table-hover"} initialState={{

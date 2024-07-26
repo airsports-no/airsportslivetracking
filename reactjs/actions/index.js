@@ -200,10 +200,15 @@ export const toggleProfilePictures = (visible) => (dispatch) => {
     dispatch({type: TOGGLE_PROFILE_PICTURES, visible: visible})
 }
 
-export const fetchContests = () => (dispatch) => {
+export const fetchMoreContests = () => (dispatch,getState) => {
+    const nextContestsUrl=getState().nextContestsUrl
+    if (!nextContestsUrl && getState().contests.length>0){
+        // If the next hurl is no and we have contests it means that we have fetched all.
+        return
+    }
     dispatch({type: GET_CONTESTS})
     $.ajax({
-        url: document.configuration.CONTESTS_LIST_URL,
+        url: nextContestsUrl || document.configuration.CONTESTS_LIST_URL,
         datatype: 'json',
         cache: false,
         success: value => dispatch({type: GET_CONTESTS_SUCCESSFUL, payload: value}),

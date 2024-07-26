@@ -2,7 +2,7 @@ import 'regenerator-runtime/runtime'
 import {connect} from "react-redux";
 import React, {Component} from "react";
 import GlobalMapMap from "./globalMapMap";
-import {fetchContests} from "../../actions";
+import {fetchMoreContests} from "../../actions";
 import GlobalEventList from "../contests/globalEventList";
 import Disclaimer, {DisclaimerLong} from "../disclaimer";
 import AboutLogoPopup from "../navigationTasks/aboutLogoPopup";
@@ -19,7 +19,7 @@ class ConnectedGlobalMapContainer extends Component {
     }
 
     componentDidMount() {
-        this.props.fetchContests()
+        this.props.fetchMoreContests()
     }
 
 
@@ -58,6 +58,6 @@ class ConnectedGlobalMapContainer extends Component {
 
 const
     GlobalMapContainer = connect(mapStateToProps, {
-        fetchContests,
+        fetchMoreContests,
     })(ConnectedGlobalMapContainer)
 export default withParams(GlobalMapContainer)
