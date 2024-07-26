@@ -63,6 +63,7 @@ class MyFPDF(FPDF, HTMLMixin):
 
 
 def generate_turning_point_image(waypoints: List[Waypoint], index, is_unknown_leg: bool = False):
+    """The parameter waypoints must be the full list of waypoints, otherwise the the plotted track will be wrong."""
     waypoint = waypoints[index]
     imagery = GoogleTiles(style="satellite")
     plt.figure(figsize=(10, 10))

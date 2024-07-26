@@ -212,16 +212,7 @@ export const fetchContests = () => (dispatch) => {
 }
 
 
-export const fetchContestsWithResults = () => (dispatch) => {
-    dispatch({type: GET_CONTESTS})
-    $.ajax({
-        url: document.configuration.CONTESTS_WITH_RESULTS_LIST_URL,
-        datatype: 'json',
-        cache: false,
-        success: value => dispatch({type: GET_CONTESTS_SUCCESSFUL, payload: value}),
-        error: error => console.log(error)
-    });
-}
+
 
 
 export const fetchEditableRoute = (routeId) => (dispatch) => {

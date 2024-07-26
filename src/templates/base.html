@@ -36,7 +36,6 @@
             contestantInitialTrackDataUrl: (contestId, navigationTaskId, contestantId) => "{% url 'contestants-initial-track-data' 0 1 2 %}".replace("0", contestId).replace("/1/", '/' + navigationTaskId + '/').replace("/2/", '/' + contestantId + '/'),
             CONTESTS_LIST_URL: "{% url 'contests-list' %}",
             CONTESTS_WITH_ONGOING_NAVIGATION_URL: "{% url 'contests-ongoing-navigation' %}",
-            CONTESTS_WITH_RESULTS_LIST_URL: "{% url 'contests-results' %}",
             MY_PARTICIPATING_CONTESTS_URL: "{% url 'userprofile-my-participating-contests' %}",
             TERMS_AND_CONDITIONS_URL: "{% url 'terms_and_conditions' %}",
             EDITABLE_ROUTES_URL: "{% url 'editableroutes-list' %}",
@@ -120,9 +119,6 @@
                     {% endif %}
                     <li class="nav-item">
                         <a target="_blank" class="nav-link" href="https://home.airsports.no/">FAQ</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/resultsservice/">Results service</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/participation/">Participation</a>

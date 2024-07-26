@@ -11,6 +11,7 @@ from rest_framework import status, permissions, mixins
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 import rest_framework.exceptions as drf_exceptions
 
@@ -72,7 +73,6 @@ from display.serialisers import (
     OngoingNavigationSerialiser,
     SignupSerialiser,
     SharingSerialiser,
-    ContestSerialiserWithResults,
     ContestSerialiser,
     ContestTeamSerialiser,
     TeamNestedSerialiser,
@@ -160,10 +160,10 @@ class UserPersonViewSet(GenericViewSet):
             finish_time__gte=datetime.datetime.now(datetime.timezone.utc)
         )
         # for authorisation
-        _ = self.get_object()
+        person = self.get_object()
         contest_teams = (
             ContestTeam.objects.filter(
-                Q(team__crew__member1=self.get_object()) | Q(team__crew__member2=self.get_object()),
+                Q(team__crew__member1=person) | Q(team__crew__member2=person),
                 contest__in=available_contests,
             )
             .order_by("contest__start_time")
@@ -171,7 +171,7 @@ class UserPersonViewSet(GenericViewSet):
         )
         teams = []
         for team in contest_teams:
-            team.can_edit = team.team.crew.member1 == self.get_object()
+            team.can_edit = team.team.crew.member1 == person
             teams.append(team)
         return Response(ContestTeamManagementSerialiser(teams, many=True, context={"request": request}).data)
 
@@ -258,6 +258,11 @@ class EditableRouteViewSet(ModelViewSet):
             logger.exception("Failed creating editable route thumbnail")
 
 
+class ContestPagination(PageNumberPagination):
+    page_size = 100
+    max_page_size = 200
+
+
 class ContestFrontEndViewSet(mixins.ListModelMixin, GenericViewSet):
     """
     Internal endpoint to drive the contest list front end
@@ -265,6 +270,7 @@ class ContestFrontEndViewSet(mixins.ListModelMixin, GenericViewSet):
 
     queryset = Contest.objects.all()
     serializer_class = ContestFrontEndSerialiser
+    pagination_class = ContestPagination
 
     permission_classes = [(permissions.IsAuthenticated & ContestPermissions)]
 
@@ -277,7 +283,7 @@ class ContestFrontEndViewSet(mixins.ListModelMixin, GenericViewSet):
                 accept_global_perms=False,
             )
             .annotate(Count("navigationtask", distinct=True))
-            .order_by("name")
+            .order_by("-finish_time")
         )
 
 
@@ -297,10 +303,10 @@ class ContestViewSet(ModelViewSet):
         "ongoing_navigation": OngoingNavigationSerialiser,
         "signup": SignupSerialiser,
         "share": SharingSerialiser,
-        "results": ContestSerialiserWithResults,
     }
     default_serialiser_class = ContestSerialiser
     lookup_url_kwarg = "pk"
+    pagination_class = ContestPagination
 
     permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
 
@@ -309,14 +315,18 @@ class ContestViewSet(ModelViewSet):
 
     def get_queryset(self):
         return (
-            get_objects_for_user(
-                self.request.user,
-                "display.view_contest",
-                klass=self.queryset,
-                accept_global_perms=False,
+            (
+                get_objects_for_user(
+                    self.request.user,
+                    "display.view_contest",
+                    klass=self.queryset,
+                    accept_global_perms=False,
+                )
+                | self.queryset.filter(is_public=True, is_featured=True)
             )
-            | self.queryset.filter(is_public=True, is_featured=True)
-        ).prefetch_related("navigationtask_set", "contest_teams")
+            .prefetch_related("navigationtask_set", "contest_teams")
+            .order_by("-finish_time")
+        )
 
     @action(detail=True, methods=["get"], url_path=r"contest_team_for_team/(?P<team_id>\d+)")
     def contest_team_for_team(self, request, team_id, **kwargs):
@@ -324,16 +334,6 @@ class ContestViewSet(ModelViewSet):
         return Response(
             ContestTeamSerialiser(instance=ContestTeam.objects.get(contest=self.get_object(), team=team_id)).data
         )
-
-    @action(detail=False, methods=["get"])
-    def results(self, request, *args, **kwargs):
-        """
-        Get contests with ContestResults. Used by the main page in the results service, ContestSummaryResultsTable.
-        This data replaces the original contest data in the redux storage, so it must use a serialiser that includes
-        all the original data.
-        """
-        data = self.get_serializer_class()(self.get_queryset(), many=True, context={"request": self.request}).data
-        return Response(data)
 
     @action(detail=True, methods=["get"])
     def get_current_time(self, request, *args, **kwargs):

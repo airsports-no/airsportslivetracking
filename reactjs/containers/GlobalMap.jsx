@@ -6,7 +6,6 @@ import store from "../store/index";
 import {BrowserRouter, Route, Routes} from "react-router-dom";
 import {createRoot} from "react-dom/client";
 import GlobalMapContainer from "../components/globalMap/globalMapContainer";
-import ContestSummaryResultsTable from "../components/resultsService/ContestSummaryResultsTable";
 import TaskSummaryResultsTable from "../components/resultsService/TaskSummaryResultsTable";
 import MyContestParticipationManagement from "../components/contests/myContestParticipationManagement";
 import RouteEditorContainer from "../components/routeEditor/routeEditorContainer";
@@ -26,7 +25,6 @@ root.render(
                     <Route path="contest_details/:contestDetailsId" element={<GlobalMapContainer/>}/>
                 </Route>
                 <Route path='resultsservice'>
-                    <Route index element={<ContestSummaryResultsTable/>}/>
                     <Route path=":contestId/taskresults/:task/" element={<TaskSummaryResultsTable/>}/>
                     <Route path=":contestId/taskresults/" element={<TaskSummaryResultsTable/>}/>
                 </Route>

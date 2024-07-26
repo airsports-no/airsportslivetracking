@@ -338,14 +338,6 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         return instance
 
 
-class ContestSerialiserWithResults(ContestSerialiser):
-    """
-    Used by result service main table.
-    """
-
-    contestsummary_set = ContestSummaryNestedSerialiser(many=True, read_only=True)
-
-
 class ContestParticipationSerialiser(ContestSerialiser):
     def get_visiblenavigationtasks(self, contest):
         user = self.context["request"].user
