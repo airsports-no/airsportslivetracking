@@ -6,21 +6,26 @@ import {Loading} from "../basicComponents";
 import {DateTime} from "luxon";
 
 export const ContestList = () => {
-    const [data, setData] = useState()
+    const [data, setData] = useState({contests:[],nextContestsUrl:null})
     const [showAll, setShowAll] = useState()
-    const [nextContestsUrl,setNextContestsUrl]=useState()
     const dataFetch = async () => {
+        if (!data.nextContestsUrl&&data.contests.length>0){
+            // If there is no next hurl but we have data, we have fetched everything
+            return
+        }
         const results = await (
-            await fetch(nextContestsUrl||document.configuration.CONTEST_FRONT_END)
+            await fetch(data.nextContestsUrl||document.configuration.CONTEST_FRONT_END)
         ).json()
-        setData((data||[]).concat(results.results))
-        setNextContestsUrl(results.next)
+        setData({contests:data.contests.concat(results.results),nextContestsUrl:results.next})
+        // if (data.contests.length<300){
+        //     dataFetch()
+        // }
     }
     useEffect(() => {
         setShowAll(false)
         
         dataFetch()
-    }, [])
+    }, [data])
 
     const columns = useMemo(() => [
         {
@@ -84,9 +89,9 @@ export const ContestList = () => {
                 <Form.Check type={"checkbox"} onChange={(e) => {
                     setShowAll(e.target.checked)
                 }} label={"Show all"}/> : null}
-                {nextContestsUrl?<a href="#" onClick={dataFetch}>Fetch more</a>:null}
+                {data.nextContestsUrl?<a href="#" onClick={dataFetch}>Fetch more</a>:null}
                 <ASTable columns={columns}
-                         data={data.filter((item) => showAll || item.is_editor)}
+                         data={data.contests.filter((item) => showAll || item.is_editor)}
                          className={"table table-striped table-hover"} initialState={{
                     sortBy: [
                         {

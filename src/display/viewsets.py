@@ -259,7 +259,7 @@ class EditableRouteViewSet(ModelViewSet):
 
 
 class ContestPagination(PageNumberPagination):
-    page_size = 100
+    page_size = 50
     max_page_size = 200
 
 
