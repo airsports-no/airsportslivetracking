@@ -16,7 +16,6 @@ steps:
   args: ['push','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['compose','up','-d','tracker_daphne']
-  args: ['run','tracker_base','pytest','--junitxml=${SHORT_SHA}_test_log.xml']
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
   args:
