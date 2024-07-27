@@ -63,4 +63,6 @@ RUN mkdir /logs
 RUN chown django /logs
 RUN npm run webpack
 WORKDIR /src
+# Force font cache generation
+RUN python -c "import matplotlib"
 # RUN python3 manage.py collectstatic --noinput
