@@ -30,3 +30,4 @@ private_values.yml
 /helm/private_values_gcloud.yml
 /helm/private_values_gcloud.yaml
 private_values_gcloud.yaml
+webpack-stats-local.json
