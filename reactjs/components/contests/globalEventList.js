@@ -1,23 +1,24 @@
-import React, {Component} from "react";
-import {connect} from "react-redux";
+import React, { Component } from "react";
+import { connect } from "react-redux";
 import {
-    displayAboutModal, displayEventSearchModal, hideEventSearchModal, zoomFocusContest
+    displayAboutModal, displayEventSearchModal, hideEventSearchModal, zoomFocusContest, fetchMoreContests
 } from "../../actions";
 import TimePeriodEventList from "./timePeriodEventList";
 import Icon from "@mdi/react";
-import {mdiAccountDetails, mdiCog, mdiLogin, mdiLogout, mdiMapSearch} from '@mdi/js'
-import {Modal, Container} from "react-bootstrap";
+import { mdiAccountDetails, mdiCog, mdiLogin, mdiLogout, mdiMapSearch } from '@mdi/js'
+import { Modal, Container } from "react-bootstrap";
 import ContestPopupItem from "./contestPopupItem";
 import {
     isAndroid, isIOS
 } from "react-device-detect";
-import {Link, Navigate} from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import axios from "axios";
-import {sortStartAndFinishTimes} from "./utilities";
-import {withParams} from "../../utilities";
-import {EventTable} from "./eventTable";
+import { sortStartAndFinishTimes } from "./utilities";
+import { withParams } from "../../utilities";
+import { EventTable } from "./eventTable";
 import OngoingNavigationTicker from "./ongoingNavigationTicker";
-import {Loading} from "../basicComponents";
+import { Loading } from "../basicComponents";
+import { filter } from "lodash";
 
 export const mapStateToProps = (state, props) => ({
     contests: state.contests,
@@ -29,10 +30,11 @@ export const mapDispatchToProps = {
     displayEventSearchModal: displayEventSearchModal,
     hideEventSearchModal: hideEventSearchModal,
     displayAboutModal,
-    zoomFocusContest
+    zoomFocusContest,
+    fetchMoreContests
 }
 
-class EventSearchModal extends Component {
+class ConnectedEventSearchModal extends Component {
     constructor(props) {
         super(props)
     }
@@ -47,15 +49,18 @@ class EventSearchModal extends Component {
             </Modal.Header>
             <Modal.Body>
                 <Container>
+                    {this.props.nextContestsUrl ? <a href="#" onClick={this.props.fetchMoreContests}>Fetch more</a> : null}
                     <div className={""}>
                         <EventTable contests={this.props.contests}
-                                    handleContestClick={this.props.handleContestClick}/>
+                            handleContestClick={this.props.handleContestClick} />
                     </div>
                 </Container>
             </Modal.Body>
         </Modal>);
     }
 }
+
+const EventSearchModal = connect((state, props) => ({ contests: state.contests, nextContestsUrl: state.nextContestsUrl }), { fetchMoreContests })(ConnectedEventSearchModal);
 
 function ContestPopupModal(props) {
     if (!props.contest) {
@@ -69,7 +74,7 @@ function ContestPopupModal(props) {
         </Modal.Header>
         <Modal.Body className="show-grid">
             <Container>
-                <ContestPopupItem contest={props.contest} participation={props.participation} link={true}/>
+                <ContestPopupItem contest={props.contest} participation={props.participation} link={true} />
             </Container>
         </Modal.Body>
     </Modal>
@@ -79,10 +84,15 @@ function ContestPopupModal(props) {
 class ConnectedGlobalEventList extends Component {
     constructor(props) {
         super(props)
-        this.state = {displayPopupContest: false, popupContest: null}
+        this.state = { displayPopupContest: false, popupContest: null }
     }
 
     componentDidUpdate(prevProps) {
+        // Automatically fetch all contests that finish in the future. These are required for the global map display.
+        const now = new Date()
+        if (this.props.contests!=prevProps.contests && this.props.contests.filter((c)=>new Date(c.finish_time).getTime()<now.getTime()).length == 0){
+            this.props.fetchMoreContests()
+        }
         if (this.props.contestPopupId && this.props.contestPopupId !== prevProps.contestPopupId) {
             this.props.zoomFocusContest(this.props.contestPopupId)
         }
@@ -107,35 +117,35 @@ class ConnectedGlobalEventList extends Component {
     render() {
         let settingsButton = null
         const searchButton = <a className={"btn"} onClick={() => this.props.displayEventSearchModal()}><Icon
-            path={mdiMapSearch} size={1.1} color={"white"}/></a>
+            path={mdiMapSearch} size={1.1} color={"white"} /></a>
         if (document.configuration.managementLink) {
             settingsButton = <a className={"btn"} href={document.configuration.managementLink}>
-                <Icon path={mdiCog} title={"Settings"} size={1.1} color={"white"}/>
+                <Icon path={mdiCog} title={"Settings"} size={1.1} color={"white"} />
             </a>
         }
         let participationButton = null
         if (document.configuration.authenticatedUser) {
             participationButton =
                 <Link to={"/participation/"}> <Icon path={mdiAccountDetails} title={"Participation"} size={1.1}
-                                                    color={"white"}/>
+                    color={"white"} />
                 </Link>
         }
 
         let loginButton = null
         if (document.configuration.loginLink) {
             loginButton = <a className={"btn"} href={document.configuration.loginLink}>
-                <Icon path={mdiLogin} title={"Login"} size={1.1} color={"white"}/>
+                <Icon path={mdiLogin} title={"Login"} size={1.1} color={"white"} />
             </a>
         }
 
 
         let logoutButton = null
         if (document.configuration.logoutLink) {
-            logoutButton = <a className={"btn"} onClick={()=>axios({
-            method: "post",
-            url: document.configuration.logoutLink,
-        }).then((res) => {window.location.href="/"})}>
-                <Icon path={mdiLogout} title={"Logout"} size={1.1} color={"white"}/>
+            logoutButton = <a className={"btn"} onClick={() => axios({
+                method: "post",
+                url: document.configuration.logoutLink,
+            }).then((res) => { window.location.href = "/" })}>
+                <Icon path={mdiLogout} title={"Logout"} size={1.1} color={"white"} />
             </a>
         }
         const visibleEvents = this.props.contests.filter((contest) => {
@@ -151,40 +161,40 @@ class ConnectedGlobalEventList extends Component {
                     <div
                         className={"titleWrapper"}>
                         <a data-toggle={"collapse"} data-target={"#ongoing"}
-                           style={{paddingLeft: "14px", paddingRight: "12px"}}>
-                            <i className={"eventTitle mdi mdi-menu"} id={'menuButton'}/>
+                            style={{ paddingLeft: "14px", paddingRight: "12px" }}>
+                            <i className={"eventTitle mdi mdi-menu"} id={'menuButton'} />
                         </a>
                         <a href={"#"} className={'eventTitle taskTitleName'} data-toggle={"collapse"}
-                           data-target={"#eventMenu"}>Events</a>
+                            data-target={"#eventMenu"}>Events</a>
 
                         <span className={"eventTitle"}
-                              style={{float: "right"}}>{searchButton}{participationButton}{loginButton}{settingsButton}{logoutButton}</span>
+                            style={{ float: "right" }}>{searchButton}{participationButton}{loginButton}{settingsButton}{logoutButton}</span>
                     </div>
                     <div className={"eventListScrolling"}>
                         <div id={"eventMenu"}>
                             <div className={"list-group"} id={"ongoing"}>
                                 <a className={"list-group-item list-group-item-secondary list-group-item-action"}
-                                   onClick={() => this.props.displayEventSearchModal()}><Icon
-                                    path={mdiMapSearch} size={1.1} color={"black"}/> <b>Search</b></a>
-                                {this.props.contests.length > 0 ? <OngoingNavigationTicker/> : <div
+                                    onClick={() => this.props.displayEventSearchModal()}><Icon
+                                        path={mdiMapSearch} size={1.1} color={"black"} /> <b>Search</b></a>
+                                {this.props.contests.length > 0 ? <OngoingNavigationTicker /> : <div
                                     className={"list-group-item list-group-item-secondary list-group-item-action"}
-                                ><Loading/></div>}
+                                ><Loading /></div>}
                                 <TimePeriodEventList contests={visibleEvents}
-                                                     onClick={(contest) => this.handleContestOnMapClick(contest)}/>
+                                    onClick={(contest) => this.handleContestOnMapClick(contest)} />
                             </div>
                             <div className={"list-group list-group-root"}>
                                 <div
                                     className={"d-flex justify-content-around list-group-item list-group-item-action list-group-item-secondary align-items-centre"}
-                                    style={{paddingBottom: 0, paddingTop: 0}}>
+                                    style={{ paddingBottom: 0, paddingTop: 0 }}>
                                     {!isIOS ? <a target={"_blank"}
-                                                 href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
-                                        alt='Get it on Google Play' style={{height: "45px"}}
-                                        src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a> : null}
+                                        href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
+                                            alt='Get it on Google Play' style={{ height: "45px" }}
+                                            src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png' /></a> : null}
                                     {!isAndroid ? <a target={"_blank"}
-                                                     href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
-                                        style={{height: "45px", padding: "8px"}}
-                                        src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
-                                        alt="Download on the App Store"/></a> : null}
+                                        href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
+                                            style={{ height: "45px", padding: "8px" }}
+                                            src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
+                                            alt="Download on the App Store" /></a> : null}
                                 </div>
 
                             </div>
@@ -194,11 +204,11 @@ class ConnectedGlobalEventList extends Component {
             </div>
 
             <EventSearchModal contests={this.props.contests} show={this.props.eventSearchModalShow}
-                              handleContestClick={(contest) => this.handleContestClick(contest)}
-                              dialogClassName="modal-xl" onHide={() => this.props.hideEventSearchModal()}/>
+                handleContestClick={(contest) => this.handleContestClick(contest)}
+                dialogClassName="modal-xl" onHide={() => this.props.hideEventSearchModal()} />
             <ContestPopupModal contest={popupContest} show={popupContest !== undefined}
-                               participation={currentParticipation}
-                               onHide={() => this.props.navigate("/")}/>
+                participation={currentParticipation}
+                onHide={() => this.props.navigate("/")} />
         </div>
     }
 }

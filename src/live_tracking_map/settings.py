@@ -267,7 +267,7 @@ STORAGES = {
     },
     "staticfiles": {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
-        "OPTIONS": {"bucket_name": "airsports-static", "default_acl": None, "querystring_auth":False},
+        "OPTIONS": {"bucket_name": "airsports-static", "default_acl": None, "querystring_auth": False},
     },
 }
 MEDIA_ROOT_URL = "storage.googleapis.com/airsports-data"

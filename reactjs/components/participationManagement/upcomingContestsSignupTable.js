@@ -1,6 +1,6 @@
 import React, {Component} from "react";
 import {connect} from "react-redux";
-import {fetchContests} from "../../actions";
+import {fetchMoreContests} from "../../actions";
 import {Loading} from "../basicComponents";
 import Icon from "@mdi/react";
 import {mdiCheck} from "@mdi/js";
@@ -17,7 +17,7 @@ const mapStateToProps = (state, props) => ({
 
 class ConnectedUpcomingContestsSignupTable extends Component {
     componentDidMount() {
-        this.props.fetchContests()
+        this.props.fetchMoreContests()
     }
 
     showRegistrationForm(contest) {
@@ -96,7 +96,7 @@ class ConnectedUpcomingContestsSignupTable extends Component {
 
 const UpcomingContestsSignupTable = connect(mapStateToProps,
     {
-        fetchContests,
+        fetchMoreContests,
     }
 )(ConnectedUpcomingContestsSignupTable)
 export default withParams(UpcomingContestsSignupTable)

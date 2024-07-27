@@ -71,6 +71,8 @@ const initialState = {
     highlightContestantTrack: [],
     highlightContestantTable: [],
     contests: [],
+    upcomingContests: [],
+    nextContestsUrl: null,
     zoomContest: null,
     displayEventSearchModal: false,
     displayAboutModal: false,
@@ -353,9 +355,11 @@ function rootReducer(state = initialState, action) {
     }
     if (action.type === GET_CONTESTS_SUCCESSFUL) {
         const now = new Date()
+        const newContests=state.contests.concat(action.payload.results)
         return Object.assign({}, state, {
-            contests: action.payload,
-            upcomingContests: action.payload.filter((contest) => {
+            contests:newContests,
+            nextContestsUrl:action.payload.next,
+            upcomingContests: newContests.filter((contest) => {
                 return new Date(contest.finish_time).getTime() > now.getTime()
             }),
             loadingContests: false
