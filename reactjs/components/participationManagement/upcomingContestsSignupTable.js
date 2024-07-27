@@ -1,23 +1,23 @@
-import React, {Component} from "react";
-import {connect} from "react-redux";
-import {fetchMoreContests} from "../../actions";
-import {Loading} from "../basicComponents";
+import React, { Component } from "react";
+import { connect } from "react-redux";
+import { fetchMoreContests } from "../../actions";
+import { Loading } from "../basicComponents";
 import Icon from "@mdi/react";
-import {mdiCheck} from "@mdi/js";
-import {ASTable} from "../filteredSearchableTable";
-import {withParams} from "../../utilities";
+import { mdiCheck } from "@mdi/js";
+import { ASTable } from "../filteredSearchableTable";
+import { withParams } from "../../utilities";
 
 const mapStateToProps = (state, props) => ({
-    upcomingContests: state.contests.filter((contest) => {
-        return new Date(contest.finish_time).getTime() > new Date().getTime()
-    }),
+    upcomingContests: state.upcomingContests,
     myParticipatingContests: state.myParticipatingContests,
     loadingContests: state.loadingContests
 })
 
 class ConnectedUpcomingContestsSignupTable extends Component {
-    componentDidMount() {
-        this.props.fetchMoreContests()
+    componentDidUpdate(prevProps) {
+        if (this.props.upcomingContests.length != prevProps.upcomingContests.length) {
+            this.props.fetchMoreContests()
+        }
     }
 
     showRegistrationForm(contest) {
@@ -30,7 +30,7 @@ class ConnectedUpcomingContestsSignupTable extends Component {
                 Header: "",
                 id: "Logo",
                 accessor: (row, index) => {
-                    return <img src={row.contest.logo} alt={"logo"} style={{width: "50px"}}/>
+                    return <img src={row.contest.logo} alt={"logo"} style={{ width: "50px" }} />
                 },
                 disableSortBy: true,
                 disableFilters: true
@@ -52,7 +52,7 @@ class ConnectedUpcomingContestsSignupTable extends Component {
                 Header: "Registered",
                 accessor: (row, index) => {
                     if (row.registered) {
-                        return <Icon path={mdiCheck} size={2} color={"green"}/>
+                        return <Icon path={mdiCheck} size={2} color={"green"} />
                     }
                     return null
                 },
@@ -78,16 +78,16 @@ class ConnectedUpcomingContestsSignupTable extends Component {
                 }
             }
         }
-        const loading = this.props.loadingContests ? <Loading/> : null
+        const loading = this.props.loadingContests ? <Loading /> : null
 
         return <div>
             {loading}
             <ASTable data={data} columns={columns} rowEvents={rowEvents} initialState={{
                 sortBy: [
-                    {id: "Start date", desc: true}
+                    { id: "Start date", desc: true }
                 ]
             }}
- className={"table table-striped table-hover table-condensed"}
+                className={"table table-striped table-hover table-condensed"}
             />
         </div>
     }

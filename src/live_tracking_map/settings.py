@@ -37,7 +37,7 @@ ADMINS = [("admin", "test@test.com")]
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get("SECRET_KEY", "secret")
 
-SERVER_ROOT = "https://gcloud.airsports.no"
+SERVER_ROOT = "https://airsports.no"
 CSRF_TRUSTED_ORIGINS = ["https://*.airsports.no", "http://*.127.0.0.1"]
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("MODE") == "dev"
@@ -182,7 +182,7 @@ WSGI_APPLICATION = "live_tracking_map.wsgi.application"
 WEBPACK_LOADER = {
     "DEFAULT": {
         "BUNDLE_DIR_NAME": "bundles/local/",  # end with slash
-        "STATS_FILE": "/webpack-stats-local.json",
+        "STATS_FILE": os.path.join(BASE_DIR, "..", "webpack-stats-local.json"),
     }
 }
 
