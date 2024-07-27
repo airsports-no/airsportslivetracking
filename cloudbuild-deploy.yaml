@@ -13,7 +13,7 @@ steps:
     - './helm'
     - '-f'
     - '/workspace/private_values.yaml'
-    - '--set=image.tag=$BUILD_ID'
+    - '--set=image.tag=$SHORT_SHA'
     - '--namespace=default'
     - '--timeout'
     - '20m0s'
