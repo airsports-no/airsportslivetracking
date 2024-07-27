@@ -32,7 +32,7 @@ steps:
   args:
     - '-c'
     - |
-      if ["$BRANCH_NAME" = "main"]
+      if [ "$BRANCH_NAME" = "main" ]
       then
       gcloud builds triggers run Deploy --branch=main --region=europe-west1 --project=${PROJECT_ID}
       fi
