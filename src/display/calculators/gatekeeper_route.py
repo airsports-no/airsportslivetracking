@@ -96,6 +96,20 @@ class GatekeeperRoute(Gatekeeper):
             )
         )
 
+    def has_the_contestant_passed_a_gate_and_landed(self) -> bool:
+        if not self.any_gate_passed():
+            return False
+        if len(self.track):
+            last_time = self.track[-1].time
+            index = len(self.track) - 1
+            for index in range(len(self.track) - 1, -1, -1):
+                if self.track[index].speed < 10:
+                    if (last_time - self.track[index].time).total_seconds() >= 60:
+                        return True
+                else:
+                    return False
+        return False
+
     def check_gate_in_range(self):
         """
         Figure out which gate is in range. This should follow the same sequence of gate as the track and give track of

@@ -111,6 +111,10 @@ class Gatekeeper(ABC):
             else None
         )
 
+    def has_the_contestant_passed_a_gate_and_landed(self) -> bool:
+        """Should return true if the contestant has started a route and then landed, signifying that it has been completed"""
+        return False
+
     def create_gates(self) -> List[Gate]:
         """
         Helper function to create gates from the waypoints defined in a route

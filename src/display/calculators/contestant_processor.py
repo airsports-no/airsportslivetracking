@@ -297,8 +297,15 @@ class ContestantProcessor:
         Check if the time has passed the finished by time and terminate the  processor if this is the case
         """
         now = datetime.datetime.now(datetime.timezone.utc)
-        if self.live_processing and now > self.contestant.finished_by_time:
-            if not self.track_terminated:
+        if self.live_processing and not self.track_terminated:
+            if self.gatekeeper.has_the_contestant_passed_a_gate_and_landed():
+                if self.contestant.finished_by_time > now:
+                    self.contestant.finished_by_time = now
+                    self.contestant.save(update_fields=["finished_by_time"])
+                    logger.info(
+                        f"Contestant {self.contestant} has passed a gate and apparently landed, triggering calculator termination"
+                    )
+            if now > self.contestant.finished_by_time:
                 self.notify_termination()
 
     def notify_termination(self):
