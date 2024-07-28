@@ -455,18 +455,44 @@ class ContestantForm(forms.ModelForm):
         self.fields["wind_speed"].initial = self.navigation_task.wind_speed
         self.fields["wind_direction"].initial = self.navigation_task.wind_direction
         self.fields["wind_direction"].initial = self.navigation_task.wind_direction
-        # self.fields["tracking_device_id"].required = False
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                "Contestant",
+                "contestant_number",
+                "team",
+                "takeoff_time",
+                "adaptive_start",
+                "minutes_to_starting_point",
+                "air_speed",
+                "wind_direction",
+                "wind_speed",
+            ),
+            Fieldset(
+                "Tracking",
+                HTML(
+                    "The below fields can mostly be left alone. Tracker start time and finished by time are calculated "
+                    "automatically to ten minutes prior to the takeoff time with an assumed flight time of maximum two hours with "
+                    "fixed start and five hours with adaptive start. Overwrite this as necessary."
+                ),
+                "tracking_device",
+                "tracker_device_id",
+                "tracker_start_time",
+                "finished_by_time",
+            ),
+            ButtonHolder(Submit("submit", "Submit")),
+        )
 
     class Meta:
         model = Contestant
         fields = (
             "contestant_number",
             "team",
-            "tracker_start_time",
             "tracking_device",
             "tracker_device_id",
             "takeoff_time",
             "adaptive_start",
+            "tracker_start_time",
             "finished_by_time",
             "minutes_to_starting_point",
             "air_speed",

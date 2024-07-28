@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% load bootstrap4 %}
+{% load crispy_forms_tags %}
 {% block content %}
     {% if object %}
         <h2>Update Contestant {{ object }} for navigation task {{ object.navigation_task }}</h2>
@@ -8,37 +9,46 @@
         <h2>Create new Contestant for navigation task {{ navigation_task }} </h2>
     {% endif %}
     {{ form.media }}
-    Contest time zone is {{ object.navigation_task.contest.time_zone }}
+    Contest time zone is {{ navigation_task.contest.time_zone }}
     <form method="post" class="form">
         {% csrf_token %}
-        {% bootstrap_form form %}
-        {% buttons %}
-            <button type="submit" class="btn btn-primary">Submit</button>
-            <a href="{{ redirect }}" class="btn btn-secondary">Cancel</a>
-        {% endbuttons %}
+        {% crispy form %}
     </form>
     <script type="text/javascript">
-        function updateTakeoff() {
-            if (adaptiveStart.checked) {
-                takeoffTime.value = trackingStart.value
-            }
-
+        Date.prototype.addHours = function(h) {
+            this.setTime(this.getTime() + (h*60*60*1000));
+            return this;
+          }
+        Date.prototype.toMyString = function() {
+            return this.format("yyyy-mm-dd HH:MM")
         }
 
-        $('#id_takeoff_time').datetimepicker({dateFormat: "yy-mm-dd"});
-        $('#id_finished_by_time').datetimepicker({dateFormat: "yy-mm-dd"});
-        $('#id_tracker_start_time').datetimepicker({dateFormat: "yy-mm-dd", onSelect: updateTakeoff});
+          
         const adaptiveStart = document.getElementById("id_adaptive_start");
         const takeoffTime = document.getElementById("id_takeoff_time");
         const trackingStart = document.getElementById("id_tracker_start_time");
+        const finishedByTime=document.getElementById('id_finished_by_time')
         const teamSelector=document.getElementById("id_team")
 
+        
+
+        function updateTracking() {
+            trackingStart.value = new Date(Date.parse(takeoffTime.value)).addHours(-0.16666667).toMyString()
+            let hours=2
+            if (adaptiveStart.checked) {
+                hours=5
+            }
+            finishedByTime.value=new Date(Date.parse(takeoffTime.value)).addHours(hours).toMyString()
+        }
+
+        $("#id_takeoff_time").datetimepicker({dateFormat: "yy-mm-dd", onSelect: updateTracking});
+        $("#id_finished_by_time").datetimepicker({dateFormat: "yy-mm-dd"});
+        $("#id_tracking_start").datetimepicker({dateFormat: "yy-mm-dd"});
+        takeoffTime.addEventListener("change",(event)=>{updateTracking()})
        
         adaptiveStart.addEventListener("change", (event) => {
-            takeoffTime.readOnly = adaptiveStart.checked;
-            if (adaptiveStart.checked) {
-                takeoffTime.value = trackingStart.value
-            }
+            trackingStart.readOnly = adaptiveStart.checked;
+            updateTracking()
         })
 
         async function updateAirspeed(event){
@@ -52,11 +62,8 @@
 
         teamSelector.addEventListener("change",updateAirspeed)
 
-        trackingStart.addEventListener("change", (event) => {
-            updateTakeoff()
-        })
         {% if object.adaptive_start %}
-            takeoffTime.readOnly = adaptiveStart.checked;
+            trackingStart.readOnly = adaptiveStart.checked;
         {% endif %}
     </script>
 {% endblock %}
