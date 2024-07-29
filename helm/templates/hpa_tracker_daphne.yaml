@@ -9,4 +9,14 @@ spec:
     name: tracker-daphne
   minReplicas: 1
   maxReplicas: 3
-  targetCPUUtilizationPercentage: 50
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 40
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+    

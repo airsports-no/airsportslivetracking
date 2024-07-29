@@ -9,4 +9,13 @@ spec:
     name: tracker-web
   minReplicas: 1
   maxReplicas: 5
-  targetCPUUtilizationPercentage: 40
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 40
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
