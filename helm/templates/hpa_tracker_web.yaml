@@ -9,4 +9,4 @@ spec:
     name: tracker-web
   minReplicas: 1
   maxReplicas: 5
-  targetCPUUtilizationPercentage: 50
+  targetCPUUtilizationPercentage: 40

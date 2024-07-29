@@ -34,10 +34,10 @@ spec:
         command: [ "bash", "-c", "python3 position_processor.py" ]
         resources:
           requests:
-            cpu: 500m
+            cpu: 600m
             memory: 0.6Gi  # Uses 231 Mi
           limits:
-            cpu: 500m
+            cpu: 600m
             memory: 0.6Gi
         name: tracker-processor
 #        env:

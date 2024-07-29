@@ -53,7 +53,6 @@ spec:
             cpu: 1000m
             memory: 3Gi  # Uses 160Mi
           limits:
-            cpu: 2000m
             memory: 3Gi
         volumeMounts:
           - mountPath: /secret
