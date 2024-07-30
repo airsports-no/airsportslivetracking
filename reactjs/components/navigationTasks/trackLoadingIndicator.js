@@ -17,7 +17,7 @@ class ConnectedTrackLoadingIndicator extends Component {
         let total = 0,current=0;
         Object.keys(this.props.totalInitialPositionCountForContestant).map((key, index) => {
             total+=this.props.totalInitialPositionCountForContestant[key]
-            current+=this.props.currentInitialPositionCountForContestant[key]
+            current+=this.props.currentInitialPositionCountForContestant[key]!==undefined?this.props.currentInitialPositionCountForContestant[key]:0
         })
         return Math.round(100 * current / total)
     }
@@ -27,7 +27,7 @@ class ConnectedTrackLoadingIndicator extends Component {
             return <div/>
         }
         const now = this.getPercentageCompletedLoading();
-        return now !== 100 ? <ProgressBar now={now} label={now + "%"}/> : <div/>
+        return now !== 100 ? <ProgressBar max={100} now={now} label={now + "%"}/> : <div/>
     }
 }
 

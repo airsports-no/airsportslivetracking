@@ -6,6 +6,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Q, Count
 from django.http import Http404
+from django.utils.cache import add_never_cache_headers, patch_response_headers
 from guardian.shortcuts import get_objects_for_user
 from rest_framework import status, permissions, mixins
 from rest_framework.decorators import action
@@ -876,26 +877,38 @@ class ContestantViewSet(ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def paginated_track_data(self, request, *args, **kwargs):
-        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        contestant: Contestant = (
+            self.get_object()
+        )  # This is important, this is where the object permissions are checked
         position_data = contestant.get_track()
         pagination = PageNumberPagination()
-        pagination.page_size = 12000  # Approximately two minutes of data
+        pagination.page_size = 300  # Approximately 5 minutes of data
         page = pagination.paginate_queryset(position_data, request)
         if page is not None:
-            progress = 0
-            step_length = int(len(page) / 10)
-            for index, item in enumerate(page):
-                if index % step_length == 0:
-                    progress = contestant.calculate_progress(item.time, ignore_finished=True)
-                item.progress = progress
+            page[-1].progress = contestant.calculate_progress(page[-1].time, ignore_finished=True)
+            # progress = 0
+            # step_length = int(len(page) / 10)
+            # for index, item in enumerate(page):
+            #     if index % step_length == 0:
+            #         progress = contestant.calculate_progress(item.time, ignore_finished=True)
+            #     item.progress = progress
             serializer = PositionSerialiser(page, many=True)
             result = pagination.get_paginated_response(serializer.data)
-            data = result.data  # pagination data
+            response = Response(result.data)
+            if (
+                pagination.get_next_link() is None
+                and hasattr(contestant, "contestanttrack")
+                and not contestant.contestanttrack.calculator_finished
+            ):
+                add_never_cache_headers(response)
+            else:
+                patch_response_headers(response, 60 * 60 * 24 * 31)
         else:
+            position_data[-1].progress = contestant.calculate_progress(position_data[-1].time, ignore_finished=True)
             serializer = PositionSerialiser(position_data, many=True)
-            data = serializer.data
+            response = Response(serializer.data)
 
-        return Response(data)
+        return response
 
     @action(detail=True, methods=["get"])
     def track(self, request, pk=None, **kwargs):

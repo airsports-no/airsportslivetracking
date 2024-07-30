@@ -200,7 +200,11 @@ function rootReducer(state = initialState, action) {
             fetchingContestantTracks: {
                 ...state.fetchingContestantTracks,
                 [action.contestantId]: true
-            }
+            },
+            totalInitialPositionCountForContestant: {
+                ...state.totalInitialPositionCountForContestant,
+                [action.contestantId]: state.totalInitialPositionCountForContestant[action.contestantId]===undefined?10000:state.totalInitialPositionCountForContestant[action.contestantId] // Arbitrary large number.
+            },
         })
     }
     if (action.type === FETCH_INITIAL_TRACKS_FAILED) {
