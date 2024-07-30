@@ -90,6 +90,8 @@ class ContestantProcessor:
         self.process_event = threading.Event()
         self.contestant.reset_track_and_score()
         self.contestant.contestantreceivedposition_set.all().delete()
+        self.contestant.track_version += 1
+        self.contestant.save(update_fields=["track_version"])
         self.contestant_track.set_calculator_started()
         self.scorecard = self.contestant.navigation_task.scorecard
         self.scorecard.refresh_from_db()

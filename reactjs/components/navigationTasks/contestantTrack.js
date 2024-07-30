@@ -189,6 +189,11 @@ class ConnectedContestantTrack extends Component {
                         this.hideAnnotations()
                     }
                 }
+                if (this.props.isInitialLoading){
+                    this.hide()
+                } else if (!previousProps.isInitialLoading){
+                    this.undim()
+                }
             }
         }
     }
@@ -235,6 +240,13 @@ class ConnectedContestantTrack extends Component {
     }
 
 
+    hide() {
+        const style = {
+            opacity: 0,
+        }
+        this.styleContestant(style)
+    }
+    
     dim() {
         const style = {
             color: "grey",

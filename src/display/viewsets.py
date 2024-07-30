@@ -879,7 +879,7 @@ class ContestantViewSet(ModelViewSet):
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
         position_data = contestant.get_track()
         pagination = PageNumberPagination()
-        pagination.page_size = 120  # Approximately two minutes of data
+        pagination.page_size = 12000  # Approximately two minutes of data
         page = pagination.paginate_queryset(position_data, request)
         if page is not None:
             progress = 0

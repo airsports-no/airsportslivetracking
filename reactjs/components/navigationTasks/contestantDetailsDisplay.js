@@ -19,7 +19,7 @@ const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].contestant_track : null,
     logEntries: state.contestantData[props.contestantId] !== undefined ? state.contestantData[props.contestantId].log_entries : null,
     initialLoading: state.initialLoadingContestantData[props.contestantId],
-    progress: state.contestantData[props.contestantId] ? state.contestantData[props.contestantId].progress : 0,
+    progress: !state.initialLoadingContestantData[props.contestantId] && state.contestantProgress[props.contestantId] ? state.contestantProgress[props.contestantId] : 0,
     contestant: state.contestants[props.contestantId],
     contestants: Object.keys(state.contestantData).map((key, index) => {
         return {

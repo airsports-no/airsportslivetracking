@@ -30,8 +30,6 @@ import {
     FETCH_EDITABLE_ROUTE,
     FETCH_INITIAL_TRACKS_SUCCESS,
     FETCH_INITIAL_TRACKS,
-    FETCH_SCORE_DATA_SUCCESS,
-    FETCH_SCORE_DATA_FAILED,
     TOGGLE_PROFILE_PICTURES,
     TOGGLE_GATE_ARROW,
     TOGGLE_DANGER_LEVEL,
@@ -68,6 +66,8 @@ const initialState = {
     displayExpandedTrackingTable: false,
     initialLoadingContestantData: {},
     initialTracks: {},
+    totalInitialPositionCountForContestant: {},
+    currentInitialPositionCountForContestant: {},
     contestantProgress: {},
     fetchingContestantTracks: {},
     displayLowerThirds: null,
@@ -182,6 +182,14 @@ function rootReducer(state = initialState, action) {
             fetchingContestantTracks: {
                 ...state.fetchingContestantTracks,
                 [action.contestantId]: false
+            },
+            totalInitialPositionCountForContestant: {
+                ...state.totalInitialPositionCountForContestant,
+                [action.contestantId]: action.payload.count
+            },
+            currentInitialPositionCountForContestant: {
+                ...state.currentInitialPositionCountForContestant,
+                [action.contestantId]: state.currentInitialPositionCountForContestant[action.contestantId] ? state.currentInitialPositionCountForContestant[action.contestantId] + action.payload.results.length : action.payload.results.length
             }
 
         })

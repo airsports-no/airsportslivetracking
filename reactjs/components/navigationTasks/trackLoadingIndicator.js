@@ -4,18 +4,22 @@ import {connect} from "react-redux";
 
 const mapStateToProps = (state, props) => ({
     initialLoading: state.initialLoadingContestantData,
+    totalInitialPositionCountForContestant:state.totalInitialPositionCountForContestant,
+    currentInitialPositionCountForContestant:state.currentInitialPositionCountForContestant
 })
 
 
 class ConnectedTrackLoadingIndicator extends Component {
     getPercentageCompletedLoading() {
-        let count = 0;
-        Object.keys(this.props.initialLoading).map((key, index) => {
-            if (!this.props.initialLoading[key]) {
-                count++;
-            }
+        if (Object.keys(this.props.totalInitialPositionCountForContestant).length == 0){
+            return 0
+        }
+        let total = 0,current=0;
+        Object.keys(this.props.totalInitialPositionCountForContestant).map((key, index) => {
+            total+=this.props.totalInitialPositionCountForContestant[key]
+            current+=this.props.currentInitialPositionCountForContestant[key]
         })
-        return Math.round(100 * count / this.props.numberOfContestants)
+        return Math.round(100 * current / total)
     }
 
     render() {

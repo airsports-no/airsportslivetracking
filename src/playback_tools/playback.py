@@ -102,6 +102,8 @@ def recalculate_traccar(contestant: "Contestant"):
     except:
         pass
     contestant.contestantreceivedposition_set.all().delete()
+    contestant.track_version += 1
+    contestant.save(update_fields=["track_version"])
     now = datetime.datetime.now(datetime.timezone.utc)
     if contestant.finished_by_time > now:
         contestant.finished_by_time = max(contestant.takeoff_time + datetime.timedelta(seconds=1), now)
@@ -192,6 +194,8 @@ def insert_gpx_file(contestant_object: "Contestant", file):
     except:
         pass
     contestant_object.contestantreceivedposition_set.all().delete()
+    contestant_object.track_version += 1
+    contestant_object.save(update_fields=["track_version"])
     ContestantUploadedTrack.objects.create(contestant=contestant_object, track=positions)
     logger.debug("Created new uploaded track with {} positions".format(len(positions)))
     queue_name = f"override_{contestant_object.pk}"

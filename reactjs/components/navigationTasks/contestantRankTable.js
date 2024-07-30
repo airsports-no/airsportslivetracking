@@ -1,11 +1,11 @@
-import React, {Component} from "react";
-import {connect} from "react-redux";
+import React, { Component } from "react";
+import { connect } from "react-redux";
 import {
     calculateProjectedScore, compareScoreAscending, compareScoreDescending,
     teamRankingTable
 } from "../../utilities";
 import "bootstrap/dist/css/bootstrap.min.css"
-import {SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
+import { SIMPLE_RANK_DISPLAY } from "../../constants/display-types";
 import {
     displayAllTracks,
     displayOnlyContestantTrack, hideLowerThirds, highlightContestantTable,
@@ -15,10 +15,10 @@ import {
     setDisplay,
     showLowerThirds,
 } from "../../actions";
-import {Loading} from "../basicComponents";
-import {ProgressCircle} from "./contestantProgress";
+import { Loading } from "../basicComponents";
+import { ProgressCircle } from "./contestantProgress";
 import 'react-circular-progressbar/dist/styles.css';
-import {ResultsServiceTable} from "../resultsService/resultsServiceTable";
+import { ResultsServiceTable } from "../resultsService/resultsServiceTable";
 
 
 const mapStateToProps = (state, props) => ({
@@ -26,7 +26,7 @@ const mapStateToProps = (state, props) => ({
         return {
             track: state.contestantData[key].contestant_track,
             logEntries: state.contestantData[key].log_entries,
-            progress: state.contestantProgress[key]?state.contestantProgress[key]:0,
+            progress: !state.initialLoadingContestantData[key] && state.contestantProgress[key] ? state.contestantProgress[key] : 0,
             initialLoading: state.initialLoadingContestantData[key],
             contestant: state.contestants[key]
         }
@@ -55,14 +55,14 @@ class ConnectedContestantRankTable extends Component {
                     return ""
                 },
                 Header: () => {
-                    return <span style={{width: 20 + 'px'}}></span>
+                    return <span style={{ width: 20 + 'px' }}></span>
                 },
                 id: "colour",
                 disableSortBy: true,
             },
             {
                 Header: () => {
-                    return <span style={{width: 50 + 'px'}}> #</span>
+                    return <span style={{ width: 50 + 'px' }}> #</span>
                 },
                 id: "Rank",
                 disableSortBy: true,
@@ -137,8 +137,8 @@ class ConnectedContestantRankTable extends Component {
                     return <span className={'text-center'}>LAP</span>
                 },
                 accessor: (row, index) => {
-                    return <span className={'align-middle'} style={{width: 80 + 'px'}}><ProgressCircle
-                        progress={row.progress} finished={row.finished}/></span>
+                    return <span className={'align-middle'} style={{ width: 80 + 'px' }}><ProgressCircle
+                        progress={row.progress} finished={row.finished} /></span>
                 },
             },
         ]
@@ -158,7 +158,7 @@ class ConnectedContestantRankTable extends Component {
     }
 
     resetToAllContestants() {
-        this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
+        this.props.setDisplay({ displayType: SIMPLE_RANK_DISPLAY })
         this.props.displayAllTracks();
         this.props.hideLowerThirds();
         for (let id of this.props.highlight) {
@@ -182,11 +182,11 @@ class ConnectedContestantRankTable extends Component {
 
 
     numberStyle(row, rowIndex, colIndex) {
-        return {backgroundColor: this.getColour(row.contestantNumber)}
+        return { backgroundColor: this.getColour(row.contestantNumber) }
     }
 
     rowStyle(row, rowIndex) {
-        return {backgroundColor: this.getColour(row.contestantNumber)}
+        return { backgroundColor: this.getColour(row.contestantNumber) }
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
@@ -216,13 +216,13 @@ class ConnectedContestantRankTable extends Component {
                 rank: index + 1,
                 dummy: null,
                 progress: progress,
-                hasStarted: contestant.track!==undefined&&contestant.track.current_state !== "Waiting...",
+                hasStarted: contestant.track !== undefined && contestant.track.current_state !== "Waiting...",
                 name: teamRankingTable(contestant.contestant.team),
                 pilotName: contestant.contestant.team.crew ? contestant.contestant.team.crew.member1.first_name : '',
-                score: contestant.track!==undefined?contestant.track.score:0,
-                contest_summary: contestant.track!==undefined?contestant.track.contest_summary:0,
-                projectedScore: contestant.track!==undefined?calculateProjectedScore(contestant.track.score, progress, contestant.track.contest_summary):9999,
-                finished: contestant.track!==undefined?contestant.track.current_state === "Finished" || contestant.track.calculator_finished:false,
+                score: contestant.track !== undefined ? contestant.track.score : 0,
+                contest_summary: contestant.track !== undefined ? contestant.track.contest_summary : 0,
+                projectedScore: contestant.track !== undefined ? calculateProjectedScore(contestant.track.score, progress, contestant.track.contest_summary) : 9999,
+                finished: contestant.track !== undefined ? contestant.track.current_state === "Finished" || contestant.track.calculator_finished : false,
                 initialLoading: contestant.initialLoading,
                 className: this.props.highlight.includes(contestant.contestant.id) ? "selectedContestantRow" : ""
             }
@@ -231,7 +231,7 @@ class ConnectedContestantRankTable extends Component {
 
     getStateFormat(cell, row) {
         if (row.initialLoading) {
-            return <Loading/>
+            return <Loading />
         }
         return <div>{cell}</div>
     }
@@ -242,15 +242,15 @@ class ConnectedContestantRankTable extends Component {
 
     render() {
         return <ResultsServiceTable data={this.debouncedBuildData()} columns={this.columns}
-                                    className={"table table-dark table-striped table-hover table-sm"}
-                                    rowEvents={this.rowEvents} initialState={{
-            sortBy: [
-                {
-                    id: "SCORE",
-                    desc: this.props.navigationTask.score_sorting_direction === "desc"
-                }
-            ]
-        }}
+            className={"table table-dark table-striped table-hover table-sm"}
+            rowEvents={this.rowEvents} initialState={{
+                sortBy: [
+                    {
+                        id: "SCORE",
+                        desc: this.props.navigationTask.score_sorting_direction === "desc"
+                    }
+                ]
+            }}
         />
     }
 }
