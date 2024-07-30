@@ -783,49 +783,18 @@ class ContestantTeamIdViewSet(ModelViewSet):
         return context
 
 
-def cached_generate_data(contestant_pk) -> dict:
-    return _generate_data(contestant_pk)
-
-
-def _generate_data(contestant_pk):
+def generate_score_data(contestant_pk):
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
-    logger.debug("Fetching track for {} {}".format(contestant.pk, contestant))
-    # Do not include track if we have not started a calculator yet
-    position_data = (
-        list(
-            contestant.get_track().values(
-                "latitude", "longitude", "altitude", "time", "progress", "device_id", "position_id"
-            )
-        )
-        if hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_started
-        else []
-    )
-    if len(position_data) > 0:
-        global_latest_time = position_data[-1]["time"]
-    else:
-        global_latest_time = datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
-    # progress = 0
-    # step_length = int(len(position_data) / 10)
-    # for index, item in enumerate(position_data):
-    #     if index % step_length == 0:
-    #         progress = contestant.calculate_progress(item.time, ignore_finished=True)
-    #     item.progress = progress
-    if len(position_data):
-        position_data[-1]["progress"] = contestant.calculate_progress(position_data[-1]["time"], ignore_finished=True)
     data = generate_contestant_data_block(
         contestant,
-        positions=position_data,
         annotations=TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data,
         log_entries=ScoreLogEntrySerialiser(contestant.scorelogentry_set.filter(type=ANOMALY), many=True).data,
-        latest_time=global_latest_time,
         gate_scores=GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data,
         playing_cards=PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data,
         contestant_track_data=ContestantTrackSerialiser(contestant.contestanttrack).data,
         gate_times=contestant.gate_times,
     )
-    logger.debug(
-        "Completed generating data {} {} with {} positions".format(contestant.pk, contestant, len(position_data))
-    )
+
     return data
 
 
@@ -898,12 +867,35 @@ class ContestantViewSet(ModelViewSet):
         return super().update(request, *args, **kwargs)
 
     @action(detail=True, methods=["get"])
-    def initial_track_data(self, request, *args, **kwargs):
+    def score_data(self, request, *args, **kwargs):
         """
         Used by the front end to load initial data
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
-        return Response(cached_generate_data(contestant.pk))
+        return Response(generate_score_data(contestant.pk))
+
+    @action(detail=True, methods=["get"])
+    def paginated_track_data(self, request, *args, **kwargs):
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        position_data = contestant.get_track()
+        pagination = PageNumberPagination()
+        pagination.page_size = 120  # Approximately two minutes of data
+        page = pagination.paginate_queryset(position_data, request)
+        if page is not None:
+            progress = 0
+            step_length = int(len(page) / 10)
+            for index, item in enumerate(page):
+                if index % step_length == 0:
+                    progress = contestant.calculate_progress(item.time, ignore_finished=True)
+                item.progress = progress
+            serializer = PositionSerialiser(page, many=True)
+            result = pagination.get_paginated_response(serializer.data)
+            data = result.data  # pagination data
+        else:
+            serializer = PositionSerialiser(position_data, many=True)
+            data = serializer.data
+
+        return Response(data)
 
     @action(detail=True, methods=["get"])
     def track(self, request, pk=None, **kwargs):

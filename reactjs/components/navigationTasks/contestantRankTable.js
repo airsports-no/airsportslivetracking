@@ -26,7 +26,7 @@ const mapStateToProps = (state, props) => ({
         return {
             track: state.contestantData[key].contestant_track,
             logEntries: state.contestantData[key].log_entries,
-            progress: state.contestantData[key].progress,
+            progress: state.contestantProgress[key]?state.contestantProgress[key]:0,
             initialLoading: state.initialLoadingContestantData[key],
             contestant: state.contestants[key]
         }
@@ -216,13 +216,13 @@ class ConnectedContestantRankTable extends Component {
                 rank: index + 1,
                 dummy: null,
                 progress: progress,
-                hasStarted: contestant.track.current_state !== "Waiting...",
+                hasStarted: contestant.track!==undefined&&contestant.track.current_state !== "Waiting...",
                 name: teamRankingTable(contestant.contestant.team),
                 pilotName: contestant.contestant.team.crew ? contestant.contestant.team.crew.member1.first_name : '',
-                score: contestant.track.score,
-                contest_summary: contestant.track.contest_summary,
-                projectedScore: calculateProjectedScore(contestant.track.score, progress, contestant.track.contest_summary),
-                finished: contestant.track.current_state === "Finished" || contestant.track.calculator_finished,
+                score: contestant.track!==undefined?contestant.track.score:0,
+                contest_summary: contestant.track!==undefined?contestant.track.contest_summary:0,
+                projectedScore: contestant.track!==undefined?calculateProjectedScore(contestant.track.score, progress, contestant.track.contest_summary):9999,
+                finished: contestant.track!==undefined?contestant.track.current_state === "Finished" || contestant.track.calculator_finished:false,
                 initialLoading: contestant.initialLoading,
                 className: this.props.highlight.includes(contestant.contestant.id) ? "selectedContestantRow" : ""
             }

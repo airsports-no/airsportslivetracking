@@ -41,6 +41,7 @@ class ContestantReceivedPosition(models.Model):
 
     class Meta:
         ordering = ("time",)
+        indexes = [models.Index(fields=["contestant", "time"], name="contestant_time_index")]
 
     def to_traccar(self, device_id: str, index: int) -> dict:
         return {

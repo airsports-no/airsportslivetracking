@@ -37,7 +37,9 @@ export const mapStateToProps = (state, props) => ({
     displayOpenAip: state.displayOpenAip,
     displayTracks: state.displayTracks,
     displaySecretGates: state.displaySecretGates,
-    displayBackgroundMap: state.displayBackgroundMap
+    displayBackgroundMap: state.displayBackgroundMap,
+    initialLoading: state.initialLoadingContestantData,
+
 })
 export const mapDispatchToProps = {
     dispatchContestantData,
@@ -53,7 +55,6 @@ export const mapDispatchToProps = {
     dispatchWebSocketConnected
 }
 
-const PARALLEL_FETCHING_INITIAL_TRACKS = false
 
 export class ConnectedNavigationTask extends Component {
     constructor(props) {
@@ -116,15 +117,21 @@ export class ConnectedNavigationTask extends Component {
                 this.props.dispatchCurrentTime(data.data)
                 this.lastTimeReceived = new Date()
             } else if (data.type === "contestant" && this.props.contestantIds.length === 0) {
-                // Do not add new contestants if we are filtering contestant IDs
+                this.waitingInitialLoading[data.data.id] = []
                 this.props.dispatchNewContestant(JSON.parse(data.data))
             } else if (data.type === "contestant_delete") {
                 this.props.dispatchDeleteContestant(JSON.parse(data.data))
             } else {
                 const trackData = JSON.parse(data.data)
-                if (this.waitingInitialLoading[trackData.contestant_id] !== undefined) {
+                if (this.props.initialLoading[trackData.contestant_id]) {
                     this.cacheDataWhileLoading(trackData.contestant_id, trackData)
                 } else {
+                    if (this.waitingInitialLoading[key] !== undefined) {
+                        for (let p of this.waitingInitialLoading[key]) {
+                            this.props.dispatchContestantData(p)
+                        }
+                        delete this.waitingInitialLoading[key]
+                    }
                     this.props.dispatchContestantData(trackData)
                 }
             }
@@ -190,44 +197,8 @@ export class ConnectedNavigationTask extends Component {
                 this.props.navigationTask.contestant_set.map((contestant, index) => {
                     this.waitingInitialLoading[contestant.id] = []
                 })
-                if (!PARALLEL_FETCHING_INITIAL_TRACKS) {
-                    if (this.remainingTracks > 0) {
-                        this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, this.props.navigationTask.contestant_set[0].id)
-                        this.waitingInitialLoading[this.props.navigationTask.contestant_set[0].id] = []
-                    }
-                } else {
-                    this.props.navigationTask.contestant_set.map((contestant, index) => {
-                        this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
-                    })
-                }
                 this.initiateSession()
             }
-        }
-        if (this.props.initialTracks !== previousProps.initialTracks) {
-            for (const [key, value] of Object.entries(this.props.initialTracks)) {
-                if (!this.renderedTracks.includes(key)) {
-                    this.renderedTracks.push(key)
-                    console.log(value)
-                    this.props.dispatchContestantData(value)
-                    if (this.waitingInitialLoading[key] !== undefined) {
-                        for(let p of this.waitingInitialLoading[key]){
-                            this.props.dispatchContestantData(p)
-                        }
-                        delete this.waitingInitialLoading[key]
-                    }
-                }
-            }
-            if (!PARALLEL_FETCHING_INITIAL_TRACKS) {
-                for (const contestant of this.props.navigationTask.contestant_set) {
-                    if (!this.renderedTracks.includes(contestant.id.toString())) {
-                        this.props.fetchInitialTracks(this.props.contestId, this.props.navigationTaskId, contestant.id)
-                        break
-                    }
-                }
-            }
-        }
-        if (this.remainingTracks === 0) {
-            this.remainingTracks = 9999
         }
         if (this.props.navigationTask.display_background_map !== previousProps.navigationTask.display_background_map || this.props.displayBackgroundMap !== previousProps.displayBackgroundMap) {
             this.fixMapBackground()

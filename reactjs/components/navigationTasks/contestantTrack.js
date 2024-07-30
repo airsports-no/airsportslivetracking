@@ -4,7 +4,7 @@ import {
     displayAllTracks,
     displayOnlyContestantTrack, hideLowerThirds,
     highlightContestantTable, highlightContestantTrack,
-    removeHighlightContestantTable, removeHighlightContestantTrack, setDisplay, showLowerThirds
+    removeHighlightContestantTable, removeHighlightContestantTrack, setDisplay, showLowerThirds,fetchInitialTracks,fetchScoreData
 } from "../../actions";
 import 'leaflet'
 import 'leaflet.markercluster'
@@ -20,11 +20,13 @@ const L = window['L']
 
 const mapStateToProps = (state, props) => ({
     contestantData: state.contestantData[props.contestant.id],
+    initialTracks: state.initialTracks[props.contestant.id],
     displayTracks: state.displayTracks,
     currentTime: state.currentDateTime,
     isInitialLoading: state.initialLoadingContestantData[props.contestant.id],
     dim: state.highlightContestantTrack.length > 0 && !state.highlightContestantTrack.includes(props.contestant.id),
     highlight: state.highlightContestantTrack.length > 0 && state.highlightContestantTrack.includes(props.contestant.id),
+    fetchingContestantTracks:state.fetchingContestantTracks[props.contestant.id]
 })
 
 class ConnectedContestantTrack extends Component {
@@ -99,6 +101,8 @@ class ConnectedContestantTrack extends Component {
 
 
     componentDidMount() {
+        this.props.fetchInitialTracks(this.props.navigationTask.contest,this.props.navigationTask.id,this.props.contestant.id, 1,this.props.contestant.track_version)
+        this.props.fetchScoreData(this.props.navigationTask.contest,this.props.navigationTask.id,this.props.contestant.id)
     }
 
     componentWillUnmount() {
@@ -118,8 +122,32 @@ class ConnectedContestantTrack extends Component {
         if (this.dotText) {
             this.maybeUpdateAgeAndColour()
         }
+        if (this.props.initialTracks&&this.props.initialTracks.nextPositions&&!this.props.fetchingContestantTracks){
+            this.props.fetchInitialTracks(this.props.navigationTask.contest,this.props.navigationTask.id,this.props.contestant.id, this.props.initialTracks.currentPage+1,this.props.contestant.track_version)
+        }
         const displayTracks = this.props.displayTracks;
         if (this.props.displayMap) {
+            if (this.props.initialTracks!==undefined){
+                if (this.props.initialTracks.positions && this.props.initialTracks.positions.length > 0) {
+                    const p = this.props.initialTracks.positions.map((position) => {
+                        return {
+                            latitude: position.latitude,
+                            longitude: position.longitude,
+                            time: new Date(position.time)
+                        }
+                    }).filter((pos) => {
+                        return !this.lastPositionTime || pos.time > this.lastPositionTime
+                    })
+                    if (p.length > 0) {
+                        this.lastPositionTime = p.slice(-1)[0].time
+                    }
+                    this.partialPoints.push(...p)
+                    const positions = p.map((position) => {
+                        return [position.latitude, position.longitude]
+                    })
+                    this.renderPositions(positions)
+                }
+            }
             if (this.props.contestantData !== undefined) {
                 if (this.props.contestantData.positions && this.props.contestantData.positions.length > 0) {
                     const p = this.props.contestantData.positions.map((position) => {
@@ -170,7 +198,7 @@ class ConnectedContestantTrack extends Component {
     }
 
     maybeUpdateAgeAndColour() {
-        if (this.props.currentTime && this.props.contestantData && this.props.contestantData.contestant_track.current_state !== "Finished") {
+        if (this.props.currentTime && this.props.contestantData && this.props.contestantData.contestant_track&&this.props.contestantData.contestant_track.current_state !== "Finished") {
             const lastTime = DateTime.fromJSDate(this.lastPositionTime)
             const diff = this.props.currentTime.diff(lastTime)
             if (diff.as("seconds") > 20) {
@@ -435,6 +463,8 @@ const ContestantTrack = connect(mapStateToProps, {
     highlightContestantTrack,
     removeHighlightContestantTrack,
     displayAllTracks,
-    hideLowerThirds
+    hideLowerThirds,
+    fetchInitialTracks,
+    fetchScoreData
 })(ConnectedContestantTrack);
 export default ContestantTrack;
