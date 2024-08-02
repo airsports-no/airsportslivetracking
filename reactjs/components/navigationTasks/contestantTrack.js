@@ -183,7 +183,7 @@ class ConnectedContestantTrack extends Component {
                 }
             }
             if (this.props.isInitialLoading) {
-                this.hide()
+                // this.hide()
             } else if (previousProps.isInitialLoading) {
                 this.undim()
                 this.updateBearing()
