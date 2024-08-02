@@ -34,7 +34,8 @@ function clubDisplay(club) {
 }
 
 const mapStateToProps = (state, props) => ({
-    contestantData: state.contestantData[props.contestant.id],
+    score:state.contestantData[props.contestant.id].contestant_track.score,
+    playingCards:state.contestantData[props.contestant.id].playing_cards,
     displayProfilePictures: state.displayProfilePictures,
     currentDisplay: state.currentDisplay,
     displayDangerLevel: state.displayDangerLevel
@@ -91,7 +92,7 @@ function ScoreAndNames(props) {
                     <div className={"text-center col-12"}>
                         <div className={"lower-thirds-current-score clickable"}>
                             <a href={"#"}
-                               onClick={props.toggleDetails}>{props.contestantData.contestant_track.score.toFixed(0)}</a>
+                               onClick={props.toggleDetails}>{props.score.toFixed(0)}</a>
                         </div>
                     </div>
                 </div>
@@ -121,7 +122,7 @@ function ScoreAndNames(props) {
 
 
 function PlayingCards(props) {
-    const cards = props.contestantData.playing_cards.map((card) => {
+    const cards = props.playingCards.map((card) => {
         return card.card.toLowerCase()
     })
     return <Hand hide={false} layout={"fan"} cards={cards} cardSize={250}/>
@@ -180,7 +181,7 @@ class ConnectedLowerThirdTeam extends Component {
                         className={(this.singleCrew() ? "lower-thirds-inner-single" : "lower-thirds-inner-double") + " card-transparent p-2"}
                         style={{paddingLeft: "0px!important"}}>
                         {this.props.displayProfilePictures ? <CrewPictures contestant={this.props.contestant}/> : null}
-                        <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}
+                        <ScoreAndNames score={this.props.score} contestant={this.props.contestant}
                                        toggleDetails={this.toggleRankDetailsDisplay}/>
                     </div>
                     <div className={"clickable danger-level-toggle"}>
@@ -210,8 +211,8 @@ class ConnectedLowerThirdTeam extends Component {
                     <div
                         className={(this.singleCrew() ? "lower-thirds-inner-single" : "lower-thirds-inner-double") + " card-transparent p-2"}
                         style={{paddingLeft: "0px!important"}}>
-                        <PlayingCards contestantData={this.props.contestantData} contestant={this.props.contestant}/>
-                        <ScoreAndNames contestantData={this.props.contestantData} contestant={this.props.contestant}
+                        <PlayingCards playingCards={this.props.playingCards} contestant={this.props.contestant}/>
+                        <ScoreAndNames score={this.props.score} contestant={this.props.contestant}
                                        toggleDetails={this.toggleRankDetailsDisplay}/>
                     </div>
                 </div>

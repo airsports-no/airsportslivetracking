@@ -1,11 +1,11 @@
-import React, {Component} from "react";
-import {connect} from "react-redux";
+import React, { Component } from "react";
+import { connect } from "react-redux";
 import {
     calculateProjectedScore, compareScoreAscending, compareScoreDescending,
     teamRankingTable
 } from "../../utilities";
 import "bootstrap/dist/css/bootstrap.min.css"
-import {SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
+import { SIMPLE_RANK_DISPLAY } from "../../constants/display-types";
 import {
     displayAllTracks,
     displayOnlyContestantTrack, hideLowerThirds, highlightContestantTable,
@@ -15,22 +15,17 @@ import {
     setDisplay,
     showLowerThirds,
 } from "../../actions";
-import {Loading} from "../basicComponents";
-import {ProgressCircle} from "./contestantProgress";
+import { Loading } from "../basicComponents";
+import { ProgressCircle } from "./contestantProgress";
 import 'react-circular-progressbar/dist/styles.css';
-import {ResultsServiceTable} from "../resultsService/resultsServiceTable";
+import { ResultsServiceTable } from "../resultsService/resultsServiceTable";
 
 
 const mapStateToProps = (state, props) => ({
-    contestants: Object.keys(state.contestantData).map((key, index) => {
-        return {
-            track: state.contestantData[key].contestant_track,
-            logEntries: state.contestantData[key].log_entries,
-            progress: state.contestantData[key].progress,
-            initialLoading: state.initialLoadingContestantData[key],
-            contestant: state.contestants[key]
-        }
-    }),
+    contestantData: state.contestantData,
+    contestantProgress: state.contestantProgress,
+    initialLoading: state.initialLoadingContestantData,
+    contestants: state.contestants,
     displayExpandedTrackingTable: state.displayExpandedTrackingTable,
     highlight: state.highlightContestantTable,
     navigationTask: state.navigationTask,
@@ -55,14 +50,14 @@ class ConnectedContestantRankTable extends Component {
                     return ""
                 },
                 Header: () => {
-                    return <span style={{width: 20 + 'px'}}></span>
+                    return <span style={{ width: 20 + 'px' }}></span>
                 },
                 id: "colour",
                 disableSortBy: true,
             },
             {
                 Header: () => {
-                    return <span style={{width: 50 + 'px'}}> #</span>
+                    return <span style={{ width: 50 + 'px' }}> #</span>
                 },
                 id: "Rank",
                 disableSortBy: true,
@@ -77,7 +72,7 @@ class ConnectedContestantRankTable extends Component {
 
                 accessor: (row, index) => {
                     return <div
-                        className={"align-middle crew-name"}>{teamRankingTable(row.contestant.team, row.contestant.has_been_tracked_by_simulator)}</div>
+                        className={"align-middle crew-name"}>{row.contestant?teamRankingTable(row.contestant.team, row.contestant.has_been_tracked_by_simulator):''}</div>
                 }
             },
             {
@@ -137,8 +132,8 @@ class ConnectedContestantRankTable extends Component {
                     return <span className={'text-center'}>LAP</span>
                 },
                 accessor: (row, index) => {
-                    return <span className={'align-middle'} style={{width: 80 + 'px'}}><ProgressCircle
-                        progress={row.progress} finished={row.finished}/></span>
+                    return <span className={'align-middle'} style={{ width: 80 + 'px' }}><ProgressCircle
+                        progress={row.progress} finished={row.finished} /></span>
                 },
             },
         ]
@@ -158,7 +153,7 @@ class ConnectedContestantRankTable extends Component {
     }
 
     resetToAllContestants() {
-        this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
+        this.props.setDisplay({ displayType: SIMPLE_RANK_DISPLAY })
         this.props.displayAllTracks();
         this.props.hideLowerThirds();
         for (let id of this.props.highlight) {
@@ -182,56 +177,56 @@ class ConnectedContestantRankTable extends Component {
 
 
     numberStyle(row, rowIndex, colIndex) {
-        return {backgroundColor: this.getColour(row.contestantNumber)}
+        return { backgroundColor: this.getColour(row.contestantNumber) }
     }
 
     rowStyle(row, rowIndex) {
-        return {backgroundColor: this.getColour(row.contestantNumber)}
+        return { backgroundColor: this.getColour(row.contestantNumber) }
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
     }
 
     buildData() {
-        const contestants = this.props.contestants.filter((contestant) => {
-            return contestant != null && contestant.contestant !== undefined
-        })
+        const contestantData = Object.values(this.props.contestantData)//.filter((cd)=>this.props.contestants[cd.contestant_id]!== undefined)
         // compareScore should be replaced depending on scorecard ascending or descending configuration
         // Initially simply reversed the list depending on ascending or descending in the scorecard
         // May be later support more complex scoring descriptions
         if (this.props.navigationTask.score_sorting_direction === "asc") {
-            contestants.sort(compareScoreAscending)
+            contestantData.sort(compareScoreAscending)
         } else {
-            contestants.sort(compareScoreDescending)
+            contestantData.sort(compareScoreDescending)
         }
-        return contestants.map((contestant, index) => {
-            const progress = Math.min(100, Math.max(0, contestant.progress.toFixed(1)))
+        return contestantData.map((contestantData, index) => {
+            const contestant = this.props.contestants[contestantData.contestant_id]
+            const progress=this.props.contestantProgress[contestantData.contestant_id]!==undefined?Math.min(100, Math.max(0, this.props.contestantProgress[contestantData.contestant_id].toFixed(1))):0
             return {
-                key: contestant.contestant.id + "rack" + index,
-                track: contestant.track,
-                contestant: contestant.contestant,
+                key: contestantData.contestant_id + "track" + index,
+                track: contestantData.contestant_track,
+                contestant: contestant !== undefined ?contestant:null,
                 colour: "",
-                contestantNumber: contestant.contestant.contestant_number,
-                contestantId: contestant.contestant.id,
+                contestantNumber: contestant !== undefined ?contestant.contestant_number:null,
+                contestantId: contestantData.contestant_id,
                 rank: index + 1,
                 dummy: null,
                 progress: progress,
-                hasStarted: contestant.track.current_state !== "Waiting...",
-                name: teamRankingTable(contestant.contestant.team),
-                pilotName: contestant.contestant.team.crew ? contestant.contestant.team.crew.member1.first_name : '',
-                score: contestant.track.score,
-                contest_summary: contestant.track.contest_summary,
-                projectedScore: calculateProjectedScore(contestant.track.score, progress, contestant.track.contest_summary),
-                finished: contestant.track.current_state === "Finished" || contestant.track.calculator_finished,
-                initialLoading: contestant.initialLoading,
-                className: this.props.highlight.includes(contestant.contestant.id) ? "selectedContestantRow" : ""
+                hasStarted: contestantData.contestant_track !== undefined && contestantData.contestant_track.current_state !== "Waiting...",
+                name: contestant !== undefined ?teamRankingTable(contestant.team):'',
+                pilotName: contestant !== undefined ?contestant.team.crew ? contestant.team.crew.member1.first_name : '':'',
+                score: contestantData.contestant_track !== undefined ? contestantData.contestant_track.score : 0,
+                contest_summary: contestantData.contestant_track !== undefined ? contestantData.contestant_track.contest_summary : 0,
+                projectedScore: contestantData.contestant_track !== undefined ? calculateProjectedScore(contestantData.contestant_track.score, progress, contestantData.contestant_track.contest_summary) : 9999,
+                finished: contestantData.contestant_track !== undefined ? contestantData.contestant_track.current_state === "Finished" || contestantData.contestant_track.calculator_finished : false,
+                initialLoading: this.props.initialLoading[contestantData.contestant_id],
+                className: this.props.highlight.includes(contestantData.contestant_id) ? "selectedContestantRow" : ""
             }
         })
+
     }
 
     getStateFormat(cell, row) {
         if (row.initialLoading) {
-            return <Loading/>
+            return <Loading />
         }
         return <div>{cell}</div>
     }
@@ -242,15 +237,15 @@ class ConnectedContestantRankTable extends Component {
 
     render() {
         return <ResultsServiceTable data={this.debouncedBuildData()} columns={this.columns}
-                                    className={"table table-dark table-striped table-hover table-sm"}
-                                    rowEvents={this.rowEvents} initialState={{
-            sortBy: [
-                {
-                    id: "SCORE",
-                    desc: this.props.navigationTask.score_sorting_direction === "desc"
-                }
-            ]
-        }}
+            className={"table table-dark table-striped table-hover table-sm"}
+            rowEvents={this.rowEvents} initialState={{
+                sortBy: [
+                    {
+                        id: "SCORE",
+                        desc: this.props.navigationTask.score_sorting_direction === "desc"
+                    }
+                ]
+            }}
         />
     }
 }

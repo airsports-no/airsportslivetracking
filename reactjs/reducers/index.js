@@ -29,6 +29,7 @@ import {
     FETCH_EDITABLE_ROUTE_SUCCESSFUL,
     FETCH_EDITABLE_ROUTE,
     FETCH_INITIAL_TRACKS_SUCCESS,
+    FETCH_INITIAL_TRACKS,
     TOGGLE_PROFILE_PICTURES,
     TOGGLE_GATE_ARROW,
     TOGGLE_DANGER_LEVEL,
@@ -41,7 +42,7 @@ import {
     WEB_SOCKET_STATUS,
     GLOBAL_MAP_SET_VISIBLE_CONTESTS
 } from "../constants/action-types";
-import {SIMPLE_RANK_DISPLAY} from "../constants/display-types";
+import { SIMPLE_RANK_DISPLAY } from "../constants/display-types";
 import {
     CREATE_TASK_SUCCESSFUL,
     CREATE_TASK_TEST_SUCCESSFUL,
@@ -53,18 +54,22 @@ import {
     GET_TASKS_SUCCESSFUL, HIDE_ALL_TASK_DETAILS, HIDE_TASK_DETAILS,
     SHOW_TASK_DETAILS
 } from "../constants/resultsServiceActionTypes";
-import {DateTime} from "luxon";
+import { DateTime } from "luxon";
 
 const initialState = {
-    navigationTask: {route: {waypoints: []}},
+    navigationTask: { route: { waypoints: [] } },
     navigationTaskError: null,
     contestantData: {},
     contestants: {},
-    currentDisplay: {displayType: SIMPLE_RANK_DISPLAY},
+    currentDisplay: { displayType: SIMPLE_RANK_DISPLAY },
     displayTracks: null,
     displayExpandedTrackingTable: false,
-    isFetchingContestantData: {},
     initialLoadingContestantData: {},
+    contestantPositions: {},
+    totalInitialPositionCountForContestant: {},
+    currentInitialPositionCountForContestant: {},
+    contestantProgress: {},
+    fetchingContestantTracks: {},
     displayLowerThirds: null,
     displayGateArrow: true,
     displayDangerLevel: true,
@@ -97,18 +102,18 @@ const initialState = {
     displayProfilePictures: true,
     editableRoutes: {},
     fetchingEditableRoute: false,
-    initialTracks: {},
     webSocketOnline: true,
     globalMapVisibleContests: []
 };
 
-function emptyContestantData() {
+function emptyContestantData(contestantId) {
     return Object.assign({}, {
         latest_time: "1970-01-01T00:00:00Z",
         positions: [],
         annotations: [],
         log_entries: [],
         playing_cards: [],
+        contestant_id:contestantId,
         gate_scores: [],
         more_data: true,
         progress: 0,
@@ -142,7 +147,7 @@ function rootReducer(state = initialState, action) {
         let contestants = {}
         let initialLoading = {}
         action.payload.contestant_set.map((contestant) => {
-            contestantData[contestant.id] = emptyContestantData()
+            contestantData[contestant.id] = emptyContestantData(contestant.id)
             contestants[contestant.id] = contestant
             initialLoading[contestant.id] = true
         })
@@ -157,10 +162,53 @@ function rootReducer(state = initialState, action) {
     }
     if (action.type === FETCH_INITIAL_TRACKS_SUCCESS) {
         return Object.assign({}, state, {
-            ...state,
-            initialTracks: {
-                ...state.initialTracks,
-                [action.contestantId]: action.payload
+            contestantPositions: {
+                ...state.contestantPositions,
+                [action.contestantId]: {
+                    contestant_id: action.contestantId,
+                    positions: action.payload.results,
+                    nextPositions: action.payload.next,
+                    currentPage: action.page,
+                }
+            },
+            contestantProgress: {
+                ...state.contestantProgress,
+                [action.contestantId]: action.payload.results.length > 0 ? action.payload.results.slice(-1)[0].progress : state.contestantProgress[action.contestantId],
+
+            },
+            initialLoadingContestantData: {
+                ...state.initialLoadingContestantData,
+                [action.contestantId]: action.payload.next != null
+            },
+            fetchingContestantTracks: {
+                ...state.fetchingContestantTracks,
+                [action.contestantId]: false
+            },
+            totalInitialPositionCountForContestant: {
+                ...state.totalInitialPositionCountForContestant,
+                [action.contestantId]: action.payload.count
+            },
+            currentInitialPositionCountForContestant: {
+                ...state.currentInitialPositionCountForContestant,
+                [action.contestantId]: state.currentInitialPositionCountForContestant[action.contestantId] ? state.currentInitialPositionCountForContestant[action.contestantId] + action.payload.results.length : action.payload.results.length
+            }
+
+        })
+    }
+
+    if (action.type === FETCH_INITIAL_TRACKS) {
+        return Object.assign({}, state, {
+            fetchingContestantTracks: {
+                ...state.fetchingContestantTracks,
+                [action.contestantId]: true
+            },
+            totalInitialPositionCountForContestant: {
+                ...state.totalInitialPositionCountForContestant,
+                [action.contestantId]: state.totalInitialPositionCountForContestant[action.contestantId]===undefined?10000:state.totalInitialPositionCountForContestant[action.contestantId] // Arbitrary large number.
+            },
+            currentInitialPositionCountForContestant: {
+                ...state.currentInitialPositionCountForContestant,
+                [action.contestantId]: action.page == 1?0:state.currentInitialPositionCountForContestant[action.contestantId]
             }
         })
     }
@@ -207,35 +255,36 @@ function rootReducer(state = initialState, action) {
         delete newState.initialLoadingContestantData[action.payload.contestant_id]
         delete newState.contestants[action.payload.contestant_id]
         delete newState.contestantData[action.payload.contestant_id]
+        delete newState.contestantPositions[action.payload.contestant_id]
+        delete newState.totalInitialPositionCountForContestant[action.payload.contestant_id]
+        delete newState.currentInitialPositionCountForContestant[action.payload.contestant_id]
         return newState
     }
     if (action.type === GET_CONTESTANT_DATA_SUCCESSFUL) {
         if (Object.keys(action.payload).length === 0) {
-            return {
-                ...state,
-                isFetchingContestantData: {
-                    ...state.isFetchingContestantData,
-                    [action.payload.contestant_id]: false
-                }
-            }
+            return state
         }
         // Handle the case where we get contestant data for an unknown contestant
         if (state.contestants[action.payload.contestant_id] === undefined) {
             return state
         }
-        return {
-            ...state,
+        return Object.assign({}, state, {
+            contestantPositions: {
+                ...state.contestantPositions,
+                [action.payload.contestant_id]: {
+                    contestant_id: action.payload.contestant_id,
+                    positions: action.payload.positions,
+                    nextPositions: null,
+                }
+            },
             contestantData: {
                 ...state.contestantData,
                 [action.payload.contestant_id]: {
                     annotations: action.payload.annotations,
-                    positions: action.payload.positions,
-
                     log_entries: action.payload.score_log_entries !== undefined ? action.payload.score_log_entries : state.contestantData[action.payload.contestant_id].log_entries,
                     gate_scores: action.payload.gate_scores !== undefined ? action.payload.gate_scores : state.contestantData[action.payload.contestant_id].gate_scores,
                     playing_cards: action.payload.playing_cards !== undefined ? action.payload.playing_cards : state.contestantData[action.payload.contestant_id].playing_cards,
                     latest_position_time: action.payload.positions !== undefined && action.payload.positions.length > 0 ? new Date(action.payload.positions.slice(-1)[0].time) : null,
-                    progress: action.payload.progress !== undefined ? action.payload.progress : state.contestantData[action.payload.contestant_id].progress,
                     contestant_track: action.payload.contestant_track ? action.payload.contestant_track : state.contestantData[action.payload.contestant_id].contestant_track,
                     contestant_id: action.payload.contestant_id,
                     latest_time: action.payload.latest_time !== undefined ? action.payload.latest_time : null,
@@ -243,25 +292,16 @@ function rootReducer(state = initialState, action) {
                     danger_level: action.payload.danger_level ? action.payload.danger_level : state.contestantData[action.payload.contestant_id].danger_level,
                 }
             },
-            isFetchingContestantData: {
-                ...state.isFetchingContestantData,
-                [action.payload.contestant_id]: false
+            contestantProgress: {
+                ...state.contestantProgress,
+                [action.payload.contestant_id]: action.payload.positions.length > 0 ? action.payload.positions.slice(-1)[0].progress : state.contestantProgress[action.payload.contestant_id],
+
             },
-            initialLoadingContestantData: {
-                ...state.initialLoadingContestantData,
-                [action.payload.contestant_id]: false
-            }
-        }
+        })
     }
     if (action.type === GET_CONTESTANT_DATA_PLAYBACK_SUCCESSFUL) {
         if (Object.keys(action.payload).length === 0) {
-            return {
-                ...state,
-                isFetchingContestantData: {
-                    ...state.isFetchingContestantData,
-                    [action.payload.contestant_id]: false
-                }
-            }
+            return state
         }
         // Handle the case where we get contestant data for an unknown contestant
         if (state.contestants[action.payload.contestant_id] === undefined) {
@@ -269,14 +309,6 @@ function rootReducer(state = initialState, action) {
         }
         return {
             ...state,
-            isFetchingContestantData: {
-                ...state.isFetchingContestantData,
-                [action.payload.contestant_id]: false
-            },
-            initialLoadingContestantData: {
-                ...state.initialLoadingContestantData,
-                [action.payload.contestant_id]: false
-            }
         }
     }
     if (action.type === HIGHLIGHT_CONTESTANT_TABLE) {
@@ -355,10 +387,10 @@ function rootReducer(state = initialState, action) {
     }
     if (action.type === GET_CONTESTS_SUCCESSFUL) {
         const now = new Date()
-        const newContests=state.contests.concat(action.payload.results)
+        const newContests = state.contests.concat(action.payload.results)
         return Object.assign({}, state, {
-            contests:newContests,
-            nextContestsUrl:action.payload.next,
+            contests: newContests,
+            nextContestsUrl: action.payload.next,
             upcomingContests: newContests.filter((contest) => {
                 return new Date(contest.finish_time).getTime() > now.getTime()
             }),
@@ -656,7 +688,7 @@ function rootReducer(state = initialState, action) {
     }
 
     if (action.type === GLOBAL_MAP_SET_VISIBLE_CONTESTS) {
-        return Object.assign({}, state, {...state, globalMapVisibleContests: action.payload})
+        return Object.assign({}, state, { ...state, globalMapVisibleContests: action.payload })
     }
 
     return state;

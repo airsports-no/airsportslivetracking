@@ -90,6 +90,8 @@ class ContestantProcessor:
         self.process_event = threading.Event()
         self.contestant.reset_track_and_score()
         self.contestant.contestantreceivedposition_set.all().delete()
+        self.contestant.track_version += 1
+        self.contestant.save(update_fields=["track_version"])
         self.contestant_track.set_calculator_started()
         self.scorecard = self.contestant.navigation_task.scorecard
         self.scorecard.refresh_from_db()
@@ -198,6 +200,7 @@ class ContestantProcessor:
         Push all score information to the front end. This needs to be done at regular intervals in case the front end
         loses connectivity with the Web server.
         """
+        self.contestant.refresh_from_db()
         self.websocket_facade.transmit_score_log_entry(self.contestant)
         self.websocket_facade.transmit_annotations(self.contestant)
         self.websocket_facade.transmit_basic_information(self.contestant)

@@ -1,31 +1,38 @@
-import React, {Component} from "react";
-import {connect} from "react-redux";
+import React, { Component } from "react";
+import { connect } from "react-redux";
 import {
     displayAllTracks,
     displayOnlyContestantTrack, hideLowerThirds,
     highlightContestantTable, highlightContestantTrack,
-    removeHighlightContestantTable, removeHighlightContestantTrack, setDisplay, showLowerThirds
+    removeHighlightContestantTable, removeHighlightContestantTrack, setDisplay, showLowerThirds, fetchInitialTracks, fetchScoreData
 } from "../../actions";
 import 'leaflet'
 import 'leaflet.markercluster'
-import {anomalyAnnotationIcon, informationAnnotationIcon} from "./iconDefinitions";
+import { anomalyAnnotationIcon, informationAnnotationIcon } from "./iconDefinitions";
 import "leaflet.markercluster/dist/MarkerCluster.css"
 import "leaflet.markercluster/dist/MarkerCluster.Default.css"
-import {contestantLongForm, contestantShortForm, getBearing} from "../../utilities";
-import {CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY} from "../../constants/display-types";
-import {DateTime} from "luxon";
+import { contestantLongForm, contestantShortForm, getBearing } from "../../utilities";
+import { CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY } from "../../constants/display-types";
+import { DateTime } from "luxon";
 
 
 const L = window['L']
 
 const mapStateToProps = (state, props) => ({
-    contestantData: state.contestantData[props.contestant.id],
+    annotations: state.contestantData[props.contestant.id].annotations,
+    contestantPositions: state.contestantPositions[props.contestant.id],
+    currentState: state.contestantData[props.contestant.id] !== undefined ? state.contestantData[props.contestant.id].contestant_track.current_state : null,
     displayTracks: state.displayTracks,
     currentTime: state.currentDateTime,
     isInitialLoading: state.initialLoadingContestantData[props.contestant.id],
     dim: state.highlightContestantTrack.length > 0 && !state.highlightContestantTrack.includes(props.contestant.id),
     highlight: state.highlightContestantTrack.length > 0 && state.highlightContestantTrack.includes(props.contestant.id),
+    fetchingContestantTracks: state.fetchingContestantTracks[props.contestant.id]
 })
+
+const TrackState = {
+    Dimmed: 1, Hidden: 2, Undimmed: 3
+}
 
 class ConnectedContestantTrack extends Component {
     constructor(props) {
@@ -39,6 +46,7 @@ class ConnectedContestantTrack extends Component {
         this.partialPoints = []
         this.dot = null;
         this.dotText = null;
+        this.trackState = 0
         this.shortTrackDisplayed = false
         this.fullTrackDisplayed = false
         this.lastPositionTime = null
@@ -61,7 +69,8 @@ class ConnectedContestantTrack extends Component {
         const solidPath = '<path style="opacity:' + this.currentAeroplaneOpacity + ';fill:' + this.currentAeroplaneColour + ';stroke-width:0.8742;" d="' + little + '"/>'
         const outlinePath = '<path style="opacity:' + this.currentAeroplaneOpacity + ';fill:black;stroke-width:0.93;" d="' + big + '"/>'
         return L.divIcon({
-            html: '<svg style="width: ' + size + 'px; transform: rotate(' + this.bearing + 'deg);" x="0px" y="0px" viewBox="0 0 20 20">' + outlinePath + solidPath + '</svg>',
+            // html: '<svg style="width: ' + size + 'px; transform: rotate(' + this.bearing + 'deg);" x="0px" y="0px" viewBox="0 0 20 20">' + outlinePath + solidPath + '</svg>',
+            html: '<svg style="width: ' + size + 'px;" x="0px" y="0px" viewBox="0 0 20 20">' + outlinePath + solidPath + '</svg>',
             iconAnchor: [size / 2, size / 2],
             className: "myAirplaneIcon"
         })
@@ -84,21 +93,31 @@ class ConnectedContestantTrack extends Component {
 
     }
 
+    rotateIcon(angle) {
+        if (this.dot && this.dot._icon !== undefined && this.dot._icon) {
+            this.dot._icon.style[L.DomUtil.TRANSFORM+"-origin"] = '25px 25px'
+            const o=this.dot._icon.style[L.DomUtil.TRANSFORM].replace(/( rotateZ\(.*deg\))/,"")
+            this.dot._icon.style[L.DomUtil.TRANSFORM] = o+' rotateZ(' + angle + 'deg)';
+        }
+    }
+
     handleContestantLinkClick(e, contestantId) {
         L.DomEvent.stopPropagation(e)
-        this.props.setDisplay({displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId})
+        this.props.setDisplay({ displayType: CONTESTANT_DETAILS_DISPLAY, contestantId: contestantId })
         this.props.displayOnlyContestantTrack(contestantId)
         this.props.showLowerThirds(contestantId)
     }
 
     resetToAllContestants() {
-        this.props.setDisplay({displayType: SIMPLE_RANK_DISPLAY})
+        this.props.setDisplay({ displayType: SIMPLE_RANK_DISPLAY })
         this.props.displayAllTracks();
         this.props.hideLowerThirds();
     }
 
 
     componentDidMount() {
+        this.props.fetchInitialTracks(this.props.navigationTask.contest, this.props.navigationTask.id, this.props.contestant.id, 1, this.props.contestant.track_version)
+        this.props.fetchScoreData(this.props.navigationTask.contest, this.props.navigationTask.id, this.props.contestant.id)
     }
 
     componentWillUnmount() {
@@ -118,49 +137,56 @@ class ConnectedContestantTrack extends Component {
         if (this.dotText) {
             this.maybeUpdateAgeAndColour()
         }
+        if (this.props.contestantPositions && this.props.contestantPositions.nextPositions && !this.props.fetchingContestantTracks) {
+            this.props.fetchInitialTracks(this.props.navigationTask.contest, this.props.navigationTask.id, this.props.contestant.id, this.props.contestantPositions.currentPage + 1, this.props.contestant.track_version)
+        }
         const displayTracks = this.props.displayTracks;
         if (this.props.displayMap) {
-            if (this.props.contestantData !== undefined) {
-                if (this.props.contestantData.positions && this.props.contestantData.positions.length > 0) {
-                    const p = this.props.contestantData.positions.map((position) => {
-                        return {
-                            latitude: position.latitude,
-                            longitude: position.longitude,
-                            time: new Date(position.time)
-                        }
-                    }).filter((pos) => {
-                        return !this.lastPositionTime || pos.time > this.lastPositionTime
-                    })
-                    if (p.length > 0) {
-                        this.lastPositionTime = p.slice(-1)[0].time
+            if (this.props.contestantPositions !== undefined && (previousProps.contestantPositions === undefined || this.props.contestantPositions.positions !== previousProps.contestantPositions.positions)) {
+                const p = this.props.contestantPositions.positions.map((position) => {
+                    return {
+                        latitude: position.latitude,
+                        longitude: position.longitude,
+                        time: new Date(position.time)
                     }
-                    this.partialPoints.push(...p)
-                    const positions = p.map((position) => {
-                        return [position.latitude, position.longitude]
-                    })
-                    this.renderPositions(positions)
+                }).filter((pos) => {
+                    return !this.lastPositionTime || pos.time > this.lastPositionTime
+                })
+                if (p.length > 0) {
+                    this.lastPositionTime = p.slice(-1)[0].time
                 }
-                if (this.props.contestantData.annotations) {
-                    this.renderAnnotations(this.props.contestantData.annotations)
-                }
-                if (!displayTracks) {
-                    if (this.props.highlight) {
-                        this.showFullTrack()
-                    } else {
-                        this.showTrack()
-                    }
-                    this.hideAnnotations()
+                this.partialPoints.push(...p)
+                const positions = p.map((position) => {
+                    return [position.latitude, position.longitude]
+                })
+                this.renderPositions(positions)
+            }
+            if (this.props.annotations) {
+                this.renderAnnotations(this.props.annotations)
+            }
+            if (!displayTracks) {
+                if (this.props.highlight) {
+                    this.showFullTrack()
                 } else {
-                    if (displayTracks.includes(this.contestant.id)) {
-                        this.showFullTrack()
-                        if (displayTracks.length === 1) {
-                            this.showAnnotations()
-                        }
-                    } else {
-                        this.hideTrack()
-                        this.hideAnnotations()
-                    }
+                    this.showTrack()
                 }
+                this.hideAnnotations()
+            } else {
+                if (displayTracks.includes(this.contestant.id)) {
+                    this.showFullTrack()
+                    if (displayTracks.length === 1) {
+                        this.showAnnotations()
+                    }
+                } else {
+                    this.hideTrack()
+                    this.hideAnnotations()
+                }
+            }
+            if (this.props.isInitialLoading) {
+                this.hide()
+            } else if (previousProps.isInitialLoading) {
+                this.undim()
+                this.updateBearing()
             }
         }
     }
@@ -170,7 +196,7 @@ class ConnectedContestantTrack extends Component {
     }
 
     maybeUpdateAgeAndColour() {
-        if (this.props.currentTime && this.props.contestantData && this.props.contestantData.contestant_track.current_state !== "Finished") {
+        if (this.props.currentTime && this.props.currentState !== "Finished") {
             const lastTime = DateTime.fromJSDate(this.lastPositionTime)
             const diff = this.props.currentTime.diff(lastTime)
             if (diff.as("seconds") > 20) {
@@ -188,6 +214,8 @@ class ConnectedContestantTrack extends Component {
                 this.undim()
                 this.missingData = false
             }
+        } else if (this.props.currentState === "Finished" && !this.props.isInitialLoading) {
+            this.undim()
         }
     }
 
@@ -207,32 +235,47 @@ class ConnectedContestantTrack extends Component {
     }
 
 
-    dim() {
+
+    hide() {
         const style = {
-            color: "grey",
-            opacity: 0.3,
-            weight: 1
+            opacity: 0,
         }
         this.styleContestant(style)
+    }
+
+
+    dim() {
+        if (this.trackState != TrackState.Dimmed) {
+            this.trackState = TrackState.Dimmed
+            const style = {
+                color: "grey",
+                opacity: 0.3,
+                weight: 1
+            }
+            this.styleContestant(style)
+        }
     }
 
     undim() {
-        const style = {
-            color: this.props.colour,
-            opacity: 1,
-            weight: 3
-        }
-        this.styleContestant(style)
-        if (this.dotText) {
-            this.dotText.setTooltipContent(contestantLongForm(this.contestant) + "<br/>" + "Position is up-to-date.")
-            this.dot.setTooltipContent(contestantLongForm(this.contestant) + "<br/>" + "Position is up-to-date.")
-        }
+        if (this.trackState != TrackState.Undimmed) {
+            this.trackState = TrackState.Undimmed
+            const style = {
+                color: this.props.colour,
+                opacity: 1,
+                weight: 3
+            }
+            this.styleContestant(style)
+            if (this.dotText) {
+                this.dotText.setTooltipContent(contestantLongForm(this.contestant) + "<br/>" + "Position is up-to-date.")
+                this.dot.setTooltipContent(contestantLongForm(this.contestant) + "<br/>" + "Position is up-to-date.")
+            }
 
+        }
     }
 
     styleContestant(style) {
-        this.currentAeroplaneColour=style.color
-        this.currentAeroplaneOpacity=style.opacity
+        this.currentAeroplaneColour = style.color
+        this.currentAeroplaneOpacity = style.opacity
         if (this.dot) {
             this.fullTrack.setStyle(style)
             this.partialTrack.setStyle(style)
@@ -250,13 +293,13 @@ class ConnectedContestantTrack extends Component {
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
         ).on('mouseover', (e) => {
-                // this.props.highlightContestantTable(this.contestant.id)
-                this.props.highlightContestantTrack(this.contestant.id)
-            }
+            // this.props.highlightContestantTable(this.contestant.id)
+            this.props.highlightContestantTrack(this.contestant.id)
+        }
         ).on('mouseout', (e) => {
-                // this.props.removeHighlightContestantTable(this.contestant.id)
-                this.props.removeHighlightContestantTrack(this.contestant.id)
-            }
+            // this.props.removeHighlightContestantTable(this.contestant.id)
+            this.props.removeHighlightContestantTrack(this.contestant.id)
+        }
         )
         this.fullTrack = L.polyline(positions, {
             color: this.props.colour,
@@ -265,39 +308,39 @@ class ConnectedContestantTrack extends Component {
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
         ).on('mouseover', (e) => {
-                // this.props.highlightContestantTable(this.contestant.id)
-                this.props.highlightContestantTrack(this.contestant.id)
-            }
+            // this.props.highlightContestantTable(this.contestant.id)
+            this.props.highlightContestantTrack(this.contestant.id)
+        }
         ).on('mouseout', (e) => {
-                // this.props.removeHighlightContestantTable(this.contestant.id)
-                this.props.removeHighlightContestantTrack(this.contestant.id)
-            }
+            // this.props.removeHighlightContestantTable(this.contestant.id)
+            this.props.removeHighlightContestantTrack(this.contestant.id)
+        }
         )
-        this.dot = L.marker(newest_position, {icon: this.createAirplaneIcon()}).bindTooltip(contestantLongForm(this.contestant), {
+        this.dot = L.marker(newest_position, { icon: this.createAirplaneIcon() }).bindTooltip(contestantLongForm(this.contestant), {
             permanent: false
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
         ).on('mouseover', (e) => {
-                // this.props.highlightContestantTable(this.contestant.id)
-                this.props.highlightContestantTrack(this.contestant.id)
-            }
+            // this.props.highlightContestantTable(this.contestant.id)
+            this.props.highlightContestantTrack(this.contestant.id)
+        }
         ).on('mouseout', (e) => {
-                // this.props.removeHighlightContestantTable(this.contestant.id)
-                this.props.removeHighlightContestantTrack(this.contestant.id)
-            }
+            // this.props.removeHighlightContestantTable(this.contestant.id)
+            this.props.removeHighlightContestantTrack(this.contestant.id)
+        }
         )
-        this.dotText = L.marker(newest_position, {icon: this.createAirplaneTextIcon()}).bindTooltip(contestantLongForm(this.contestant), {
+        this.dotText = L.marker(newest_position, { icon: this.createAirplaneTextIcon() }).bindTooltip(contestantLongForm(this.contestant), {
             permanent: false
         }).on('click', (e) =>
             this.handleContestantLinkClick(e, this.contestant.id)
         ).on('mouseover', (e) => {
-                // this.props.highlightContestantTable(this.contestant.id)
-                this.props.highlightContestantTrack(this.contestant.id)
-            }
+            // this.props.highlightContestantTable(this.contestant.id)
+            this.props.highlightContestantTrack(this.contestant.id)
+        }
         ).on('mouseout', (e) => {
-                // this.props.removeHighlightContestantTable(this.contestant.id)
-                this.props.removeHighlightContestantTrack(this.contestant.id)
-            }
+            // this.props.removeHighlightContestantTable(this.contestant.id)
+            this.props.removeHighlightContestantTrack(this.contestant.id)
+        }
         )
         this.undim()
     }
@@ -319,7 +362,7 @@ class ConnectedContestantTrack extends Component {
 
     addAnnotation(latitude, longitude, message, icon) {
         if (icon === undefined) icon = informationAnnotationIcon
-        this.markers.addLayer(L.marker([latitude, longitude], {icon: icon}).bindTooltip(message.replace("\n", "<br/>"), {
+        this.markers.addLayer(L.marker([latitude, longitude], { icon: icon }).bindTooltip(message.replace("\n", "<br/>"), {
             permanent: false
         }))
     }
@@ -373,6 +416,7 @@ class ConnectedContestantTrack extends Component {
 
 
     updateBearing() {
+
         if (this.partialTrack) {
             const positions = this.partialTrack.getLatLngs()
             if (positions.length > 1) {
@@ -381,7 +425,7 @@ class ConnectedContestantTrack extends Component {
 
             }
         }
-        this.dot.setIcon(this.createAirplaneIcon())
+        this.rotateIcon(this.bearing)
     }
 
     trimPartialTrack() {
@@ -404,6 +448,7 @@ class ConnectedContestantTrack extends Component {
         if (b.length) {
             if (!this.dot) {
                 this.createLiveEntities(b)
+
             } else {
                 const s = b.slice(-1)[0]
                 if (s) {
@@ -414,9 +459,10 @@ class ConnectedContestantTrack extends Component {
                     this.fullTrack.addLatLng(position)
                 })
             }
-            this.trimPartialTrack()
-            this.updateBearing()
         }
+        this.trimPartialTrack()
+        this.updateBearing()
+
     }
 
     render() {
@@ -435,6 +481,8 @@ const ContestantTrack = connect(mapStateToProps, {
     highlightContestantTrack,
     removeHighlightContestantTrack,
     displayAllTracks,
-    hideLowerThirds
+    hideLowerThirds,
+    fetchInitialTracks,
+    fetchScoreData
 })(ConnectedContestantTrack);
 export default ContestantTrack;

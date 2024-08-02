@@ -57,8 +57,7 @@ def generate_contestant_data_block(
     danger_level: Dict = None,
 ):
     data = {"contestant_id": contestant.id}
-    if positions is not None:
-        data["positions"] = positions
+    data["positions"] = positions or []
     if annotations is not None:
         data["annotations"] = annotations
     if log_entries is not None:
@@ -84,25 +83,6 @@ class WebsocketFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
         self.redis = StrictRedis(REDIS_HOST, REDIS_PORT)  # , password=REDIS_PASSWORD)
-
-    def transmit_initial_load(self, contestant: "Contestant"):
-        """Transmitted whenever a web socket connects. Primarily used to fill missing track after network outage"""
-        group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        positions = contestant.get_track() if contestant.contestanttrack.calculator_started else []
-        if len(positions) > 0:
-            position_data = PositionSerialiser(positions, many=True).data
-            channel_data = generate_contestant_data_block(
-                contestant,
-                positions=position_data,
-                latest_time=positions[-1].time,
-            )
-            async_to_sync(self.channel_layer.group_send)(
-                group_key,
-                {
-                    "type": "tracking.data",
-                    "data": {"type": "position_data", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
-                },
-            )
 
     def transmit_annotations(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)

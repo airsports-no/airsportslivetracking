@@ -34,7 +34,8 @@
         document.configuration = {
             navigationTaskUrl: (contestId, navigationTaskId) => "{% url 'navigationtasks-detail' 0 1 %}".replace("/0/", '/' + contestId + '/').replace("/1/", '/' + navigationTaskId + '/'),
             editableRouteUrl: editableRouteId => "{% url 'editableroutes-detail' 0 %}".replace("0", editableRouteId),
-            contestantInitialTrackDataUrl: (contestId, navigationTaskId, contestantId) => "{% url 'contestants-initial-track-data' 0 1 2 %}".replace("0", contestId).replace("/1/", '/' + navigationTaskId + '/').replace("/2/", '/' + contestantId + '/'),
+            contestantInitialTrackDataUrl: (contestId, navigationTaskId, contestantId) => "{% url 'contestants-paginated-track-data' 0 1 2 %}".replace("0", contestId).replace("/1/", '/' + navigationTaskId + '/').replace("/2/", '/' + contestantId + '/'),
+            contestantScoreDataUrl: (contestId, navigationTaskId, contestantId) => "{% url 'contestants-score-data' 0 1 2 %}".replace("0", contestId).replace("/1/", '/' + navigationTaskId + '/').replace("/2/", '/' + contestantId + '/'),
             CONTESTS_LIST_URL: "{% url 'contests-list' %}",
             CONTESTS_WITH_ONGOING_NAVIGATION_URL: "{% url 'contests-ongoing-navigation' %}",
             MY_PARTICIPATING_CONTESTS_URL: "{% url 'userprofile-my-participating-contests' %}",
