@@ -22,15 +22,10 @@ import { ResultsServiceTable } from "../resultsService/resultsServiceTable";
 
 
 const mapStateToProps = (state, props) => ({
-    contestants: Object.keys(state.contestantData).map((key, index) => {
-        return {
-            track: state.contestantData[key].contestant_track,
-            logEntries: state.contestantData[key].log_entries,
-            progress: !state.initialLoadingContestantData[key] && state.contestantProgress[key] ? state.contestantProgress[key] : 0,
-            initialLoading: state.initialLoadingContestantData[key],
-            contestant: state.contestants[key]
-        }
-    }),
+    contestantData: state.contestantData,
+    contestantProgress: state.contestantProgress,
+    initialLoading: state.initialLoadingContestantData,
+    contestants: state.contestants,
     displayExpandedTrackingTable: state.displayExpandedTrackingTable,
     highlight: state.highlightContestantTable,
     navigationTask: state.navigationTask,
@@ -77,7 +72,7 @@ class ConnectedContestantRankTable extends Component {
 
                 accessor: (row, index) => {
                     return <div
-                        className={"align-middle crew-name"}>{teamRankingTable(row.contestant.team, row.contestant.has_been_tracked_by_simulator)}</div>
+                        className={"align-middle crew-name"}>{row.contestant?teamRankingTable(row.contestant.team, row.contestant.has_been_tracked_by_simulator):''}</div>
                 }
             },
             {
@@ -193,40 +188,40 @@ class ConnectedContestantRankTable extends Component {
     }
 
     buildData() {
-        const contestants = this.props.contestants.filter((contestant) => {
-            return contestant != null && contestant.contestant !== undefined
-        })
+        const contestantData = Object.values(this.props.contestantData)//.filter((cd)=>this.props.contestants[cd.contestant_id]!== undefined)
         // compareScore should be replaced depending on scorecard ascending or descending configuration
         // Initially simply reversed the list depending on ascending or descending in the scorecard
         // May be later support more complex scoring descriptions
         if (this.props.navigationTask.score_sorting_direction === "asc") {
-            contestants.sort(compareScoreAscending)
+            contestantData.sort(compareScoreAscending)
         } else {
-            contestants.sort(compareScoreDescending)
+            contestantData.sort(compareScoreDescending)
         }
-        return contestants.map((contestant, index) => {
-            const progress = Math.min(100, Math.max(0, contestant.progress.toFixed(1)))
+        return contestantData.map((contestantData, index) => {
+            const contestant = this.props.contestants[contestantData.contestant_id]
+            const progress=this.props.contestantProgress[contestantData.contestant_id]!==undefined?Math.min(100, Math.max(0, this.props.contestantProgress[contestantData.contestant_id].toFixed(1))):0
             return {
-                key: contestant.contestant.id + "rack" + index,
-                track: contestant.track,
-                contestant: contestant.contestant,
+                key: contestantData.contestant_id + "track" + index,
+                track: contestantData.contestant_track,
+                contestant: contestant !== undefined ?contestant:null,
                 colour: "",
-                contestantNumber: contestant.contestant.contestant_number,
-                contestantId: contestant.contestant.id,
+                contestantNumber: contestant !== undefined ?contestant.contestant_number:null,
+                contestantId: contestantData.contestant_id,
                 rank: index + 1,
                 dummy: null,
                 progress: progress,
-                hasStarted: contestant.track !== undefined && contestant.track.current_state !== "Waiting...",
-                name: teamRankingTable(contestant.contestant.team),
-                pilotName: contestant.contestant.team.crew ? contestant.contestant.team.crew.member1.first_name : '',
-                score: contestant.track !== undefined ? contestant.track.score : 0,
-                contest_summary: contestant.track !== undefined ? contestant.track.contest_summary : 0,
-                projectedScore: contestant.track !== undefined ? calculateProjectedScore(contestant.track.score, progress, contestant.track.contest_summary) : 9999,
-                finished: contestant.track !== undefined ? contestant.track.current_state === "Finished" || contestant.track.calculator_finished : false,
-                initialLoading: contestant.initialLoading,
-                className: this.props.highlight.includes(contestant.contestant.id) ? "selectedContestantRow" : ""
+                hasStarted: contestantData.contestant_track !== undefined && contestantData.contestant_track.current_state !== "Waiting...",
+                name: contestant !== undefined ?teamRankingTable(contestant.team):'',
+                pilotName: contestant !== undefined ?contestant.team.crew ? contestant.team.crew.member1.first_name : '':'',
+                score: contestantData.contestant_track !== undefined ? contestantData.contestant_track.score : 0,
+                contest_summary: contestantData.contestant_track !== undefined ? contestantData.contestant_track.contest_summary : 0,
+                projectedScore: contestantData.contestant_track !== undefined ? calculateProjectedScore(contestantData.contestant_track.score, progress, contestantData.contestant_track.contest_summary) : 9999,
+                finished: contestantData.contestant_track !== undefined ? contestantData.contestant_track.current_state === "Finished" || contestantData.contestant_track.calculator_finished : false,
+                initialLoading: this.props.initialLoading[contestantData.contestant_id],
+                className: this.props.highlight.includes(contestantData.contestant_id) ? "selectedContestantRow" : ""
             }
         })
+
     }
 
     getStateFormat(cell, row) {

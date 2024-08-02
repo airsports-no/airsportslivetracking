@@ -2,13 +2,13 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
 
-
 class ContestantTrack(models.Model):
     """
     Has a one-to-one relationship with a contestant. Used to store metadata related to calculator status.
 
     TODO: Possibly remove and merge with Contestant
     """
+
     contestant = models.OneToOneField("Contestant", on_delete=models.CASCADE)
     score = models.FloatField(default=0)
     current_state = models.CharField(max_length=200, default="Waiting...")
@@ -36,6 +36,7 @@ class ContestantTrack(models.Model):
     @property
     def contest_summary(self):
         from display.models import ContestSummary
+
         try:
             return ContestSummary.objects.get(
                 team=self.contestant.team,
@@ -53,15 +54,19 @@ class ContestantTrack(models.Model):
 
     def update_score(self, score):
         from display.models import TeamTestScore
-        ContestantTrack.objects.filter(pk=self.pk).update(score=score)
-        # Update task test score if it exists
-        if hasattr(self.contestant.navigation_task, "tasktest"):
-            entry, _ = TeamTestScore.objects.update_or_create(
-                team=self.contestant.team,
-                task_test=self.contestant.navigation_task.tasktest,
-                defaults={"points": score},
-            )
-        self.__push_change()
+
+        self.refresh_from_db()
+        if self.score != score:
+            self.score = score
+            self.save(update_fields=["score"])
+            # Update task test score if it exists
+            if hasattr(self.contestant.navigation_task, "tasktest"):
+                entry, _ = TeamTestScore.objects.update_or_create(
+                    team=self.contestant.team,
+                    task_test=self.contestant.navigation_task.tasktest,
+                    defaults={"points": score},
+                )
+            self.__push_change()
 
     def updates_current_state(self, state: str):
         self.refresh_from_db()

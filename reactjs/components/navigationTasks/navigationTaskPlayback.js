@@ -19,7 +19,7 @@ require('./playbackstyle.css')
 
 
 export const mapStateToProps = (state, props) => ({
-    initialTracks: state.initialTracks,
+    contestantPositions: state.contestantPositions,
     navigationTask: state.navigationTask,
     contestants: state.contestants,
     currentDisplay: state.currentDisplay,
@@ -124,11 +124,11 @@ class ConnectedNavigationTaskPlayback extends ConnectedNavigationTask {
                 })
             }
         }
-        if (this.props.initialTracks !== previousProps.initialTracks) {
-            for (const [key, value] of Object.entries(this.props.initialTracks)) {
+        if (this.props.contestantPositions !== previousProps.contestantPositions) {
+            for (const [key, value] of Object.entries(this.props.contestantPositions)) {
                 if (!this.renderedTracks.includes(key)) {
                     this.renderedTracks.push(key)
-                    this.storePlaybackData(this.props.initialTracks[key])
+                    this.storePlaybackData(this.props.contestantPositions[key])
                     this.props.dispatchPlaybackContestantData(value)
                     this.remainingTracks--
                 }

@@ -82,18 +82,18 @@ export const pz = (n, z = 2, s = '0') =>
     (n + '').length <= z ? (['', '-'])[+(n < 0)] + (s.repeat(z) + Math.abs(n)).slice(-1 * z) : n + '';
 
 export function compareScoreAscending(a, b) {
-    if (!a.track || a.track.current_state === "Waiting...") return 1;
-    if (!b.track || b.track.current_state === "Waiting...") return -1;
-    if (a.track.score > b.track.score) return 1;
-    if (a.track.score < b.track.score) return -1;
+    if (!a.contestant_track || a.contestant_track.current_state === "Waiting...") return 1;
+    if (!b.contestant_track || b.contestant_track.current_state === "Waiting...") return -1;
+    if (a.contestant_track.score > b.contestant_track.score) return 1;
+    if (a.contestant_track.score < b.contestant_track.score) return -1;
     return 0
 }
 
 export function compareScoreDescending(a, b) {
-    if (a.track.current_state === "Waiting...") return 1;
-    if (b.track.current_state === "Waiting...") return -1;
-    if (a.track.score > b.track.score) return -1;
-    if (a.track.score < b.track.score) return 1;
+    if (a.contestant_track.current_state === "Waiting...") return 1;
+    if (b.contestant_track.current_state === "Waiting...") return -1;
+    if (a.contestant_track.score > b.contestant_track.score) return -1;
+    if (a.contestant_track.score < b.contestant_track.score) return 1;
     return 0
 }
 

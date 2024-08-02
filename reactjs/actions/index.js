@@ -256,7 +256,7 @@ export const fetchMyParticipatingContests = () => (dispatch) => {
 }
 
 export const fetchInitialTracks = (contestId, navigationTaskId, contestantId, page, version) => (dispatch) => {
-    dispatch({ type: FETCH_INITIAL_TRACKS,contestantId:contestantId })
+    dispatch({ type: FETCH_INITIAL_TRACKS, contestantId: contestantId, page: page })
     $.ajax({
         url: document.configuration.contestantInitialTrackDataUrl(contestId, navigationTaskId, contestantId) + "?page=" + page + "&version=" + version,
         datatype: 'json',

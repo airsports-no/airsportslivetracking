@@ -885,7 +885,8 @@ class ContestantViewSet(ModelViewSet):
         pagination.page_size = 300  # Approximately 5 minutes of data
         page = pagination.paginate_queryset(position_data, request)
         if page is not None:
-            page[-1].progress = contestant.calculate_progress(page[-1].time, ignore_finished=True)
+            if len(page):
+                page[-1].progress = contestant.calculate_progress(page[-1].time, ignore_finished=True)
             # progress = 0
             # step_length = int(len(page) / 10)
             # for index, item in enumerate(page):

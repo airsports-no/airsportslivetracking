@@ -65,7 +65,7 @@ const initialState = {
     displayTracks: null,
     displayExpandedTrackingTable: false,
     initialLoadingContestantData: {},
-    initialTracks: {},
+    contestantPositions: {},
     totalInitialPositionCountForContestant: {},
     currentInitialPositionCountForContestant: {},
     contestantProgress: {},
@@ -106,13 +106,14 @@ const initialState = {
     globalMapVisibleContests: []
 };
 
-function emptyContestantData() {
+function emptyContestantData(contestantId) {
     return Object.assign({}, {
         latest_time: "1970-01-01T00:00:00Z",
         positions: [],
         annotations: [],
         log_entries: [],
         playing_cards: [],
+        contestant_id:contestantId,
         gate_scores: [],
         more_data: true,
         progress: 0,
@@ -146,7 +147,7 @@ function rootReducer(state = initialState, action) {
         let contestants = {}
         let initialLoading = {}
         action.payload.contestant_set.map((contestant) => {
-            contestantData[contestant.id] = emptyContestantData()
+            contestantData[contestant.id] = emptyContestantData(contestant.id)
             contestants[contestant.id] = contestant
             initialLoading[contestant.id] = true
         })
@@ -161,8 +162,8 @@ function rootReducer(state = initialState, action) {
     }
     if (action.type === FETCH_INITIAL_TRACKS_SUCCESS) {
         return Object.assign({}, state, {
-            initialTracks: {
-                ...state.initialTracks,
+            contestantPositions: {
+                ...state.contestantPositions,
                 [action.contestantId]: {
                     contestant_id: action.contestantId,
                     positions: action.payload.results,
@@ -205,6 +206,10 @@ function rootReducer(state = initialState, action) {
                 ...state.totalInitialPositionCountForContestant,
                 [action.contestantId]: state.totalInitialPositionCountForContestant[action.contestantId]===undefined?10000:state.totalInitialPositionCountForContestant[action.contestantId] // Arbitrary large number.
             },
+            currentInitialPositionCountForContestant: {
+                ...state.currentInitialPositionCountForContestant,
+                [action.contestantId]: action.page == 1?0:state.currentInitialPositionCountForContestant[action.contestantId]
+            }
         })
     }
     if (action.type === FETCH_INITIAL_TRACKS_FAILED) {
@@ -250,6 +255,9 @@ function rootReducer(state = initialState, action) {
         delete newState.initialLoadingContestantData[action.payload.contestant_id]
         delete newState.contestants[action.payload.contestant_id]
         delete newState.contestantData[action.payload.contestant_id]
+        delete newState.contestantPositions[action.payload.contestant_id]
+        delete newState.totalInitialPositionCountForContestant[action.payload.contestant_id]
+        delete newState.currentInitialPositionCountForContestant[action.payload.contestant_id]
         return newState
     }
     if (action.type === GET_CONTESTANT_DATA_SUCCESSFUL) {
@@ -260,14 +268,19 @@ function rootReducer(state = initialState, action) {
         if (state.contestants[action.payload.contestant_id] === undefined) {
             return state
         }
-        return {
-            ...state,
+        return Object.assign({}, state, {
+            contestantPositions: {
+                ...state.contestantPositions,
+                [action.payload.contestant_id]: {
+                    contestant_id: action.payload.contestant_id,
+                    positions: action.payload.positions,
+                    nextPositions: null,
+                }
+            },
             contestantData: {
                 ...state.contestantData,
                 [action.payload.contestant_id]: {
                     annotations: action.payload.annotations,
-                    positions: action.payload.positions,
-
                     log_entries: action.payload.score_log_entries !== undefined ? action.payload.score_log_entries : state.contestantData[action.payload.contestant_id].log_entries,
                     gate_scores: action.payload.gate_scores !== undefined ? action.payload.gate_scores : state.contestantData[action.payload.contestant_id].gate_scores,
                     playing_cards: action.payload.playing_cards !== undefined ? action.payload.playing_cards : state.contestantData[action.payload.contestant_id].playing_cards,
@@ -284,11 +297,7 @@ function rootReducer(state = initialState, action) {
                 [action.payload.contestant_id]: action.payload.positions.length > 0 ? action.payload.positions.slice(-1)[0].progress : state.contestantProgress[action.payload.contestant_id],
 
             },
-            initialLoadingContestantData: {
-                ...state.initialLoadingContestantData,
-                [action.payload.contestant_id]: false
-            }
-        }
+        })
     }
     if (action.type === GET_CONTESTANT_DATA_PLAYBACK_SUCCESSFUL) {
         if (Object.keys(action.payload).length === 0) {
@@ -300,10 +309,6 @@ function rootReducer(state = initialState, action) {
         }
         return {
             ...state,
-            initialLoadingContestantData: {
-                ...state.initialLoadingContestantData,
-                [action.payload.contestant_id]: false
-            }
         }
     }
     if (action.type === HIGHLIGHT_CONTESTANT_TABLE) {

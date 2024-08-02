@@ -18,7 +18,6 @@ import Icon from "@mdi/react";
 import AboutTaskPopup from "./aboutTaskPopup";
 import TimeDisplay from "./timeDisplay";
 import qs from "qs";
-import NavigationTaskPlayback from "./navigationTaskPlayback";
 import {withParams} from "../../utilities";
 
 
@@ -43,7 +42,6 @@ class ConnectedTrackingContainer extends Component {
         this.contestId = document.configuration.contest_id;
         this.displayMap = document.configuration.displayMap;
         this.displayTable = document.configuration.displayTable;
-        this.playback = document.configuration.playback;
         this.resetToAllContestants = this.resetToAllContestants.bind(this)
         this.state = {height: window.innerHeight, width: window.innerWidth}
         this.contestantIds = []
@@ -94,9 +92,7 @@ class ConnectedTrackingContainer extends Component {
             <i className={"mdi mdi-keyboard-arrow-left"}/> :
             <i className={"mdi mdi-keyboard-arrow-right"}/>}</a>
         // Expand this using scorecard information to select correct navigation task type that overrides map rendering
-        let TrackerDisplay
-        if (this.playback) {
-            TrackerDisplay = <NavigationTaskPlayback
+        const TrackerDisplay= <NavigationTask
                 map={this.map}
                 contestId={this.contestId}
                 navigationTaskId={this.navigationTaskId}
@@ -105,17 +101,6 @@ class ConnectedTrackingContainer extends Component {
                 displayTable={true}
                 contestantIds={this.contestantIds}
             />
-        } else {
-            TrackerDisplay = <NavigationTask
-                map={this.map}
-                contestId={this.contestId}
-                navigationTaskId={this.navigationTaskId}
-                fetchInterval={2000}
-                displayMap={this.displayMap}
-                displayTable={true}
-                contestantIds={this.contestantIds}
-            />
-        }
         const currentParticipation = this.getCurrentParticipation()
         if (this.displayTable && this.displayMap) {
             return (
@@ -150,7 +135,6 @@ class ConnectedTrackingContainer extends Component {
                     <div id='main_div' className={"fill"}>
                         {this.props.navigationTask.contestant_set ? <TrackLoadingIndicator
                             numberOfContestants={Object.keys(this.props.contestants).length}/> : <div/>}
-                        {this.playback ? <div className={"playbackNotice"}>Playback data, not live</div> : null}
                         {!this.props.webSocketOnline ? <div className={"offlineNotice"}>Off-Line, no data</div> : null}
                         <div className={"fill"}>
                             <div
@@ -200,7 +184,7 @@ class ConnectedTrackingContainer extends Component {
                                       onClick={() => this.props.toggleDisplayOpenAip()}/>
                             </div>
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
-                            <div className={"replayIcon"}>
+                            {/* <div className={"replayIcon"}>
                                 {!this.playback ?
                                     <a href={document.configuration.playbackLink+(this.contestantIds.length > 0? "?contestantIds=" + this.contestantIds.join(",") : "")}><Icon
                                         path={mdiReplay} title={"Replay the navigation task after-the-fact"} size={2}
@@ -209,7 +193,7 @@ class ConnectedTrackingContainer extends Component {
                                         path={mdiTimerPlayOutline} title={"Switch to live view"} size={2}
                                         color={"#e01b1c"}/></a>
                                 }
-                            </div>
+                            </div> */}
                             {document.configuration.canChangeNavigationTask ? <div className={"managementIcon"}>
                                 <a href={document.configuration.navigationTaskManagementLink}><Icon
                                     path={mdiAirplaneCog} title={"Manage task"} size={2} color={"#e01b1c"}/></a>

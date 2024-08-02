@@ -200,6 +200,7 @@ class ContestantProcessor:
         Push all score information to the front end. This needs to be done at regular intervals in case the front end
         loses connectivity with the Web server.
         """
+        self.contestant.refresh_from_db()
         self.websocket_facade.transmit_score_log_entry(self.contestant)
         self.websocket_facade.transmit_annotations(self.contestant)
         self.websocket_facade.transmit_basic_information(self.contestant)

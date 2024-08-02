@@ -69,8 +69,6 @@ export default class GenericRenderer extends Component {
                     className: "myGateLink",
                     iconAnchor: [waypoint.outer_corner_position[1] === 1 ? -5 : width + 5, waypoint.outer_corner_position[2] === 1 ? -5 : height + 5]
                 })
-            }).on('click', () => {
-                this.props.handleMapTurningPointClick(waypoint.name)
             }).addTo(this.props.map)
             this.markers.push(m)
         });

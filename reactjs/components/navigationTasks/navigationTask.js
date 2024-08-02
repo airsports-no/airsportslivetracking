@@ -1,3 +1,4 @@
+
 import React, { Component } from "react";
 import {
     displayAllTracks,
@@ -16,9 +17,8 @@ import { connect } from "react-redux";
 import ContestantTrack from "./contestantTrack";
 import distinctColors from "distinct-colors";
 import ContestantRankTable from "./contestantRankTable";
-import { CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY, TURNING_POINT_DISPLAY } from "../../constants/display-types";
+import { CONTESTANT_DETAILS_DISPLAY, SIMPLE_RANK_DISPLAY } from "../../constants/display-types";
 import ContestantDetailsDisplay from "./contestantDetailsDisplay";
-import TurningPointDisplay from "./turningPointDisplay";
 import { w3cwebsocket as W3CWebSocket } from "websocket";
 import PrecisionRenderer from "./trackRenderers/precisionRenderer";
 import AnrCorridorRenderer from "./trackRenderers/anrCorridorRenderer";
@@ -29,7 +29,6 @@ import AirsportsRenderer from "./trackRenderers/airsportsRenderer";
 import { Jawg_Sunny, OpenAIP } from "../leafletLayers";
 
 export const mapStateToProps = (state, props) => ({
-    initialTracks: state.initialTracks,
     navigationTask: state.navigationTask,
     contestants: state.contestants,
     currentDisplay: state.currentDisplay,
@@ -60,7 +59,6 @@ export class ConnectedNavigationTask extends Component {
     constructor(props) {
         super(props);
         this.resetToAllContestants = this.resetToAllContestants.bind(this)
-        this.handleMapTurningPointClick = this.handleMapTurningPointClick.bind(this)
         this.rendered = false
         this.client = null;
         this.offline = true
@@ -91,9 +89,11 @@ export class ConnectedNavigationTask extends Component {
     };
 
     cacheDataWhileLoading(contestantId, data) {
-        if (this.waitingInitialLoading[contestantId] !== undefined) {
-            this.waitingInitialLoading[contestantId].push(data)
+        if (!(contestantId in this.waitingInitialLoading[contestantId])) {
+            this.waitingInitialLoading[contestantId] = []
         }
+        this.waitingInitialLoading[contestantId].push(data)
+
     }
 
     initiateSession() {
@@ -117,7 +117,6 @@ export class ConnectedNavigationTask extends Component {
                 this.props.dispatchCurrentTime(data.data)
                 this.lastTimeReceived = new Date()
             } else if (data.type === "contestant" && this.props.contestantIds.length === 0) {
-                this.waitingInitialLoading[data.data.id] = []
                 this.props.dispatchNewContestant(JSON.parse(data.data))
             } else if (data.type === "contestant_delete") {
                 this.props.dispatchDeleteContestant(JSON.parse(data.data))
@@ -126,11 +125,11 @@ export class ConnectedNavigationTask extends Component {
                 if (this.props.initialLoading[trackData.contestant_id]) {
                     this.cacheDataWhileLoading(trackData.contestant_id, trackData)
                 } else {
-                    if (this.waitingInitialLoading[key] !== undefined) {
-                        for (let p of this.waitingInitialLoading[key]) {
+                    if (trackData.contestant_id in this.waitingInitialLoading[trackData.contestant_id]) {
+                        for (let p of this.waitingInitialLoading[trackData.contestant_id]) {
                             this.props.dispatchContestantData(p)
                         }
-                        delete this.waitingInitialLoading[key]
+                        delete this.waitingInitialLoading[trackData.contestant_id]
                     }
                     this.props.dispatchContestantData(trackData)
                 }
@@ -162,14 +161,7 @@ export class ConnectedNavigationTask extends Component {
         };
     }
 
-    handleMapTurningPointClick(turningPoint) {
-        this.props.displayAllTracks();
-        this.props.hideLowerThirds();
-        this.props.setDisplay({
-            displayType: TURNING_POINT_DISPLAY,
-            turningPoint: turningPoint
-        })
-    }
+
 
     resetToAllContestants(e) {
         L.DomEvent.stopPropagation(e)
@@ -195,7 +187,7 @@ export class ConnectedNavigationTask extends Component {
                 this.rendered = true;
                 this.remainingTracks = this.props.navigationTask.contestant_set.length
                 this.props.navigationTask.contestant_set.map((contestant, index) => {
-                    this.waitingInitialLoading[contestant.id] = []
+                    this.waitingInitialLoading[contestant.id] = {}
                 })
                 this.initiateSession()
             }
@@ -238,13 +230,11 @@ export class ConnectedNavigationTask extends Component {
                     routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}
                         contestants={this.props.contestants}
                         currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
-                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
                         displaySecretGates={this.props.displaySecretGates} />
                 } else if (this.props.navigationTask.scorecard.task_type.includes("airsports") || this.props.navigationTask.scorecard.task_type.includes("airsportchallenge") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
-                    routeRenderer = <AirsportsRenderer map={this.map} navigationTask={this.props.navigationTask}
+                    routeRenderer = <AirsportsRenderer map={this.map} navigationTask={this.props.navigationTask} key={this.props.navigationTask}
                         contestants={this.props.contestants}
                         currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
-                        handleMapTurningPointClick={(turningpoint) => this.handleMapTurningPointClick(turningpoint)}
                         displaySecretGates={this.props.displaySecretGates} />
                 } else if (this.props.navigationTask.scorecard.task_type.includes("anr_corridor")) {
                     routeRenderer = <AnrCorridorRenderer map={this.map} navigationTask={this.props.navigationTask}
@@ -272,10 +262,6 @@ export class ConnectedNavigationTask extends Component {
             } else if (this.props.currentDisplay.displayType === CONTESTANT_DETAILS_DISPLAY) {
                 display = <ContestantDetailsDisplay contestantId={this.props.currentDisplay.contestantId}
                     scoreDecimals={this.props.navigationTask.scorecard.task_type.includes("poker") ? 0 : 0} />
-                this.props.shrinkTrackingTable();
-            } else if (this.props.currentDisplay.displayType === TURNING_POINT_DISPLAY) {
-                display = <TurningPointDisplay turningPointName={this.props.currentDisplay.turningPoint}
-                    colours={this.colours} />
                 this.props.shrinkTrackingTable();
             }
             const tableDisplay = <div>
