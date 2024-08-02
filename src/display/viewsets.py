@@ -799,6 +799,9 @@ def generate_score_data(contestant_pk):
     return data
 
 
+TRACK_DATA_PAGE_SIZE_MINUTES = 30
+
+
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
     permission_classes = [
@@ -882,7 +885,7 @@ class ContestantViewSet(ModelViewSet):
         )  # This is important, this is where the object permissions are checked
         position_data = contestant.get_track()
         pagination = PageNumberPagination()
-        pagination.page_size = 300  # Approximately 5 minutes of data
+        pagination.page_size = TRACK_DATA_PAGE_SIZE_MINUTES * 60
         page = pagination.paginate_queryset(position_data, request)
         if page is not None:
             if len(page):
