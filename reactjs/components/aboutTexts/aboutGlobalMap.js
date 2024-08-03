@@ -17,18 +17,18 @@ const aboutGlobalMap = <div>
         <table className={"table-compact borderless"}>
             <tbody>
             <tr>
-                <td style={{width: "300px"}}><i className="mdi mdi-airplanemode-active" style={{color: internalColour}}/> Active aircraft (AirSports)</td>
+                <td style={{width: "300px"}}><span class="iconify" data-icon="mdi-airplanemode-active" style={{color: internalColour}}/> Active aircraft (AirSports)</td>
                 <td rowSpan={4} style={{verticalAlign: "top"}}>Speed: GPS in KTS.<br/>Altitude: GPS nearest 100 feet</td>
             </tr>
             <tr>
-                <td style={{width: "300px"}}><i className="mdi mdi-airplanemode-active" style={{color: safeskyColour}}/> Active aircraft (Safesky)</td>
+                <td style={{width: "300px"}}><span class="iconify" data-icon="mdi-airplanemode-active" style={{color: safeskyColour}}/> Active aircraft (Safesky)</td>
             </tr>
             <tr>
-                <td><i className="mdi mdi-airplanemode-active" style={{color: internalColour, opacity: 0.4}}/> &lt; 40 knots
+                <td><span class="iconify" data-icon="mdi-airplanemode-active" style={{color: internalColour, opacity: 0.4}}/> &lt; 40 knots
                 </td>
             </tr>
             <tr>
-                <td><i className="mdi mdi-airplanemode-active" style={{color: "grey", opacity: 0.4}}/> &gt; 20 sec old
+                <td><span class="iconify" data-icon="mdi-airplanemode-active" style={{color: "grey", opacity: 0.4}}/> &gt; 20 sec old
                 </td>
             </tr>
             </tbody>

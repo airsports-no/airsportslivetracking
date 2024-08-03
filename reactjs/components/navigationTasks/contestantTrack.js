@@ -23,7 +23,6 @@ const mapStateToProps = (state, props) => ({
     contestantPositions: state.contestantPositions[props.contestant.id],
     currentState: state.contestantData[props.contestant.id] !== undefined ? state.contestantData[props.contestant.id].contestant_track.current_state : null,
     displayTracks: state.displayTracks,
-    currentTime: state.currentDateTime,
     isInitialLoading: state.initialLoadingContestantData[props.contestant.id],
     dim: state.highlightContestantTrack.length > 0 && !state.highlightContestantTrack.includes(props.contestant.id),
     highlight: state.highlightContestantTrack.length > 0 && state.highlightContestantTrack.includes(props.contestant.id),
@@ -31,7 +30,7 @@ const mapStateToProps = (state, props) => ({
 })
 
 const TrackState = {
-    Dimmed: 1, Hidden: 2, Undimmed: 3
+    Dimmed: 1, Undimmed: 3
 }
 
 class ConnectedContestantTrack extends Component {
@@ -49,6 +48,7 @@ class ConnectedContestantTrack extends Component {
         this.trackState = 0
         this.shortTrackDisplayed = false
         this.fullTrackDisplayed = false
+        this.displayAnnotations = false
         this.lastPositionTime = null
 
         this.currentAeroplaneColour = this.props.colour
@@ -69,7 +69,6 @@ class ConnectedContestantTrack extends Component {
         const solidPath = '<path style="opacity:' + this.currentAeroplaneOpacity + ';fill:' + this.currentAeroplaneColour + ';stroke-width:0.8742;" d="' + little + '"/>'
         const outlinePath = '<path style="opacity:' + this.currentAeroplaneOpacity + ';fill:black;stroke-width:0.93;" d="' + big + '"/>'
         return L.divIcon({
-            // html: '<svg style="width: ' + size + 'px; transform: rotate(' + this.bearing + 'deg);" x="0px" y="0px" viewBox="0 0 20 20">' + outlinePath + solidPath + '</svg>',
             html: '<svg style="width: ' + size + 'px;" x="0px" y="0px" viewBox="0 0 20 20">' + outlinePath + solidPath + '</svg>',
             iconAnchor: [size / 2, size / 2],
             className: "myAirplaneIcon"
@@ -95,9 +94,9 @@ class ConnectedContestantTrack extends Component {
 
     rotateIcon(angle) {
         if (this.dot && this.dot._icon !== undefined && this.dot._icon) {
-            this.dot._icon.style[L.DomUtil.TRANSFORM+"-origin"] = '25px 25px'
-            const o=this.dot._icon.style[L.DomUtil.TRANSFORM].replace(/( rotateZ\(.*deg\))/,"")
-            this.dot._icon.style[L.DomUtil.TRANSFORM] = o+' rotateZ(' + angle + 'deg)';
+            this.dot._icon.style[L.DomUtil.TRANSFORM + "-origin"] = '25px 25px'
+            const o = this.dot._icon.style[L.DomUtil.TRANSFORM].replace(/( rotateZ\(.*deg\))/, "")
+            this.dot._icon.style[L.DomUtil.TRANSFORM] = o + ' rotateZ(' + angle + 'deg)';
         }
     }
 
@@ -140,7 +139,6 @@ class ConnectedContestantTrack extends Component {
         if (this.props.contestantPositions && this.props.contestantPositions.nextPositions && !this.props.fetchingContestantTracks) {
             this.props.fetchInitialTracks(this.props.navigationTask.contest, this.props.navigationTask.id, this.props.contestant.id, this.props.contestantPositions.currentPage + 1, this.props.contestant.track_version)
         }
-        const displayTracks = this.props.displayTracks;
         if (this.props.displayMap) {
             if (this.props.contestantPositions !== undefined && (previousProps.contestantPositions === undefined || this.props.contestantPositions.positions !== previousProps.contestantPositions.positions)) {
                 const p = this.props.contestantPositions.positions.map((position) => {
@@ -161,33 +159,30 @@ class ConnectedContestantTrack extends Component {
                 })
                 this.renderPositions(positions)
             }
-            if (this.props.annotations) {
+            if (this.props.annotations&&this.props.annotations.length>0) {
                 this.renderAnnotations(this.props.annotations)
             }
-            if (!displayTracks) {
-                if (this.props.highlight) {
-                    this.showFullTrack()
-                } else {
-                    this.showTrack()
-                }
-                this.hideAnnotations()
-            } else {
-                if (displayTracks.includes(this.contestant.id)) {
-                    this.showFullTrack()
-                    if (displayTracks.length === 1) {
-                        this.showAnnotations()
+            if (!this.props.isInitialLoading) {
+                if (!this.props.displayTracks) {
+                    if (this.props.highlight) {
+                        this.showFullTrack()
+                    } else {
+                        this.showTrack()
                     }
-                } else {
-                    this.hideTrack()
                     this.hideAnnotations()
+                } else {
+                    if (this.props.displayTracks.includes(this.contestant.id)) {
+                        this.showFullTrack()
+                        if (this.props.displayTracks.length === 1) {
+                            this.showAnnotations()
+                        }
+                    } else {
+                        this.hideTrack()
+                        this.hideAnnotations()
+                    }
                 }
             }
-            if (this.props.isInitialLoading) {
-                // this.hide()
-            } else if (previousProps.isInitialLoading) {
-                this.undim()
-                this.updateBearing()
-            }
+
         }
     }
 
@@ -235,13 +230,6 @@ class ConnectedContestantTrack extends Component {
     }
 
 
-
-    hide() {
-        const style = {
-            opacity: 0,
-        }
-        this.styleContestant(style)
-    }
 
 
     dim() {
@@ -342,7 +330,6 @@ class ConnectedContestantTrack extends Component {
             this.props.removeHighlightContestantTrack(this.contestant.id)
         }
         )
-        this.undim()
     }
 
     clearAnnotations() {
@@ -361,7 +348,7 @@ class ConnectedContestantTrack extends Component {
     }
 
     addAnnotation(latitude, longitude, message, icon) {
-        if (icon === undefined) icon = informationAnnotationIcon
+        if (icon === undefined) {icon = informationAnnotationIcon}
         this.markers.addLayer(L.marker([latitude, longitude], { icon: icon }).bindTooltip(message.replace("\n", "<br/>"), {
             permanent: false
         }))

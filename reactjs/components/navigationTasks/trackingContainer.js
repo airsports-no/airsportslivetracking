@@ -89,8 +89,9 @@ class ConnectedTrackingContainer extends Component {
         }
         const ExpandedTableLink = <a className={"widthLink taskTitle"} href={"#"}
                                      onClick={this.props.displayExpandedTrackingTable ? this.props.shrinkTrackingTable : this.props.expandTrackingTable}>{this.props.displayExpandedTrackingTable ?
-            <i className={"mdi mdi-keyboard-arrow-left"}/> :
-            <i className={"mdi mdi-keyboard-arrow-right"}/>}</a>
+                                        <span className="iconify" data-icon="mdi-keyboard-arrow-left"/> :
+                                        <span className="iconify" data-icon="mdi-keyboard-arrow-right"/> 
+}</a>
         // Expand this using scorecard information to select correct navigation task type that overrides map rendering
         const TrackerDisplay= <NavigationTask
                 map={this.map}
@@ -143,7 +144,7 @@ class ConnectedTrackingContainer extends Component {
                                     className={"titleWrapper"}>
                                     <a data-toggle={"collapse"} data-target={"#insetMenu"}
                                        style={{paddingLeft: "14px", paddingRight: "12px"}}>
-                                        <i className={"taskTitle mdi mdi-menu"} id={'menuButton'}/>
+                                        <span className="iconify taskTitle" data-icon="mdi-menu" id={'menuButton'}></span>
                                     </a>
                                     <a href={"#"} className={'taskTitle taskTitleName'} data-toggle={"collapse"}
                                        aria-controls={"insetMenu"} aria-expanded={true}

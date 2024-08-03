@@ -162,7 +162,7 @@ class ConnectedGlobalEventList extends Component {
                         className={"titleWrapper"}>
                         <a data-toggle={"collapse"} data-target={"#ongoing"}
                             style={{ paddingLeft: "14px", paddingRight: "12px" }}>
-                            <i className={"eventTitle mdi mdi-menu"} id={'menuButton'} />
+                                <span class="iconify eventTitle" data-icon="mdi-menu" id={'menuButton'}></span>
                         </a>
                         <a href={"#"} className={'eventTitle taskTitleName'} data-toggle={"collapse"}
                             data-target={"#eventMenu"}>Events</a>
