@@ -65,6 +65,7 @@ def get_default_scorecard():
                     "penalty_zone_penalty_per_second",
                     "penalty_zone_maximum",
                 ],
+                ["Initial score", "initial_score"],
             ],
         },
     )

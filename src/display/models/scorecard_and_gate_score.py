@@ -46,6 +46,10 @@ class Scorecard(models.Model):
         help_text="Supported calculator types",
     )
     task_type = MyPickledObjectField(default=list, help_text="List of task types supported by the scorecard")
+    initial_score = models.FloatField(
+        default=0,
+        help_text="Initial score awarded to the contestant it start. This is typically 0, but if the penalties are negative, this can be set to some positive initial value.",
+    )
     use_procedure_turns = models.BooleanField(default=True, blank=True)
     backtracking_penalty = models.FloatField(default=200, help_text="The number of points given for backtracking")
     backtracking_bearing_difference = models.FloatField(

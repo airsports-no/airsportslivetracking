@@ -31,6 +31,7 @@ from display.models import (
     MyUser,
     EditableRoute,
 )
+from display.models.scorecard_and_gate_score import Scorecard
 from display.utilities.traccar_factory import get_traccar_instance
 
 logger = logging.getLogger(__name__)
@@ -289,6 +290,16 @@ def prevent_change_scorecard(sender, instance: NavigationTask, **kwargs):
             raise ValidationError(
                 f"Cannot change scorecard to {instance.original_scorecard.name}. You must create a new task."
             )
+
+
+@receiver(pre_save, sender=Scorecard)
+def update_contestant_initial_score(sender, instance: Scorecard, **kwargs):
+    if instance.pk is not None:
+        existing_initial_score = Scorecard.objects.get(pk=instance.pk).initial_score
+        difference = instance.initial_score - existing_initial_score
+        if difference != 0 and hasattr(instance, "navigation_task_override"):
+            for contestant in instance.navigation_task_override.contestant_set.all():
+                contestant.contestanttrack.increment_score(difference)
 
 
 @receiver(post_save, sender=NavigationTask)

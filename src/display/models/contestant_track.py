@@ -68,6 +68,22 @@ class ContestantTrack(models.Model):
                 )
             self.__push_change()
 
+    def increment_score(self, score_increment):
+        from display.models import TeamTestScore
+
+        self.refresh_from_db()
+        if score_increment != 0:
+            self.score += score_increment
+            self.save(update_fields=["score"])
+            # Update task test score if it exists
+            if hasattr(self.contestant.navigation_task, "tasktest"):
+                entry, _ = TeamTestScore.objects.update_or_create(
+                    team=self.contestant.team,
+                    task_test=self.contestant.navigation_task.tasktest,
+                    defaults={"points": self.score},
+                )
+            self.__push_change()
+
     def updates_current_state(self, state: str):
         self.refresh_from_db()
         if self.current_state != state:
