@@ -14,6 +14,7 @@ from cartopy import geodesic
 
 from cartopy.io.img_tiles import GoogleTiles
 from fpdf import FPDF, HTMLMixin
+from display.models.route import Photo
 from pylatex.base_classes import Environment, Arguments
 from pylatex.utils import bold
 from shapely.geometry import Polygon
@@ -145,6 +146,56 @@ def generate_turning_point_image(waypoints: List[Waypoint], index, is_unknown_le
     return image_data
 
 
+def generate_photo(photo: Photo, waypoint: Waypoint):
+    imagery = GoogleTiles(style="satellite")
+    plt.figure(figsize=(10, 10))
+    ax = plt.axes(projection=imagery.crs)
+    ax.add_image(imagery, 15)
+    ax.set_aspect("auto")
+    plt.plot(photo.longitude, photo.latitude, transform=ccrs.PlateCarree())
+    proj = ccrs.PlateCarree()
+    utm = utm_from_lat_lon(photo.latitude, photo.longitude)
+    centre_x, centre_y = utm.transform_point(photo.longitude, photo.latitude, proj)
+    range = 350
+    x0, y0 = proj.transform_point(centre_x - range, centre_y - range, utm)
+    x1, y1 = proj.transform_point(centre_x + range, centre_y + range, utm)
+    extent = [x0, x1, y0, y1]
+    ax.set_extent(extent, crs=ccrs.PlateCarree())
+    figdata = BytesIO()
+    plt.savefig(figdata, format="png", dpi=200, transparent=True)
+    # plt.savefig(
+    #     "temporary", format="png", dpi=100, transparent=True
+    # )
+    figdata.seek(0)
+    img = Image.open(figdata, formats=["PNG"])
+    img2 = img.rotate(waypoint.bearing_next)
+    width, height = img2.size
+    overlap = 500
+    left = overlap
+    right = width - overlap
+    new_width = right - left
+    aspect = 16 / 13
+    vertical_centre = height / 2
+    vertical = new_width / (2 * aspect)
+    top = int(vertical_centre - vertical)
+    bottom = int(vertical_centre + vertical)
+    cropped = img2.crop((left, top, right, bottom))
+    draw = ImageDraw.Draw(cropped)
+
+    fnt = ImageFont.truetype("/src/fonts/OpenSans-Bold.ttf", 100)
+    draw.text(
+        (10, 10),
+        f"{photo.name}",
+        font=fnt,
+        fill=(255, 0, 0, 0),
+    )
+    temporary_file = NamedTemporaryFile(suffix=".png", delete=False)
+    cropped.save(temporary_file, "PNG")
+    plt.close()
+    temporary_file.seek(0)
+    return temporary_file
+
+
 def insert_turning_point_images_latex(contestant, document: Document):
     navigation = contestant.navigation_task  # type: NavigationTask
     render_turning_point_images(
@@ -162,13 +213,57 @@ def insert_unknown_leg_images_latex(
     render_turning_point_images(render_waypoints, document, "Unknown legs", is_unknown_leg=True)
 
 
+def insert_photos_latex(
+    contestant,
+    document: Document,
+):
+    photos = list(contestant.navigation_task.route.photo_set.all())
+    random.shuffle(photos)
+    rows_per_page = 3
+    number_of_images = len(photos)
+    number_of_pages = 1 + ((number_of_images - 1) // (2 * rows_per_page))
+    current_page = -1
+    document.append(Label(Marker("firstpagetocount")))
+    for index in range(0, len(photos), 2):
+        if index % (rows_per_page * 2) == 0:
+            document.append(NewPage())
+            page_text = f"Photos {current_page + 2}/{number_of_pages}"  # if number_of_pages > 1 else ""
+            document.append(Section(page_text, numbering=False))
+            current_page += 1
+        figure_width = 0.4
+        with document.create(Figure(position="!ht")):
+            if waypoint := photos[index].leg:
+                with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
+                    image_file = generate_photo(photos[index], waypoint)
+                    document.append(
+                        StandAloneGraphic(
+                            image_options=r"width=\linewidth",
+                            filename=image_file.name,
+                        )
+                    )
+                    document.append(Command("caption*", photos[index].name))
+                document.append(Command("hfill"))
+            if index < len(photos) - 1:
+                if waypoint := photos[index + 1].leg:
+                    image_file = generate_photo(photos[index + 1], waypoint)
+                    with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
+                        document.append(
+                            StandAloneGraphic(
+                                image_options=r"width=\linewidth",
+                                filename=image_file.name,
+                            )
+                        )
+                        document.append(Command("caption*", photos[index + 1].name))
+    document.append(Label(Marker("lastpagetocount")))
+
+
 def render_turning_point_images(
     waypoints: List[Waypoint],
     document,
     header_prefix: str,
     is_unknown_leg: bool = False,
 ):
-    render_waypoints = [waypoint for waypoint in waypoints if waypoint.type not in (SECRETPOINT, DUMMY)]
+    render_waypoints = [waypoint for waypoint in waypoints if waypoint.type not in (SECRETPOINT, DUMMY, UNKNOWN_LEG)]
 
     rows_per_page = 3
     number_of_images = len(render_waypoints)
@@ -178,7 +273,7 @@ def render_turning_point_images(
     for index in range(0, len(render_waypoints), 2):
         if index % (rows_per_page * 2) == 0:
             document.append(NewPage())
-            page_text = f"{header_prefix} images {current_page + 2}/{number_of_pages}" if number_of_pages > 1 else ""
+            page_text = f"{header_prefix} images {current_page + 2}/{number_of_pages}"  # if number_of_pages > 1 else ""
             document.append(Section(page_text, numbering=False))
             current_page += 1
         figure_width = 0.4
@@ -568,7 +663,8 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
 
     if any(waypoint.type == UNKNOWN_LEG for waypoint in contestant.navigation_task.route.waypoints):
         insert_unknown_leg_images_latex(contestant, document)
-
+    if contestant.navigation_task.route.photo_set.all().count() > 0:
+        insert_photos_latex(contestant, document)
     # Produce the output
     pdf_file = NamedTemporaryFile()
     document.generate_tex(pdf_file.name)

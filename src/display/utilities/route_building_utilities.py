@@ -18,6 +18,7 @@ from display.utilities.coordinate_utilities import (
     create_rounded_corridor_corner,
     bearing_difference,
     calculate_fractional_distance_point_lat_lon,
+    point_to_line_segment_distance,
 )
 from display.models import Route, Scorecard, Prohibited
 
@@ -559,6 +560,33 @@ def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bo
             if use_procedure_turns:
                 next_gate.is_procedure_turn = is_procedure_turn(current_gate.bearing_next, next_gate.bearing_next)
             next_gate.is_steep_turn = is_procedure_turn(current_gate.bearing_next, next_gate.bearing_next)
+
+
+def find_closest_leg_to_point(
+    latitude: float, longitude: float, waypoints: List[Waypoint]
+) -> tuple[Waypoint, float] | None:
+    minimum_distance = None
+    leg = None
+    for index in range(len(waypoints) - 1):
+        distance = point_to_line_segment_distance(
+            waypoints[index].latitude,
+            waypoints[index].longitude,
+            waypoints[index + 1].latitude,
+            waypoints[index + 1].longitude,
+            latitude,
+            longitude,
+        )
+        logger.debug(f"Minimum distance to {waypoints[index].name} is {distance}")
+        if distance is not None:
+            if minimum_distance is None:
+                minimum_distance = distance
+                leg = waypoints[index]
+            elif distance < minimum_distance:
+                minimum_distance = distance
+                leg = waypoints[index]
+    if minimum_distance is not None and leg is not None:
+        return leg, minimum_distance
+    return None
 
 
 def get_distance_to_other_gates(gate: Waypoint, waypoints: List[Waypoint]) -> Dict:

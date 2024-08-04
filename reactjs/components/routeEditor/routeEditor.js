@@ -1,16 +1,16 @@
-import React, {Component} from "react";
-import {connect} from "react-redux";
+import React, { Component } from "react";
+import { connect } from "react-redux";
 import "leaflet";
 import "leaflet-draw";
 import "../../pointInPolygon"
-import {Button, Container, Form, Modal, Toast} from "react-bootstrap";
-import {circle, divIcon, marker} from "leaflet";
-import {fetchEditableRoute} from "../../actions";
+import { Button, Container, Form, Modal, Toast } from "react-bootstrap";
+import { circle, divIcon, marker } from "leaflet";
+import { fetchEditableRoute } from "../../actions";
 import axios from "axios";
 import IntroSlider from "react-intro-slider";
 import Cookies from "universal-cookie";
-import {fractionalDistancePoint, getBearing, getDistance, withParams} from "../../utilities";
-import {googleArial, Jawg_Sunny, OpenAIP} from "../leafletLayers";
+import { fractionalDistancePoint, getBearing, getDistance, withParams } from "../../utilities";
+import { googleArial, Jawg_Sunny, OpenAIP } from "../leafletLayers";
 
 const gateTypes = [
     ["Starting point", "sp"],
@@ -22,13 +22,14 @@ const gateTypes = [
 ]
 
 const featureStyles = {
-    "track": {"color": "blue"},
-    "to": {"color": "green"},
-    "ldg": {"color": "crimson"},
-    "prohibited": {"color": "crimson"},
-    "info": {"color": "lightblue"},
-    "penalty": {"color": "orange"},
-    "gate": {"color": "blue"},
+    "photo": { 'color': 'green' },
+    "track": { "color": "blue" },
+    "to": { "color": "green" },
+    "ldg": { "color": "crimson" },
+    "prohibited": { "color": "crimson" },
+    "info": { "color": "lightblue" },
+    "penalty": { "color": "orange" },
+    "gate": { "color": "blue" },
 }
 
 const generalTypes = {
@@ -38,7 +39,8 @@ const generalTypes = {
     "prohibited": [0, 1000],
     "info": [0, 1000],
     "gate": [0, 1000],
-    "penalty": [0, 1000]
+    "penalty": [0, 1000],
+    'photo': [0, 1000]
 }
 
 const featureTypeCounts = {
@@ -58,6 +60,7 @@ const featureTypeCounts = {
 
 
 const featureTypes = {
+    marker: [['Photo', 'photo']],
     polyline: [["Track", "track"], ["Takeoff gate", "to"], ["Landing gate", "ldg"]],
     polygon: [["Prohibited zone", "prohibited"], ["Penalty zone", "penalty"], ["Information zone", "info"], ["Gate zone", "gate"]],
 }
@@ -66,58 +69,58 @@ const slides = [
     {
         title: "Mouse required",
         description: "The route editor does unfortunately not work with touchscreen devices. Click next to continue the tutorial.",
-        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/0.png",
+        image: document.configuration.STATIC_FILE_LOCATION + "img/tutorial/0.png",
         background: bgcolor
     }, {
         title: "Enable editing",
         description: "Click 'Edit' to enable editing. Cancel resets and changes, and route list returns you to the list of all your routes.",
-        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/0.png",
+        image: document.configuration.STATIC_FILE_LOCATION + "img/tutorial/0.png",
         background: bgcolor
     },
     {
         title: "Create route",
         description: "Click icons to create a route or a zone (penalty zone, etc)",
-        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/1.png",
+        image: document.configuration.STATIC_FILE_LOCATION + "img/tutorial/1.png",
         background: bgcolor
     }, {
         title: "Draw track",
         description: "Draw the track by clicking the icon, the starting point, and then each subsequent turning point. Finish by clicking 'finish' or clicking on the last point created. Points closer than 1km to the last point will automatically be marked as secret without time check.",
-        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/2.png",
+        image: document.configuration.STATIC_FILE_LOCATION + "img/tutorial/2.png",
         background: bgcolor
     }, {
         title: "Track details",
         description: "Select type of route. You always need a track. Takeoff and landing gates should cross the runway, but not be crossed during taxi.",
-        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/3.png",
+        image: document.configuration.STATIC_FILE_LOCATION + "img/tutorial/3.png",
         background: bgcolor
     }, {
         title: "Edit waypoint details",
         description: "Choose a waypoint name, the waypoint type, and the width of the gate. This will determine the size of the gate or the corridor. Time check controls whether the gate gives penalties, secret waypoints are not visible to the pilots. ",
-        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/4.png",
+        image: document.configuration.STATIC_FILE_LOCATION + "img/tutorial/4.png",
         background: bgcolor
     }, {
         title: "Zones",
         description: "Optionally, create a prohibited zone (fixed penalty), penalty area (penalty per second), or information area. For certain types of tasks (poker run) you can create a gate area around a waypoint to represent the waypoint.",
-        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/5.png",
+        image: document.configuration.STATIC_FILE_LOCATION + "img/tutorial/5.png",
         background: bgcolor
     }, {
         title: "Zone details",
         description: "Select the type of zone and give a name. The name will be displayed on the map. Enter label x and y offset to control how the name is displayed. Make sure this looks good at multiple zoom levels.",
-        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/6.png",
+        image: document.configuration.STATIC_FILE_LOCATION + "img/tutorial/6.png",
         background: bgcolor
     }, {
         title: "Editing",
         description: "To edit an existing track or area, click and drag the available markers to the desired shape. Use the satellite view to pinpoint waypoint features.",
-        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/7.png",
+        image: document.configuration.STATIC_FILE_LOCATION + "img/tutorial/7.png",
         background: bgcolor
     }, {
         title: "Saving",
         description: "At any time, give the route a name and click save at the bottom of the map. This will validate that the route is set up correctly and save it for later editing and use.",
-        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/8.png",
+        image: document.configuration.STATIC_FILE_LOCATION + "img/tutorial/8.png",
         background: bgcolor
     }, {
         title: "Task creation",
         description: "Once the route is saved, go back to the root list and click 'Create task'. This will guide you through the task creation process. Note that you already have to have created a contest.",
-        image: document.configuration.STATIC_FILE_LOCATION+"img/tutorial/9.png",
+        image: document.configuration.STATIC_FILE_LOCATION + "img/tutorial/9.png",
         background: bgcolor
     },
 
@@ -129,8 +132,10 @@ class ConnectedRouteEditor extends Component {
         this.map = null
         this.mapReady = false
         this.drawControl = null
+        this.photoNames=[]
+
         this.drawingEnabledOptions = {
-            marker: false,
+            marker: true,
             rectangle: false,
             circle: false,
             polyline: true,
@@ -168,9 +173,9 @@ class ConnectedRouteEditor extends Component {
         const visited = cookies.get(key)
         console.log("Visited: " + visited)
         if (!visited) {
-            this.setState({displayTutorial: true})
+            this.setState({ displayTutorial: true })
         }
-        cookies.set(key, true, {maxAge: 60 * 60 * 24 * 365})
+        cookies.set(key, true, { maxAge: 60 * 60 * 24 * 365 })
         this.initialiseMap()
         if (this.props.routeId) {
             this.reloadMap()
@@ -179,7 +184,7 @@ class ConnectedRouteEditor extends Component {
 
     reloadMap() {
         this.clearFormData()
-        this.setState({changesSaved: false, validationErrors: null, saveFailed: null})
+        this.setState({ changesSaved: false, validationErrors: null, saveFailed: null })
         this.props.fetchEditableRoute(this.props.routeId)
     }
 
@@ -200,7 +205,7 @@ class ConnectedRouteEditor extends Component {
     }
 
     handleSaveSuccess(id) {
-        this.setState({changesSaved: true, saveFailed: null, globalEditingMode: false})
+        this.setState({ changesSaved: true, saveFailed: null, globalEditingMode: false })
         this.props.navigate("/routeeditor/" + id + "/")
     }
 
@@ -218,17 +223,18 @@ class ConnectedRouteEditor extends Component {
 
     saveRoute() {
         if (!this.state.globalEditingMode) {
-            this.setState({globalEditingMode: true})
+            this.setState({ globalEditingMode: true })
             return
         }
         let features = []
         let errors = []
+        this.photoNames=[]
         if (this.drawnItems.getLayers().length === 0) {
             errors.push("The route contains no features. Add a track other or features before saving.")
         }
         for (let l of this.drawnItems.getLayers().filter((a) => a.layerType !== undefined)) {
             errors = errors.concat(this.validateLayer(l))
-            if (["polyline", "rectangle", "polygon"].includes(l.layerType)) {
+            if (["polyline", "rectangle", "polygon","marker"].includes(l.layerType)) {
                 features.push({
                     name: l.name,
                     layer_type: l.layerType,
@@ -255,14 +261,14 @@ class ConnectedRouteEditor extends Component {
         if (!name || name === "") {
             errors.push("The route must have a name")
         }
-        this.setState({validationErrors: errors})
+        this.setState({ validationErrors: errors })
         if (errors.length > 0) {
             return
         }
         axios({
             method: method,
             url: url,
-            data: {route: features, name: name, route_type: this.props.routeType}
+            data: { route: features, name: name, route_type: this.props.routeType }
         }).then((res) => {
             console.log("Response")
             console.log(res)
@@ -271,9 +277,9 @@ class ConnectedRouteEditor extends Component {
             console.error(e);
             console.log(e);
             if (e.response.request.status === 403) {
-                this.setState({changesSaved: false, saveFailed: "You do not have access to change this route"})
+                this.setState({ changesSaved: false, saveFailed: "You do not have access to change this route" })
             } else {
-                this.setState({changesSaved: false, saveFailed: e.message})
+                this.setState({ changesSaved: false, saveFailed: e.message })
             }
         }).finally(() => {
         })
@@ -290,7 +296,7 @@ class ConnectedRouteEditor extends Component {
         layer.on("click", (item) => {
             const layer = item.target
             if (this.state.globalEditingMode) {
-                this.setState({featureEditLayer: layer})
+                this.setState({ featureEditLayer: layer })
             }
         })
         layer.on("edit", (item) => {
@@ -300,9 +306,11 @@ class ConnectedRouteEditor extends Component {
                 this.updateWaypoints(layer)
                 this.renderWaypointNames(layer)
             }
-            this.setState({changesSaved: false})
+            this.setState({ changesSaved: false })
         })
-        layer.setStyle(featureStyles[featureType])
+        if (layer.setStyle !== undefined) {
+            layer.setStyle(featureStyles[featureType])
+        }
         if (!created) {
             this.renderWaypointNames(layer)
         }
@@ -317,56 +325,56 @@ class ConnectedRouteEditor extends Component {
 
         for (let r of this.props.route.route) {
             new L.GeoJSON(r.geojson, {
-                    pointToLayer: (feature, latlng) => {
-                        switch (feature.geometry.type) {
-                            case 'Polygon':
-                                //var ii = new L.Polygon(latlng)
-                                //ii.addTo(drawnItems);
-                                return L.polygon(latlng);
-                            case 'LineString':
-                                return L.polyline(latlng);
-                            case 'Point':
-                                return L.marker(latlng);
-                            default:
-                                return;
-                        }
-                    },
-                    onEachFeature: (feature, layer) => {
-                        if (r.feature_type === "track") {
-                            zoomed = true
-                            this.trackLayer = layer
-                            try {
-                                this.map.fitBounds(layer.getBounds(), {padding: [50, 50]})
-                            } catch (e) {
-                                console.log(e)
-                            }
-                        }
-                        if (this.state.globalEditingMode) {
-                            layer.editing.enable()
-                        } else {
-                            layer.editing.disable()
-                        }
-                        if (!r.tooltip_position) {
-                            r.tooltip_position = [0, 0]
-                        }
-                        let name = r.name
-                        if (r.feature_type === "to") {
-                            name = "Takeoff gate " + takeoffGateCounter
-                            takeoffGateCounter++
-                        } else if (r.feature_type === "ldg") {
-                            name = "Landing gate " + landingGateCounter
-                            landingGateCounter++
-                        }
-                        this.configureLayer(layer, name, r.layer_type, r.feature_type, r.track_points, r.tooltip_position, false)
+                pointToLayer: (feature, latlng) => {
+                    switch (feature.geometry.type) {
+                        case 'Polygon':
+                            //var ii = new L.Polygon(latlng)
+                            //ii.addTo(drawnItems);
+                            return L.polygon(latlng);
+                        case 'LineString':
+                            return L.polyline(latlng);
+                        case 'Point':
+                            return L.marker(latlng);
+                        default:
+                            return;
                     }
+                },
+                onEachFeature: (feature, layer) => {
+                    if (r.feature_type === "track") {
+                        zoomed = true
+                        this.trackLayer = layer
+                        try {
+                            this.map.fitBounds(layer.getBounds(), { padding: [50, 50] })
+                        } catch (e) {
+                            console.log(e)
+                        }
+                    }
+                    if (this.state.globalEditingMode) {
+                        layer.editing.enable()
+                    } else {
+                        layer.editing.disable()
+                    }
+                    if (!r.tooltip_position) {
+                        r.tooltip_position = [0, 0]
+                    }
+                    let name = r.name
+                    if (r.feature_type === "to") {
+                        name = "Takeoff gate " + takeoffGateCounter
+                        takeoffGateCounter++
+                    } else if (r.feature_type === "ldg") {
+                        name = "Landing gate " + landingGateCounter
+                        landingGateCounter++
+                    }
+                    this.configureLayer(layer, name, r.layer_type, r.feature_type, r.track_points, r.tooltip_position, false)
                 }
+            }
             )
         }
         if (!zoomed) {
             const layers = this.drawnItems.getLayers()
             if (layers.length > 0) {
                 try {
-                    this.map.fitBounds(layers[0].getBounds(), {padding: [50, 50]})
+                    this.map.fitBounds(layers[0].getBounds(), { padding: [50, 50] })
                 } catch (e) {
                     console.log(e)
                 }
@@ -375,9 +383,11 @@ class ConnectedRouteEditor extends Component {
     }
 
     highlightLayer(layer) {
-        layer.setStyle({
-            color: "red"
-        })
+        if (layer.setStyle !== undefined) {
+            layer.setStyle({
+                color: "red"
+            })
+        }
     }
 
     validateLayer(layer) {
@@ -441,6 +451,12 @@ class ConnectedRouteEditor extends Component {
                 }
             }
         }
+        if (layer.featureType==='photo'){
+            if (this.photoNames.includes(layer.name)){
+                errors.push("Photo names must be unique, "+layer.name+" is repeated")
+            }
+            this.photoNames.push(layer.name)
+        }
         if (layer.featureType === "to" || layer.featureType === "ldg") {
             if (layer.getLatLngs().length !== 2) {
                 errors.push(layer.name + ": Must be exactly 2 points")
@@ -497,12 +513,14 @@ class ConnectedRouteEditor extends Component {
             this.trackLayer = this.state.featureEditLayer
         }
         this.state.featureEditLayer.tooltipPosition = [parseInt(this.state.xOffset), parseInt(this.state.yOffset)]
-        this.state.featureEditLayer.setStyle(featureStyles[this.state.featureEditLayer.featureType])
+        if (this.state.featureEditLayer.setStyle !== undefined) {
+            this.state.featureEditLayer.setStyle(featureStyles[this.state.featureEditLayer.featureType])
+        }
         this.renderWaypointNames(this.state.featureEditLayer)
 
         console.log(this.state.featureEditLayer)
         const errors = this.validateLayer(this.state.featureEditLayer)
-        this.setState({validationErrors: errors})
+        this.setState({ validationErrors: errors })
         if (errors.length === 0) {
             this.clearFormData()
         }
@@ -520,17 +538,17 @@ class ConnectedRouteEditor extends Component {
         })
     }
 
-    renderWaypointNames(track) {
-        track.unbindTooltip()
-        if (track.featureType === "track") {
-            track.waypointNamesFeatureGroup.clearLayers()
+    renderWaypointNames(feature) {
+        feature.unbindTooltip()
+        if (feature.featureType === "track") {
+            feature.waypointNamesFeatureGroup.clearLayers()
             let index = 0
-            for (let p of track.getLatLngs()) {
+            for (let p of feature.getLatLngs()) {
                 let distanceNext
                 let bearingNext
-                let waypointText = track.trackPoints[index].name + " (" + track.trackPoints[index].gateType + ")"
-                if (index < track.getLatLngs().length - 1) {
-                    const nextPosition = track.getLatLngs()[index + 1]
+                let waypointText = feature.trackPoints[index].name + " (" + feature.trackPoints[index].gateType + ")"
+                if (index < feature.getLatLngs().length - 1) {
+                    const nextPosition = feature.getLatLngs()[index + 1]
                     distanceNext = getDistance(p.lat, p.lng, nextPosition.lat, nextPosition.lng) / 1852
                     bearingNext = getBearing(p.lat, p.lng, nextPosition.lat, nextPosition.lng)
                     const midway = fractionalDistancePoint(p.lat, p.lng, nextPosition.lat, nextPosition.lng, 0.5)
@@ -545,7 +563,7 @@ class ConnectedRouteEditor extends Component {
                             className: "myGateDistance",
 
                         })
-                    }).addTo(track.waypointNamesFeatureGroup)
+                    }).addTo(feature.waypointNamesFeatureGroup)
                 }
                 const m = marker([p.lat, p.lng], {
                     color: "blue",
@@ -557,34 +575,34 @@ class ConnectedRouteEditor extends Component {
                         className: "myGateLink",
 
                     })
-                }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {
+                }).addTo(feature.waypointNamesFeatureGroup).on("click", (item) => {
                     if (this.state.globalEditingMode) {
-                        this.setState({selectedWaypoint: item.target.options.index})
+                        this.setState({ selectedWaypoint: item.target.options.index })
                     }
                 })
-                if (track.trackPoints[index].timeCheck) {
+                if (feature.trackPoints[index].timeCheck) {
                     circle([p.lat, p.lng], {
-                        radius: track.trackPoints[index].gateWidth * 1852 / 2,
+                        radius: feature.trackPoints[index].gateWidth * 1852 / 2,
                         index: index,
-                        color: track.trackPoints[index].gateType !== "secret" ? "blue" : "grey",
+                        color: feature.trackPoints[index].gateType !== "secret" ? "blue" : "grey",
                         opacity: 0.05
-                    }).addTo(track.waypointNamesFeatureGroup).on("click", (item) => {
+                    }).addTo(feature.waypointNamesFeatureGroup).on("click", (item) => {
                         if (this.state.globalEditingMode) {
-                            this.setState({selectedWaypoint: item.target.options.index})
+                            this.setState({ selectedWaypoint: item.target.options.index })
                         }
                     })
                 }
                 index += 1
             }
-        } else if (Object.keys(generalTypes).includes(track.featureType)) {
+        } else if (Object.keys(generalTypes).includes(feature.featureType)) {
             let tooltipPosition = [0, 0]
-            if (track.tooltipPosition) {
-                tooltipPosition = track.tooltipPosition
+            if (feature.tooltipPosition) {
+                tooltipPosition = feature.tooltipPosition
             }
-            track.bindTooltip(track.name, {
+            feature.bindTooltip(feature.name, {
                 permanent: true,
                 direction: "center",
-                className: "prohibitedTooltip",
+                className: feature.layerType!='marker'?  "prohibitedTooltip":null,
                 offset: tooltipPosition
             })
         }
@@ -603,26 +621,26 @@ class ConnectedRouteEditor extends Component {
         const checkboxes = options.map((item) => {
             const checked = layer.featureType === item[1]
             return <Form.Check inline key={item[1]} name={"featureType"} label={item[0]} type={"radio"}
-                               onChange={(e) => {
-                                   this.setState({featureType: item[1]})
-                               }
-                               } disabled={!this.isFeatureSelectable(item[1], checked)} defaultChecked={checked}/>
+                onChange={(e) => {
+                    this.setState({ featureType: item[1] })
+                }
+                } disabled={!this.isFeatureSelectable(item[1], checked)} defaultChecked={checked} />
         })
         return <div>
             {layer.layerType !== "polyline" && currentFeatureType !== "gate" ?
                 <div>
                     <Form.Label>Feature name:</Form.Label>&nbsp;
                     <Form.Control name={"feature_name"} type={"string"} placeholder={"Name"}
-                                  defaultValue={layer.name}
-                                  onChange={(e) => this.setState({currentName: e.target.value})}
+                        defaultValue={layer.name}
+                        onChange={(e) => this.setState({ currentName: e.target.value })}
                     />
                     <Form.Label>Label offset X</Form.Label>&nbsp;
                     <Form.Control name={"xOffset"} type={"number"} defaultValue={layer.tooltipPosition[0]}
-                                  onChange={(e) => this.setState({xOffset: e.target.value})}
+                        onChange={(e) => this.setState({ xOffset: e.target.value })}
                     />
                     <Form.Label>Label offset Y</Form.Label>&nbsp;
                     <Form.Control name={"yOffset"} type={"number"} defaultValue={layer.tooltipPosition[1]}
-                                  onChange={(e) => this.setState({yOffset: e.target.value})}
+                        onChange={(e) => this.setState({ yOffset: e.target.value })}
                     />
                 </div> : null
             }
@@ -668,20 +686,20 @@ class ConnectedRouteEditor extends Component {
                     <Form>
                         <Form.Label>Waypoint name:</Form.Label>&nbsp;
                         <Form.Control type={"string"} placeholder={"Name"}
-                                      defaultValue={waypoint.name}
-                                      onChange={
-                                          (e) => {
-                                              waypoint["name"] = e.target.value
-                                          }
-                                      }/>
+                            defaultValue={waypoint.name}
+                            onChange={
+                                (e) => {
+                                    waypoint["name"] = e.target.value
+                                }
+                            } />
                         <Form.Label>Waypoint type:</Form.Label>&nbsp;
                         <Form.Control as="select"
-                                      onChange={
-                                          (e) => {
-                                              waypoint["gateType"] = e.target.value
-                                          }
-                                      }
-                                      defaultValue={waypoint.gateType}>
+                            onChange={
+                                (e) => {
+                                    waypoint["gateType"] = e.target.value
+                                }
+                            }
+                            defaultValue={waypoint.gateType}>
                             {gateTypes.map((item) => {
                                 return <option key={item[1]} value={item[1]}>{item[0]}</option>
                             })}
@@ -695,27 +713,27 @@ class ConnectedRouteEditor extends Component {
                             tasks.</Form.Text>
                         <Form.Label>Gate width (NM):</Form.Label>&nbsp;
                         <Form.Control key={"Width"} placeholder={"Width"}
-                                      type={"number"}
-                                      onChange={
-                                          (e) => {
-                                              waypoint["gateWidth"] = e.target.value
-                                          }
-                                      }
-                                      defaultValue={waypoint.gateWidth}/>
+                            type={"number"}
+                            onChange={
+                                (e) => {
+                                    waypoint["gateWidth"] = e.target.value
+                                }
+                            }
+                            defaultValue={waypoint.gateWidth} />
                         <Form.Check inline key={"timeCheck"} name={"timeCheck"} label={"Time check"}
-                                    type={"checkbox"}
-                                    onChange={
-                                        (e) => {
-                                            waypoint["timeCheck"] = e.target.checked
-                                        }
-                                    }
-                                    defaultChecked={waypoint.timeCheck}/>
+                            type={"checkbox"}
+                            onChange={
+                                (e) => {
+                                    waypoint["timeCheck"] = e.target.checked
+                                }
+                            }
+                            defaultChecked={waypoint.timeCheck} />
                     </Form>
                 </Container>
             </Modal.Body>
             <Modal.Footer>
                 <Button onClick={() => {
-                    this.setState({selectedWaypoint: null})
+                    this.setState({ selectedWaypoint: null })
                     this.renderWaypointNames(this.trackLayer)
                 }}>Done</Button>
             </Modal.Footer>
@@ -739,10 +757,10 @@ class ConnectedRouteEditor extends Component {
             <Modal.Footer>
                 <Button onClick={() => this.saveLayer()}>Save</Button>
                 <Button variant={"secondary"}
-                        onClick={() => {
-                            this.clearFormData()
-                            this.setState({featureEditLayer: null, validationErrors: null})
-                        }}>Cancel</Button>
+                    onClick={() => {
+                        this.clearFormData()
+                        this.setState({ featureEditLayer: null, validationErrors: null })
+                    }}>Cancel</Button>
                 <Button variant={"danger"} onClick={() => {
                     this.state.featureEditLayer.waypointNamesFeatureGroup.clearLayers()
                     this.drawnItems.removeLayer(this.state.featureEditLayer)
@@ -848,7 +866,7 @@ class ConnectedRouteEditor extends Component {
         L.control.layers({
             "Map": sunny,
             "Google Arial": googleArial(),
-        }, {"OpenAIP": OpenAIP()}, {
+        }, { "OpenAIP": OpenAIP() }, {
             position: 'topleft',
             collapsed: false
         }).addTo(this.map);
@@ -858,7 +876,7 @@ class ConnectedRouteEditor extends Component {
             }
         })
         if (!this.props.routeId) {
-            this.map.locate({setView: true, maxZoom: 7})
+            this.map.locate({ setView: true, maxZoom: 7 })
         }
         this.drawControl = new L.Control.Draw({
             draw: this.drawingDisabledOptions
@@ -887,7 +905,7 @@ class ConnectedRouteEditor extends Component {
                 trackPoints = this.initialiseWaypoints(layer)
             }
             this.configureLayer(layer, null, event.layerType, featureType, trackPoints, [0, 0], true)
-            this.setState({featureEditLayer: layer})
+            this.setState({ featureEditLayer: layer })
 
         });
 
@@ -934,26 +952,26 @@ class ConnectedRouteEditor extends Component {
                 </Toast> : null}
             </div>
             <a href={"https://home.airsports.no/tutorials/#RouteEditor"} className={"logoImageRE"} target={"_blank"}>
-                <img src={document.configuration.STATIC_FILE_LOCATION+"img/airsports_help.png"} style={{width: "50px"}} alt={"Help"}/>
+                <img src={document.configuration.STATIC_FILE_LOCATION + "img/airsports_help.png"} style={{ width: "50px" }} alt={"Help"} />
             </a>
 
             {this.featureEditModal()}
             {this.waypointModal()}
             <div id="routeSaveButton">
                 <Form.Control type={"string"} placeholder={"Route name"}
-                              defaultValue={this.props.route ? this.props.route.name : ""}
-                              onChange={(e) => this.setState({routeName: e.target.value})}/>
+                    defaultValue={this.props.route ? this.props.route.name : ""}
+                    onChange={(e) => this.setState({ routeName: e.target.value })} />
                 <button className={"btn btn-primary"}
-                        onClick={() => this.saveRoute()}>{this.state.globalEditingMode ? "Save" : "Edit"}</button>
+                    onClick={() => this.saveRoute()}>{this.state.globalEditingMode ? "Save" : "Edit"}</button>
                 &nbsp;
                 <button id="routeCancelButton" className={"btn btn-danger"}
-                        onClick={() => this.reloadMap()}>Cancel
+                    onClick={() => this.reloadMap()}>Cancel
                 </button>
                 &nbsp;
                 <button id="routeReturnButton" className={"btn btn-secondary"}
-                        onClick={() => {
-                            this.state.globalEditingMode ? (confirm("Are you sure you want to leave without saving?") ? window.location = document.configuration.EDITABLE_ROUTE_LIST_VIEW_URL : null) : window.location = document.configuration.EDITABLE_ROUTE_LIST_VIEW_URL
-                        }}>Route list
+                    onClick={() => {
+                        this.state.globalEditingMode ? (confirm("Are you sure you want to leave without saving?") ? window.location = document.configuration.EDITABLE_ROUTE_LIST_VIEW_URL : null) : window.location = document.configuration.EDITABLE_ROUTE_LIST_VIEW_URL
+                    }}>Route list
                 </button>
             </div>
             {/*{this.state.displayTutorial ?*/}
@@ -970,19 +988,19 @@ class ConnectedRouteEditor extends Component {
 
 const
     mapStateToProps = (state, props) => ({
-            route: props.routeId
-                ?
-                state
-                    .editableRoutes
-                    [props.routeId] : null
-        }
+        route: props.routeId
+            ?
+            state
+                .editableRoutes
+            [props.routeId] : null
+    }
 
     )
 const
     mapDispatchToProps =
-        {
-            fetchEditableRoute
-        }
+    {
+        fetchEditableRoute
+    }
 
 const
     RouteEditor = connect(mapStateToProps, mapDispatchToProps)(ConnectedRouteEditor);

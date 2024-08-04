@@ -12,6 +12,7 @@ class Route(models.Model):
     An internal representation of a route used by the calculators. It is created based on an EditableRoute and depends
     on the navigation task type and scorecard.
     """
+
     name = models.CharField(max_length=200)
     use_procedure_turns = models.BooleanField(default=True, blank=True)
     rounded_corners = models.BooleanField(default=False, blank=True)
@@ -107,6 +108,7 @@ class Prohibited(models.Model):
     """
     Models information, penalty, and prohibited zones, as well as gate polygons.
     """
+
     name = models.CharField(max_length=200)
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
     path = MyPickledObjectField(default=list)  # List of (lat, lon)
@@ -117,3 +119,24 @@ class Prohibited(models.Model):
         return Prohibited.objects.create(
             name=self.name, route=route, path=self.path, type=self.type, tooltip_position=self.tooltip_position
         )
+
+
+class Photo(models.Model):
+    """Represents photos to be used for observation task"""
+
+    name = models.CharField(max_length=200)
+    route = models.ForeignKey(Route, on_delete=models.CASCADE)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    _leg = MyPickledObjectField(default=None, null=True)
+
+    @property
+    def leg(self) -> Waypoint | None:
+        from display.utilities.route_building_utilities import find_closest_leg_to_point
+
+        if self._leg is None:
+            result = find_closest_leg_to_point(self.latitude, self.longitude, self.route.waypoints)
+            if result:
+                self._leg = result[0]
+                self.save(update_fields=["_leg"])
+        return self._leg

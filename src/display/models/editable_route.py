@@ -294,6 +294,15 @@ class EditableRoute(models.Model):
                     type=zone_type,
                     tooltip_position=feature.get("tooltip_position", []),
                 )
+        from display.models.route import Photo
+
+        for photo in self.get_features_type("photo"):
+            Photo.objects.create(
+                name=photo["name"],
+                route=route,
+                latitude=photo["geojson"]["geometry"]["coordinates"][1],
+                longitude=photo["geojson"]["geometry"]["coordinates"][0],
+            )
 
     @classmethod
     def _create_route_and_thumbnail(cls, name: str, route: list[dict]) -> "EditableRoute":

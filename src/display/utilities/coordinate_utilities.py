@@ -111,7 +111,7 @@ def equirectangular_distance(start: Tuple[float, float], finish: Tuple[float, fl
     avg_lat = to_rad((start[0] + finish[0]) / 2)
     x = to_rad(finish[1] - start[1]) * math.cos(avg_lat)
     y = to_rad(finish[0] - start[0])
-    return math.sqrt(x ** 2 + y ** 2) * R
+    return math.sqrt(x**2 + y**2) * R
 
 
 def calculate_distance_lat_lon(start: Tuple[float, float], finish: Tuple[float, float]) -> float:
@@ -371,6 +371,47 @@ def point_to_line_distance(lat1, lon1, lat2, lon2, lat3, lon3) -> float:
     return math.fabs(dxt)
 
 
+def point_to_line_segment_distance(lat1, lon1, lat2, lon2, lat3, lon3) -> float | None:
+    """
+    Calculates the distance from the point (lat3,lon3) two the closest point on the line segment (lat1,lon1) (lat2,lon2). If the point is beyond this, returns None
+    :param lon1:
+    :param lat1:
+    :param lon2:
+    :param lat2:
+    :param lon3:
+    :param lat3:
+    :return:
+    """
+    dis13 = calculate_distance_lat_lon((lat1, lon1), (lat3, lon3))
+    dis12 = calculate_distance_lat_lon((lat1, lon1), (lat2, lon2))
+    dis23 = calculate_distance_lat_lon((lat2, lon2), (lat3, lon3))
+    lat1 = math.radians(lat1)
+    lat2 = math.radians(lat2)
+    lat3 = math.radians(lat3)
+    lon1 = math.radians(lon1)
+    lon2 = math.radians(lon2)
+    lon3 = math.radians(lon3)
+
+    bear12 = bear(lat1, lon1, lat2, lon2)
+    bear13 = bear(lat1, lon1, lat3, lon3)
+
+    # Is relative bearing obtuse?
+    diff = math.fabs(bear13 - bear12)
+    if diff > math.pi:
+        diff = 2 * math.pi - diff
+    if diff > (math.pi / 2):
+        return None
+
+    # Find the cross-track distance.
+    dxt = math.asin(math.sin(dis13 / R) * math.sin(bear13 - bear12)) * R
+
+    # Is p4 beyond the arc?
+    dis14 = math.acos(math.cos(dis13 / R) / math.cos(dxt / R)) * R
+    if dis14 > dis12:
+        return None
+    return math.fabs(dxt)
+
+
 ###
 
 
@@ -458,7 +499,11 @@ def create_rounded_corridor_corner(
     bisecting_line: Tuple[Tuple[float, float], Tuple[float, float]],
     corridor_width: float,
     corner_degrees: float,
-) -> Tuple[List[Tuple[float, float]], List[Tuple[float, float]], Tuple[Tuple[float, float], Tuple[float, float]],]:
+) -> Tuple[
+    List[Tuple[float, float]],
+    List[Tuple[float, float]],
+    Tuple[Tuple[float, float], Tuple[float, float]],
+]:
     """
     Create a rounded line for the left and right corridor walls for the turn described by the bisecting line
 
