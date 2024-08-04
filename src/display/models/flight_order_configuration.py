@@ -45,10 +45,27 @@ class FlightOrderConfiguration(models.Model):
         default=1, validators=[MinValueValidator(0.1), MaxValueValidator(10.0)]
     )
     map_line_colour = models.CharField(default="#0000ff", max_length=7)
-
-    photos_metres_across = models.FloatField(
+    turning_point_photos_meters_across = models.FloatField(
+        default=1400,
+        help_text="Approximately the number of meters on the ground that is covered by the turning point photo",
+    )
+    turning_point_photos_zoom_level = models.IntegerField(
+        default=15,
+        help_text="The tile zoom level used for generating turning point photos from google satellite imagery",
+        validators=[MinValueValidator(1), MaxValueValidator(20)],
+    )
+    unknown_leg_photos_meters_across = models.FloatField(
+        default=1400,
+        help_text="Approximately the number of meters on the ground that is covered by the unknown leg photo",
+    )
+    unknown_leg_photos_zoom_level = models.IntegerField(
+        default=15,
+        help_text="The tile zoom level used for generating unknown leg photos from google satellite imagery",
+        validators=[MinValueValidator(1), MaxValueValidator(20)],
+    )
+    photos_meters_across = models.FloatField(
         default=350,
-        help_text="Approximately the number of metres on the ground that is covered by our observation photo",
+        help_text="Approximately the number of meters on the ground that is covered by our observation photo",
     )
     photos_zoom_level = models.IntegerField(
         default=17,

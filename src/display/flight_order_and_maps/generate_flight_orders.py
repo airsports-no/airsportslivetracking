@@ -64,13 +64,15 @@ class MyFPDF(FPDF, HTMLMixin):
     pass
 
 
-def generate_turning_point_image(waypoints: List[Waypoint], index, is_unknown_leg: bool = False):
+def generate_turning_point_image(
+    waypoints: List[Waypoint], index, meters_across: float, zoom_level: int, is_unknown_leg: bool = False
+):
     """The parameter waypoints must be the full list of waypoints, otherwise the the plotted track will be wrong."""
     waypoint = waypoints[index]
     imagery = GoogleTiles(style="satellite")
     plt.figure(figsize=(10, 10))
     ax = plt.axes(projection=imagery.crs)
-    ax.add_image(imagery, 15)
+    ax.add_image(imagery, zoom_level)
     ax.set_aspect("auto")
     plt.plot(waypoint.longitude, waypoint.latitude, transform=ccrs.PlateCarree())
     if not is_unknown_leg:
@@ -95,9 +97,9 @@ def generate_turning_point_image(waypoints: List[Waypoint], index, is_unknown_le
     proj = ccrs.PlateCarree()
     utm = utm_from_lat_lon(waypoint.latitude, waypoint.longitude)
     centre_x, centre_y = utm.transform_point(waypoint.longitude, waypoint.latitude, proj)
-    range = 700
-    x0, y0 = proj.transform_point(centre_x - range, centre_y - range, utm)
-    x1, y1 = proj.transform_point(centre_x + range, centre_y + range, utm)
+    size = meters_across / 2
+    x0, y0 = proj.transform_point(centre_x - size, centre_y - size, utm)
+    x1, y1 = proj.transform_point(centre_x + size, centre_y + size, utm)
     extent = [x0, x1, y0, y1]
     ax.set_extent(extent, crs=ccrs.PlateCarree())
     circle_points = geodesic.Geodesic().circle(
@@ -147,7 +149,7 @@ def generate_turning_point_image(waypoints: List[Waypoint], index, is_unknown_le
     return image_data
 
 
-def generate_photo(photo: Photo, waypoint: Waypoint, metes_across: float, zoom_level: int):
+def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_level: int):
     imagery = GoogleTiles(style="satellite")
     plt.figure(figsize=(10, 10))
     ax = plt.axes(projection=imagery.crs)
@@ -157,7 +159,7 @@ def generate_photo(photo: Photo, waypoint: Waypoint, metes_across: float, zoom_l
     proj = ccrs.PlateCarree()
     utm = utm_from_lat_lon(photo.latitude, photo.longitude)
     centre_x, centre_y = utm.transform_point(photo.longitude, photo.latitude, proj)
-    range = metes_across / 2
+    range = meters_across / 2
     x0, y0 = proj.transform_point(centre_x - range, centre_y - range, utm)
     x1, y1 = proj.transform_point(centre_x + range, centre_y + range, utm)
     extent = [x0, x1, y0, y1]
@@ -197,24 +199,28 @@ def generate_photo(photo: Photo, waypoint: Waypoint, metes_across: float, zoom_l
     return temporary_file
 
 
-def insert_turning_point_images_latex(contestant, document: Document):
+def insert_turning_point_images_latex(contestant, document: Document, meters_across: float, zoom_level: int):
     navigation = contestant.navigation_task  # type: NavigationTask
     render_turning_point_images(
-        navigation.route.waypoints, document, "Turning point and time gate", is_unknown_leg=False
+        navigation.route.waypoints,
+        document,
+        meters_across,
+        zoom_level,
+        "Turning point and time gate",
+        is_unknown_leg=False,
     )
 
 
-def insert_unknown_leg_images_latex(
-    contestant,
-    document: Document,
-):
+def insert_unknown_leg_images_latex(contestant, document: Document, meters_across: float, zoom_level: int):
     navigation = contestant.navigation_task  # type: NavigationTask
     render_waypoints = [waypoint for waypoint in navigation.route.waypoints if waypoint.type == UNKNOWN_LEG]
     random.shuffle(render_waypoints)
-    render_turning_point_images(render_waypoints, document, "Unknown legs", is_unknown_leg=True)
+    render_turning_point_images(
+        render_waypoints, document, meters_across, zoom_level, "Unknown legs", is_unknown_leg=True
+    )
 
 
-def insert_photos_latex(contestant, document: Document, metes_across: float, zoom_level: int):
+def insert_photos_latex(contestant, document: Document, meters_across: float, zoom_level: int):
     photos = list(contestant.navigation_task.route.photo_set.all().order_by("name"))
     rows_per_page = 3
     number_of_images = len(photos)
@@ -231,7 +237,7 @@ def insert_photos_latex(contestant, document: Document, metes_across: float, zoo
         with document.create(Figure(position="!ht")):
             if waypoint := photos[index].leg:
                 with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
-                    image_file = generate_photo(photos[index], waypoint, metes_across, zoom_level)
+                    image_file = generate_photo(photos[index], waypoint, meters_across, zoom_level)
                     document.append(
                         StandAloneGraphic(
                             image_options=r"width=\linewidth",
@@ -242,7 +248,7 @@ def insert_photos_latex(contestant, document: Document, metes_across: float, zoo
                 document.append(Command("hfill"))
             if index < len(photos) - 1:
                 if waypoint := photos[index + 1].leg:
-                    image_file = generate_photo(photos[index + 1], waypoint, metes_across, zoom_level)
+                    image_file = generate_photo(photos[index + 1], waypoint, meters_across, zoom_level)
                     with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
                         document.append(
                             StandAloneGraphic(
@@ -257,6 +263,8 @@ def insert_photos_latex(contestant, document: Document, metes_across: float, zoo
 def render_turning_point_images(
     waypoints: List[Waypoint],
     document,
+    meters_across: float,
+    zoom_level: int,
     header_prefix: str,
     is_unknown_leg: bool = False,
 ):
@@ -280,6 +288,8 @@ def render_turning_point_images(
                     # Use full waypoint list to get correct track in image
                     waypoints,
                     waypoints.index(render_waypoints[index]),
+                    meters_across,
+                    zoom_level,
                     is_unknown_leg=is_unknown_leg,
                 )
                 document.append(
@@ -296,6 +306,8 @@ def render_turning_point_images(
                     # Use full waypoint list to get correct track in image
                     waypoints,
                     waypoints.index(render_waypoints[index + 1]),
+                    meters_across,
+                    zoom_level,
                     is_unknown_leg=is_unknown_leg,
                 )
                 with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
@@ -497,8 +509,18 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
             contestant.navigation_task.route.waypoints,
         )
     )
-    starting_point_image_file = get_turning_point_image(waypoints, 0)
-    finish_point_image_file = get_turning_point_image(waypoints, len(waypoints) - 1)
+    starting_point_image_file = get_turning_point_image(
+        waypoints,
+        0,
+        flight_order_configuration.turning_point_photos_meters_across,
+        flight_order_configuration.turning_point_photos_zoom_level,
+    )
+    finish_point_image_file = get_turning_point_image(
+        waypoints,
+        len(waypoints) - 1,
+        flight_order_configuration.turning_point_photos_meters_across,
+        flight_order_configuration.turning_point_photos_zoom_level,
+    )
     with document.create(Figure(position="!ht")):
         with document.create(MiniPage(width=r"0.45\textwidth")):
             document.append(
@@ -656,15 +678,25 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     document.change_document_style("header")
     # document.change_document_style("turningpointheader")
     if flight_order_configuration.include_turning_point_images:
-        insert_turning_point_images_latex(contestant, document)
+        insert_turning_point_images_latex(
+            contestant,
+            document,
+            flight_order_configuration.turning_point_photos_meters_across,
+            flight_order_configuration.turning_point_photos_zoom_level,
+        )
 
     if any(waypoint.type == UNKNOWN_LEG for waypoint in contestant.navigation_task.route.waypoints):
-        insert_unknown_leg_images_latex(contestant, document)
+        insert_unknown_leg_images_latex(
+            contestant,
+            document,
+            flight_order_configuration.unknown_leg_photos_meters_across,
+            flight_order_configuration.unknown_leg_photos_zoom_level,
+        )
     if contestant.navigation_task.route.photo_set.all().count() > 0:
         insert_photos_latex(
             contestant,
             document,
-            flight_order_configuration.photos_metres_across,
+            flight_order_configuration.photos_meters_across,
             flight_order_configuration.photos_zoom_level,
         )
     # Produce the output
@@ -681,8 +713,12 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         return f.read()
 
 
-def get_turning_point_image(waypoints: List, index: int, is_unknown_leg: bool = False) -> NamedTemporaryFile:
-    turning_point = generate_turning_point_image(waypoints, index, is_unknown_leg=is_unknown_leg)
+def get_turning_point_image(
+    waypoints: List, index: int, meters_across: float, zoom_level: int, is_unknown_leg: bool = False
+) -> NamedTemporaryFile:
+    turning_point = generate_turning_point_image(
+        waypoints, index, meters_across, zoom_level, is_unknown_leg=is_unknown_leg
+    )
     temporary_file = NamedTemporaryFile(suffix=".png", delete=False)
     temporary_file.write(turning_point.read())
     temporary_file.seek(0)
