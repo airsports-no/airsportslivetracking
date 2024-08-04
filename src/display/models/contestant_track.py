@@ -21,7 +21,7 @@ class ContestantTrack(models.Model):
     calculator_started = models.BooleanField(default=False)
 
     def reset(self):
-        self.score = 0
+        self.score = self.contestant.navigation_task.scorecard.initial_score
         self.current_state = "Waiting..."
         self.current_leg = ""
         self.last_gate = ""

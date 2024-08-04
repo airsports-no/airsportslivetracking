@@ -208,6 +208,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
                 "map_line_width",
                 "map_minute_mark_line_width",
             ),
+            Fieldset("Observation photo options", "photos_metres_across", "photos_zoom_level"),
             Field("map_line_colour", type="hidden"),
             HTML('<h3>Pick a colour for the map lines</h3><div id="picker" style="margin-bottom: 10px"></div>'),
             ButtonHolder(Submit("submit", "Submit"), Submit("cancel", "Cancel", css_class="btn-secondary")),

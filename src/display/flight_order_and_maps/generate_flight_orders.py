@@ -14,6 +14,7 @@ from cartopy import geodesic
 
 from cartopy.io.img_tiles import GoogleTiles
 from fpdf import FPDF, HTMLMixin
+from display.models.flight_order_configuration import FlightOrderConfiguration
 from display.models.route import Photo
 from pylatex.base_classes import Environment, Arguments
 from pylatex.utils import bold
@@ -146,17 +147,17 @@ def generate_turning_point_image(waypoints: List[Waypoint], index, is_unknown_le
     return image_data
 
 
-def generate_photo(photo: Photo, waypoint: Waypoint):
+def generate_photo(photo: Photo, waypoint: Waypoint, metes_across: float, zoom_level: int):
     imagery = GoogleTiles(style="satellite")
     plt.figure(figsize=(10, 10))
     ax = plt.axes(projection=imagery.crs)
-    ax.add_image(imagery, 15)
+    ax.add_image(imagery, zoom_level)
     ax.set_aspect("auto")
     plt.plot(photo.longitude, photo.latitude, transform=ccrs.PlateCarree())
     proj = ccrs.PlateCarree()
     utm = utm_from_lat_lon(photo.latitude, photo.longitude)
     centre_x, centre_y = utm.transform_point(photo.longitude, photo.latitude, proj)
-    range = 350
+    range = metes_across / 2
     x0, y0 = proj.transform_point(centre_x - range, centre_y - range, utm)
     x1, y1 = proj.transform_point(centre_x + range, centre_y + range, utm)
     extent = [x0, x1, y0, y1]
@@ -213,12 +214,8 @@ def insert_unknown_leg_images_latex(
     render_turning_point_images(render_waypoints, document, "Unknown legs", is_unknown_leg=True)
 
 
-def insert_photos_latex(
-    contestant,
-    document: Document,
-):
-    photos = list(contestant.navigation_task.route.photo_set.all())
-    random.shuffle(photos)
+def insert_photos_latex(contestant, document: Document, metes_across: float, zoom_level: int):
+    photos = list(contestant.navigation_task.route.photo_set.all().order_by("name"))
     rows_per_page = 3
     number_of_images = len(photos)
     number_of_pages = 1 + ((number_of_images - 1) // (2 * rows_per_page))
@@ -234,7 +231,7 @@ def insert_photos_latex(
         with document.create(Figure(position="!ht")):
             if waypoint := photos[index].leg:
                 with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
-                    image_file = generate_photo(photos[index], waypoint)
+                    image_file = generate_photo(photos[index], waypoint, metes_across, zoom_level)
                     document.append(
                         StandAloneGraphic(
                             image_options=r"width=\linewidth",
@@ -245,7 +242,7 @@ def insert_photos_latex(
                 document.append(Command("hfill"))
             if index < len(photos) - 1:
                 if waypoint := photos[index + 1].leg:
-                    image_file = generate_photo(photos[index + 1], waypoint)
+                    image_file = generate_photo(photos[index + 1], waypoint, metes_across, zoom_level)
                     with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
                         document.append(
                             StandAloneGraphic(
@@ -336,7 +333,7 @@ def round_seconds_timedelta(stamp: datetime.timedelta) -> datetime.timedelta:
 
 
 def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
-    flight_order_configuration = contestant.navigation_task.flightorderconfiguration
+    flight_order_configuration: FlightOrderConfiguration = contestant.navigation_task.flightorderconfiguration
     starting_point_time_string = f'{contestant.starting_point_time_local.strftime("%H:%M:%S")}'
     tracking_start_time_string = f'{contestant.tracker_start_time_local.strftime("%H:%M:%S")}'
     finish_tracking_time = f'{contestant.finished_by_time_local.strftime("%H:%M:%S")}'
@@ -664,7 +661,12 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     if any(waypoint.type == UNKNOWN_LEG for waypoint in contestant.navigation_task.route.waypoints):
         insert_unknown_leg_images_latex(contestant, document)
     if contestant.navigation_task.route.photo_set.all().count() > 0:
-        insert_photos_latex(contestant, document)
+        insert_photos_latex(
+            contestant,
+            document,
+            flight_order_configuration.photos_metres_across,
+            flight_order_configuration.photos_zoom_level,
+        )
     # Produce the output
     pdf_file = NamedTemporaryFile()
     document.generate_tex(pdf_file.name)

@@ -9,6 +9,7 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from display.calculators.calculator_factory import calculator_factory
 from display.calculators.update_score_message import UpdateScoreMessage
+from display.models.contestant_track import ContestantTrack
 from display.utilities.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
 from display.utilities.calculator_termination_utilities import is_termination_requested
 from redis_queue import RedisQueue, RedisEmpty
@@ -82,11 +83,12 @@ class ContestantProcessor:
         self.traccar = get_traccar_instance()
         self.previous_position = None
         self.track_terminated = False
-        self.contestant_track = contestant.contestanttrack
+        self.contestant_track: ContestantTrack = contestant.contestanttrack
+        self.contestant_track.update_score(self.contestant.navigation_task.scorecard.initial_score)
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.score_processing_queue = Queue()
         self.last_termination_command_check = None
-        self.score = 0
+        self.score = self.contestant_track.score
         self.process_event = threading.Event()
         self.contestant.reset_track_and_score()
         self.contestant.contestantreceivedposition_set.all().delete()

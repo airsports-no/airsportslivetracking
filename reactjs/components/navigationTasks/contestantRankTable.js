@@ -80,7 +80,7 @@ class ConnectedContestantRankTable extends Component {
                 Header: "SCORE",
                 sortDirection: this.props.navigationTask.score_sorting_direction,
                 accessor: (row, index) => {
-                    if (!row.hasStarted) {
+                    if (!row.hasStarted&&row.score == 0) {
                         return "--"
                     }
                     return <span className={"align-middle"}>{row.score.toFixed(this.props.scoreDecimals)}</span>

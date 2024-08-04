@@ -216,7 +216,9 @@ def push_test_change(sender, instance: TaskTest, **kwargs):
 
 @receiver(post_save, sender=Contestant)
 def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs):
-    ContestantTrack.objects.get_or_create(contestant=instance)
+    ContestantTrack.objects.get_or_create(
+        contestant=instance, defaults={"score": instance.navigation_task.scorecard.initial_score}
+    )
     from websocket_channels import WebsocketFacade
 
     ws = WebsocketFacade()
