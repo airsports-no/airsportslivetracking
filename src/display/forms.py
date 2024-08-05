@@ -190,11 +190,6 @@ class FlightOrderConfigurationForm(forms.ModelForm):
         self.helper.form_tag = False
         self.helper.layout = Layout(
             Fieldset(
-                "Flight order options",
-                # "document_size",
-                "include_turning_point_images",
-            ),
-            Fieldset(
                 "Map options",
                 "map_source",
                 "map_user_source",
@@ -209,10 +204,27 @@ class FlightOrderConfigurationForm(forms.ModelForm):
                 "map_minute_mark_line_width",
             ),
             Fieldset(
-                "Turning point photo options", "turning_point_photos_meters_across", "turning_point_photos_zoom_level"
+                "Turning point photo options",
+                "include_turning_point_images",
+                "turning_point_photos_meters_across",
+                "turning_point_photos_zoom_level",
             ),
-            Fieldset("Unknown leg photo options", "unknown_leg_photos_meters_across", "unknown_leg_photos_zoom_level"),
-            Fieldset("Observation photo options", "photos_meters_across", "photos_zoom_level"),
+            Fieldset(
+                "Unknown leg photo options",
+                HTML(
+                    "Unknown leg photos are included automatically if unknown legs are present in the route. These are created through the route editor."
+                ),
+                "unknown_leg_photos_meters_across",
+                "unknown_leg_photos_zoom_level",
+            ),
+            Fieldset(
+                "Observation photo options",
+                HTML(
+                    "If the route includes photo markers, these will be included on one or more separate pages sorted according to name"
+                ),
+                "photos_meters_across",
+                "photos_zoom_level",
+            ),
             Field("map_line_colour", type="hidden"),
             HTML('<h3>Pick a colour for the map lines</h3><div id="picker" style="margin-bottom: 10px"></div>'),
             ButtonHolder(Submit("submit", "Submit"), Submit("cancel", "Cancel", css_class="btn-secondary")),
