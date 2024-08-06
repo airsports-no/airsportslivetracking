@@ -32,5 +32,5 @@ data:
   SECRET_KEY: {{ .Values.secretKey }}
 
   BUILD_ID: {{ .Values.image.tag | quote }}
-#  MBTILES_SERVER_URL: {{ .Values.mbtilesUrl }}
+  MBTILES_SERVER_URL: {{ .Values.mbtilesUrl }}
 

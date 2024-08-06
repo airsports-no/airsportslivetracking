@@ -33,7 +33,7 @@ spec:
         name: tracker-collect-static
         resources:
           requests:
-            cpu: 200m
+            cpu: 1000m
             memory: 200Mi
         envFrom:
           - configMapRef:
