@@ -17,7 +17,7 @@ spec:
     - path:
       value: /ws
     backendRefs:
-    - name: tracker-daphne-service
+    - name: tracker-daphne-service-gateway
       port: 80
 ---
 apiVersion: networking.gke.io/v1
@@ -36,7 +36,7 @@ spec:
   targetRef:
     group: ""
     kind: Service
-    name: web-service
+    name: tracker-web-service
 ---
 apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
@@ -54,7 +54,7 @@ spec:
   targetRef:
     group: ""
     kind: Service
-    name: daphne-service
+    name: tracker-daphne-service-gateway
 ---
 # Replaces BackendConfig
 apiVersion: networking.gke.io/v1
@@ -70,4 +70,4 @@ spec:
   targetRef:
     group: ""
     kind: Service
-    name: daphne-service
+    name: tracker-daphne-service-gateway

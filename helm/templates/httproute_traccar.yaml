@@ -10,7 +10,7 @@ spec:
   - "traccar.airsports.no"
   rules:
   - backendRefs:
-    - name: traccar-service
+    - name: traccar-service-gateway
       port: 8082
 ---
 apiVersion: networking.gke.io/v1
