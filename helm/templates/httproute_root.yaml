@@ -11,13 +11,13 @@ spec:
   - "www.airsports.no"
   rules:
   - backendRefs:
-    - name: tracker-web-service
+    - name: tracker-daphne-service-gateway
       port: 80
-  - matches:
+    matches:
     - path:
       value: /ws
-    backendRefs:
-    - name: tracker-daphne-service-gateway
+  - backendRefs:
+    - name: tracker-web-service
       port: 80
 ---
 apiVersion: networking.gke.io/v1
