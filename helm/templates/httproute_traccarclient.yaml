@@ -1,0 +1,14 @@
+kind: HTTPRoute
+apiVersion: gateway.networking.k8s.io/v1beta1
+metadata:
+  name: traccarclient-external
+spec:
+  parentRefs:
+  - kind: Gateway
+    name: external-http
+  hostnames:
+  - "traccarclient.airsports.no"
+  rules:
+  - backendRefs:
+    - name: traccar-service
+      port: 5055

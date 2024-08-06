@@ -1,0 +1,14 @@
+kind: HTTPRoute
+apiVersion: gateway.networking.k8s.io/v1beta1
+metadata:
+  name: home-external
+spec:
+  parentRefs:
+  - kind: Gateway
+    name: external-http
+  hostnames:
+  - "home.airsports.no"
+  rules:
+  - backendRefs:
+    - name: airsportsrelease-wordpress
+      port: 80
