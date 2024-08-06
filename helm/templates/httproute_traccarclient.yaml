@@ -10,5 +10,5 @@ spec:
   - "traccarclient.airsports.no"
   rules:
   - backendRefs:
-    - name: traccar-service
+    - name: traccar-service-gateway
       port: 5055
