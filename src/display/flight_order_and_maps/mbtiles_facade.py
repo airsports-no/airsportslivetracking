@@ -6,13 +6,19 @@ from live_tracking_map.settings import MBTILES_SERVER_URL
 
 
 def get_available_maps() -> dict:
-    result = _requests_retry_session().get(f"{MBTILES_SERVER_URL}services/")
-    return result.json()
+    try:
+        result = _requests_retry_session().get(f"{MBTILES_SERVER_URL}services/")
+        return result.json()
+    except requests.exceptions.JSONDecodeError:
+        return {}
 
 
 def get_map_details(map_key: str) -> dict:
-    result = _requests_retry_session().get(f"{MBTILES_SERVER_URL}services/{map_key}")
-    return result.json()
+    try:
+        result = _requests_retry_session().get(f"{MBTILES_SERVER_URL}services/{map_key}")
+        return result.json()
+    except requests.exceptions.JSONDecodeError:
+        return {}
 
 
 def _requests_retry_session(
