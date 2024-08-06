@@ -202,7 +202,7 @@ class TestANRPerLeg(TransactionTestCase):
             i["attributes"] = {}
             i["device_time"] = dateutil.parser.parse(i["time"])
             q.append(i)
-        threading.Timer(1, lambda: self.contestant.request_calculator_termination()).start()
+        threading.Timer(0, lambda: self.contestant.request_calculator_termination()).start()
         contestant_processor.run()
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]

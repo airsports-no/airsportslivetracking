@@ -4,7 +4,6 @@ import time
 from io import BytesIO
 from typing import Optional
 
-import dateutil
 import numpy as np
 import matplotlib.pyplot as plt
 from django.contrib.auth import get_user_model
@@ -42,6 +41,7 @@ from display.utilities.tracking_definitions import (
     TRACKING_PILOT,
 )
 from display.utilities.wind_utilities import calculate_ground_speed_combined
+from traccar_facade import augment_positions_from_traccar
 
 logger = logging.getLogger(__name__)
 
@@ -799,8 +799,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         tracks = []
         for device_id in device_ids:
             track = traccar.get_positions_for_device_id(device_id, self.tracker_start_time, self.finished_by_time)
-            for item in track:
-                item["device_time"] = dateutil.parser.parse(item["deviceTime"])
+            augment_positions_from_traccar(track)
             tracks.append(track)
         logger.debug(f"Returned {len(tracks)} with lengths {', '.join([str(len(item)) for item in tracks])}")
         return merge_tracks(tracks)

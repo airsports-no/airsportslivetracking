@@ -5,6 +5,7 @@ from typing import List, Dict, TYPE_CHECKING, Optional, Tuple
 
 import requests
 from requests import Session
+from dateutil import parser
 
 from live_tracking_map.settings import (
     TRACCAR_PROTOCOL,
@@ -225,3 +226,11 @@ class Traccar:
         if dmap := self.update_and_get_devices():
             self.device_map = {item["id"]: item["uniqueId"] for item in dmap}
             self.unique_id_map = {value: key for key, value in self.device_map.items()}
+
+
+def augment_positions_from_traccar(positions):
+    """Helper function to convert dates and update the existing objects."""
+    for item in positions:
+        item["device_time"] = parser.parse(item["deviceTime"])
+        item["server_time"] = parser.parse(item["serverTime"])
+        item["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)

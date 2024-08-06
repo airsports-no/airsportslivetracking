@@ -4,7 +4,6 @@ import threading
 from queue import Queue
 from typing import List, Optional, Tuple, Dict
 
-from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
 
 from display.calculators.calculator_factory import calculator_factory
@@ -14,6 +13,7 @@ from display.utilities.calculator_running_utilities import calculator_is_alive, 
 from display.utilities.calculator_termination_utilities import is_termination_requested
 from redis_queue import RedisQueue, RedisEmpty
 from slack_facade import post_slack_competition_message
+from traccar_facade import augment_positions_from_traccar
 from utilities.timed_queue import TimedQueue, TimedOut
 from websocket_channels import WebsocketFacade
 
@@ -173,7 +173,9 @@ class ContestantProcessor:
         interval and return this together with the last position.
         """
         if self.previous_position is None:
-            latest_position_time = self.contestant.tracker_start_time
+            # If there is no previous data we are at the beginning, which means that we have already fetched whatever
+            # is missing before this in the enqueue positions thread.
+            return [position_data]
         else:
             latest_position_time = self.previous_position.time
         current_time = position_data["device_time"]
@@ -185,10 +187,7 @@ class ContestantProcessor:
                 latest_position_time + datetime.timedelta(seconds=1),
                 current_time - datetime.timedelta(seconds=1),
             )
-            for item in positions:
-                item["device_time"] = parser.parse(item["deviceTime"])
-                item["server_time"] = parser.parse(item["serverTime"])
-                item["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)
+            augment_positions_from_traccar(positions)
 
             if len(positions) > 0:
                 logger.debug(
@@ -275,6 +274,8 @@ class ContestantProcessor:
                     or self.previous_position.time >= p.time
                 ):
                     # Old or duplicate position, ignoring
+                    # We still need to update the previous position to avoid fetching unnecessary data from traccar
+                    self.previous_position = p
                     continue
                 all_positions.append(p)
                 for position in self.interpolate_track(self.previous_position, p):
@@ -369,10 +370,7 @@ class ContestantProcessor:
                 positions = self.traccar.get_positions_for_device_id(
                     device_id, self.contestant.tracker_start_time, current_time
                 )
-                for item in positions:
-                    item["device_time"] = parser.parse(item["deviceTime"])
-                    item["server_time"] = parser.parse(item["serverTime"])
-                    item["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)
+                augment_positions_from_traccar(positions)
                 device_positions[device_id] = positions
             try:
                 # Select the longest track
@@ -385,13 +383,12 @@ class ContestantProcessor:
             except IndexError:
                 pass
         receiving = False
+        delay = datetime.timedelta(minutes=self.contestant.navigation_task.calculation_delay_minutes)
         while not self.track_terminated:
             try:
                 position_data = self.position_queue.pop(True, timeout=30)
                 if position_data is not None:
-                    release_time = position_data["device_time"] + datetime.timedelta(
-                        minutes=self.contestant.navigation_task.calculation_delay_minutes
-                    )
+                    release_time = position_data["device_time"] + delay
                     if not receiving:
                         logger.info(f"{self.contestant}: Started receiving data")
                 else:
