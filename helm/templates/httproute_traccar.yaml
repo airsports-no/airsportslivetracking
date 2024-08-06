@@ -30,4 +30,4 @@ spec:
   targetRef:
     group: ""
     kind: Service
-    name: traccar-service
+    name: traccar-service-gateway
