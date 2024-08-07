@@ -177,6 +177,7 @@ class UserPersonViewSet(GenericViewSet):
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):
         kwargs["partial"] = True
+        logger.info(f"Updating profile for {self.get_object()} with data {request.data}")
         return self.update_profile(request, *args, **kwargs)
 
     @action(detail=False, methods=["get"])

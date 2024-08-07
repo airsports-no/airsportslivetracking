@@ -33,6 +33,8 @@ class ContestantTrackInline(admin.TabularInline):
 
 class ContestantTrackAdmin(admin.ModelAdmin):
     inlines = (ContestantTrackInline,)
+    search_fields = ["team__crew__member1__first_name", "team__crew__member1__last_name"]
+    list_display = ["team", "takeoff_time", "navigation_task"]
 
 
 class ContestantInline(admin.TabularInline):
@@ -68,6 +70,8 @@ class PersonAdmin(admin.ModelAdmin):
 
     app_tracking_id.short_description = "App tracking ID"
     simulator_tracking_id.short_description = "Simulator tracking ID"
+    search_fields = ["first_name", "last_name", "email"]
+    list_display = ("email", "first_name", "last_name")
 
 
 class ContestAdmin(GuardedModelAdmin):

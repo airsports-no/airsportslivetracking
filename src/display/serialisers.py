@@ -137,8 +137,8 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
 
     class Meta:
         model = Person
-        # fields = "__all__"
-        exclude = ("phone",)
+        fields = "__all__"
+        # exclude = ("phone",)
 
 
 class PersonSerialiserExcludingTracking(CountryFieldMixin, serializers.ModelSerializer):
