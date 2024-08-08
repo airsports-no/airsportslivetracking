@@ -4,7 +4,6 @@ import logging
 from typing import Optional
 
 import dateutil
-import phonenumbers
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import transaction
@@ -22,6 +21,7 @@ from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from timezone_field.rest_framework import TimeZoneSerializerField
 from phonenumber_field.serializerfields import PhoneNumberField
+from phonenumber_field.validators import validate_international_phonenumber
 
 from django.core.exceptions import ValidationError as CoreValidationError
 
@@ -100,6 +100,39 @@ class PersonLtdSerialiser(serializers.ModelSerializer):
         fields = ("first_name", "last_name", "picture")
 
 
+class ReadWriteSerializerMethodField(serializers.Field):
+    def __init__(self, method_name=None, **kwargs):
+        self.method_name = method_name
+        kwargs["source"] = "*"
+        # kwargs['read_only'] = True
+        super(ReadWriteSerializerMethodField, self).__init__(**kwargs)
+
+    def bind(self, field_name, parent):
+        self.field_name = field_name
+        # In order to enforce a consistent style, we error if a redundant
+        # 'method_name' argument has been used. For example:
+        # my_field = serializer.SerializerMethodField(method_name='get_my_field')
+        default_method_name = "get_{field_name}".format(field_name=field_name)
+        assert self.method_name != default_method_name, (
+            "It is redundant to specify `%s` on SerializerMethodField '%s' in "
+            "serializer '%s', because it is the same as the default method name. "
+            "Remove the `method_name` argument." % (self.method_name, field_name, parent.__class__.__name__)
+        )
+
+        # The method name should default to `get_{field_name}`.
+        if self.method_name is None:
+            self.method_name = default_method_name
+
+        super(ReadWriteSerializerMethodField, self).bind(field_name, parent)
+
+    def to_representation(self, value):
+        method = getattr(self.parent, self.method_name)
+        return method(value)
+
+    def to_internal_value(self, data):
+        return {self.field_name: data}
+
+
 class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     """
     This should only be used in UserPersonViewSet where it is guaranteed that you only get access to your own profile.
@@ -108,6 +141,15 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
 
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
+    # These are required for the app registration to work correctly
+    phone_national_number = ReadWriteSerializerMethodField()
+    phone_country_prefix = ReadWriteSerializerMethodField()
+
+    def get_phone_national_number(self, obj):
+        return str(obj.phone.national_number)
+
+    def get_phone_country_prefix(self, obj):
+        return f"+{obj.phone.country_code}"
 
     def create(self, validated_data):
         country_prefix = validated_data.pop("phone_country_prefix", None)
@@ -130,10 +172,7 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
         return instance
 
     def validate_phone(self, phone):
-        if not phonenumbers.is_possible_number(phone):
-            raise ValidationError(f"Phone number {phone} is not a possible number")
-        if not phonenumbers.is_valid_number(phone):
-            raise ValidationError(f"Phone number {phone} is not a valid number")
+        validate_international_phonenumber(phone)
 
     class Meta:
         model = Person
