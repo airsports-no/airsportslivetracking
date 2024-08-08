@@ -3,20 +3,21 @@ import ProgressBar from "react-bootstrap/ProgressBar";
 import { connect } from "react-redux";
 
 const mapStateToProps = (state, props) => ({
-    totalInitialPositionCountForContestant: state.totalInitialPositionCountForContestant,
-    currentInitialPositionCountForContestant: state.currentInitialPositionCountForContestant
+    initialLoadingContestantData: state.initialLoadingContestantData,
 })
 
 
 class ConnectedTrackLoadingIndicator extends Component {
     getPercentageCompletedLoading() {
-        if (Object.keys(this.props.totalInitialPositionCountForContestant).length == 0) {
+        if (Object.keys(this.props.initialLoadingContestantData).length == 0) {
             return 0
         }
         let total = 0, current = 0;
-        Object.keys(this.props.totalInitialPositionCountForContestant).map((key, index) => {
-            total += this.props.totalInitialPositionCountForContestant[key]
-            current += this.props.currentInitialPositionCountForContestant[key] !== undefined ? this.props.currentInitialPositionCountForContestant[key] : 0
+        Object.keys(this.props.initialLoadingContestantData).map((key, index) => {
+            total += 1
+            if (!this.props.initialLoadingContestantData[key]) {
+                current += 1
+            }
         })
         if (total == 0) {
             return 100

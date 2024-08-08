@@ -209,7 +209,7 @@ export const fetchMoreContests = () => (dispatch, getState) => {
         // If the next hurl is no and we have contests it means that we have fetched all.
         return
     }
-    const nextPage = getState().contestsCurrentPage+1
+    const nextPage = getState().contestsCurrentPage + 1
     dispatch({ type: GET_CONTESTS })
     $.ajax({
         url: document.configuration.CONTESTS_LIST_URL + "?page=" + nextPage,
@@ -256,14 +256,22 @@ export const fetchMyParticipatingContests = () => (dispatch) => {
     });
 }
 
-export const fetchInitialTracks = (contestId, navigationTaskId, contestantId, page, version) => (dispatch) => {
-    dispatch({ type: FETCH_INITIAL_TRACKS, contestantId: contestantId, page: page })
+export const fetchInitialTracks = (contestId, navigationTaskId, contestantId, version) => (dispatch, getState) => {
+    let nextContestsUrl = null
+    if (getState().contestantPositions[contestantId] !== undefined) {
+        nextContestsUrl = getState().contestantPositions[contestantId].nextPositions
+        if (!nextContestsUrl) {
+            return
+        }
+    }
+
+    dispatch({ type: FETCH_INITIAL_TRACKS, contestantId: contestantId })
     $.ajax({
-        url: document.configuration.contestantInitialTrackDataUrl(contestId, navigationTaskId, contestantId) + "?page=" + page + "&version=" + version,
+        url: document.configuration.contestantInitialTrackDataUrl(contestId, navigationTaskId, contestantId) + "?version=" + version + (nextContestsUrl ? "&cursor=" + nextContestsUrl : null),
         datatype: 'json',
         cache: true,
-        success: value => dispatch({ type: FETCH_INITIAL_TRACKS_SUCCESS, payload: value, contestantId: contestantId, page: page }),
-        error: error => dispatch({ type: FETCH_INITIAL_TRACKS_FAILED, payload: error, contestantId: contestantId, page: page })
+        success: value => dispatch({ type: FETCH_INITIAL_TRACKS_SUCCESS, payload: value, contestantId: contestantId }),
+        error: error => dispatch({ type: FETCH_INITIAL_TRACKS_FAILED, payload: error, contestantId: contestantId })
     });
 }
 

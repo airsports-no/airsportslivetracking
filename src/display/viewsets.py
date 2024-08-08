@@ -1,8 +1,10 @@
 import base64
+from collections import OrderedDict
 import datetime
 import logging
 
 from django.core.files.base import ContentFile
+from django.core.paginator import InvalidPage
 from django.db import transaction
 from django.db.models import Q, Count
 from django.http import Http404
@@ -12,9 +14,11 @@ from rest_framework import status, permissions, mixins
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination
+from rest_framework.pagination import PageNumberPagination, CursorPagination
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.exceptions import NotFound
 import rest_framework.exceptions as drf_exceptions
+from urllib import parse
 
 from display.tasks import (
     import_gpx_track,
@@ -803,6 +807,37 @@ def generate_score_data(contestant_pk):
 TRACK_DATA_PAGE_SIZE_MINUTES = 30
 
 
+class TrackDataPagination(CursorPagination):
+    page_size = TRACK_DATA_PAGE_SIZE_MINUTES * 60
+    ordering = "time"
+
+    def encode_cursor(self, cursor):
+        """
+        Given a Cursor instance, return an url with encoded cursor.
+        """
+        tokens = {}
+        if cursor.offset != 0:
+            tokens["o"] = str(cursor.offset)
+        if cursor.reverse:
+            tokens["r"] = "1"
+        if cursor.position is not None:
+            tokens["p"] = cursor.position
+
+        querystring = parse.urlencode(tokens, doseq=True)
+        return base64.b64encode(querystring.encode("ascii")).decode("ascii")
+
+    def get_paginated_response(self, data):
+        return Response(
+            OrderedDict(
+                [
+                    ("next", self.get_next_link()),
+                    ("previous", self.get_previous_link()),
+                    ("results", data),
+                ]
+            )
+        )
+
+
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
     permission_classes = [
@@ -885,20 +920,22 @@ class ContestantViewSet(ModelViewSet):
             self.get_object()
         )  # This is important, this is where the object permissions are checked
         position_data = contestant.get_track()
-        pagination = PageNumberPagination()
-        pagination.page_size = TRACK_DATA_PAGE_SIZE_MINUTES * 60
-        page = pagination.paginate_queryset(position_data, request)
+        pagination = TrackDataPagination()
+        page = pagination.paginate_queryset(
+            position_data.values("time", "latitude", "longitude", "speed", "course", "altitude", "progress"), request
+        )
         if page is not None:
             if len(page):
-                page[-1].progress = contestant.calculate_progress(page[-1].time, ignore_finished=True)
+                page[-1]["progress"] = contestant.calculate_progress(page[-1]["time"], ignore_finished=True)
             # progress = 0
             # step_length = int(len(page) / 10)
             # for index, item in enumerate(page):
             #     if index % step_length == 0:
             #         progress = contestant.calculate_progress(item.time, ignore_finished=True)
             #     item.progress = progress
-            serializer = PositionSerialiser(page, many=True)
-            result = pagination.get_paginated_response(serializer.data)
+            # serializer = PositionSerialiser(page, many=True)
+            # result = pagination.get_paginated_response(serializer.data)
+            result = pagination.get_paginated_response(page)
             response = Response(result.data)
             if (
                 pagination.get_next_link() is None

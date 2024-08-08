@@ -3,7 +3,6 @@ import React, { Component } from "react";
 import {
     displayAllTracks,
     expandTrackingTable,
-    fetchInitialTracks,
     setDisplay,
     shrinkTrackingTable,
     hideLowerThirds,
@@ -50,7 +49,6 @@ export const mapDispatchToProps = {
     expandTrackingTable,
     shrinkTrackingTable,
     hideLowerThirds,
-    fetchInitialTracks,
     dispatchWebSocketConnected
 }
 

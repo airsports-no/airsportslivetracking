@@ -66,8 +66,6 @@ const initialState = {
     displayExpandedTrackingTable: false,
     initialLoadingContestantData: {},
     contestantPositions: {},
-    totalInitialPositionCountForContestant: {},
-    currentInitialPositionCountForContestant: {},
     contestantProgress: {},
     fetchingContestantTracks: {},
     displayLowerThirds: null,
@@ -169,7 +167,6 @@ function rootReducer(state = initialState, action) {
                     contestant_id: action.contestantId,
                     positions: action.payload.results,
                     nextPositions: action.payload.next,
-                    currentPage: action.page,
                 }
             },
             contestantProgress: {
@@ -185,14 +182,6 @@ function rootReducer(state = initialState, action) {
                 ...state.fetchingContestantTracks,
                 [action.contestantId]: false
             },
-            totalInitialPositionCountForContestant: {
-                ...state.totalInitialPositionCountForContestant,
-                [action.contestantId]: action.payload.count
-            },
-            currentInitialPositionCountForContestant: {
-                ...state.currentInitialPositionCountForContestant,
-                [action.contestantId]: state.currentInitialPositionCountForContestant[action.contestantId] ? state.currentInitialPositionCountForContestant[action.contestantId] + action.payload.results.length : action.payload.results.length
-            }
 
         })
     }
@@ -203,14 +192,6 @@ function rootReducer(state = initialState, action) {
                 ...state.fetchingContestantTracks,
                 [action.contestantId]: true
             },
-            totalInitialPositionCountForContestant: {
-                ...state.totalInitialPositionCountForContestant,
-                [action.contestantId]: state.totalInitialPositionCountForContestant[action.contestantId] === undefined ? 10000 : state.totalInitialPositionCountForContestant[action.contestantId] // Arbitrary large number.
-            },
-            currentInitialPositionCountForContestant: {
-                ...state.currentInitialPositionCountForContestant,
-                [action.contestantId]: action.page == 1 ? 0 : state.currentInitialPositionCountForContestant[action.contestantId]
-            }
         })
     }
     if (action.type === FETCH_INITIAL_TRACKS_FAILED) {
@@ -257,8 +238,6 @@ function rootReducer(state = initialState, action) {
         delete newState.contestants[action.payload.contestant_id]
         delete newState.contestantData[action.payload.contestant_id]
         delete newState.contestantPositions[action.payload.contestant_id]
-        delete newState.totalInitialPositionCountForContestant[action.payload.contestant_id]
-        delete newState.currentInitialPositionCountForContestant[action.payload.contestant_id]
         return newState
     }
     if (action.type === GET_CONTESTANT_DATA_SUCCESSFUL) {

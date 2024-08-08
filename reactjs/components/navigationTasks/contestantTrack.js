@@ -115,7 +115,7 @@ class ConnectedContestantTrack extends Component {
 
 
     componentDidMount() {
-        this.props.fetchInitialTracks(this.props.navigationTask.contest, this.props.navigationTask.id, this.props.contestant.id, 1, this.props.contestant.track_version)
+        this.props.fetchInitialTracks(this.props.navigationTask.contest, this.props.navigationTask.id, this.props.contestant.id,  this.props.contestant.track_version)
         this.props.fetchScoreData(this.props.navigationTask.contest, this.props.navigationTask.id, this.props.contestant.id)
     }
 
@@ -137,7 +137,7 @@ class ConnectedContestantTrack extends Component {
             this.maybeUpdateAgeAndColour()
         }
         if (this.props.contestantPositions && this.props.contestantPositions.nextPositions && !this.props.fetchingContestantTracks) {
-            this.props.fetchInitialTracks(this.props.navigationTask.contest, this.props.navigationTask.id, this.props.contestant.id, this.props.contestantPositions.currentPage + 1, this.props.contestant.track_version)
+            this.props.fetchInitialTracks(this.props.navigationTask.contest, this.props.navigationTask.id, this.props.contestant.id,    this.props.contestant.track_version)
         }
         if (this.props.displayMap) {
             if (this.props.contestantPositions !== undefined && (previousProps.contestantPositions === undefined || this.props.contestantPositions.positions !== previousProps.contestantPositions.positions)) {
