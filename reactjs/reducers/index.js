@@ -77,6 +77,7 @@ const initialState = {
     highlightContestantTable: [],
     contests: [],
     upcomingContests: [],
+    contestsCurrentPage: 0,
     nextContestsUrl: null,
     zoomContest: null,
     displayEventSearchModal: false,
@@ -113,7 +114,7 @@ function emptyContestantData(contestantId) {
         annotations: [],
         log_entries: [],
         playing_cards: [],
-        contestant_id:contestantId,
+        contestant_id: contestantId,
         gate_scores: [],
         more_data: true,
         progress: 0,
@@ -204,11 +205,11 @@ function rootReducer(state = initialState, action) {
             },
             totalInitialPositionCountForContestant: {
                 ...state.totalInitialPositionCountForContestant,
-                [action.contestantId]: state.totalInitialPositionCountForContestant[action.contestantId]===undefined?10000:state.totalInitialPositionCountForContestant[action.contestantId] // Arbitrary large number.
+                [action.contestantId]: state.totalInitialPositionCountForContestant[action.contestantId] === undefined ? 10000 : state.totalInitialPositionCountForContestant[action.contestantId] // Arbitrary large number.
             },
             currentInitialPositionCountForContestant: {
                 ...state.currentInitialPositionCountForContestant,
-                [action.contestantId]: action.page == 1?0:state.currentInitialPositionCountForContestant[action.contestantId]
+                [action.contestantId]: action.page == 1 ? 0 : state.currentInitialPositionCountForContestant[action.contestantId]
             }
         })
     }
@@ -390,6 +391,7 @@ function rootReducer(state = initialState, action) {
         const newContests = state.contests.concat(action.payload.results)
         return Object.assign({}, state, {
             contests: newContests,
+            contestsCurrentPage: action.page,
             nextContestsUrl: action.payload.next,
             upcomingContests: newContests.filter((contest) => {
                 return new Date(contest.finish_time).getTime() > now.getTime()

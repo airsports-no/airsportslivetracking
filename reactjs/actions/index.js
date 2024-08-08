@@ -209,12 +209,13 @@ export const fetchMoreContests = () => (dispatch, getState) => {
         // If the next hurl is no and we have contests it means that we have fetched all.
         return
     }
+    const nextPage = getState().contestsCurrentPage+1
     dispatch({ type: GET_CONTESTS })
     $.ajax({
-        url: nextContestsUrl || document.configuration.CONTESTS_LIST_URL,
+        url: document.configuration.CONTESTS_LIST_URL + "?page=" + nextPage,
         datatype: 'json',
         cache: false,
-        success: value => dispatch({ type: GET_CONTESTS_SUCCESSFUL, payload: value }),
+        success: value => dispatch({ type: GET_CONTESTS_SUCCESSFUL, payload: value, page: nextPage }),
         error: error => console.log(error)
     });
 }
@@ -260,7 +261,7 @@ export const fetchInitialTracks = (contestId, navigationTaskId, contestantId, pa
     $.ajax({
         url: document.configuration.contestantInitialTrackDataUrl(contestId, navigationTaskId, contestantId) + "?page=" + page + "&version=" + version,
         datatype: 'json',
-        cache: false,
+        cache: true,
         success: value => dispatch({ type: FETCH_INITIAL_TRACKS_SUCCESS, payload: value, contestantId: contestantId, page: page }),
         error: error => dispatch({ type: FETCH_INITIAL_TRACKS_FAILED, payload: error, contestantId: contestantId, page: page })
     });
