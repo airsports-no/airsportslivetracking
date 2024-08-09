@@ -49,7 +49,7 @@ class ConnectedEventSearchModal extends Component {
             </Modal.Header>
             <Modal.Body>
                 <Container>
-                    {this.props.nextContestsUrl ? <a href="#" onClick={this.props.fetchMoreContests}>Fetch more</a> : null}
+                    {this.props.nextContestsCursor ? <a href="#" onClick={this.props.fetchMoreContests}>Fetch more</a> : null}
                     <div className={""}>
                         <EventTable contests={this.props.contests}
                             handleContestClick={this.props.handleContestClick} />
@@ -60,7 +60,7 @@ class ConnectedEventSearchModal extends Component {
     }
 }
 
-const EventSearchModal = connect((state, props) => ({ contests: state.contests, nextContestsUrl: state.nextContestsUrl }), { fetchMoreContests })(ConnectedEventSearchModal);
+const EventSearchModal = connect((state, props) => ({ contests: state.contests, nextContestsCursor: state.nextContestsCursor }), { fetchMoreContests })(ConnectedEventSearchModal);
 
 function ContestPopupModal(props) {
     if (!props.contest) {

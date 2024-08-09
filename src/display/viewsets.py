@@ -262,8 +262,43 @@ class EditableRouteViewSet(ModelViewSet):
             logger.exception("Failed creating editable route thumbnail")
 
 
-class ContestPagination(PageNumberPagination):
+TRACK_DATA_PAGE_SIZE_MINUTES = 30
+
+
+class MyCursorPagination(CursorPagination):
+    page_size = TRACK_DATA_PAGE_SIZE_MINUTES * 60
+    ordering = "time"
+
+    def encode_cursor(self, cursor):
+        """
+        Given a Cursor instance, return an url with encoded cursor.
+        """
+        tokens = {}
+        if cursor.offset != 0:
+            tokens["o"] = str(cursor.offset)
+        if cursor.reverse:
+            tokens["r"] = "1"
+        if cursor.position is not None:
+            tokens["p"] = cursor.position
+
+        querystring = parse.urlencode(tokens, doseq=True)
+        return base64.b64encode(querystring.encode("ascii")).decode("ascii")
+
+    def get_paginated_response(self, data):
+        return Response(
+            OrderedDict(
+                [
+                    ("next", self.get_next_link()),
+                    ("previous", self.get_previous_link()),
+                    ("results", data),
+                ]
+            )
+        )
+
+
+class ContestPagination(MyCursorPagination):
     page_size = 50
+    ordering = "-finish_time"
     max_page_size = 200
 
 
@@ -804,40 +839,6 @@ def generate_score_data(contestant_pk):
     return data
 
 
-TRACK_DATA_PAGE_SIZE_MINUTES = 30
-
-
-class TrackDataPagination(CursorPagination):
-    page_size = TRACK_DATA_PAGE_SIZE_MINUTES * 60
-    ordering = "time"
-
-    def encode_cursor(self, cursor):
-        """
-        Given a Cursor instance, return an url with encoded cursor.
-        """
-        tokens = {}
-        if cursor.offset != 0:
-            tokens["o"] = str(cursor.offset)
-        if cursor.reverse:
-            tokens["r"] = "1"
-        if cursor.position is not None:
-            tokens["p"] = cursor.position
-
-        querystring = parse.urlencode(tokens, doseq=True)
-        return base64.b64encode(querystring.encode("ascii")).decode("ascii")
-
-    def get_paginated_response(self, data):
-        return Response(
-            OrderedDict(
-                [
-                    ("next", self.get_next_link()),
-                    ("previous", self.get_previous_link()),
-                    ("results", data),
-                ]
-            )
-        )
-
-
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
     permission_classes = [
@@ -920,7 +921,7 @@ class ContestantViewSet(ModelViewSet):
             self.get_object()
         )  # This is important, this is where the object permissions are checked
         position_data = contestant.get_track()
-        pagination = TrackDataPagination()
+        pagination = MyCursorPagination()
         page = pagination.paginate_queryset(
             position_data.values("time", "latitude", "longitude", "speed", "course", "altitude", "progress"), request
         )

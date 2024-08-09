@@ -75,8 +75,7 @@ const initialState = {
     highlightContestantTable: [],
     contests: [],
     upcomingContests: [],
-    contestsCurrentPage: 0,
-    nextContestsUrl: null,
+    nextContestsCursor: null,
     zoomContest: null,
     displayEventSearchModal: false,
     displayAboutModal: false,
@@ -370,8 +369,7 @@ function rootReducer(state = initialState, action) {
         const newContests = state.contests.concat(action.payload.results)
         return Object.assign({}, state, {
             contests: newContests,
-            contestsCurrentPage: action.page,
-            nextContestsUrl: action.payload.next,
+            nextContestsCursor: action.payload.next,
             upcomingContests: newContests.filter((contest) => {
                 return new Date(contest.finish_time).getTime() > now.getTime()
             }),

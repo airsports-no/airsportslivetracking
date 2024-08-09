@@ -204,18 +204,17 @@ export const toggleProfilePictures = (visible) => (dispatch) => {
 }
 
 export const fetchMoreContests = () => (dispatch, getState) => {
-    const nextContestsUrl = getState().nextContestsUrl
-    if (!nextContestsUrl && getState().contests.length > 0) {
-        // If the next hurl is no and we have contests it means that we have fetched all.
+    const nextPageCursor = getState().nextContestsCursor
+    if (!nextPageCursor && getState().contests.length > 0) {
         return
     }
-    const nextPage = getState().contestsCurrentPage + 1
+
     dispatch({ type: GET_CONTESTS })
     $.ajax({
-        url: document.configuration.CONTESTS_LIST_URL + "?page=" + nextPage,
+        url: document.configuration.CONTESTS_LIST_URL + (nextPageCursor ? "?cursor=" + nextPageCursor : ''),
         datatype: 'json',
         cache: false,
-        success: value => dispatch({ type: GET_CONTESTS_SUCCESSFUL, payload: value, page: nextPage }),
+        success: value => dispatch({ type: GET_CONTESTS_SUCCESSFUL, payload: value }),
         error: error => console.log(error)
     });
 }
@@ -257,17 +256,17 @@ export const fetchMyParticipatingContests = () => (dispatch) => {
 }
 
 export const fetchInitialTracks = (contestId, navigationTaskId, contestantId, version) => (dispatch, getState) => {
-    let nextContestsUrl = null
+    let nextPageCursor = null
     if (getState().contestantPositions[contestantId] !== undefined) {
-        nextContestsUrl = getState().contestantPositions[contestantId].nextPositions
-        if (!nextContestsUrl) {
+        nextPageCursor = getState().contestantPositions[contestantId].nextPositions
+        if (!nextPageCursor) {
             return
         }
     }
 
     dispatch({ type: FETCH_INITIAL_TRACKS, contestantId: contestantId })
     $.ajax({
-        url: document.configuration.contestantInitialTrackDataUrl(contestId, navigationTaskId, contestantId) + "?version=" + version + (nextContestsUrl ? "&cursor=" + nextContestsUrl : null),
+        url: document.configuration.contestantInitialTrackDataUrl(contestId, navigationTaskId, contestantId) + "?version=" + version + (nextPageCursor ? "&cursor=" + nextPageCursor : ''),
         datatype: 'json',
         cache: true,
         success: value => dispatch({ type: FETCH_INITIAL_TRACKS_SUCCESS, payload: value, contestantId: contestantId }),
