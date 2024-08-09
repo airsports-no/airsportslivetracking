@@ -267,7 +267,7 @@ TRACK_DATA_PAGE_SIZE_MINUTES = 30
 
 class MyCursorPagination(CursorPagination):
     page_size = TRACK_DATA_PAGE_SIZE_MINUTES * 60
-    ordering = "time"
+    ordering = ["time", "id"]
 
     def encode_cursor(self, cursor):
         """
@@ -298,7 +298,7 @@ class MyCursorPagination(CursorPagination):
 
 class ContestPagination(MyCursorPagination):
     page_size = 50
-    ordering = "-finish_time"
+    ordering = ["-finish_time", "-start_time", "id"]
     max_page_size = 200
 
 
