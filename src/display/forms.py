@@ -341,7 +341,7 @@ class ContestForm(forms.ModelForm):
         start_time = self.cleaned_data.get("start_time")
         finish_time = self.cleaned_data.get("finish_time")
         if start_time == finish_time:
-            return finish_time + datetime.timedelta(days=1)
+            return finish_time + datetime.timedelta(hours=23, minutes=59)
         else:
             return finish_time
 

@@ -270,8 +270,8 @@ STORAGES = {
         "OPTIONS": {"bucket_name": "airsports-static", "default_acl": None, "querystring_auth": False},
     },
 }
-MEDIA_ROOT_URL = "storage.googleapis.com/airsports-data"
-STATIC_URL = "storage.googleapis.com/airsports-static/"
+MEDIA_ROOT_URL = "https://storage.googleapis.com/airsports-data/"
+STATIC_URL = "https://storage.googleapis.com/airsports-static/"
 # Serve static files locally when developing
 if os.environ.get("MODE") == "dev":
     STORAGES["staticfiles"] = {
