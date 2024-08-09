@@ -1,26 +1,26 @@
 import React from "react";
-import {Form} from "react-bootstrap";
-import {ASTable} from "../filteredSearchableTable";
-import {useEffect, useMemo, useState} from "react";
-import {Loading} from "../basicComponents";
-import {DateTime} from "luxon";
+import { Form } from "react-bootstrap";
+import { ASTable } from "../filteredSearchableTable";
+import { useEffect, useMemo, useState } from "react";
+import { Loading } from "../basicComponents";
+import { DateTime } from "luxon";
 
 export const ContestList = () => {
-    const [data, setData] = useState({contests:[],nextContestsUrl:null})
+    const [data, setData] = useState({ contests: [], nextContestsCursor: null })
     const [showAll, setShowAll] = useState(false)
     const dataFetch = async () => {
-        if (!data.nextContestsUrl&&data.contests.length>0){
+        if (!data.nextContestsCursor && data.contests.length > 0) {
             // If there is no next url but we have data, we have fetched everything
             return
         }
         const results = await (
-            await fetch(data.nextContestsUrl||document.configuration.CONTEST_FRONT_END)
+            await fetch(document.configuration.CONTEST_FRONT_END + (data.nextContestsCursor ? "?cursor=" + data.nextContestsCursor : ''))
         ).json()
-        const contestList=data.contests.concat(results.results)
-            setData({contests:contestList,nextContestsUrl:results.next})
+        const contestList = data.contests.concat(results.results)
+        setData({ contests: contestList, nextContestsCursor: results.next })
     }
     useEffect(() => {
-        if (data.contests.length>300){
+        if (data.contests.length > 300) {
             return
         }
         dataFetch()
@@ -30,7 +30,7 @@ export const ContestList = () => {
         {
             Header: "Contest",
             accessor: "name",
-            Cell: cellInfo=><a href={document.configuration.contestDetailsViewUrl(cellInfo.row.original.id)}>{cellInfo.value}</a>,
+            Cell: cellInfo => <a href={document.configuration.contestDetailsViewUrl(cellInfo.row.original.id)}>{cellInfo.value}</a>,
             disableSortBy: true,
         },
         {
@@ -45,7 +45,7 @@ export const ContestList = () => {
                 return DateTime.fromISO(row.start_time).toISODate()
             },
             disableFilters: true,
-            style: {width: "100px"}
+            style: { width: "100px" }
         },
         {
             Header: "Finish",
@@ -53,13 +53,13 @@ export const ContestList = () => {
                 return DateTime.fromISO(row.finish_time).toISODate()
             },
             disableFilters: true,
-            style: {width: "100px"}
+            style: { width: "100px" }
         },
         {
             Header: "Tasks",
             accessor: "number_of_tasks",
             disableFilters: true,
-            style: {width: "80px"}
+            style: { width: "80px" }
         },
         {
             Header: "Editors",
@@ -85,13 +85,13 @@ export const ContestList = () => {
 
     return (
         data ? <div>{document.configuration.is_superuser ?
-                <Form.Check type={"checkbox"} onChange={(e) => {
-                    setShowAll(e.target.checked)
-                }} label={"Show all"}/> : null}
-                {data.nextContestsUrl?<a href="#" onClick={dataFetch}>Fetch more</a>:null}
-                <ASTable columns={columns}
-                         data={data.contests.filter((item) => showAll || item.is_editor)}
-                         className={"table table-striped table-hover"} initialState={{
+            <Form.Check type={"checkbox"} onChange={(e) => {
+                setShowAll(e.target.checked)
+            }} label={"Show all"} /> : null}
+            {data.nextContestsCursor ? <a href="#" onClick={dataFetch}>Fetch more</a> : null}
+            <ASTable columns={columns}
+                data={data.contests.filter((item) => showAll || item.is_editor)}
+                className={"table table-striped table-hover"} initialState={{
                     sortBy: [
                         {
                             id: "Start",
@@ -100,8 +100,8 @@ export const ContestList = () => {
                     ]
                 }}
 
-                         rowEvents={rowEvents}/></div>
+                rowEvents={rowEvents} /></div>
             :
-            <Loading/>
+            <Loading />
     )
 }
