@@ -338,12 +338,8 @@ class ContestForm(forms.ModelForm):
         )
 
     def clean_finish_time(self):
-        start_time = self.cleaned_data.get("start_time")
-        finish_time = self.cleaned_data.get("finish_time")
-        if start_time == finish_time:
-            return finish_time + datetime.timedelta(hours=23, minutes=59)
-        else:
-            return finish_time
+        finish_time = self.cleaned_data["finish_time"]
+        return finish_time + datetime.timedelta(hours=23, minutes=59)
 
     def clean(self):
         cleaned_data = super().clean()
