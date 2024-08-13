@@ -361,9 +361,12 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         starting_point_text = f"After {tracking_start_time_string}"
 
     if contestant.navigation_task.contest.logo:
-        logo_url = f"https://{MEDIA_ROOT_URL}/{contestant.navigation_task.contest.logo}"
+        logo_url = f"{MEDIA_ROOT_URL}{contestant.navigation_task.contest.logo}"
         logo = f"/tmp/{contestant.navigation_task.contest.logo}"
-        urllib.request.urlretrieve(logo_url, logo)
+        try:
+            urllib.request.urlretrieve(logo_url, logo)
+        except:
+            logo = "/src/static/img/airsports_no_text.png"
     else:
         logo = "/src/static/img/airsports_no_text.png"
 
