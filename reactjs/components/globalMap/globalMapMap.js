@@ -532,6 +532,10 @@ class ConnectedGlobalMapMap
     }
 
     createMarkers() {
+        for(let marker of Object.values(this.markers)){
+            marker.removeFrom(this.map)
+        }
+        this.markers={}
         if (this.props.upcomingContests && Object.keys(this.markers).length == 0) {
             for (let contest of this.props.upcomingContests) {
                 this.markers[contest.id] = new this.L.marker([contest.latitude, contest.longitude], {
