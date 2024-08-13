@@ -401,12 +401,12 @@ def contestant_cards_list(request, pk):
     Render a view with the list of the current poker cards that belong to a contestant
     """
     contestant = get_object_or_404(Contestant, pk=pk)
-    waypoint_names = [waypoint.name for waypoint in contestant.navigation_task.route.waypoints]
+    waypoint_names = [waypoint.name for waypoint in contestant.route.waypoints]
 
     if request.method == "POST":
         form = AssignPokerCardForm(request.POST)
         form.fields["waypoint"].choices = [
-            (str(index), item.name) for index, item in enumerate(contestant.navigation_task.route.waypoints)
+            (str(index), item.name) for index, item in enumerate(contestant.route.waypoints)
         ]
         if form.is_valid():
             waypoint_index = int(form.cleaned_data["waypoint"])
@@ -427,7 +427,7 @@ def contestant_cards_list(request, pk):
         next_waypoint_name = None
     form = AssignPokerCardForm()
     form.fields["waypoint"].choices = [
-        (str(index), item.name) for index, item in enumerate(contestant.navigation_task.route.waypoints)
+        (str(index), item.name) for index, item in enumerate(contestant.route.waypoints)
     ]
     if next_waypoint_name is not None:
         form.fields["waypoint"].initial = str(latest_waypoint_index + 1)
@@ -1395,7 +1395,7 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
 
     model = Contestant
     permission_required = ("display.view_contest",)
-    template_name = "display/contestant_gate_times.html"
+    template_name = "display/contestant_waypoints.html"
 
     def get_permission_object(self):
         return self.get_object().navigation_task.contest
@@ -1405,7 +1405,7 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
         log = {}
         distances = {}
         total_distance = 0
-        for waypoint in self.object.navigation_task.route.waypoints:  # type: Waypoint
+        for waypoint in self.object.route.waypoints:  # type: Waypoint
             distances[waypoint.name] = waypoint.distance_previous
             total_distance += waypoint.distance_previous if waypoint.distance_previous > 0 else 0
         context["distances"] = distances
@@ -1424,6 +1424,7 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
         for item in self.object.actualgatetime_set.all():
             actual_times[item.gate] = item.time
         context["actual_times"] = actual_times
+        context["contestant"] = self.get_object()
         return context
 
 
@@ -1450,7 +1451,7 @@ class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMi
 
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contestant
-        instance.predefined_gate_times = None
+        instance._relative_gate_times = None
         instance.save()
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())
@@ -1496,9 +1497,11 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
         return self.navigation_task.contest
 
     def form_valid(self, form):
-        object = form.save(commit=False)  # type: Contestant
-        object.navigation_task = self.navigation_task
-        object.save()
+
+        contestant = form.save(commit=False)  # type: Contestant
+        contestant.navigation_task = self.navigation_task
+        contestant.route = self.navigation_task.route
+        contestant.save()
         return HttpResponseRedirect(self.get_success_url())
 
 

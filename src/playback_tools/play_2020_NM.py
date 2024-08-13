@@ -157,6 +157,7 @@ for index, file in enumerate(glob.glob("/data/tracks/*.gpx")[:-1]):
         # start_time = start_time.replace(tzinfo=datetime.timezone.utc)
         contestant_object = Contestant(
             navigation_task=navigation_task,
+            route=navigation_task.route,
             team=team,
             takeoff_time=start_time,
             finished_by_time=start_time + datetime.timedelta(hours=3),
@@ -177,7 +178,7 @@ for index, file in enumerate(glob.glob("/data/tracks/*.gpx")[:-1]):
 
         tracks[contestant] = (
             build_traccar_track(file, today, start_index=0, time_offset=start_time_offset),
-            contestant_object.gate_times.get("SP"),
+            contestant_object.absolute_gate_times.get("SP"),
         )
 tracks = OrderedDict(sorted(tracks.items(), key=lambda item: contestants[item[0]][1], reverse=True))
 print("Sleeping for 10 seconds")

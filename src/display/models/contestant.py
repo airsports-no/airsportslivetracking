@@ -15,7 +15,7 @@ from django.db.models import Q, QuerySet
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
-from display.calculators.calculator_utilities import round_time_second
+from display.calculators.calculator_utilities import round_time_second, round_timedelta_second
 from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
@@ -52,6 +52,24 @@ def round_gate_times(times: dict) -> dict:
     return {key: round_time_second(value) for key, value in times.items()}
 
 
+def round_gate_relative_times(times: dict) -> dict:
+    return {key: round_timedelta_second(value) for key, value in times.items()}
+
+
+def convert_to_individual_leg_times(
+    crossing_times: list[tuple[str, datetime.timedelta]]
+) -> list[tuple[str, datetime.timedelta]]:
+    """
+    Calculate the planned duration for each leg.
+    """
+    if len(crossing_times) == 0:
+        return []
+    individual_times = [crossing_times[0]]
+    for index in range(1, len(crossing_times)):
+        individual_times.append((crossing_times[index][0], crossing_times[index][1] - crossing_times[index - 1][1]))
+    return individual_times
+
+
 class Contestant(models.Model):
     """
     The contestant model represents an instance of a team competing in a navigation task. It keeps track of all timing
@@ -62,6 +80,7 @@ class Contestant(models.Model):
 
     team = models.ForeignKey("Team", on_delete=models.CASCADE)
     navigation_task = models.ForeignKey("NavigationTask", on_delete=models.CASCADE)
+    route = models.ForeignKey("Route", on_delete=models.PROTECT)
     adaptive_start = models.BooleanField(
         default=False,
         help_text="If true, takeoff time and minutes to starting point is ignored. Start time is set to the closest minute to the time crossing the infinite starting line in the correct direction. This is typically used for a case where it is difficult to control the start time because of external factors such as ATC.",
@@ -71,7 +90,11 @@ class Contestant(models.Model):
     )
     minutes_to_starting_point = models.FloatField(
         default=5,
-        help_text="The number of minutes from the take-off time until the starting point",
+        help_text="The number of minutes from the take-off time until the starting point. This will be the time of the takeoff gate if it exists.",
+    )
+    minutes_from_last_gate_to_landing = models.FloatField(
+        default=30,
+        help_text="The number of minutes from the the final gate until the contestant should have landed. This will be the time of the landing gate if it exists",
     )
     finished_by_time = models.DateTimeField(
         help_text="The time it is expected that the navigation task has finished and landed (used among other things for knowing when the tracker is busy). Is also used for the gate time for the landing gate"
@@ -117,11 +140,11 @@ class Contestant(models.Model):
         blank=True,
         null=True,
     )
-    predefined_gate_times = MyPickledObjectField(
+    _relative_gate_times = MyPickledObjectField(
         default=None,
         null=True,
         blank=True,
-        help_text="Dictionary of gates and their starting times (with time zone)",
+        help_text="Dictionary of gates and their passing time deltas relative to starting point",
     )
     wind_speed = models.FloatField(
         default=0,
@@ -166,10 +189,7 @@ class Contestant(models.Model):
         """
         The calculated passing time for the first waypoint in the track (assumed to be the starting point).
         """
-        try:
-            return self.gate_times[self.navigation_task.route.waypoints[0].name]
-        except (KeyError, IndexError):
-            return self.takeoff_time + datetime.timedelta(minutes=self.navigation_task.minutes_to_starting_point)
+        return self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
 
     @property
     def starting_point_time_local(self) -> datetime.datetime:
@@ -187,26 +207,25 @@ class Contestant(models.Model):
     def finished_by_time_local(self) -> datetime.datetime:
         return self.finished_by_time.astimezone(self.navigation_task.contest.time_zone)
 
-    def get_final_gate_time(self) -> Optional[datetime.datetime]:
-        return self.gate_times.get(self.navigation_task.route.waypoints[-1].name)
+    @property
+    def final_gate_time(self) -> Optional[datetime.datetime]:
+        return self.absolute_gate_times.get(self.route.waypoints[-1].name)
 
     @property
     def final_gate_time_local(self) -> Optional[datetime.datetime]:
-        dt = self.get_final_gate_time()
+        dt = self.final_gate_time
         return dt.astimezone(self.navigation_task.contest.time_zone) if dt else None
 
     @property
     def landing_time(self) -> datetime.datetime:
-        if self.navigation_task.route.landing_gates:
-            return self.gate_times[self.navigation_task.route.landing_gates.name]
-        return self.gate_times[self.navigation_task.route.waypoints[-1].name] + datetime.timedelta(
-            minutes=self.navigation_task.minutes_to_landing
-        )
+        if self.route.landing_gates:
+            return self.absolute_gate_times[self.route.landing_gates.name]
+        return self.landing_time_after_final_gate
 
     @property
     def landing_time_after_final_gate(self) -> datetime.datetime:
-        return self.gate_times[self.navigation_task.route.waypoints[-1].name] + datetime.timedelta(
-            minutes=self.navigation_task.minutes_to_landing
+        return self.absolute_gate_times[self.route.waypoints[-1].name] + datetime.timedelta(
+            minutes=self.minutes_from_last_gate_to_landing
         )
 
     @property
@@ -260,7 +279,7 @@ points per second after the first {"{:.04}".format(scorecard.penalty_zone_grace_
 
     def _precision_rule_description(self):
         scorecard = self.navigation_task.scorecard
-        gate_sizes = [item.width for item in self.navigation_task.route.waypoints]
+        gate_sizes = [item.width for item in self.route.waypoints]
         return f"""For this task the turning point gate width is between {min(gate_sizes)} and {max(gate_sizes)} nm.
  The penalty for 
 crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp")} 
@@ -273,7 +292,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 gives a penalty of {scorecard.backtracking_penalty} points.
 
 {self._prohibited_zone_text()} {self._penalty_zone_text()}
-{"The route has a takeoff gate." if self.navigation_task.route.first_takeoff_gate else ""} {"The route has a landing gate." if self.navigation_task.route.first_landing_gate else ""}
+{"The route has a takeoff gate." if self.route.first_takeoff_gate else ""} {"The route has a landing gate." if self.route.first_landing_gate else ""}
 """
 
     def _poker_rule_description(self):
@@ -281,19 +300,19 @@ gives a penalty of {scorecard.backtracking_penalty} points.
 
     def _anr_rule_description(self):
         scorecard = self.navigation_task.scorecard
-        text = f"""For this task the corridor width is {"{:.2f}".format(self.navigation_task.route.corridor_width)} nm. 
+        text = f"""For this task the corridor width is {"{:.2f}".format(self.route.corridor_width)} nm. 
 Flying outside of the corridor more than {scorecard.corridor_grace_time} seconds gives a penalty of 
 {"{:.0f}".format(scorecard.corridor_outside_penalty)} point(s) per second."""
         if scorecard.corridor_maximum_penalty != -1:
             text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.corridor_maximum_penalty)} points for being outside the corridor per leg."""
         text += f"""
-{self._prohibited_zone_text()} {self._penalty_zone_text()} {"The route has a takeoff gate." if self.navigation_task.route.first_takeoff_gate else ""} {"The route has a landing gate." if self.navigation_task.route.first_landing_gate else ""}
+{self._prohibited_zone_text()} {self._penalty_zone_text()} {"The route has a takeoff gate." if self.route.first_takeoff_gate else ""} {"The route has a landing gate." if self.route.first_landing_gate else ""}
 """
         return text
 
     def _air_sports_rule_description(self):
         scorecard = self.navigation_task.scorecard
-        gate_sizes = [item.width for item in self.navigation_task.route.waypoints]
+        gate_sizes = [item.width for item in self.route.waypoints]
         minimum_size = min(gate_sizes)
         maximum_size = max(gate_sizes)
         if maximum_size == minimum_size:
@@ -312,7 +331,7 @@ Flying outside of the corridor more than {scorecard.corridor_grace_time} seconds
 There are timed gates on the track. The penalty for crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp")} point(s) per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp")} seconds. 
 Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_difference)} degrees for more than {scorecard.backtracking_grace_time_seconds} seconds gives a penalty of {scorecard.backtracking_penalty} points. 
 {self._prohibited_zone_text()} {self._penalty_zone_text()}
-{"The route has a takeoff gate." if self.navigation_task.route.first_takeoff_gate else ""} {"The route has a landing gate." if self.navigation_task.route.first_landing_gate else ""}
+{"The route has a takeoff gate." if self.route.first_takeoff_gate else ""} {"The route has a landing gate." if self.route.first_landing_gate else ""}
 
 """
         return text
@@ -349,14 +368,12 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             return 0
         route_progress = 100
         if hasattr(self, "contestanttrack"):
-            if len(self.navigation_task.route.waypoints) > 0 and (
-                not self.contestanttrack.calculator_finished or ignore_finished
-            ):
-                first_gate = self.navigation_task.route.waypoints[0]
-                last_gate = self.navigation_task.route.waypoints[-1]
+            if len(self.route.waypoints) > 0 and (not self.contestanttrack.calculator_finished or ignore_finished):
+                first_gate = self.route.waypoints[0]
+                last_gate = self.route.waypoints[-1]
 
-                first_gate_time = self.gate_times[first_gate.name]
-                last_gate_time = self.gate_times[last_gate.name]
+                first_gate_time = self.absolute_gate_times[first_gate.name]
+                last_gate_time = self.absolute_gate_times[last_gate.name]
                 route_duration = (last_gate_time - first_gate_time).total_seconds()
                 route_duration_progress = (latest_time - first_gate_time).total_seconds()
                 route_progress = 100 * route_duration_progress / route_duration
@@ -485,7 +502,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     self.tracker_start_time, self.takeoff_time, self.contestant_number
                 )
             )
-        if self.takeoff_time > self.finished_by_time:
+        if self.starting_point_time > self.finished_by_time:
             raise ValidationError(
                 "Takeoff time '{}' is after finished by time '{}' for contestant number {}".format(
                     self.takeoff_time, self.finished_by_time, self.contestant_number
@@ -532,38 +549,77 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             individual_times.append((crossing_times[index][0], crossing_times[index][1] - crossing_times[index - 1][1]))
         return individual_times
 
+    @property
+    def relative_gate_times(self) -> dict[str, datetime.timedelta]:
+        """
+        Returns the stored gate times.  Calculate any missing times and store the result.
+        """
+        if self._relative_gate_times is None or not len(self._relative_gate_times):
+            self._relative_gate_times = round_gate_relative_times(self.calculate_missing_gate_times({}))
+            self.save(update_fields=["_relative_gate_times"])
+        return self._relative_gate_times
+
+    @relative_gate_times.setter
+    def relative_gate_times(self, value: dict[str, datetime.timedelta]):
+        self._relative_gate_times = self.calculate_missing_gate_times(value)
+
+    @property
+    def absolute_gate_times(self) -> dict[str, datetime.datetime]:
+        """Giving the starting point time, return a dictionary of absolute times for each waypoint"""
+        absolute_gate_times = self._get_takeoff_and_landing_times()
+        # Add relative times afterwards in case they override any of the takeoff or landing gate times
+        absolute_gate_times.update(
+            {name: self.starting_point_time + relative_time for name, relative_time in self.relative_gate_times.items()}
+        )
+        return absolute_gate_times
+
+    @property
+    def relative_gate_times_as_datetime(self) -> dict[str, datetime.datetime]:
+        midnight = datetime.datetime(2024, 1, 1, tzinfo=self.navigation_task.contest.time_zone)
+        return {name: midnight + value for name, value in self.relative_gate_times.items()}
+
+    @absolute_gate_times.setter
+    def absolute_gate_times(self, absolute_gate_times: dict[str, datetime.datetime]):
+        starting_point_time = absolute_gate_times[self.route.waypoints[0].name]
+        relative_gate_times = {name: absolute_gate_times[name] - starting_point_time for name in self.route.waypoints}
+        if self.takeoff_time + datetime.timedelta(self.minutes_to_starting_point) != starting_point_time:
+            raise ValidationError(
+                f"The starting point time {starting_point_time} does not match the difference of {self.minutes_to_starting_point} from the takeoff time {self.takeoff_time}"
+            )
+        if takeoff_time := absolute_gate_times.get("to"):
+            for gate in self.route.takeoff_gates:
+                relative_gate_times[gate.name] = takeoff_time - starting_point_time
+        if landing_time := absolute_gate_times.get("ldg"):
+            for gate in self.route.landing_gates:
+                relative_gate_times[gate.name] = landing_time - starting_point_time
+        self.relative_gate_times = relative_gate_times
+
     def _get_takeoff_and_landing_times(self) -> dict[str, datetime.datetime]:
         crossing_times = {}
-        for gate in self.navigation_task.route.takeoff_gates:
-            crossing_times[gate.name] = self.takeoff_time
-        for gate in self.navigation_task.route.landing_gates:
-            crossing_times[gate.name] = self.finished_by_time - datetime.timedelta(minutes=1)
+        for gate in self.route.takeoff_gates:
+            crossing_times[gate.name] = self.starting_point_time
+        for gate in self.route.landing_gates:
+            crossing_times[gate.name] = self.finished_by_time - datetime.timedelta(seconds=1)
         return crossing_times
 
-    def calculate_missing_gate_times(
-        self, predefined_gate_times: dict, start_point_override: Optional[datetime.datetime] = None
-    ) -> dict:
+    def calculate_missing_gate_times(self, predefined_gate_times: dict) -> dict:
         """
-        If the gate times have not been provided when the contestant was created, calculate the gay times given the
-        start time, route, airspeed, and wind information. Optionally provide a dictionary of pre-calculated gate times
-        or an initial starting time.
+        :param predefined_gate_times: Dictionary of gate time durations relative to starting point
+
+        If the gate times have not been provided when the contestant was created, calculate the gate times given the
+        route, airspeed, and wind information. Optionally provide a dictionary of pre-calculated gate times
+        or an initial starting time. All times are relative to the starting point.
         """
-        if start_point_override:
-            previous_crossing_time = start_point_override
-        else:
-            previous_crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
-            if self.adaptive_start:
-                previous_crossing_time = self.takeoff_time.astimezone(self.navigation_task.contest.time_zone).replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                )
+
         crossing_times = {}
         relative_crossing_times = calculate_and_get_relative_gate_times(
-            self.navigation_task.route,
+            self.route,
             self.air_speed,
             self.wind_speed,
             self.wind_direction,
         )
-        leg_times = Contestant._convert_to_individual_leg_times(relative_crossing_times)
+        previous_crossing_time = datetime.timedelta()
+        leg_times = convert_to_individual_leg_times(relative_crossing_times)
         for gate_name, leg_time in leg_times:
             crossing_times[gate_name] = predefined_gate_times.get(gate_name, previous_crossing_time + leg_time)
             previous_crossing_time = crossing_times[gate_name]
@@ -571,32 +627,12 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             crossing_times[gate_name] = predefined_gate_times.get(gate_name, crossing_time)
         return crossing_times
 
-    @property
-    def gate_times(self) -> dict:
-        """
-        Returns the stored gate times.  Calculate any missing times and store the result.
-        """
-        if not self.predefined_gate_times or not len(self.predefined_gate_times):
-            times = round_gate_times(self.calculate_missing_gate_times({}))
-            if self.pk is not None:
-                Contestant.objects.filter(pk=self.pk).update(predefined_gate_times=times)
-            return times
-        return self.predefined_gate_times
-
-    @gate_times.setter
-    def gate_times(self, value):
-        self.predefined_gate_times = self.calculate_missing_gate_times(value)
-
     def get_gate_time_offset(self, gate_name):
-        planned = self.gate_times.get(gate_name)
+        planned = self.absolute_gate_times.get(gate_name)
         if planned is None:
-            if len(self.navigation_task.route.takeoff_gates) > 0 and gate_name in (
-                gate.name for gate in self.navigation_task.route.takeoff_gates
-            ):
+            if len(self.route.takeoff_gates) > 0 and gate_name in (gate.name for gate in self.route.takeoff_gates):
                 planned = self.takeoff_time
-            elif len(self.navigation_task.route.landing_gates) > 0 and gate_name in (
-                gate.name for gate in self.navigation_task.route.landing_gates
-            ):
+            elif len(self.route.landing_gates) > 0 and gate_name in (gate.name for gate in self.route.landing_gates):
                 planned = self.finished_by_time
         actual = self.actualgatetime_set.filter(gate=gate_name).first()
         if planned and actual:

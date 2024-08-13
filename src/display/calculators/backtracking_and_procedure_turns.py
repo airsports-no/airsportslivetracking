@@ -366,7 +366,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                             )
                         )
 
-            if backtracking:
+            if backtracking and last_gate.perform_backtrack_check_on_leg:
                 if self.tracking_state == self.TRACKING:
                     # Check if we are within 0.5 NM of a gate we just passed, A.2.2.13
                     is_grace_time_after_steep_turn = (

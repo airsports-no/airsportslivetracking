@@ -4,7 +4,6 @@ import datetime
 import logging
 
 from django.core.files.base import ContentFile
-from django.core.paginator import InvalidPage
 from django.db import transaction
 from django.db.models import Q, Count
 from django.http import Http404
@@ -14,9 +13,8 @@ from rest_framework import status, permissions, mixins
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination, CursorPagination
+from rest_framework.pagination import CursorPagination
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
-from rest_framework.exceptions import NotFound
 import rest_framework.exceptions as drf_exceptions
 from urllib import parse
 
@@ -102,6 +100,7 @@ from display.serialisers import (
     TaskSerialiser,
     TaskTestSerialiser,
     ContestantNestedTeamSerialiser,
+    WaypointTimingSerialiser,
 )
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from websocket_channels import WebsocketFacade, generate_contestant_data_block
@@ -526,7 +525,7 @@ class ContestViewSet(ModelViewSet):
         )
         if contestants.exists():
             raise drf_exceptions.ValidationError(
-                f"You are currently participating in at least one navigation task. Cancel all flights before you can withdraw from the contest"
+                f"You are curbrently participating in at least one navigation task. Cancel all flights before you can withdraw from the contest"
             )
         teams.delete()
         return Response({}, status=status.HTTP_204_NO_CONTENT)
@@ -686,6 +685,7 @@ class NavigationTaskViewSet(ModelViewSet):
             contestant = Contestant(
                 team=contest_team.team,
                 takeoff_time=takeoff_time,
+                route=navigation_task,
                 navigation_task=navigation_task,
                 tracker_start_time=tracker_start_time,
                 adaptive_start=adaptive_start,
@@ -697,7 +697,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 wind_direction=serialiser.validated_data["wind_direction"],
             )
             logger.debug("Created contestant")
-            final_time = contestant.get_final_gate_time()
+            final_time = contestant.final_gate_time
             if final_time is None:
                 final_time = starting_point_time
             if adaptive_start:
@@ -833,7 +833,7 @@ def generate_score_data(contestant_pk):
         gate_scores=GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data,
         playing_cards=PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data,
         contestant_track_data=ContestantTrackSerialiser(contestant.contestanttrack).data,
-        gate_times=contestant.gate_times,
+        gate_times=contestant.absolute_gate_times,
     )
 
     return data
@@ -851,6 +851,7 @@ class ContestantViewSet(ModelViewSet):
         "update": ContestantSerialiser,
         "create_with_team": ContestantNestedTeamSerialiser,
         "update_with_team": ContestantNestedTeamSerialiser,
+        "update_free_waypoints_and_timing": WaypointTimingSerialiser,
     }
     default_serialiser_class = ContestantNestedTeamSerialiserWithContestantTrack
 
@@ -983,6 +984,48 @@ class ContestantViewSet(ModelViewSet):
             )
         )
         return Response({}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["PUT", "POST"])
+    def update_free_waypoints_and_timing(self, request, **kwargs):
+        contestant: Contestant = (
+            self.get_object()
+        )  # This is important, this is where the object permissions are checked
+        if contestant.contestanttrack.calculator_started or contestant.contestanttrack.calculator_finished:
+            raise drf_exceptions.ValidationError(
+                f"The calculator has started so is not allowed to change the route or timings"
+            )
+        serialiser = self.get_serializer(data=request.data, many=True)
+        if serialiser.is_valid():
+            route = None
+            if not hasattr(contestant.route, "navigationtask"):
+                route = contestant.route
+            if contestant.navigation_task.editable_route is None:
+                raise drf_exceptions.ValidationError(f"The navigation task is not created from an editable route.")
+            contestant.route = contestant.navigation_task.editable_route.create_precision_route_from_customized_track(
+                list(
+                    map(
+                        lambda i: (
+                            i["waypoint_name"],
+                            datetime.timedelta(seconds=i["waypoint_time"]) if "waypoint_time" in i else None,
+                        ),
+                        serialiser.data,
+                    )
+                ),
+                contestant.route.use_procedure_turns,
+                contestant.navigation_task.scorecard,
+            )
+            contestant.route.save()
+            contestant.relative_gate_times = {
+                i["waypoint_name"]: datetime.timedelta(seconds=i["waypoint_time"])
+                for i in filter(lambda k: "waypoint_time" in k, serialiser.data)
+            }
+            contestant.save()
+            if route:
+                route.delete()
+        else:
+            print(serialiser.errors)
+
+        return Response(self.default_serialiser_class(instance=contestant).data)
 
 
 class ImportFCNavigationTask(ModelViewSet):

@@ -10,6 +10,7 @@ from redis import StrictRedis
 
 from display.models import Contestant, Task, TaskTest, MyUser, Team, ANOMALY
 from display.models.contestant_utility_models import ContestantReceivedPosition
+from rest_framework.utils.encoders import JSONEncoder
 from display.serialisers import (
     ContestantTrackSerialiser,
     TaskSerialiser,
@@ -154,7 +155,7 @@ class WebsocketFacade:
             group_key,
             {
                 "type": "tracking.data",
-                "data": {"type": "contestant", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+                "data": {"type": "contestant", "data": json.dumps(channel_data, cls=JSONEncoder)},
             },
         )
 

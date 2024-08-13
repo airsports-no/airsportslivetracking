@@ -40,7 +40,8 @@ export default class GenericRenderer extends Component {
     }
 
     filterWaypoints() {
-        return this.props.navigationTask.route.waypoints.filter((waypoint) => {
+        const localRoute=this.props.currentHighlightedContestant?this.props.contestants[this.props.currentHighlightedContestant].route:this.props.navigationTask.route
+        return localRoute.waypoints.filter((waypoint) => {
             return ((waypoint.gate_check || waypoint.time_check) && ((this.props.navigationTask.display_secrets && this.props.displaySecretGates) || waypoint.type !== "secret") && waypoint.type!=="dummy")
         })
     }
@@ -56,7 +57,7 @@ export default class GenericRenderer extends Component {
             let waypointText = waypoint.name
             let time
             if (currentContestant) {
-                time = new Date(currentContestant.gate_times[waypoint.name])
+                time = new Date(currentContestant.absolute_gate_times[waypoint.name])
                 waypointText = waypoint.name + " " + formatTime(time)
             }
             const width = textWidth(waypointText, "myGateLink") + 10

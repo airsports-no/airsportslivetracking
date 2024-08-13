@@ -57,7 +57,7 @@ class AnrCorridorCalculator(Calculator):
         self.crossed_outside_gate = None
         self.enroute = False
         self.corridor_grace_time = self.scorecard.corridor_grace_time
-        waypoint = self.contestant.navigation_task.route.waypoints[0]
+        waypoint = self.contestant.route.waypoints[0]
         self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
         self.track_polygon = self.build_polygon()
         self.existing_reference = None
@@ -90,13 +90,13 @@ class AnrCorridorCalculator(Calculator):
 
     def build_polygon(self):
         points = []
-        for waypoint in self.contestant.navigation_task.route.waypoints:
+        for waypoint in self.contestant.route.waypoints:
             if waypoint.left_corridor_line is not None:
                 # This is the preferred option, using the gate line is for backwards compatibility
                 points.extend(waypoint.left_corridor_line)
             else:
                 points.append(waypoint.gate_line[0])
-        for waypoint in reversed(self.contestant.navigation_task.route.waypoints):
+        for waypoint in reversed(self.contestant.route.waypoints):
             if waypoint.right_corridor_line is not None:
                 # This is the preferred option, using the gate line is for backwards compatibility
                 points.extend(list(reversed(waypoint.right_corridor_line)))

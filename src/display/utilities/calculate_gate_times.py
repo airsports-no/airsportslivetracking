@@ -3,8 +3,10 @@ from typing import List, Tuple
 
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon, calculate_bearing
 from display.utilities.wind_utilities import calculate_ground_speed_combined
+from display.waypoint import Waypoint
 
-PROCEDURE_TURN_DURATION=datetime.timedelta(minutes=1)
+PROCEDURE_TURN_DURATION = datetime.timedelta(minutes=1)
+
 
 def get_segment_time(start, finish, air_speed, wind_speed, wind_direction) -> datetime.timedelta:
     bearing = calculate_bearing(start, finish)
@@ -19,7 +21,7 @@ def calculate_and_get_relative_gate_times(
     """
     Used to calculate the gate times for a contestant when it is created.
     """
-    waypoints = list(filter(lambda waypoint: waypoint.type not in ("dummy",), route.waypoints))  # type: List[Waypoint]
+    waypoints: list[Waypoint] = list(filter(lambda waypoint: waypoint.type not in ("dummy",), route.waypoints))
     if len(waypoints) == 0:
         return []
     centre_tracks = []
@@ -41,7 +43,12 @@ def calculate_and_get_relative_gate_times(
             crossing_time += get_segment_time(
                 next_gate[track_index], next_gate[track_index + 1], air_speed, wind_speed, wind_direction
             )
+        # Take into account any extra time defined in the route editor
+        print(f"Crossing time before {crossing_time}")
+        crossing_time += waypoints[index + 1].extra_time
+        print(f"Crossing time after {crossing_time}")
         crossing_times.append((waypoints[index + 1].name, crossing_time))
+
         if waypoints[index + 1].is_procedure_turn:
             crossing_time += PROCEDURE_TURN_DURATION
     return crossing_times

@@ -45,6 +45,7 @@ class Gate:
         self.maybe_missed_time = None
         self.maybe_missed_position = None
         self.expected_time = expected_time
+        self.perform_backtrack_check_on_leg = gate.perform_backtrack_check_on_leg
 
     def __str__(self):
         return self.name
@@ -80,19 +81,25 @@ class Gate:
             )
         return False
 
-    def get_gate_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
+    def get_gate_intersection_time(
+        self, projector: Projector, track: List[ContestantReceivedPosition]
+    ) -> Optional[datetime]:
         if len(track) > 2:
             return get_intersect_time(projector, track[-3], track[-1], self.gate_line[0], self.gate_line[1])
         return None
 
-    def get_gate_infinite_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
+    def get_gate_infinite_intersection_time(
+        self, projector: Projector, track: List[ContestantReceivedPosition]
+    ) -> Optional[datetime]:
         if len(track) > 2:
             return get_intersect_time(
                 projector, track[-3], track[-1], self.gate_line_infinite[0], self.gate_line_infinite[1]
             )
         return None
 
-    def get_gate_extended_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
+    def get_gate_extended_intersection_time(
+        self, projector: Projector, track: List[ContestantReceivedPosition]
+    ) -> Optional[datetime]:
         if len(track) > 2 and self.gate_line_extended:
             return get_intersect_time(
                 projector, track[-3], track[-1], self.gate_line_extended[0], self.gate_line_extended[1]
@@ -133,7 +140,9 @@ class MultiGate:
         for gate in self.gates:
             gate.expected_time = expected_time
 
-    def get_gate_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
+    def get_gate_intersection_time(
+        self, projector: Projector, track: List[ContestantReceivedPosition]
+    ) -> Optional[datetime]:
         for gate in self.gates:
             intersection_time = gate.get_gate_intersection_time(projector, track)
             if intersection_time is not None:
@@ -153,7 +162,11 @@ def round_seconds(stamp: datetime) -> datetime:
 
 
 def get_intersect_time(
-    projector: Projector, track_segment_start: ContestantReceivedPosition, track_segment_finish: ContestantReceivedPosition, gate_start, gate_finish
+    projector: Projector,
+    track_segment_start: ContestantReceivedPosition,
+    track_segment_finish: ContestantReceivedPosition,
+    gate_start,
+    gate_finish,
 ) -> Optional[datetime]:
     # intersection = line_intersect(track_segment_start.longitude, track_segment_start.latitude,
     #                               track_segment_finish.longitude,

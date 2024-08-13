@@ -11,6 +11,8 @@ import IntroSlider from "react-intro-slider";
 import Cookies from "universal-cookie";
 import { fractionalDistancePoint, getBearing, getDistance, withParams } from "../../utilities";
 import { googleArial, Jawg_Sunny, OpenAIP } from "../leafletLayers";
+import moment from 'moment';
+var momentDurationFormatSetup = require("moment-duration-format");
 
 const gateTypes = [
     ["Starting point", "sp"],
@@ -23,6 +25,9 @@ const gateTypes = [
 
 const featureStyles = {
     "photo": { 'color': 'green' },
+    "freewaypoint": { 'color': "blue" },
+    "circlestart": { 'color': "orange" },
+    "circlecenter": { 'color': "lightblue" },
     "track": { "color": "blue" },
     "to": { "color": "green" },
     "ldg": { "color": "crimson" },
@@ -40,7 +45,10 @@ const generalTypes = {
     "info": [0, 1000],
     "gate": [0, 1000],
     "penalty": [0, 1000],
-    'photo': [0, 1000]
+    'photo': [0, 1000],
+    "freewaypoint": [0, 1000],
+    "circlestart": [0, 1],
+    "circlecenter": [0, 1]
 }
 
 const featureTypeCounts = {
@@ -60,7 +68,7 @@ const featureTypeCounts = {
 
 
 const featureTypes = {
-    marker: [['Photo', 'photo']],
+    marker: [['Photo', 'photo'], ['Free waypoint', 'freewaypoint'], ['Circle start', "circlestart"], ['Circle center', "circlecenter"]],
     polyline: [["Track", "track"], ["Takeoff gate", "to"], ["Landing gate", "ldg"]],
     polygon: [["Prohibited zone", "prohibited"], ["Penalty zone", "penalty"], ["Information zone", "info"], ["Gate zone", "gate"]],
 }
@@ -132,7 +140,10 @@ class ConnectedRouteEditor extends Component {
         this.map = null
         this.mapReady = false
         this.drawControl = null
-        this.photoNames=[]
+        this.photoNames = []
+        this.freeWaypointNames = []
+        this.haveSeenCircleStart = false
+        this.haveSeenCircleCenter = false
 
         this.drawingEnabledOptions = {
             marker: true,
@@ -159,6 +170,7 @@ class ConnectedRouteEditor extends Component {
             currentName: null,
             xOffset: 0,
             yOffset: 0,
+            freeWaypointGateWidth: 1,
             routeName: null,
             changesSaved: false,
             displayTutorial: false,
@@ -190,7 +202,6 @@ class ConnectedRouteEditor extends Component {
 
 
     componentDidUpdate(prevProps, prevState, snapshot) {
-        console.log("routeId: " + this.props.routeId)
 
         if (this.props.route !== prevProps.route && this.props.route) {
             this.renderRoute()
@@ -228,13 +239,17 @@ class ConnectedRouteEditor extends Component {
         }
         let features = []
         let errors = []
-        this.photoNames=[]
+        this.photoNames = []
+        this.freeWaypointNames = []
+        this.haveSeenCircleStart = false
+        this.haveSeenCircleCenter = false
         if (this.drawnItems.getLayers().length === 0) {
             errors.push("The route contains no features. Add a track other or features before saving.")
         }
         for (let l of this.drawnItems.getLayers().filter((a) => a.layerType !== undefined)) {
             errors = errors.concat(this.validateLayer(l))
-            if (["polyline", "rectangle", "polygon","marker"].includes(l.layerType)) {
+            if (["polyline", "rectangle", "polygon"].includes(l.layerType)) {
+
                 features.push({
                     name: l.name,
                     layer_type: l.layerType,
@@ -244,6 +259,21 @@ class ConnectedRouteEditor extends Component {
                     geojson: l.toGeoJSON(),
                 })
             }
+            if (["marker"].includes(l.layerType)) {
+                features.push({
+                    name: l.name,
+                    layer_type: l.layerType,
+                    track_points: l.trackPoints,
+                    feature_type: l.featureType,
+                    tooltip_position: l.tooltipPosition,
+                    gateWidth: l.gateWidth,
+                    geojson: l.toGeoJSON(),
+                })
+            }
+
+        }
+        if ((this.haveSeenCircleStart && !this.haveSeenCircleCenter) || (!this.haveSeenCircleStart && this.haveSeenCircleCenter)) {
+            errors.push('You must define both a circle start point and a circle center point if either of them are defined.')
         }
         let method = "post", url = document.configuration.EDITABLE_ROUTES_URL
         let name = this.state.routeName
@@ -285,13 +315,16 @@ class ConnectedRouteEditor extends Component {
         })
     }
 
-    configureLayer(layer, name, layerType, featureType, trackPoints, tooltipPosition, created) {
+    configureLayer(layer, name, layerType, featureType, trackPoints, tooltipPosition, created, gateWidth) {
         layer.addTo(this.drawnItems);
         layer.name = name
         layer.layerType = layerType
         layer.featureType = featureType
         layer.trackPoints = trackPoints
         layer.tooltipPosition = tooltipPosition
+        if (gateWidth) {
+            layer.gateWidth = gateWidth
+        }
         layer.waypointNamesFeatureGroup = L.featureGroup().addTo(this.drawnItems);
         layer.on("click", (item) => {
             const layer = item.target
@@ -365,7 +398,7 @@ class ConnectedRouteEditor extends Component {
                         name = "Landing gate " + landingGateCounter
                         landingGateCounter++
                     }
-                    this.configureLayer(layer, name, r.layer_type, r.feature_type, r.track_points, r.tooltip_position, false)
+                    this.configureLayer(layer, name, r.layer_type, r.feature_type, r.track_points, r.tooltip_position, false, r.gateWidth || null)
                 }
             }
             )
@@ -413,6 +446,8 @@ class ConnectedRouteEditor extends Component {
             } else {
                 let names = []
                 for (let i = 0; i < layer.trackPoints.length; i++) {
+                    // Store the name in the list of free waypoints to ensure that everything is unique
+                    this.freeWaypointNames.push(layer.trackPoints[i].name)
                     if (names.includes(layer.trackPoints[i].name)) {
                         errors.push("Gate names must be unique. The name '" + layer.trackPoints[i].name + "' is used multiple times.")
                     }
@@ -451,11 +486,23 @@ class ConnectedRouteEditor extends Component {
                 }
             }
         }
-        if (layer.featureType==='photo'){
-            if (this.photoNames.includes(layer.name)){
-                errors.push("Photo names must be unique, "+layer.name+" is repeated")
+        if (layer.featureType === 'photo') {
+            if (this.photoNames.includes(layer.name)) {
+                errors.push("Photo names must be unique, " + layer.name + " is repeated")
             }
             this.photoNames.push(layer.name)
+        }
+        if (layer.featureType === 'freewaypoint') {
+            if (this.freeWaypointNames.includes(layer.name)) {
+                errors.push("Free waypoint names and track waypoint names must be unique, " + layer.name + " is repeated")
+            }
+            this.freeWaypointNames.push(layer.name)
+        }
+        if (layer.featureType === 'circlestart') {
+            this.haveSeenCircleStart = true
+        }
+        if (layer.featureType === 'circlecentre') {
+            this.haveSeenCircleCenter = true
         }
         if (layer.featureType === "to" || layer.featureType === "ldg") {
             if (layer.getLatLngs().length !== 2) {
@@ -508,6 +555,9 @@ class ConnectedRouteEditor extends Component {
         if (this.state.currentName) {
             this.state.featureEditLayer.name = this.state.currentName
         }
+        if (this.state.featureEditLayer.featureType === 'freewaypoint') {
+            this.state.featureEditLayer.gateWidth = parseInt(this.state.freeWaypointGateWidth)
+        }
 
         if (this.state.featureEditLayer.featureType === "track") {
             this.trackLayer = this.state.featureEditLayer
@@ -532,6 +582,7 @@ class ConnectedRouteEditor extends Component {
             featureType: null,
             xOffset: 0,
             yOffset: 0,
+            freeWaypointGateWidth: 1,
             currentName: null,
             changesSaved: false,
             validationErrors: []
@@ -602,7 +653,7 @@ class ConnectedRouteEditor extends Component {
             feature.bindTooltip(feature.name, {
                 permanent: true,
                 direction: "center",
-                className: feature.layerType!='marker'?  "prohibitedTooltip":null,
+                className: feature.layerType != 'marker' ? "prohibitedTooltip" : null,
                 offset: tooltipPosition
             })
         }
@@ -642,6 +693,12 @@ class ConnectedRouteEditor extends Component {
                     <Form.Control name={"yOffset"} type={"number"} defaultValue={layer.tooltipPosition[1]}
                         onChange={(e) => this.setState({ yOffset: e.target.value })}
                     />
+                    {currentFeatureType === 'freewaypoint' ? <span>
+                        <Form.Label>Gate width</Form.Label>&nbsp;
+                        <Form.Control name={"freeWaypointGateWidth"} type={"number"} defaultValue={layer.gateWidth}
+                            onChange={(e) => this.setState({ freeWaypointGateWidth: e.target.value })}
+                        />
+                    </span> : null}
                 </div> : null
             }
             {checkboxes}
@@ -670,7 +727,9 @@ class ConnectedRouteEditor extends Component {
                 name: "invalid",
                 gateType: "invalid",
                 gateWidth: -1,
-                timeCheck: false
+                timeCheck: false,
+                extraTime: moment.duration(),
+                performBacktrackCheckOnLeg: false
             }
         }
         return <Modal
@@ -728,6 +787,22 @@ class ConnectedRouteEditor extends Component {
                                 }
                             }
                             defaultChecked={waypoint.timeCheck} />
+                        <Form.Label>Extra time:</Form.Label>&nbsp;
+                        <Form.Control type={"string"} placeholder={"Extra time"}
+                            defaultValue={waypoint.extraTime.format("hh:mm:ss", { trim: 'large', stopTrim: "h" })}
+                            onChange={
+                                (e) => {
+                                    waypoint["extraTime"] = moment.duration(e.target.value)
+                                }
+                            } />
+                        <Form.Check inline key={"performBacktrackCheckOnLeg"} name={"performBacktrackCheckOnLeg"} label={"Perform backtrack check on leg"}
+                            type={"checkbox"}
+                            onChange={
+                                (e) => {
+                                    waypoint["performBacktrackCheckOnLeg"] = e.target.checked
+                                }
+                            }
+                            defaultChecked={waypoint.performBacktrackCheckOnLeg} />
                     </Form>
                 </Container>
             </Modal.Body>
@@ -784,7 +859,9 @@ class ConnectedRouteEditor extends Component {
                 gateType: distance < distanceLimit ? "secret" : "tp",
                 timeCheck: distance >= distanceLimit,
                 gateWidth: distance < distanceLimit ? 0.1 : 1,
-                position: position
+                position: position,
+                extraTime: moment.duration(0),
+                performBacktrackCheckOnLeg: true
             }
             if (index === 0) {
                 defaultValue = {
@@ -792,7 +869,9 @@ class ConnectedRouteEditor extends Component {
                     gateType: "sp",
                     timeCheck: true,
                     gateWidth: 1,
-                    position: position
+                    position: position,
+                    extraTime: moment.duration(0),
+                    performBacktrackCheckOnLeg: true
                 }
             } else if (index === trackLayer.getLatLngs().length - 1) {
                 defaultValue = {
@@ -800,7 +879,9 @@ class ConnectedRouteEditor extends Component {
                     gateType: "fp",
                     timeCheck: true,
                     gateWidth: 1,
-                    position: position
+                    position: position,
+                    extraTime: moment.duration(0),
+                    performBacktrackCheckOnLeg: true
                 }
             }
             return defaultValue
@@ -904,7 +985,7 @@ class ConnectedRouteEditor extends Component {
                 featureType = "track"
                 trackPoints = this.initialiseWaypoints(layer)
             }
-            this.configureLayer(layer, null, event.layerType, featureType, trackPoints, [0, 0], true)
+            this.configureLayer(layer, null, event.layerType, featureType, trackPoints, [0, 0], true, 1)
             this.setState({ featureEditLayer: layer })
 
         });

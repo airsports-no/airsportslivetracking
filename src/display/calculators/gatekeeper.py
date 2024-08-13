@@ -76,7 +76,7 @@ class Gatekeeper(ABC):
                     self.contestant,
                     self.contestant.navigation_task.scorecard,
                     self.gates,
-                    self.contestant.navigation_task.route,
+                    self.contestant.route,
                     self.score_processing_queue,
                 )
             )
@@ -87,13 +87,13 @@ class Gatekeeper(ABC):
                 [
                     Gate(
                         takeoff_gate,
-                        self.contestant.gate_times[takeoff_gate.name],
+                        self.contestant.absolute_gate_times[takeoff_gate.name],
                         calculate_extended_gate(takeoff_gate, self.contestant.navigation_task.scorecard),
                     )
-                    for takeoff_gate in self.contestant.navigation_task.route.takeoff_gates
+                    for takeoff_gate in self.contestant.route.takeoff_gates
                 ]
             )
-            if len(self.contestant.navigation_task.route.takeoff_gates) > 0
+            if len(self.contestant.route.takeoff_gates) > 0
             else None
         )
         self.landing_gate = (
@@ -101,13 +101,13 @@ class Gatekeeper(ABC):
                 [
                     Gate(
                         landing_gate,
-                        self.contestant.gate_times[landing_gate.name],
+                        self.contestant.absolute_gate_times[landing_gate.name],
                         calculate_extended_gate(landing_gate, self.contestant.navigation_task.scorecard),
                     )
-                    for landing_gate in self.contestant.navigation_task.route.landing_gates
+                    for landing_gate in self.contestant.route.landing_gates
                 ]
             )
-            if len(self.contestant.navigation_task.route.landing_gates) > 0
+            if len(self.contestant.route.landing_gates) > 0
             else None
         )
 
@@ -119,8 +119,8 @@ class Gatekeeper(ABC):
         """
         Helper function to create gates from the waypoints defined in a route
         """
-        waypoints = self.contestant.navigation_task.route.waypoints
-        expected_times = self.contestant.gate_times
+        waypoints = self.contestant.route.waypoints
+        expected_times = self.contestant.absolute_gate_times
         gates = []
         for item in waypoints:  # type: Waypoint
             # Dummy gates are not part of the actual route

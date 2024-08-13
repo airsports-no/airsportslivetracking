@@ -6,7 +6,7 @@ module.exports = {
     mode: 'development',
     entry: fs.readdirSync("../reactjs/containers/")
         .filter(f => f.endsWith(".jsx"))
-        .map(f => ({[path.basename(f, ".jsx")]: path.resolve(__dirname, `../reactjs/containers/${f}`)}))
+        .map(f => ({ [path.basename(f, ".jsx")]: path.resolve(__dirname, `../reactjs/containers/${f}`) }))
         .reduce((a, b) => Object.assign(a, b), {}),
 
     output: {
@@ -48,12 +48,17 @@ module.exports = {
     // }
     // },
     plugins: [
-        new BundleTracker({path: path.join(__dirname, '../'), filename: 'webpack-stats-local.json'}),
+        new BundleTracker({ path: path.join(__dirname, '../'), filename: 'webpack-stats-local.json' }),
     ], // add all common plugins here
 
     module: {
 
         rules: [
+            {
+                test: /\.ts?$/,
+                use: 'ts-loader',
+                exclude: /node_modules/,
+            },
             {
                 test: /\.(js|jsx)$/,
                 exclude: /node_modules|bower_components/,
@@ -115,7 +120,7 @@ module.exports = {
 
 
     resolve: {
-        fallback: {"https": false, "zlib": false, "http": false, "url": false},
+        fallback: { "https": false, "zlib": false, "http": false, "url": false },
         mainFiles: ['index', 'Cesium'],
         modules: ['node_modules', 'bower_components'],
         extensions: ['.js', '.jsx'],

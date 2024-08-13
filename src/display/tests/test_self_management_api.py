@@ -44,7 +44,7 @@ class TestContestantGatesCalculation(APITestCase):
             time_zone="Europe/Oslo",
             start_time=datetime.datetime.now(datetime.timezone.utc),
             finish_time=datetime.datetime.now(datetime.timezone.utc),
-            location="60, 11"
+            location="60, 11",
         )
         self.navigation_task = NavigationTask.create(
             name="NM navigation test",

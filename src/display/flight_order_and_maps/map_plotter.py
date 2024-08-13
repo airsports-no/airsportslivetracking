@@ -14,6 +14,8 @@ import numpy as np
 import cartopy.crs as ccrs
 import matplotlib
 
+from display.models.route import FreeWaypoint
+
 matplotlib.use("Agg")
 from matplotlib import patheffects
 import matplotlib.ticker as mticker
@@ -217,8 +219,6 @@ def create_minute_lines_track(
             )
             time_to_next_line += resolution_seconds
         accumulated_time += leg_time
-    for line in lines:
-        logger.debug(line)
     return lines
 
 
@@ -608,6 +608,7 @@ def extend_point_to_the_right(
 
 
 def plot_waypoint_name(
+    navigation_task: NavigationTask,
     route: Route,
     waypoint: Waypoint,
     bearing: float,
@@ -621,9 +622,9 @@ def plot_waypoint_name(
     waypoint_name = "{}".format(waypoint.name)
     timing = ""
     if contestant is not None and annotations:
-        waypoint_time = contestant.gate_times.get(waypoint.name)  # type: datetime.datetime
-        if waypoint_time is not None:
-            local_waypoint_time = waypoint_time.astimezone(route.navigationtask.contest.time_zone)
+        waypoint_time = contestant.absolute_gate_times.get(waypoint.name)
+        if waypoint_time is not None and waypoint.time_check:
+            local_waypoint_time = waypoint_time.astimezone(navigation_task.contest.time_zone)
             timing = " {}".format(local_waypoint_time.strftime("%M:%S"))
 
     name_position = []
@@ -672,6 +673,7 @@ def plot_waypoint_name(
 
 
 def plot_anr_corridor_track(
+    navigation_task: NavigationTask,
     route: Route,
     contestant: Optional[Contestant],
     annotations,
@@ -689,6 +691,7 @@ def plot_anr_corridor_track(
 
         if waypoint.type not in (SECRETPOINT,):
             plot_waypoint_name(
+                navigation_task,
                 route,
                 waypoint,
                 bearing,
@@ -814,7 +817,7 @@ def plot_minute_marks(
     :return:
     """
     next_waypoint = track[index + 1]
-    gate_start_time = contestant.gate_times.get(waypoint.name)
+    gate_start_time = contestant.absolute_gate_times.get(waypoint.name)
     if waypoint.is_procedure_turn:
         gate_start_time += datetime.timedelta(minutes=1)
     first_segments = waypoint.get_centre_track_segments()
@@ -829,7 +832,11 @@ def plot_minute_marks(
         contestant.wind_speed,
         contestant.wind_direction,
         gate_start_time,
-        contestant.gate_times.get(track[0].name),
+        (
+            contestant.absolute_gate_times.get(track[0].name)
+            if not adaptive
+            else contestant.relative_gate_times_as_datetime.get(track[0].name)
+        ),
         line_width_nm=line_width_nm,
         start_offset=waypoint.width if adaptive else line_width_nm,
         end_offset=next_waypoint.width if adaptive else None,
@@ -857,7 +864,47 @@ def plot_minute_marks(
         )
 
 
+def plot_free_waypoints(route: Route, colour: str):
+    used_waypoint_name = {w.name for w in route.waypoints}
+    free: FreeWaypoint
+    for free in route.freewaypoint_set.exclude(name__in=used_waypoint_name).filter(
+        waypoint_type=FreeWaypoint.WaypointType.WAYPOINT
+    ):
+        plt.scatter(
+            free.longitude,
+            free.latitude,
+            transform=ccrs.PlateCarree(),
+            color=colour,
+            s=0.5,
+            edgecolor="none",
+        )
+        plt.plot(
+            free.longitude,
+            free.latitude,
+            transform=ccrs.PlateCarree(),
+            color=colour,
+            marker="o",
+            markersize=20,
+            fillstyle="none",
+        )
+        waypoint_name = free.name + " " * (6 + len(free.name))
+        plt.text(
+            free.longitude,
+            free.latitude,
+            waypoint_name,
+            verticalalignment="center",
+            color=colour,
+            horizontalalignment="center",
+            transform=ccrs.PlateCarree(),
+            fontsize=10,
+            # linespacing=2,
+            family="monospace",
+            clip_on=True,
+        )
+
+
 def plot_precision_track(
+    navigation_task: NavigationTask,
     route: Route,
     contestant: Optional[Contestant],
     waypoints_only: bool,
@@ -941,6 +988,7 @@ def plot_precision_track(
                         fillstyle="none",
                     )
                 plot_waypoint_name(
+                    navigation_task,
                     route,
                     waypoint,
                     bearing,
@@ -1069,7 +1117,7 @@ def plot_route(
     include_meridians_and_parallels_lines: bool = True,
     margins_mm: float = 0,
 ):
-    route = task.route
+    route = contestant.route if contestant is not None else task.route
     attribution = ""
     if user_map_source:
         imagery = UserUploadedMBTiles(user_map_source)
@@ -1120,6 +1168,7 @@ def plot_route(
     ax.set_aspect("auto")
     if PRECISION in task.scorecard.task_type or POKER in task.scorecard.task_type:
         paths = plot_precision_track(
+            task,
             route,
             contestant,
             waypoints_only,
@@ -1130,6 +1179,7 @@ def plot_route(
         )
     elif ANR_CORRIDOR in task.scorecard.task_type:
         paths = plot_anr_corridor_track(
+            task,
             route,
             contestant,
             annotations,
@@ -1140,6 +1190,7 @@ def plot_route(
         )
     elif AIRSPORTS in task.scorecard.task_type or AIRSPORT_CHALLENGE in task.scorecard.task_type:
         paths = plot_anr_corridor_track(
+            task,
             route,
             contestant,
             annotations,
@@ -1151,6 +1202,7 @@ def plot_route(
     else:
         paths = []
     plot_prohibited_zones(route, imagery.crs, ax)
+    plot_free_waypoints(route, colour)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:
         plt.title(

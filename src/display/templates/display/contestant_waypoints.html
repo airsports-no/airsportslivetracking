@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load render_bundle from webpack_loader %}
+{% load guardian_tags %}
+{% load static %}
+{% block document_configuration %}
+{% get_obj_perms request.user for contestant.navigation_task.contest as "contest_permissions" %}
+    <script>
+        document.configuration = {
+            ...document.configuration,
+            thisContestantDataUrl:"{% url 'contestants-detail' contestant.navigation_task.contest.pk contestant.navigation_task.pk contestant.pk %}",
+            thisContestantPutGateTimesUrl:"{% url 'contestants-update-free-waypoints-and-timing' contestant.navigation_task.contest.pk contestant.navigation_task.pk contestant.pk %}",
+            thisNavigationTaskDetailsUrl:"{% url 'navigationtask_detail' contestant.navigation_task.pk %}",
+            removePenaltyUrl: penaltyId => "{% url 'contestant_remove_score_item' 0 %}".replace("0", penaltyId),
+            hasChangePermission: {% if "change_contest" in contest_permissions %}true{% else %}false{% endif %}
+        }
+    </script>
+{% endblock %}
+
+{% block content %}
+{{ contest_permissions }}
+<H1>Gate times for {{ contestant }}</H1>
+<h2>Total score: {{ contestant.contestanttrack.score }}</h2>
+<div class="row">
+
+        <div id="root">
+            <img class="centered" src="{% static 'img/loading_airplane.gif' %}" alt="loading..."/>
+        </div>
+    </div>
+    {% render_bundle 'ContestantWaypointTable' %}
+{% endblock %}
+10

@@ -18,6 +18,7 @@ from rest_framework import serializers
 from rest_framework.fields import MultipleChoiceField, SerializerMethodField
 from rest_framework.exceptions import ValidationError
 from rest_framework.relations import SlugRelatedField
+from rest_framework.utils.encoders import JSONEncoder
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from timezone_field.rest_framework import TimeZoneSerializerField
 from phonenumber_field.serializerfields import PhoneNumberField
@@ -25,6 +26,8 @@ from phonenumber_field.validators import validate_international_phonenumber
 
 from django.core.exceptions import ValidationError as CoreValidationError
 
+from display.models.route import FreeWaypoint, Photo
+from display.models.scoring_models import ActualGateTime
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
@@ -457,11 +460,27 @@ class ProhibitedSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class PhotoSerialiser(serializers.ModelSerializer):
+    leg = WaypointSerialiser(required=False)
+
+    class Meta:
+        model = Photo
+        fields = "__all__"
+
+
+class FreeWaypointSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = FreeWaypoint
+        fields = "__all__"
+
+
 class RouteSerialiser(serializers.ModelSerializer):
     waypoints = WaypointSerialiser(many=True)
     landing_gates = WaypointSerialiser(required=False, help_text="Optional landing gate", many=True)
     takeoff_gates = WaypointSerialiser(required=False, help_text="Optional takeoff gate", many=True)
     prohibited_set = ProhibitedSerialiser(many=True, required=False)
+    photo_set = PhotoSerialiser(many=True, required=False)
+    freewaypoint_set = FreeWaypointSerialiser(many=True, required=False)
 
     class Meta:
         model = Route
@@ -509,6 +528,15 @@ class RouteSerialiser(serializers.ModelSerializer):
         instance.landing_gates = [self._create_waypoint(data) for data in validated_data.pop("landing_gates")]
         instance.takeoff_gates = [self._create_waypoint(data) for data in validated_data.pop("takeoff_gates")]
         return instance
+
+
+class WaypointTimingSerialiser(serializers.Serializer):
+    waypoint_name = serializers.CharField(max_length=200)
+    waypoint_time = serializers.FloatField(required=False)
+
+
+class RouteTrackTimingSerialiser(serializers.Serializer):
+    legs = WaypointTimingSerialiser(many=True)
 
 
 class ContestTeamSerialiser(serializers.ModelSerializer):
@@ -785,12 +813,36 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class ScoreLogEntrySerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = ScoreLogEntry
+        fields = "__all__"
+
+
+class ActualGateTimeSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = ActualGateTime
+        fields = "__all__"
+
+
 class ContestantSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Contestant
-        exclude = ("navigation_task", "predefined_gate_times")
+        exclude = ("navigation_task", "_relative_gate_times")
 
-    gate_times = serializers.JSONField(
+    relative_gate_times = serializers.JSONField(
+        help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the "
+        "values are $timedelta strings. b",
+        read_only=True,
+        encoder=JSONEncoder,
+    )
+    relative_gate_times_as_datetime = serializers.JSONField(
+        help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the "
+        "values are $date-time strings (with time zone).",
+        read_only=True,
+        encoder=JSONEncoder,
+    )
+    absolute_gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the "
         "values are $date-time strings (with time zone). Missing values will be populated from internal "
         "calculations.",
@@ -800,6 +852,9 @@ class ContestantSerialiser(serializers.ModelSerializer):
     tracker_id_display = serializers.JSONField(help_text="", read_only=True)
     default_map_url = SerializerMethodField("get_default_map_url", read_only=True)
     has_crossed_starting_line = serializers.BooleanField(read_only=True)
+    actualgatetime_set = ActualGateTimeSerialiser(read_only=True, many=True)
+    scorelogentry_set = ScoreLogEntrySerialiser(read_only=True, many=True)
+    route = RouteSerialiser(read_only=True)
 
     def get_default_map_url(self, contestant):
         return reverse("contestant_default_map", kwargs={"pk": contestant.pk})
@@ -812,7 +867,11 @@ class ContestantSerialiser(serializers.ModelSerializer):
         validated_data["navigation_task"] = navigation_task
         gate_times = validated_data.pop("gate_times", {})
         contestant = Contestant.objects.create(**validated_data)
-        contestant.gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
+        contestant.route = navigation_task.route
+        try:
+            contestant.absolute_gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
+        except CoreValidationError as ve:
+            raise ValidationError from ve
         contestant.save()
         if not ContestTeam.objects.filter(contest=contestant.navigation_task.contest, team=contestant.team).exists():
             ContestTeam.objects.create(
@@ -829,7 +888,11 @@ class ContestantSerialiser(serializers.ModelSerializer):
         gate_times = validated_data.pop("gate_times", {})
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
         instance.refresh_from_db()
-        instance.gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
+        try:
+            instance.absolute_gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
+        except CoreValidationError as ve:
+            raise ValidationError from ve
+
         instance.save()
 
         if not ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team).exists():
@@ -879,7 +942,7 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
     class Meta:
         model = Contestant
         list_serializer_class = FilteredContestantNestedTeamSerialiser
-        exclude = ("navigation_task", "predefined_gate_times")
+        exclude = ("navigation_task", "_relative_gate_times")
 
     def create(self, validated_data):
         team_data = validated_data.pop("team")
@@ -1087,12 +1150,6 @@ class ExternalNavigationTaskTeamIdSerialiser(ExternalNavigationTaskNestedTeamSer
 class TrackAnnotationSerialiser(serializers.ModelSerializer):
     class Meta:
         model = TrackAnnotation
-        fields = "__all__"
-
-
-class ScoreLogEntrySerialiser(serializers.ModelSerializer):
-    class Meta:
-        model = ScoreLogEntry
         fields = "__all__"
 
 

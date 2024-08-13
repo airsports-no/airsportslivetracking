@@ -79,6 +79,12 @@ def round_time_second(obj: datetime.datetime) -> datetime.datetime:
     return obj.replace(microsecond=0)
 
 
+def round_timedelta_second(obj: datetime.timedelta) -> datetime.timedelta:
+    if obj.microseconds >= 500_000:
+        obj += datetime.timedelta(seconds=1)
+    return obj - datetime.timedelta(microseconds=obj.microseconds)
+
+
 class PolygonHelper:
     def __init__(self, latitude, longitude):
         self.pc = ccrs.PlateCarree()

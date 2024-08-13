@@ -1,8 +1,10 @@
 # from lxml import etree
+import datetime
 import logging
 from typing import List, Tuple, Dict
 from zipfile import ZipFile
 
+from django.utils.dateparse import parse_duration
 import gpxpy
 import pygeoif
 from django.core.exceptions import ValidationError
@@ -271,7 +273,20 @@ def calculate_extended_gate(
     )
 
 
-def build_waypoint(name, latitude, longitude, type, width, time_check, gate_check):
+def build_waypoint(
+    name,
+    latitude,
+    longitude,
+    type,
+    width,
+    time_check,
+    gate_check,
+    extra_time: str | None = None,
+    perform_backtrack_check_on_leg: bool = True,
+):
+    """
+    :param extra_time: ISO 8601 duration format
+    """
     waypoint = Waypoint(name)
     waypoint.latitude = latitude
     waypoint.longitude = longitude
@@ -281,6 +296,8 @@ def build_waypoint(name, latitude, longitude, type, width, time_check, gate_chec
     )  # todo: Enforce at least a minimum gate width in case this has been set to 0
     waypoint.time_check = time_check
     waypoint.gate_check = gate_check
+    waypoint.extra_time = parse_duration(extra_time) if extra_time else datetime.timedelta()
+    waypoint.perform_backtrack_check_on_leg = perform_backtrack_check_on_leg
     return waypoint
 
 

@@ -200,9 +200,8 @@ def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_
 
 
 def insert_turning_point_images_latex(contestant, document: Document, meters_across: float, zoom_level: int):
-    navigation = contestant.navigation_task  # type: NavigationTask
     render_turning_point_images(
-        navigation.route.waypoints,
+        contestant.route.waypoints,
         document,
         meters_across,
         zoom_level,
@@ -212,8 +211,7 @@ def insert_turning_point_images_latex(contestant, document: Document, meters_acr
 
 
 def insert_unknown_leg_images_latex(contestant, document: Document, meters_across: float, zoom_level: int):
-    navigation = contestant.navigation_task  # type: NavigationTask
-    render_waypoints = [waypoint for waypoint in navigation.route.waypoints if waypoint.type == UNKNOWN_LEG]
+    render_waypoints = [waypoint for waypoint in contestant.route.waypoints if waypoint.type == UNKNOWN_LEG]
     random.shuffle(render_waypoints)
     render_turning_point_images(
         render_waypoints, document, meters_across, zoom_level, "Unknown legs", is_unknown_leg=True
@@ -221,7 +219,7 @@ def insert_unknown_leg_images_latex(contestant, document: Document, meters_acros
 
 
 def insert_photos_latex(contestant, document: Document, meters_across: float, zoom_level: int):
-    photos = list(contestant.navigation_task.route.photo_set.all().order_by("name"))
+    photos = list(contestant.route.photo_set.all().order_by("name"))
     rows_per_page = 3
     number_of_images = len(photos)
     number_of_pages = 1 + ((number_of_images - 1) // (2 * rows_per_page))
@@ -346,6 +344,7 @@ def round_seconds_timedelta(stamp: datetime.timedelta) -> datetime.timedelta:
 
 def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     flight_order_configuration: FlightOrderConfiguration = contestant.navigation_task.flightorderconfiguration
+    route = contestant.route
     starting_point_time_string = f'{contestant.starting_point_time_local.strftime("%H:%M:%S")}'
     tracking_start_time_string = f'{contestant.tracker_start_time_local.strftime("%H:%M:%S")}'
     finish_tracking_time = f'{contestant.finished_by_time_local.strftime("%H:%M:%S")}'
@@ -506,7 +505,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     waypoints = list(
         filter(
             lambda waypoint: waypoint.type != "dummy",
-            contestant.navigation_task.route.waypoints,
+            route.waypoints,
         )
     )
     starting_point_image_file = get_turning_point_image(
@@ -555,10 +554,8 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                 data_table.add_hline()
                 first_line = True
                 local_time = "-"
-                if contestant.navigation_task.route.first_takeoff_gate:
-                    local_time = contestant.gate_times.get(
-                        contestant.navigation_task.route.first_takeoff_gate.name, None
-                    )
+                if route.first_takeoff_gate:
+                    local_time = contestant.absolute_gate_times.get(route.first_takeoff_gate.name, None)
                     if local_time:
                         local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime(
                             "%H:%M:%S"
@@ -571,7 +568,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                 previous_waypoint = None
                 last_recorded_time = None
                 waypoint: Waypoint
-                for waypoint in contestant.navigation_task.route.waypoints:
+                for waypoint in route.waypoints:
                     if not first_line:
                         accumulated_distance += waypoint.distance_previous
                     if waypoint.type not in ("secret", "dummy", "ul"):
@@ -590,7 +587,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                             contestant.wind_speed,
                             contestant.wind_direction,
                         )
-                        gate_time = contestant.gate_times.get(waypoint.name, None)
+                        gate_time = (
+                            contestant.absolute_gate_times.get(waypoint.name, None)
+                            if not contestant.adaptive_start
+                            else contestant.relative_gate_times_as_datetime.get(waypoint.name, None)
+                        )
                         local_waypoint_time = gate_time.astimezone(contestant.navigation_task.contest.time_zone)
                         if gate_time is not None:
                             # The distance is the distance from the last real waypoint, i.e. the last waypoint we put in the table
@@ -619,7 +620,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                                         if last_recorded_time
                                         else "-"
                                     ),
-                                    local_waypoint_time.strftime("%H:%M:%S"),
+                                    local_waypoint_time.strftime("%H:%M:%S") + ("*" if waypoint.time_check else ""),
                                 ]
                             )
                             first_line = False
@@ -628,10 +629,8 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                         previous_waypoint = waypoint
 
                 local_time = "-"
-                if contestant.navigation_task.route.first_landing_gate:
-                    local_time = contestant.gate_times.get(
-                        contestant.navigation_task.route.first_landing_gate.name, None
-                    )
+                if route.first_landing_gate:
+                    local_time = contestant.absolute_gate_times.get(route.first_landing_gate.name, None)
                     if local_time:
                         local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime(
                             "%H:%M:%S"
@@ -685,14 +684,14 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
             flight_order_configuration.turning_point_photos_zoom_level,
         )
 
-    if any(waypoint.type == UNKNOWN_LEG for waypoint in contestant.navigation_task.route.waypoints):
+    if any(waypoint.type == UNKNOWN_LEG for waypoint in route.waypoints):
         insert_unknown_leg_images_latex(
             contestant,
             document,
             flight_order_configuration.unknown_leg_photos_meters_across,
             flight_order_configuration.unknown_leg_photos_zoom_level,
         )
-    if contestant.navigation_task.route.photo_set.all().count() > 0:
+    if route.photo_set.all().count() > 0:
         insert_photos_latex(
             contestant,
             document,

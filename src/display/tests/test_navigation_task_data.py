@@ -1126,7 +1126,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
         self.assertEqual(1, Contestant.objects.all().count())
         contestant = Contestant.objects.all().first()
         gate_times = data_with_gate_times["contestant_set"][0]["gate_times"]
-        contestant_gate_times = contestant.gate_times
+        contestant_gate_times = contestant.absolute_gate_times
         for key, value in gate_times.items():
             value = dateutil.parser.parse(value)
             self.assertEqual(contestant_gate_times[key], value, key)
@@ -1165,7 +1165,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
             "T/O": "2017-08-01T07:30:00+00:00",
             "LDG": "2017-08-01T08:52:23+00:00",
         }
-        gate_times = {name: item.isoformat() for name, item in contestant.gate_times.items()}
+        gate_times = {name: item.isoformat() for name, item in contestant.absolute_gate_times.items()}
         print(gate_times)
         equal, reasons = compare_dictionaries(expected, gate_times, "expected", "actual")
         self.assertTrue(equal, reasons)
@@ -1232,7 +1232,6 @@ class TestNavigationTaskCreationFlow(APITransactionTestCase):
         assign_perm("display.view_contest", self.user, self.contest)
         self.request = Mock()
         self.request.user = self.user
-
 
     def test_get_scorecards(self, *args):
         response = self.client.get("/api/v1/scorecards/")

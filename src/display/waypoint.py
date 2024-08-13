@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Tuple
 
 from display.utilities.coordinate_utilities import (
@@ -30,6 +31,8 @@ class Waypoint:
         self.bearing_next = -1  # type: float
         self.is_procedure_turn = False
         self.is_steep_turn = False
+        self.extra_time = datetime.timedelta()
+        self.perform_backtrack_check_on_leg = True
 
         self._left_corridor_line = None  # I think this is a list of (lat, lon)
         self._right_corridor_line = None
@@ -59,23 +62,23 @@ class Waypoint:
 
     ######## Required for backwards compatibility
     @property
-    def left_corridor_line(self):
-        if hasattr(self, "_left_corridor_line"):
+    def left_corridor_line(self) -> list:
+        if hasattr(self, "_left_corridor_line") and self._left_corridor_line is not None:
             return self._left_corridor_line
         return []
 
     @left_corridor_line.setter
-    def left_corridor_line(self, value):
+    def left_corridor_line(self, value: list):
         self._left_corridor_line = value
 
     @property
-    def right_corridor_line(self):
-        if hasattr(self, "_right_corridor_line"):
+    def right_corridor_line(self) -> list:
+        if hasattr(self, "_right_corridor_line") and self._right_corridor_line is not None:
             return self._right_corridor_line
         return []
 
     @right_corridor_line.setter
-    def right_corridor_line(self, value):
+    def right_corridor_line(self, value: list):
         self._right_corridor_line = value
 
     #########################

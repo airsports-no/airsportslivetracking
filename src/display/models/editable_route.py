@@ -1,3 +1,4 @@
+import datetime
 import logging
 import typing
 from io import BytesIO
@@ -22,7 +23,7 @@ from display.utilities.editable_route_utilities import (
     create_penalty_zone,
     create_gate_polygon,
 )
-from display.utilities.gate_definitions import DUMMY, UNKNOWN_LEG, STARTINGPOINT, FINISHPOINT
+from display.utilities.gate_definitions import DUMMY, TURNPOINT, UNKNOWN_LEG, STARTINGPOINT, FINISHPOINT
 from display.utilities.navigation_task_type_definitions import (
     NAVIGATION_TASK_TYPES,
     PRECISION,
@@ -32,6 +33,7 @@ from display.utilities.navigation_task_type_definitions import (
     AIRSPORT_CHALLENGE,
     LANDING,
 )
+from display.waypoint import Waypoint
 
 if typing.TYPE_CHECKING:
     from display.models import Scorecard, Route
@@ -165,12 +167,8 @@ class EditableRoute(models.Model):
         route.save()
         return route
 
-    def create_precision_route(self, use_procedure_turns: bool, scorecard: "Scorecard") -> Optional["Route"]:
-        """
-        Build a Route object self as a precision route using the provided scorecard.
-        """
+    def _create_precision_track(self) -> list[Waypoint] | None:
         from display.utilities.route_building_utilities import build_waypoint
-        from display.utilities.route_building_utilities import create_precision_route_from_waypoint_list
 
         track = self.get_track()
         waypoint_list = []
@@ -188,12 +186,79 @@ class EditableRoute(models.Model):
                     item["gateType"],
                     item["gateWidth"],
                     item["timeCheck"],
-                    item["timeCheck"],  # We do not include gate check in GUI
+                    item.get("gateCheck", item["timeCheck"]),  # We do not include gate check in GUI
+                    item.get("extraTime"),
+                    item.get("performBacktrackCheckOnLeg", True),
                 )
             )
-        route = create_precision_route_from_waypoint_list(track["name"], waypoint_list, use_procedure_turns, scorecard)
-        self.amend_route_with_additional_features(route)
-        return route
+        return waypoint_list
+
+    def create_precision_route_from_customized_track(
+        self,
+        selected_waypoints: list[tuple[str, datetime.timedelta | None]],
+        use_procedure_turns: bool,
+        scorecard: "Scorecard",
+    ) -> Optional["Route"]:
+        """
+        Build a precision route based on a customized track
+        """
+        from display.utilities.route_building_utilities import create_precision_route_from_waypoint_list
+        from display.utilities.route_building_utilities import build_waypoint
+
+        if waypoint_list := self._create_precision_track():
+            print(waypoint_list)
+            used_free = []
+            free_waypoints = self.get_features_type("freewaypoint")
+            extended_list = []
+            for name, timing in selected_waypoints:
+                if not len(waypoint_list):
+                    # We do not include free waypoints after the finish point
+                    break
+                if waypoint_list[0].name == name:
+                    extended_list.append(waypoint_list.pop(0))
+                else:
+                    found = False
+                    for free in free_waypoints:
+                        if free["name"] == name:
+                            found = True
+                            used_free.append(name)
+                            extended_list.append(
+                                build_waypoint(
+                                    free["name"],
+                                    free["geojson"]["geometry"]["coordinates"][1],
+                                    free["geojson"]["geometry"]["coordinates"][0],
+                                    TURNPOINT,
+                                    free["gateWidth"],
+                                    timing is not None,
+                                    True,
+                                )
+                            )
+                            break
+                    if not found:
+                        raise Exception(f"Did not find a waypoint or free waypoint with the name {name}")
+            print(extended_list)
+            if track := self.get_track():
+                route = create_precision_route_from_waypoint_list(
+                    track["name"], extended_list, use_procedure_turns, scorecard
+                )
+                self.amend_route_with_additional_features(route, None)
+                return route
+        return None
+
+    def create_precision_route(self, use_procedure_turns: bool, scorecard: "Scorecard") -> Optional["Route"]:
+        """
+        Build a Route object self as a precision route using the provided scorecard.
+        """
+        from display.utilities.route_building_utilities import create_precision_route_from_waypoint_list
+
+        if waypoint_list := self._create_precision_track():
+            if track := self.get_track():
+                route = create_precision_route_from_waypoint_list(
+                    track["name"], waypoint_list, use_procedure_turns, scorecard
+                )
+                self.amend_route_with_additional_features(route)
+                return route
+        return None
 
     def create_anr_route(self, rounded_corners: bool, corridor_width: float, scorecard: "Scorecard") -> "Route":
         """
@@ -210,7 +275,17 @@ class EditableRoute(models.Model):
         for index, (latitude, longitude) in enumerate(coordinates):
             item = track_points[index]
             waypoint_list.append(
-                build_waypoint(item["name"], latitude, longitude, "secret", item["gateWidth"], False, False)
+                build_waypoint(
+                    item["name"],
+                    latitude,
+                    longitude,
+                    "secret",
+                    item["gateWidth"],
+                    False,
+                    False,
+                    item.get("extraTime"),
+                    item.get("performBacktrackCheckOnLeg", True),
+                )
             )
         waypoint_list[0].type = STARTINGPOINT
         waypoint_list[0].gate_check = True
@@ -253,13 +328,15 @@ class EditableRoute(models.Model):
                     item["gateWidth"],
                     item["timeCheck"],
                     item["timeCheck"],
+                    item.get("extraTime"),
+                    item.get("performBacktrackCheckOnLeg", True),
                 )
             )
         route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners, scorecard)
         self.amend_route_with_additional_features(route)
         return route
 
-    def amend_route_with_additional_features(self, route: "Route"):
+    def amend_route_with_additional_features(self, route: "Route", ignore_free_waypoints: list[str] | None = None):
         """
         Add common elements to the route, specifically information, penalty, prohibitive zones and gate polygons.
         """
@@ -294,7 +371,7 @@ class EditableRoute(models.Model):
                     type=zone_type,
                     tooltip_position=feature.get("tooltip_position", []),
                 )
-        from display.models.route import Photo
+        from display.models.route import Photo, FreeWaypoint
 
         for photo in self.get_features_type("photo"):
             Photo.objects.create(
@@ -302,6 +379,36 @@ class EditableRoute(models.Model):
                 route=route,
                 latitude=photo["geojson"]["geometry"]["coordinates"][1],
                 longitude=photo["geojson"]["geometry"]["coordinates"][0],
+            )
+        # The free waypoints created below will in many cases not make sense to the route connected to the navigation task.
+        # These will be integrated into the route defined for a specific contestant given the imposed order and chosen times.
+        for free_waypoint in self.get_features_type("freewaypoint"):
+            if ignore_free_waypoints is not None and free_waypoint["name"] in ignore_free_waypoints:
+                continue
+            FreeWaypoint.objects.create(
+                name=free_waypoint["name"],
+                route=route,
+                latitude=free_waypoint["geojson"]["geometry"]["coordinates"][1],
+                longitude=free_waypoint["geojson"]["geometry"]["coordinates"][0],
+                waypoint_type=FreeWaypoint.WaypointType.WAYPOINT,
+            )
+        # Circle start and center are two specific waypoint types that are used in a separate calculator for doing the circle task.
+        for free_waypoint in self.get_features_type("circlestart"):
+            FreeWaypoint.objects.create(
+                name=free_waypoint["name"],
+                route=route,
+                latitude=free_waypoint["geojson"]["geometry"]["coordinates"][1],
+                longitude=free_waypoint["geojson"]["geometry"]["coordinates"][0],
+                waypoint_type=FreeWaypoint.WaypointType.CIRCLE_START,
+            )
+        for free_waypoint in self.get_features_type("circlecenter"):
+            FreeWaypoint.objects.create(
+                name=free_waypoint["name"],
+                route=route,
+                latitude=free_waypoint["geojson"]["geometry"]["coordinates"][1],
+                longitude=free_waypoint["geojson"]["geometry"]["coordinates"][0],
+                waypoint_type=FreeWaypoint.WaypointType.CIRCLE_CENTER,
+                gate_width=free_waypoint["gateWidth"],
             )
 
     @classmethod

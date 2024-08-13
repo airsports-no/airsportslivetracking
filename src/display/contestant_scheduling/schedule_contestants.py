@@ -184,6 +184,7 @@ def schedule_and_create_contestants_navigation_tasks(
             Contestant(
                 takeoff_time=team_definition.start_time.replace(microsecond=0),
                 finished_by_time=tracking_finish_time,
+                route=navigation_task.route,
                 air_speed=contest_team.air_speed,
                 wind_speed=navigation_task.wind_speed,
                 wind_direction=navigation_task.wind_direction,

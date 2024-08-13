@@ -21,7 +21,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         waypoint = Waypoint("")
         waypoint.latitude = 60
         waypoint.longitude = 11
-        self.contestant.navigation_task.route.waypoints = [waypoint]
+        self.contestant.route.waypoints = [waypoint]
         self.calculator = PenaltyZoneCalculator(self.contestant, get_default_scorecard(), [], self.route, Mock())
         self.calculator.scorecard.penalty_zone_grace_time = 3
         self.calculator.scorecard.penalty_zone_penalty_per_second = 3

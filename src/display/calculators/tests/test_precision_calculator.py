@@ -134,12 +134,12 @@ class TestFullTrack(TransactionTestCase):
     def test_secret_score_no_override(self, *args):
         expected_time = datetime.datetime(2017, 1, 1, tzinfo=datetime.timezone.utc)
         actual_time = datetime.datetime(2017, 1, 1, 0, 1, tzinfo=datetime.timezone.utc)
-        waypoint = self.contestant.navigation_task.route.waypoints[1]
+        waypoint = self.contestant.route.waypoints[1]
         gate = Gate(waypoint, expected_time, calculate_extended_gate(waypoint, self.scorecard))  # SC 1/1
         self.assertEqual("secret", gate.type)
         gate.passing_time = actual_time
         score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, gate.passing_time)
-        print([str(item) for item in self.navigation_task.route.waypoints])
+        print([str(item) for item in self.route.waypoints])
         self.assertEqual(100, score)
 
     # def test_secret_score_override(self, *args):
@@ -152,7 +152,7 @@ class TestFullTrack(TransactionTestCase):
     #     self.contestant.gate_score_override.add(gate_override)
     #     expected_time = datetime.datetime(2017, 1, 1, tzinfo=datetime.timezone.utc)
     #     actual_time = datetime.datetime(2017, 1, 1, 0, 1, tzinfo=datetime.timezone.utc)
-    #     waypoint = self.contestant.navigation_task.route.waypoints[1]
+    #     waypoint = self.contestant.route.waypoints[1]
     #     gate = Gate(waypoint, expected_time,
     #                 calculate_extended_gate(waypoint, self.scorecard))  # SC 1/1
     #     self.assertEqual("secret", gate.type)
@@ -160,7 +160,7 @@ class TestFullTrack(TransactionTestCase):
     #     score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type,
     #                                                                gate.expected_time,
     #                                                                gate.passing_time)
-    #     print([str(item) for item in self.navigation_task.route.waypoints])
+    #     print([str(item) for item in self.route.waypoints])
     #     self.assertEqual(0, score)
 
     # def test_score_override(self, *args):

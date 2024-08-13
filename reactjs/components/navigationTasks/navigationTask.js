@@ -23,6 +23,7 @@ import PrecisionRenderer from "./trackRenderers/precisionRenderer";
 import AnrCorridorRenderer from "./trackRenderers/anrCorridorRenderer";
 import ProhibitedRenderer from "./trackRenderers/prohibitedRenderer";
 import LandingRenderer from "./trackRenderers/landingRenderer";
+import FreeWaypointRenderer from "./trackRenderers/freeWaypointRenderer";
 import ContestRankTable from "../resultsService/contestRankTable";
 import AirsportsRenderer from "./trackRenderers/airsportsRenderer";
 import { Jawg_Sunny, OpenAIP } from "../leafletLayers";
@@ -223,12 +224,17 @@ export class ConnectedNavigationTask extends Component {
         if (this.props.navigationTask.contestant_set !== undefined) {
             let routeRenderer = null;
             let prohibitedRender = null;
+            let freeWaypointRenderer = null
             if (this.props.navigationTask.scorecard !== undefined) {
                 if (this.props.navigationTask.scorecard.task_type.includes("precision") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
                     routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}
                         contestants={this.props.contestants}
                         currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
                         displaySecretGates={this.props.displaySecretGates} />
+                    freeWaypointRenderer = <FreeWaypointRenderer navigationTask={this.props.navigationTask}
+                        contestants={this.props.contestants} map={this.map}
+                        currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}
+                    />
                 } else if (this.props.navigationTask.scorecard.task_type.includes("airsports") || this.props.navigationTask.scorecard.task_type.includes("airsportchallenge") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
                     routeRenderer = <AirsportsRenderer map={this.map} navigationTask={this.props.navigationTask} key={this.props.navigationTask}
                         contestants={this.props.contestants}
@@ -275,6 +281,7 @@ export class ConnectedNavigationTask extends Component {
             return <div>
                 {routeRenderer}
                 {prohibitedRender}
+                {freeWaypointRenderer}
                 {mapDisplay}
                 {tableDisplay}
             </div>

@@ -26,10 +26,10 @@ class GatekeeperPoker(Gatekeeper):
         super().__init__(contestant, score_processing_queue, calculators)
         logger.info(f"Starting the GatekeeperPoker for contestant {self.contestant}")
         self.gate_polygons = []
-        waypoint = self.contestant.navigation_task.route.waypoints[0]
+        waypoint = self.contestant.route.waypoints[0]
         self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
-        self.waypoint_names = [gate.name for gate in self.contestant.navigation_task.route.waypoints]
-        gates = self.contestant.navigation_task.route.prohibited_set.filter(type="gate")
+        self.waypoint_names = [gate.name for gate in self.contestant.route.waypoints]
+        gates = self.contestant.route.prohibited_set.filter(type="gate")
         for gate in gates:
             self.gate_polygons.append((gate.name, self.polygon_helper.build_polygon(gate.path)))
         # Sort list of polygons according to list of waypoint names

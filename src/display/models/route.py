@@ -21,16 +21,27 @@ class Route(models.Model):
     takeoff_gates = MyPickledObjectField(default=list, null=False)
     landing_gates = MyPickledObjectField(default=list, null=False)
 
-    def create_copy(self) -> "Route":
-        return Route.objects.create(
-            name=self.name,
-            use_procedure_turns=self.use_procedure_turns,
-            rounded_corners=self.rounded_corners,
-            corridor_width=self.corridor_width,
-            waypoints=self.waypoints,
-            takeoff_gates=self.takeoff_gates,
-            landing_gates=self.landing_gates,
-        )
+    def deep_copy(self) -> "Route":
+        clone = Route.objects.get(pk=self.pk)
+        clone.pk = None
+        clone.id = None
+        clone.save()
+        for prohibited in self.prohibited_set.all():
+            prohibited.pk = None
+            prohibited.id = None
+            prohibited.route = clone
+            prohibited.save()
+        for photo in self.photo_set.all():
+            photo.pk = None
+            photo.id = None
+            photo.route = clone
+            photo.save()
+        for free_waypoint in self.freewaypoint_set.all():
+            free_waypoint.pk = None
+            free_waypoint.id = None
+            free_waypoint.route = clone
+            free_waypoint.save()
+        return clone
 
     def get_extent(self) -> tuple[float, float, float, float]:
         """
@@ -40,21 +51,24 @@ class Route(models.Model):
         """
         latitudes = []
         longitudes = []
-        for waypoint in self.waypoints:  # type: Waypoint
+        waypoint: Waypoint
+        for waypoint in self.waypoints:
             latitudes.append(waypoint.latitude)
             longitudes.append(waypoint.longitude)
             latitudes.append(waypoint.gate_line[0][0])
             latitudes.append(waypoint.gate_line[1][0])
             longitudes.append(waypoint.gate_line[0][1])
             longitudes.append(waypoint.gate_line[1][1])
-            if waypoint.left_corridor_line is not None:
-                latitudes.extend([item[0] for item in waypoint.left_corridor_line])
-                longitudes.extend([item[1] for item in waypoint.left_corridor_line])
-                latitudes.extend([item[0] for item in waypoint.right_corridor_line])
-                longitudes.extend([item[1] for item in waypoint.right_corridor_line])
+            latitudes.extend([item[0] for item in waypoint.left_corridor_line])
+            longitudes.extend([item[1] for item in waypoint.left_corridor_line])
+            latitudes.extend([item[0] for item in waypoint.right_corridor_line])
+            longitudes.extend([item[1] for item in waypoint.right_corridor_line])
         for prohibited in self.prohibited_set.all():
             latitudes.extend([item[0] for item in prohibited.path])
             longitudes.extend([item[1] for item in prohibited.path])
+        for free in self.freewaypoint_set.all():
+            latitudes.append(free.latitude)
+            longitudes.append(free.longitude)
         return min(latitudes), max(latitudes), min(longitudes), max(longitudes)
 
     @property
@@ -140,3 +154,16 @@ class Photo(models.Model):
                 self._leg = result[0]
                 self.save(update_fields=["_leg"])
         return self._leg
+
+
+class FreeWaypoint(models.Model):
+    class WaypointType(models.IntegerChoices):
+        WAYPOINT = 1
+        CIRCLE_START = 2
+        CIRCLE_CENTER = 3
+
+    name = models.CharField(max_length=200)
+    route = models.ForeignKey(Route, on_delete=models.CASCADE)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    waypoint_type = models.IntegerField(choices=WaypointType)

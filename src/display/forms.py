@@ -468,10 +468,13 @@ class ContestantForm(forms.ModelForm):
         self.fields["wind_speed"].initial = self.navigation_task.wind_speed
         self.fields["wind_direction"].initial = self.navigation_task.wind_direction
         self.fields["wind_direction"].initial = self.navigation_task.wind_direction
+        self.fields["minutes_to_starting_point"].initial = self.navigation_task.minutes_to_starting_point
+        self.fields["navigation_task"].initial = self.navigation_task
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset(
                 "Contestant",
+                "navigation_task",
                 "contestant_number",
                 "team",
                 "takeoff_time",
@@ -498,6 +501,7 @@ class ContestantForm(forms.ModelForm):
 
     class Meta:
         model = Contestant
+        widgets = {"navigation_task": forms.HiddenInput()}
         fields = (
             "contestant_number",
             "team",
@@ -511,6 +515,7 @@ class ContestantForm(forms.ModelForm):
             "air_speed",
             "wind_direction",
             "wind_speed",
+            "navigation_task",
         )
 
 

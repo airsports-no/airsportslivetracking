@@ -21,7 +21,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         waypoint = Waypoint("")
         waypoint.latitude = 60
         waypoint.longitude = 11
-        self.contestant.navigation_task.route.waypoints = [waypoint]
+        self.contestant.route.waypoints = [waypoint]
         self.calculator = ProhibitedZoneCalculator(self.contestant, get_default_scorecard(), [], self.route, Mock())
         self.calculator.update_score = Mock()
 

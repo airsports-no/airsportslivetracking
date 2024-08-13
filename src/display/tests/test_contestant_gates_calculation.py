@@ -56,7 +56,7 @@ class TestContestantGatesCalculation(TestCase):
 
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     def test_gate_times(self, p):
-        gate_times = self.contestant.gate_times
+        gate_times = self.contestant.absolute_gate_times
         expected_times = [
             ("SP", 8, 11, 0),
             ("SC 1/1", 8, 12, 44),

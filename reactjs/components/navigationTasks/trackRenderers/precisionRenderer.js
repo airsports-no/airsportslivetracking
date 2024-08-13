@@ -4,17 +4,19 @@ import GenericRenderer from "./genericRenderer";
 
 export default class PrecisionRenderer extends GenericRenderer {
     renderRoute() {
+        const localRoute=this.props.currentHighlightedContestant?this.props.contestants[this.props.currentHighlightedContestant].route:this.props.navigationTask.route
         for (const line of this.lines) {
             line.removeFrom(this.props.map)
         }
         this.lines = []
-        this.props.navigationTask.route.waypoints.filter((waypoint) => {
+        localRoute.waypoints.filter((waypoint) => {
             return waypoint.type === 'sp' && waypoint.gate_line_extended
         }).map((gate) => {
-            polyline([[gate.gate_line_extended[0][0], gate.gate_line_extended[0][1]], [gate.gate_line_extended[1][0], gate.gate_line_extended[1][1]]], {
+            const extendedGate=polyline([[gate.gate_line_extended[0][0], gate.gate_line_extended[0][1]], [gate.gate_line_extended[1][0], gate.gate_line_extended[1][1]]], {
                 color: "blue",
                 dashArray: "4 8"
             }).addTo(this.props.map)
+            this.lines.push(extendedGate)
         })
         this.filterWaypoints().map((gate) => {
             this.lines.push(polyline([[gate.gate_line[0][0], gate.gate_line[0][1]], [gate.gate_line[1][0], gate.gate_line[1][1]]], {
@@ -27,7 +29,7 @@ export default class PrecisionRenderer extends GenericRenderer {
         let dummyLegs = []
         let currentDummy = []
         let previousWaypoint = null
-        for (const waypoint of this.props.navigationTask.route.waypoints) {
+        for (const waypoint of localRoute.waypoints) {
             if (waypoint.type === 'isp') {
                 tracks.push(currentTrack)
                 currentTrack = []

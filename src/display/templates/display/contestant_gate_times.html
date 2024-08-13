@@ -15,8 +15,8 @@
             <th>Log</th>
         </tr>
         </thead>
-        {% with gate_times=object.gate_times %}
-            {% for takeoff_gate in object.navigation_task.route.takeoff_gates %}
+        {% with gate_times=object.absolute_gate_times %}
+            {% for takeoff_gate in object.route.takeoff_gates %}
                 <tr>
                     <td>{{ takeoff_gate.name }}</td>
                 <td></td>
@@ -38,7 +38,7 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% for gate in object.navigation_task.route.waypoints %}
+            {% for gate in object.route.waypoints %}
                 <tr>
                     <td>{{ gate.name }}</td>
                     <td>{{ gate.distance_previous|stringformat:".2f" }} m</td>
@@ -59,7 +59,7 @@
                     </td>
                 </tr>
             {% endfor %}
-            {% for landing_gate in object.navigation_task.route.landing_gates %}
+            {% for landing_gate in object.route.landing_gates %}
                 <tr>
                     <td>{{ landing_gate.name }}</td>
                 <td>

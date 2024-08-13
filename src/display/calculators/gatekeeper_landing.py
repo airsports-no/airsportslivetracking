@@ -33,10 +33,10 @@ class GatekeeperLanding(Gatekeeper):
             [
                 Gate(
                     landing_gate,
-                    self.contestant.gate_times[landing_gate.name],
+                    self.contestant.absolute_gate_times[landing_gate.name],
                     calculate_extended_gate(landing_gate, self.contestant.navigation_task.scorecard),
                 )
-                for landing_gate in self.contestant.navigation_task.route.landing_gates
+                for landing_gate in self.contestant.route.landing_gates
             ]
         )
         self.projector = Projector(self.landing_gate.gates[0].latitude, self.landing_gate.gates[0].longitude)
@@ -46,7 +46,7 @@ class GatekeeperLanding(Gatekeeper):
                     self.contestant,
                     self.contestant.navigation_task.scorecard,
                     self.gates,
-                    self.contestant.navigation_task.route,
+                    self.contestant.route,
                     self.update_score,
                 )
             )

@@ -60,10 +60,11 @@ class GatekeeperRoute(Gatekeeper):
         """
         Calculate expected crossing times for all outstanding gates given the start time.
         """
-        gate_times = self.contestant.calculate_missing_gate_times({}, start_time)
-        self.contestant.gate_times = gate_times
-        logger.info(f"Recalculating gates times for contestant {self.contestant}: {self.contestant.gate_times}")
-        for item in self.outstanding_gates:  # type: Gate
+        self.contestant.minutes_to_starting_point = (start_time - self.contestant.takeoff_time).total_seconds() / 60
+        gate_times = self.contestant.absolute_gate_times
+        logger.info(f"Recalculating gates times for contestant {self.contestant}: {gate_times}")
+        item: Gate
+        for item in self.outstanding_gates:
             item.expected_time = gate_times[item.name]
         if self.landing_gate is not None:
             self.landing_gate.set_expected_time(gate_times[self.landing_gate.name])

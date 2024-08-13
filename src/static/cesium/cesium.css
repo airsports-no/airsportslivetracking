@@ -32,6 +32,10 @@ body {
     text-decoration: underline;
 }
 
+.highlightRow{
+    background-color: red;
+}
+
 .globalMapBackdrop {
     transform-origin: top left;
     left: 10px;

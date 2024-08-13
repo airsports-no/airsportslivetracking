@@ -80,7 +80,7 @@ class PlayingCard(models.Model):
 
         relative_score, hand_description = cls.get_relative_score(contestant)
         try:
-            waypoint = contestant.navigation_task.route.waypoints[-1].name
+            waypoint = contestant.route.waypoints[-1].name
         except IndexError:
             waypoint = ""
         message = "Removed card all cards"
@@ -111,7 +111,7 @@ class PlayingCard(models.Model):
         if card is not None:
             card.delete()
             relative_score, hand_description = cls.get_relative_score(contestant)
-            waypoint = contestant.navigation_task.route.waypoints[-1].name
+            waypoint = contestant.route.waypoints[-1].name
             message = "Removed card {}, current hand is {}".format(card.get_card_display(), hand_description)
             ScoreLogEntry.create_and_push(
                 contestant=contestant,
