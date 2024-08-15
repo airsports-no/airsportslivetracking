@@ -217,7 +217,7 @@ def push_test_change(sender, instance: TaskTest, **kwargs):
 @receiver(post_save, sender=Contestant)
 def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs):
     ContestantTrack.objects.get_or_create(
-        contestant=instance, defaults={"score": instance.navigation_task.scorecard.initial_score}
+        contestant=instance, defaults={"score": instance.navigation_task.scorecard.get_initial_score(instance.route)}
     )
     from websocket_channels import WebsocketFacade
 
@@ -297,10 +297,10 @@ def prevent_change_scorecard(sender, instance: NavigationTask, **kwargs):
 @receiver(pre_save, sender=Scorecard)
 def update_contestant_initial_score(sender, instance: Scorecard, **kwargs):
     if instance.pk is not None:
-        existing_initial_score = Scorecard.objects.get(pk=instance.pk).initial_score
-        difference = instance.initial_score - existing_initial_score
-        if difference != 0 and hasattr(instance, "navigation_task_override"):
+        if hasattr(instance, "navigation_task_override"):
             for contestant in instance.navigation_task_override.contestant_set.all():
+                existing_initial_score = Scorecard.objects.get(pk=instance.pk).get_initial_score(contestant.route)
+                difference = instance.get_initial_score(contestant.route) - existing_initial_score
                 contestant.contestanttrack.increment_score(difference)
 
 

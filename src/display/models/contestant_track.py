@@ -21,7 +21,7 @@ class ContestantTrack(models.Model):
     calculator_started = models.BooleanField(default=False)
 
     def reset(self):
-        self.score = self.contestant.navigation_task.scorecard.initial_score
+        self.score = self.contestant.navigation_task.scorecard.get_initial_score(self.contestant.route)
         self.current_state = "Waiting..."
         self.current_leg = ""
         self.last_gate = ""
@@ -64,7 +64,12 @@ class ContestantTrack(models.Model):
                 entry, _ = TeamTestScore.objects.update_or_create(
                     team=self.contestant.team,
                     task_test=self.contestant.navigation_task.tasktest,
-                    defaults={"points": score},
+                    defaults={
+                        "points": self.contestant.navigation_task.scorecard.get_score_for_summary(
+                            self.score,
+                            self.contestant.navigation_task.scorecard.get_initial_score(self.contestant.route),
+                        )
+                    },
                 )
             self.__push_change()
 
@@ -80,7 +85,12 @@ class ContestantTrack(models.Model):
                 entry, _ = TeamTestScore.objects.update_or_create(
                     team=self.contestant.team,
                     task_test=self.contestant.navigation_task.tasktest,
-                    defaults={"points": self.score},
+                    defaults={
+                        "points": self.contestant.navigation_task.scorecard.get_score_for_summary(
+                            self.score,
+                            self.contestant.navigation_task.scorecard.get_initial_score(self.contestant.route),
+                        )
+                    },
                 )
             self.__push_change()
 

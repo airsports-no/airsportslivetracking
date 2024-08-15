@@ -6,9 +6,10 @@ from django.db import models
 from django.db.models import QuerySet
 
 from display.fields.my_pickled_object_field import MyPickledObjectField
+from display.models.route import Route
 from display.utilities.clone_object import simple_clone
-from display.utilities.gate_definitions import GATE_TYPES
-from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES, PRECISION
+from display.utilities.gate_definitions import FINISHPOINT, GATE_TYPES, SECRETPOINT, STARTINGPOINT, TURNPOINT
+from display.utilities.navigation_task_type_definitions import CIMA_PRECISION, NAVIGATION_TASK_TYPES, PRECISION
 
 
 class Scorecard(models.Model):
@@ -47,8 +48,9 @@ class Scorecard(models.Model):
     )
     task_type = MyPickledObjectField(default=list, help_text="List of task types supported by the scorecard")
     initial_score = models.FloatField(
-        default=0,
-        help_text="Initial score awarded to the contestant it start. This is typically 0, but if the penalties are negative, this can be set to some positive initial value.",
+        null=True,
+        blank=True,
+        help_text="Initial score awarded to the contestant it start. If set this will be used for the initial score for each contestant. If it is unset, the initial score will be calculated based on the chosen scorecard. This is typically 0 for most scorecards, and greater than 0 for CIMA scorecards.",
     )
     use_procedure_turns = models.BooleanField(default=True, blank=True)
     backtracking_penalty = models.FloatField(default=200, help_text="The number of points given for backtracking")
@@ -100,6 +102,40 @@ class Scorecard(models.Model):
 
     class Meta:
         ordering = ("-valid_from",)
+
+    def _max_score_for_type(self, route: Route, waypoint_type: str):
+        """Helper function to find the maximum score possible for a gate"""
+        gate_score = self.gatescore_set.get(gate_type=waypoint_type)
+        # A timed gate either has the maximum timing penalty if it is hit, or the miss penalty if it is missed. The
+        # maximum penalty for this gate is therefore the maximum of these two.
+        return abs(
+            max(gate_score.maximum_penalty, gate_score.missed_penalty)
+            * len(list(filter(lambda w: w.type == waypoint_type and w.time_check, route.waypoints)))
+        ) + abs(
+            gate_score.missed_penalty
+            * len(
+                list(filter(lambda w: w.type == waypoint_type and not w.time_check and w.gate_check, route.waypoints))
+            )
+        )
+
+    def get_initial_score(self, route: Route) -> float:
+        """Calculate the initial score for a route"""
+        if self.initial_score is not None:
+            return self.initial_score
+        if self.calculator == CIMA_PRECISION:
+            score = 0
+            score += self._max_score_for_type(route, SECRETPOINT)
+            score += self._max_score_for_type(route, TURNPOINT)
+            score += self._max_score_for_type(route, STARTINGPOINT)
+            score += self._max_score_for_type(route, FINISHPOINT)
+            return score
+        return 0
+
+    def get_score_for_summary(self, score: float, initial_score: float) -> float:
+        """Apply any final score scaling for use in the results service"""
+        if self.calculator == CIMA_PRECISION:
+            return 1000 * score / initial_score
+        return score
 
     @property
     def visible_fields(self) -> list[str]:
@@ -277,6 +313,7 @@ class GateScore(models.Model):
     maximum_penalty = models.FloatField(default=100)
     penalty_per_second = models.FloatField(default=2)
     missed_penalty = models.FloatField(default=100)
+    hit_bonus = models.FloatField(default=0)
     bad_course_crossing_penalty = models.FloatField(default=0)
     missed_procedure_turn_penalty = models.FloatField(default=200)
     backtracking_after_steep_gate_grace_period_seconds = models.FloatField(default=0)

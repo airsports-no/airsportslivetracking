@@ -3,6 +3,7 @@ The results service system is quite disconnected from the navigation task. The t
 module are generic elements used to describe any specific test that should be scored, e.g. a landing, an observation 
 test, et cetera. The score is connected directly to the teams that have signed up to the contest.
 """
+
 from typing import Optional
 
 from django.db import models

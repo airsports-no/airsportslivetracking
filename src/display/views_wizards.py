@@ -42,6 +42,7 @@ from display.models import (
     ContestTeam,
 )
 from display.utilities.navigation_task_type_definitions import (
+    CIMA_PRECISION,
     PRECISION,
     POKER,
     ANR_CORRIDOR,
@@ -58,6 +59,7 @@ def show_precision_path(wizard) -> bool:
     """
     return (wizard.get_cleaned_data_for_step("task_type") or {}).get("task_type") in (
         PRECISION,
+        CIMA_PRECISION,
         POKER,
     )
 
@@ -183,7 +185,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
         editable_route = None
         route = None
-        if task_type in (PRECISION, POKER):
+        if task_type in (PRECISION, POKER, CIMA_PRECISION):
             initial_step_data = self.get_cleaned_data_for_step("precision_route_import")
             use_procedure_turns = self.get_cleaned_data_for_step("task_content")[
                 "original_scorecard"

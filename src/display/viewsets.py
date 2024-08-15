@@ -1019,6 +1019,9 @@ class ContestantViewSet(ModelViewSet):
                 i["waypoint_name"]: datetime.timedelta(seconds=i["waypoint_time"])
                 for i in filter(lambda k: "waypoint_time" in k, serialiser.data)
             }
+            contestant.contestanttrack.update_score(
+                contestant.navigation_task.scorecard.get_initial_score(contestant.route)
+            )
             contestant.save()
             if route:
                 route.delete()

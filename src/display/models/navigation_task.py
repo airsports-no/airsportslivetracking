@@ -249,10 +249,19 @@ class NavigationTask(models.Model):
         :force: If true, override scorecard. Otherwise only overwrite if it does not already exist
         """
         if not self.scorecard or force:
+            existing_scorecard = self.scorecard
             if self.scorecard:
                 self.scorecard.delete()
             self.scorecard = self.original_scorecard.copy(self.pk)
             self.save(update_fields=("scorecard",))
+            if existing_scorecard:
+                for contestant in self.contestant_set.all():
+                    existing_initial_score = self.scorecard.get_initial_score(contestant.route)
+                    difference = self.scorecard.get_initial_score(contestant.route) - existing_initial_score
+                    contestant.contestanttrack.increment_score(difference)
+            else:
+                for contestant in self.contestant_set.all():
+                    contestant.contestanttrack.increment_score(self.scorecard.get_initial_score(contestant.route))
 
     def refresh_editable_route(self):
         """

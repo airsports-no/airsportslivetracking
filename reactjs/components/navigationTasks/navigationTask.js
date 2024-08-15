@@ -226,7 +226,7 @@ export class ConnectedNavigationTask extends Component {
             let prohibitedRender = null;
             let freeWaypointRenderer = null
             if (this.props.navigationTask.scorecard !== undefined) {
-                if (this.props.navigationTask.scorecard.task_type.includes("precision") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
+                if (this.props.navigationTask.scorecard.task_type.includes("precision") || this.props.navigationTask.scorecard.task_type.includes("cima_precision") || this.props.navigationTask.scorecard.task_type.includes("poker")) {
                     routeRenderer = <PrecisionRenderer map={this.map} navigationTask={this.props.navigationTask}
                         contestants={this.props.contestants}
                         currentHighlightedContestant={this.props.displayTracks && this.props.displayTracks.length === 1 ? this.props.displayTracks[0] : null}

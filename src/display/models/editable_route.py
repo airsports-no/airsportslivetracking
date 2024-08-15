@@ -25,6 +25,7 @@ from display.utilities.editable_route_utilities import (
 )
 from display.utilities.gate_definitions import DUMMY, TURNPOINT, UNKNOWN_LEG, STARTINGPOINT, FINISHPOINT
 from display.utilities.navigation_task_type_definitions import (
+    CIMA_PRECISION,
     NAVIGATION_TASK_TYPES,
     PRECISION,
     POKER,
@@ -575,7 +576,7 @@ class EditableRoute(models.Model):
     def create_route(
         self, task_type: str, scorecard: "Scorecard", rounded_corners: bool, corridor_width: float
     ) -> "Route":
-        if task_type in (PRECISION, POKER):
+        if task_type in (PRECISION, POKER, CIMA_PRECISION):
             use_procedure_turns = scorecard.use_procedure_turns
             route = self.create_precision_route(use_procedure_turns, scorecard)
         elif task_type == ANR_CORRIDOR:

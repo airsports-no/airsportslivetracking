@@ -11,6 +11,7 @@ from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalcula
 
 from display.models import Contestant, NavigationTask
 from display.utilities.navigation_task_type_definitions import (
+    CIMA_PRECISION,
     PRECISION,
     POKER,
     ANR_CORRIDOR,
@@ -21,7 +22,7 @@ from display.utilities.navigation_task_type_definitions import (
 
 
 def calculator_factory(contestant: "Contestant", score_processing_queue: Queue) -> "Gatekeeper":
-    if contestant.navigation_task.scorecard.calculator == PRECISION:
+    if contestant.navigation_task.scorecard.calculator in (PRECISION, CIMA_PRECISION):
         return GatekeeperRoute(
             contestant,
             score_processing_queue,

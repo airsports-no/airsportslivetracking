@@ -84,7 +84,9 @@ class ContestantProcessor:
         self.previous_position = None
         self.track_terminated = False
         self.contestant_track: ContestantTrack = contestant.contestanttrack
-        self.contestant_track.update_score(self.contestant.navigation_task.scorecard.initial_score)
+        self.contestant_track.update_score(
+            self.contestant.navigation_task.scorecard.get_initial_score(contestant.route)
+        )
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.score_processing_queue = Queue()
         self.last_termination_command_check = None
