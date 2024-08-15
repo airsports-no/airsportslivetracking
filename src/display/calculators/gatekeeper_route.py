@@ -103,7 +103,7 @@ class GatekeeperRoute(Gatekeeper):
             last_time = self.track[-1].time
             index = len(self.track) - 1
             for index in range(len(self.track) - 1, -1, -1):
-                if self.track[index].speed < 10:
+                if self.track[index].speed < 5 and len(self.track) - index > 60:
                     if (last_time - self.track[index].time).total_seconds() >= 60:
                         return True
                 else:
