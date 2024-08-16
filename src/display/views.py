@@ -2101,3 +2101,11 @@ def firebase_token_login(request):
     except drf_exceptions.AuthenticationFailed as e:
         messages.error(request, f"Login failed: {e}")
     return redirect("/")
+
+
+def fly_master_data_post(request):
+    if request.method == "POST":
+        logger.debug(f"Received post from Flymaster with files {request.FILES} and post {request.POST}")
+    else:
+        logger.debug(f"Received {request.method} from Flymaster with files {request.FILES} and post {request.POST}")
+    return HttpResponse()

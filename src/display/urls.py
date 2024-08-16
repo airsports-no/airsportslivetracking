@@ -1,6 +1,7 @@
 from django.urls import path
 
 from display.views import (
+    fly_master_data_post,
     frontend_view_map,
     renew_token,
     NavigationTaskDetailView,
@@ -85,6 +86,7 @@ from display.views import (
 from display.views_wizards import NewNavigationTaskWizard, RouteToTaskWizard, RegisterTeamWizard
 
 urlpatterns = [
+    path("flymaster/", fly_master_data_post, name="flymaster_post"),
     path("healthz/", healthz),
     path("readyz/", readyz),
     path("statistics/", StatisticsView.as_view(), name="statistics"),
@@ -196,9 +198,7 @@ urlpatterns = [
         add_contest_teams_to_navigation_task,
         name="navigationtask_addcontestants",
     ),
-    path(
-        "navigationtask/<int:pk>/remove_contestants/", clear_contestants, name="navigationtask_removecontestants"
-    ),
+    path("navigationtask/<int:pk>/remove_contestants/", clear_contestants, name="navigationtask_removecontestants"),
     path(
         "navigationtask/<int:pk>/contestants_timeline/",
         render_contestants_timeline,
