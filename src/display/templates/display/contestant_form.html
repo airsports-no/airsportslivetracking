@@ -10,10 +10,7 @@
     {% endif %}
     {{ form.media }}
     Contest time zone is {{ navigation_task.contest.time_zone }}
-    <form method="post" class="form">
-        {% csrf_token %}
         {% crispy form %}
-    </form>
     <script type="text/javascript">
         Date.prototype.addHours = function(h) {
             this.setTime(this.getTime() + (h*60*60*1000));
@@ -29,6 +26,12 @@
         const trackingStart = document.getElementById("id_tracker_start_time");
         const finishedByTime=document.getElementById('id_finished_by_time')
         const teamSelector=document.getElementById("id_team")
+
+        const trackingServiceSelector=document.getElementById("id_tracking_service")
+
+        const trackingDeviceSelector=document.getElementById("id_tracking_device")
+        const trackerDeviceId=document.getElementById("id_tracker_device_id")
+        const trackerDeviceIdGroup=document.getElementById("div_id_tracker_device_id")
 
         
 
@@ -53,15 +56,54 @@
 
         async function updateAirspeed(event){
             const selectedTeam=teamSelector.value
-            const response=await fetch("/api/v1/contests/"+{{ navigation_task.contest.id }}+"/contest_team_for_team/"+selectedTeam+"/",{method: "GET"})
+            const response=await fetch("/api/v1/contests/"+{{ object.navigation_task.contest.id }}+"/contest_team_for_team/"+selectedTeam+"/",{method: "GET"})
             if(response.ok){
                 const data=await response.json()
                 document.getElementById("id_air_speed").value=data.air_speed
             }
         }
 
-        teamSelector.addEventListener("change",updateAirspeed)
+        function maybeDisableTrackingDeviceOptions(){
+            document.querySelectorAll("#id_tracking_device option").forEach(opt => {
+                if (opt.value != "device") {
+                    opt.disabled = true;
+                }
+            });
 
+        }
+
+        async function changedTrackingService(event){
+            if(trackingServiceSelector.value==='flymaster'){
+                trackingDeviceSelector.value='device'
+                changedTrackingDevice()
+                maybeDisableTrackingDeviceOptions()
+            }else{
+                trackingDeviceSelector.value='pilot_app_or_copilot_a[['
+                document.querySelectorAll("#id_tracking_device option").forEach(opt => {
+                        opt.disabled = false;
+                });
+                changedTrackingDevice()
+            }
+        }
+
+        async function changedTrackingDevice(event){
+            if(trackingDeviceSelector.value==='device'){
+                trackerDeviceId.required=true
+                trackerDeviceIdGroup.style.display=''
+
+            }else{
+                trackerDeviceId.required=false
+                trackerDeviceId.value=''
+                trackerDeviceIdGroup.style.display='none'
+            }
+        }
+
+        teamSelector.addEventListener("change",updateAirspeed)
+        trackingDeviceSelector.addEventListener("change",changedTrackingDevice)
+        trackingServiceSelector.addEventListener("change",changedTrackingService)
+        
+        changedTrackingDevice()
+        maybeDisableTrackingDeviceOptions()
         {% if object.adaptive_start %}
             trackingStart.readOnly = adaptiveStart.checked;
         {% endif %}
