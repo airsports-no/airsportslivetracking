@@ -1,5 +1,11 @@
-TRACCAR = "traccar"
-TRACKING_SERVICES = ((TRACCAR, "Traccar"),)
+from django.db import models
+
+
+class TrackingService(models.TextChoices):
+    TRACCAR = "traccar", "Airsports"
+    FLY_MASTER = "flymaster", "Flymaster"
+
+
 TRACKING_DEVICE = "device"
 TRACKING_PILOT = "pilot_app"
 TRACKING_COPILOT = "copilot_app"

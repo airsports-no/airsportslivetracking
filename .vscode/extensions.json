@@ -4,6 +4,7 @@
         "ms-azuretools.vscode-docker",
         "ms-python.vscode-pylance",
         "ms-python.python",
-        "ms-python.pylint"
+        "ms-python.pylint",
+        "mechatroner.rainbow-csv"
     ]
 }

@@ -20,6 +20,7 @@ from urllib3.exceptions import ProtocolError
 from display.utilities.calculator_running_utilities import is_calculator_running, calculator_is_alive
 from display.utilities.calculator_termination_utilities import is_termination_requested
 from display.kubernetes_calculator.job_creator import JobCreator, AlreadyExists
+from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map import settings
 from redis_queue import RedisQueue
 
@@ -70,7 +71,9 @@ def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> 
         if valid_to < device_time:
             raise KeyError
     except KeyError:
-        contestant, is_simulator = Contestant.get_contestant_for_device_at_time(device_name, device_time)
+        contestant, is_simulator = Contestant.get_contestant_for_device_at_time(
+            TrackingService.TRACCAR, device_name, device_time
+        )
         if contestant:
             logger.info(f"Found contestant for incoming position {contestant}{' (simulator)' if is_simulator else ''}")
             if is_simulator and not contestant.has_been_tracked_by_simulator:
@@ -83,9 +86,11 @@ def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> 
             device_time
             + min(
                 datetime.timedelta(seconds=CACHE_TTL),
-                contestant.finished_by_time - device_time
-                if contestant is not None
-                else datetime.timedelta(seconds=CACHE_TTL),
+                (
+                    contestant.finished_by_time - device_time
+                    if contestant is not None
+                    else datetime.timedelta(seconds=CACHE_TTL)
+                ),
             ),
         )
     if contestant and contestant.is_currently_tracked_by_device(device_name):

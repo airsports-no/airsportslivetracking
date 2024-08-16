@@ -488,6 +488,7 @@ class ContestantForm(forms.ModelForm):
                     "automatically to ten minutes prior to the takeoff time with an assumed flight time of maximum two hours with "
                     "fixed start and five hours with adaptive start. Overwrite this as necessary."
                 ),
+                "tracking_service",
                 "tracking_device",
                 "tracker_device_id",
                 "tracker_start_time",
@@ -501,6 +502,7 @@ class ContestantForm(forms.ModelForm):
         fields = (
             "contestant_number",
             "team",
+            "tracking_service",
             "tracking_device",
             "tracker_device_id",
             "takeoff_time",

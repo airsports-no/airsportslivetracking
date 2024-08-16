@@ -115,6 +115,7 @@ from display.models import (
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.tasks import (
     import_gpx_track,
+    process_flymaster_file,
     revert_gpx_track_to_traccar,
 )
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
@@ -2098,7 +2099,7 @@ def firebase_token_login(request):
     firebase_authenticator = FirebaseAuthentication()
     try:
         user, decoded_token = firebase_authenticator.authenticate_credentials(token)
-        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+        login(request, user, backend="django.contrib.auth.ba5ckends.ModelBackend")
     except drf_exceptions.AuthenticationFailed as e:
         messages.error(request, f"Login failed: {e}")
     return redirect("/")
@@ -2106,8 +2107,8 @@ def firebase_token_login(request):
 
 @csrf_exempt
 def fly_master_data_post(request):
+    logger.debug(f"Received {request.method} from Flymaster with files {request.FILES} and post {request.POST}")
     if request.method == "POST":
-        logger.debug(f"Received post from Flymaster with files {request.FILES} and post {request.POST}")
-    else:
-        logger.debug(f"Received {request.method} from Flymaster with files {request.FILES} and post {request.POST}")
-    return HttpResponse()
+        data = request.POST["data"]
+        process_flymaster_file.apply_async((data,))
+    return HttpResponse("OK", status=status.HTTP_200_OK)

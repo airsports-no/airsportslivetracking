@@ -25,7 +25,6 @@ from display.models import (
     Route,
     NavigationTask,
     FlightOrderConfiguration,
-    TRACCAR,
     TRACKING_DEVICE,
     Person,
     MyUser,
@@ -33,6 +32,7 @@ from display.models import (
 )
 from display.models.scorecard_and_gate_score import Scorecard
 from display.utilities.traccar_factory import get_traccar_instance
+from display.utilities.tracking_definitions import TrackingService
 
 logger = logging.getLogger(__name__)
 
@@ -331,7 +331,7 @@ def clear_navigation_task_results_service_test(sender, instance: NavigationTask,
 @receiver(post_save, sender=Contestant)
 def create_tracker_in_traccar(sender, instance: Contestant, **kwargs):
     if (
-        instance.tracking_service == TRACCAR
+        instance.tracking_service == TrackingService.TRACCAR
         and instance.tracker_device_id
         and len(instance.tracker_device_id) > 0
         and instance.tracking_device == TRACKING_DEVICE

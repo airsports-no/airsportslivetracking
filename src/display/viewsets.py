@@ -104,6 +104,7 @@ from display.serialisers import (
     ContestantNestedTeamSerialiser,
 )
 from display.utilities.show_slug_choices import ShowChoicesMetadata
+from display.utilities.tracking_definitions import TrackingService
 from websocket_channels import WebsocketFacade, generate_contestant_data_block
 
 logger = logging.getLogger(__name__)
@@ -194,7 +195,7 @@ class UserPersonViewSet(GenericViewSet):
     def get_current_sim_navigation_task(self, request, *args, **kwargs):
         person = self.get_object()
         contestant, _ = Contestant.get_contestant_for_device_at_time(
-            person.simulator_tracking_id, datetime.datetime.now(datetime.timezone.utc)
+            TrackingService.TRACCAR, person.simulator_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
         if not contestant:
             raise Http404
@@ -204,7 +205,7 @@ class UserPersonViewSet(GenericViewSet):
     def get_current_app_navigation_task(self, request, *args, **kwargs):
         person = self.get_object()
         contestant, _ = Contestant.get_contestant_for_device_at_time(
-            person.simulator_tracking_id, datetime.datetime.now(datetime.timezone.utc)
+            TrackingService.TRACCAR, person.simulator_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
         if not contestant:
             raise Http404

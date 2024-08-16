@@ -32,13 +32,12 @@ from display.utilities.navigation_task_type_definitions import (
 from display.utilities.traccar_factory import get_traccar_instance
 from display.utilities.track_merger import merge_tracks
 from display.utilities.tracking_definitions import (
-    TRACCAR,
-    TRACKING_SERVICES,
     TRACKING_PILOT_AND_COPILOT,
     TRACKING_DEVICES,
     TRACKING_DEVICE,
     TRACKING_COPILOT,
     TRACKING_PILOT,
+    TrackingService,
 )
 from display.utilities.wind_utilities import calculate_ground_speed_combined
 from traccar_facade import augment_positions_from_traccar
@@ -85,10 +84,10 @@ class Contestant(models.Model):
         help_text="A unique number for the contestant in this navigation task"
     )
     tracking_service = models.CharField(
-        default=TRACCAR,
-        choices=TRACKING_SERVICES,
+        default=TrackingService.TRACCAR,
+        choices=TrackingService,
         max_length=30,
-        help_text="Supported tracking services: {}".format(TRACKING_SERVICES),
+        help_text="Supported tracking services: {}".format(TrackingService),
     )
     tracking_device = models.CharField(
         default=TRACKING_PILOT_AND_COPILOT,
@@ -239,7 +238,7 @@ class Contestant(models.Model):
 
     def save(self, **kwargs):
         self.tracker_device_id = self.tracker_device_id.strip() if self.tracker_device_id else ""
-        if self.tracking_service == TRACCAR:
+        if self.tracking_service == TrackingService.TRACCAR:
             traccar = get_traccar_instance()
             traccar.get_or_create_device(self.tracker_device_id, self.tracker_device_id)
         super().save(**kwargs)
@@ -688,13 +687,13 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     @classmethod
     def get_contestant_for_device_at_time(
-        cls, device: str, stamp: datetime.datetime
+        cls, tracking_service: TrackingService, device: str, stamp: datetime.datetime
     ) -> tuple[Optional["Contestant"], bool]:
         """
         Retrieves the contestant that owns the tracking device for the time stamp. Returns an extra flag "is_simulator"
         which is true if the contestant is running the simulator tracking ID.
         """
-        contestant, is_simulator = cls._try_to_get_tracker_tracking(device, stamp)
+        contestant, is_simulator = cls._try_to_get_tracker_tracking(tracking_service, device, stamp)
         if contestant is None:
             contestant, is_simulator = cls._try_to_get_pilot_tracking(device, stamp)
             if contestant is None:
@@ -708,7 +707,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return None, is_simulator
 
     @classmethod
-    def _try_to_get_tracker_tracking(cls, device: str, stamp: datetime.datetime) -> tuple[Optional["Contestant"], bool]:
+    def _try_to_get_tracker_tracking(
+        cls, tracking_service: TrackingService, device: str, stamp: datetime.datetime
+    ) -> tuple[Optional["Contestant"], bool]:
         """
         Retrieve contestant that matches tracking device at time
         """

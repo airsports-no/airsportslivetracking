@@ -13,13 +13,12 @@ from timezone_field import TimeZoneField
 
 from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
 from display.utilities.tracking_definitions import (
-    TRACCAR,
-    TRACKING_SERVICES,
     TRACKING_PILOT_AND_COPILOT,
     TRACKING_DEVICES,
     TRACKING_DEVICE,
     TRACKING_COPILOT,
     TRACKING_PILOT,
+    TrackingService,
 )
 
 if typing.TYPE_CHECKING:
@@ -38,10 +37,10 @@ class ContestTeam(models.Model):
     team = models.ForeignKey("Team", on_delete=models.CASCADE)
     air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
     tracking_service = models.CharField(
-        default=TRACCAR,
-        choices=TRACKING_SERVICES,
+        default=TrackingService.TRACCAR,
+        choices=TrackingService,
         max_length=30,
-        help_text="Supported tracking services: {}".format(TRACKING_SERVICES),
+        help_text="Supported tracking services: {}".format(TrackingService),
     )
     tracking_device = models.CharField(
         default=TRACKING_PILOT_AND_COPILOT,

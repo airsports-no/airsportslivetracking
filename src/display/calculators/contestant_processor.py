@@ -11,6 +11,7 @@ from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_track import ContestantTrack
 from display.utilities.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
 from display.utilities.calculator_termination_utilities import is_termination_requested
+from display.utilities.tracking_definitions import TrackingService
 from redis_queue import RedisQueue, RedisEmpty
 from slack_facade import post_slack_competition_message
 from traccar_facade import augment_positions_from_traccar
@@ -172,7 +173,7 @@ class ContestantProcessor:
         CHECK_BUFFERED_DATA_TIME_LIMIT, check the traccar service to see if any data is available for the missing time
         interval and return this together with the last position.
         """
-        if self.previous_position is None:
+        if self.previous_position is None or self.contestant.tracking_service != TrackingService.TRACCAR:
             # If there is no previous data we are at the beginning, which means that we have already fetched whatever
             # is missing before this in the enqueue positions thread.
             return [position_data]
