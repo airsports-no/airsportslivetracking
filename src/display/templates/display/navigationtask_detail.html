@@ -182,10 +182,12 @@
                                 <a class="dropdown-item" href="{% url 'contestant_downloadgpxtrack' contestant.pk %}"
                                    title="Download the GPX track used for the current score calculation.">Download
                                     gpx</a>
+                                    {% if contestant.tracking_service != "flymaster" %}
                                 <a class="dropdown-item"
                                    href="{% url 'contestant_recalculatetraccartrack' contestant.pk %}"
                                    title="Recalculate original data that was received from the tracker (does not include any uploaded data). This will delete any uploaded tracks">Recalculate
                                     live track</a>
+                                    {% endif %}
                                 <a class="dropdown-item" href="{% url 'processingstatistics' contestant.pk %}"
                                    title="Retrieve figure with processing statistics for debug purposes">Processing
                                     statistics</a>
