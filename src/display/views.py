@@ -6,6 +6,7 @@ from io import BytesIO
 from typing import Dict, List
 
 from django.templatetags.static import static
+from django.views.decorators.csrf import csrf_exempt
 import gpxpy
 import zipfile
 from crispy_forms.layout import Fieldset
@@ -2103,6 +2104,7 @@ def firebase_token_login(request):
     return redirect("/")
 
 
+@csrf_exempt
 def fly_master_data_post(request):
     if request.method == "POST":
         logger.debug(f"Received post from Flymaster with files {request.FILES} and post {request.POST}")
