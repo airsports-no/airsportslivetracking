@@ -136,8 +136,8 @@ def delete_old_flight_orders():
 @app.task
 def process_flymaster_file(file_data: str):
     lines = file_data.split("\\n")
-    logger.info(lines[0])
     identifier, secret = lines[0].split(",")
+    logger.info(f"Received data for identifier {identifier}")
     contestant: Contestant | None = None
     positions = []
     for line in lines[1:-2]:
@@ -156,7 +156,7 @@ def process_flymaster_file(file_data: str):
                 "device_time": timestamp,
                 "latitude": float(latitude),
                 "longitude": float(longitude),
-                "altitude": float(altitude),
+                "altitude": float(altitude) * 3.281,  # metres to feet
                 "speed": float(speed) / 1.852,  # km/h to knots
                 "course": float(heading),
                 "attributes": {"battery_level": -1.0},

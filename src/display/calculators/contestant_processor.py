@@ -365,7 +365,7 @@ class ContestantProcessor:
         device_ids = self.traccar.get_device_ids_for_contestant(self.contestant)
         current_time = datetime.datetime.now(datetime.timezone.utc)
         device_positions = {}
-        if self.live_processing:
+        if self.live_processing and self.contestant.tracking_service == TrackingService.TRACCAR:
             # Fetch any earlier positions for the contestant to ensure that we start from the beginning.
             for device_id in device_ids:
                 positions = self.traccar.get_positions_for_device_id(
