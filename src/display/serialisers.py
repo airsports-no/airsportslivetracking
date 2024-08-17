@@ -146,10 +146,10 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     phone_country_prefix = ReadWriteSerializerMethodField()
 
     def get_phone_national_number(self, obj):
-        return str(obj.phone.national_number)
+        return str(obj.phone.national_number) if obj.phone is not None else ""
 
     def get_phone_country_prefix(self, obj):
-        return f"+{obj.phone.country_code}"
+        return f"+{obj.phone.country_code}" if obj.phone is not None else ""
 
     def create(self, validated_data):
         country_prefix = validated_data.pop("phone_country_prefix", None)
