@@ -13,4 +13,69 @@
         {{ wizard.management_form }}
         {% crispy wizard.form %}
     </form>
+
+    <script type="text/javascript">
+        const trackingServiceSelector=document.getElementById("id_tracking_service")
+        const trackingDeviceSelector=document.getElementById("id_tracking_device")
+        const trackerDeviceId=document.getElementById("id_tracker_device_id")
+        const trackerDeviceIdGroup=document.getElementById("div_id_tracker_device_id")
+
+        
+        function maybeDisableTrackingDeviceOptions(){
+            if(trackingServiceSelector.value==='flymaster'){
+            document.querySelectorAll("#id_tracking_device option").forEach(opt => {
+                if (opt.value != "device") {
+                    opt.disabled = true;
+                }
+            });
+        }else {
+            document.querySelectorAll("#id_tracking_device option").forEach(opt => {
+                        opt.disabled = false;
+                });
+        }
+
+        }
+
+        async function changedTrackingService(event){
+            if(trackingServiceSelector.value==='flymaster'){
+                trackingDeviceSelector.value='device'
+            }else{
+                trackingDeviceSelector.value='pilot_app_or_copilot_a[['
+            }
+            changedTrackingDevice()
+            maybeDisableTrackingDeviceOptions()
+        }
+
+        async function changedTrackingDevice(event){
+            if(trackingDeviceSelector.value==='device'){
+                trackerDeviceId.required=true
+                trackerDeviceIdGroup.style.display=''
+
+            }else{
+                trackerDeviceId.required=false
+                trackerDeviceId.value=''
+                trackerDeviceIdGroup.style.display='none'
+            }
+        }
+
+        trackingDeviceSelector.addEventListener("change",changedTrackingDevice)
+        trackingServiceSelector.addEventListener("change",changedTrackingService)
+        
+        function docReady(fn) {
+            // see if DOM is already available
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                // call on next available tick
+                setTimeout(fn, 1);
+            } else {
+                document.addEventListener("DOMContentLoaded", fn);
+            }
+        }    
+
+        docReady(()=>{
+
+        changedTrackingDevice()
+        maybeDisableTrackingDeviceOptions()
+    })
+    </script>
+
     {% endblock %}

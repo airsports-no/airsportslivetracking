@@ -54,12 +54,17 @@
             updateTracking()
         })
 
-        async function updateAirspeed(event){
+        async function teamChanged(event){
             const selectedTeam=teamSelector.value
             const response=await fetch("/api/v1/contests/"+{{ navigation_task.contest.id }}+"/contest_team_for_team/"+selectedTeam+"/",{method: "GET"})
             if(response.ok){
                 const data=await response.json()
                 document.getElementById("id_air_speed").value=data.air_speed
+                trackingServiceSelector.value=data.tracking_service
+                trackingDeviceSelector.value=data.tracking_device
+                trackerDeviceId.value=data.tracker_device_id
+                changedTrackingDevice()
+                maybeDisableTrackingDeviceOptions()
             }
         }
 
@@ -101,7 +106,7 @@
             }
         }
 
-        teamSelector.addEventListener("change",updateAirspeed)
+        teamSelector.addEventListener("change", teamChanged)
         trackingDeviceSelector.addEventListener("change",changedTrackingDevice)
         trackingServiceSelector.addEventListener("change",changedTrackingService)
         

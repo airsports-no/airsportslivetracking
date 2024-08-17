@@ -395,7 +395,7 @@ class TrackingDataForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(
-            Fieldset("Team contest information", "air_speed", "tracking_device"),
+            Fieldset("Team contest information", "air_speed", "tracking_service", "tracking_device"),
             Fieldset(
                 "Optional tracking information if not using the official Air Sports Live Tracking app",
                 "tracker_device_id",
@@ -405,7 +405,7 @@ class TrackingDataForm(forms.ModelForm):
 
     class Meta:
         model = ContestTeam
-        fields = ("air_speed", "tracker_device_id", "tracking_device")
+        fields = ("air_speed", "tracking_service", "tracker_device_id", "tracking_device")
 
 
 class PersonForm(forms.ModelForm):
