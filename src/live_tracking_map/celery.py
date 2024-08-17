@@ -1,3 +1,4 @@
+from logging.config import dictConfig
 import os
 
 import logging
@@ -10,6 +11,7 @@ from celery import Celery
 from celery.signals import after_setup_logger, worker_ready, worker_shutdown, worker_init
 
 from live_tracking_map.celery_bootstrap import LivenessProbe
+import log_configuration
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
 
@@ -44,12 +46,7 @@ def configure(sender=None, conf=None, **kwargs):
 
 @after_setup_logger.connect()
 def logger_setup_handler(logger, **kwargs):
-    my_handler = logging.StreamHandler(sys.stdout)
-    my_handler.setLevel(logging.DEBUG)
-    my_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")  # custom formatter
-    my_handler.setFormatter(my_formatter)
-    logger.addHandler(my_handler)
-
+    dictConfig(log_configuration.LOG_CONFIGURATION)
     logging.info("My log handler connected -> Global Logging")
 
 

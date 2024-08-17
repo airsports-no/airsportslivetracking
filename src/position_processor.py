@@ -1,10 +1,12 @@
 import json
 import logging
+from logging.config import dictConfig
 import os
 import threading
 import time
 from multiprocessing import Process, Queue
 
+import log_configuration
 import probes
 
 if __name__ == "__main__":
@@ -21,6 +23,9 @@ from position_processor_process import initial_processor, LAST_DEBUG_KEY
 from live_position_transmitter import live_position_transmitter_process
 
 import websocket
+
+dictConfig(log_configuration.LOG_CONFIGURATION)
+
 
 logger = logging.getLogger(__name__)
 

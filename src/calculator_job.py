@@ -1,11 +1,17 @@
 """
 This script is called by the kubernetes calculator job to run for a single contestant
 """
+
 import logging
+from logging.config import dictConfig
 import os
 import sys
 
 from django.core.exceptions import ObjectDoesNotExist
+
+import log_configuration
+
+dictConfig(log_configuration.LOG_CONFIGURATION)
 
 
 logger = logging.getLogger(__name__)
@@ -29,6 +35,4 @@ if __name__ == "__main__":
         contestant_processor = ContestantProcessor(contestant, live_processing=True)
         contestant_processor.run()
     else:
-        logger.warning(
-            f"Attempting to start new calculator for terminated contestant {contestant}"
-        )
+        logger.warning(f"Attempting to start new calculator for terminated contestant {contestant}")
