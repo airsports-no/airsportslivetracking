@@ -56,7 +56,7 @@
 
         async function updateAirspeed(event){
             const selectedTeam=teamSelector.value
-            const response=await fetch("/api/v1/contests/"+{{ object.navigation_task.contest.id }}+"/contest_team_for_team/"+selectedTeam+"/",{method: "GET"})
+            const response=await fetch("/api/v1/contests/"+{{ navigation_task.contest.id }}+"/contest_team_for_team/"+selectedTeam+"/",{method: "GET"})
             if(response.ok){
                 const data=await response.json()
                 document.getElementById("id_air_speed").value=data.air_speed

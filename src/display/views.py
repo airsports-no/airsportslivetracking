@@ -1437,6 +1437,7 @@ class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMi
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["redirect"] = self.get_success_url()
+        context["navigation_task"] = self.get_object().navigation_task
         return context
 
     def get_form_kwargs(self):
