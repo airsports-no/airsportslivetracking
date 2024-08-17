@@ -31,6 +31,11 @@ LOG_CONFIGURATION = {
             "level": "INFO",
             "propagate": False,
         },
+        "django": {
+            "handlers": handlers,
+            "level": "INFO",
+            "propagate": False,
+        },
         "websocket": {
             "handlers": handlers,
             "level": "INFO",
