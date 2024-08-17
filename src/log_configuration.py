@@ -36,6 +36,11 @@ LOG_CONFIGURATION = {
             "level": "INFO",
             "propagate": False,
         },
+        "gunicorn": {
+            "handlers": handlers,
+            "level": "INFO",
+            "propagate": False,
+        },
         "websocket": {
             "handlers": handlers,
             "level": "INFO",
