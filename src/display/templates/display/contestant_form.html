@@ -1,17 +1,17 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% load static %}
 {% load bootstrap4 %}
 {% load crispy_forms_tags %}
 {% block content %}
-    {% if object %}
-        <h2>Update Contestant {{ object }} for navigation task {{ object.navigation_task }}</h2>
-    {% else %}
-        <h2>Create new Contestant for navigation task {{ navigation_task }} </h2>
-    {% endif %}
-    {{ form.media }}
-    Contest time zone is {{ navigation_task.contest.time_zone }}
-        {% crispy form %}
-    <script type="text/javascript">
+  {% if object %}
+    <h2>Update Contestant {{ object }} for navigation task {{ object.navigation_task }}</h2>
+  {% else %}
+    <h2>Create new Contestant for navigation task {{ navigation_task }}</h2>
+  {% endif %}
+  {{ form.media }}
+  Contest time zone is {{ navigation_task.contest.time_zone }}
+  {% crispy form %}
+  <script type="text/javascript">
         Date.prototype.addHours = function(h) {
             this.setTime(this.getTime() + (h*60*60*1000));
             return this;
@@ -64,26 +64,29 @@
         }
 
         function maybeDisableTrackingDeviceOptions(){
+            if(trackingServiceSelector.value==='flymaster'){
             document.querySelectorAll("#id_tracking_device option").forEach(opt => {
                 if (opt.value != "device") {
                     opt.disabled = true;
                 }
             });
+        }else {
+            document.querySelectorAll("#id_tracking_device option").forEach(opt => {
+                        opt.disabled = false;
+                });
+        }
 
         }
 
         async function changedTrackingService(event){
             if(trackingServiceSelector.value==='flymaster'){
                 trackingDeviceSelector.value='device'
-                changedTrackingDevice()
-                maybeDisableTrackingDeviceOptions()
             }else{
                 trackingDeviceSelector.value='pilot_app_or_copilot_a[['
-                document.querySelectorAll("#id_tracking_device option").forEach(opt => {
-                        opt.disabled = false;
-                });
-                changedTrackingDevice()
             }
+            changedTrackingDevice()
+            maybeDisableTrackingDeviceOptions()
+
         }
 
         async function changedTrackingDevice(event){
@@ -102,8 +105,21 @@
         trackingDeviceSelector.addEventListener("change",changedTrackingDevice)
         trackingServiceSelector.addEventListener("change",changedTrackingService)
         
+        function docReady(fn) {
+            // see if DOM is already available
+            if (document.readyState === "complete" || document.readyState === "interactive") {
+                // call on next available tick
+                setTimeout(fn, 1);
+            } else {
+                document.addEventListener("DOMContentLoaded", fn);
+            }
+        }    
+
+        docReady(()=>{
+
         changedTrackingDevice()
         maybeDisableTrackingDeviceOptions()
+    })
         {% if object.adaptive_start %}
             trackingStart.readOnly = adaptiveStart.checked;
         {% endif %}
