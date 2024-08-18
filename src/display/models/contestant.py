@@ -75,7 +75,9 @@ class Contestant(models.Model):
     finished_by_time = models.DateTimeField(
         help_text="The time it is expected that the navigation task has finished and landed (used among other things for knowing when the tracker is busy). Is also used for the gate time for the landing gate"
     )
-    air_speed = models.FloatField(default=70, help_text="The planned airspeed for the contestant")
+    air_speed = models.FloatField(
+        default=70, help_text="The planned airspeed for the contestant", validators=[MinValueValidator(1)]
+    )
     track_version = models.IntegerField(
         default=0,
         help_text="Incremented whenever a new track is loaded from scratch either from traccar or from a gpx file.",

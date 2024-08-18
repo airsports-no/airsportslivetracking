@@ -811,8 +811,34 @@ class ContestantSerialiser(serializers.ModelSerializer):
             raise Http404("Navigation task not found")
         validated_data["navigation_task"] = navigation_task
         gate_times = validated_data.pop("gate_times", {})
+        team = validated_data["team"]
+        if contest_team := ContestTeam.objects.filter(contest=navigation_task.contest, team=team).first():
+            if (
+                "tracking_service" not in validated_data
+                or validated_data["tracking_service"] is None
+                or validated_data["tracking_service"] == ""
+            ):
+                validated_data["tracking_service"] = contest_team.tracking_service
+            if (
+                "tracking_device" not in validated_data
+                or validated_data["tracking_device"] is None
+                or validated_data["tracking_device"] == ""
+            ):
+                validated_data["tracking_device"] = contest_team.tracking_device
+            if (
+                "tracker_device_id" not in validated_data
+                or validated_data["tracker_device_id"] is None
+                or validated_data["tracker_device_id"] == ""
+            ):
+                validated_data["tracker_device_id"] = contest_team.tracker_device_id
+            if (
+                "air_speed" not in validated_data
+                or validated_data["air_speed"] is None
+                or validated_data["air_speed"] == ""
+            ):
+                validated_data["air_speed"] = contest_team.air_speed
+
         contestant = Contestant.objects.create(**validated_data)
-        contestant.gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
         contestant.save()
         if not ContestTeam.objects.filter(contest=contestant.navigation_task.contest, team=contestant.team).exists():
             ContestTeam.objects.create(
@@ -822,24 +848,52 @@ class ContestantSerialiser(serializers.ModelSerializer):
                 tracking_service=contestant.tracking_service,
                 air_speed=contestant.air_speed,
             )
+
         return contestant
 
     def update(self, instance, validated_data):
-        ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team).delete()
         gate_times = validated_data.pop("gate_times", {})
+        if not self.partial:
+            team = validated_data["team"]
+            if contest_team := ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=team).first():
+                if (
+                    "tracking_service" not in validated_data
+                    or validated_data["tracking_service"] is None
+                    or validated_data["tracking_service"] == ""
+                ):
+                    validated_data["tracking_service"] = contest_team.tracking_service
+                if (
+                    "tracking_device" not in validated_data
+                    or validated_data["tracking_device"] is None
+                    or validated_data["tracking_device"] == ""
+                ):
+                    validated_data["tracking_device"] = contest_team.tracking_device
+                if (
+                    "tracker_device_id" not in validated_data
+                    or validated_data["tracker_device_id"] is None
+                    or validated_data["tracker_device_id"] == ""
+                ):
+                    validated_data["tracker_device_id"] = contest_team.tracker_device_id
+                if (
+                    "air_speed" not in validated_data
+                    or validated_data["air_speed"] is None
+                    or validated_data["air_speed"] == ""
+                ):
+                    validated_data["air_speed"] = contest_team.air_speed
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
         instance.refresh_from_db()
         instance.gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
         instance.save()
-
-        if not ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=instance.team).exists():
-            ContestTeam.objects.create(
-                contest=instance.navigation_task.contest,
-                team=instance.team,
-                tracker_device_id=instance.tracker_device_id,
-                tracking_service=instance.tracking_service,
-                air_speed=instance.air_speed,
-            )
+        ContestTeam.objects.update_or_create(
+            defaults={
+                "tracker_device_id": instance.tracker_device_id,
+                "tracking_service": instance.tracking_service,
+                "tracking_device": instance.tracking_device,
+                "air_speed": instance.air_speed,
+            },
+            contest=instance.navigation_task.contest,
+            team=instance.team,
+        )
         return instance
 
 
