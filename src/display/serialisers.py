@@ -839,6 +839,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
                 validated_data["air_speed"] = contest_team.air_speed
 
         contestant = Contestant.objects.create(**validated_data)
+        contestant.gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
         contestant.save()
         if not ContestTeam.objects.filter(contest=contestant.navigation_task.contest, team=contestant.team).exists():
             ContestTeam.objects.create(
