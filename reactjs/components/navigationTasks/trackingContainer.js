@@ -180,10 +180,11 @@ class ConnectedTrackingContainer extends Component {
                                 <Icon path={mdiGoKartTrack} title={"Display airplane tracks"} size={2} color={"#e01b1c"}
                                       onClick={() => this.props.toggleExplicitlyDisplayAllTracks()}/>
                             </div>
+                            {this.props.navigationTask.display_background_map?
                             <div className={"openAipLink"}>
                                 <Icon path={mdiAirport} title={"Show OpenAIP overlay"} size={2} color={"#e01b1c"}
                                       onClick={() => this.props.toggleDisplayOpenAip()}/>
-                            </div>
+                            </div>:null}
                             <AboutTaskPopup navigationTask={this.props.navigationTask}/>
                             {/* <div className={"replayIcon"}>
                                 {!this.playback ?
