@@ -141,31 +141,34 @@ def process_flymaster_file(file_data: str):
     contestant: Contestant | None = None
     positions = []
     for line in lines[1:-2]:
-        tracking_start, position_time, latitude, longitude, altitude, speed, heading = line.split(",")
-        timestamp = datetime.datetime.fromtimestamp(float(position_time)).replace(tzinfo=datetime.timezone.utc)
-        if contestant is None:
-            contestant, is_simulator = Contestant.get_contestant_for_device_at_time(
-                TrackingService.FLY_MASTER, identifier, timestamp
-            )
-            if contestant is not None:
-                logger.info(
-                    f"Found contestant {contestant} for fly master identifier {identifier} at timestamp {timestamp}"
+        try:
+            tracking_start, position_time, latitude, longitude, altitude, speed, heading = line.split(",")
+            timestamp = datetime.datetime.fromtimestamp(float(position_time)).replace(tzinfo=datetime.timezone.utc)
+            if contestant is None:
+                contestant, is_simulator = Contestant.get_contestant_for_device_at_time(
+                    TrackingService.FLY_MASTER, identifier, timestamp
                 )
-        positions.append(
-            {
-                "device_time": timestamp,
-                "latitude": float(latitude),
-                "longitude": float(longitude),
-                "altitude": float(altitude) * 3.281,  # metres to feet
-                "speed": float(speed) / 1.852,  # km/h to knots
-                "course": float(heading),
-                "attributes": {"battery_level": -1.0},
-                "id": 0,
-                "deviceId": identifier,
-                "server_time": datetime.datetime.now(datetime.timezone.utc),
-                "processor_received_time": datetime.datetime.now(datetime.timezone.utc),
-            }
-        )
+                if contestant is not None:
+                    logger.info(
+                        f"Found contestant {contestant} for fly master identifier {identifier} at timestamp {timestamp}"
+                    )
+            positions.append(
+                {
+                    "device_time": timestamp,
+                    "latitude": float(latitude),
+                    "longitude": float(longitude),
+                    "altitude": float(altitude) * 3.281,  # metres to feet
+                    "speed": float(speed) / 1.852,  # km/h to knots
+                    "course": float(heading),
+                    "attributes": {"battery_level": -1.0},
+                    "id": 0,
+                    "deviceId": identifier,
+                    "server_time": datetime.datetime.now(datetime.timezone.utc),
+                    "processor_received_time": datetime.datetime.now(datetime.timezone.utc),
+                }
+            )
+        except ValueError as e:
+            logger.exception(f"Failed parsing flymaster data line {line}")
     if contestant is not None:
         add_positions_to_calculator(contestant, positions)
     elif len(lines) > 2:
