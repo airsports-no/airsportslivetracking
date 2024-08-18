@@ -60,6 +60,7 @@ from rest_framework.authtoken.models import Token
 from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_zoom_levels
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.forms import (
+    ImportContestTeamForm,
     NavigationTaskForm,
     ContestantForm,
     ContestForm,
@@ -1334,6 +1335,30 @@ class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
 
     def get_permission_object(self):
         return self.get_object()
+
+
+@guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
+def import_contest_team_from_contest(request, contest_pk):
+    target_contest = get_object_or_404(Contest, pk=contest_pk)
+    # All contests that are public or where the user has view permissions
+    contests_to_copy_from = get_objects_for_user(
+        request.user,
+        "display.view_contest",
+        klass=Contest,
+        accept_global_perms=False,
+    ) | Contest.objects.filter(is_public=True, is_featured=True)
+    if request.method == "POST":
+        form = ImportContestTeamForm(contests_to_copy_from, request.POST)
+        if form.is_valid():
+            source_contest = form.cleaned_data["contest"]
+            for contest_team in source_contest.contestteam_set.all():
+                contest_team.id = None
+                contest_team.pk = None
+                contest_team.contest = target_contest
+                contest_team.save()
+            return redirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
+    form = ImportContestTeamForm(contests_to_copy_from)
+    return render(request, "display/contest_import_contest_team_form.html", {"form": form, "contest": target_contest})
 
 
 class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):

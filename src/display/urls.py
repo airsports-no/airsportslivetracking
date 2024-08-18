@@ -3,6 +3,7 @@ from django.urls import path
 from display.views import (
     fly_master_data_post,
     frontend_view_map,
+    import_contest_team_from_contest,
     renew_token,
     NavigationTaskDetailView,
     ContestantUpdateView,
@@ -238,6 +239,7 @@ urlpatterns = [
         ContestTeamTrackingUpdate.as_view(),
         name="contestteamtracking_update",
     ),
+    path("contest/<int:contest_pk>/team/import/", import_contest_team_from_contest, name="import_teams"),
     path("contest/<int:contest_pk>/teams/", ContestTeamList.as_view(), name="contest_team_list"),
     path("navigationtaskwizard/<int:contest_pk>/", NewNavigationTaskWizard.as_view(), name="navigationtaskwizard"),
     path("person/<int:pk>/update/", PersonUpdateView.as_view(), name="person_update"),

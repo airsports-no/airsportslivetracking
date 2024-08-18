@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
     <H1>Teams for contest {{ contest }}</H1>
-    <a href="{% url 'contest_details' contest.pk %}">Back to contest</a> |
+    <a href="{% url 'contest_details' contest.pk %}">Back to contest</a> | 
+    <a href="{% url 'import_teams' contest.pk %}">Import teams</a> |
     <a href="{% url 'contest_team_images' contest.pk %}">View images</a>
 
     <table class="table table-condensed">

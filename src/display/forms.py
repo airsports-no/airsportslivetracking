@@ -1,7 +1,7 @@
 from string import Template
 
 import datetime
-from typing import Optional
+from typing import Iterable, Optional
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, ButtonHolder, Submit, Fieldset, Field, HTML
@@ -698,3 +698,11 @@ class DeleteUserForm(forms.Form):
             Fieldset("User selection", "email", "send_email"),
             ButtonHolder(Submit("submit", "Submit")),
         )
+
+
+class ImportContestTeamForm(forms.Form):
+    contest = forms.ModelChoiceField(queryset=Contest.objects.all())
+
+    def __init__(self, available_contests: Iterable[Contest], *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["contest"].queryset = available_contests

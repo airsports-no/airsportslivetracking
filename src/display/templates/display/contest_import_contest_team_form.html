@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load bootstrap4 %}
+
+
+{% block content %}
+    <h2>Import teams to {{ contest }}</h2>
+    <p>
+        Select the contest from which to import the list of teams. Available contest is any public contest or any other contest where you have view permissions.
+    </p>
+    <form method="post" class="form">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+        {% endbuttons %}
+    </form>{% endblock %}
