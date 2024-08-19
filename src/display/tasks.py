@@ -136,7 +136,8 @@ def delete_old_flight_orders():
 @app.task
 def process_flymaster_file(file_data: str):
     lines = file_data.split("\n")
-    identifier, secret = lines[0].split(",")
+    initial_line = lines[0].split(",")
+    identifier = initial_line[0]
     logger.info(f"Received data for identifier {identifier}")
     contestant: Contestant | None = None
     positions = []
