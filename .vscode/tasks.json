@@ -1,0 +1,27 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+    {
+      "label": "Run server",
+      "type": "shell",
+      "command": "(npm run webpack-local &) && cd src && python3 manage.py runserver 0.0.0.0:8000",
+      "group": "run",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run celery",
+      "type": "shell",
+      "command": "cd src && celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log --concurrency 1",
+      "group": "run",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
