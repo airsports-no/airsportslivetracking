@@ -157,6 +157,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "live_tracking_map.middleware.HandleKnownExceptionsMiddleware",
+    "live_tracking_map.middleware.Log500ErrorsMiddleware",
 ]
 
 ROOT_URLCONF = "live_tracking_map.urls"
