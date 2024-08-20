@@ -102,6 +102,7 @@ class ContestantProcessor:
         self.accumulated_scores = ScoreAccumulator()
         self.websocket_facade = WebsocketFacade()
         self.timed_queue = TimedQueue()
+        self.delay = datetime.timedelta(minutes=self.contestant.navigation_task.calculation_delay_minutes)
         self.finished_loading_initial_positions = (
             threading.Event()
         )  # Used to prevent the calculator from terminating while we are waiting for initial data if it starts after-the-fact.
@@ -227,7 +228,7 @@ class ContestantProcessor:
         while not self.track_terminated:
             calculator_is_alive(self.contestant.pk, 30)
             now = datetime.datetime.now(datetime.timezone.utc)
-            if self.live_processing and now > self.contestant.finished_by_time:
+            if self.live_processing and now > self.contestant.finished_by_time + self.delay:
                 data = self.timed_queue.peek()
                 if data is None or data["device_time"] > now:
                     self.notify_termination()
@@ -306,13 +307,13 @@ class ContestantProcessor:
         now = datetime.datetime.now(datetime.timezone.utc)
         if self.live_processing and not self.track_terminated:
             if self.gatekeeper.has_the_contestant_passed_a_gate_and_landed():
-                if self.contestant.finished_by_time > now:
+                if self.contestant.finished_by_time + self.delay > now:
                     self.contestant.finished_by_time = now
                     self.contestant.save(update_fields=["finished_by_time"])
                     logger.info(
                         f"Contestant {self.contestant} has passed a gate and apparently landed, triggering calculator termination"
                     )
-            if now > self.contestant.finished_by_time:
+            if now > self.contestant.finished_by_time + self.delay:
                 self.notify_termination()
 
     def notify_termination(self):
@@ -384,17 +385,20 @@ class ContestantProcessor:
             except IndexError:
                 pass
         receiving = False
-        delay = datetime.timedelta(minutes=self.contestant.navigation_task.calculation_delay_minutes)
+
         while not self.track_terminated:
             try:
                 position_data = self.position_queue.pop(True, timeout=30)
                 if position_data is not None:
-                    release_time = position_data["device_time"] + delay
+                    release_time = position_data["device_time"] + self.delay
                     if not receiving:
                         logger.info(f"{self.contestant}: Started receiving data")
                 else:
                     logger.info(f"{self.contestant}: Delayed position queuer received None")
-                    release_time = datetime.datetime.now(datetime.timezone.utc)
+                    if len(self.timed_queue._queue):
+                        release_time = self.timed_queue._queue[-1][1] + datetime.timedelta(seconds=1)
+                    else:
+                        release_time = datetime.datetime.now(datetime.timezone.utc)
                 self.timed_queue.put(position_data, release_time)
                 if not receiving:
                     self.finished_loading_initial_positions.set()
