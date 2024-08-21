@@ -10,6 +10,7 @@ from redis.client import Redis
 
 from display.flight_order_and_maps.generate_flight_orders import generate_flight_orders_latex
 from display.models import Contestant, EmailMapLink
+from display.models.flymaster_data import FlymasterData
 from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map.celery import app
 from live_tracking_map.settings import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
@@ -132,9 +133,7 @@ def delete_old_flight_orders():
         contestant__finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=5)
     ).delete()
 
-
-@app.task
-def process_flymaster_file(file_data: str):
+def build_positions_from_flymaster(file_data:str)->tuple[Contestant|None,str,list[dict]]:
     lines = file_data.split("\n")
     initial_line = lines[0].split(",")
     identifier = initial_line[0]
@@ -170,7 +169,15 @@ def process_flymaster_file(file_data: str):
             )
         except ValueError as e:
             logger.exception(f"Failed parsing flymaster data line {line}")
+    return contestant,identifier,positions
+
+
+@app.task
+def process_flymaster_file(file_data: str):
+    contestant,identifier,positions=build_positions_from_flymaster(file_data)
     if contestant is not None:
         add_positions_to_calculator(contestant, positions)
-    elif len(lines) > 2:
-        logger.info(f"Could not find contestant for fly master identifier {identifier} at timestamp {timestamp}")
+    if len(positions) > 0:
+        FlymasterData.objects.create(identifier=identifier,timestamp=positions[0]["device_time"],data=file_data)
+        if not contestant:
+            logger.info(f"Could not find contestant for fly master identifier {identifier} at timestamp {positions[0]["device_time"]}")

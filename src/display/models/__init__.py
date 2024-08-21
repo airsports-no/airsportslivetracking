@@ -14,3 +14,4 @@ from .scoring_models import *
 from .scoring_table_models import *
 from .team_structure import *
 from .user_uploaded_map import *
+from .flymaster_data import *
