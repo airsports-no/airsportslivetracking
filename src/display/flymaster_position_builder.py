@@ -1,12 +1,13 @@
 import datetime
 import logging
-from display.models.contestant import Contestant
 from display.utilities.tracking_definitions import TrackingService
 
 logger = logging.getLogger(__name__)
 
 
-def build_positions_from_flymaster(file_data: str) -> tuple[Contestant | None, str, list[dict]]:
+def build_positions_from_flymaster(file_data: str) -> tuple["Contestant| None", str, list[dict]]:
+    from display.models.contestant import Contestant
+
     lines = file_data.split("\n")
     initial_line = lines[0].split(",")
     identifier = initial_line[0]
