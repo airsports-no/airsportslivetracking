@@ -224,9 +224,9 @@ urlpatterns = [
     path("contestant/<int:pk>/uploadgpxtrack/", upload_gpx_track_for_contesant, name="contestant_uploadgpxtrack"),
     path("contestant/<int:pk>/downloadgpxtrack/", download_gpx_track_contestant, name="contestant_downloadgpxtrack"),
     path(
-        "contestant/<int:pk>/recalculatetraccartrack/",
+        "contestant/<int:pk>/recalculatelivetrack/",
         revert_uploaded_gpx_track_for_contestant,
-        name="contestant_recalculatetraccartrack",
+        name="contestant_recalculatelivetrack",
     ),
     # path('contestant/<int:pk>/downloadgpxtrack/', download_gpx_track_for_contesant, name="contestant_downloadgpxtrack"),
     path("contestant/remove_score_item/<int:pk>/", delete_score_item, name="contestant_remove_score_item"),

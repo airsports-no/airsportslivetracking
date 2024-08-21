@@ -14,6 +14,7 @@ from display.models import Contestant, ContestantUploadedTrack
 
 import os
 
+from display.utilities.tracking_definitions import TrackingService
 from redis_queue import RedisQueue
 
 TRACCAR_HOST = os.environ.get("TRACCAR_HOST", "traccar")
@@ -95,7 +96,7 @@ def load_data_traccar(tracks, offset=30, leadtime=0, round_sleep=0.2, contestant
             break
 
 
-def recalculate_traccar(contestant: "Contestant"):
+def recalculate_live_contestant(contestant: "Contestant"):
     try:
         contestant.contestantuploadedtrack.delete()
         logger.debug("Deleted existing uploaded track")
@@ -108,7 +109,10 @@ def recalculate_traccar(contestant: "Contestant"):
     if contestant.finished_by_time > now:
         contestant.finished_by_time = max(contestant.takeoff_time + datetime.timedelta(seconds=1), now)
         contestant.save(update_fields=["finished_by_time"])
-    track = contestant.get_traccar_track()
+    if contestant.tracking_service == TrackingService.TRACCAR:
+        track = contestant.get_traccar_track()
+    elif contestant.tracking_service == TrackingService.FLY_MASTER:
+        track = contestant.get_flymaster_track()
     queue_name = f"override_{contestant.pk}"
     q = RedisQueue(queue_name)
     while not q.empty():

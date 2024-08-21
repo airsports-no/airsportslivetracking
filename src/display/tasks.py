@@ -14,7 +14,7 @@ from display.models.flymaster_data import FlymasterData
 from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map.celery import app
 from live_tracking_map.settings import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
-from playback_tools.playback import recalculate_traccar, insert_gpx_file
+from playback_tools.playback import recalculate_live_contestant, insert_gpx_file
 from position_processor_process import add_positions_to_calculator
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def debug():
 
 
 @app.task
-def revert_gpx_track_to_traccar(contestant_pk: int):
+def recalculate_live_data_for_contestant(contestant_pk: int):
     try:
         contestant = Contestant.objects.get(pk=contestant_pk)
     except ObjectDoesNotExist:
@@ -44,7 +44,7 @@ def revert_gpx_track_to_traccar(contestant_pk: int):
         return
     logger.debug(f"{contestant}: About recalculate traccar track")
     try:
-        recalculate_traccar(contestant)
+        recalculate_live_contestant(contestant)
     except:
         logger.exception("Exception in revert_gpx_track_to_traccar")
 
@@ -168,7 +168,7 @@ def build_positions_from_flymaster(file_data:str)->tuple[Contestant|None,str,lis
                 }
             )
         except ValueError as e:
-            logger.exception(f"Failed parsing flymaster data line {line}")
+            logger.info(f"Failed parsing flymaster data line {line}")
     return contestant,identifier,positions
 
 

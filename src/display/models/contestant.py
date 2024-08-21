@@ -18,6 +18,8 @@ from django.utils.safestring import mark_safe
 from display.calculators.calculator_utilities import round_time_second
 from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.models.contestant_utility_models import ContestantReceivedPosition
+from display.models.flymaster_data import FlymasterData
+from display.tasks import build_positions_from_flymaster
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
@@ -806,6 +808,17 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             tracks.append(track)
         logger.debug(f"Returned {len(tracks)} with lengths {', '.join([str(len(item)) for item in tracks])}")
         return merge_tracks(tracks)
+
+    def get_flymaster_track(self) -> list[dict]:
+        track = []
+        for report in FlymasterData.objects.filter(
+            identifier=self.tracker_device_id,
+            timestamp__gte=self.tracker_start_time,
+            timestamp__lte=self.finished_by_time + datetime.timedelta(minutes=1),
+        ):
+            contestant, identifier, positions = build_positions_from_flymaster(report.data)
+            track.extend(positions)
+        return track
 
     def get_track(self) -> QuerySet[ContestantReceivedPosition]:
         """

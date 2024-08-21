@@ -117,7 +117,7 @@ from display.contestant_scheduling.schedule_contestants import schedule_and_crea
 from display.tasks import (
     import_gpx_track,
     process_flymaster_file,
-    revert_gpx_track_to_traccar,
+    recalculate_live_data_for_contestant,
 )
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
 from display.waypoint import Waypoint
@@ -1026,7 +1026,7 @@ def revert_uploaded_gpx_track_for_contestant(request, pk):
     except:
         pass
     contestant.reset_track_and_score()
-    revert_gpx_track_to_traccar.apply_async((contestant.pk,))
+    recalculate_live_data_for_contestant.apply_async((contestant.pk,))
     messages.success(request, "Started loading track")
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
 
