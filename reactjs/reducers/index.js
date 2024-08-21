@@ -273,7 +273,7 @@ function rootReducer(state = initialState, action) {
             },
             contestantProgress: {
                 ...state.contestantProgress,
-                [action.payload.contestant_id]: action.payload.positions.length > 0 ? action.payload.positions.slice(-1)[0].progress : state.contestantProgress[action.payload.contestant_id],
+                [action.payload.contestant_id]: action.payload.progress?action.payload.progress:(action.payload.positions.length > 0 ? action.payload.positions.slice(-1)[0].progress : state.contestantProgress[action.payload.contestant_id]),
 
             },
         })

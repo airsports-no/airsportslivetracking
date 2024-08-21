@@ -365,10 +365,10 @@ class ContestantProcessor:
         logger.info(
             f"{self.contestant}: Starting delayed position queuer with {self.position_queue.size} waiting messages. Track terminated is {self.track_terminated}"
         )
-        device_ids = self.traccar.get_device_ids_for_contestant(self.contestant)
-        current_time = datetime.datetime.now(datetime.timezone.utc)
-        device_positions = {}
         if self.live_processing and self.contestant.tracking_service == TrackingService.TRACCAR:
+            device_ids = self.traccar.get_device_ids_for_contestant(self.contestant)
+            current_time = datetime.datetime.now(datetime.timezone.utc)
+            device_positions = {}
             # Fetch any earlier positions for the contestant to ensure that we start from the beginning.
             for device_id in device_ids:
                 positions = self.traccar.get_positions_for_device_id(
@@ -382,10 +382,17 @@ class ContestantProcessor:
                 logger.info(
                     f"{self.contestant}: Fetched {len(positions_to_use)} historic positions at start of calculator"
                 )
+                now = datetime.datetime.now(datetime.timezone.utc)
                 for position in positions_to_use:
-                    self.timed_queue.put(position, datetime.datetime.now(datetime.timezone.utc))
+                    self.timed_queue.put(position, max(now, position["device_time"] + self.delay))
             except IndexError:
                 pass
+        elif self.live_processing and self.contestant.tracking_service == TrackingService.FLY_MASTER:
+            existing_data = self.contestant.get_flymaster_track()
+            now = datetime.datetime.now(datetime.timezone.utc)
+            for position in existing_data:
+                self.timed_queue.put(position, max(now, position["device_time"] + self.delay))
+
         receiving = False
 
         while not self.track_terminated:
