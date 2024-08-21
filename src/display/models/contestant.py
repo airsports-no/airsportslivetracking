@@ -502,10 +502,6 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change takeoff time from {original.takeoff_time} to {self.takeoff_time}"
                     )
-                if original.tracker_start_time.replace(microsecond=0) != self.tracker_start_time.replace(microsecond=0):
-                    raise ValidationError(
-                        f"Calculator has started for {self}, it is not possible to change tracker start time"
-                    )
                 if original.wind_speed != self.wind_speed:
                     raise ValidationError(f"Calculator has started for {self}, it is not possible to change wind speed")
                 if original.wind_direction != self.wind_direction:

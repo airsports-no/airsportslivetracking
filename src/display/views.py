@@ -19,6 +19,7 @@ from django.contrib.auth.mixins import (
     UserPassesTestMixin,
 )
 
+from display.utilities.calculator_running_utilities import is_calculator_running
 from playback_tools.playback import validate_gpx_file
 import rest_framework.exceptions as drf_exceptions
 
@@ -1012,7 +1013,7 @@ def revert_uploaded_gpx_track_for_contestant(request, pk):
     """
     contestant = get_object_or_404(Contestant, pk=pk)
     try:
-        if not contestant.contestanttrack.calculator_finished and contestant.contestanttrack.calculator_started:
+        if is_calculator_running(pk):
             messages.error(
                 request,
                 "Calculator is running, terminate it or wait until it is terminated",
