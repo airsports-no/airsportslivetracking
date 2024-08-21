@@ -9,9 +9,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from redis.client import Redis
 
 from display.flight_order_and_maps.generate_flight_orders import generate_flight_orders_latex
+from display.flymaster_position_builder import build_positions_from_flymaster
 from display.models import Contestant, EmailMapLink
 from display.models.flymaster_data import FlymasterData
-from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map.celery import app
 from live_tracking_map.settings import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 from playback_tools.playback import recalculate_live_contestant, insert_gpx_file
@@ -133,43 +133,6 @@ def delete_old_flight_orders():
         contestant__finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=5)
     ).delete()
 
-def build_positions_from_flymaster(file_data:str)->tuple[Contestant|None,str,list[dict]]:
-    lines = file_data.split("\n")
-    initial_line = lines[0].split(",")
-    identifier = initial_line[0]
-    logger.info(f"Received data for identifier {identifier}")
-    contestant: Contestant | None = None
-    positions = []
-    for line in lines[1:-2]:
-        try:
-            tracking_start, position_time, latitude, longitude, altitude, speed, heading = line.split(",")
-            timestamp = datetime.datetime.fromtimestamp(float(position_time)).replace(tzinfo=datetime.timezone.utc)
-            if contestant is None:
-                contestant, is_simulator = Contestant.get_contestant_for_device_at_time(
-                    TrackingService.FLY_MASTER, identifier, timestamp
-                )
-                if contestant is not None:
-                    logger.info(
-                        f"Found contestant {contestant} for fly master identifier {identifier} at timestamp {timestamp}"
-                    )
-            positions.append(
-                {
-                    "device_time": timestamp,
-                    "latitude": float(latitude),
-                    "longitude": float(longitude),
-                    "altitude": float(altitude) * 3.281,  # metres to feet
-                    "speed": float(speed) / 1.852,  # km/h to knots
-                    "course": float(heading),
-                    "attributes": {"battery_level": -1.0},
-                    "id": 0,
-                    "deviceId": identifier,
-                    "server_time": datetime.datetime.now(datetime.timezone.utc),
-                    "processor_received_time": datetime.datetime.now(datetime.timezone.utc),
-                }
-            )
-        except ValueError as e:
-            logger.info(f"Failed parsing flymaster data line {line}")
-    return contestant,identifier,positions
 
 
 @app.task

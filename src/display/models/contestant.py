@@ -17,9 +17,9 @@ from django.utils.safestring import mark_safe
 
 from display.calculators.calculator_utilities import round_time_second
 from display.fields.my_pickled_object_field import MyPickledObjectField
+from display.flymaster_position_builder import build_positions_from_flymaster
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.models.flymaster_data import FlymasterData
-from display.tasks import build_positions_from_flymaster
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
