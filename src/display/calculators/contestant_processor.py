@@ -133,6 +133,8 @@ class ContestantProcessor:
         If last_position is provided, perform a linear interpolation for each second with missing position data between
         the time of last_position and position. Return the resulting list of positions.
         """
+        # todo: Temporarily disables interpolation
+        return [position]
         if last_position is None:
             return [position]
         initial_time = last_position.time
