@@ -171,6 +171,8 @@ class GatekeeperRoute(Gatekeeper):
             item.missed = True
             item.maybe_missed_time = None
             item.maybe_missed_position = None
+            if item.type == "fp":
+                self.passed_finishpoint()
         self.outstanding_gates = []
         if self.landing_gate:
             if not self.landing_gate.has_been_passed():
