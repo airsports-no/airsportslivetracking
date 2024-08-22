@@ -384,14 +384,14 @@ class ContestantProcessor:
                 )
                 now = datetime.datetime.now(datetime.timezone.utc)
                 for position in positions_to_use:
-                    self.timed_queue.put(position, max(now, position["device_time"] + self.delay))
+                    self.timed_queue.put(position, min(now, position["device_time"] + self.delay))
             except IndexError:
                 pass
         elif self.live_processing and self.contestant.tracking_service == TrackingService.FLY_MASTER:
             existing_data = self.contestant.get_flymaster_track()
             now = datetime.datetime.now(datetime.timezone.utc)
             for position in existing_data:
-                self.timed_queue.put(position, max(now, position["device_time"] + self.delay))
+                self.timed_queue.put(position, min(now, position["device_time"] + self.delay))
 
         receiving = False
 
