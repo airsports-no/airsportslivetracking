@@ -811,7 +811,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             identifier=self.tracker_device_id,
             timestamp__gte=self.tracker_start_time,
             timestamp__lte=self.finished_by_time + datetime.timedelta(minutes=1),
-        ):
+        ).order_by("timestamp"):
             contestant, identifier, positions = build_positions_from_flymaster(report.data)
             track.extend(positions)
         return track

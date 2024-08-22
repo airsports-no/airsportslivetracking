@@ -231,7 +231,7 @@ def validate_contestant(sender, instance: Contestant, **kwargs):
 
 
 @receiver(pre_save, sender=Contestant)
-def delete_flight_order_if_changed(sender, instance: Contestant, **kwargs):
+def delete_flight_order_and_gate_times_if_changed(sender, instance: Contestant, **kwargs):
     if instance.pk:
         if previous_version := Contestant.objects.filter(pk=instance.pk).first():
             if (
@@ -240,7 +240,10 @@ def delete_flight_order_if_changed(sender, instance: Contestant, **kwargs):
                 or previous_version.wind_direction != instance.wind_direction
                 or previous_version.air_speed != instance.air_speed
             ):
-                logger.debug(f"Key parameters changed for contestant {instance}, deleting previous flight orders")
+                logger.debug(
+                    f"Key parameters changed for contestant {instance}, deleting previous flight orders and resetting gate times"
+                )
+                instance.predefined_gate_times = None
                 previous_version.emailmaplink_set.all().delete()
 
 
