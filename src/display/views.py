@@ -2078,7 +2078,7 @@ def change_user_useruploadedmap_permissions(request, pk, user_pk):
 def add_user_useruploadedmap_permissions(request, pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     if request.method == "POST":
-        form = ChangePermissionsForm(request.POST)
+        form = AddPermissionsForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data["email"]
             try:
@@ -2091,7 +2091,7 @@ def add_user_useruploadedmap_permissions(request, pk):
             for permission in USERUPLOADEDMAP_PERMISSION_MAP[form.cleaned_data["permission"]]:
                 assign_perm(f"display.{permission}", user, user_uploaded_map)
             return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
-    form = ChangePermissionsForm()
+    form = AddPermissionsForm()
     return render(request, "display/useruploadedmap_permissions_form.html", {"form": form})
 
 
