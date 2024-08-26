@@ -1297,7 +1297,7 @@ def plot_route(
     # fig.subplots_adjust(right=1)
     # fig.subplots_adjust(left=0)
     fig.tight_layout(pad=0)
-    plt.savefig("map.png", dpi=dpi)
+    # plt.savefig("map.png", dpi=dpi)
 
     # plot_margin = 1
     # plot_margin = plot_margin / 2.54
