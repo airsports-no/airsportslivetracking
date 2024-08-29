@@ -977,6 +977,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     display_contestant_rank_summary = serializers.BooleanField(read_only=True)
     share_string = serializers.CharField(read_only=True)
     route = RouteSerialiser()
+    time_zone = TimeZoneSerializerField(source="contest.time_zone", read_only=True)
     contest = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -1402,3 +1403,6 @@ Prohibited, penalty, information, gate zones
 
     def get_is_editor(self, editable_route):
         return "change_editableroute" in get_user_perms(self.context["request"].user, editable_route)
+
+
+serializers.SerializerMethodField("get_is_editor", read_only=True)

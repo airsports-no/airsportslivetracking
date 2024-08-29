@@ -48,41 +48,6 @@ class TrackingConsumer(WebsocketConsumer):
         except ObjectDoesNotExist:
             return
         self.accept()
-        # ws = WebsocketFacade()
-        # for contestant in self.navigation_task.contestant_set.all():
-            # ws.transmit_contestant(contestant)
-            # ws.transmit_initial_load(contestant)
-        self.transmit_current_time()
-
-    def transmit_current_time(self):
-        self.send(
-            json.dumps(
-                {
-                    "type": "current_time",
-                    "data": {
-                        "current_time": (
-                            datetime.datetime.now(datetime.timezone.utc)
-                            - datetime.timedelta(
-                                seconds=2,
-                                minutes=self.navigation_task.calculation_delay_minutes,
-                            )
-                        )
-                        .astimezone(self.navigation_task.contest.time_zone)
-                        .strftime("%H:%M:%S"),
-                        "current_date_time": (
-                            datetime.datetime.now(datetime.timezone.utc)
-                            - datetime.timedelta(
-                                seconds=2,
-                                minutes=self.navigation_task.calculation_delay_minutes,
-                            )
-                        ).isoformat(),
-                    },
-                }
-            )
-        )
-        timer = threading.Timer(1, self.transmit_current_time)
-        timer.daemon = True
-        timer.start()
 
     def receive(self, text_data, **kwargs):
         pass

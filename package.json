@@ -55,6 +55,7 @@
     "match-sorter": "^6.3.1",
     "moment": "^2.29.4",
     "moment-duration-format": "^2.3.2",
+    "moment-timezone": "^0.5.45",
     "net": "^1.0.2",
     "qs": "^6.11.2",
     "react": "^18.2.0",

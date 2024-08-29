@@ -720,6 +720,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     tracker_device_id=device,
                     tracker_start_time__lte=stamp,
                     tracking_device=TRACKING_DEVICE,
+                    tracking_service=tracking_service,
                     finished_by_time__gte=stamp,
                     contestanttrack__calculator_finished=False,
                 ),
