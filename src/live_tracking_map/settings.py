@@ -284,8 +284,6 @@ if os.environ.get("MODE") == "dev":
     STATIC_URL = "/static/"
 
 
-# STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
 TEMPORARY_FOLDER = "/tmp"
 
 STATICFILES_DIRS = [
