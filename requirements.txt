@@ -1,7 +1,7 @@
 django==5.1
 Pillow==10.1.0
 SimConnect==0.4.26
-celery==5.4.0dja
+celery==5.4.0
 channels[daphne]~=4.0.0
 channels_redis==4.1
 coverage==7.3.4
@@ -75,3 +75,4 @@ python-dateutil~=2.8.2
 flake8
 flake8-docstrings
 gunicorn
+eval7==0.1.10

@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm as tracker_base
+FROM python:3.12-slim-bookworm AS tracker_base
 ENV PYTHONUNBUFFERED 1
 
 ###### SETUP BASE INFRASTRUCTURE ######
@@ -37,9 +37,6 @@ RUN pip --no-cache-dir install -Ur /requirements.txt
 
 RUN pip --no-cache-dir uninstall -y shapely
 RUN pip --no-cache-dir install --no-binary :all: shapely
-
-COPY pyeval7 /pyeval7
-RUN pip --no-cache-dir install /pyeval7
 
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 # TODO: Required for a test, should be changed
