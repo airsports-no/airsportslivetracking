@@ -21,6 +21,8 @@ class TimedQueue:
     def put(self, data, stamp: datetime.datetime):
         with self._lock:
             self._queue.append((data, stamp))
+            # Should we sort the queue?
+            self._queue.sort(key=lambda i: i[1])
             self._ready_event.set()
 
     def peek(self):
@@ -38,7 +40,7 @@ class TimedQueue:
                     return None
                 internal_timeout = max(0, (self._queue[0][1] - now).total_seconds()) if len(self._queue) > 0 else 10
             if timeout is not None:
-                remaining_external_timeout = timeout-(now-start).total_seconds()
+                remaining_external_timeout = timeout - (now - start).total_seconds()
                 internal_timeout = min(remaining_external_timeout, internal_timeout)
             self._ready_event.wait(timeout=internal_timeout)
             self._ready_event.clear()
