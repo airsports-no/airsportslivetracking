@@ -1,6 +1,9 @@
+import io
 import logging
 from io import BytesIO
 
+import PIL
+import requests
 import six
 import datetime
 import os
@@ -225,6 +228,36 @@ def create_minute_lines_track(
 first = True
 
 
+class MyGoogleWTS(GoogleWTS):
+    def get_image(self, tile):
+
+        if self.cache_path is not None:
+            filename = "_".join([str(i) for i in tile]) + ".npy"
+            cached_file = self._cache_dir / filename
+        else:
+            cached_file = None
+
+        if cached_file in self.cache:
+            img = np.load(cached_file, allow_pickle=False)
+        else:
+            url = self._image_url(tile)
+            try:
+                response = requests.get(url, headers={"User-Agent": self.user_agent}, timeout=1)
+                im_data = io.StringIO(response.content.decode("utf-8"))
+                img = Image.open(im_data)
+
+            except requests.RequestException:
+                logger.exception("Failed fetching tile for url %s", url)
+                img = Image.fromarray(np.full((256, 256, 3), (250, 250, 250), dtype=np.uint8))
+
+            img = img.convert(self.desired_tile_form)
+            if self.cache_path is not None:
+                np.save(cached_file, img, allow_pickle=False)
+                self.cache.add(cached_file)
+
+        return img, self.tileextent(tile), "lower"
+
+
 class UserUploadedMBTiles(GoogleWTS):
     def __init__(self, user_uploaded_map: UserUploadedMap, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -245,8 +278,10 @@ class UserUploadedMBTiles(GoogleWTS):
                 #         print(tile)
                 # print(f"Has tile: {src.has_tile(z, x, y)}")
                 data = src.read_tile(z=z, x=x, y=y)
-                img = Image.open(BytesIO(data))
-                # print("Success")
+                try:
+                    img = Image.open(BytesIO(data))
+                except PIL.UnidentifiedImageError:
+                    img = Image.fromarray(np.full((256, 256, 3), (250, 250, 250), dtype=np.uint8))
         except ValueError:
             img = Image.fromarray(np.full((256, 256, 3), (255, 255, 255), dtype=np.uint8))
         except Exception:
@@ -258,7 +293,7 @@ class UserUploadedMBTiles(GoogleWTS):
         return img, self.tileextent(tile), "lower"
 
 
-class FlightContest(GoogleWTS):
+class FlightContest(MyGoogleWTS):
     def _image_url(self, tile):
         x, y, z = tile
         y = (2**z) - y - 1
@@ -283,7 +318,7 @@ class FlightContest(GoogleWTS):
         return img, self.tileextent(tile), "lower"
 
 
-class OpenAIP(GoogleWTS):
+class OpenAIP(MyGoogleWTS):
     def _image_url(self, tile):
         x, y, z = tile
         s = "1"
@@ -291,19 +326,19 @@ class OpenAIP(GoogleWTS):
         return f"http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.{ext}"
 
 
-class MapTilerOutdoor(GoogleWTS):
+class MapTilerOutdoor(MyGoogleWTS):
     def _image_url(self, tile):
         x, y, z = tile
         return f"https://api.maptiler.com/maps/outdoor/{z}/{x}/{y}.png?key=YxHsFU6aEqsEULL34uJT"
 
 
-class CyclOSM(GoogleWTS):
+class CyclOSM(MyGoogleWTS):
     def _image_url(self, tile):
         x, y, z = tile
         return f"https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png"
 
 
-class LocalMapServer(GoogleWTS):
+class LocalMapServer(MyGoogleWTS):
     def __init__(self, map_key: str, **kwargs):
         super().__init__(**kwargs)
         self.map_key = map_key
