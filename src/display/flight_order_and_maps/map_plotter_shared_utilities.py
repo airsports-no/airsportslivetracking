@@ -25,7 +25,7 @@ def get_map_choices() -> list[tuple[str, str]]:
         ("osm", "OSM"),
         ("fc", "Flight Contest"),
         ("mto", "MapTiler Outdoor"),
-        ("cyclosm", "CycleOSM"),
+        # ("cyclosm", "CycleOSM"),
     ]
 
 

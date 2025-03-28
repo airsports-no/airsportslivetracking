@@ -1085,8 +1085,10 @@ def plot_route(
             imagery = MapTilerOutdoor(desired_tile_form="RGBA")
             attribution = "maptiler.com"
         elif map_source == "cyclosm":
-            imagery = CyclOSM(desired_tile_form="RGBA", user_agent="airsports.no, support@airsports.no")
-            attribution = "openstreetmap.org CycleOSM"
+            imagery = OSM(user_agent="airsports.no, support@airsports.no")  # Does not like zoom level greater than 12
+            attribution = "openstreetmap.org"
+            # imagery = CyclOSM(desired_tile_form="RGBA", user_agent="airsports.no, support@airsports.no")
+            # attribution = "openstreetmap.org CycleOSM"
         else:
             imagery = LocalMapServer(map_source, desired_tile_form="RGBA")
             attribution = MAP_ATTRIBUTIONS.get(map_source, "Missing")
