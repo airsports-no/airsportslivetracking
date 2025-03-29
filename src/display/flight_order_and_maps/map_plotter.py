@@ -243,7 +243,7 @@ class MyGoogleWTS(GoogleWTS):
             url = self._image_url(tile)
             try:
                 response = requests.get(url, headers={"User-Agent": self.user_agent}, timeout=1)
-                im_data = io.StringIO(response.content.decode("utf-8"))
+                im_data = io.BytesIO(response.content)
                 img = Image.open(im_data)
 
             except requests.RequestException:
