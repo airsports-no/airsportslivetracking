@@ -21,6 +21,7 @@ The project welcomes contributions of all kinds in the form of pull requests. Ar
 - User documentation
 - Translation
 - New task types
+- User interface improvements
 
 The project is currently in the early stages of open source release, so some work is required to clean up the code base to make it more easily maintainable. Check the [implementation guide](../../wiki/Implementation-guide) for some hints.
 
