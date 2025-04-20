@@ -481,7 +481,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
                         longitude=11.5,
                         annotation_type="anomaly",
                         score_type=f"outside_corridor_{gate.name}",
-                        maximum_score=-1.0,
+                        maximum_score=0,
                         planned=None,
                         actual=None,
                     )
@@ -539,7 +539,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
                         longitude=11.5,
                         annotation_type="anomaly",
                         score_type=f"outside_corridor_{gate.name}",
-                        maximum_score=-1.0,
+                        maximum_score=0,
                         planned=None,
                         actual=None,
                     )
@@ -577,7 +577,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
                 longitude=11.5,
                 annotation_type="anomaly",
                 score_type=f"outside_corridor_{gate.name}",
-                maximum_score=-1.0,
+                maximum_score=0,
                 planned=None,
                 actual=None,
             )
