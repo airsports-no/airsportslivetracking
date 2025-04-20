@@ -19,7 +19,7 @@ def get_default_scorecard():
             "task_type": [LANDING],
             "calculator": LANDING,
             "prohibited_zone_penalty": 0,
-            "prohibited_zone_maximum": -1,
+            "prohibited_zone_maximum": 0,
         },
     )
 

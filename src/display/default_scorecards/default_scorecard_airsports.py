@@ -32,14 +32,14 @@ def get_default_scorecard():
             "use_procedure_turns": False,
             "task_type": [AIRSPORTS],
             "calculator": AIRSPORTS,
-            "corridor_maximum_penalty": -1,  # verified
+            "corridor_maximum_penalty": 0,  # verified
             "corridor_outside_penalty": 1,  # verified
             "corridor_grace_time": 5,  # verified
             "below_minimum_altitude_penalty": 500,  # verified
             "below_minimum_altitude_maximum_penalty": 500,  # verified
             "prohibited_zone_penalty": 200,
             "prohibited_zone_grace_time": 5,
-            "prohibited_zone_maximum": -1,
+            "prohibited_zone_maximum": 0,
             "penalty_zone_grace_time": 5,
             "penalty_zone_penalty_per_second": 3,
             "penalty_zone_maximum": 100,

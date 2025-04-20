@@ -39,7 +39,7 @@ def get_default_scorecard():
             "below_minimum_altitude_maximum_penalty": 500,  # verified
             "prohibited_zone_penalty": 200,
             "prohibited_zone_grace_time": 5,
-            "prohibited_zone_maximum": -1,
+            "prohibited_zone_maximum": 0,
             "penalty_zone_grace_time": 5,
             "penalty_zone_penalty_per_second": 3,
             "penalty_zone_maximum": 100,

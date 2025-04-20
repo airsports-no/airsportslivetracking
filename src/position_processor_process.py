@@ -307,7 +307,9 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_q
         try:
             contestant, is_simulator = cached_find_contestant(device_name, device_time)
         except OperationalError:
-            logger.warning(f"Error when fetching person for app_tracking_id '{device_name}'. Attempting to reconnect")
+            logger.warning(
+                f"Error when fetchingFor person for app_tracking_id '{device_name}'. Attempting to reconnect"
+            )
             connection.connect()
             contestant = None
             is_simulator = True

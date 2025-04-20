@@ -6,7 +6,7 @@ from display.models import (
     GateScore,
     Scorecard,
 )
-from display.utilities.gate_definitions import TURNPOINT, GATE_TYPES, DUMMY, UNKNOWN_LEG
+from display.utilities.gate_definitions import TURNPOINT, GATE_TYPES
 from display.utilities.navigation_task_type_definitions import POKER
 
 
@@ -22,8 +22,25 @@ def get_default_scorecard():
             "use_procedure_turns": False,
             "task_type": [POKER],
             "calculator": POKER,
-            "prohibited_zone_penalty": 0,
-            "prohibited_zone_maximum": -1,
+            "prohibited_zone_penalty": -200,
+            "prohibited_zone_grace_time": 5,
+            "prohibited_zone_maximum": 0,
+            "penalty_zone_grace_time": 5,
+            "penalty_zone_penalty_per_second": -3,
+            "penalty_zone_maximum": 0,
+            "included_fields": [
+                [
+                    "Prohibited zone",
+                    "prohibited_zone_grace_time",
+                    "prohibited_zone_penalty",
+                ],
+                [
+                    "Penalty zone",
+                    "penalty_zone_grace_time",
+                    "penalty_zone_penalty_per_second",
+                    "penalty_zone_maximum",
+                ],
+            ],
             "free_text": """
 <p>The crew must follow the order of the waypoints to receive the next card.  To make the waypoint more accessible, polygons (Gate Zone) can be used in the route editor. Overlap the Gate Zone with the Turning Point, it will then be automatically connected as a waypoint.</p>
 
