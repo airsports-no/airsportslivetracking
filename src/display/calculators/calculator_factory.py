@@ -45,5 +45,12 @@ def calculator_factory(contestant: "Contestant", score_processing_queue: Queue) 
     if contestant.navigation_task.scorecard.calculator == LANDING:
         return GatekeeperLanding(contestant, score_processing_queue, [])
     if contestant.navigation_task.scorecard.calculator == POKER:
-        return GatekeeperPoker(contestant, score_processing_queue, [])
+        return GatekeeperPoker(
+            contestant,
+            score_processing_queue,
+            [
+                ProhibitedZoneCalculator,
+                PenaltyZoneCalculator,
+            ],
+        )
     return GatekeeperRoute(contestant, score_processing_queue, [])
