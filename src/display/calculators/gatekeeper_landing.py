@@ -1,6 +1,6 @@
 import datetime
 import logging
-from multiprocessing import Queue
+from queue import Queue
 from typing import List, Callable
 
 from display.calculators.gatekeeper import Gatekeeper

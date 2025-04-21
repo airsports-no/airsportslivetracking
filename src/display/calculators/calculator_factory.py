@@ -1,5 +1,4 @@
-from multiprocessing import Queue
-
+from queue import Queue
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.backtracking_and_procedure_turns import BacktrackingAndProcedureTurnsCalculator
 from display.calculators.gatekeeper import Gatekeeper
@@ -9,7 +8,7 @@ from display.calculators.gatekeeper_route import GatekeeperRoute
 from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 
-from display.models import Contestant, NavigationTask
+from display.models import Contestant
 from display.utilities.navigation_task_type_definitions import (
     PRECISION,
     POKER,

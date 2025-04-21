@@ -5,7 +5,6 @@ from queue import Queue
 from typing import List, Optional, Tuple, Dict
 
 from django.core.exceptions import ObjectDoesNotExist
-from pyproj import CRS, Transformer
 
 from display.calculators.calculator_factory import calculator_factory
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -23,8 +22,6 @@ from display.utilities.traccar_factory import get_traccar_instance
 
 from display.utilities.coordinate_utilities import (
     Projector,
-    calculate_distance_lat_lon,
-    calculate_fractional_distance_point_lat_lon,
 )
 from display.models import Contestant, TrackAnnotation, ScoreLogEntry, ContestantReceivedPosition
 
@@ -74,7 +71,7 @@ class ContestantProcessor:
         self,
         contestant: "Contestant",
         live_processing: bool = True,
-        queue_name_override: str = None,
+        queue_name_override: str | None = None,
     ):
         calculator_is_alive(contestant.pk, 30)
         super().__init__()

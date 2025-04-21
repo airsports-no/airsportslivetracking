@@ -1,7 +1,7 @@
 import datetime
 import logging
+from queue import Queue
 import time
-from multiprocessing import Queue
 from typing import List, Optional, Callable, Tuple
 
 from display.calculators.calculator_utilities import round_time_minute
