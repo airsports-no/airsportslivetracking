@@ -5,6 +5,7 @@ from queue import Queue
 from typing import List, Optional, Tuple, Dict
 
 from django.core.exceptions import ObjectDoesNotExist
+from pyproj import CRS, Transformer
 
 from display.calculators.calculator_factory import calculator_factory
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -21,6 +22,7 @@ from websocket_channels import WebsocketFacade
 from display.utilities.traccar_factory import get_traccar_instance
 
 from display.utilities.coordinate_utilities import (
+    Projector,
     calculate_distance_lat_lon,
     calculate_fractional_distance_point_lat_lon,
 )
@@ -133,22 +135,17 @@ class ContestantProcessor:
         If last_position is provided, perform a linear interpolation for each second with missing position data between
         the time of last_position and position. Return the resulting list of positions.
         """
-        # todo: Temporarily disables interpolation
-        return [position]
         if last_position is None:
             return [position]
         initial_time = last_position.time
-        distance = calculate_distance_lat_lon(
-            (last_position.latitude, last_position.longitude), (position.latitude, position.longitude)
-        )
-        if distance < 0.001:
-            return [position]
+        projector = Projector(last_position.latitude, last_position.longitude)
+
         time_difference = int((position.time - initial_time).total_seconds())
         positions = []
-        if time_difference > 2:
+        if time_difference > 1:
             fraction = 1 / time_difference
             for step in range(1, time_difference):
-                new_position = calculate_fractional_distance_point_lat_lon(
+                new_position = projector.fractional_point_on_line(
                     (last_position.latitude, last_position.longitude),
                     (position.latitude, position.longitude),
                     step * fraction,
@@ -156,7 +153,7 @@ class ContestantProcessor:
                 positions.append(
                     ContestantReceivedPosition(
                         contestant=position.contestant,
-                        time=(initial_time + datetime.timedelta(seconds=step)),
+                        time=initial_time + datetime.timedelta(seconds=step),
                         latitude=new_position[0],
                         longitude=new_position[1],
                         altitude=position.altitude,

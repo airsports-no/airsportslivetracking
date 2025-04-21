@@ -70,13 +70,12 @@ class TestInterpolation(TransactionTestCase):
         )
         gatekeeper.track = [start_position]
         next_position = ContestantReceivedPosition(
-            contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:02Z"), latitude=60, longitude=12
+            contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:01Z"), latitude=60, longitude=12
         )
         interpolated = gatekeeper.interpolate_track(start_position, next_position)
         self.assertEqual(1, len(interpolated))
         self.assertEqual(next_position, interpolated[0])
 
-    @skip("Interpolation is disabled?")
     def test_interpolation(self, *args):
         gatekeeper = ContestantProcessor(self.contestant)
         start_position = ContestantReceivedPosition(
@@ -88,14 +87,80 @@ class TestInterpolation(TransactionTestCase):
         )
         interpolated = gatekeeper.interpolate_track(start_position, next_position)
         expected = [
-            ("2020-01-01 00:00:01+00:00", 60.00060459827332, 11.199996353395562),
-            ("2020-01-01 00:00:02+00:00", 60.0009069019875, 11.399998176675595),
-            ("2020-01-01 00:00:03+00:00", 60.0009069019875, 11.600001823324405),
-            ("2020-01-01 00:00:04+00:00", 60.00060459827332, 11.800003646604438),
+            ("2020-01-01 00:00:01+00:00", 60.00060561690469, 11.199996344501796),
+            ("2020-01-01 00:00:02+00:00", 60.000908429948986, 11.399998172228623),
+            ("2020-01-01 00:00:03+00:00", 60.00090842994899, 11.600001827771377),
+            ("2020-01-01 00:00:04+00:00", 60.00060561690469, 11.800003655498205),
             ("2020-01-01 00:00:05+00:00", 60, 12),
         ]
-        print([f"({item.time.isoformat()}, {item.latitude}, {item.longitude})" for item in interpolated])
+        # print([f"({item.time.isoformat()}, {item.latitude}, {item.longitude})" for item in interpolated])
         self.assertEqual(5, len(interpolated))
+        for index in range(len(interpolated)):
+            self.assertEqual(str(interpolated[index].time), expected[index][0])
+            self.assertAlmostEqual(interpolated[index].latitude, expected[index][1])
+            self.assertAlmostEqual(interpolated[index].longitude, expected[index][2])
+
+    def test_interpolation_two_seconds(self, *args):
+        gatekeeper = ContestantProcessor(self.contestant)
+        start_position = ContestantReceivedPosition(
+            contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:00Z"), latitude=60, longitude=11
+        )
+        gatekeeper.track = [start_position]
+        next_position = ContestantReceivedPosition(
+            contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:02Z"), latitude=60, longitude=12
+        )
+        interpolated = gatekeeper.interpolate_track(start_position, next_position)
+        expected = [
+            ("2020-01-01 00:00:01+00:00", 60.00094628179479, 11.5),
+            ("2020-01-01 00:00:02+00:00", 60, 12),
+        ]
+        self.assertEqual(2, len(interpolated))
+        for index in range(len(interpolated)):
+            self.assertEqual(str(interpolated[index].time), expected[index][0])
+            self.assertAlmostEqual(interpolated[index].latitude, expected[index][1])
+            self.assertAlmostEqual(interpolated[index].longitude, expected[index][2])
+
+    def test_interpolation_two_seconds_latitude(self, *args):
+        gatekeeper = ContestantProcessor(self.contestant)
+        start_position = ContestantReceivedPosition(
+            contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:00Z"), latitude=60, longitude=11
+        )
+        gatekeeper.track = [start_position]
+        next_position = ContestantReceivedPosition(
+            contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:02Z"), latitude=61, longitude=11
+        )
+        interpolated = gatekeeper.interpolate_track(start_position, next_position)
+        expected = [
+            ("2020-01-01 00:00:01+00:00", 60.5000188734541, 11),
+            ("2020-01-01 00:00:02+00:00", 61, 11),
+        ]
+        self.assertEqual(2, len(interpolated))
+        for index in range(len(interpolated)):
+            self.assertEqual(str(interpolated[index].time), expected[index][0])
+            self.assertAlmostEqual(interpolated[index].latitude, expected[index][1])
+            self.assertAlmostEqual(interpolated[index].longitude, expected[index][2])
+
+    def test_interpolation_close_positions(self, *args):
+        gatekeeper = ContestantProcessor(self.contestant)
+        start_position = ContestantReceivedPosition(
+            contestant=self.contestant,
+            time=dateutil.parser.parse("2020-01-01T00:00:00Z"),
+            latitude=49.042362,
+            longitude=21.042522,
+        )
+        gatekeeper.track = [start_position]
+        next_position = ContestantReceivedPosition(
+            contestant=self.contestant,
+            time=dateutil.parser.parse("2020-01-01T00:00:02Z"),
+            latitude=49.043268,
+            longitude=21.042285,
+        )
+        interpolated = gatekeeper.interpolate_track(start_position, next_position)
+        expected = [
+            ("2020-01-01 00:00:01+00:00", 49.042815000078704, 21.042403501076294),
+            ("2020-01-01 00:00:02+00:00", 49.043268, 21.042285),
+        ]
+        self.assertEqual(2, len(interpolated))
         for index in range(len(interpolated)):
             self.assertEqual(str(interpolated[index].time), expected[index][0])
             self.assertAlmostEqual(interpolated[index].latitude, expected[index][1])

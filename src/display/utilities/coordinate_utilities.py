@@ -5,6 +5,7 @@ import logging
 import math
 from typing import Tuple, Optional, List
 
+from shapely import LineString
 import utm
 from geopy.distance import geodesic, great_circle
 import nvector as nv
@@ -275,7 +276,8 @@ class Projector:
         self.to_projection = Transformer.from_crs(WGS84, AEQD, always_xy=True)
         self.from_projection = Transformer.from_crs(AEQD, WGS84, always_xy=True)
 
-    def intersect(self, start1, stop1, start2, stop2):
+    def intersect(self, start1: tuple[float, float], stop1, start2, stop2):
+        """latitude, longitude pairs"""
         start1 = self.to_projection.transform(*reversed(start1))
         stop1 = self.to_projection.transform(*reversed(stop1))
         start2 = self.to_projection.transform(*reversed(start2))
@@ -286,6 +288,17 @@ class Projector:
             return None
         converted = self.from_projection.transform(*intersection)
         return converted[1], converted[0]
+
+    def fractional_point_on_line(
+        self, start: tuple[float, float], finish: tuple[float, float], fraction: float
+    ) -> tuple[float, float]:
+        """Returns a point the fractional distance between start and finish"""
+        internal_start = self.to_projection.transform(*reversed(start))
+        internal_finish = self.to_projection.transform(*reversed(finish))
+        line = LineString([internal_start, internal_finish])
+        fractional_point = line.interpolate(fraction * line.length)
+        lon_lat = self.from_projection.transform(fractional_point.x, fractional_point.y)
+        return tuple(reversed(lon_lat))
 
 
 def nv_intersect(start1, stop1, start2, stop2, on_segments: bool = False):
