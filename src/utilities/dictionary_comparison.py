@@ -15,7 +15,7 @@ def compare_dictionaries(dict_1, dict_2, dict_1_name="first", dict_2_name="secon
     equals = True
     for k in dict_1.keys():
         path = old_path + "[{}]".format(k)
-        if not k in dict_2:
+        if k not in dict_2:
             key_err += "Key %s%s not in %s\n" % (dict_1_name, path, dict_2_name)
             equals = False
         else:
@@ -35,7 +35,7 @@ def compare_dictionaries(dict_1, dict_2, dict_1_name="first", dict_2_name="secon
 
     for k in dict_2.keys():
         path = old_path + "[{}]".format(k)
-        if not k in dict_1:
+        if k not in dict_1:
             equals = False
             key_err += "Key %s%s not in %s\n" % (dict_2_name, path, dict_1_name)
     return equals, key_err + value_err + err

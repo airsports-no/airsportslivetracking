@@ -527,7 +527,7 @@ class ContestViewSet(ModelViewSet):
         )
         if contestants.exists():
             raise drf_exceptions.ValidationError(
-                f"You are currently participating in at least one navigation task. Cancel all flights before you can withdraw from the contest"
+                "You are currently participating in at least one navigation task. Cancel all flights before you can withdraw from the contest"
             )
         teams.delete()
         return Response({}, status=status.HTTP_204_NO_CONTENT)

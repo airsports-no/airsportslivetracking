@@ -112,7 +112,7 @@ def initial_processor(queue: Queue, global_map_queue: Queue):
             traccar = Traccar.create_from_configuration()
             break
         except:
-            logger.exception(f"Initial processor failed to connect to traccer")
+            logger.exception("Initial processor failed to connect to traccer")
             time.sleep(5)
     while True:
         clean_db_positions()

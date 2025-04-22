@@ -351,7 +351,7 @@ class ContestForm(forms.ModelForm):
                 code="invalid",
             )
         except KeyError:
-            raise ValidationError(f"Please select a valid location for the contest.", code="invalid")
+            raise ValidationError("Please select a valid location for the contest.", code="invalid")
         # except:
         #     pass
         return cleaned_data

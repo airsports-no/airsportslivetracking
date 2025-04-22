@@ -205,7 +205,7 @@ class Encoder(object):
         msg.append(hour & 0xff)
         msg.append(minute & 0xff)
 
-        msg.append(0);
+        msg.append(0)
         msg.append(0)  # debug data
         msg.append(4)  # hardware version
 

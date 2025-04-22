@@ -94,7 +94,7 @@ def check_connection():
                 f"Websocket has not been connected for 5 minutes, setting liveness probe to false to force a restart. {disconnected_time=}"
             )
         if not last_debug:
-            logger.error(f"Last debug time is not in the cache, setting liveness to false")
+            logger.error("Last debug time is not in the cache, setting liveness to false")
         elif time.time() - last_debug > 300:
             logger.error(f"Last debug time is {time.time()-last_debug} seconds old, setting liveness to false")
         probes.liveness(False)
@@ -123,7 +123,7 @@ if __name__ == "__main__":
         name="live_position_transmitter",
     ).start()
 
-    logger.info(f"Creating initial processor")
+    logger.info("Creating initial processor")
     Process(
         target=initial_processor,
         args=(processing_queue, global_map_queue),

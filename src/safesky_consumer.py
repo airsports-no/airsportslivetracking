@@ -41,7 +41,7 @@ class SafeSky:
             "viewport": ','.join([str(item) for item in bounding_box])
         }
         # 43.1035, -2.0821, 47.9943, 15.3216
-        response = requests.get(API_URL + f"beacons/", params=parameters,headers=self.headers)
+        response = requests.get(API_URL + "beacons/", params=parameters,headers=self.headers)
         print([item["source"] for item in response.json()])
 
 

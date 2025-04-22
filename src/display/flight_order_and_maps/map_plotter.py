@@ -1392,7 +1392,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
     plt.text(
         positions[0][1],
         positions[0][0],
-        f"SP",
+        "SP",
         verticalalignment="center",
         color="blue",
         horizontalalignment="center",
@@ -1402,7 +1402,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
     plt.text(
         positions[-1][1],
         positions[-1][0],
-        f"FP",
+        "FP",
         verticalalignment="center",
         color="blue",
         horizontalalignment="center",

@@ -322,7 +322,7 @@ def user_request_profile_deletion(request):
     """
     try:
         send_mail(
-            f"User requested profile deletion",
+            "User requested profile deletion",
             f"The user {request.user.email} has requested their profile to be deleted",
             None,  # Should default to system from email
             recipient_list=[SUPPORT_EMAIL],
@@ -332,7 +332,7 @@ def user_request_profile_deletion(request):
         post_slack_competition_message(
             "Exception", f"Failed sending email about deleting user profile for {request.user.email}"
         )
-    messages.info(request, f"Your request for deleting your user profile has been submitted")
+    messages.info(request, "Your request for deleting your user profile has been submitted")
     logout(request)
     return redirect("/")
 
@@ -606,9 +606,9 @@ def import_route(request):
                 for message in return_messages:
                     messages.error(request, message)
                 return render(request, "display/import_route_form.html", {"form": form})
-            assign_perm(f"display.change_editableroute", request.user, editable_route)
-            assign_perm(f"display.delete_editableroute", request.user, editable_route)
-            assign_perm(f"display.view_editableroute", request.user, editable_route)
+            assign_perm("display.change_editableroute", request.user, editable_route)
+            assign_perm("display.delete_editableroute", request.user, editable_route)
+            assign_perm("display.view_editableroute", request.user, editable_route)
             for message in return_messages:
                 messages.success(request, message)
             return redirect(f"/routeeditor/{editable_route.pk}/")
@@ -656,7 +656,7 @@ def get_contestant_map(request, pk):
             )
 
             response = HttpResponse(pdf, content_type="application/pdf")
-            response["Content-Disposition"] = f"attachment; filename=map.pdf"
+            response["Content-Disposition"] = "attachment; filename=map.pdf"
             return response
     else:
         configuration = contestant.navigation_task.flightorderconfiguration
@@ -764,7 +764,7 @@ def get_contestant_default_map(request, pk):
         configuration.map_orientation == LANDSCAPE,
     )
     response = HttpResponse(pdf, content_type="application/pdf")
-    response["Content-Disposition"] = f"attachment; filename=map.pdf"
+    response["Content-Disposition"] = "attachment; filename=map.pdf"
     return response
 
 
@@ -775,7 +775,7 @@ def get_contestant_email_flight_orders_link(request, key):
     """
     map_link = get_object_or_404(EmailMapLink, id=key)
     response = HttpResponse(map_link.orders, content_type="application/pdf")
-    response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
+    response["Content-Disposition"] = "attachment; filename=flight_orders.pdf"
     return response
 
 
@@ -786,7 +786,7 @@ def get_contestant_email_flying_orders_link(request, pk):
     contestant = get_object_or_404(Contestant, id=pk)
     report = generate_flight_orders_latex(contestant)
     response = HttpResponse(bytes(report), content_type="application/pdf")
-    response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
+    response["Content-Disposition"] = "attachment; filename=flight_orders.pdf"
     return response
 
 
@@ -835,7 +835,7 @@ def download_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     contestant_pks = request.GET.get("contestant_pks")
     if not contestant_pks or len(contestant_pks) == 0:
-        messages.error(request, f"No contestants were selected to download flight orders for.")
+        messages.error(request, "No contestants were selected to download flight orders for.")
         return redirect("navigationtask_flightordersprogress", pk=pk)
     contestant_pks = contestant_pks.split(",")
     contestants = navigation_task.contestant_set.filter(pk__in=contestant_pks)
@@ -854,9 +854,9 @@ def download_navigation_task_orders(request, pk):
         return response
     elif orders.count() == 1:
         response = HttpResponse(orders.first().orders, content_type="application/pdf")
-        response["Content-Disposition"] = f"attachment; filename=flight_orders.pdf"
+        response["Content-Disposition"] = "attachment; filename=flight_orders.pdf"
         return response
-    messages.error(request, f"There were no flight orders to download. Maybe they are still generating?")
+    messages.error(request, "There were no flight orders to download. Maybe they are still generating?")
     return redirect("navigationtask_flightordersprogress", pk=pk)
 
 
@@ -898,7 +898,7 @@ def get_navigation_task_map(request, pk):
 
             response = HttpResponse(pdf, content_type="application/pdf")
 
-            response["Content-Disposition"] = f"attachment; filename=map.pdf"
+            response["Content-Disposition"] = "attachment; filename=map.pdf"
             return response
     else:
         configuration = navigation_task.flightorderconfiguration
@@ -1001,7 +1001,7 @@ def download_gpx_track_contestant(request, pk):
             )
         )
     response = HttpResponse(gpx.to_xml(), content_type="application/gpx+xml")
-    response["Content-Disposition"] = f"attachment; filename=track.gpx"
+    response["Content-Disposition"] = "attachment; filename=track.gpx"
     return response
 
 
@@ -1863,9 +1863,9 @@ def copy_editable_route(request, pk):
     editable_route.id = None
     editable_route.name += "_copy"
     editable_route.save()
-    assign_perm(f"display.change_editableroute", request.user, editable_route)
-    assign_perm(f"display.delete_editableroute", request.user, editable_route)
-    assign_perm(f"display.view_editableroute", request.user, editable_route)
+    assign_perm("display.change_editableroute", request.user, editable_route)
+    assign_perm("display.delete_editableroute", request.user, editable_route)
+    assign_perm("display.view_editableroute", request.user, editable_route)
     return HttpResponseRedirect(reverse("editableroute_list"))
 
 
@@ -1927,7 +1927,7 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
                 return super().form_invalid(form)
             instance.save()
         except Exception as ex:
-            logger.exception(f"Failed creating thumbnail")
+            logger.exception("Failed creating thumbnail")
             form.add_error("map_file", f"Failed reading mbtiles file: {ex}")
             return super().form_invalid(form)
         assign_perm("delete_useruploadedmap", self.request.user, instance)
@@ -1968,7 +1968,7 @@ class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
                 return super().form_invalid(form)
             instance.save()
         except Exception as ex:
-            logger.exception(f"Failed creating thumbnail")
+            logger.exception("Failed creating thumbnail")
             form.add_error("map_file", f"Failed reading mbtiles file: {ex}")
             return super().form_invalid(form)
 

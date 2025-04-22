@@ -15,5 +15,5 @@ import json
 from geopy import Nominatim
 
 geolocator = Nominatim(user_agent="airsports.no")
-location = geolocator.reverse(f"60, 11")
+location = geolocator.reverse("60, 11")
 print(json.dumps(location.raw))

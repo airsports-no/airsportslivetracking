@@ -168,7 +168,7 @@ def plot_scores():
     plt.title("Scores")
     ax.scatter(range(len(scores)), [item[1] for item in scores])
     plt.xticks(np.arange(len(scores)), [item[0] for item in scores], rotation=60)
-    plt.savefig(f"scores.png", dpi=100, bbox_inches="tight")
+    plt.savefig("scores.png", dpi=100, bbox_inches="tight")
     plt.close()
 
 

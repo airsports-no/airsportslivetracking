@@ -110,7 +110,7 @@ def process_beacon(raw_message):
                                                               aircraft_type=beacon["aircraft_type"]))
         # print('Received {aprs_type}: {raw_message}'.format(**beacon))
         # print('Received {beacon_type} from {name}'.format(**beacon))
-    except (ParseError, AttributeError) as e:
+    except (ParseError, AttributeError):
         logger.exception("Parse error")
 
 

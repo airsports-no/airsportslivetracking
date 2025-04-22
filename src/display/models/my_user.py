@@ -45,7 +45,7 @@ class MyUser(BaseUser, GuardianUserMixin):
         plaintext = converter.handle(html)
         try:
             send_mail(
-                f"Welcome to Air Sports Live Tracking",
+                "Welcome to Air Sports Live Tracking",
                 plaintext,
                 None,  # Should default to system from email
                 recipient_list=[self.email, SUPPORT_EMAIL],
@@ -67,7 +67,7 @@ class MyUser(BaseUser, GuardianUserMixin):
         logger.debug(f"Sending contest creation email to {person}")
         try:
             send_mail(
-                f"You have been granted contest creation privileges at Air Sports Live Tracking",
+                "You have been granted contest creation privileges at Air Sports Live Tracking",
                 plaintext,
                 None,  # Should default to system from email
                 recipient_list=[self.email, SUPPORT_EMAIL],
@@ -86,7 +86,7 @@ class MyUser(BaseUser, GuardianUserMixin):
             logger.debug(f"Sending user deletion email to {self.email}")
             try:
                 send_mail(
-                    f"Your user profile has been deleted from Air Sports Live Tracking",
+                    "Your user profile has been deleted from Air Sports Live Tracking",
                     plaintext,
                     None,  # Should default to system from email
                     recipient_list=[self.email, SUPPORT_EMAIL],

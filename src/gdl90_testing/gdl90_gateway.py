@@ -59,7 +59,7 @@ towers = [
 def print_bytes(to_print, joiner: str = " ") -> str:
     try:
         return joiner.join(["%02X" % x for x in to_print])
-    except Exception as exception:
+    except Exception:
         logger.exception("Failed printing string {} as hex string".format(to_print))
         return str(to_print)
 
