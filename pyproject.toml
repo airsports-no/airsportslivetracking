@@ -1,8 +1,55 @@
-# This pyproject.toml is purely for configuring ruff across the whole repo. Please
-# make any package-specific settings in their respective pyproject.tomls.
+[project]
+name = "airsports-live-tracking"
+authors = []
+readme = "README.md"
+version = "0.0.1"
+description = "Airsports live tracking"
+requires-python = ">=3.12,<4"
+dependencies = []
+license = { text = "AGPL-3" }
 
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+ruff = "*"
+pre-commit = "^4.0.0"
 
 [tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
 
 # Same as Black.
 line-length = 120
