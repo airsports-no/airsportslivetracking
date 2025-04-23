@@ -827,10 +827,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         return self.contestantreceivedposition_set.all()
 
     def get_latest_position(self) -> Optional[ContestantReceivedPosition]:
-        try:
-            return self.get_track()[-1]
-        except IndexError:
-            return None
+        return self.get_track().last()
 
     def record_actual_gate_time(self, gate_name: str, passing_time: datetime.datetime):
         """
