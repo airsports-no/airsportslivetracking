@@ -38,7 +38,7 @@ class NavigationTask(models.Model):
     original_scorecard = models.ForeignKey(
         "Scorecard",
         on_delete=models.PROTECT,
-        help_text=f"Reference to an existing scorecard",
+        help_text="Reference to an existing scorecard",
         related_name="navigation_task_original",
     )
     scorecard = models.OneToOneField(

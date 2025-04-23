@@ -341,11 +341,11 @@ class EditableRoute(models.Model):
 
         features = load_features_from_kml(kml_content)
         if "route" not in features:
-            messages.append(f"Fatal: Did not find a 'route' element in the KML file")
+            messages.append("Fatal: Did not find a 'route' element in the KML file")
             return None, messages
         positions = features.get("route", [])
         if len(positions) == 0:
-            messages.append(f"Fatal: The provided the route has zero length")
+            messages.append("Fatal: The provided the route has zero length")
             return None, messages
         track = create_track_block([(item[0], item[1]) for item in positions])
         messages.append(f"Found route with {len(positions)} points")

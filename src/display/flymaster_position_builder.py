@@ -41,6 +41,6 @@ def build_positions_from_flymaster(file_data: str) -> tuple["Contestant| None", 
                     "processor_received_time": datetime.datetime.now(datetime.timezone.utc),
                 }
             )
-        except ValueError as e:
+        except ValueError:
             logger.info(f"Failed parsing flymaster data line {line}")
     return contestant, identifier, positions

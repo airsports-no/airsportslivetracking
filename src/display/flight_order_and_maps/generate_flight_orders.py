@@ -481,9 +481,9 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                 if contestant.adaptive_start:
                     with document.create(Section("", numbering=False)):
                         document.append(
-                            f"Using adaptive start, your start time will be set to the nearest whole minute you cross the infinite "
-                            f"line going through the starting gate anywhere between one hour before and one hour after the selected "
-                            f"starting point time."
+                            "Using adaptive start, your start time will be set to the nearest whole minute you cross the infinite "
+                            "line going through the starting gate anywhere between one hour before and one hour after the selected "
+                            "starting point time."
                         )
                         document.append(LineBreak())
                         document.append("https://home.airsports.no/faq/#ADAPTIVE")
@@ -672,7 +672,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         document.append(
             StandAloneGraphic(
                 mapimage_file.name,
-                rf"width=190mm" if flight_order_configuration.map_orientation != LANDSCAPE else rf"height=277mm",
+                r"width=190mm" if flight_order_configuration.map_orientation != LANDSCAPE else r"height=277mm",
             )
         )  # f"resolution={flight_order_configuration.map_dpi}"))
     document.append(NewPage())

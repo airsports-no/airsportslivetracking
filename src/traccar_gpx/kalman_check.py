@@ -296,4 +296,4 @@ plt.plot(
 )
 ax.legend()
 ax.add_image(imagery, 10)
-plt.savefig(f"kalman_track.png", format="png", dpi=4000, transparent=True)
+plt.savefig("kalman_track.png", format="png", dpi=4000, transparent=True)

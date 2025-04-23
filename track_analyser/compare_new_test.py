@@ -33,7 +33,7 @@ for tracker in loggers + androids + iphones:
 plot_difference_compared_to_single(loggers[0], loggers + androids + iphones, folder)
 
 compare_everything(
-    loggers + androids + iphones, f"loggers_and_androids_and_iphones", folder
+    loggers + androids + iphones, "loggers_and_androids_and_iphones", folder
 )
 
 compare_maximum_confidences(loggers, loggers + androids + iphones, 0.99, folder)

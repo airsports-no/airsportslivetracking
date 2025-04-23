@@ -242,9 +242,9 @@ class GatekeeperRoute(Gatekeeper):
                 # Handle resetting adaptive start, and record that the infinite line has been crossed
                 intersection_time = self.starting_line.get_gate_infinite_intersection_time(self.projector, self.track)
                 if intersection_time:
-                    logger.debug(f"Crossed the infinite starting line.")
+                    logger.debug("Crossed the infinite starting line.")
                 if intersection_time and self.starting_line.is_passed_in_correct_direction_track(self.track):
-                    logger.debug(f"Crossed the infinite starting line in the correct direction.")
+                    logger.debug("Crossed the infinite starting line in the correct direction.")
                     crossed_infinite_starting_line = True
                     self.last_gate = self.starting_line
 

@@ -150,7 +150,7 @@ def create_contestants(
     current_contestant_index = 0
     existing_contestants = list(old_navigation_task.contestant_set.all())
     if len(existing_contestants) == 0:
-        logger.error(f"There are no contestants to copy")
+        logger.error("There are no contestants to copy")
         return []
     logger.info(f"Creating based on {len(existing_contestants)} existing contestants")
     existing_contestant_index = 0

@@ -37,8 +37,8 @@ def _parseUplinkData(msgBytes):
     fields = ['UplinkData']
     
     fields.append(_unsigned24(msgBytes[1:], littleEndian=True))
-    fields.append(msgBytes[4:12]) ;# UAT header
-    fields.append(msgBytes[12:]) ;# data
+    fields.append(msgBytes[4:12]) # UAT header
+    fields.append(msgBytes[12:]) # data
     
     return msg._make(fields)
 
@@ -58,7 +58,7 @@ def _parseOwnershipGeometricAltitude(msgBytes):
     msg = namedtuple('OwnershipGeometricAltitude', 'MsgType Altitude VerticalMetrics')
     fields = ['OwnershipGeometricAltitude']
     
-    fields.append(_signed16(msgBytes[1:]) * 5) ;# height in 5 ft increments
+    fields.append(_signed16(msgBytes[1:]) * 5) # height in 5 ft increments
     fields.append((msgBytes[3] << 8) + msgBytes[4])
     
     return msg._make(fields)
@@ -76,20 +76,20 @@ def _parseMessageType10and20(msgType, msgBytes):
     """parse the fields for ownership and traffic reports"""
     fields = [msgType]
     
-    fields.append(_thunkByte(msgBytes[1], 0x0b11110000, -4)) ;# status
-    fields.append(_thunkByte(msgBytes[1], 0b00001111)) ;# type
-    fields.append((msgBytes[2] << 16) + (msgBytes[3] << 8) + msgBytes[4]) ;# address
+    fields.append(_thunkByte(msgBytes[1], 0x0b11110000, -4)) # status
+    fields.append(_thunkByte(msgBytes[1], 0b00001111)) # type
+    fields.append((msgBytes[2] << 16) + (msgBytes[3] << 8) + msgBytes[4]) # address
     
     latLongIncrement = 180.0 / (2**23)
-    fields.append(_signed24(msgBytes[5:]) * latLongIncrement) ;# latitude
-    fields.append(_signed24(msgBytes[8:]) * latLongIncrement) ;# longitude
+    fields.append(_signed24(msgBytes[5:]) * latLongIncrement) # latitude
+    fields.append(_signed24(msgBytes[8:]) * latLongIncrement) # longitude
     
     altMetric = _thunkByte(msgBytes[11], 0xff, 4) + _thunkByte(msgBytes[12], 0xf0, -4)
-    fields.append((altMetric * 25) - 1000) ;# altitude in 25ft resolution
+    fields.append((altMetric * 25) - 1000) # altitude in 25ft resolution
     
-    fields.append(_thunkByte(msgBytes[12], 0x0f)) ;# misc
-    fields.append(_thunkByte(msgBytes[13], 0xf0, -4)) ;# NIC
-    fields.append(_thunkByte(msgBytes[13], 0x0f)) ;# NACp
+    fields.append(_thunkByte(msgBytes[12], 0x0f)) # misc
+    fields.append(_thunkByte(msgBytes[13], 0xf0, -4)) # NIC
+    fields.append(_thunkByte(msgBytes[13], 0x0f)) # NACp
     
     # horizontal velocity, 12-bit unsigned value in knots
     horzVelo = _thunkByte(msgBytes[14], 0xff, 4) + _thunkByte(msgBytes[15], 0xf0, -4)
@@ -105,12 +105,12 @@ def _parseMessageType10and20(msgType, msgBytes):
         vertVelo = 0
     elif vertVelo > 2047:  # two's complement, negative values
         vertVelo -= 4096
-    fields.append(vertVelo * 64) ;# vertical velocity
+    fields.append(vertVelo * 64) # vertical velocity
     
     trackIncrement = 360.0 / 256
     fields.append(msgBytes[17] * trackIncrement)  # track/heading, 0-358.6 degrees
     
-    fields.append(msgBytes[18]) ;# emitter category
+    fields.append(msgBytes[18]) # emitter category
 
     # call sign; if blank, change to "-"
     callsign = str(msgBytes[19:27]).rstrip()  # call sign
@@ -217,7 +217,7 @@ def messageToObject(data):
     if not len(data) > 0:
         return None
     msgId = data[0]
-    if not msgId in MessageIDMapping.keys():
+    if msgId not in MessageIDMapping.keys():
         return None
     msgObj = MessageIDMapping[msgId](data)
     return msgObj
