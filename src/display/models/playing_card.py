@@ -76,9 +76,10 @@ class PlayingCard(models.Model):
         """
         from display.models import ScoreLogEntry
 
+        previous_hand_score, _ = cls.get_relative_score(contestant)
         contestant.playingcard_set.all().delete()
 
-        relative_score, hand_description = cls.get_relative_score(contestant)
+        new_hand_score, hand_description = cls.get_relative_score(contestant)
         try:
             waypoint = contestant.navigation_task.route.waypoints[-1].name
         except IndexError:
@@ -89,12 +90,14 @@ class PlayingCard(models.Model):
             time=datetime.datetime.now(datetime.timezone.utc),
             gate=waypoint,
             message=message,
-            points=relative_score,
+            points=new_hand_score,
             string="{}: {}".format(waypoint, message),
         )
 
         if hasattr(contestant, "contestanttrack"):
-            contestant.contestanttrack.update_score(relative_score)
+            contestant.contestanttrack.update_score(
+                contestant.contestanttrack.score - previous_hand_score + new_hand_score
+            )
         from websocket_channels import WebsocketFacade
 
         ws = WebsocketFacade()
@@ -107,10 +110,12 @@ class PlayingCard(models.Model):
         """
         from display.models import ScoreLogEntry
 
+        previous_hand_score, _ = cls.get_relative_score(contestant)
+
         card = contestant.playingcard_set.filter(pk=card_pk).first()
         if card is not None:
             card.delete()
-            relative_score, hand_description = cls.get_relative_score(contestant)
+            new_hand_score, hand_description = cls.get_relative_score(contestant)
             waypoint = contestant.navigation_task.route.waypoints[-1].name
             message = "Removed card {}, current hand is {}".format(card.get_card_display(), hand_description)
             ScoreLogEntry.create_and_push(
@@ -118,11 +123,13 @@ class PlayingCard(models.Model):
                 time=datetime.datetime.now(datetime.timezone.utc),
                 gate=waypoint,
                 message=message,
-                points=relative_score,
+                points=new_hand_score,
                 string="{}: {}".format(waypoint, message),
             )
 
-            contestant.contestanttrack.update_score(relative_score)
+            contestant.contestanttrack.update_score(
+                contestant.contestanttrack.score - previous_hand_score + new_hand_score
+            )
             from websocket_channels import WebsocketFacade
 
             ws = WebsocketFacade()
@@ -136,20 +143,22 @@ class PlayingCard(models.Model):
         """
         from display.models import ScoreLogEntry, ANOMALY, TrackAnnotation
 
+        previous_hand_score, _ = cls.get_relative_score(contestant)
+
         poker_card = cls.objects.create(
             contestant=contestant,
             card=card,
             waypoint_name=waypoint,
             waypoint_index=waypoint_index,
         )
-        relative_score, hand_description = cls.get_relative_score(contestant)
+        new_hand_score, hand_description = cls.get_relative_score(contestant)
         message = "Received card {}, current hand is {}".format(poker_card.get_card_display(), hand_description)
         entry = ScoreLogEntry.create_and_push(
             contestant=contestant,
             time=datetime.datetime.now(datetime.timezone.utc),
             gate=waypoint,
             message=message,
-            points=relative_score,
+            points=new_hand_score,
             type=ANOMALY,
             string="{}: {}".format(waypoint, message),
         )
@@ -169,7 +178,7 @@ class PlayingCard(models.Model):
             time=datetime.datetime.now(datetime.timezone.utc),
             score_log_entry=entry,
         )
-        contestant.contestanttrack.update_score(relative_score)
+        contestant.contestanttrack.update_score(contestant.contestanttrack.score - previous_hand_score + new_hand_score)
         from websocket_channels import WebsocketFacade
 
         ws = WebsocketFacade()
