@@ -139,7 +139,7 @@ class ContestantProcessor:
 
         time_difference = int((position.time - initial_time).total_seconds())
         positions = []
-        if time_difference > 1:
+        if time_difference > 1.2:
             fraction = 1 / time_difference
             for step in range(1, time_difference):
                 new_position = projector.fractional_point_on_line(

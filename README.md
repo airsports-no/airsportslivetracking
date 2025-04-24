@@ -52,7 +52,7 @@ These additional dependencies are not required for executing locally and are the
 
 A full local development environment can be started by running:
 ```
-docker compose up
+docker compose up tracker_daphne
 ```
 This executes the three primary containers which also brings up the additional infrastructure containers. The Web server can be accessed at http://localhost:8002/.  A default superuser is created with username test@test.com and password admin. This can be used to login through the web interface.
 
