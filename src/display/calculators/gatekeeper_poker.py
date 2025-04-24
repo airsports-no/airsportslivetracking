@@ -48,15 +48,21 @@ class GatekeeperPoker(Gatekeeper):
     def check_gates(self):
         if len(self.sorted_polygons) > 0:
             position = self.track[-1]
-            polygon_name, polygon, waypoint_index = self.sorted_polygons[0]
-            inside = self.polygon_helper.check_inside_polygons(
-                [(polygon_name, polygon)], position.latitude, position.longitude
-            )
-            if len(inside) > 0:
-                PlayingCard.add_contestant_card(
-                    self.contestant, PlayingCard.get_random_unique_card(self.contestant), polygon_name, waypoint_index
+            for polygon_name, polygon, waypoint_index in list(self.sorted_polygons):
+                inside = self.polygon_helper.check_inside_polygons(
+                    [(polygon_name, polygon)], position.latitude, position.longitude
                 )
-                self.sorted_polygons.pop(0)
+                if len(inside) > 0:
+                    PlayingCard.add_contestant_card(
+                        self.contestant,
+                        PlayingCard.get_random_unique_card(self.contestant),
+                        polygon_name,
+                        waypoint_index,
+                    )
+                    self.sorted_polygons.remove((polygon_name, polygon, waypoint_index))
+                    if self.first_gate:
+                        self.contestant.contestanttrack.updates_current_state("Tracking")
+                        self.first_gate = False
+                        break
                 if self.first_gate:
-                    self.contestant.contestanttrack.updates_current_state("Tracking")
-                    self.first_gate = False
+                    break
