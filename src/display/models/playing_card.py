@@ -90,7 +90,7 @@ class PlayingCard(models.Model):
             time=datetime.datetime.now(datetime.timezone.utc),
             gate=waypoint,
             message=message,
-            points=new_hand_score,
+            points=previous_hand_score + new_hand_score,
             string="{}: {}".format(waypoint, message),
         )
 
@@ -123,7 +123,7 @@ class PlayingCard(models.Model):
                 time=datetime.datetime.now(datetime.timezone.utc),
                 gate=waypoint,
                 message=message,
-                points=new_hand_score,
+                points=previous_hand_score + new_hand_score,
                 string="{}: {}".format(waypoint, message),
             )
 
@@ -158,7 +158,7 @@ class PlayingCard(models.Model):
             time=datetime.datetime.now(datetime.timezone.utc),
             gate=waypoint,
             message=message,
-            points=new_hand_score,
+            points=previous_hand_score + new_hand_score,
             type=ANOMALY,
             string="{}: {}".format(waypoint, message),
         )
