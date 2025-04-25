@@ -74,7 +74,7 @@ class PlayingCard(models.Model):
         Removes all the cards from the hand of the contestant and resets the score to 0. Pushes the playing card update
         to the front end
         """
-        from display.models import ScoreLogEntry
+        from display.models import ScoreLogEntry, ANOMALY
 
         previous_hand_score, _ = cls.get_relative_score(contestant)
         contestant.playingcard_set.all().delete()
@@ -90,7 +90,8 @@ class PlayingCard(models.Model):
             time=datetime.datetime.now(datetime.timezone.utc),
             gate=waypoint,
             message=message,
-            points=previous_hand_score + new_hand_score,
+            points=-previous_hand_score + new_hand_score,
+            type=ANOMALY,
             string="{}: {}".format(waypoint, message),
         )
 
@@ -108,7 +109,7 @@ class PlayingCard(models.Model):
         """
         Removes a specific playing card from the contestant, updates the score, and pushes the update to the front end
         """
-        from display.models import ScoreLogEntry
+        from display.models import ScoreLogEntry, ANOMALY
 
         previous_hand_score, _ = cls.get_relative_score(contestant)
 
@@ -123,7 +124,8 @@ class PlayingCard(models.Model):
                 time=datetime.datetime.now(datetime.timezone.utc),
                 gate=waypoint,
                 message=message,
-                points=previous_hand_score + new_hand_score,
+                points=-previous_hand_score + new_hand_score,
+                type=ANOMALY,
                 string="{}: {}".format(waypoint, message),
             )
 
