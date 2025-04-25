@@ -160,7 +160,7 @@ class PlayingCard(models.Model):
             time=datetime.datetime.now(datetime.timezone.utc),
             gate=waypoint,
             message=message,
-            points=previous_hand_score + new_hand_score,
+            points=-previous_hand_score + new_hand_score,
             type=ANOMALY,
             string="{}: {}".format(waypoint, message),
         )
