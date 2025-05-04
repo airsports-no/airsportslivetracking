@@ -113,19 +113,22 @@ def recalculate_live_contestant(contestant: "Contestant"):
         track = contestant.get_traccar_track()
     elif contestant.tracking_service == TrackingService.FLY_MASTER:
         track = contestant.get_flymaster_track()
-    queue_name = f"override_{contestant.pk}"
-    q = RedisQueue(queue_name)
-    while not q.empty():
-        q.pop()
-    for i in track:
-        q.append(i)
-    q.append(None)
-    logger.debug(f"Loaded {len(track)} positions")
-    cancel_termination_request(contestant.pk)
-    contestant_processor = ContestantProcessor(contestant, live_processing=False, queue_name_override=queue_name)
-    contestant_processor.run()
-    while not q.empty():
-        q.pop()
+    if len(track):
+        queue_name = f"override_{contestant.pk}"
+        q = RedisQueue(queue_name)
+        while not q.empty():
+            q.pop()
+        for i in track:
+            q.append(i)
+        q.append(None)
+        logger.debug(f"Loaded {len(track)} positions")
+        cancel_termination_request(contestant.pk)
+        contestant_processor = ContestantProcessor(contestant, live_processing=False, queue_name_override=queue_name)
+        contestant_processor.run()
+        while not q.empty():
+            q.pop()
+    else:
+        logger.warning("Empty track for contestant, ignoring")
 
 
 class InvalidGpxTimeFormatException(Exception): ...
