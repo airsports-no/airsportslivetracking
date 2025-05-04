@@ -66,7 +66,7 @@ class PlayingCard(models.Model):
         resolution.
         """
         score, hand_type = cls.evaluate_hand(contestant)
-        return 10000 * score / cls.maximum_score(), hand_type
+        return 1000 * score / cls.maximum_score(), hand_type
 
     @classmethod
     def clear_cards(cls, contestant: "Contestant"):
