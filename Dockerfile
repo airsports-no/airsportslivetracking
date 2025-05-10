@@ -35,8 +35,7 @@ RUN pip --no-cache-dir install cython
 COPY requirements.txt /
 RUN pip --no-cache-dir install -Ur /requirements.txt
 
-RUN pip --no-cache-dir uninstall -y shapely
-RUN pip --no-cache-dir install --no-binary :all: shapely
+RUN pip --no-cache-dir install shapely
 
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 # TODO: Required for a test, should be changed
