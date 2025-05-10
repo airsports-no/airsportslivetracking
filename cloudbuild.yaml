@@ -18,7 +18,6 @@ steps:
   args: ['compose','up','-d','tracker_daphne']
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
-  timeout: '7200s'
   args:
   - '-c'
   - |
@@ -43,3 +42,4 @@ images:
 
 options:
   logging: CLOUD_LOGGING_ONLY
+timeout: '7200s'
