@@ -2117,7 +2117,7 @@ class ContestCreationEmailExample(SuperuserRequiredMixin, View):
 
 def firebase_token_login(request):
     """
-    Manual view for authenticating with firebase. Not sure if this is in use.
+    Manual view for authenticating with firebase. Used by apps
     """
     from drf_firebase_auth.authentication import FirebaseAuthentication
 
@@ -2126,8 +2126,9 @@ def firebase_token_login(request):
     firebase_authenticator = FirebaseAuthentication()
     try:
         user, decoded_token = firebase_authenticator.authenticate_credentials(token)
-        login(request, user, backend="django.contrib.auth.ba5ckends.ModelBackend")
+        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     except drf_exceptions.AuthenticationFailed as e:
+        logger.exception("Firebase login with token from app failed")
         messages.error(request, f"Login failed: {e}")
     return redirect("/")
 
