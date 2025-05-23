@@ -287,7 +287,7 @@ gives a penalty of {scorecard.backtracking_penalty} points.
         text = f"""For this task the corridor width is {"{:.2f}".format(self.navigation_task.route.corridor_width)} nm. 
 Flying outside of the corridor more than {scorecard.corridor_grace_time} seconds gives a penalty of 
 {"{:.0f}".format(scorecard.corridor_outside_penalty)} point(s) per second."""
-        if scorecard.corridor_maximum_penalty != -1:
+        if scorecard.corridor_maximum_penalty != 0:
             text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.corridor_maximum_penalty)} points for being outside the corridor per leg."""
         text += f"""
 {self._prohibited_zone_text()} {self._penalty_zone_text()} {"The route has a takeoff gate." if self.navigation_task.route.first_takeoff_gate else ""} {"The route has a landing gate." if self.navigation_task.route.first_landing_gate else ""}
@@ -308,7 +308,7 @@ Flying outside of the corridor more than {scorecard.corridor_grace_time} seconds
         text = f"""
 {corridor_width_text} Flying outside of the corridor for more than {scorecard.corridor_grace_time} seconds gives a penalty of 
 {"{:.0f}".format(scorecard.corridor_outside_penalty)} point(s) per second. """
-        if scorecard.corridor_maximum_penalty != -1:
+        if scorecard.corridor_maximum_penalty != 0:
             text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.corridor_maximum_penalty)} points for being outside the corridor per leg."""
 
         text += f"""
