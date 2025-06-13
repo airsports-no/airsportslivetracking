@@ -72,7 +72,7 @@ class ConnectedContestantRankTable extends Component {
 
                 accessor: (row, index) => {
                     return <div
-                        className={"align-middle crew-name"}>{row.contestant?teamRankingTable(row.contestant.team, row.contestant.has_been_tracked_by_simulator):''}</div>
+                        className={"align-middle crew-name"}>{row.contestant ? teamRankingTable(row.contestant.team, row.contestant.has_been_tracked_by_simulator) : ''}</div>
                 }
             },
             {
@@ -80,12 +80,16 @@ class ConnectedContestantRankTable extends Component {
                 Header: "SCORE",
                 sortDirection: this.props.navigationTask.score_sorting_direction,
                 accessor: (row, index) => {
-                    if (!row.hasStarted&&row.score == 0) {
+                    if (!row.hasStarted && row.score == 0) {
                         return "--"
                     }
                     return <span className={"align-middle"}>{row.score.toFixed(this.props.scoreDecimals)}</span>
                 },
-                sortType: compareScoreAscending
+                sortType: (rowA, rowB, id, desc) => {
+                    if (rowA.original.score > rowB.original.score) return 1;
+                    if (rowB.original.score > rowA.original.score) return -1;
+                    return 0;
+                }
             },
             {
                 Header: "Σ",
@@ -199,20 +203,20 @@ class ConnectedContestantRankTable extends Component {
         }
         return contestantData.map((contestantData, index) => {
             const contestant = this.props.contestants[contestantData.contestant_id]
-            const progress=this.props.contestantProgress[contestantData.contestant_id]!==undefined?Math.min(100, Math.max(0, this.props.contestantProgress[contestantData.contestant_id].toFixed(1))):0
+            const progress = this.props.contestantProgress[contestantData.contestant_id] !== undefined ? Math.min(100, Math.max(0, this.props.contestantProgress[contestantData.contestant_id].toFixed(1))) : 0
             return {
                 key: contestantData.contestant_id + "track" + index,
                 track: contestantData.contestant_track,
-                contestant: contestant !== undefined ?contestant:null,
+                contestant: contestant !== undefined ? contestant : null,
                 colour: "",
-                contestantNumber: contestant !== undefined ?contestant.contestant_number:null,
+                contestantNumber: contestant !== undefined ? contestant.contestant_number : null,
                 contestantId: contestantData.contestant_id,
                 rank: index + 1,
                 dummy: null,
                 progress: progress,
                 hasStarted: contestantData.contestant_track !== undefined && contestantData.contestant_track.current_state !== "Waiting...",
-                name: contestant !== undefined ?teamRankingTable(contestant.team):'',
-                pilotName: contestant !== undefined ?contestant.team.crew ? contestant.team.crew.member1.first_name : '':'',
+                name: contestant !== undefined ? teamRankingTable(contestant.team) : '',
+                pilotName: contestant !== undefined ? contestant.team.crew ? contestant.team.crew.member1.first_name : '' : '',
                 score: contestantData.contestant_track !== undefined ? contestantData.contestant_track.score : 0,
                 contest_summary: contestantData.contestant_track !== undefined ? contestantData.contestant_track.contest_summary : 0,
                 projectedScore: contestantData.contestant_track !== undefined ? calculateProjectedScore(contestantData.contestant_track.score, progress, contestantData.contestant_track.contest_summary) : 9999,
