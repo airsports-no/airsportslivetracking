@@ -160,7 +160,7 @@ redis:
     enabled: false  # Default true
     password: simplepassword
   image:
-    repository: bitnami/redis
+    repository: bitnamilegacy/redis
 
 wordpress:
   enabled: true
