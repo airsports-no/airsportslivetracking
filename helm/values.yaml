@@ -159,7 +159,8 @@ redis:
   auth:
     enabled: false  # Default true
     password: simplepassword
-
+  image:
+    repository: bitnami/redis
 
 wordpress:
   enabled: true
@@ -179,7 +180,9 @@ wordpress:
 
   smtpHost: pro.turbo-smtp.com
   smtpPort: "587"
-  smtpUser: frankose@ifi.uio.no
+  smtpUser: e1a92a30e397f335217d
+  image:
+    repository: bitnamilegacy/wordpress
 
   affinity:
     nodeAffinity:
