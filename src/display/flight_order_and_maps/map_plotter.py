@@ -1027,7 +1027,7 @@ def plot_precision_track(
 #     # Create meshgrid from geotiff
 #     nx, ny = da.sizes['x'], da.sizes['y']
 #     x, y = np.meshgrid(np.arange(nx), np.arange(ny)) * transform
-def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
+def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
     plt.figure(figsize=(3, 3))
     imagery = OSM()
     ax = plt.axes(projection=imagery.crs)
@@ -1038,7 +1038,7 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
         coordinates = editable_route.get_feature_coordinates(editable_track)
         track_points=editable_route.get_features_type("route_waypoint")
         for index, (latitude, longitude) in enumerate(coordinates):
-            item = list(filter(lambda v: v["properties"]["sequence"] == index, track_points))[0]
+            item = editable_route.get_track_waypoint_at_index(index)
             tracks[-1].append((latitude, longitude))
             print(item)
             plt.text(

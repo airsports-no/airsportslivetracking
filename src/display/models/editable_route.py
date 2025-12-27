@@ -99,7 +99,7 @@ class EditableRoute(models.Model):
         """
         from display.flight_order_and_maps.map_plotter import plot_editable_route
 
-        image_stream = plot_editable_route(self)
+        image_stream: BytesIO = plot_editable_route(self)
         return image_stream
 
     def __str__(self):
@@ -116,6 +116,12 @@ class EditableRoute(models.Model):
 
     def get_track(self) -> Optional[dict]:
         return self.get_feature_type("route_path")
+
+    def get_track_waypoints(self)-> list[dict]:
+        return self.get_features_type("route_waypoint")
+
+    def get_track_waypoint_at_index(self,index:int)->dict:
+        return list(filter(lambda v: v["properties"]["sequence"] == index, self.get_features_type("route_waypoint")))[0]
 
     def get_takeoff_gates(self) -> list:
         return self.get_features_type("takeoff_gate")
@@ -147,8 +153,8 @@ class EditableRoute(models.Model):
         track = self.get_track()
         if track is None:
             return
-        track_points = track.get("track_points", [])
-        illegal_points = list(filter(lambda k: k["gateType"] in (DUMMY, UNKNOWN_LEG), track_points))
+        track_points = self.get_track_waypoints()
+        illegal_points = list(filter(lambda k: k["properties"]["pointType"] in (DUMMY, UNKNOWN_LEG), track_points))
         if len(illegal_points) > 0:
             raise ValidationError(
                 f"Waypoints of type 'dummy' or 'unknown leg' are not allowed for a {route_type} route. Please remove this from your route or choose another task type."
@@ -177,25 +183,24 @@ class EditableRoute(models.Model):
         if track is None:
             return None
         coordinates = self.get_feature_coordinates(track)
-        track_points = track["track_points"]
         for index, (latitude, longitude) in enumerate(coordinates):
-            item = track_points[index]
+            item = self.get_track_waypoint_at_index(index)
             waypoint_list.append(
                 build_waypoint(
-                    item["name"],
+                    item["properties"]["name"],
                     latitude,
                     longitude,
-                    item["gateType"],
-                    item["gateWidth"],
-                    item["timeCheck"],
-                    item["timeCheck"],  # We do not include gate check in GUI
+                    item["properties"]["pointType"],
+                    item["properties"]["width"]/1852,  # Convert from meters to NM
+                    item["properties"]["isTiming"],
+                    item["properties"]["isPassing"],  # We do not include gate check in GUI
                 )
             )
-        route = create_precision_route_from_waypoint_list(track["name"], waypoint_list, use_procedure_turns, scorecard)
+        route = create_precision_route_from_waypoint_list(self.name, waypoint_list, use_procedure_turns, scorecard)
         self.amend_route_with_additional_features(route)
         return route
 
-    def create_anr_route(self, rounded_corners: bool, corridor_width: float, scorecard: "Scorecard") -> "Route":
+    def create_anr_route(self, rounded_corners: bool, corridor_width: float, scorecard: "Scorecard") -> "Route|None":
         """
         Build a Route object self as a ANR route using the provided scorecard.
         """
@@ -204,13 +209,14 @@ class EditableRoute(models.Model):
 
         self.validate_valid_corridor_route("ANR")
         track = self.get_track()
+        if track is None:
+            return None
         waypoint_list = []
         coordinates = self.get_feature_coordinates(track)
-        track_points = track["track_points"]
         for index, (latitude, longitude) in enumerate(coordinates):
-            item = track_points[index]
+            item= self.get_track_waypoint_at_index(index)
             waypoint_list.append(
-                build_waypoint(item["name"], latitude, longitude, "secret", item["gateWidth"], False, False)
+                build_waypoint(item["name"], latitude, longitude, "secret", item['properties']["width"], False, False)
             )
         waypoint_list[0].type = STARTINGPOINT
         waypoint_list[0].gate_check = True
@@ -224,12 +230,12 @@ class EditableRoute(models.Model):
 
         logger.debug(f"Created waypoints {waypoint_list}")
         route = create_anr_corridor_route_from_waypoint_list(
-            track["name"], waypoint_list, rounded_corners, scorecard, corridor_width=corridor_width
+            self.name, waypoint_list, rounded_corners, scorecard, corridor_width=corridor_width
         )
         self.amend_route_with_additional_features(route)
         return route
 
-    def create_airsports_route(self, rounded_corners: bool, scorecard: "Scorecard") -> "Route":
+    def create_airsports_route(self, rounded_corners: bool, scorecard: "Scorecard") -> "Route|None":
         """
         Build a Route object self as a airsports race/challenge route using the provided scorecard.
         """
@@ -238,21 +244,23 @@ class EditableRoute(models.Model):
 
         self.validate_valid_corridor_route("AirSports Challenge and Air Sports Race")
 
+        
         track = self.get_track()
+        if track is None:
+            return None
         waypoint_list = []
         coordinates = self.get_feature_coordinates(track)
-        track_points = track["track_points"]
         for index, (latitude, longitude) in enumerate(coordinates):
-            item = track_points[index]
+            item = self.get_track_waypoint_at_index(index)
             waypoint_list.append(
                 build_waypoint(
-                    item["name"],
+                    item['properties']["name"],
                     latitude,
                     longitude,
-                    item["gateType"],
-                    item["gateWidth"],
-                    item["timeCheck"],
-                    item["timeCheck"],
+                    item['properties']["pointType"],
+                    item['properties']["width"],
+                    item['properties']["isTiming"],
+                    item['properties']["isPassing"],
                 )
             )
         route = create_anr_corridor_route_from_waypoint_list(track["name"], waypoint_list, rounded_corners, scorecard)
@@ -284,23 +292,23 @@ class EditableRoute(models.Model):
             route.landing_gates.append(gate)
         route.save()
         # Create prohibited zones
-        for feature in self.get_features_type("zone",[]):
-                logger.debug(feature)
-                Prohibited.objects.create(
-                    name=feature["name"],
+        for feature in self.get_features_type("zone"):
+            logger.debug(feature)
+            Prohibited.objects.create(
+                    name=feature["properties"]["name"],
                     route=route,
                     path=self.get_feature_coordinates(feature, flip=True),
-                    type=feature["polygonType"],
-                    tooltip_position=feature.get("tooltip_position", []),
+                    type=feature["properties"]["polygonType"],
+                    # tooltip_position=feature.get("tooltip_position", []),
                 )
         from display.models.route import Photo
 
         for photo in self.get_features_type("observation_photo"):
             Photo.objects.create(
-                name=photo["name"],
+                name=photo["properties"]["name"],
                 route=route,
-                latitude=photo["geojson"]["geometry"]["coordinates"][1],
-                longitude=photo["geojson"]["geometry"]["coordinates"][0],
+                latitude=photo["geometry"]["coordinates"][1],
+                longitude=photo["geometry"]["coordinates"][0],
             )
 
     @classmethod
