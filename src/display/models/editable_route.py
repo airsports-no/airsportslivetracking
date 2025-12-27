@@ -377,33 +377,37 @@ class EditableRoute(models.Model):
         if len(positions) == 0:
             messages.append("Fatal: The provided the route has zero length")
             return None, messages
-        track = create_track_block([(item[0], item[1]) for item in positions])
+        
+        feature_list = create_track_block([(item[0], item[1]) for item in positions])
         messages.append(f"Found route with {len(positions)} points")
-        route = [track]
+        
         if take_off_gate_line := features.get("to"):
             if len(take_off_gate_line) == 2:
-                route.append(create_takeoff_gate([(item[1], item[0]) for item in take_off_gate_line]))
+                feature_list.append(create_takeoff_gate([(item[1], item[0]) for item in take_off_gate_line]))
                 messages.append("Found takeoff gate")
-        if landing_gate_line := features.get("to"):
+        if landing_gate_line := features.get("ldg"):
             if len(landing_gate_line) == 2:
-                route.append(create_landing_gate([(item[1], item[0]) for item in landing_gate_line]))
+                feature_list.append(create_landing_gate([(item[1], item[0]) for item in landing_gate_line]))
                 messages.append("Found landing gate")
         for name in features.keys():
             logger.debug(f"Found feature {name}")
             try:
-                zone_type, zone_name = name.split("_")
+                zone_type, zone_name = name.split("_", 1)
+                zone_points = [(item[1], item[0]) for item in features[name]]
                 if zone_type == "prohibited":
-                    route.append(create_prohibited_zone([(item[1], item[0]) for item in features[name]], zone_name))
+                    feature_list.append(create_prohibited_zone(zone_points, zone_name))
                 if zone_type == "info":
-                    route.append(create_information_zone([(item[1], item[0]) for item in features[name]], zone_name))
+                    feature_list.append(create_information_zone(zone_points, zone_name))
                 if zone_type == "penalty":
-                    route.append(create_penalty_zone([(item[1], item[0]) for item in features[name]], zone_name))
+                    feature_list.append(create_penalty_zone(zone_points, zone_name))
                 if zone_type == "gate":
-                    route.append(create_gate_polygon([(item[1], item[0]) for item in features[name]], zone_name))
+                    feature_list.append(create_gate_polygon(zone_points, zone_name))
                 messages.append(f"Found {zone_type} polygon {zone_name}")
             except ValueError:
                 pass
-        editable_route = cls._create_route_and_thumbnail(route_name, route)
+        
+        route_json = {"type": "FeatureCollection", "features": feature_list}
+        editable_route = cls._create_route_and_thumbnail(route_name, route_json)
         logger.debug(messages)
         return editable_route, messages
 
@@ -422,8 +426,8 @@ class EditableRoute(models.Model):
                 names.append(line[0])
                 gate_widths.append(float(line[4]))
                 types.append(line[3])
-            route = [create_track_block(positions, widths=gate_widths, names=names, types=types)]
-            editable_route = cls._create_route_and_thumbnail(name, route)
+            feature_list = create_track_block(positions, widths=gate_widths, names=names, types=types)
+            editable_route = cls._create_route_and_thumbnail(name, {"type": "FeatureCollection", "features": feature_list})
             return editable_route, messages
         except Exception as ex:
             logger.exception("Failure when creating route from csv")
@@ -439,7 +443,7 @@ class EditableRoute(models.Model):
         gpx = gpxpy.parse(gpx_content)
         waypoint_order = []
         waypoint_definitions = {}
-        my_route = []
+        feature_list = []
         messages = []
         logger.debug(f"Routes {gpx.routes}")
         for route in gpx.routes:
@@ -456,21 +460,21 @@ class EditableRoute(models.Model):
                     gate_type = gate_extension.attrib["type"].lower()
                     logger.debug(f"Gate {gate_name} is {gate_type}")
                     if gate_type == "to":
-                        my_route.append(
+                        feature_list.append(
                             create_takeoff_gate(
                                 (
-                                    (route.points[0].longitude, route.points[0].latitude),
-                                    (route.points[1].longitude, route.points[1].latitude),
+                                    (route.points[0].latitude, route.points[0].longitude),
+                                    (route.points[1].latitude, route.points[1].longitude),
                                 )
                             )
                         )
                         messages.append("Found take-off gate")
                     elif gate_type == "ldg":
-                        my_route.append(
+                        feature_list.append(
                             create_landing_gate(
                                 (
-                                    (route.points[0].longitude, route.points[0].latitude),
-                                    (route.points[1].longitude, route.points[1].latitude),
+                                    (route.points[0].latitude, route.points[0].longitude),
+                                    (route.points[1].latitude, route.points[1].longitude),
                                 )
                             )
                         )
@@ -482,17 +486,17 @@ class EditableRoute(models.Model):
                             "type": gate_type,
                             "time_check": gate_extension.attrib["notimecheck"] == "no",
                         }
-        my_route.append(
-            create_track_block(
-                [waypoint_definitions[name]["position"] for name in waypoint_order],
-                names=waypoint_order,
-                types=[waypoint_definitions[name]["type"] for name in waypoint_order],
-                widths=[waypoint_definitions[name]["width"] for name in waypoint_order],
-            )
+        
+        track_features = create_track_block(
+            [waypoint_definitions[name]["position"] for name in waypoint_order],
+            names=waypoint_order,
+            types=[waypoint_definitions[name]["type"] for name in waypoint_order],
+            widths=[waypoint_definitions[name]["width"] for name in waypoint_order],
         )
+        feature_list.extend(track_features)
         logger.debug(f"Found route with {len(waypoint_order)} gates")
         messages.append(f"Found route with {len(waypoint_order)} gates")
-        editable_route = cls._create_route_and_thumbnail(name, my_route)
+        editable_route = cls._create_route_and_thumbnail(name, {"type": "FeatureCollection", "features": feature_list})
         return editable_route, messages
 
     def create_route(

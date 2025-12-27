@@ -2,6 +2,7 @@
 All geoJSON features use longitude, latitude coordinate order.
 """
 from typing import Optional
+import uuid
 
 
 def create_track_block(
@@ -9,92 +10,109 @@ def create_track_block(
     widths: Optional[list[float]] = None,
     names: Optional[list[str]] = None,
     types: Optional[list[str]] = None,
-) -> dict:
-    """Given a list of lat, lon pairs, construct a editable route json track block"""
-    track_points = []
-    for index, position in enumerate(positions):
-        track_points.append(
-            {
-                "name": names[index]
-                if names
-                else "SP"
-                if index == 0
-                else "FP"
-                if index == len(positions) - 1
-                else f"TP {index}",
-                "gateType": types[index]
-                if types
-                else "sp"
-                if index == 0
-                else "fp"
-                if index == len(positions) - 1
-                else "tp",
-                "timeCheck": True,
-                "gateWidth": widths[index] if widths else 1,
-                "position": {"lat": position[0], "lng": position[1]},
-            }
-        )
-    return {
-        "name": "Track",
-        "layer_type": "polyline",
-        "track_points": track_points,
-        "feature_type": "track",
-        "tooltip_position": [0, 0],
-        "geojson": {
-            "type": "Feature",
-            "properties": {},
-            "geometry": {
-                "type": "LineString",
-                "coordinates": [[item["position"]["lng"], item["position"]["lat"]] for item in track_points],
-            },
+) -> list[dict]:
+    """Given a list of lat, lon pairs, construct a list of geojson features for track and waypoints."""
+    features = []
+
+    # Route Path
+    features.append({
+        "type": "Feature",
+        "properties": {
+            "featureType": "route_path"
         },
-    }
+        "geometry": {
+            "type": "LineString",
+            "coordinates": [[p[1], p[0]] for p in positions]
+        }
+    })
+
+    # Waypoints
+    for index, position in enumerate(positions):
+        if names and index < len(names):
+            name = names[index]
+        else:
+            if index == 0: name = "Start"
+            elif index == len(positions) - 1: name = "Finish"
+            else: name = f"WP {index + 1}"
+
+        if types and index < len(types):
+            pt_type = types[index]
+        else:
+            if index == 0: pt_type = "sp"
+            elif index == len(positions) - 1: pt_type = "fp"
+            else: pt_type = "tp"
+
+        width = widths[index] if widths and index < len(widths) else 1852
+
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "id": str(uuid.uuid4()),
+                "name": name,
+                "pointType": pt_type,
+                "featureType": "route_waypoint",
+                "width": width,
+                "isTiming": False,
+                "isPassing": True,
+                "sequence": index,
+                "segmentType": "straight"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [position[1], position[0]]
+            }
+        })
+
+    return features
 
 
-def _create_gate(positions: tuple[tuple[float, float], tuple[float, float]], name: str, feature_type: str) -> dict:
+def _create_gate(positions: tuple[tuple[float, float], tuple[float, float]], name: str, feature_type: str, gate_type: str) -> dict:
     """[[longitude, latitude], [longitude, latitude]]"""
     return {
-        "name": name,
-        "layer_type": "polyline",
-        "track_points": [],
-        "feature_type": feature_type,
-        "tooltip_position": [0, 0],
-        "geojson": {
-            "type": "Feature",
-            "properties": {},
-            "geometry": {"type": "LineString", "coordinates": [list(positions[0]), list(positions[1])]},
+        "type": "Feature",
+        "properties": {
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "gateType": gate_type,
+            "featureType": feature_type,
+            "width": 50
         },
+        "geometry": {
+            "type": "LineString",
+            "coordinates": [[positions[0][1], positions[0][0]], [positions[1][1], positions[1][0]]]
+        }
     }
 
 
 def create_takeoff_gate(positions: tuple[tuple[float, float], tuple[float, float]]) -> dict:
     """Create a take of gate given a pair of lat, lon positions that make up the gates"""
-    return _create_gate(positions, "Takeoff gate", "to")
+    return _create_gate(positions, "Takeoff gate", "takeoff_gate", "takeoff")
 
 
 def create_landing_gate(positions: tuple[tuple[float, float], tuple[float, float]]) -> dict:
     """Create a take of gate given a pair of lat, lon positions that make up the gates"""
-    return _create_gate(positions, "Landing gate", "ldg")
+    return _create_gate(positions, "Landing gate", "landing_gate", "landing")
 
 
-def _create_polygon(positions: list[tuple[float, float]], name: str, feature_type: str) -> dict:
+def _create_polygon(positions: list[tuple[float, float]], name: str, polygon_type: str) -> dict:
     """
     Coordinate list should be latitude, longitude
     """
+    coords = [[p[1], p[0]] for p in positions]
+    if coords and coords[0] != coords[-1]:
+        coords.append(coords[0])
     return {
-        "name": name,
-        "layer_type": "polygon",
-        "track_points": [],
-        "feature_type": feature_type,
-        "tooltip_position": [0, 0],
-        "geojson": {
-            "type": "Feature",
-            "properties": {},
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [positions],  # Apparently a list of list of positions, i.e. multiple polygons. Should be lat, lon
-            },
+        "type": "Feature",
+        "properties": {
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "polygonType": polygon_type,
+            "featureType": "zone"
         },
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [coords]
+        }
     }
 
 
@@ -115,7 +133,7 @@ def create_penalty_zone(positions: list[tuple[float, float]], name: str) -> dict
 
 def create_gate_polygon(positions: list[tuple[float, float]], name: str) -> dict:
     """Create a gate polygon used for poker run"""
-    return _create_polygon(positions, name, "gate")
+    return _create_polygon(positions, name, "waypoint")
 
 
 def get_quadratic_bezier_points(
