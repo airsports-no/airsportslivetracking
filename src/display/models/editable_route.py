@@ -77,7 +77,7 @@ class EditableRoute(models.Model):
 
     def calculate_number_of_waypoints(self):
         if track := self.get_track():
-            return len(track["track_points"])
+            return len(track["geometry"]["coordinates"])
         return 0
 
     def calculate_route_length(self) -> float:
@@ -86,7 +86,7 @@ class EditableRoute(models.Model):
         """
         initial_length = 0
         if track := self.get_track():
-            path = track["geojson"]["geometry"]["coordinates"]
+            path = track["geometry"]["coordinates"]
             for index in range(0, len(path) - 1):
                 initial_length += calculate_distance_lat_lon(
                     (path[index][1], path[index][0]), (path[index + 1][1], path[index + 1][0])
@@ -106,7 +106,7 @@ class EditableRoute(models.Model):
         return self.name
 
     def get_features_type(self, feature_type: str) -> list[dict]:
-        return [item for item in self.route if item["feature_type"] == feature_type]
+        return [item for item in self.route["features"] if item.get("properties", {}).get("featureType") == feature_type]
 
     def get_feature_type(self, feature_type: str) -> Optional[dict]:
         try:
@@ -115,13 +115,13 @@ class EditableRoute(models.Model):
             return None
 
     def get_track(self) -> Optional[dict]:
-        return self.get_feature_type("track")
+        return self.get_feature_type("route_path")
 
     def get_takeoff_gates(self) -> list:
-        return self.get_features_type("to")
+        return self.get_features_type("takeoff_gate")
 
     def get_landing_gates(self) -> list:
-        return self.get_features_type("ldg")
+        return self.get_features_type("landing_gate")
 
     @staticmethod
     def get_feature_coordinates(feature: dict, flip: bool = True) -> list[tuple[float, float]]:
@@ -131,8 +131,8 @@ class EditableRoute(models.Model):
         :return:
         """
         try:
-            coordinates = feature["geojson"]["geometry"]["coordinates"]
-            if feature["geojson"]["geometry"]["type"] == "Polygon":
+            coordinates = feature["geometry"]["coordinates"]
+            if feature["geometry"]["type"] == "Polygon":
                 coordinates = coordinates[0]
             if flip:
                 return [tuple(reversed(item)) for item in coordinates]
@@ -284,19 +284,18 @@ class EditableRoute(models.Model):
             route.landing_gates.append(gate)
         route.save()
         # Create prohibited zones
-        for zone_type in ("info", "penalty", "prohibited", "gate"):
-            for feature in self.get_features_type(zone_type):
+        for feature in self.get_features_type("zone",[]):
                 logger.debug(feature)
                 Prohibited.objects.create(
                     name=feature["name"],
                     route=route,
                     path=self.get_feature_coordinates(feature, flip=True),
-                    type=zone_type,
+                    type=feature["polygonType"],
                     tooltip_position=feature.get("tooltip_position", []),
                 )
         from display.models.route import Photo
 
-        for photo in self.get_features_type("photo"):
+        for photo in self.get_features_type("observation_photo"):
             Photo.objects.create(
                 name=photo["name"],
                 route=route,

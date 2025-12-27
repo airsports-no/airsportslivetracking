@@ -1031,18 +1031,20 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
     plt.figure(figsize=(3, 3))
     imagery = OSM()
     ax = plt.axes(projection=imagery.crs)
-    editable_track = editable_route.get_feature_type("track")
+    editable_track = editable_route.get_feature_type("route_path")
+    print(editable_track)
     if editable_track is not None:
         tracks = [[]]
         coordinates = editable_route.get_feature_coordinates(editable_track)
-        track_points = editable_track["track_points"]
+        track_points=editable_route.get_features_type("route_waypoint")
         for index, (latitude, longitude) in enumerate(coordinates):
-            item = track_points[index]
+            item = list(filter(lambda v: v["properties"]["sequence"] == index, track_points))[0]
             tracks[-1].append((latitude, longitude))
+            print(item)
             plt.text(
                 longitude,
                 latitude,
-                " " + item["name"],
+                " " + item["properties"]["name"],
                 verticalalignment="center",
                 color="red",
                 horizontalalignment="left",
@@ -1051,6 +1053,7 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
                 family="monospace",
                 clip_on=True,
             )
+        print(tracks)
         for track in tracks:
             path = np.array(track)
             ys, xs = path.T
@@ -1059,17 +1062,20 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
     for takeoff_gate in takeoff_gates:
         takeoff_gate_line = editable_route.get_feature_coordinates(takeoff_gate)
         path = np.array(takeoff_gate_line)
+        print(path)
         ys, xs = path.T
         plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=1)
     landing_gates = editable_route.get_features_type("ldg")
     for landing_gate in landing_gates:
         landing_gate_line = editable_route.get_feature_coordinates(landing_gate)
+        print(path)
         path = np.array(landing_gate_line)
         ys, xs = path.T
         plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1)
-    for zone_type in ("info", "penalty", "prohibited", "gate"):
-        for feature in editable_route.get_features_type(zone_type):
-            fill_colour, line_colour, font_size = PROHIBITED_COLOURS.get(zone_type, ("blue", "darkblue", 4))
+    # for zone_type in ("info", "penalty", "prohibited", "gate"):
+    for feature in editable_route.get_features_type("zone"):
+            fill_colour, line_colour, font_size = PROHIBITED_COLOURS.get(feature["properties"]["polygonType"], ("blue", "darkblue", 4))
+            print(feature)
             plot_prohibited_polygon(
                 imagery.crs,
                 ax,
@@ -1077,7 +1083,7 @@ def plot_editable_route(editable_route: EditableRoute) -> Optional[BytesIO]:
                 fill_colour,
                 line_colour,
                 font_size,
-                feature["name"],
+                feature["properties"]["name"],
             )
     ax.add_image(imagery, 11)
     figdata = BytesIO()

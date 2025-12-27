@@ -358,7 +358,7 @@ export default function App() {
       } else {
         const prev = newPoints[index - 1];
         // Initialize control point
-        newPoints[index] = { ...p, segmentType: 'curved', controlLat: (prev.lat + p.lat)/2, controlLng: (prev.lng + p.lng)/2 };
+        newPoints[index] = { ...p, segmentType: 'curved', controlLat: (prev.lat + p.lat) / 2, controlLng: (prev.lng + p.lng) / 2 };
       }
       return newPoints;
     });
@@ -368,17 +368,17 @@ export default function App() {
     setRoutePoints(points => {
       const index = points.findIndex(p => p.id === selectedId);
       if (index <= 0) return points;
-      
+
       const newPoints = [...points];
       const p = newPoints[index];
       const prev = newPoints[index - 1];
-      
+
       // Reset to midpoint offset
       const midLat = (prev.lat + p.lat) / 2;
       const midLng = (prev.lng + p.lng) / 2;
       const controlLat = midLat + (p.lng - prev.lng) * 0.2;
       const controlLng = midLng - (p.lat - prev.lat) * 0.2;
-      
+
       newPoints[index] = { ...p, controlLat, controlLng };
       return newPoints;
     });
@@ -557,7 +557,7 @@ export default function App() {
       let method = 'POST';
 
       if (routeId) {
-        url = url.endsWith('/') ? url + routeId : url + '/' + routeId;
+        url = document.configuration.editableRouteUrl(routeId);
         method = 'PUT';
       }
 
@@ -666,18 +666,18 @@ export default function App() {
               <label htmlFor="curveMode" className="text-sm font-bold">Add Curved Leg</label>
             </div>
           )}
-          
+
           {selectedId && selectionType === 'point' && routePoints.findIndex(p => p.id === selectedId) > 0 && (
-             <div className="bg-white p-2 rounded shadow flex flex-col gap-2">
-               <button onClick={toggleCurve} className="text-sm font-bold text-blue-600 hover:underline">
-                 {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' ? 'Make Straight' : 'Make Curved'}
-               </button>
-               {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' && (
-                 <button onClick={resetCurve} className="text-sm font-bold text-gray-600 hover:underline">
-                   Reset Curve
-                 </button>
-               )}
-             </div>
+            <div className="bg-white p-2 rounded shadow flex flex-col gap-2">
+              <button onClick={toggleCurve} className="text-sm font-bold text-blue-600 hover:underline">
+                {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' ? 'Make Straight' : 'Make Curved'}
+              </button>
+              {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' && (
+                <button onClick={resetCurve} className="text-sm font-bold text-gray-600 hover:underline">
+                  Reset Curve
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

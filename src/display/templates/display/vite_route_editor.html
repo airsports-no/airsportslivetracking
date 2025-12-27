@@ -5,11 +5,12 @@
         ...document.configuration,
         is_superuser: {{ user.is_superuser | lower }},
         EDITABLE_ROUTES_URL: "{% url 'editableroutes-list' %}",
-        editRouteViewUrl: routeId => "/routeeditor/0/".replace("0", routeId), // react router url
+        editRouteViewUrl: routeId => "/display/editableroutereact/edit/0/".replace("0", routeId), // react router url
         createTaskViewUrl: routeId => "{% url 'editableroute_createnavigationtask' 0 %}".replace("0", routeId),
         copyRouteViewUrl: routeId => "{% url 'editableroute_copy' 0 %}".replace("0", routeId),
         permissionListViewUrl: routeId => "{% url 'editableroute_permissions_list' 0 %}".replace("0", routeId),
         deleteRouteViewUrl: routeId => "{% url 'editableroute_delete' 0 %}".replace("0", routeId),
+        editableRouteUrl: editableRouteId => "{% url 'editableroutes-detail' 0 %}".replace("0", editableRouteId),
 
         }
 </script>
