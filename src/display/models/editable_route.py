@@ -176,60 +176,91 @@ class EditableRoute(models.Model):
         route.save()
         return route
 
+    def _create_waypoint_list(
+        self,
+        precision_mode: bool = False,
+        force_secret_type: bool = False,
+        override_timing_passing_false: bool = False,
+    ) -> list:
+        from display.utilities.route_building_utilities import build_waypoint
+
+        track_waypoints = self.get_ordered_track_waypoints()
+        if not track_waypoints:
+            return []
+
+        waypoint_list = []
+
+        for index, item in enumerate(track_waypoints):
+            props = item["properties"]
+            lon, lat = item["geometry"]["coordinates"]
+
+            width = props["width"] / 1852
+
+            # Determine type
+            point_type = "secret" if force_secret_type else props["pointType"]
+
+            # Determine timing/passing
+            if override_timing_passing_false:
+                is_timing = False
+                is_passing = False
+            else:
+                is_timing = props["isTiming"]
+                is_passing = props["isPassing"]
+
+            # Check for curve from previous point
+            if index > 0 and props.get("segmentType") == "curved":
+                control_lat = props.get("controlLat")
+                control_lng = props.get("controlLng")
+
+                if control_lat:
+                    prev_item = track_waypoints[index - 1]
+                    prev_lon, prev_lat = prev_item["geometry"]["coordinates"]
+
+                    # Calculate Bezier points
+                    num_points = 20
+                    intermediate_points = get_quadratic_bezier_points(
+                        (prev_lat, prev_lon),
+                        (lat, lon),
+                        (control_lat, control_lng),
+                        num_points=num_points,
+                    )
+
+                    # Intermediate points (indices 1 to num_points-1)
+                    for i in range(1, num_points):
+                        p_lat, p_lon = intermediate_points[i]
+
+                        if precision_mode:
+                            w = 0.001
+                        else:
+                            # Linear interpolation
+                            prev_width = prev_item["properties"]["width"] / 1852
+                            curr_width = props["width"] / 1852
+                            t = i / num_points
+                            w = prev_width + (curr_width - prev_width) * t
+
+                        waypoint_list.append(
+                            build_waypoint(
+                                f"Curve {index}.{i}", p_lat, p_lon, "secret", w, False, False
+                            )
+                        )
+
+            # Add the current waypoint
+            waypoint_list.append(
+                build_waypoint(props["name"], lat, lon, point_type, width, is_timing, is_passing)
+            )
+
+        return waypoint_list
+
     def create_precision_route(self, use_procedure_turns: bool, scorecard: "Scorecard") -> Optional["Route"]:
         """
         Build a Route object self as a precision route using the provided scorecard.
         """
-        from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_precision_route_from_waypoint_list
 
-        # Use ordered waypoints to avoid repeated filtering
-        track_waypoints = self.get_ordered_track_waypoints()
-        if not track_waypoints:
+        waypoint_list = self._create_waypoint_list(precision_mode=True)
+        if not waypoint_list:
             return None
 
-        waypoint_list = []
-        
-        for index, item in enumerate(track_waypoints):
-            props = item["properties"]
-            # GeoJSON is [lon, lat], we need (lat, lon)
-            lon, lat = item["geometry"]["coordinates"]
-            
-            if index > 0 and props.get("segmentType") == "curved":
-                control_latitude = props.get("controlLat")
-                control_longitude = props.get("controlLng")
-                if control_latitude:
-                    # Get previous waypoint coordinates
-                    prev_lon, prev_lat = track_waypoints[index - 1]["geometry"]["coordinates"]
-                    intermediate_points = get_quadratic_bezier_points(
-                        (prev_lat, prev_lon),
-                        (lat, lon),
-                        (control_latitude, control_longitude),
-                    )
-                    # Generate intermediate secret waypoints
-                    for p_lat, p_lon in intermediate_points[1:-1]:
-                        waypoint_list.append(
-                            build_waypoint(
-                                f"Curve {index}",
-                                p_lat,
-                                p_lon,
-                                "secret",
-                                0.001,
-                                False,
-                                False,
-                            )
-                        )
-            waypoint_list.append(
-                build_waypoint(
-                    props["name"],
-                    lat,
-                    lon,
-                    props["pointType"],
-                    props["width"]/1852,  # Convert from meters to NM
-                    props["isTiming"],
-                    props["isPassing"],  # We do not include gate check in GUI
-                )
-            )
         route = create_precision_route_from_waypoint_list(self.name, waypoint_list, use_procedure_turns, scorecard)
         self.amend_route_with_additional_features(route)
         return route
@@ -238,20 +269,12 @@ class EditableRoute(models.Model):
         """
         Build a Route object self as a ANR route using the provided scorecard.
         """
-        from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
 
         self.validate_valid_corridor_route("ANR")
-        track_waypoints = self.get_ordered_track_waypoints()
-        if not track_waypoints:
+        waypoint_list = self._create_waypoint_list(force_secret_type=True, override_timing_passing_false=True)
+        if not waypoint_list:
             return None
-            
-        waypoint_list = []
-        for item in track_waypoints:
-            lon, lat = item["geometry"]["coordinates"]
-            waypoint_list.append(
-                build_waypoint(item["properties"]["name"], lat, lon, "secret", item['properties']["width"], False, False)
-            )
             
         waypoint_list[0].type = STARTINGPOINT
         waypoint_list[0].gate_check = True
@@ -274,29 +297,13 @@ class EditableRoute(models.Model):
         """
         Build a Route object self as a airsports race/challenge route using the provided scorecard.
         """
-        from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
 
         self.validate_valid_corridor_route("AirSports Challenge and Air Sports Race")
-
-        track_waypoints = self.get_ordered_track_waypoints()
-        if not track_waypoints:
+        waypoint_list = self._create_waypoint_list()
+        if not waypoint_list:
             return None
-            
-        waypoint_list = []
-        for item in track_waypoints:
-            lon, lat = item["geometry"]["coordinates"]
-            waypoint_list.append(
-                build_waypoint(
-                    item['properties']["name"],
-                    lat,
-                    lon,
-                    item['properties']["pointType"],
-                    item['properties']["width"],
-                    item['properties']["isTiming"],
-                    item['properties']["isPassing"],
-                )
-            )
+
         route = create_anr_corridor_route_from_waypoint_list(self.name, waypoint_list, rounded_corners, scorecard)
         self.amend_route_with_additional_features(route)
         return route
