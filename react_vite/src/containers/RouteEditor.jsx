@@ -44,6 +44,7 @@ export default function App() {
   const [selectionType, setSelectionType] = useState(null); // 'point' | 'gate' | 'observation'
   const [routeId, setRouteId] = useState(null);
   const { routeId: paramRouteId } = useParams();
+  const [routeName, setRouteName] = useState("");
 
   // Modes: 'view', 'add_point', 'add_landing...', 'add_takeoff...', 'add_observation', 'add_polygon'
   const [mode, setMode] = useState('view');
@@ -165,7 +166,15 @@ export default function App() {
           if (!res.ok) throw new Error("Failed to load route");
           return res.json();
         })
-        .then(data => loadRouteData(data))
+        .then(data => {
+          if (data.route && data.name) {
+            setRouteName(data.name);
+            loadRouteData(data.route);
+          } else {
+            if (data.name) setRouteName(data.name);
+            loadRouteData(data);
+          }
+        })
         .catch(err => console.error(err));
     }
   }, [paramRouteId, loadRouteData]);
@@ -538,6 +547,11 @@ export default function App() {
       ]
     };
 
+    const payload = {
+      name: routeName,
+      route: geoJson
+    };
+
     try {
       let url = document.configuration.EDITABLE_ROUTES_URL;
       let method = 'POST';
@@ -553,7 +567,7 @@ export default function App() {
           'Content-Type': 'application/json',
           'X-CSRFToken': getCookie('csrftoken')
         },
-        body: JSON.stringify(geoJson)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -598,6 +612,8 @@ export default function App() {
         handleSave={handleSave}
         maxObsDist={maxObsDist}
         setMaxObsDist={setMaxObsDist}
+        routeName={routeName}
+        setRouteName={setRouteName}
       />
 
       {/* MAIN CONTENT */}

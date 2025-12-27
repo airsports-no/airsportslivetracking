@@ -1,7 +1,6 @@
 import React from 'react';
-import { 
-  Save, 
-  Upload, 
+import {
+  Save,
   Settings,
   HelpCircle,
   X,
@@ -32,12 +31,13 @@ const Sidebar = ({
   updateSelectedPolygon,
   deleteSelected,
   movePointOrder,
-  handleExport,
-  handleImport,
+  handleSave,
   maxObsDist,
-  setMaxObsDist
+  setMaxObsDist,
+  routeName,
+  setRouteName
 }) => {
-  
+
   const renderContent = () => {
     const selectedPoint = routePoints.find(p => p.id === selectedId);
     const selectedGate = gates.find(g => g.id === selectedId);
@@ -45,17 +45,17 @@ const Sidebar = ({
     const selectedPolygon = polygons?.find(p => p.id === selectedId);
 
     if (selectionType === 'point' && selectedPoint) {
-      return <EditPointView 
+      return <EditPointView
         point={selectedPoint}
         updatePoint={updateSelectedPoint}
         deletePoint={deleteSelected}
         moveOrder={movePointOrder}
         onClose={() => { setSelectedId(null); setSelectionType(null); }}
       />;
-    } 
+    }
 
     if (selectionType === 'gate' && selectedGate) {
-      return <EditGateView 
+      return <EditGateView
         gate={selectedGate}
         updateGate={updateSelectedGate}
         deleteGate={deleteSelected}
@@ -64,7 +64,7 @@ const Sidebar = ({
     }
 
     if (selectionType === 'observation' && selectedObs) {
-      return <EditObservationView 
+      return <EditObservationView
         observation={selectedObs}
         updateObservation={updateSelectedObservation}
         deleteObservation={deleteSelected}
@@ -73,7 +73,7 @@ const Sidebar = ({
     }
 
     if (selectionType === 'polygon' && selectedPolygon) {
-      return <EditPolygonView 
+      return <EditPolygonView
         polygon={selectedPolygon}
         updatePolygon={updateSelectedPolygon}
         deletePolygon={deleteSelected}
@@ -91,12 +91,12 @@ const Sidebar = ({
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               id="showCorridor"
               checked={showCorridor}
               onChange={(e) => setShowCorridor(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
             <label htmlFor="showCorridor" className="text-sm font-medium text-gray-700">Show Corridor</label>
           </div>
@@ -105,10 +105,10 @@ const Sidebar = ({
               Max Observation Distance
             </label>
             <div className="flex items-center gap-2">
-              <input 
-                type="number" 
+              <input
+                type="number"
                 step="0.1"
-                value={parseFloat((maxObsDist / 1852).toFixed(2))} 
+                value={parseFloat((maxObsDist / 1852).toFixed(2))}
                 onChange={(e) => setMaxObsDist(Number(e.target.value) * 1852)}
                 className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
               />
@@ -127,7 +127,7 @@ const Sidebar = ({
     }
 
     // Default View (List)
-    return <RouteListView 
+    return <RouteListView
       routePoints={routePoints}
       gates={gates}
       observationMarkers={observationMarkers}
@@ -145,30 +145,34 @@ const Sidebar = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
+        <input
+          type="text"
+          value={routeName}
+          onChange={(e) => setRouteName(e.target.value)}
+          placeholder="Route Name"
+          className="w-full px-3 py-2 text-gray-900 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+
         {renderContent()}
       </div>
 
       {/* Import/Export Footer */}
       <div className="p-4 border-t bg-gray-50 space-y-2">
         <div className="flex space-x-2">
-          <button 
-            onClick={handleExport}
-            className="flex-1 bg-slate-800 text-white p-2 rounded text-sm hover:bg-slate-700 flex items-center justify-center space-x-1"
+          <button
+            onClick={handleSave}
+            className="flex-1 bg-blue-600 text-white p-2 rounded text-sm hover:bg-blue-700 flex items-center justify-center space-x-1"
           >
-            <Save size={14} /> <span>Export JSON</span>
+            <Save size={14} /> <span>Save Route</span>
           </button>
-          <label className="flex-1 bg-white border text-gray-700 p-2 rounded text-sm hover:bg-gray-50 flex items-center justify-center space-x-1 cursor-pointer">
-            <Upload size={14} /> <span>Import</span>
-            <input type="file" accept=".json,.geojson" className="hidden" onChange={handleImport} />
-          </label>
-          <button 
+          <button
             onClick={() => { setSelectedId(null); setSelectionType('settings'); }}
             className="bg-white border text-gray-700 p-2 rounded text-sm hover:bg-gray-50 flex items-center justify-center"
             title="Settings"
           >
             <Settings size={14} />
           </button>
-          <button 
+          <button
             onClick={() => { setSelectedId(null); setSelectionType('help'); }}
             className="bg-white border text-gray-700 p-2 rounded text-sm hover:bg-gray-50 flex items-center justify-center"
             title="Help"
