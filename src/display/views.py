@@ -1836,7 +1836,7 @@ class EditableRouteList(GuardianPermissionRequiredMixin, TemplateView):
     """
 
     permission_required = ("display.view_editableroute",)
-    template_name = "display/editableroute_list_react.html"
+    template_name = "display/vite_route_editor.html"
 
 
 class EditableRouteDeleteView(GuardianPermissionRequiredMixin, DeleteView):

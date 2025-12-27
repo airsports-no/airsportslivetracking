@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import Sidebar from './components/Sidebar';
-import Toolbar from './components/Toolbar';
-import MapCanvas from './components/MapCanvas';
+import { useParams } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
+import Toolbar from '../components/Toolbar';
+import MapCanvas from '../components/MapCanvas';
 import {
   getDistance,
   getBearing,
@@ -9,7 +10,7 @@ import {
   isCollinear,
   getDistanceFromLine,
   toRad
-} from './utils/geoUtils';
+} from '../utils/geoUtils';
 
 
 /**
@@ -42,6 +43,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [selectionType, setSelectionType] = useState(null); // 'point' | 'gate' | 'observation'
   const [routeId, setRouteId] = useState(null);
+  const { routeId: paramRouteId } = useParams();
 
   // Modes: 'view', 'add_point', 'add_landing...', 'add_takeoff...', 'add_observation', 'add_polygon'
   const [mode, setMode] = useState('view');
@@ -156,11 +158,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const match = window.location.pathname.match(/\/(\d+)\/?$/);
-    if (match) {
-      const id = match[1];
-      setRouteId(id);
-      fetch(document.configuration.editableRouteUrl(id))
+    if (paramRouteId) {
+      setRouteId(paramRouteId);
+      fetch(document.configuration.editableRouteUrl(paramRouteId))
         .then(res => {
           if (!res.ok) throw new Error("Failed to load route");
           return res.json();
@@ -168,7 +168,7 @@ export default function App() {
         .then(data => loadRouteData(data))
         .catch(err => console.error(err));
     }
-  }, [loadRouteData]);
+  }, [paramRouteId, loadRouteData]);
 
   // --- HANDLERS (Defined before Map Logic to be used in deps) ---
 

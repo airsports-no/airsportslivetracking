@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {ASTable} from "../filteredSearchableTable";
-import {Loading} from "../basicComponents";
+import {ASTable} from "../components/filteredSearchableTable";
+import {Loading} from "../components/basicComponents";
 
 export const EditableRouteList = () => {
     const [data, setData] = useState(null);

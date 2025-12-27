@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, re_path
 from django.views.generic import TemplateView
 
 from display.views import (
@@ -248,7 +248,7 @@ urlpatterns = [
     path("person/request_deletion_confirm/", user_request_profile_deletion, name="user_request_profile_deletion"),
     path("person/", PersonList.as_view(), name="person_list"),
     path("manifest/", manifest, name="tracking_manifest"),
-    path("editableroute/", EditableRouteList.as_view(), name="editableroute_list"),
+    re_path("editableroutereact/.?", EditableRouteList.as_view(), name="editableroute_list"),
     path("editableroute/import/", import_route, name="editableroute_import"),
     path("editableroute/<int:pk>/delete/", EditableRouteDeleteView.as_view(), name="editableroute_delete"),
     path("editableroute/<int:pk>/copy/", copy_editable_route, name="editableroute_copy"),
@@ -273,6 +273,5 @@ urlpatterns = [
         delete_user_editableroute_permissions,
         name="editableroute_permissions_delete",
     ),
-    path("vite/", TemplateView.as_view(template_name="display/vite_route_editor.html")),
 
 ]
