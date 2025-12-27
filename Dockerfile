@@ -50,6 +50,7 @@ RUN npm install && npm cache clean --force d# burde vært `npm ci` i stedet, men
 
 ###### INSTALL APPLICATION ######
 COPY --chown=django:django reactjs /reactjs
+COPY --chown=django:django react_vite /react_vite
 COPY --chown=django:django src /src
 # Required for tests
 COPY --chown=django:django data /data
@@ -58,6 +59,11 @@ COPY --chown=django:django data /data
 RUN mkdir /logs
 RUN chown django /logs
 RUN npm run webpack
+WORKDIR /react_vite
+RUN npm ci
+RUN npm install
+RUN npm run build
+
 WORKDIR /src
 # Force font cache generation
 RUN python -c "import matplotlib"
