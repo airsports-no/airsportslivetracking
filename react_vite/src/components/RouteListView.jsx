@@ -7,8 +7,6 @@ const RouteListView = ({
   observationMarkers, 
   polygons,
   validationErrors, 
-  showCorridor, 
-  setShowCorridor, 
   onSelect 
 }) => {
   return (
@@ -36,15 +34,6 @@ const RouteListView = ({
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xs font-bold text-gray-500 uppercase">Route Sequence</h3>
-          <label className="flex items-center space-x-1 cursor-pointer select-none">
-            <input 
-              type="checkbox" 
-              checked={showCorridor} 
-              onChange={(e) => setShowCorridor(e.target.checked)}
-              className="rounded text-blue-600 focus:ring-blue-500 h-3 w-3"
-            />
-            <span className="text-[10px] text-gray-600 font-medium">Show Corridor</span>
-          </label>
         </div>
         {routePoints.length === 0 ? (
           <p className="text-sm text-gray-400 italic">No points added yet.</p>

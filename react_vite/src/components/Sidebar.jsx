@@ -4,6 +4,7 @@ import {
   Upload, 
   Settings,
   HelpCircle,
+  X,
 } from 'lucide-react';
 import EditPointView from './EditPointView';
 import EditGateView from './EditGateView';
@@ -83,7 +84,22 @@ const Sidebar = ({
     if (selectionType === 'settings') {
       return (
         <div className="p-4 space-y-4">
-          <h2 className="text-lg font-bold border-b pb-2">Settings</h2>
+          <div className="flex items-center justify-between border-b pb-2">
+            <h2 className="text-lg font-bold">Settings</h2>
+            <button onClick={() => setSelectionType(null)} className="text-gray-500 hover:text-gray-700">
+              <X size={20} />
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <input 
+              type="checkbox" 
+              id="showCorridor"
+              checked={showCorridor}
+              onChange={(e) => setShowCorridor(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+            <label htmlFor="showCorridor" className="text-sm font-medium text-gray-700">Show Corridor</label>
+          </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
               Max Observation Distance
@@ -117,8 +133,6 @@ const Sidebar = ({
       observationMarkers={observationMarkers}
       polygons={polygons}
       validationErrors={validationErrors}
-      showCorridor={showCorridor}
-      setShowCorridor={setShowCorridor}
       onSelect={(id, type) => { setSelectedId(id); setSelectionType(type); }}
     />;
   };

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {ASTable} from "../components/filteredSearchableTable";
 import {Loading} from "../components/basicComponents";
 
@@ -42,12 +43,12 @@ export const EditableRouteList = () => {
             id: "Route",
             disableSortBy: true,
             Cell: ({ row, value }) => (
-                <a
-                    href={document.configuration.editRouteViewUrl(row.original.id)}
+                <Link
+                    to={`/edit/${row.original.id}`}
                     className="text-blue-600 hover:text-blue-800 hover:underline"
                 >
                     {value}
-                </a>
+                </Link>
             )
         },
         {
