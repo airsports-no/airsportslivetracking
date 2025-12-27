@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Toolbar from '../components/Toolbar';
 import MapCanvas from '../components/MapCanvas';
@@ -45,6 +45,7 @@ export default function App() {
   const [routeId, setRouteId] = useState(null);
   const { routeId: paramRouteId } = useParams();
   const [routeName, setRouteName] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
 
   // Modes: 'view', 'add_point', 'add_landing...', 'add_takeoff...', 'add_observation', 'add_polygon'
   const [mode, setMode] = useState('view');
@@ -60,6 +61,18 @@ export default function App() {
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
+
+  // --- WARN ON UNSAVED CHANGES (Browser Navigation) ---
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   // --- LOAD ROUTE ---
   const loadRouteData = useCallback((json) => {
@@ -231,6 +244,7 @@ export default function App() {
         };
         return [...newPoints, newPoint];
       });
+      setIsDirty(true);
     }
 
     if (mode.startsWith('add_landing') || mode.startsWith('add_takeoff')) {
@@ -252,6 +266,7 @@ export default function App() {
         setGates(prev => [...prev, newGate]);
         setTempGatePoint(null);
         setMode('view');
+        setIsDirty(true);
       }
     }
 
@@ -278,6 +293,7 @@ export default function App() {
         lng: latlng.lng,
         name: `Obs ${prev.length + 1}`,
       }]);
+      setIsDirty(true);
     }
 
     if (mode === 'add_polygon') {
@@ -286,6 +302,7 @@ export default function App() {
   }, [mode, routePoints, gates.length, tempGatePoint, observationMarkers.length, polygons.length, addCurveMode]);
 
   const updateSelectedPoint = (field, value) => {
+    setIsDirty(true);
     setRoutePoints(points => {
       const index = points.findIndex(p => p.id === selectedId);
       if (index === -1) return points;
@@ -326,6 +343,7 @@ export default function App() {
   };
 
   const updateSelectedGate = (field, value) => {
+    setIsDirty(true);
     setGates(gts => gts.map(g => {
       if (g.id !== selectedId) return g;
       return { ...g, [field]: value };
@@ -333,6 +351,7 @@ export default function App() {
   };
 
   const updateSelectedObservation = (field, value) => {
+    setIsDirty(true);
     setObservationMarkers(markers => markers.map(m => {
       if (m.id !== selectedId) return m;
       return { ...m, [field]: value };
@@ -340,6 +359,7 @@ export default function App() {
   };
 
   const updateSelectedPolygon = (field, value) => {
+    setIsDirty(true);
     setPolygons(polys => polys.map(p => {
       if (p.id !== selectedId) return p;
       return { ...p, [field]: value };
@@ -347,6 +367,7 @@ export default function App() {
   };
 
   const toggleCurve = () => {
+    setIsDirty(true);
     setRoutePoints(points => {
       const index = points.findIndex(p => p.id === selectedId);
       if (index <= 0) return points; // Cannot curve start point
@@ -365,6 +386,7 @@ export default function App() {
   };
 
   const resetCurve = () => {
+    setIsDirty(true);
     setRoutePoints(points => {
       const index = points.findIndex(p => p.id === selectedId);
       if (index <= 0) return points;
@@ -385,6 +407,7 @@ export default function App() {
   };
 
   const deleteSelected = () => {
+    setIsDirty(true);
     if (selectionType === 'point') {
       const index = routePoints.findIndex(p => p.id === selectedId);
       const newPoints = routePoints.filter(p => p.id !== selectedId);
@@ -409,6 +432,7 @@ export default function App() {
   };
 
   const movePointOrder = (direction) => {
+    setIsDirty(true);
     if (selectionType !== 'point') return;
     const idx = routePoints.findIndex(p => p.id === selectedId);
     if (idx === -1) return;
@@ -462,6 +486,11 @@ export default function App() {
 
   // --- SAVE ---
   const handleSave = async () => {
+    if (!routeName || !routeName.trim()) {
+      alert("Please enter a route name before saving.");
+      return;
+    }
+
     if (validationErrors.length > 0) {
       if (!confirm("Route has validation errors. Save anyway?")) return;
     }
@@ -573,6 +602,7 @@ export default function App() {
       if (response.ok) {
         const result = await response.json();
         alert("Route saved successfully!");
+        setIsDirty(false);
         if (!routeId && result.id) {
           setRouteId(result.id);
           // Optionally update URL
@@ -613,7 +643,10 @@ export default function App() {
         maxObsDist={maxObsDist}
         setMaxObsDist={setMaxObsDist}
         routeName={routeName}
-        setRouteName={setRouteName}
+        setRouteName={(name) => {
+          setRouteName(name);
+          setIsDirty(true);
+        }}
       />
 
       {/* MAIN CONTENT */}
@@ -627,6 +660,19 @@ export default function App() {
           setTempGatePoint={setTempGatePoint}
           setTempPolygonPoints={setTempPolygonPoints}
         />
+
+        <div className="absolute top-4 right-4 z-[1000]">
+          <Link
+            to="/"
+            onClick={(e) => {
+              if (isDirty && !confirm("Route has unsaved changes. Leave anyway?")) {
+                e.preventDefault();
+              }
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 shadow">
+            Back to list
+          </Link>
+        </div>
 
         {/* MAP CONTAINER */}
         <MapCanvas

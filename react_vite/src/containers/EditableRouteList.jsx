@@ -106,20 +106,27 @@ export const EditableRouteList = () => {
 
     return (
         <div className="p-4">
-            {document.configuration.is_superuser && (
-                <div className="flex items-center mb-4">
-                    <input
-                        id="show-all-routes"
-                        type="checkbox"
-                        checked={showAll}
-                        onChange={(e) => setShowAll(e.target.checked)}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                    />
-                    <label htmlFor="show-all-routes" className="ml-2 text-sm font-medium text-gray-900">
-                        Show all
-                    </label>
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    {document.configuration.is_superuser && (
+                        <div className="flex items-center">
+                            <input
+                                id="show-all-routes"
+                                type="checkbox"
+                                checked={showAll}
+                                onChange={(e) => setShowAll(e.target.checked)}
+                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                            />
+                            <label htmlFor="show-all-routes" className="ml-2 text-sm font-medium text-gray-900">
+                                Show all
+                            </label>
+                        </div>
+                    )}
                 </div>
-            )}
+                <a href={document.configuration.createRouteUrl} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    Create new route
+                </a>
+            </div>
             <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
                 <ASTable
                     columns={columns}
