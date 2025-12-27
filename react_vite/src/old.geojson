@@ -1,0 +1,317 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "featureType": "route_path"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            7.89917,
+            60.748424
+          ],
+          [
+            8.415527,
+            60.081284
+          ],
+          [
+            10.733643,
+            60.34326
+          ],
+          [
+            11.304932,
+            61.058285
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "496fa43b-65f3-4cfb-afae-4f8c01be492d",
+        "name": "SP",
+        "pointType": "sp",
+        "featureType": "route_waypoint",
+        "width": 1000,
+        "isTiming": true,
+        "isPassing": true,
+        "sequence": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          7.899169921875001,
+          60.74842446462361
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "d15206bd-6ac5-439a-9bf9-ae04a15bb12e",
+        "name": "TP 1",
+        "pointType": "tp",
+        "featureType": "route_waypoint",
+        "width": 1000,
+        "isTiming": true,
+        "isPassing": true,
+        "sequence": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.415527343750002,
+          60.08128354085362
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "91306c92-d9b7-4d88-b5b3-8ee9737eafaf",
+        "name": "TP 2",
+        "pointType": "tp",
+        "featureType": "route_waypoint",
+        "width": 1000,
+        "isTiming": true,
+        "isPassing": true,
+        "sequence": 2
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.733642578125002,
+          60.343260013555195
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "2ae08969-e4a0-4d5a-8935-fd7298d5d07b",
+        "name": "FP",
+        "pointType": "fp",
+        "featureType": "route_waypoint",
+        "width": 1000,
+        "isTiming": true,
+        "isPassing": true,
+        "sequence": 3
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          11.304931640625002,
+          61.05828537037916
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bc71c574-0bef-4450-9c40-a78dd384cc6e",
+        "name": "Takeoff gate",
+        "gateType": "takeoff",
+        "featureType": "takeoff_gate",
+        "width": 50
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            8.459473,
+            59.198439
+          ],
+          [
+            8.942871,
+            59.271495
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "07d33799-a30f-4cfe-b69b-7dda52a49e89",
+        "name": "Landing gate",
+        "gateType": "landing",
+        "featureType": "landing_gate",
+        "width": 50
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            10.964355,
+            58.967004
+          ],
+          [
+            11.480713,
+            59.220934
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c646329a-6bff-4a09-b4b5-370130864f92",
+        "name": "Photo 1",
+        "featureType": "observation_photo"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.074463,
+          60.283408
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "8713d6e6-40f6-4143-8d0b-7846330d27db",
+        "name": "prohibited",
+        "polygonType": "prohibited",
+        "featureType": "zone"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              8.876953,
+              59.872398
+            ],
+            [
+              8.876953,
+              59.512029
+            ],
+            [
+              9.832764,
+              59.701014
+            ],
+            [
+              10.041504,
+              60.10867
+            ],
+            [
+              8.876953,
+              59.872398
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "d2b8030b-2bfa-41c4-9634-298b4232349d",
+        "name": "pentalty",
+        "polygonType": "penalty",
+        "featureType": "zone"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              11.403809,
+              60.196156
+            ],
+            [
+              11.524658,
+              59.844815
+            ],
+            [
+              12.832031,
+              59.96051
+            ],
+            [
+              13.029785,
+              60.597756
+            ],
+            [
+              11.414795,
+              60.256167
+            ],
+            [
+              11.403809,
+              60.196156
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ce8dbc67-a40b-4201-85a6-1264c37fed80",
+        "name": "informatin",
+        "polygonType": "info",
+        "featureType": "zone"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              8.679199,
+              60.946442
+            ],
+            [
+              9.327393,
+              60.522158
+            ],
+            [
+              10.074463,
+              60.866312
+            ],
+            [
+              9.887695,
+              61.254386
+            ],
+            [
+              8.679199,
+              60.946442
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "55b6fa30-91b1-4651-97f4-f59ea461dc8d",
+        "name": "FP",
+        "polygonType": "waypoint",
+        "featureType": "waypoint_polygon"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              10.942383,
+              61.159138
+            ],
+            [
+              11.513672,
+              60.882354
+            ],
+            [
+              12.282715,
+              61.106098
+            ],
+            [
+              10.942383,
+              61.159138
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

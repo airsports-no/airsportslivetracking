@@ -1,0 +1,460 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "featureType": "route_path"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            10.55562973022461,
+            61.14431224987012
+          ],
+          [
+            10.55511474609375,
+            61.12558380286564
+          ],
+          [
+            10.559577941894533,
+            61.11024472667058
+          ],
+          [
+            10.577259063720705,
+            61.11331313748811
+          ],
+          [
+            10.609582772387796,
+            61.127719310314184
+          ],
+          [
+            10.636997222900392,
+            61.139921177230796
+          ],
+          [
+            10.653991699218752,
+            61.120195246013665
+          ],
+          [
+            10.671569051420173,
+            61.12325610621151
+          ],
+          [
+            10.68351745605469,
+            61.12533512046811
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "6900ce4c-11df-4edf-9a4f-770a57b00092",
+        "name": "Start",
+        "pointType": "sp",
+        "featureType": "route_waypoint",
+        "width": 1852,
+        "isTiming": false,
+        "isPassing": true,
+        "sequence": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.55562973022461,
+          61.14431224987012
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "9d525739-b2db-424a-99b8-7c83d20a3e85",
+        "name": "WP 2",
+        "pointType": "tp",
+        "featureType": "route_waypoint",
+        "width": 1852,
+        "isTiming": false,
+        "isPassing": true,
+        "sequence": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.55511474609375,
+          61.12558380286564
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bd0aeee7-09a2-4a13-990e-aacaccd1a541",
+        "name": "WP 3",
+        "pointType": "tp",
+        "featureType": "route_waypoint",
+        "width": 1296,
+        "isTiming": false,
+        "isPassing": true,
+        "sequence": 2
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.559577941894533,
+          61.11024472667058
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "4f5d36b4-6685-4169-a087-9c45e7b5839d",
+        "name": "WP 4",
+        "pointType": "tp",
+        "featureType": "route_waypoint",
+        "width": 1852,
+        "isTiming": false,
+        "isPassing": true,
+        "sequence": 3
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.577259063720705,
+          61.11331313748811
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ca7011c5-8b8a-455e-8830-1dd9a83b918f",
+        "name": "Secret 7",
+        "pointType": "secret",
+        "featureType": "route_waypoint",
+        "width": 1000,
+        "isTiming": false,
+        "isPassing": true,
+        "sequence": 4
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.609582772387796,
+          61.127719310314184
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "a10129b5-850a-419f-9100-50accc08d83e",
+        "name": "WP 5",
+        "pointType": "tp",
+        "featureType": "route_waypoint",
+        "width": 926,
+        "isTiming": false,
+        "isPassing": true,
+        "sequence": 5
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.636997222900392,
+          61.139921177230796
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "c75be293-c995-4aef-9935-2779d64c324f",
+        "name": "WP 6",
+        "pointType": "tp",
+        "featureType": "route_waypoint",
+        "width": 1852,
+        "isTiming": false,
+        "isPassing": true,
+        "sequence": 6
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.653991699218752,
+          61.120195246013665
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "9c71fc68-b7eb-4a71-ada3-b1ba33ac7bd8",
+        "name": "Secret 8",
+        "pointType": "secret",
+        "featureType": "route_waypoint",
+        "width": 1000,
+        "isTiming": false,
+        "isPassing": true,
+        "sequence": 7
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.671569051420173,
+          61.12325610621151
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "90cb4eb0-6af3-445a-838d-11aa0c8dea9f",
+        "name": "Finish",
+        "pointType": "fp",
+        "featureType": "route_waypoint",
+        "width": 1852,
+        "isTiming": false,
+        "isPassing": true,
+        "sequence": 8
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.68351745605469,
+          61.12533512046811
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "40604087-8bb4-4b5f-aef2-181c8032b0f2",
+        "name": "L Gate 1",
+        "gateType": "landing",
+        "featureType": "landing_gate",
+        "width": 50
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            10.598201751708984,
+            61.14630045925056
+          ],
+          [
+            10.609531402587892,
+            61.14804003974627
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bd72cc9c-2bcd-4730-ad61-6da9c0985d42",
+        "name": "TO Gate 2",
+        "gateType": "takeoff",
+        "featureType": "takeoff_gate",
+        "width": 50
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            10.607643127441408,
+            61.1440637148934
+          ],
+          [
+            10.619487762451174,
+            61.145472053892284
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "cf173c77-fc23-4fe8-ab92-9d6a95de4a77",
+        "name": "TO Gate 3",
+        "gateType": "takeoff",
+        "featureType": "takeoff_gate",
+        "width": 50
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            10.608673095703125,
+            61.14000403331046
+          ],
+          [
+            10.618972778320312,
+            61.14215821507137
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ff2576d7-2ae9-4726-9eff-211b5e665bc5",
+        "name": "Obs 1",
+        "featureType": "observation_photo"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.597515106201172,
+          61.1224336812029
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "6cdb9516-4420-48da-b3fd-731a3178f7ff",
+        "name": "Zone 1",
+        "polygonType": "prohibited",
+        "featureType": "zone"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              10.603008270263672,
+              61.11356191450186
+            ],
+            [
+              10.612792968750002,
+              61.10891775407594
+            ],
+            [
+              10.630645751953127,
+              61.11372776475666
+            ],
+            [
+              10.62154769897461,
+              61.11903451349212
+            ],
+            [
+              10.603008270263672,
+              61.11356191450186
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "61e07add-d76f-4753-b173-43f5dd2fbfa2",
+        "name": "Zone 2",
+        "polygonType": "penalty",
+        "featureType": "zone"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              10.647125244140627,
+              61.150690644743285
+            ],
+            [
+              10.650386810302734,
+              61.14456078289033
+            ],
+            [
+              10.659828186035158,
+              61.145554895406335
+            ],
+            [
+              10.663776397705078,
+              61.152264336149116
+            ],
+            [
+              10.647125244140627,
+              61.150690644743285
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "427ae170-2cd9-4949-b996-095bc52dfb6f",
+        "name": "Zone 3",
+        "polygonType": "info",
+        "featureType": "zone"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              10.5743408203125,
+              61.151270434916476
+            ],
+            [
+              10.576057434082033,
+              61.14762586260896
+            ],
+            [
+              10.587730407714846,
+              61.148951210319765
+            ],
+            [
+              10.590648651123049,
+              61.15234715983904
+            ],
+            [
+              10.5743408203125,
+              61.151270434916476
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "d0128f42-2ce3-4b49-a55f-30628498416c",
+        "name": "Zone 4",
+        "polygonType": "waypoint",
+        "featureType": "waypoint_polygon"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              10.550823211669924,
+              61.12707585614771
+            ],
+            [
+              10.552711486816406,
+              61.12259948490949
+            ],
+            [
+              10.562324523925783,
+              61.123842984978694
+            ],
+            [
+              10.561981201171877,
+              61.13014263328565
+            ],
+            [
+              10.550823211669924,
+              61.12707585614771
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

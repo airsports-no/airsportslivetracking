@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Fix Leaflet tiles interacting with Tailwind's img reset */
+.leaflet-pane img,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.cursor-grab {
+  cursor: grab !important;
+}
+
+.cursor-grabbing {
+  cursor: grabbing !important;
+}
