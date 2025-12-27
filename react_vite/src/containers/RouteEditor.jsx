@@ -278,7 +278,29 @@ export default function App() {
 
       let minDist = Infinity;
       for (let i = 0; i < routePoints.length - 1; i++) {
-        const d = getDistanceFromLine(latlng, routePoints[i], routePoints[i + 1]);
+        const p1 = routePoints[i];
+        const p2 = routePoints[i + 1];
+        let d = Infinity;
+
+        if (p2.segmentType === 'curved' && p2.controlLat != null && p2.controlLng != null) {
+          // Approximate curve distance
+          const steps = 20;
+          let prev = p1;
+          for (let j = 1; j <= steps; j++) {
+            const t = j / steps;
+            const invT = 1 - t;
+            // Quadratic Bezier formula
+            const lat = (invT * invT * p1.lat) + (2 * invT * t * p2.controlLat) + (t * t * p2.lat);
+            const lng = (invT * invT * p1.lng) + (2 * invT * t * p2.controlLng) + (t * t * p2.lng);
+            const curr = { lat, lng };
+            const segDist = getDistanceFromLine(latlng, prev, curr);
+            if (segDist < d) d = segDist;
+            prev = curr;
+          }
+        } else {
+          d = getDistanceFromLine(latlng, p1, p2);
+        }
+
         if (d < minDist) minDist = d;
       }
 

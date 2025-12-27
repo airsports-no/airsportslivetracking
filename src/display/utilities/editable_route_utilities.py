@@ -1,5 +1,17 @@
 """
-All geoJSON features use longitude, latitude coordinate order.
+Utilities for creating and manipulating EditableRoute GeoJSON structures.
+
+Data Format:
+The EditableRoute stores data in a GeoJSON FeatureCollection format.
+Each Feature in the collection represents a route element:
+- "route_path": A LineString representing the connected track.
+- "route_waypoint": Points representing waypoints along the track.
+- "takeoff_gate" / "landing_gate": LineStrings for TO/LDG gates.
+- "zone": Polygons for prohibited, info, penalty, or gate zones.
+
+Coordinate System:
+GeoJSON uses [longitude, latitude] order.
+Internal Python logic typically uses (latitude, longitude) tuples.
 """
 from typing import Optional
 import uuid
@@ -11,7 +23,10 @@ def create_track_block(
     names: Optional[list[str]] = None,
     types: Optional[list[str]] = None,
 ) -> list[dict]:
-    """Given a list of lat, lon pairs, construct a list of geojson features for track and waypoints."""
+    """
+    Given a list of (latitude, longitude) pairs, construct a list of GeoJSON features 
+    representing the route path and its waypoints.
+    """
     features = []
 
     # Route Path
@@ -22,6 +37,7 @@ def create_track_block(
         },
         "geometry": {
             "type": "LineString",
+            # GeoJSON expects [lon, lat]
             "coordinates": [[p[1], p[0]] for p in positions]
         }
     })
@@ -31,16 +47,12 @@ def create_track_block(
         if names and index < len(names):
             name = names[index]
         else:
-            if index == 0: name = "Start"
-            elif index == len(positions) - 1: name = "Finish"
-            else: name = f"WP {index + 1}"
+            name = "Start" if index == 0 else "Finish" if index == len(positions) - 1 else f"WP {index + 1}"
 
         if types and index < len(types):
             pt_type = types[index]
         else:
-            if index == 0: pt_type = "sp"
-            elif index == len(positions) - 1: pt_type = "fp"
-            else: pt_type = "tp"
+            pt_type = "sp" if index == 0 else "fp" if index == len(positions) - 1 else "tp"
 
         width = widths[index] if widths and index < len(widths) else 1852
 
@@ -59,6 +71,7 @@ def create_track_block(
             },
             "geometry": {
                 "type": "Point",
+                # GeoJSON expects [lon, lat]
                 "coordinates": [position[1], position[0]]
             }
         })
@@ -67,7 +80,7 @@ def create_track_block(
 
 
 def _create_gate(positions: tuple[tuple[float, float], tuple[float, float]], name: str, feature_type: str, gate_type: str) -> dict:
-    """[[longitude, latitude], [longitude, latitude]]"""
+    """Helper to create a gate feature. Input positions are (lat, lon)."""
     return {
         "type": "Feature",
         "properties": {
@@ -79,6 +92,7 @@ def _create_gate(positions: tuple[tuple[float, float], tuple[float, float]], nam
         },
         "geometry": {
             "type": "LineString",
+            # GeoJSON expects [lon, lat]
             "coordinates": [[positions[0][1], positions[0][0]], [positions[1][1], positions[1][0]]]
         }
     }
@@ -96,7 +110,7 @@ def create_landing_gate(positions: tuple[tuple[float, float], tuple[float, float
 
 def _create_polygon(positions: list[tuple[float, float]], name: str, polygon_type: str) -> dict:
     """
-    Coordinate list should be latitude, longitude
+    Helper to create a polygon feature. Input positions are (lat, lon).
     """
     coords = [[p[1], p[0]] for p in positions]
     if coords and coords[0] != coords[-1]:
@@ -142,7 +156,10 @@ def get_quadratic_bezier_points(
     control: tuple[float, float],
     num_points: int = 20,
 ) -> list[tuple[float, float]]:
-    """Calculate points along a quadratic Bezier curve."""
+    """
+    Calculate points along a quadratic Bezier curve.
+    Inputs and outputs are (latitude, longitude).
+    """
     points = []
     for i in range(num_points + 1):
         t = i / num_points
