@@ -1,0 +1,16 @@
+{% load static %}
+<!-- {% load django_vite %} -->
+{% block document_configuration %}
+<!-- {% vite_hmr_client %} -->
+<link rel="stylesheet" href="{% static 'css/RouteEditorApp.css' %}">
+<!-- {% vite_asset 'css/RouteEditorApp.css' %} -->
+{% endblock %}
+{% block contentfluid %}
+    <div class="row">
+        <div id="root">
+            <img class="centered" src="{% static 'img/loading_airplane.gif' %}" alt="loading..."/>
+        </div>
+    </div>
+    <script src="{% static 'js/RouteEditorApp-bundle.js' %}"></script>
+    <!-- {% vite_asset 'js/RouteEditorApp-bundle.js' %} -->
+{% endblock %}

@@ -289,6 +289,7 @@ TEMPORARY_FOLDER = "/tmp"
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
     "/assets",
+    "/src/vite_static"
 ]
 
 LOGGING = LOG_CONFIGURATION

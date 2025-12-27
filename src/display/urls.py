@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import TemplateView
 
 from display.views import (
     fly_master_data_post,
@@ -272,4 +273,6 @@ urlpatterns = [
         delete_user_editableroute_permissions,
         name="editableroute_permissions_delete",
     ),
+    path("vite/", TemplateView.as_view(template_name="display/vite_route_editor.html")),
+
 ]
