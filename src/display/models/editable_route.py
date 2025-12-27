@@ -21,6 +21,7 @@ from display.utilities.editable_route_utilities import (
     create_information_zone,
     create_penalty_zone,
     create_gate_polygon,
+    get_quadratic_bezier_points,
 )
 from display.utilities.gate_definitions import DUMMY, UNKNOWN_LEG, STARTINGPOINT, FINISHPOINT
 from display.utilities.navigation_task_type_definitions import (
@@ -185,6 +186,28 @@ class EditableRoute(models.Model):
         coordinates = self.get_feature_coordinates(track)
         for index, (latitude, longitude) in enumerate(coordinates):
             item = self.get_track_waypoint_at_index(index)
+            if index > 0 and item["properties"].get("segmentType") == "curved":
+                control_latitude=item["properties"].get("controlLat")
+                control_longitude=item["properties"].get("controlLng")
+                if control_latitude:
+                    prev_lat, prev_lon = coordinates[index - 1]
+                    intermediate_points = get_quadratic_bezier_points(
+                        (prev_lat, prev_lon),
+                        (latitude, longitude),
+                        (control_latitude, control_longitude),
+                    )
+                    for p_lat, p_lon in intermediate_points[1:-1]:
+                        waypoint_list.append(
+                            build_waypoint(
+                                f"Curve {index}",
+                                p_lat,
+                                p_lon,
+                                "secret",
+                                0.001,
+                                False,
+                                False,
+                            )
+                        )
             waypoint_list.append(
                 build_waypoint(
                     item["properties"]["name"],

@@ -116,3 +116,19 @@ def create_penalty_zone(positions: list[tuple[float, float]], name: str) -> dict
 def create_gate_polygon(positions: list[tuple[float, float]], name: str) -> dict:
     """Create a gate polygon used for poker run"""
     return _create_polygon(positions, name, "gate")
+
+
+def get_quadratic_bezier_points(
+    p1: tuple[float, float],
+    p2: tuple[float, float],
+    control: tuple[float, float],
+    num_points: int = 20,
+) -> list[tuple[float, float]]:
+    """Calculate points along a quadratic Bezier curve."""
+    points = []
+    for i in range(num_points + 1):
+        t = i / num_points
+        lat = (1 - t) * (1 - t) * p1[0] + 2 * (1 - t) * t * control[0] + t * t * p2[0]
+        lng = (1 - t) * (1 - t) * p1[1] + 2 * (1 - t) * t * control[1] + t * t * p2[1]
+        points.append((lat, lng))
+    return points
