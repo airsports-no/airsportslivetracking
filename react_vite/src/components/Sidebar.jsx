@@ -150,7 +150,7 @@ const Sidebar = ({
           value={routeName}
           onChange={(e) => setRouteName(e.target.value)}
           placeholder="Route Name"
-          className="w-full px-3 py-2 text-gray-900 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 mb-4 text-gray-900 rounded-md text-lg font-bold border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
         {renderContent()}
