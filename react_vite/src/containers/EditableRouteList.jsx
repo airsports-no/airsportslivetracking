@@ -137,7 +137,7 @@ export const EditableRouteList = () => {
                     />
                 </div>
                 {loading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 z-50">
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/50 z-50 text-blue-600">
                         <Loading />
                     </div>
                 )}
