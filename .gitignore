@@ -32,5 +32,5 @@ private_values.yml
 private_values_gcloud.yaml
 webpack-stats-local.json
 src/polygon.png
-vite_static
+assets_vite
 reactjs/**/*.jsx

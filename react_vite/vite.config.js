@@ -16,6 +16,7 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 1000,
+    sourcemap: true,
     rollupOptions: {
       // Dynamically create entry points from files in the 'containers' directory that end with .jsx or .tsx.
       input: Object.fromEntries(

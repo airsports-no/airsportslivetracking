@@ -518,7 +518,7 @@ class EditableRoute(models.Model):
                     else:
                         waypoint_definitions[gate_name] = {
                             "position": (float(gate_extension.attrib["lat"]), float(gate_extension.attrib["lon"])),
-                            "width": float(gate_extension.attrib["width"]),
+                            "width": float(gate_extension.attrib["width"]) * 1852,
                             "type": gate_type,
                             "time_check": gate_extension.attrib["notimecheck"] == "no",
                         }

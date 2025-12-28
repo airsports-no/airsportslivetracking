@@ -25,74 +25,77 @@ export const EditableRouteList = () => {
 
     const columns = useMemo(() => [
         {
-            Header: "Thumbnail",
-            accessor: "thumbnail",
-            Cell: ({ value }) => value ? (
-                <img
-                    className="zoom w-[50px] -my-5 -mr-5 max-w-none object-cover"
-                    src={value}
-                    alt="Thumbnail"
-                />
-            ) : null,
-            disableSortBy: true,
-            disableFilters: true,
+            header: "Thumbnail",
+            accessorKey: "thumbnail",
+            cell: ({ getValue }) => {
+                const value = getValue();
+                return value ? (
+                    <img
+                        className="zoom w-[50px] -my-5 -mr-5 max-w-none object-cover"
+                        src={value}
+                        alt="Thumbnail"
+                    />
+                ) : null;
+            },
+            enableSorting: false,
+            enableColumnFilter: false,
         },
         {
-            Header: "Route",
-            accessor: "name",
+            header: "Route",
+            accessorKey: "name",
             id: "Route",
-            disableSortBy: true,
-            Cell: ({ row, value }) => (
+            enableSorting: false,
+            cell: ({ row, getValue }) => (
                 <Link
                     to={`/edit/${row.original.id}`}
                     className="text-blue-600 hover:text-blue-800 hover:underline"
                 >
-                    {value}
+                    {getValue()}
                 </Link>
             )
         },
         {
-            Header: "Waypoints",
-            accessor: "number_of_waypoints",
-            disableFilters: true,
+            header: "Waypoints",
+            accessorKey: "number_of_waypoints",
+            enableColumnFilter: false,
         },
         {
-            Header: "Total length",
-            accessor: "route_length",
-            disableFilters: true,
-            Cell: ({ value }) => `${(value / 1852).toFixed(2)} NM`
+            header: "Total length",
+            accessorKey: "route_length",
+            enableColumnFilter: false,
+            cell: ({ getValue }) => `${(getValue() / 1852).toFixed(2)} NM`
         },
         {
-            Header: "Editors",
-            accessor: "editors",
-            Cell: ({ value }) => (
+            header: "Editors",
+            accessorKey: "editors",
+            cell: ({ getValue }) => (
                 <ul className="list-disc list-inside">
-                    {value.map((editor) => (
+                    {getValue().map((editor) => (
                         <li key={editor.email}>
                             {editor.first_name} {editor.last_name}
                         </li>
                     ))}
                 </ul>
             ),
-            disableFilters: true,
-            disableSortBy: true,
+            enableColumnFilter: false,
+            enableSorting: false,
         },
         {
-            Header: "Actions",
-            accessor: (row) => (
+            header: "Actions",
+            id: "actions",
+            cell: ({ row }) => (
                 <div className="flex items-center space-x-2 text-sm">
-                    <a href={document.configuration.createTaskViewUrl(row.id)} className="text-blue-600 hover:underline">Create task</a>
+                    <a href={document.configuration.createTaskViewUrl(row.original.id)} className="text-blue-600 hover:underline">Create task</a>
                     <span className="text-gray-300">|</span>
-                    <a href={document.configuration.copyRouteViewUrl(row.id)} className="text-blue-600 hover:underline">Copy</a>
+                    <a href={document.configuration.copyRouteViewUrl(row.original.id)} className="text-blue-600 hover:underline">Copy</a>
                     <span className="text-gray-300">|</span>
-                    <a href={document.configuration.permissionListViewUrl(row.id)} className="text-blue-600 hover:underline">Permissions</a>
+                    <a href={document.configuration.permissionListViewUrl(row.original.id)} className="text-blue-600 hover:underline">Permissions</a>
                     <span className="text-gray-300">|</span>
-                    <a href={document.configuration.deleteRouteViewUrl(row.id)} className="text-red-600 hover:underline">Delete</a>
+                    <a href={document.configuration.deleteRouteViewUrl(row.original.id)} className="text-red-600 hover:underline">Delete</a>
                 </div>
             ),
-            id: "actions",
-            disableSortBy: true,
-            disableFilters: true,
+            enableSorting: false,
+            enableColumnFilter: false,
         }
 
     ], []);
@@ -133,7 +136,7 @@ export const EditableRouteList = () => {
                     data={filteredData}
                     className="min-w-full divide-y divide-gray-300 [&_tr:nth-of-type(odd)]:bg-white [&_tr:nth-of-type(even)]:bg-gray-50 [&_tr:hover]:bg-gray-100"
                     initialState={{
-                        sortBy: [{ id: "Route", desc: false }]
+                        sorting: [{ id: "Route", desc: false }]
                     }}
                 />
             </div>

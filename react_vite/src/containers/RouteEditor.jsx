@@ -56,7 +56,8 @@ export default function App() {
   const [maxObsDist, setMaxObsDist] = useState(926); // Default 0.5 NM
 
   const modeRef = useRef(mode);
-  const mapRef = useRef(null);
+  const [mapInstance, setMapInstance] = useState(null);
+  const [pendingBounds, setPendingBounds] = useState(null);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -151,25 +152,46 @@ export default function App() {
         setPolygons(newPolys);
 
         // Zoom to fit imported content
-        if (mapRef.current && typeof L !== 'undefined') {
-          const bounds = L.latLngBounds([]);
-          newPoints.forEach(p => bounds.extend([p.lat, p.lng]));
-          newGates.forEach(g => {
-            bounds.extend([g.p1.lat, g.p1.lng]);
-            bounds.extend([g.p2.lat, g.p2.lng]);
-          });
-          newObs.forEach(o => bounds.extend([o.lat, o.lng]));
-          newPolys.forEach(p => p.points.forEach(pt => bounds.extend([pt.lat, pt.lng])));
+        let minLat = Infinity;
+        let maxLat = -Infinity;
+        let minLng = Infinity;
+        let maxLng = -Infinity;
+        let hasPoints = false;
 
-          if (bounds.isValid()) {
-            mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-          }
+        const extend = (lat, lng) => {
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+          if (lng < minLng) minLng = lng;
+          if (lng > maxLng) maxLng = lng;
+          hasPoints = true;
+        };
+
+        newPoints.forEach(p => extend(p.lat, p.lng));
+        newGates.forEach(g => {
+          extend(g.p1.lat, g.p1.lng);
+          extend(g.p2.lat, g.p2.lng);
+        });
+        newObs.forEach(o => extend(o.lat, o.lng));
+        newPolys.forEach(p => p.points.forEach(pt => extend(pt.lat, pt.lng)));
+
+        if (hasPoints) {
+          setPendingBounds([[minLat, minLng], [maxLat, maxLng]]);
         }
       }
     } catch (err) {
       console.error("Error parsing route data", err);
     }
   }, []);
+
+  useEffect(() => {
+    if (mapInstance && pendingBounds) {
+      const map = mapInstance.map || mapInstance.leafletElement || mapInstance;
+      if (typeof map.fitBounds === 'function') {
+        map.fitBounds(pendingBounds, { padding: [50, 50] });
+        setPendingBounds(null);
+      }
+    }
+  }, [mapInstance, pendingBounds]);
 
   useEffect(() => {
     if (paramRouteId) {
@@ -698,7 +720,7 @@ export default function App() {
 
         {/* MAP CONTAINER */}
         <MapCanvas
-          ref={mapRef}
+          ref={setMapInstance}
           routePoints={routePoints}
           gates={gates}
           observationMarkers={observationMarkers}

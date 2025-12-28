@@ -169,7 +169,7 @@ function fuzzyTextFilterFn(row, columnId, filterValue, addMeta) {
 fuzzyTextFilterFn.autoRemove = val => !val;
 
 // Our table component
-export function ASTable({ columns, data, rowEvents, initialState, className }) {
+export function ASTable({ columns = [], data = [], rowEvents, initialState, className }) {
     const [globalFilter, setGlobalFilter] = useState(initialState?.globalFilter || '');
     const [columnVisibility, setColumnVisibility] = useState({});
 
@@ -182,18 +182,22 @@ export function ASTable({ columns, data, rowEvents, initialState, className }) {
     // Initialize column visibility from columns prop
     useEffect(() => {
         const visibility = {};
-        columns.forEach(col => {
-            if (col.hidden) {
-                visibility[col.id || col.accessor] = false;
+        (columns || []).forEach(col => {
+            if (col && col.hidden) {
+                visibility[col.id || col.accessorKey] = false;
             }
         });
-        setColumnVisibility(visibility);
+        setColumnVisibility(prev => {
+            if (JSON.stringify(prev) === JSON.stringify(visibility)) return prev;
+            return visibility;
+        });
     }, [columns]);
 
     const table = useReactTable({
         data,
-        columns,
+        columns: columns || [],
         defaultColumn,
+        initialState,
         state: {
             globalFilter,
             columnVisibility,

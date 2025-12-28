@@ -20,6 +20,7 @@ services:
       - ./secret:/secret
       - ./static:/static
       - ./assets:/assets
+      - ./assets_vite:/assets_vite
       - ./src:/src
       - ./data:/data
       - ./weblog:/logs
