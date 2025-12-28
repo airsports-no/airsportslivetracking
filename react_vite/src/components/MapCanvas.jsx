@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, forwardRef } from 'react';
 import L from 'leaflet';
 import {
   getBearing,
@@ -19,7 +19,7 @@ import * as Renderers from './map/renderers';
  * 3. Handling direct map interactions like Dragging elements and Clicking to select.
  * 4. Forwarding generic map clicks to the parent (App.jsx) for handling based on the current 'mode'.
  */
-export default function MapCanvas({
+const MapCanvas = forwardRef(({
   // --- Data Props ---
   routePoints,
   gates,
@@ -43,7 +43,7 @@ export default function MapCanvas({
   setMode,
   setTempPolygonPoints,
   onMapClick // Callback for generic map clicks (handled in App.jsx)
-}) {
+}, ref) => {
   const mapRef = useMapInit();
   const markersRef = useRef({}); // Stores references to Leaflet layers by ID
   const polylinesRef = useRef([]); // Stores references to non-keyed lines (like temp lines)
@@ -60,6 +60,17 @@ export default function MapCanvas({
     setSelectionType,
     setMode,
     maxObsDist
+  });
+
+  // --- Expose Map Instance to Parent ---
+  useEffect(() => {
+    if (mapRef.current && ref) {
+      if (typeof ref === 'function') {
+        ref(mapRef.current);
+      } else {
+        ref.current = mapRef.current;
+      }
+    }
   });
 
   // --- 2. Bind Map Click Event ---
@@ -221,4 +232,6 @@ export default function MapCanvas({
   ]);
 
   return <div id="map-container" className="w-full h-full bg-slate-200" />;
-}
+});
+
+export default MapCanvas;

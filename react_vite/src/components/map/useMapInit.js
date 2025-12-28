@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 
 /**
@@ -7,6 +7,7 @@ import L from 'leaflet';
  */
 export default function useMapInit() {
   const mapRef = useRef(null);
+  const [, setReady] = useState(false);
 
   useEffect(() => {
     if (mapRef.current) return; // Prevent double init
@@ -40,6 +41,12 @@ export default function useMapInit() {
     }, { position: 'bottomright' }).addTo(map);
 
     mapRef.current = map;
+    setReady(true);
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
   }, []);
 
   return mapRef;

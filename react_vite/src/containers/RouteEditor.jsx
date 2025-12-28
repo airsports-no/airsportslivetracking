@@ -185,9 +185,13 @@ export default function App() {
 
   useEffect(() => {
     if (mapInstance && pendingBounds) {
-      const map = mapInstance.map || mapInstance.leafletElement || mapInstance;
-      if (typeof map.fitBounds === 'function') {
-        map.fitBounds(pendingBounds, { padding: [50, 50] });
+      let map = mapInstance;
+      if (map.current) map = map.current;
+      if (map) map = map.map || map.leafletElement || (map.getMap ? map.getMap() : map);
+
+      if (map && typeof map.fitBounds === 'function') {
+        map.invalidateSize();
+        map.fitBounds(pendingBounds, { padding: [50, 50], maxZoom: 16 });
         setPendingBounds(null);
       }
     }
