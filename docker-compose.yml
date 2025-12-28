@@ -23,6 +23,7 @@ services:
       - ./assets_vite:/assets_vite
       - ./src:/src
       - ./data:/data
+      - ./secret:/secret
       - ./weblog:/logs
       - ./src/display/kubernetes_calculator/ca.crt:/aks_certificate/ca.crt
       - ./mapserver:/maptiles

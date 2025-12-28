@@ -4,23 +4,18 @@ import {ASTable} from "../components/filteredSearchableTable";
 import {Loading} from "../components/basicComponents";
 
 export const EditableRouteList = () => {
-    const [data, setData] = useState(null);
+    const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAll, setShowAll] = useState(false);
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await fetch(document.configuration.EDITABLE_ROUTES_URL);
-                const result = await response.json();
-                setData(result);
-            } catch (error) {
-                console.error("Error fetching routes:", error);
-            } finally {
+        fetch(document.configuration.EDITABLE_ROUTES_URL)
+            .then((res) => res.json())
+            .then((data) => {
+                setData(data);
                 setLoading(false);
-            }
-        };
-        fetchData();
+            })
+            .catch(() => setLoading(false));
     }, []);
 
     const columns = useMemo(() => [
@@ -34,6 +29,8 @@ export const EditableRouteList = () => {
                         className="zoom w-[50px] -my-5 -mr-5 max-w-none object-cover"
                         src={value}
                         alt="Thumbnail"
+                        loading="lazy"
+                        decoding="async"
                     />
                 ) : null;
             },
@@ -105,8 +102,6 @@ export const EditableRouteList = () => {
         return data.filter((item) => showAll || item.is_editor);
     }, [data, showAll]);
 
-    if (loading) return <Loading />;
-
     return (
         <div className="p-4">
             <div className="flex justify-between items-center mb-4">
@@ -130,15 +125,22 @@ export const EditableRouteList = () => {
                     Create new route
                 </a>
             </div>
-            <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                <ASTable
-                    columns={columns}
-                    data={filteredData}
-                    className="min-w-full divide-y divide-gray-300 [&_tr:nth-of-type(odd)]:bg-white [&_tr:nth-of-type(even)]:bg-gray-50 [&_tr:hover]:bg-gray-100"
-                    initialState={{
-                        sorting: [{ id: "Route", desc: false }]
-                    }}
-                />
+            <div className="relative overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg min-h-[200px]">
+                <div className="overflow-x-auto">
+                    <ASTable
+                        columns={columns}
+                        data={filteredData}
+                        className="min-w-full divide-y divide-gray-300 [&_tr:nth-of-type(odd)]:bg-white [&_tr:nth-of-type(even)]:bg-gray-50 [&_tr:hover]:bg-gray-100"
+                        initialState={{
+                            sorting: [{ id: "Route", desc: false }]
+                        }}
+                    />
+                </div>
+                {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 z-50">
+                        <Loading />
+                    </div>
+                )}
             </div>
         </div>
     );
