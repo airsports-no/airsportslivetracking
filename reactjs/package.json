@@ -5,9 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "webpack-local": "webpack --config config/webpack.local.config.js",
-    "webpack": "webpack --config config/webpack.production.config.js",
-    "analyse": "webpack --config config/webpack.production.config.js --profile --json"
+    "webpack-local": "webpack --config webpack.local.config.js",
+    "webpack": "webpack --config webpack.production.config.js",
+    "analyse": "webpack --config webpack.production.config.js --profile --json"
   },
   "author": "",
   "license": "ISC",

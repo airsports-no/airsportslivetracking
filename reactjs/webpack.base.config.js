@@ -2,53 +2,22 @@ const path = require("path");
 const fs = require("fs");
 const BundleTracker = require('webpack-bundle-tracker');
 module.exports = {
-    context: path.resolve(__dirname, '../'),
+    context: __dirname,
     mode: 'development',
-    entry: fs.readdirSync("../reactjs/containers/")
+    entry: fs.readdirSync("./containers/")
         .filter(f => f.endsWith(".jsx"))
-        .map(f => ({[path.basename(f, ".jsx")]: path.resolve(__dirname, `../reactjs/containers/${f}`)}))
+        .map(f => ({[path.basename(f, ".jsx")]: path.resolve(__dirname, `./containers/${f}`)}))
         .reduce((a, b) => Object.assign(a, b), {}),
 
     output: {
-        path: path.resolve('/assets/bundles/local/'),
+        path: path.resolve('../assets/bundles/local/'),
         filename: "[name]-[fullhash].js",
         // Needed to compile multiline strings in Cesium
         sourcePrefix: ''
     },
 
-    // Optimisation breaks react router
-    // optimization: {
-    //     runtimeChunk: 'single',
-    //     splitChunks: {
-    //         cacheGroups: {
-    //             commons: {
-    //                 test: /[\\/]node_modules[\\/]/,
-    //                 chunks: "all",
-    //                 name: "vendors"
-    //             }
-    //         }
-    //     }
-    // },
-    // optimization: {
-    // splitChunks: {
-    //     cacheGroups: {
-    //         styles: {
-    //             name: 'styles',
-    //             test: /\.css$/,
-    //             chunks: 'all',
-    //             enforce: true
-    //         },
-    //         vendor: {
-    //             chunks: 'initial',
-    //             test: 'vendor',
-    //             name: 'vendor',
-    //             enforce: true
-    //         }
-    //     }
-    // }
-    // },
     plugins: [
-        new BundleTracker({path: path.join(__dirname, '../'), filename: 'webpack-stats-local.json'}),
+        new BundleTracker({path: path.join(__dirname, '../assets'), filename: 'webpack-stats-local.json'}),
     ], // add all common plugins here
 
     module: {

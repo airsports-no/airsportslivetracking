@@ -45,6 +45,8 @@ class ProhibitedZoneCalculator(Calculator):
         for zone in zones:
             self.zone_map[zone.pk] = zone
             self.zone_polygons.append((zone.pk, self.polygon_helper.build_polygon(zone.path)))
+        logger.debug("Prohibited zones loaded: %s", str(i.name for i in self.zone_map.values()))
+        logger.debug("Prohibited zone polygons: %s", self.zone_polygons)
 
     def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         pass

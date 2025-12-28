@@ -4,6 +4,7 @@
 !config
 !data
 !reactjs
+!react_vite
 !documentation
 !wait-for-it.sh
 !requirements.txt

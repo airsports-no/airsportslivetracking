@@ -13,6 +13,7 @@ Coordinate System:
 GeoJSON uses [longitude, latitude] order.
 Internal Python logic typically uses (latitude, longitude) tuples.
 """
+
 from typing import Optional
 import uuid
 
@@ -24,30 +25,30 @@ def create_track_block(
     types: Optional[list[str]] = None,
 ) -> list[dict]:
     """
-    Given a list of (latitude, longitude) pairs, construct a list of GeoJSON features 
+    Given a list of (latitude, longitude) pairs, construct a list of GeoJSON features
     representing the route path and its waypoints.
     """
     features = []
 
     # Route Path
-    features.append({
-        "type": "Feature",
-        "properties": {
-            "featureType": "route_path"
-        },
-        "geometry": {
-            "type": "LineString",
-            # GeoJSON expects [lon, lat]
-            "coordinates": [[p[1], p[0]] for p in positions]
+    features.append(
+        {
+            "type": "Feature",
+            "properties": {"featureType": "route_path"},
+            "geometry": {
+                "type": "LineString",
+                # GeoJSON expects [lon, lat]
+                "coordinates": [[p[1], p[0]] for p in positions],
+            },
         }
-    })
+    )
 
     # Waypoints
     for index, position in enumerate(positions):
         if names and index < len(names):
             name = names[index]
         else:
-            name = "Start" if index == 0 else "Finish" if index == len(positions) - 1 else f"WP {index + 1}"
+            name = "SP" if index == 0 else "FP" if index == len(positions) - 1 else f"TP {index}"
 
         if types and index < len(types):
             pt_type = types[index]
@@ -56,30 +57,34 @@ def create_track_block(
 
         width = widths[index] if widths and index < len(widths) else 1852
 
-        features.append({
-            "type": "Feature",
-            "properties": {
-                "id": str(uuid.uuid4()),
-                "name": name,
-                "pointType": pt_type,
-                "featureType": "route_waypoint",
-                "width": width,
-                "isTiming": False,
-                "isPassing": True,
-                "sequence": index,
-                "segmentType": "straight"
-            },
-            "geometry": {
-                "type": "Point",
-                # GeoJSON expects [lon, lat]
-                "coordinates": [position[1], position[0]]
+        features.append(
+            {
+                "type": "Feature",
+                "properties": {
+                    "id": str(uuid.uuid4()),
+                    "name": name,
+                    "pointType": pt_type,
+                    "featureType": "route_waypoint",
+                    "width": width,
+                    "isTiming": True,
+                    "isPassing": True,
+                    "sequence": index,
+                    "segmentType": "straight",
+                },
+                "geometry": {
+                    "type": "Point",
+                    # GeoJSON expects [lon, lat]
+                    "coordinates": [position[1], position[0]],
+                },
             }
-        })
+        )
 
     return features
 
 
-def _create_gate(positions: tuple[tuple[float, float], tuple[float, float]], name: str, feature_type: str, gate_type: str) -> dict:
+def _create_gate(
+    positions: tuple[tuple[float, float], tuple[float, float]], name: str, feature_type: str, gate_type: str
+) -> dict:
     """Helper to create a gate feature. Input positions are (lat, lon)."""
     return {
         "type": "Feature",
@@ -88,13 +93,13 @@ def _create_gate(positions: tuple[tuple[float, float], tuple[float, float]], nam
             "name": name,
             "gateType": gate_type,
             "featureType": feature_type,
-            "width": 50
+            "width": 50,
         },
         "geometry": {
             "type": "LineString",
             # GeoJSON expects [lon, lat]
-            "coordinates": [[positions[0][1], positions[0][0]], [positions[1][1], positions[1][0]]]
-        }
+            "coordinates": [[positions[0][1], positions[0][0]], [positions[1][1], positions[1][0]]],
+        },
     }
 
 
@@ -108,6 +113,7 @@ def create_landing_gate(positions: tuple[tuple[float, float], tuple[float, float
     return _create_gate(positions, "Landing gate", "landing_gate", "landing")
 
 
+### Used by kml import ###
 def _create_polygon(positions: list[tuple[float, float]], name: str, polygon_type: str) -> dict:
     """
     Helper to create a polygon feature. Input positions are (lat, lon).
@@ -117,16 +123,8 @@ def _create_polygon(positions: list[tuple[float, float]], name: str, polygon_typ
         coords.append(coords[0])
     return {
         "type": "Feature",
-        "properties": {
-            "id": str(uuid.uuid4()),
-            "name": name,
-            "polygonType": polygon_type,
-            "featureType": "zone"
-        },
-        "geometry": {
-            "type": "Polygon",
-            "coordinates": [coords]
-        }
+        "properties": {"id": str(uuid.uuid4()), "name": name, "polygonType": polygon_type, "featureType": "zone"},
+        "geometry": {"type": "Polygon", "coordinates": [coords]},
     }
 
 
@@ -148,6 +146,9 @@ def create_penalty_zone(positions: list[tuple[float, float]], name: str) -> dict
 def create_gate_polygon(positions: list[tuple[float, float]], name: str) -> dict:
     """Create a gate polygon used for poker run"""
     return _create_polygon(positions, name, "waypoint")
+
+
+### End used by kml import ###
 
 
 def get_quadratic_bezier_points(

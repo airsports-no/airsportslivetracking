@@ -10,8 +10,8 @@ export default defineConfig({
   base: '/static/', // This should match Django's settings.STATIC_URL
   resolve: {
     alias: {
-      react: path.resolve('./node_modules/react'),
-      'react-dom': path.resolve('./node_modules/react-dom'),
+      react: path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
     },
   },
   build: {
@@ -41,7 +41,7 @@ export default defineConfig({
       },
     },
     manifest: "manifest.json",
-    outDir: path.resolve(__dirname, '../src/vite_static'), // Output directory for built assets
+    outDir: path.resolve(__dirname, '../assets_vite'), // Output directory for built assets
     emptyOutDir: true, // Clean output directory before building
   },
 })

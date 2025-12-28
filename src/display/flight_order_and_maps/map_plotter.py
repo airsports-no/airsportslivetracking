@@ -1036,9 +1036,9 @@ def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
     if editable_track is not None:
         tracks = [[]]
         coordinates = editable_route.get_feature_coordinates(editable_track)
-        track_points=editable_route.get_features_type("route_waypoint")
+        track_points = editable_route.get_ordered_track_waypoints()
         for index, (latitude, longitude) in enumerate(coordinates):
-            item = editable_route.get_track_waypoint_at_index(index)
+            item = track_points[index]
             tracks[-1].append((latitude, longitude))
             print(item)
             plt.text(
@@ -1074,17 +1074,19 @@ def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
         plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1)
     # for zone_type in ("info", "penalty", "prohibited", "gate"):
     for feature in editable_route.get_features_type("zone"):
-            fill_colour, line_colour, font_size = PROHIBITED_COLOURS.get(feature["properties"]["polygonType"], ("blue", "darkblue", 4))
-            print(feature)
-            plot_prohibited_polygon(
-                imagery.crs,
-                ax,
-                editable_route.get_feature_coordinates(feature, flip=True),
-                fill_colour,
-                line_colour,
-                font_size,
-                feature["properties"]["name"],
-            )
+        fill_colour, line_colour, font_size = PROHIBITED_COLOURS.get(
+            feature["properties"]["polygonType"], ("blue", "darkblue", 4)
+        )
+        print(feature)
+        plot_prohibited_polygon(
+            imagery.crs,
+            ax,
+            editable_route.get_feature_coordinates(feature, flip=True),
+            fill_colour,
+            line_colour,
+            font_size,
+            feature["properties"]["name"],
+        )
     ax.add_image(imagery, 11)
     figdata = BytesIO()
     plt.savefig(figdata, format="png", dpi=100, transparent=True)  # , bbox_inches="tight", pad_inches=margin_inches/2)

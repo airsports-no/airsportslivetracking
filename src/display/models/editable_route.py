@@ -107,7 +107,9 @@ class EditableRoute(models.Model):
         return self.name
 
     def get_features_type(self, feature_type: str) -> list[dict]:
-        return [item for item in self.route["features"] if item.get("properties", {}).get("featureType") == feature_type]
+        return [
+            item for item in self.route["features"] if item.get("properties", {}).get("featureType") == feature_type
+        ]
 
     def get_feature_type(self, feature_type: str) -> Optional[dict]:
         try:
@@ -118,7 +120,7 @@ class EditableRoute(models.Model):
     def get_track(self) -> Optional[dict]:
         return self.get_feature_type("route_path")
 
-    def get_track_waypoints(self)-> list[dict]:
+    def get_track_waypoints(self) -> list[dict]:
         return self.get_features_type("route_waypoint")
 
     def get_ordered_track_waypoints(self) -> list[dict]:
@@ -239,15 +241,11 @@ class EditableRoute(models.Model):
                             w = prev_width + (curr_width - prev_width) * t
 
                         waypoint_list.append(
-                            build_waypoint(
-                                f"Curve {index}.{i}", p_lat, p_lon, "secret", w, False, False
-                            )
+                            build_waypoint(f"Curve {index}.{i}", p_lat, p_lon, "secret", w, False, False)
                         )
 
             # Add the current waypoint
-            waypoint_list.append(
-                build_waypoint(props["name"], lat, lon, point_type, width, is_timing, is_passing)
-            )
+            waypoint_list.append(build_waypoint(props["name"], lat, lon, point_type, width, is_timing, is_passing))
 
         return waypoint_list
 
@@ -275,7 +273,7 @@ class EditableRoute(models.Model):
         waypoint_list = self._create_waypoint_list(force_secret_type=True, override_timing_passing_false=True)
         if not waypoint_list:
             return None
-            
+
         waypoint_list[0].type = STARTINGPOINT
         waypoint_list[0].gate_check = True
         waypoint_list[0].time_check = True
@@ -335,13 +333,14 @@ class EditableRoute(models.Model):
         # Create prohibited zones
         for feature in self.get_features_type("zone"):
             logger.debug(feature)
+            # We flip the feature coordinates in the calculators, so leave as lon, lat for now.
             Prohibited.objects.create(
-                    name=feature["properties"]["name"],
-                    route=route,
-                    path=self.get_feature_coordinates(feature, flip=True),
-                    type=feature["properties"]["polygonType"],
-                    # tooltip_position=feature.get("tooltip_position", []),
-                )
+                name=feature["properties"]["name"],
+                route=route,
+                path=self.get_feature_coordinates(feature, flip=False),
+                type=feature["properties"]["polygonType"],
+                # tooltip_position=feature.get("tooltip_position", []),
+            )
         from display.models.route import Photo
 
         for photo in self.get_features_type("observation_photo"):
@@ -395,10 +394,10 @@ class EditableRoute(models.Model):
         if len(positions) == 0:
             messages.append("Fatal: The provided the route has zero length")
             return None, messages
-        
+
         feature_list = create_track_block([(item[0], item[1]) for item in positions])
         messages.append(f"Found route with {len(positions)} points")
-        
+
         if take_off_gate_line := features.get("to"):
             if len(take_off_gate_line) == 2:
                 feature_list.append(
@@ -421,7 +420,7 @@ class EditableRoute(models.Model):
                     )
                 )
                 messages.append("Found landing gate")
-        
+
         # Map zone types to their creator functions
         zone_creators = {
             "prohibited": create_prohibited_zone,
@@ -440,7 +439,7 @@ class EditableRoute(models.Model):
                     messages.append(f"Found {zone_type} polygon {zone_name}")
             except ValueError:
                 pass
-        
+
         route_json = {"type": "FeatureCollection", "features": feature_list}
         editable_route = cls._create_route_and_thumbnail(route_name, route_json)
         logger.debug(messages)
@@ -459,10 +458,12 @@ class EditableRoute(models.Model):
                 line = [item.strip() for item in line.split(",")]
                 positions.append((float(line[2]), float(line[1])))  # CSV contains longitude, latitude
                 names.append(line[0])
-                gate_widths.append(float(line[4]))
+                gate_widths.append(float(line[4]) * 1852)
                 types.append(line[3])
             feature_list = create_track_block(positions, widths=gate_widths, names=names, types=types)
-            editable_route = cls._create_route_and_thumbnail(name, {"type": "FeatureCollection", "features": feature_list})
+            editable_route = cls._create_route_and_thumbnail(
+                name, {"type": "FeatureCollection", "features": feature_list}
+            )
             return editable_route, messages
         except Exception as ex:
             logger.exception("Failure when creating route from csv")
@@ -521,7 +522,7 @@ class EditableRoute(models.Model):
                             "type": gate_type,
                             "time_check": gate_extension.attrib["notimecheck"] == "no",
                         }
-        
+
         track_features = create_track_block(
             [waypoint_definitions[name]["position"] for name in waypoint_order],
             names=waypoint_order,

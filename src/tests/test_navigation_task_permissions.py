@@ -99,35 +99,50 @@ class TestCreateNavigationTask(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
 
 
-EDITABLE_ROUTE_DATA = [
-    {
-        "feature_type": "track",
-        "layer_type": "polyline",
-        "name": "Track",
-        "tooltip_position": [0, 0],
-        "track_points": [
-            {
-                "name": "SP",
-                "gateType": "sp",
-                "timeCheck": True,
-                "gateWidth": 1,
-                "position": {"lat": 60, "lng": 11},
-            },
-            {
-                "name": "FP",
-                "gateType": "fp",
-                "timeCheck": True,
-                "gateWidth": 1,
-                "position": {"lat": 60.1, "lng": 11.1},
-            },
-        ],
-        "geojson": {
+EDITABLE_ROUTE_DATA = {
+    "type": "FeatureCollection",
+    "features": [
+        {
             "type": "Feature",
-            "properties": {},
-            "geometry": {"type": "LineString", "coordinates": [[11, 60], [11.1, 60.1]]},
+            "properties": {"featureType": "route_path"},
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [11, 60],
+                    [11.1, 60.1],
+                ],
+            },
         },
-    }
-]
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "6900ce4c-11df-4edf-9a4f-770a57b00092",
+                "name": "SP",
+                "pointType": "sp",
+                "featureType": "route_waypoint",
+                "width": 1852,
+                "isTiming": True,
+                "isPassing": True,
+                "sequence": 0,
+            },
+            "geometry": {"type": "Point", "coordinates": [11, 60]},
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "id": "9d525739-b2db-424a-99b8-7c83d20a3e85",
+                "name": "FP",
+                "pointType": "fp",
+                "featureType": "route_waypoint",
+                "width": 1852,
+                "isTiming": True,
+                "isPassing": True,
+                "sequence": 1,
+            },
+            "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+        },
+    ],
+}
 
 
 class TestAccessNavigationTask(APITestCase):

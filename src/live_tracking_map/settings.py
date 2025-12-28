@@ -185,7 +185,7 @@ WSGI_APPLICATION = "live_tracking_map.wsgi.application"
 WEBPACK_LOADER = {
     "DEFAULT": {
         "BUNDLE_DIR_NAME": "bundles/local/",  # end with slash
-        "STATS_FILE": os.path.join(BASE_DIR, "..", "webpack-stats-local.json"),
+        "STATS_FILE": os.path.join(BASE_DIR, "..","assets", "webpack-stats-local.json"),
     }
 }
 
@@ -289,7 +289,7 @@ TEMPORARY_FOLDER = "/tmp"
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
     "/assets",
-    "/src/vite_static"
+    "/assets_vite"
 ]
 
 LOGGING = LOG_CONFIGURATION
