@@ -21,15 +21,7 @@ from pytz import UTC
 
 import django
 from django.utils.encoding import smart_str
-
-#### TODO: Revert when django-countries has been updated to fix the issue
-from django_countries.widgets import LazyChoicesMixin
-
 from log_configuration import LOG_CONFIGURATION
-
-LazyChoicesMixin.get_choices = lambda self: self._choices
-LazyChoicesMixin.choices = property(LazyChoicesMixin.get_choices, LazyChoicesMixin.set_choices)
-#### End monkey patch
 
 django.utils.encoding.smart_text = smart_str
 
