@@ -77,3 +77,4 @@ flake8
 flake8-docstrings
 gunicorn
 eval7==0.1.10
+setuptools
