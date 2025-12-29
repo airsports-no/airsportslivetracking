@@ -4,11 +4,19 @@ import {
   getBearing,
   getDestinationPoint,
   toRad,
-  isPointInPolygon
+  isPointInPolygon,
+  getQuadraticBezierPoints
 } from '../utils/geoUtils';
 import useMapInit from './map/useMapInit';
 import useDragHandlers from './map/useDragHandlers';
 import * as Renderers from './map/renderers';
+
+const getAngleDiff = (a, b) => {
+  let diff = a - b;
+  while (diff > 180) diff -= 360;
+  while (diff < -180) diff += 360;
+  return diff;
+};
 
 /**
  * MapCanvas Component
@@ -95,6 +103,98 @@ const MapCanvas = forwardRef(({
     // --- RENDERER: CLEAR LAYERS ---
     Renderers.clearLayers(markersRef, polylinesRef, routeLineRef, map);
 
+    // --- RENDERER: CORRIDOR ---
+    if (showCorridor && routePoints.length > 1) {
+      const pathPoints = [];
+      
+      // Generate dense path points including curves
+      for (let i = 0; i < routePoints.length; i++) {
+        const p = routePoints[i];
+        if (i === 0) {
+          pathPoints.push({ lat: p.lat, lng: p.lng, width: p.width });
+          continue;
+        }
+
+        const prev = routePoints[i - 1];
+        if (p.segmentType === 'curved') {
+          const curve = getQuadraticBezierPoints(prev, p, { lat: p.controlLat, lng: p.controlLng });
+          curve.forEach((cp, idx) => {
+            // Avoid duplicate start point
+            if (idx === 0 && pathPoints.length > 0) {
+              const last = pathPoints[pathPoints.length - 1];
+              if (Math.abs(last.lat - cp.lat) < 0.000001 && Math.abs(last.lng - cp.lng) < 0.000001) return;
+            }
+            const t = idx / (curve.length - 1 || 1);
+            const w = prev.width + (p.width - prev.width) * t;
+            pathPoints.push({ lat: cp.lat, lng: cp.lng, width: w });
+          });
+        } else {
+          pathPoints.push({ lat: p.lat, lng: p.lng, width: p.width });
+        }
+      }
+
+      const leftPoints = [];
+      const rightPoints = [];
+      let lastLeft = null;
+      let lastRight = null;
+      const minGap = 2; // Minimum distance between boundary points to avoid overlap/bunching
+
+      pathPoints.forEach((p, i) => {
+        let bearing;
+        let miterFactor = 1;
+
+        if (i === 0) {
+          bearing = getBearing(p, pathPoints[i + 1]);
+        } else if (i === pathPoints.length - 1) {
+          bearing = getBearing(pathPoints[i - 1], p);
+        } else {
+          const b1 = getBearing(pathPoints[i - 1], p);
+          const b2 = getBearing(p, pathPoints[i + 1]);
+          let diff = b2 - b1;
+          if (diff > 180) diff -= 360;
+          if (diff < -180) diff += 360;
+          bearing = b1 + diff / 2;
+          miterFactor = 1 / Math.cos(toRad(diff / 2));
+        }
+
+        miterFactor = Math.min(miterFactor, 5);
+        const dist = (p.width / 2) * miterFactor;
+        const l = getDestinationPoint(p, dist, bearing - 90);
+        const r = getDestinationPoint(p, dist, bearing + 90);
+
+        if (!lastLeft) {
+          leftPoints.push(l);
+          lastLeft = l;
+        } else if (L.latLng(lastLeft).distanceTo(l) > minGap) {
+          const moveBearing = getBearing(lastLeft, l);
+          if (Math.abs(getAngleDiff(moveBearing, bearing)) < 100) {
+            leftPoints.push(l);
+            lastLeft = l;
+          }
+        }
+
+        if (!lastRight) {
+          rightPoints.push(r);
+          lastRight = r;
+        } else if (L.latLng(lastRight).distanceTo(r) > minGap) {
+          const moveBearing = getBearing(lastRight, r);
+          if (Math.abs(getAngleDiff(moveBearing, bearing)) < 100) {
+            rightPoints.push(r);
+            lastRight = r;
+          }
+        }
+      });
+
+      const corridorPoly = L.polygon([
+        ...leftPoints.map(p => [p.lat, p.lng]),
+        ...rightPoints.reverse().map(p => [p.lat, p.lng])
+      ], {
+        color: '#3b82f6', weight: 1, opacity: 0.5, fillColor: '#3b82f6', fillOpacity: 0.1
+      }).addTo(map);
+
+      polylinesRef.current.push(corridorPoly);
+    }
+
     // --- RENDERER: DRAW ROUTE LINE ---
     Renderers.drawRouteLine(map, routePoints, routeLineRef, polylinesRef, mode, setRoutePoints, setSelectedId, setSelectionType);
 
@@ -110,47 +210,6 @@ const MapCanvas = forwardRef(({
         radius: 4, color: 'black'
       }).addTo(map);
       polylinesRef.current.push(marker);
-    }
-
-    // --- RENDERER: CORRIDOR ---
-    if (showCorridor && routePoints.length > 1) {
-      const leftPoints = [];
-      const rightPoints = [];
-
-      routePoints.forEach((p, i) => {
-        let bearing;
-        let miterFactor = 1;
-
-        if (i === 0) {
-          bearing = getBearing(p, routePoints[i + 1]);
-        } else if (i === routePoints.length - 1) {
-          bearing = getBearing(routePoints[i - 1], p);
-        } else {
-          const b1 = getBearing(routePoints[i - 1], p);
-          const b2 = getBearing(p, routePoints[i + 1]);
-
-          let diff = b2 - b1;
-          if (diff > 180) diff -= 360;
-          if (diff < -180) diff += 360;
-
-          bearing = b1 + diff / 2;
-          miterFactor = 1 / Math.cos(toRad(diff / 2));
-          miterFactor = Math.min(miterFactor, 5);
-        }
-
-        const dist = (p.width / 2) * miterFactor;
-        leftPoints.push(getDestinationPoint(p, dist, bearing - 90));
-        rightPoints.push(getDestinationPoint(p, dist, bearing + 90));
-      });
-
-      const corridorPoly = L.polygon([
-        ...leftPoints.map(p => [p.lat, p.lng]),
-        ...rightPoints.reverse().map(p => [p.lat, p.lng])
-      ], {
-        color: '#3b82f6', weight: 1, opacity: 0.5, fillColor: '#3b82f6', fillOpacity: 0.1
-      }).addTo(map);
-
-      polylinesRef.current.push(corridorPoly);
     }
 
     // --- RENDERER: OBSERVATION MARKERS ---

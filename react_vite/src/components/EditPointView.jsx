@@ -16,12 +16,12 @@ const EditPointView = ({ point, updatePoint, deletePoint, moveOrder, onClose }) 
       <div className="flex justify-between items-center border-b pb-2">
         <h3 className="font-bold text-lg">Edit Point</h3>
         <div className="flex items-center space-x-1">
-          <button onClick={() => moveOrder('up')} className="p-1 hover:bg-gray-100 rounded" title="Move Up">↑</button>
-          <button onClick={() => moveOrder('down')} className="p-1 hover:bg-gray-100 rounded" title="Move Down">↓</button>
+          <button onClick={() => moveOrder('up')} className="btn btn-ghost btn-xs btn-square" title="Move Up">↑</button>
+          <button onClick={() => moveOrder('down')} className="btn btn-ghost btn-xs btn-square" title="Move Down">↓</button>
           <div className="w-px h-4 bg-gray-300 mx-1"></div>
           <button 
             onClick={onClose} 
-            className="p-1 hover:bg-gray-100 rounded text-gray-500"
+            className="btn btn-ghost btn-sm btn-square"
             title="Close"
           >
             <X size={18} />
@@ -32,7 +32,7 @@ const EditPointView = ({ point, updatePoint, deletePoint, moveOrder, onClose }) 
       <div>
         <label className="block text-xs font-semibold text-gray-500 uppercase">Name</label>
         <input 
-          className="w-full border rounded p-2"
+          className="input input-bordered input-sm w-full"
           value={point.name} 
           onChange={(e) => updatePoint('name', e.target.value)}
         />
@@ -41,7 +41,7 @@ const EditPointView = ({ point, updatePoint, deletePoint, moveOrder, onClose }) 
       <div>
         <label className="block text-xs font-semibold text-gray-500 uppercase">Type</label>
         <select 
-          className="w-full border rounded p-2"
+          className="select select-bordered select-sm w-full"
           value={point.type} 
           onChange={(e) => updatePoint('type', e.target.value)}
         >
@@ -67,7 +67,7 @@ const EditPointView = ({ point, updatePoint, deletePoint, moveOrder, onClose }) 
         <input 
           type="number"
           step="0.01"
-          className="w-full border rounded p-2"
+          className="input input-bordered input-sm w-full"
           value={widthInput} 
           onChange={(e) => {
             setWidthInput(e.target.value);
@@ -80,17 +80,19 @@ const EditPointView = ({ point, updatePoint, deletePoint, moveOrder, onClose }) 
       </div>
 
       <div className="space-y-2 pt-2">
-        <label className="flex items-center space-x-2">
+        <label className="flex items-center space-x-2 cursor-pointer">
           <input 
             type="checkbox" 
+            className="checkbox checkbox-sm"
             checked={point.isTiming}
             onChange={(e) => updatePoint('isTiming', e.target.checked)}
           />
           <span className="text-sm">Timing Check</span>
         </label>
-        <label className="flex items-center space-x-2">
+        <label className="flex items-center space-x-2 cursor-pointer">
           <input 
             type="checkbox" 
+            className="checkbox checkbox-sm"
             checked={point.isPassing}
             onChange={(e) => updatePoint('isPassing', e.target.checked)}
           />
@@ -100,7 +102,7 @@ const EditPointView = ({ point, updatePoint, deletePoint, moveOrder, onClose }) 
 
       <button 
         onClick={deletePoint}
-        className="w-full mt-4 bg-red-50 text-red-600 border border-red-200 p-2 rounded flex items-center justify-center space-x-2 hover:bg-red-100"
+        className="btn btn-outline btn-error btn-sm w-full mt-4 gap-2"
       >
         <Trash2 size={16} /> <span>Delete Point</span>
       </button>

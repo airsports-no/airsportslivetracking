@@ -12,7 +12,7 @@ const RouteListView = ({
   return (
     <div className="space-y-6">
       {/* Validation Status */}
-      <div className={`p-3 rounded-lg border ${validationErrors.length > 0 ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+      <div className={`alert ${validationErrors.length > 0 ? 'alert-warning' : 'alert-success'} shadow-sm text-sm py-2`}>
         <div className="flex items-center space-x-2 mb-2">
           {validationErrors.length > 0 ? (
             <AlertTriangle className="text-amber-500" size={20} />
@@ -42,17 +42,17 @@ const RouteListView = ({
             {routePoints.map((p, i) => (
               <li 
                 key={p.id} 
-                className="flex items-center justify-between p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer text-sm"
+                className="flex items-center justify-between p-2 bg-base-100 border rounded hover:bg-base-200 cursor-pointer text-sm"
                 onClick={() => onSelect(p.id, 'point')}
               >
                 <div className="flex items-center space-x-2">
                   <span className="font-mono text-xs w-5">{i+1}</span>
                   <span className="font-medium truncate max-w-[120px]">{p.name}</span>
                 </div>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                  (p.type === 'sp') ? 'bg-green-100 text-green-700' :
-                  (p.type === 'fp') ? 'bg-red-100 text-red-700' :
-                  p.type === 'secret' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-700'
+                <span className={`badge badge-sm ${
+                  (p.type === 'sp') ? 'badge-success' :
+                  (p.type === 'fp') ? 'badge-error' :
+                  p.type === 'secret' ? 'badge-ghost' : 'badge-info'
                 }`}>
                   {p.type}
                 </span>
@@ -72,12 +72,12 @@ const RouteListView = ({
             {gates.map((g) => (
               <li 
                 key={g.id} 
-                className="flex items-center justify-between p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer text-sm"
+                className="flex items-center justify-between p-2 bg-base-100 border rounded hover:bg-base-200 cursor-pointer text-sm"
                 onClick={() => onSelect(g.id, 'gate')}
               >
                 <span className="font-medium">{g.name}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                  g.type === 'landing' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'
+                <span className={`badge badge-sm ${
+                  g.type === 'landing' ? 'badge-primary' : 'badge-warning'
                 }`}>
                   {g.type}
                 </span>
@@ -97,7 +97,7 @@ const RouteListView = ({
             {observationMarkers.map((m) => (
               <li 
                 key={m.id} 
-                className="flex items-center justify-between p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer text-sm"
+                className="flex items-center justify-between p-2 bg-base-100 border rounded hover:bg-base-200 cursor-pointer text-sm"
                 onClick={() => onSelect(m.id, 'observation')}
               >
                 <span className="font-medium">{m.name}</span>
@@ -118,15 +118,15 @@ const RouteListView = ({
             {polygons.map((p) => (
               <li 
                 key={p.id} 
-                className="flex items-center justify-between p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer text-sm"
+                className="flex items-center justify-between p-2 bg-base-100 border rounded hover:bg-base-200 cursor-pointer text-sm"
                 onClick={() => onSelect(p.id, 'polygon')}
               >
                 <span className="font-medium">{p.name}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                  p.type === 'prohibited' ? 'bg-red-100 text-red-700' :
-                  p.type === 'penalty' ? 'bg-orange-100 text-orange-700' :
-                  p.type === 'waypoint' ? 'bg-purple-100 text-purple-700' :
-                  'bg-blue-100 text-blue-700'
+                <span className={`badge badge-sm ${
+                  p.type === 'prohibited' ? 'badge-error' :
+                  p.type === 'penalty' ? 'badge-warning' :
+                  p.type === 'waypoint' ? 'badge-secondary' :
+                  'badge-info'
                 }`}>
                   {p.type}
                 </span>

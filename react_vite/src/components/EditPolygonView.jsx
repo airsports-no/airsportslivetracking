@@ -10,7 +10,7 @@ const EditPolygonView = ({ polygon, updatePolygon, deletePolygon, onClose }) => 
         <h3 className="font-bold text-lg">Edit Zone</h3>
         <button 
           onClick={onClose} 
-          className="p-1 hover:bg-gray-100 rounded text-gray-500"
+          className="btn btn-ghost btn-sm btn-square"
           title="Close"
         >
           <X size={18} />
@@ -20,7 +20,7 @@ const EditPolygonView = ({ polygon, updatePolygon, deletePolygon, onClose }) => 
       <div>
         <label className="block text-xs font-semibold text-gray-500 uppercase">Name</label>
         <input 
-          className="w-full border rounded p-2"
+          className="input input-bordered input-sm w-full"
           value={polygon.name} 
           onChange={(e) => updatePolygon('name', e.target.value)}
         />
@@ -29,7 +29,7 @@ const EditPolygonView = ({ polygon, updatePolygon, deletePolygon, onClose }) => 
       <div>
         <label className="block text-xs font-semibold text-gray-500 uppercase">Type</label>
         <select 
-          className="w-full border rounded p-2"
+          className="select select-bordered select-sm w-full"
           value={polygon.type} 
           onChange={(e) => updatePolygon('type', e.target.value)}
         >
@@ -46,7 +46,7 @@ const EditPolygonView = ({ polygon, updatePolygon, deletePolygon, onClose }) => 
 
       <button 
         onClick={deletePolygon}
-        className="w-full mt-4 bg-red-50 text-red-600 border border-red-200 p-2 rounded flex items-center justify-center space-x-2 hover:bg-red-100"
+        className="btn btn-outline btn-error btn-sm w-full mt-4 gap-2"
       >
         <Trash2 size={16} /> <span>Delete Zone</span>
       </button>

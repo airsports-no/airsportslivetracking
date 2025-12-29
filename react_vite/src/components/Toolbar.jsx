@@ -21,10 +21,10 @@ const Toolbar = ({ mode, setMode, tempGatePoint, setTempGatePoint, setTempPolygo
 
   return (
     <>
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-lg rounded-full z-[1000] flex items-center p-1.5 gap-1 border border-gray-200">
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-base-100/90 backdrop-blur-md shadow-lg rounded-full z-[1000] flex items-center p-1.5 gap-1 border border-base-300">
         <button 
           onClick={() => { setMode('view'); setTempGatePoint(null); setTempPolygonPoints([]); }}
-          className={`px-4 py-2 rounded-full flex items-center gap-2 text-sm font-medium transition-all ${mode === 'view' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'hover:bg-gray-100 text-gray-600'}`}
+          className={`btn btn-sm rounded-full gap-2 border-none ${mode === 'view' ? 'btn-info' : 'btn-ghost'}`}
         >
           <Navigation size={18} />
           <span>View</span>
@@ -34,7 +34,7 @@ const Toolbar = ({ mode, setMode, tempGatePoint, setTempGatePoint, setTempPolygo
 
         <button 
           onClick={() => { setMode('add_point'); setTempGatePoint(null); setTempPolygonPoints([]); }}
-          className={`px-3 py-2 rounded-full flex items-center gap-2 text-sm font-medium transition-all ${mode === 'add_point' ? 'bg-green-100 text-green-700 shadow-sm' : 'hover:bg-gray-100 text-gray-600'}`}
+          className={`btn btn-sm rounded-full gap-2 border-none ${mode === 'add_point' ? 'btn-success' : 'btn-ghost'}`}
         >
           <PlusCircle size={18} />
           <span>Point</span>
@@ -42,7 +42,7 @@ const Toolbar = ({ mode, setMode, tempGatePoint, setTempGatePoint, setTempPolygo
 
         <button 
           onClick={() => { setMode('add_observation'); setTempGatePoint(null); setTempPolygonPoints([]); }}
-          className={`px-3 py-2 rounded-full flex items-center gap-2 text-sm font-medium transition-all ${mode === 'add_observation' ? 'bg-yellow-100 text-yellow-700 shadow-sm' : 'hover:bg-gray-100 text-gray-600'}`}
+          className={`btn btn-sm rounded-full gap-2 border-none ${mode === 'add_observation' ? 'btn-warning' : 'btn-ghost'}`}
         >
           <Camera size={18} />
           <span>Photo</span>
@@ -50,7 +50,7 @@ const Toolbar = ({ mode, setMode, tempGatePoint, setTempGatePoint, setTempPolygo
 
         <button 
           onClick={() => { setMode('add_polygon'); setTempGatePoint(null); setTempPolygonPoints([]); }}
-          className={`px-3 py-2 rounded-full flex items-center gap-2 text-sm font-medium transition-all ${mode === 'add_polygon' ? 'bg-pink-100 text-pink-700 shadow-sm' : 'hover:bg-gray-100 text-gray-600'}`}
+          className={`btn btn-sm rounded-full gap-2 border-none ${mode === 'add_polygon' ? 'btn-secondary' : 'btn-ghost'}`}
         >
           <Hexagon size={18} />
           <span>Zone</span>
@@ -58,7 +58,7 @@ const Toolbar = ({ mode, setMode, tempGatePoint, setTempGatePoint, setTempPolygo
 
         <button 
           onClick={() => { setMode('add_landing'); setTempGatePoint(null); setTempPolygonPoints([]); }}
-          className={`px-3 py-2 rounded-full flex items-center gap-2 text-sm font-medium transition-all ${mode.includes('landing') ? 'bg-purple-100 text-purple-700 shadow-sm' : 'hover:bg-gray-100 text-gray-600'}`}
+          className={`btn btn-sm rounded-full gap-2 border-none ${mode.includes('landing') ? 'btn-primary' : 'btn-ghost'}`}
         >
           <Anchor size={18} />
           <span>Landing</span>
@@ -66,7 +66,7 @@ const Toolbar = ({ mode, setMode, tempGatePoint, setTempGatePoint, setTempPolygo
 
         <button 
           onClick={() => { setMode('add_takeoff'); setTempGatePoint(null); setTempPolygonPoints([]); }}
-          className={`px-3 py-2 rounded-full flex items-center gap-2 text-sm font-medium transition-all ${mode.includes('takeoff') ? 'bg-orange-100 text-orange-700 shadow-sm' : 'hover:bg-gray-100 text-gray-600'}`}
+          className={`btn btn-sm rounded-full gap-2 border-none ${mode.includes('takeoff') ? 'btn-warning' : 'btn-ghost'}`}
         >
           <Activity size={18} />
           <span>Take-off</span>
@@ -75,7 +75,7 @@ const Toolbar = ({ mode, setMode, tempGatePoint, setTempGatePoint, setTempPolygo
       </div>
 
       <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[999] pointer-events-none transition-opacity duration-300">
-        <div className="bg-white/80 backdrop-blur-sm shadow-sm border border-gray-200 rounded-full px-4 py-1 text-xs font-medium text-gray-600">
+        <div className="bg-base-100/80 backdrop-blur-sm shadow-sm border border-base-200 rounded-full px-4 py-1 text-xs font-medium text-base-content/70">
           {helpText}
         </div>
       </div>

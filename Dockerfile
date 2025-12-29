@@ -1,6 +1,10 @@
 # Stage 1: Build frontend assets
 FROM node:24-bookworm-slim AS frontend_builder
+RUN apt update && apt install -y curl bash
+RUN mkdir app
 WORKDIR /app
+RUN curl -sL daisyui.com/fast | bash
+
 COPY reactjs /app/reactjs
 WORKDIR /app/reactjs
 RUN --mount=type=cache,target=/root/.npm npm ci
@@ -10,6 +14,15 @@ COPY react_vite /app/react_vite
 WORKDIR /app/react_vite
 RUN --mount=type=cache,target=/root/.npm npm ci
 RUN npm run build
+
+# Install tailwind and DaisyUI and build CSS
+COPY src /app/src
+COPY tailwind.config.js /app/
+COPY package.json package-lock.json /app/
+WORKDIR /app
+RUN npm ci
+WORKDIR /app/
+RUN ./tailwindcss -i src/static/css/input.css -o src/static/css/output.css --minify
 
 # Stage 2: Build python dependencies
 FROM python:3.12-slim-bookworm AS python_builder
@@ -68,9 +81,12 @@ RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh
 COPY --chown=django:django src /src
 COPY --chown=django:django --from=frontend_builder /app/assets_vite /assets_vite
 COPY --chown=django:django --from=frontend_builder /app/assets /assets
+COPY --chown=django:django --from=frontend_builder /app/src/static/css/output.css /src/static/css
 
 # Required for tests
 COPY --chown=django:django data /data
+WORKDIR /src
+
 
 
 RUN mkdir /logs

@@ -669,36 +669,38 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-gray-100 font-sans text-gray-800 overflow-hidden">
+    <div className="flex w-full h-[calc(100vh-66px)] bg-base-200 font-sans text-base-content overflow-hidden">
 
       {/* SIDEBAR */}
-      <Sidebar
-        routePoints={routePoints}
-        gates={gates}
-        observationMarkers={observationMarkers}
-        polygons={polygons}
-        selectedId={selectedId}
-        selectionType={selectionType}
-        validationErrors={validationErrors}
-        showCorridor={showCorridor}
-        setShowCorridor={setShowCorridor}
-        setSelectedId={setSelectedId}
-        setSelectionType={setSelectionType}
-        updateSelectedPoint={updateSelectedPoint}
-        updateSelectedGate={updateSelectedGate}
-        updateSelectedObservation={updateSelectedObservation}
-        updateSelectedPolygon={updateSelectedPolygon}
-        deleteSelected={deleteSelected}
-        movePointOrder={movePointOrder}
-        handleSave={handleSave}
-        maxObsDist={maxObsDist}
-        setMaxObsDist={setMaxObsDist}
-        routeName={routeName}
-        setRouteName={(name) => {
-          setRouteName(name);
-          setIsDirty(true);
-        }}
-      />
+      <div className="h-full overflow-y-auto shrink-0">
+        <Sidebar
+          routePoints={routePoints}
+          gates={gates}
+          observationMarkers={observationMarkers}
+          polygons={polygons}
+          selectedId={selectedId}
+          selectionType={selectionType}
+          validationErrors={validationErrors}
+          showCorridor={showCorridor}
+          setShowCorridor={setShowCorridor}
+          setSelectedId={setSelectedId}
+          setSelectionType={setSelectionType}
+          updateSelectedPoint={updateSelectedPoint}
+          updateSelectedGate={updateSelectedGate}
+          updateSelectedObservation={updateSelectedObservation}
+          updateSelectedPolygon={updateSelectedPolygon}
+          deleteSelected={deleteSelected}
+          movePointOrder={movePointOrder}
+          handleSave={handleSave}
+          maxObsDist={maxObsDist}
+          setMaxObsDist={setMaxObsDist}
+          routeName={routeName}
+          setRouteName={(name) => {
+            setRouteName(name);
+            setIsDirty(true);
+          }}
+        />
+      </div>
 
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col relative">
@@ -720,7 +722,7 @@ export default function App() {
                 e.preventDefault();
               }
             }}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 shadow">
+            className="btn btn-primary shadow">
             Back to list
           </Link>
         </div>
@@ -753,10 +755,11 @@ export default function App() {
         {/* OVERLAY CONTROLS */}
         <div className="absolute bottom-4 left-4 z-[1000] flex flex-col gap-2">
           {mode === 'add_point' && (
-            <div className="bg-white p-2 rounded shadow flex items-center gap-2">
+            <div className="bg-base-100 p-2 rounded shadow flex items-center gap-2">
               <input
                 type="checkbox"
                 id="curveMode"
+                className="checkbox checkbox-sm"
                 checked={addCurveMode}
                 onChange={(e) => setAddCurveMode(e.target.checked)}
               />
@@ -765,12 +768,12 @@ export default function App() {
           )}
 
           {selectedId && selectionType === 'point' && routePoints.findIndex(p => p.id === selectedId) > 0 && (
-            <div className="bg-white p-2 rounded shadow flex flex-col gap-2">
-              <button onClick={toggleCurve} className="text-sm font-bold text-blue-600 hover:underline">
+            <div className="bg-base-100 p-2 rounded shadow flex flex-col gap-2">
+              <button onClick={toggleCurve} className="btn btn-sm btn-link no-underline">
                 {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' ? 'Make Straight' : 'Make Curved'}
               </button>
               {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' && (
-                <button onClick={resetCurve} className="text-sm font-bold text-gray-600 hover:underline">
+                <button onClick={resetCurve} className="btn btn-sm btn-link text-neutral no-underline">
                   Reset Curve
                 </button>
               )}

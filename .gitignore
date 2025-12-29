@@ -1,6 +1,5 @@
 node_modules
 venv/
-assets/
 secret/
 documentation/~$rsports Tracking API documentation.docx
 mapserver/
@@ -34,3 +33,5 @@ webpack-stats-local.json
 src/polygon.png
 assets_vite
 reactjs/**/*.jsx
+/assets/assets/
+/assets/bundles/

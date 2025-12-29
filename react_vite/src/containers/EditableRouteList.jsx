@@ -20,7 +20,7 @@ export const EditableRouteList = () => {
 
     const columns = useMemo(() => [
         {
-            header: "Thumbnail",
+            header: "",
             accessorKey: "thumbnail",
             cell: ({ getValue }) => {
                 const value = getValue();
@@ -43,21 +43,23 @@ export const EditableRouteList = () => {
             id: "Route",
             enableSorting: false,
             cell: ({ row, getValue }) => (
-                <Link
-                    to={`/edit/${row.original.id}`}
-                    className="text-blue-600 hover:text-blue-800 hover:underline"
-                >
-                    {getValue()}
-                </Link>
+                <div className="whitespace-normal break-words max-w-[16rem]">
+                    <Link
+                        to={`/edit/${row.original.id}`}
+                        className="link link-primary"
+                    >
+                        {getValue()}
+                    </Link>
+                </div>
             )
         },
         {
-            header: "Waypoints",
+            header: "Wpts",
             accessorKey: "number_of_waypoints",
             enableColumnFilter: false,
         },
         {
-            header: "Total length",
+            header: "Length",
             accessorKey: "route_length",
             enableColumnFilter: false,
             cell: ({ getValue }) => `${(getValue() / 1852).toFixed(2)} NM`
@@ -66,13 +68,15 @@ export const EditableRouteList = () => {
             header: "Editors",
             accessorKey: "editors",
             cell: ({ getValue }) => (
-                <ul className="list-disc list-inside">
-                    {getValue().map((editor) => (
-                        <li key={editor.email}>
-                            {editor.first_name} {editor.last_name}
-                        </li>
-                    ))}
-                </ul>
+                <div className="whitespace-normal max-w-[16rem]">
+                    <ul className="list-disc list-inside text-xs">
+                        {getValue().map((editor) => (
+                            <li key={editor.email}>
+                                {editor.first_name} {editor.last_name}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             ),
             enableColumnFilter: false,
             enableSorting: false,
@@ -81,14 +85,11 @@ export const EditableRouteList = () => {
             header: "Actions",
             id: "actions",
             cell: ({ row }) => (
-                <div className="flex items-center space-x-2 text-sm">
-                    <a href={document.configuration.createTaskViewUrl(row.original.id)} className="text-blue-600 hover:underline">Create task</a>
-                    <span className="text-gray-300">|</span>
-                    <a href={document.configuration.copyRouteViewUrl(row.original.id)} className="text-blue-600 hover:underline">Copy</a>
-                    <span className="text-gray-300">|</span>
-                    <a href={document.configuration.permissionListViewUrl(row.original.id)} className="text-blue-600 hover:underline">Permissions</a>
-                    <span className="text-gray-300">|</span>
-                    <a href={document.configuration.deleteRouteViewUrl(row.original.id)} className="text-red-600 hover:underline">Delete</a>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                    <a href={document.configuration.createTaskViewUrl(row.original.id)} className="link link-primary text-xs">Create task</a>
+                    <a href={document.configuration.copyRouteViewUrl(row.original.id)} className="link link-primary text-xs">Copy</a>
+                    <a href={document.configuration.permissionListViewUrl(row.original.id)} className="link link-primary text-xs">Perms</a>
+                    <a href={document.configuration.deleteRouteViewUrl(row.original.id)} className="link link-error text-xs">Del</a>
                 </div>
             ),
             enableSorting: false,
@@ -103,8 +104,8 @@ export const EditableRouteList = () => {
     }, [data, showAll]);
 
     return (
-        <div className="p-4">
-            <div className="flex justify-between items-center mb-4">
+        <div className="w-full flex flex-col items-center mt-10 px-4">
+            <div className="w-full max-w-5xl flex justify-between items-center mb-4">
                 <div>
                     {document.configuration.is_superuser && (
                         <div className="flex items-center">
@@ -113,7 +114,7 @@ export const EditableRouteList = () => {
                                 type="checkbox"
                                 checked={showAll}
                                 onChange={(e) => setShowAll(e.target.checked)}
-                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                className="checkbox checkbox-sm checkbox-primary"
                             />
                             <label htmlFor="show-all-routes" className="ml-2 text-sm font-medium text-gray-900">
                                 Show all
@@ -121,23 +122,23 @@ export const EditableRouteList = () => {
                         </div>
                     )}
                 </div>
-                <a href={document.configuration.createRouteUrl} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                <a href={document.configuration.createRouteUrl} className="btn btn-primary btn-sm">
                     Create new route
                 </a>
             </div>
-            <div className="relative overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg min-h-[200px]">
-                <div className="overflow-x-auto">
+            <div className="relative w-full max-w-5xl shadow-xl rounded-box border border-base-300 bg-base-100 min-h-[200px]">
+                <div className="overflow-x-auto rounded-box">
                     <ASTable
                         columns={columns}
                         data={filteredData}
-                        className="min-w-full divide-y divide-gray-300 [&_tr:nth-of-type(odd)]:bg-white [&_tr:nth-of-type(even)]:bg-gray-50 [&_tr:hover]:bg-gray-100"
+                        className=""
                         initialState={{
                             sorting: [{ id: "Route", desc: false }]
                         }}
                     />
                 </div>
                 {loading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/50 z-50 text-blue-600">
+                    <div className="absolute inset-0 flex items-center justify-center bg-base-100/50 z-50 text-primary">
                         <Loading />
                     </div>
                 )}

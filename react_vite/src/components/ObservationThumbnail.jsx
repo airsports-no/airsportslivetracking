@@ -49,7 +49,7 @@ const ObservationThumbnail = ({ lat, lng, type = 'circle' }) => {
     };
   }, [lat, lng, type]);
 
-  return <div ref={mapContainerRef} className="w-full h-64 rounded border border-gray-300 mt-2 bg-gray-100" />;
+  return <div ref={mapContainerRef} className="w-full h-64 rounded border border-base-300 mt-2 bg-base-200" />;
 };
 
 export default ObservationThumbnail;

@@ -34,7 +34,7 @@ function GlobalFilter({ globalFilter, setGlobalFilter, count }) {
                     setValue(e.target.value);
                 }}
                 placeholder={`${count} records...`}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-3 py-2"
+                className="input input-bordered input-sm w-full"
             />
         </div>
     );
@@ -52,7 +52,7 @@ function DefaultColumnFilter({ column, table }) {
                 column.setFilterValue(e.target.value || undefined); // Set undefined to remove the filter entirely
             }}
             placeholder={`Search ${count} records...`}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-2 py-1 text-xs font-normal"
+            className="input input-bordered input-xs w-full mt-1 font-normal"
             onClick={e => e.stopPropagation()}
         />
     );
@@ -76,7 +76,7 @@ export function SelectColumnFilter({ column }) {
             onChange={e => {
                 column.setFilterValue(e.target.value || undefined);
             }}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border px-2 py-1 text-xs font-normal"
+            className="select select-bordered select-xs w-full mt-1 font-normal"
             onClick={e => e.stopPropagation()}
         >
             <option value="">All</option>
@@ -110,11 +110,11 @@ function SliderColumnFilter({ column }) {
                 onChange={e => {
                     column.setFilterValue(parseInt(e.target.value, 10));
                 }}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                className="range range-xs range-primary"
             />
             <button
                 onClick={() => column.setFilterValue(undefined)}
-                className="text-xs text-gray-500 hover:text-gray-700 border px-1 rounded"
+                className="btn btn-xs btn-ghost"
             >
                 Off
             </button>
@@ -141,7 +141,7 @@ function NumberRangeColumnFilter({ column }) {
                     column.setFilterValue((old = []) => [val ? parseInt(val, 10) : undefined, old[1]]);
                 }}
                 placeholder={`Min (${min})`}
-                className="w-20 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-xs border px-1 py-1"
+                className="input input-bordered input-xs w-20"
             />
             <span className="text-gray-500 self-center">to</span>
             <input
@@ -152,7 +152,7 @@ function NumberRangeColumnFilter({ column }) {
                     column.setFilterValue((old = []) => [old[0], val ? parseInt(val, 10) : undefined]);
                 }}
                 placeholder={`Max (${max})`}
-                className="w-20 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-xs border px-1 py-1"
+                className="input input-bordered input-xs w-20"
             />
         </div>
     );
@@ -219,8 +219,8 @@ export function ASTable({ columns = [], data = [], rowEvents, initialState, clas
                 setGlobalFilter={setGlobalFilter}
                 count={table.getPreFilteredRowModel().rows.length}
             />
-            <table className={className}>
-                <thead className="bg-gray-50">
+            <table className={`table table-zebra w-full ${className || ''}`}>
+                <thead>
                     {table.getHeaderGroups().map(headerGroup => (
                         <tr key={headerGroup.id}>
                             {headerGroup.headers.map(column => (
@@ -263,11 +263,11 @@ export function ASTable({ columns = [], data = [], rowEvents, initialState, clas
                             <tr
                                 key={row.id}
                                 onClick={() => (rowEvents && rowEvents.onClick) ? rowEvents.onClick(row.original) : null}
-                                className={rowEvents && rowEvents.onClick ? "cursor-pointer hover:bg-gray-50" : ""}
+                                className={rowEvents && rowEvents.onClick ? "cursor-pointer hover" : ""}
                             >
                                 {row.getVisibleCells().map(cell => {
                                     return (
-                                        <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td key={cell.id} className="whitespace-nowrap text-sm">
                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                         </td>
                                     );
