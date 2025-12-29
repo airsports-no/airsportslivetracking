@@ -1,3 +1,4 @@
+{% extends "base_tailwind.html" %}
 {% load static %}
 {% block document_configuration %}
 <script>
@@ -18,7 +19,7 @@
 
 <link rel="stylesheet" href="{% static 'css/RouteEditorApp.css' %}">
 {% endblock %}
-{% block contentfluid %}
+{% block contentfull %}
 <div class="row">
     <div id="root">
         <img class="centered" src="{% static 'img/loading_airplane.gif' %}" alt="loading..." />
