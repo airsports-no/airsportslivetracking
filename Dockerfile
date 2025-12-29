@@ -56,7 +56,7 @@ RUN addgroup --system django \
 COPY requirements.txt /
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install cython shapely -r /requirements.txt
+    pip install cython shapely default-libmysqlclient-dev pkg-config -r /requirements.txt
 
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 # TODO: Required for a test, should be changed
