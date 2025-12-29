@@ -3,33 +3,31 @@ FROM node:24-bookworm-slim AS frontend_builder
 WORKDIR /app
 COPY reactjs /app/reactjs
 WORKDIR /app/reactjs
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 RUN npm run webpack
 
 COPY react_vite /app/react_vite
 WORKDIR /app/react_vite
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 RUN npm run build
-# Remove node_modules to keep the final image small when copying the folder
-RUN rm -rf node_modules
 
 # Stage 2: Build python dependencies
-# FROM python:3.12-slim-bookworm AS python_builder
-# ENV PYTHONUNBUFFERED=1
-# RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-#     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-#     apt-get update && apt-get -y install --no-install-recommends \
-#     build-essential \
-#     cmake \
-#     # libproj-dev \
-#     proj-data proj-bin \
-#     # libgdal-dev \
-#     # libgeos-dev \
-#     default-libmysqlclient-dev \
-#     pkg-config
-# COPY requirements.txt /
-# RUN --mount=type=cache,target=/root/.cache/pip \
-#     pip wheel --wheel-dir /wheels cython shapely -r /requirements.txt
+FROM python:3.12-slim-bookworm AS python_builder
+ENV PYTHONUNBUFFERED=1
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get -y install --no-install-recommends \
+    build-essential \
+    cmake \
+    # libproj-dev \
+    proj-data proj-bin \
+    # libgdal-dev \
+    # libgeos-dev \
+    default-libmysqlclient-dev \
+    pkg-config
+COPY requirements.txt /
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip wheel --wheel-dir /wheels cython shapely -r /requirements.txt
 
 # Stage 3: Setup runtime environment
 FROM python:3.12-slim-bookworm AS tracker_base
@@ -53,11 +51,10 @@ RUN addgroup --system django \
     && adduser --system --ingroup django -u 200 django
 
 ###### INSTALL PYTHON PACKAGES ######
-COPY requirements.txt /
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install cython shapely default-libmysqlclient-dev pkg-config -r /requirements.txt
-
+COPY --from=python_builder /wheels /wheels
+RUN pip install --no-cache-dir --no-index --find-links=/wheels /wheels/* \
+    && rm -rf /wheels
+        
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 # TODO: Required for a test, should be changed
 COPY documentation /documentation

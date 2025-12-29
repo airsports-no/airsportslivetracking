@@ -24,7 +24,7 @@ djangorestframework-guardian==0.3.0
 djangorestframework==3.14.0
 drf-firebase-auth==1.0.0
 drf-nested-routers==0.93.5
-drf-yasg==1.21.7
+drf-yasg==1.21.11
 fastkml==0.12
 firebase-admin==4.5.3
 flower==2.0.1
@@ -39,7 +39,7 @@ kubernetes==28.1.0
 kubernetes-job==0.3.3
 lxml==4.9.4
 matplotlib==3.8.2
-mysqlclient==2.2.1
+mysqlclient==2.2.7
 numpy==1.26.2
 nvector==0.7.7
 #ogn-client==1.2.1
@@ -77,4 +77,3 @@ flake8
 flake8-docstrings
 gunicorn
 eval7==0.1.10
-setuptools
