@@ -54,6 +54,7 @@ export default function App() {
   const [showCorridor, setShowCorridor] = useState(false);
   const [addCurveMode, setAddCurveMode] = useState(false);
   const [maxObsDist, setMaxObsDist] = useState(926); // Default 0.5 NM
+  const [hideLabels, setHideLabels] = useState(false);
 
   const modeRef = useRef(mode);
   const [mapInstance, setMapInstance] = useState(null);
@@ -212,6 +213,7 @@ export default function App() {
           if (data.settings) {
             if (typeof data.settings.showCorridor !== 'undefined') setShowCorridor(data.settings.showCorridor);
             if (typeof data.settings.maxObsDist !== 'undefined') setMaxObsDist(data.settings.maxObsDist);
+            if (typeof data.settings.hideLabels !== 'undefined') setHideLabels(data.settings.hideLabels);
           }
 
           if (data.route && data.name) {
@@ -637,7 +639,8 @@ export default function App() {
       route: geoJson,
       settings: {
         showCorridor:showCorridor,
-        maxObsDist:maxObsDist
+        maxObsDist:maxObsDist,
+        hideLabels:hideLabels
       }
     };
 
@@ -693,6 +696,11 @@ export default function App() {
           showCorridor={showCorridor}
           setShowCorridor={(val) => {
             setShowCorridor(val);
+            setIsDirty(true);
+          }}
+          hideLabels={hideLabels}
+          setHideLabels={(val) => {
+            setHideLabels(val);
             setIsDirty(true);
           }}
           setSelectedId={setSelectedId}
@@ -755,6 +763,7 @@ export default function App() {
           tempGatePoint={tempGatePoint}
           tempPolygonPoints={tempPolygonPoints}
           showCorridor={showCorridor}
+          hideLabels={hideLabels}
           setRoutePoints={setRoutePoints}
           setGates={setGates}
           setObservationMarkers={setObservationMarkers}

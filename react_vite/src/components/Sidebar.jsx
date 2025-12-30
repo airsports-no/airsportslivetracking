@@ -23,6 +23,8 @@ const Sidebar = ({
   validationErrors,
   showCorridor,
   setShowCorridor,
+  hideLabels,
+  setHideLabels,
   setSelectedId,
   setSelectionType,
   updateSelectedPoint,
@@ -99,6 +101,16 @@ const Sidebar = ({
               className="checkbox checkbox-sm checkbox-primary"
             />
             <label htmlFor="showCorridor" className="text-sm font-medium text-gray-700">Show Corridor</label>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="hideLabels"
+              checked={hideLabels}
+              onChange={(e) => setHideLabels(e.target.checked)}
+              className="checkbox checkbox-sm checkbox-primary"
+            />
+            <label htmlFor="hideLabels" className="text-sm font-medium text-gray-700">Hide Labels</label>
           </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">

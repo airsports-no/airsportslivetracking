@@ -40,6 +40,7 @@ const MapCanvas = forwardRef(({
   tempPolygonPoints,
   showCorridor,
   maxObsDist,
+  hideLabels,
 
   // --- Actions / Setters ---
   setRoutePoints,
@@ -246,13 +247,13 @@ const MapCanvas = forwardRef(({
     }
 
     // --- RENDERER: DRAW ROUTE LINE ---
-    Renderers.drawRouteLine(map, routePoints, routeLineRef, polylinesRef, mode, setRoutePoints, setSelectedId, setSelectionType);
+    Renderers.drawRouteLine(map, routePoints, routeLineRef, polylinesRef, mode, setRoutePoints, setSelectedId, setSelectionType, hideLabels);
 
     // --- RENDERER: DRAW POINTS ---
-    Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd);
+    Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels);
 
     // --- RENDERER: DRAW GATES ---
-    Renderers.drawGates(map, gates, polylinesRef, setSelectedId, setSelectionType, setMode);
+    Renderers.drawGates(map, gates, polylinesRef, setSelectedId, setSelectionType, setMode, hideLabels);
 
     // --- RENDERER: TEMP GATE ---
     if (tempGatePoint) {
@@ -273,7 +274,7 @@ const MapCanvas = forwardRef(({
         fillOpacity: 1
       }).addTo(map);
 
-      marker.bindTooltip(m.name, { permanent: true, direction: 'top', offset: [0, -5], className: 'bg-transparent border-0 shadow-none text-yellow-700 font-bold text-xs' });
+      marker.bindTooltip(m.name, { permanent: !hideLabels, direction: 'top', offset: [0, -5], className: 'bg-transparent border-0 shadow-none text-yellow-700 font-bold text-xs' });
 
       marker.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
@@ -286,7 +287,7 @@ const MapCanvas = forwardRef(({
     });
 
     // --- RENDERER: POLYGONS ---
-    Renderers.drawPolygons(map, polygons, mode, selectedId, selectionType, markersRef, dragRef, handleDragMove, handleDragEnd, setSelectedId, setSelectionType, setMode);
+    Renderers.drawPolygons(map, polygons, mode, selectedId, selectionType, markersRef, dragRef, handleDragMove, handleDragEnd, setSelectedId, setSelectionType, setMode, hideLabels);
 
     // --- RENDERER: TEMP POLYGON ---
     if (tempPolygonPoints.length > 0) {
@@ -337,7 +338,7 @@ const MapCanvas = forwardRef(({
     routePoints, gates, tempGatePoint, showCorridor, observationMarkers, 
     polygons, tempPolygonPoints, selectedId, selectionType, mode,
     setRoutePoints, setGates, setObservationMarkers, setPolygons, 
-    setSelectedId, setSelectionType, setMode, setTempPolygonPoints
+    setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels
   ]);
 
   return <div id="map-container" className="w-full h-full bg-slate-200" />;

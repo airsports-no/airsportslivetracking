@@ -19,7 +19,7 @@ export const clearLayers = (markersRef, polylinesRef, routeLineRef, map) => {
   routeLineRef.current = null;
 };
 
-export const drawRouteLine = (map, routePoints, routeLineRef, polylinesRef, mode, setRoutePoints, setSelectedId, setSelectionType) => {
+export const drawRouteLine = (map, routePoints, routeLineRef, polylinesRef, mode, setRoutePoints, setSelectedId, setSelectionType, hideLabels) => {
   if (routePoints.length <= 1) return;
 
   const latlngs = [];
@@ -108,36 +108,38 @@ export const drawRouteLine = (map, routePoints, routeLineRef, polylinesRef, mode
   polylinesRef.current.push(polyline);
 
   // Draw Segment Lengths
-  for (let i = 0; i < routePoints.length - 1; i++) {
-    const p1 = routePoints[i];
-    const p2 = routePoints[i + 1];
-    let dist = 0;
-    let mid = null;
+  if (!hideLabels) {
+    for (let i = 0; i < routePoints.length - 1; i++) {
+      const p1 = routePoints[i];
+      const p2 = routePoints[i + 1];
+      let dist = 0;
+      let mid = null;
 
-    if (p2.segmentType === 'curved') {
-      const curvePoints = getQuadraticBezierPoints(p1, p2, { lat: p2.controlLat, lng: p2.controlLng });
-      for (let j = 0; j < curvePoints.length - 1; j++) {
-        dist += getDistance(curvePoints[j], curvePoints[j + 1]);
+      if (p2.segmentType === 'curved') {
+        const curvePoints = getQuadraticBezierPoints(p1, p2, { lat: p2.controlLat, lng: p2.controlLng });
+        for (let j = 0; j < curvePoints.length - 1; j++) {
+          dist += getDistance(curvePoints[j], curvePoints[j + 1]);
+        }
+        mid = curvePoints[Math.floor(curvePoints.length / 2)];
+      } else {
+        dist = getDistance(p1, p2);
+        mid = { lat: (p1.lat + p2.lat) / 2, lng: (p1.lng + p2.lng) / 2 };
       }
-      mid = curvePoints[Math.floor(curvePoints.length / 2)];
-    } else {
-      dist = getDistance(p1, p2);
-      mid = { lat: (p1.lat + p2.lat) / 2, lng: (p1.lng + p2.lng) / 2 };
-    }
 
-    const nm = (dist / 1852).toFixed(1);
-    const labelMarker = L.marker([mid.lat, mid.lng], {
-      icon: L.divIcon({
-        className: 'bg-transparent',
-        html: `<div class="transform -translate-x-1/2 -translate-y-1/2 bg-white/75 backdrop-blur-[1px] px-1 rounded border border-slate-300 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap pointer-events-none w-max">${nm} NM</div>`
-      }),
-      interactive: false
-    }).addTo(map);
-    polylinesRef.current.push(labelMarker);
+      const nm = (dist / 1852).toFixed(1);
+      const labelMarker = L.marker([mid.lat, mid.lng], {
+        icon: L.divIcon({
+          className: 'bg-transparent',
+          html: `<div class="transform -translate-x-1/2 -translate-y-1/2 bg-white/75 backdrop-blur-[1px] px-1 rounded border border-slate-300 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap pointer-events-none w-max">${nm} NM</div>`
+        }),
+        interactive: false
+      }).addTo(map);
+      polylinesRef.current.push(labelMarker);
+    }
   }
 };
 
-export const drawPoints = (map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd) => {
+export const drawPoints = (map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels) => {
   routePoints.forEach((p, index) => {
     let color = '#3b82f6'; // Default Blue
     let radius = 6;
@@ -172,7 +174,7 @@ export const drawPoints = (map, routePoints, mode, selectedId, markersRef, dragR
       className: p.type === 'secret' ? '' : 'cursor-grab'
     }).addTo(pointGroup);
 
-    marker.bindTooltip(`${index + 1}. ${p.name}`, { permanent: true, direction: 'right', offset: [10, 0] });
+    marker.bindTooltip(`${index + 1}. ${p.name}`, { permanent: !hideLabels, direction: 'right', offset: [10, 0] });
 
     marker.on('click', (e) => L.DomEvent.stopPropagation(e.originalEvent || e));
     marker.on('mouseover', () => { if (mode === 'view') map.dragging.disable(); });
@@ -227,7 +229,7 @@ export const drawPoints = (map, routePoints, mode, selectedId, markersRef, dragR
   });
 };
 
-export const drawGates = (map, gates, polylinesRef, setSelectedId, setSelectionType, setMode) => {
+export const drawGates = (map, gates, polylinesRef, setSelectedId, setSelectionType, setMode, hideLabels) => {
   gates.forEach(g => {
     const color = g.type === 'landing' ? '#8b5cf6' : '#f59e0b';
     const line = L.polyline([[g.p1.lat, g.p1.lng], [g.p2.lat, g.p2.lng]], {
@@ -236,7 +238,7 @@ export const drawGates = (map, gates, polylinesRef, setSelectedId, setSelectionT
       dashArray: '10, 10'
     }).addTo(map);
 
-    line.bindTooltip(g.name, { permanent: true, direction: 'center', className: 'bg-transparent border-0 shadow-none text-black font-bold' });
+    line.bindTooltip(g.name, { permanent: !hideLabels, direction: 'center', className: 'bg-transparent border-0 shadow-none text-black font-bold' });
 
     line.on('click', (e) => {
       L.DomEvent.stopPropagation(e);
@@ -249,7 +251,7 @@ export const drawGates = (map, gates, polylinesRef, setSelectedId, setSelectionT
   });
 };
 
-export const drawPolygons = (map, polygons, mode, selectedId, selectionType, markersRef, dragRef, handleDragMove, handleDragEnd, setSelectedId, setSelectionType, setMode) => {
+export const drawPolygons = (map, polygons, mode, selectedId, selectionType, markersRef, dragRef, handleDragMove, handleDragEnd, setSelectedId, setSelectionType, setMode, hideLabels) => {
   polygons.forEach(poly => {
     let color = '#3b82f6';
     if (poly.type === 'prohibited') color = '#ef4444';
@@ -265,7 +267,7 @@ export const drawPolygons = (map, polygons, mode, selectedId, selectionType, mar
     }).addTo(map);
 
     polygonLayer.bindTooltip(poly.name, {
-      permanent: true,
+      permanent: !hideLabels,
       direction: 'center',
       className: `bg-transparent border-0 shadow-none font-bold `
     });
