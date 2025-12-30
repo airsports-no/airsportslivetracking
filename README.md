@@ -56,5 +56,32 @@ docker compose up tracker_daphne
 ```
 This executes the three primary containers which also brings up the additional infrastructure containers. The Web server can be accessed at http://localhost:8002/.  A default superuser is created with username test@test.com and password admin. This can be used to login through the web interface.
 
+#### Running frontend compilers
+
+After optimizing the docker image the various front end systems must be compiled outside of the container. For development the docker compose file maps they build results into the container. This is done in the following manners:
+
+##### Webpack react
+
+```bash
+cd reactjs/
+npm ci
+npm run webpack
+```
+
+##### Vite react
+
+```bash
+cd vitejs/
+npm ci
+npm run build
+```
+
+##### Tailwind
+
+```bash
+npm ci
+src/static/css/tailwindcss -i src/static/css/input.css -o src/static/css/output.css --watch
+```
+
 ## MSFS 2020 client
 Source code is available at [asltmsfs](https://github.com/airsports-no/asltmsfs).  Binary distribution is available at [Airsports MSFS client](https://drive.google.com/drive/folders/1Nj54XMtQ3HOBNJs_PEudNyfFpeH6Aekk?usp=sharing) together with user documentation. It can be used to compete in Air Sports Live Tracking tasks using Microsoft Flight Simulator 2020. By modifying the traccar server address can also be used to test locally.
