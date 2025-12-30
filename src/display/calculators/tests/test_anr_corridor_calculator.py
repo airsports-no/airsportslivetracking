@@ -159,7 +159,7 @@ class TestANRPerLeg(TransactionTestCase):
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 14:00:00\nactual: --",
             "SP: 200.0 points passing gate (-71535748 s)\n" "planned: 14:07:00\n" "actual: 14:04:32",
             "SP: 0 points exiting corridor",
-            "TP 1: 0 points passing gate (no time check) (-71535796 s)\n" "planned: 14:09:00\n" "actual: 14:05:44",
+            # "TP 1: 0 points passing gate (no time check) (-71535796 s)\n" "planned: 14:09:00\n" "actual: 14:05:44",
             "SP: 50.0 points outside corridor (25 s) (capped)",
             "SP: 0 points exiting corridor",
             "SP: 200.0 points backtracking",

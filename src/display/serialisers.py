@@ -1395,6 +1395,7 @@ Prohibited, penalty, information, gate zones
 
     """
     )
+    settings= serializers.JSONField()
     editors = UserSerialiser(many=True, read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)
     number_of_waypoints = serializers.IntegerField(read_only=True)
