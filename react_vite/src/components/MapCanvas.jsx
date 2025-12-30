@@ -233,16 +233,16 @@ const MapCanvas = forwardRef(({
 
       polylinesRef.current.push(corridorPoly);
 
-      [...finalLeftPoints, ...finalRightPoints].forEach(p => {
-        const label = L.marker([p.lat, p.lng], {
-          icon: L.divIcon({
-            className: 'bg-transparent border-none',
-            html: `<span class="text-[10px] font-bold text-red-600 bg-white/70 px-0.5 rounded">${p.sourceIndex}</span>`,
-            iconSize: [20, 20]
-          })
-        }).addTo(map);
-        polylinesRef.current.push(label);
-      });
+      // [...finalLeftPoints, ...finalRightPoints].forEach(p => {
+      //   const label = L.marker([p.lat, p.lng], {
+      //     icon: L.divIcon({
+      //       className: 'bg-transparent border-none',
+      //       html: `<span class="text-[10px] font-bold text-red-600 bg-white/70 px-0.5 rounded">${p.sourceIndex}</span>`,
+      //       iconSize: [20, 20]
+      //     })
+      //   }).addTo(map);
+      //   polylinesRef.current.push(label);
+      // });
     }
 
     // --- RENDERER: DRAW ROUTE LINE ---

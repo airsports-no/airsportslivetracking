@@ -209,6 +209,11 @@ export default function App() {
           return res.json();
         })
         .then(data => {
+          if (data.settings) {
+            if (typeof data.settings.showCorridor !== 'undefined') setShowCorridor(data.settings.showCorridor);
+            if (typeof data.settings.maxObsDist !== 'undefined') setMaxObsDist(data.settings.maxObsDist);
+          }
+
           if (data.route && data.name) {
             setRouteName(data.name);
             loadRouteData(data.route);
@@ -629,7 +634,11 @@ export default function App() {
 
     const payload = {
       name: routeName,
-      route: geoJson
+      route: geoJson,
+      settings: {
+        showCorridor:showCorridor,
+        maxObsDist:maxObsDist
+      }
     };
 
     try {
@@ -682,7 +691,10 @@ export default function App() {
           selectionType={selectionType}
           validationErrors={validationErrors}
           showCorridor={showCorridor}
-          setShowCorridor={setShowCorridor}
+          setShowCorridor={(val) => {
+            setShowCorridor(val);
+            setIsDirty(true);
+          }}
           setSelectedId={setSelectedId}
           setSelectionType={setSelectionType}
           updateSelectedPoint={updateSelectedPoint}
@@ -693,7 +705,10 @@ export default function App() {
           movePointOrder={movePointOrder}
           handleSave={handleSave}
           maxObsDist={maxObsDist}
-          setMaxObsDist={setMaxObsDist}
+          setMaxObsDist={(val) => {
+            setMaxObsDist(val);
+            setIsDirty(true);
+          }}
           routeName={routeName}
           setRouteName={(name) => {
             setRouteName(name);

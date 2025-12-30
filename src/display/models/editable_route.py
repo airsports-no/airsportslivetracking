@@ -59,6 +59,7 @@ class EditableRoute(models.Model):
     Each element can be included multiple times except for 'track' which can appear at most once.
     """,
     )
+    settings= MyPickledObjectField(default=dict, help_text="Settings for the route editor")
     number_of_waypoints = models.IntegerField(default=0)
     route_length = models.FloatField(default=0, help_text="NM")
     thumbnail = models.ImageField(upload_to="route_thumbnails/", blank=True, null=True)
