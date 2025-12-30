@@ -1176,6 +1176,7 @@ class TestImportFCNavigationTask(APITransactionTestCase):
 class TestNavigationTaskCreationFlow(APITransactionTestCase):
     ROUTE_DATA = {
         "name": "Test",
+        "settings": {},
         "route": {
             "type": "FeatureCollection",
             "features": [
