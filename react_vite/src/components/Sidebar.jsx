@@ -150,7 +150,7 @@ const Sidebar = ({
   };
 
   return (
-    <div className="w-80 flex flex-col bg-base-100 border-r shadow-xl z-20">
+    <div className="w-80 h-[calc(100vh-66px)] flex flex-col bg-base-100 border-r shadow-xl z-20">
       <div className="p-6 bg-neutral text-neutral-content flex flex-col items-center gap-3 shadow-sm">
         <h1 className="text-xl font-bold tracking-tight">Route Editor</h1>
       </div>
