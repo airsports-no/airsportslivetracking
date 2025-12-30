@@ -462,6 +462,8 @@ class RouteSerialiser(serializers.ModelSerializer):
     landing_gates = WaypointSerialiser(required=False, help_text="Optional landing gate", many=True)
     takeoff_gates = WaypointSerialiser(required=False, help_text="Optional takeoff gate", many=True)
     prohibited_set = ProhibitedSerialiser(many=True, required=False)
+    corridor_polygon = serializers.JSONField(required=False,read_only=True)
+
 
     class Meta:
         model = Route
@@ -484,6 +486,8 @@ class RouteSerialiser(serializers.ModelSerializer):
         waypoint.bearing_next = waypoint_data["bearing_next"]
         waypoint.bearing_from_previous = waypoint_data["bearing_from_previous"]
         waypoint.is_procedure_turn = waypoint_data["is_procedure_turn"]
+        waypoint.control_latitude = waypoint_data.get("control_latitude", None)
+        waypoint.control_longitude = waypoint_data.get("control_longitude", None)
 
         # waypoint.inside_distance = waypoint_data["inside_distance"]
         # waypoint.outside_distance = waypoint_data["outside_distance"]

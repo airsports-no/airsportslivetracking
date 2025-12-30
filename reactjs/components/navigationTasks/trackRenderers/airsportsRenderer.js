@@ -7,7 +7,11 @@ export default class AirsportsRenderer extends GenericRenderer {
         for (const line of this.lines) {
             line.removeFrom(this.props.map)
         }
-        this.lines = []
+        this.lines = [this.props.navigationTask.route.corridor_polygon.map((point, index) => {
+            return [point.lat, point.lng]
+        })];
+        this.lines[0].push(this.lines[0][0]) // close the polygon
+
         //  Air sports  race and challenge does not penalise crossing the extended starting line backwards.
         // this.props.navigationTask.route.waypoints.filter((waypoint) => {
         //     return waypoint.type === 'sp' && waypoint.gate_line_extended
@@ -23,25 +27,11 @@ export default class AirsportsRenderer extends GenericRenderer {
                 color: "blue"
             }).addTo(this.props.map))
         })
-        let outsideTrack = []
-        let insideTrack = []
-        for (const waypoint of this.props.navigationTask.route.waypoints) {
-            if (waypoint.left_corridor_line) {
-                // This is the preferred option, using the gate line is for backwards compatibility
-                outsideTrack.push(...waypoint.left_corridor_line)
-                insideTrack.push(...waypoint.right_corridor_line)
-            } else {
-                outsideTrack.push(waypoint.gate_line[0])
-                insideTrack.push(waypoint.gate_line[1])
-            }
-        }
-        let route = polyline(insideTrack, {
-            color: "blue"
-        }).addTo(this.props.map)
-        polyline(outsideTrack, {
-            color: "blue"
-        }).addTo(this.props.map)
 
+
+        let route = polyline(this.lines[0], {
+            color: "blue"
+        }).addTo(this.props.map)
         return route
     }
 

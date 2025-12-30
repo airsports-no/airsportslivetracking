@@ -3,6 +3,7 @@ import typing
 from io import BytesIO
 from typing import Optional, TextIO
 
+from display.waypoint import Waypoint
 import gpxpy
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -183,7 +184,21 @@ class EditableRoute(models.Model):
         precision_mode: bool = False,
         force_secret_type: bool = False,
         override_timing_passing_false: bool = False,
-    ) -> list:
+        corridor_width:float|None = None,
+    ) -> list[Waypoint]:
+        """
+        Docstring for _create_waypoint_list
+        
+        :param self: Description
+        :param precision_mode: Description
+        :type precision_mode: bool
+        :param force_secret_type: Description
+        :type force_secret_type: bool
+        :param override_timing_passing_false: Description
+        :param corridor_width: Width of the corridor in nautical miles
+        :return: Description
+        :rtype: list[Any]
+        """
         from display.utilities.route_building_utilities import build_waypoint
 
         track_waypoints = self.get_ordered_track_waypoints()
@@ -196,7 +211,7 @@ class EditableRoute(models.Model):
             props = item["properties"]
             lon, lat = item["geometry"]["coordinates"]
 
-            width = props["width"] / 1852
+            width = corridor_width if corridor_width else props["width"] / 1852
 
             # Determine type
             point_type = "secret" if force_secret_type else props["pointType"]
@@ -210,7 +225,7 @@ class EditableRoute(models.Model):
                 is_passing = props["isPassing"]
 
             # Check for curve from previous point
-            if index > 0 and props.get("segmentType") == "curved":
+            if index > 0 and props.get("segmentType") == "curved" and precision_mode:
                 control_lat = props.get("controlLat")
                 control_lng = props.get("controlLng")
 
@@ -245,7 +260,7 @@ class EditableRoute(models.Model):
                         )
 
             # Add the current waypoint
-            waypoint_list.append(build_waypoint(props["name"], lat, lon, point_type, width, is_timing, is_passing))
+            waypoint_list.append(build_waypoint(props["name"], lat, lon, point_type, width, is_timing, is_passing,control_latitude=props.get("controlLat"), control_longitude=props.get("controlLng"), end_curved=props.get("segmentType") == "curved"))
 
         return waypoint_list
 
@@ -270,23 +285,23 @@ class EditableRoute(models.Model):
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
 
         self.validate_valid_corridor_route("ANR")
-        waypoint_list = self._create_waypoint_list(force_secret_type=True, override_timing_passing_false=True)
+        waypoint_list = self._create_waypoint_list(force_secret_type=True, override_timing_passing_false=True, corridor_width=corridor_width)
         if not waypoint_list:
             return None
 
         waypoint_list[0].type = STARTINGPOINT
         waypoint_list[0].gate_check = True
         waypoint_list[0].time_check = True
-        waypoint_list[0].width = scorecard.get_extended_gate_width_for_gate_type(STARTINGPOINT)
+        # waypoint_list[0].width = scorecard.get_extended_gate_width_for_gate_type(STARTINGPOINT)
 
         waypoint_list[-1].type = FINISHPOINT
         waypoint_list[-1].gate_check = True
         waypoint_list[-1].time_check = True
-        waypoint_list[-1].width = scorecard.get_extended_gate_width_for_gate_type(FINISHPOINT)
+        # waypoint_list[-1].width = scorecard.get_extended_gate_width_for_gate_type(FINISHPOINT)
 
         logger.debug(f"Created waypoints {waypoint_list}")
         route = create_anr_corridor_route_from_waypoint_list(
-            self.name, waypoint_list, rounded_corners, scorecard, corridor_width=corridor_width
+            self.name, waypoint_list, rounded_corners, scorecard
         )
         self.amend_route_with_additional_features(route)
         return route

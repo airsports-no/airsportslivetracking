@@ -31,6 +31,9 @@ class Waypoint:
         self.is_procedure_turn = False
         self.is_steep_turn = False
 
+        self.control_latitude: float|None = None
+        self.control_longitude: float|None = None
+
         self._left_corridor_line = None  # I think this is a list of (lat, lon)
         self._right_corridor_line = None
 

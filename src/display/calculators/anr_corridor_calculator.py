@@ -91,19 +91,7 @@ class AnrCorridorCalculator(Calculator):
         return max([lookahead_danger, distance_danger]), self.accumulated_score
 
     def build_polygon(self):
-        points = []
-        for waypoint in self.contestant.navigation_task.route.waypoints:
-            if waypoint.left_corridor_line is not None:
-                # This is the preferred option, using the gate line is for backwards compatibility
-                points.extend(waypoint.left_corridor_line)
-            else:
-                points.append(waypoint.gate_line[0])
-        for waypoint in reversed(self.contestant.navigation_task.route.waypoints):
-            if waypoint.right_corridor_line is not None:
-                # This is the preferred option, using the gate line is for backwards compatibility
-                points.extend(list(reversed(waypoint.right_corridor_line)))
-            else:
-                points.append(waypoint.gate_line[1])
+        points = [(item["lat"], item["lng"]) for item in self.contestant.navigation_task.route.corridor_polygon]
         points = np.array(points)
         transformed_points = self.polygon_helper.utm.transform_points(
             self.polygon_helper.pc, points[:, 1], points[:, 0]

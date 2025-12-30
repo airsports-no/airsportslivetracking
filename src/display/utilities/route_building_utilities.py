@@ -1,4 +1,5 @@
 # from lxml import etree
+from display.utilities.corridor_renderer import generate_corridor_polygon
 import logging
 from typing import List, Tuple, Dict
 from zipfile import ZipFile
@@ -271,16 +272,19 @@ def calculate_extended_gate(
     )
 
 
-def build_waypoint(name, latitude, longitude, type, width, time_check, gate_check):
+def build_waypoint(name, latitude, longitude, type, width, time_check, gate_check, control_latitude=None, control_longitude=None, end_curved:bool=False) -> Waypoint:
     waypoint = Waypoint(name)
     waypoint.latitude = latitude
     waypoint.longitude = longitude
+    waypoint.control_latitude = control_latitude
+    waypoint.control_longitude = control_longitude
     waypoint.type = type
     waypoint.width = max(
         float(width), 0.01
     )  # todo: Enforce at least a minimum gate width in case this has been set to 0
     waypoint.time_check = time_check
     waypoint.gate_check = gate_check
+    waypoint.end_curved = end_curved
     return waypoint
 
 
@@ -442,7 +446,7 @@ def create_perpendicular_line_at_end_gates(
 
 
 def create_anr_corridor_route_from_waypoint_list(
-    route_name, waypoint_list: list[Waypoint], rounded_corners: bool, scorecard: Scorecard, corridor_width: float = None
+    route_name, waypoint_list: list[Waypoint], rounded_corners: bool, scorecard: Scorecard, corridor_width: float|None = None
 ) -> Route:
     """
 
@@ -459,42 +463,16 @@ def create_anr_corridor_route_from_waypoint_list(
     if waypoint_list[-1].type != "fp":
         raise ValidationError("The last waypoint must be of type finish point")
 
-    gates = waypoint_list
-    for index in range(1, len(gates) - 1):
-        gates[index].gate_line = create_bisecting_line_between_gates(
-            gates[index - 1], gates[index], gates[index + 1], gates[index].width
-        )
-        # Fix corridor line
-        corridor_line = create_bisecting_line_between_gates(
-            gates[index - 1],
-            gates[index],
-            gates[index + 1],
-            corridor_width if corridor_width is not None else gates[index].width,
-        )
-        # If these are in the wrong order, it will be corrected in "correct_gate_directions_to_the_right"
-        gates[index].left_corridor_line = [corridor_line[0]]
-        gates[index].right_corridor_line = [corridor_line[1]]
+    corridor_polygon, path_points = generate_corridor_polygon(waypoint_list, rounded_corners)
+    logger.debug(f"Corridor polygon: {corridor_polygon}")
 
-    # Start and finish gates
-    gates[0].gate_line = create_perpendicular_line_at_end_gates(gates[1], gates[0], gates[0].width)
-    # Reverse the line since we have created it in the wrong direction
-    gates[0].gate_line.reverse()
-    gates[-1].gate_line = create_perpendicular_line_at_end_gates(gates[-2], gates[-1], gates[-1].width)
+    points=list(filter(lambda point: point.get('left_miter'), path_points))
+    def extract_gate_line(point):
+        return [[point["left_miter"]["lat"], point["left_miter"]["lng"]], [point["right_miter"]["lat"], point["right_miter"]["lng"]]]
 
-    # Fix the corridor line
-    # start
-    start_corridor_line = create_perpendicular_line_at_end_gates(
-        gates[1], gates[0], corridor_width if corridor_width is not None else gates[0].width
-    )
-    start_corridor_line.reverse()
-    gates[0].left_corridor_line = [start_corridor_line[0]]
-    gates[0].right_corridor_line = [start_corridor_line[1]]
-    # finish
-    finish_corridor_line = create_perpendicular_line_at_end_gates(
-        gates[-2], gates[-1], corridor_width if corridor_width is not None else gates[-1].width
-    )
-    gates[-1].left_corridor_line = [finish_corridor_line[0]]
-    gates[-1].right_corridor_line = [finish_corridor_line[1]]
+    for index in range(0, len(waypoint_list)):
+        point=points[index]
+        waypoint_list[index].gate_line =    extract_gate_line(point)
 
     for waypoint in waypoint_list:
         waypoint.gate_line_extended = calculate_extended_gate(waypoint, scorecard)
@@ -504,27 +482,12 @@ def create_anr_corridor_route_from_waypoint_list(
     insert_gate_ranges(waypoint_list)
     correct_gate_directions_to_the_right(waypoint_list)
 
-    # All the gate lines are now in the correct direction, round corners if required
-    if rounded_corners:
-        for index in range(1, len(gates) - 1):
-            waypoint = gates[index]  # type: Waypoint
-            # Backup original gate
-            waypoint.original_gate_line = waypoint.gate_line
-            turn_degrees = bearing_difference(waypoint.bearing_from_previous, waypoint.bearing_next)
-            (
-                waypoint.left_corridor_line,
-                waypoint.right_corridor_line,
-                waypoint.gate_line,
-            ) = create_rounded_corridor_corner(
-                waypoint.gate_line, corridor_width if corridor_width is not None else waypoint.width, turn_degrees
-            )
-
-        # correct_distance_and_bearing_for_rounded_corridor(waypoint_list)
     # Validate that waypoints are not too close so that the gates cross each other
-    validate_no_overlapping_gate_lines(gates)
-    validate_that_gate_does_not_intersect_corridor(gates)
+    # validate_no_overlapping_gate_lines(waypoint_list)
+
     instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
     instance.rounded_corners = rounded_corners
+    instance.corridor_polygon = corridor_polygon
     if corridor_width is not None:
         instance.corridor_width = corridor_width
     instance.save()

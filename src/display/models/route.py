@@ -20,6 +20,8 @@ class Route(models.Model):
     waypoints = MyPickledObjectField(default=list)
     takeoff_gates = MyPickledObjectField(default=list, null=False)
     landing_gates = MyPickledObjectField(default=list, null=False)
+    # List of dictionary objects representing the corridor polygon with the keys lat and lng
+    corridor_polygon = MyPickledObjectField(default=list, null=False)
 
     def create_copy(self) -> "Route":
         return Route.objects.create(

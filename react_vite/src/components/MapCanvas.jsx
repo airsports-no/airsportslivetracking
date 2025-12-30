@@ -139,6 +139,8 @@ const MapCanvas = forwardRef(({
       let lastRight = null;
       const minGap = 2; // Minimum distance between boundary points to avoid overlap/bunching
 
+      const exclusionZones = [];
+
       pathPoints.forEach((p, i) => {
         let b1, b2, diff;
         if (i === 0) {
@@ -155,6 +157,11 @@ const MapCanvas = forwardRef(({
           diff = getAngleDiff(b2, b1);
         }
 
+        let miterFactor = 1 / Math.cos(toRad(diff / 2));
+        miterFactor = Math.min(miterFactor, 5);
+        const miterLength = (p.width / 2) * miterFactor;
+        exclusionZones.push({ center: p, radius: miterLength, index: i, sharpness: Math.abs(diff) });
+
         const centerBearing = b1 + diff / 2;
         const halfWidth = p.width / 2;
 
@@ -164,26 +171,18 @@ const MapCanvas = forwardRef(({
           for (let s = 0; s <= steps; s++) {
             const a = b1 - 90 + (diff * s / steps);
             const l = getDestinationPoint(p, halfWidth, a);
+            l.sourceIndex = i;
             if (!lastLeft || L.latLng(lastLeft).distanceTo(l) > 0.5) {
               leftPoints.push(l);
               lastLeft = l;
             }
           }
         } else { // Left Inside or Straight
-          let miterFactor = 1 / Math.cos(toRad(diff / 2));
-          miterFactor = Math.min(miterFactor, 5);
           const l = getDestinationPoint(p, halfWidth * miterFactor, centerBearing - 90);
-          
-          if (!lastLeft) {
+          l.sourceIndex = i;
             leftPoints.push(l);
             lastLeft = l;
-          } else if (L.latLng(lastLeft).distanceTo(l) > minGap) {
-            const moveBearing = getBearing(lastLeft, l);
-            if (Math.abs(getAngleDiff(moveBearing, centerBearing)) < 100) {
-              leftPoints.push(l);
-              lastLeft = l;
-            }
-          }
+          
         }
 
         // Right Side
@@ -192,37 +191,58 @@ const MapCanvas = forwardRef(({
           for (let s = 0; s <= steps; s++) {
             const a = b1 + 90 + (diff * s / steps);
             const r = getDestinationPoint(p, halfWidth, a);
+            r.sourceIndex = i;
             if (!lastRight || L.latLng(lastRight).distanceTo(r) > 0.5) {
               rightPoints.push(r);
               lastRight = r;
             }
           }
-        } else { // Right Inside or Straight
-          let miterFactor = 1 / Math.cos(toRad(diff / 2));
-          miterFactor = Math.min(miterFactor, 5);
+        } else  { // Right Inside or Straight
           const r = getDestinationPoint(p, halfWidth * miterFactor, centerBearing + 90);
-
-          if (!lastRight) {
+          r.sourceIndex = i;
             rightPoints.push(r);
             lastRight = r;
-          } else if (L.latLng(lastRight).distanceTo(r) > minGap) {
-            const moveBearing = getBearing(lastRight, r);
-            if (Math.abs(getAngleDiff(moveBearing, centerBearing)) < 100) {
-              rightPoints.push(r);
-              lastRight = r;
-            }
-          }
+
         }
       });
 
+      const filterPoints = (points) => {
+        return points.filter(pt => {
+          for (const zone of exclusionZones) {
+            if (zone.index === pt.sourceIndex) continue;
+            if (L.latLng(pt).distanceTo(zone.center) < zone.radius - 0.1) {
+              const ptSharpness = exclusionZones[pt.sourceIndex].sharpness;
+              const zoneSharpness = zone.sharpness;
+              if (ptSharpness >= zoneSharpness) continue;
+              return false;
+            }
+          }
+          return true;
+        });
+      };
+
+      const finalLeftPoints = filterPoints(leftPoints);
+      const finalRightPoints = filterPoints(rightPoints);
+
       const corridorPoly = L.polygon([
-        ...leftPoints.map(p => [p.lat, p.lng]),
-        ...rightPoints.reverse().map(p => [p.lat, p.lng])
+        ...finalLeftPoints.map(p => [p.lat, p.lng]),
+        ...finalRightPoints.reverse().map(p => [p.lat, p.lng])
       ], {
         color: '#3b82f6', weight: 1, opacity: 0.5, fillColor: '#3b82f6', fillOpacity: 0.1
       }).addTo(map);
 
       polylinesRef.current.push(corridorPoly);
+
+      [...finalLeftPoints, ...finalRightPoints].forEach(p => {
+        const label = L.marker([p.lat, p.lng], {
+          icon: L.divIcon({
+            className: 'bg-transparent border-none',
+            html: `<span class="text-[10px] font-bold text-red-600 bg-white/70 px-0.5 rounded">${p.sourceIndex}</span>`,
+            iconSize: [20, 20]
+          })
+        }).addTo(map);
+        polylinesRef.current.push(label);
+      });
     }
 
     // --- RENDERER: DRAW ROUTE LINE ---
