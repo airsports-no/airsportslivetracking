@@ -3,7 +3,7 @@ FROM node:24-bookworm-slim AS frontend_builder
 RUN apt update && apt install -y curl bash
 COPY src /app/src
 
-WORKDIR /app/src/css
+WORKDIR /app/src/static/css
 RUN curl -sL daisyui.com/fast | bash
 
 COPY reactjs /app/reactjs
