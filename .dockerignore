@@ -10,3 +10,4 @@
 !requirements.txt
 !package.json
 !package-lock.json
+!tailwind.config.js
