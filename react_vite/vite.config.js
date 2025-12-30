@@ -7,7 +7,10 @@ import fs from 'fs';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/static/', // This should match Django's settings.STATIC_URL
+  // Ensure 'base' is set to the GCS URL for production
+  base: process.env.NODE_ENV === 'production' 
+    ? 'https://storage.googleapis.com/airsports-static/' 
+    : '/static/',
   resolve: {
     alias: {
       react: path.resolve(__dirname, 'node_modules/react'),
