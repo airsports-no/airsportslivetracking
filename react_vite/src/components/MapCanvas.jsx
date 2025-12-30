@@ -140,47 +140,77 @@ const MapCanvas = forwardRef(({
       const minGap = 2; // Minimum distance between boundary points to avoid overlap/bunching
 
       pathPoints.forEach((p, i) => {
-        let bearing;
-        let miterFactor = 1;
-
+        let b1, b2, diff;
         if (i === 0) {
-          bearing = getBearing(p, pathPoints[i + 1]);
+          b1 = getBearing(p, pathPoints[i + 1]);
+          b2 = b1;
+          diff = 0;
         } else if (i === pathPoints.length - 1) {
-          bearing = getBearing(pathPoints[i - 1], p);
+          b1 = getBearing(pathPoints[i - 1], p);
+          b2 = b1;
+          diff = 0;
         } else {
-          const b1 = getBearing(pathPoints[i - 1], p);
-          const b2 = getBearing(p, pathPoints[i + 1]);
-          let diff = b2 - b1;
-          if (diff > 180) diff -= 360;
-          if (diff < -180) diff += 360;
-          bearing = b1 + diff / 2;
-          miterFactor = 1 / Math.cos(toRad(diff / 2));
+          b1 = getBearing(pathPoints[i - 1], p);
+          b2 = getBearing(p, pathPoints[i + 1]);
+          diff = getAngleDiff(b2, b1);
         }
 
-        miterFactor = Math.min(miterFactor, 5);
-        const dist = (p.width / 2) * miterFactor;
-        const l = getDestinationPoint(p, dist, bearing - 90);
-        const r = getDestinationPoint(p, dist, bearing + 90);
+        const centerBearing = b1 + diff / 2;
+        const halfWidth = p.width / 2;
 
-        if (!lastLeft) {
-          leftPoints.push(l);
-          lastLeft = l;
-        } else if (L.latLng(lastLeft).distanceTo(l) > minGap) {
-          const moveBearing = getBearing(lastLeft, l);
-          if (Math.abs(getAngleDiff(moveBearing, bearing)) < 100) {
+        // Left Side
+        if (diff > 1) { // Right Turn -> Left Outside (Round)
+          const steps = Math.ceil(diff / 10);
+          for (let s = 0; s <= steps; s++) {
+            const a = b1 - 90 + (diff * s / steps);
+            const l = getDestinationPoint(p, halfWidth, a);
+            if (!lastLeft || L.latLng(lastLeft).distanceTo(l) > 0.5) {
+              leftPoints.push(l);
+              lastLeft = l;
+            }
+          }
+        } else { // Left Inside or Straight
+          let miterFactor = 1 / Math.cos(toRad(diff / 2));
+          miterFactor = Math.min(miterFactor, 5);
+          const l = getDestinationPoint(p, halfWidth * miterFactor, centerBearing - 90);
+          
+          if (!lastLeft) {
             leftPoints.push(l);
             lastLeft = l;
+          } else if (L.latLng(lastLeft).distanceTo(l) > minGap) {
+            const moveBearing = getBearing(lastLeft, l);
+            if (Math.abs(getAngleDiff(moveBearing, centerBearing)) < 100) {
+              leftPoints.push(l);
+              lastLeft = l;
+            }
           }
         }
 
-        if (!lastRight) {
-          rightPoints.push(r);
-          lastRight = r;
-        } else if (L.latLng(lastRight).distanceTo(r) > minGap) {
-          const moveBearing = getBearing(lastRight, r);
-          if (Math.abs(getAngleDiff(moveBearing, bearing)) < 100) {
+        // Right Side
+        if (diff < -1) { // Left Turn -> Right Outside (Round)
+          const steps = Math.ceil(Math.abs(diff) / 10);
+          for (let s = 0; s <= steps; s++) {
+            const a = b1 + 90 + (diff * s / steps);
+            const r = getDestinationPoint(p, halfWidth, a);
+            if (!lastRight || L.latLng(lastRight).distanceTo(r) > 0.5) {
+              rightPoints.push(r);
+              lastRight = r;
+            }
+          }
+        } else { // Right Inside or Straight
+          let miterFactor = 1 / Math.cos(toRad(diff / 2));
+          miterFactor = Math.min(miterFactor, 5);
+          const r = getDestinationPoint(p, halfWidth * miterFactor, centerBearing + 90);
+
+          if (!lastRight) {
             rightPoints.push(r);
             lastRight = r;
+          } else if (L.latLng(lastRight).distanceTo(r) > minGap) {
+            const moveBearing = getBearing(lastRight, r);
+            if (Math.abs(getAngleDiff(moveBearing, centerBearing)) < 100) {
+              rightPoints.push(r);
+              lastRight = r;
+            }
           }
         }
       });

@@ -17,13 +17,12 @@ services:
       dockerfile: Dockerfile
       target: tracker_base
     volumes:
-      - ./secret:/secret
-      - ./static:/static
-      - ./assets:/assets
-      - ./assets_vite:/assets_vite
-      - ./src:/src
+      # - ./secret:/secret
+      # - ./static:/static
+      # - ./assets:/assets
+      # - ./assets_vite:/assets_vite
+      # - ./src:/src
       - ./data:/data
-      - ./secret:/secret
       - ./weblog:/logs
       - ./src/display/kubernetes_calculator/ca.crt:/aks_certificate/ca.crt
       - ./mapserver:/maptiles
