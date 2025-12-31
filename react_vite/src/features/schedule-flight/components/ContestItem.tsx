@@ -65,7 +65,7 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                                                     className="btn btn-error btn-sm"
                                                     onClick={() => onCancel(contest.id, task.pk)}
                                                 >
-                                                    Cancel
+                                                    Delete
                                                 </button>
                                             </div>
                                         ))}

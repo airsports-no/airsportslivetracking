@@ -1,5 +1,5 @@
 import React from 'react';
-import { MyParticipatingContest } from './types';
+import { MyParticipatingContest } from '../types';
 
 interface UpcomingFlightsProps {
     myContests: MyParticipatingContest[];
@@ -39,7 +39,7 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myContests, onCancel 
                                 className="btn btn-error btn-sm"
                                 onClick={() => onCancel(flight.contest.id, flight.navigationTask.pk)}
                             >
-                                Cancel
+                                Delete
                             </button>
                         </div>
                     </div>

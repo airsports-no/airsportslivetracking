@@ -4,6 +4,7 @@ import { ASTable } from "../components/filteredSearchableTable";
 import { Loading } from "../components/basicComponents";
 import { Route } from "../../../types";
 import { ColumnDef } from "@tanstack/react-table";
+import { fetchEditableRoutes } from "../api"; // New import
 
 export const EditableRouteList = () => {
     const [data, setData] = useState<Route[]>([]);
@@ -11,8 +12,7 @@ export const EditableRouteList = () => {
     const [showAll, setShowAll] = useState(false);
 
     useEffect(() => {
-        fetch(document.configuration.EDITABLE_ROUTES_URL)
-            .then((res) => res.json())
+        fetchEditableRoutes()
             .then((data: Route[]) => {
                 setData(data);
                 setLoading(false);

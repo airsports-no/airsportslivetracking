@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Toolbar from '../components/Toolbar';
 import MapCanvas from '../components/MapCanvas';
+import { fetchRoute, saveRoute } from '../api';
+import { RouteData, SavePayload } from '../types';
 import {
   getDistance,
   getBearing,
@@ -12,7 +14,6 @@ import {
   toRad
 } from '../../../utils/geoUtils';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
-import { getCookie } from '../../../utils/csrf';
 import { Map } from 'leaflet';
 
 
@@ -189,11 +190,7 @@ export default function RouteEditor() {
   useEffect(() => {
     if (paramRouteId) {
       setRouteId(paramRouteId);
-      fetch(document.configuration.editableRouteUrl(parseInt(paramRouteId)))
-        .then(res => {
-          if (!res.ok) throw new Error("Failed to load route");
-          return res.json();
-        })
+      fetchRoute(parseInt(paramRouteId))
         .then(data => {
           if (data.settings) {
             if (typeof data.settings.showCorridor !== 'undefined') setShowCorridor(data.settings.showCorridor);
@@ -206,7 +203,7 @@ export default function RouteEditor() {
             loadRouteData(data.route);
           } else {
             if (data.name) setRouteName(data.name);
-            loadRouteData(data);
+            loadRouteData(data.route);
           }
         })
         .catch(err => console.error(err));
@@ -619,7 +616,7 @@ export default function RouteEditor() {
       ]
     };
 
-    const payload = {
+    const payload: SavePayload = {
       name: routeName,
       route: geoJson,
       settings: {
@@ -630,34 +627,14 @@ export default function RouteEditor() {
     };
 
     try {
-      let url = document.configuration.EDITABLE_ROUTES_URL;
-      let method = 'POST';
+      const result = await saveRoute(routeId, payload);
 
-      if (routeId) {
-        url = document.configuration.editableRouteUrl(parseInt(routeId));
-        method = 'PUT';
-      }
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie('csrftoken')!
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        alert("Route saved successfully!");
-        setIsDirty(false);
-        if (!routeId && result.id) {
-          setRouteId(result.id);
-          // Optionally update URL
-          window.history.pushState({}, '', document.configuration.editRouteViewUrl(result.id));
-        }
-      } else {
-        alert("Error saving route");
+      alert("Route saved successfully!");
+      setIsDirty(false);
+      if (!routeId && result.id) {
+        setRouteId(result.id.toString());
+        // Optionally update URL
+        window.history.pushState({}, '', document.configuration.editRouteViewUrl(result.id));
       }
     } catch (e) {
       console.error(e);
