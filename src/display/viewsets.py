@@ -312,7 +312,7 @@ class ContestFrontEndViewSet(mixins.ListModelMixin, GenericViewSet):
     serializer_class = ContestFrontEndSerialiser
     pagination_class = ContestPagination
 
-    permission_classes = [(permissions.IsAuthenticated & ContestPermissions)]
+    permission_classes = [permissions.IsAuthenticated & ContestPermissions]
 
     def get_queryset(self):
         return (
@@ -655,7 +655,7 @@ class NavigationTaskViewSet(ModelViewSet):
 
     @action(
         detail=True,
-        methods=["put", "delete"],
+        methods=["post", "put", "delete"],
         permission_classes=[
             permissions.IsAuthenticated
             & NavigationTaskSelfManagementPermissions
@@ -664,7 +664,7 @@ class NavigationTaskViewSet(ModelViewSet):
     )
     def contestant_self_registration(self, request, *args, **kwargs):
         navigation_task = self.get_object()  # type: NavigationTask
-        if request.method == "PUT":
+        if request.method in ("POST", "PUT"):
             serialiser = self.get_serializer(data=request.data)
             serialiser.is_valid(raise_exception=True)
             contest_team = serialiser.validated_data["contest_team"]

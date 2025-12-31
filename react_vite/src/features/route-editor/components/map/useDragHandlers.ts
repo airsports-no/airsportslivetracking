@@ -3,8 +3,8 @@ import L from 'leaflet';
 import {
   getDistanceFromLine,
   getQuadraticBezierPoints
-} from '../../utils/geoUtils';
-import { RoutePoint, Polygon, ObservationMarker, SelectionType, Mode } from '../../types';
+} from '../../../../utils/geoUtils';
+import { RoutePoint, Polygon, ObservationMarker, SelectionType, Mode } from '../../../../types';
 
 interface useDragHandlersProps {
     mapRef: React.MutableRefObject<L.Map | null>;

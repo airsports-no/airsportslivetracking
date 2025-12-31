@@ -11,7 +11,7 @@ import EditObservationView from './EditObservationView';
 import EditPolygonView from './EditPolygonView';
 import RouteListView from './RouteListView';
 import HelpView from './HelpView';
-import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../types';
+import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../../../types';
 
 interface SidebarProps {
   routePoints: RoutePoint[];

@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Trash2 } from 'lucide-react';
-import { Gate } from '../types';
+import { Gate } from '../../../types';
 
 interface EditGateViewProps {
     gate: Gate;

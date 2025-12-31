@@ -7,7 +7,7 @@ import {
   getDistanceFromLine,
   toRad,
   getQuadraticBezierPoints
-} from '../../utils/geoUtils';
+} from '../../../../utils/geoUtils';
 
 /**
  * Hook to manage drag events for map elements.

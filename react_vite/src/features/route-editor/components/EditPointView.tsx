@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import ObservationThumbnail from './ObservationThumbnail';
-import { RoutePoint } from '../types';
+import { RoutePoint } from '../../../types';
 
 interface EditPointViewProps {
     point: RoutePoint;

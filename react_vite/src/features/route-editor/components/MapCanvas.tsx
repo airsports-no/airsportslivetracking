@@ -6,11 +6,11 @@ import {
   toRad,
   isPointInPolygon,
   getQuadraticBezierPoints
-} from '../utils/geoUtils';
+} from '../../../utils/geoUtils';
 import useMapInit from './map/useMapInit';
 import useDragHandlers from './map/useDragHandlers';
 import * as Renderers from './map/renderers';
-import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../types';
+import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 
 const getAngleDiff = (a: number, b: number) => {
   let diff = a - b;

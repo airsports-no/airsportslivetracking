@@ -10,28 +10,11 @@ import {
   isCollinear,
   getDistanceFromLine,
   toRad
-} from '../utils/geoUtils';
-import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../types';
+} from '../../../utils/geoUtils';
+import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
+import { getCookie } from '../../../utils/csrf';
 import { Map } from 'leaflet';
 
-
-/**
- * Helper to get CSRF token
- */
-function getCookie(name: string): string | null {
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== '') {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.substring(0, name.length + 1) === (name + '=')) {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
-    }
-  }
-  return cookieValue;
-}
 
 /**
  * MAIN COMPONENT

@@ -7,7 +7,7 @@ import {
   Camera,
   Hexagon
 } from 'lucide-react';
-import { Mode, LatLng } from '../types';
+import { Mode, LatLng } from '../../../types';
 
 interface ToolbarProps {
     mode: Mode;

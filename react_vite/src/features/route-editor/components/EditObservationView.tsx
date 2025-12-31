@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Trash2 } from 'lucide-react';
 import ObservationThumbnail from './ObservationThumbnail';
-import { ObservationMarker } from '../types';
+import { ObservationMarker } from '../../../types';
 
 interface EditObservationViewProps {
     observation: ObservationMarker;

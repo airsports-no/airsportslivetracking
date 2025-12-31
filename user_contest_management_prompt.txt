@@ -1,0 +1,252 @@
+Create a React Container and components using Typescript that allows a user to schedule a Competition flight in a navigation task that is part of a contest. It should be mobile first and use the DaisyUI component library with Tailwind. The container should be integrated with the existing router EditableRouteRouter.
+
+The available contests are fetched from the URL in the following variable: document.configuration.CONTESTS_LIST_URL
+
+The contest endpoint supports pagination. The end point A list of contests, and each contest has a set of navigation tasks. An example data block looks like this:
+
+{
+    "id": 728,
+    "time_zone": "Europe/Bratislava",
+    "navigationtask_set": [
+        {
+            "pk": 2543,
+            "name": "RAŽŇANY",
+            "start_time": "2025-03-31T22:00:00Z",
+            "finish_time": "2025-09-26T21:59:00Z",
+            "tracking_link": "/display/task/2543/map/"
+        }
+    ],
+    "contest_team_count": 16,
+    "share_string": "Public",
+    "country_flag_url": "https://storage.googleapis.com/airsports-static/flags/3x2/SK.svg",
+    "country": "SK",
+    "registered": false,
+    "latitude": 49.0782828848051,
+    "longitude": 21.099929809570312,
+    "is_editor": false,
+    "summary_score_sorting_direction": "asc",
+    "autosum_scores": true,
+    "name": "SLOVAK ANR CUP 2025 Ražňany",
+    "location": "49.0782828848051,21.099929809570312",
+    "start_time": "2025-03-31T22:00:00Z",
+    "finish_time": "2025-09-26T21:59:00Z",
+    "is_public": true,
+    "is_featured": true,
+    "contest_website": "https://www.sna.sk/Motorove-lietanie/Air-Navigation-Race/Slovak-ANR-CUP/ANR-CUP-2025/",
+    "header_image": "https://storage.googleapis.com/airsports-data/LOGO_ANR_CUP2025_small.png",
+    "logo": "https://storage.googleapis.com/airsports-data/LOGO_ANR_CUP2025_small.png",
+    "contest_teams": [
+        1856,
+        2226,
+        2247,
+        2309,
+        2314,
+        2317,
+        2319,
+        2321,
+        2331,
+        2333,
+        2349,
+        2361,
+        2385,
+        2413,
+        2418,
+        2424
+    ]
+}
+
+Scheduling a flight is a two step process that consists of first signing up to the contest and then scheduling a flight. We want to represent this as a single step in the user interface by hiding the contest sign up step. Signing up to the contest is a Team Registration. The user creates a contest team registration where they provide an optional copilot, the aircraft registration, the desired airspeed, and the club they will be flying for.
+
+The endpoint document.configuration.MY_PARTICIPATING_CONTESTS_URL Provides a list of all contests the user is currently signed up for. An example object in this list looks like this:
+{
+    "id": 4934,
+    "contest": {
+        "id": 649,
+        "time_zone": "Europe/Stockholm",
+        "navigationtask_set": [
+            {
+                "pk": 2179,
+                "name": "Dala Järna Nav 1",
+                "start_time": "2025-03-24T23:00:00Z",
+                "finish_time": "2025-12-31T23:00:00Z",
+                "tracking_link": "/display/task/2179/map/",
+                "future_contestants": []
+            },
+            {
+                "pk": 2180,
+                "name": "Dala Järna Nav 2",
+                "start_time": "2025-03-24T23:00:00Z",
+                "finish_time": "2025-12-31T23:00:00Z",
+                "tracking_link": "/display/task/2180/map/",
+                "future_contestants": []
+            },
+            {
+                "pk": 2582,
+                "name": "Dala-Järna ASR 1",
+                "start_time": "2025-04-06T22:00:00Z",
+                "finish_time": "2025-12-31T23:00:00Z",
+                "tracking_link": "/display/task/2582/map/",
+                "future_contestants": [
+                    {
+                        "id": 14424,
+                        "gate_times": {
+                            "SP": "2025-12-31T16:42:00+01:00",
+                            "SC1/1": "2025-12-31T16:44:47+01:00",
+                            "TP 1": "2025-12-31T16:45:47+01:00",
+                            "SC2/1": "2025-12-31T16:48:12+01:00",
+                            "TP 2": "2025-12-31T16:52:54+01:00",
+                            "SC3/1": "2025-12-31T16:56:34+01:00",
+                            "TP 3": "2025-12-31T16:59:49+01:00",
+                            "SC4/1": "2025-12-31T17:05:04+01:00",
+                            "FP": "2025-12-31T17:07:56+01:00"
+                        },
+                        "scorecard_rules": [],
+                        "tracker_id_display": [
+                            {
+                                "tracker": "frankose@ifi.uio.no",
+                                "has_user": true,
+                                "is_active": false
+                            }
+                        ],
+                        "default_map_url": "/display/contestant/14424/defaultmap/",
+                        "has_crossed_starting_line": false,
+                        "adaptive_start": false,
+                        "takeoff_time": "2025-12-31T15:37:00.371000Z",
+                        "minutes_to_starting_point": 5,
+                        "finished_by_time": "2025-12-31T16:39:56Z",
+                        "air_speed": 65,
+                        "track_version": 0,
+                        "contestant_number": 1,
+                        "tracking_service": "traccar",
+                        "tracking_device": "pilot_app_or_copilot_a[[",
+                        "tracker_device_id": "",
+                        "tracker_start_time": "2025-12-31T15:27:00.371000Z",
+                        "competition_class_longform": null,
+                        "competition_class_shortform": null,
+                        "wind_speed": 0,
+                        "wind_direction": 0,
+                        "annotation_index": 0,
+                        "has_been_tracked_by_simulator": false,
+                        "team": 63
+                    }
+                ]
+            }
+        ],
+        "contest_team_count": 5,
+        "share_string": "Public",
+        "country_flag_url": "https://storage.googleapis.com/airsports-static/flags/3x2/SE.svg",
+        "country": "SE",
+        "registered": true,
+        "latitude": 60.55622419575818,
+        "longitude": 14.377807615092026,
+        "is_editor": false,
+        "summary_score_sorting_direction": "asc",
+        "autosum_scores": false,
+        "name": "Dala Järna Riks",
+        "location": "60.55622419575818,14.377807615092026",
+        "start_time": "2025-03-24T23:00:00Z",
+        "finish_time": "2026-01-02T22:58:00Z",
+        "is_public": true,
+        "is_featured": true,
+        "contest_website": "https://ksak.se/tavlingar/resultat-riks-landnav/",
+        "header_image": "https://storage.googleapis.com/airsports-data/KSAK-M.png",
+        "logo": "https://storage.googleapis.com/airsports-data/KSAK-M.png",
+        "contest_teams": [
+            63,
+            145,
+            522,
+            1849,
+            1855
+        ]
+    },
+    "team": {
+        "id": 63,
+        "country_flag_url": null,
+        "aeroplane": {
+            "id": 1,
+            "registration": "LN-YDB",
+            "colour": "",
+            "type": "PIAT",
+            "picture": "https://storage.googleapis.com/airsports-data/Electro_transparant.png"
+        },
+        "country": "",
+        "crew": {
+            "id": 55,
+            "member1": {
+                "id": 99,
+                "phone": "+4741408110",
+                "first_name": "Frank Olaf",
+                "last_name": "Sem-Jacobsen",
+                "email": "frankose@ifi.uio.no",
+                "creation_time": "2021-02-21T21:22:16.314888Z",
+                "validated": true,
+                "app_aircraft_registration": "LNYYF",
+                "picture": "https://storage.googleapis.com/airsports-data/kolaf_LTcH5ao.png",
+                "biography": "Cofounder of Air Sports Live Tracking, https://airsports.no.",
+                "country": "NO",
+                "is_public": true,
+                "last_seen": "2025-08-16T13:19:26Z"
+            },
+            "member2": null
+        },
+        "club": {
+            "id": 1,
+            "country_flag_url": "https://storage.googleapis.com/airsports-static/flags/no.gif",
+            "country": "NO",
+            "name": "Kjeller Sportsflyklubb",
+            "logo": "https://storage.googleapis.com/airsports-data/KSK_transparant.png"
+        },
+        "logo": null
+    },
+    "can_edit": true,
+    "air_speed": 65,
+    "tracking_service": "traccar",
+    "tracking_device": "pilot_app_or_copilot_a[[",
+    "tracker_device_id": null
+}
+
+Scheduling a flight in a contest where the user already has signed up requires the user to enter The starting point time the wind direction, and the wind speed. The user can also indicate whether this should be an adaptive start. If adaptive start is selected, your start time will be set to the nearest whole minute you cross the 10 NM long line going through the starting gate anywhere between one hour before and one hour after the selected starting point time (FAQ).
+Scheduling a flight is achieved puting the following data block to the end point navigationTaskContestantSelfRegistration: (contestId, navigationTaskId)
+{
+    "starting_point_time": "2025-12-31T15:42:00.371Z",
+    "contest_team": 4934,
+    "adaptive_start": false,
+    "wind_speed": 0,
+    "wind_direction": 0
+}
+
+
+To combine the and flight scheduling steps into a single step we need a single form. If the user is Not already signed up the contest it must be prompted select a copilot, and enter aircraft airspeed and club. If the user is already registered These fields should be prefilled with the existing registration.
+
+The Fields co-pilot, aircraft, and club It should support auto completion. For clubs the list of available clubs can be fetched from the endpoint /api/v1/clubs/ Which returns to the list of available clubs where a single object looks like:
+{
+    "id": 15,
+    "country_flag_url": "https://storage.googleapis.com/airsports-static/flags/no.gif",
+    "country": "NO",
+    "name": "Gjøvik og Toten Flyklubb",
+    "logo": "https://storage.googleapis.com/airsports-data/gjovik_wHfePG0.jpg"
+}
+The user should be free to enter a club that is not already in the list.
+
+For aircraft The list of available aircrafts can be fetched from the end point api/v1/aircraft/ Which returns the list of available aircraft where a single object looks like: 
+{
+    "id": 203,
+    "registration": "G-DWCB",
+    "colour": "Red",
+    "type": "Chilton",
+    "picture": null
+}
+The user should be free to enter a aircraft that is not already in the list.
+
+For the copilot, the list of available copilots can be fetched from /display/api/person/signuplist/ Which returns the list of available copilots wear a single object looks like:
+{
+    "id": 224,
+    "first_name": "Petter",
+    "last_name": "Faye-Lund",
+    "email": "petter@*****.no"
+}
+The user is not permitted to enter copilots that are not available in the list.
+
+When entering the main page the user should be provided with a list of contests where the end date is in the future. Each contest should display the available navigation tasks and the user should be able to click a navigation task to schedule a flight (With the implicit contest registration). The user should easily a list upcoming scheduled flights. The user should be able to easily cancel a scheduled flight. It would be nice to highlight any contests where the user is already registered.
+
+Flights scheduled for the are available in the property future_contestants In the data from the my participating contests endpoint. The path for this contest.navigationtask_set[0].future_contestants

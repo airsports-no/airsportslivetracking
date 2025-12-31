@@ -7,7 +7,7 @@ import {
   toRad,
   isPointInPolygon,
   getQuadraticBezierPoints
-} from '../../utils/geoUtils';
+} from '../../../../utils/geoUtils';
 
 export const clearLayers = (markersRef, polylinesRef, routeLineRef, map) => {
   Object.values(markersRef.current).forEach(layer => map.removeLayer(layer));

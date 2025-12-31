@@ -1,9 +1,10 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
-import { Loading } from "../components/basicComponents";
+import { Loading } from "./features/route-editor/components/basicComponents";
 
-const EditableRouteList = lazy(() => import("./EditableRouteList").then(module => ({ default: module.EditableRouteList })));
-const RouteEditor = lazy(() => import("./RouteEditor"));
+const EditableRouteList = lazy(() => import("./features/route-editor/containers/EditableRouteList").then(module => ({ default: module.EditableRouteList })));
+const RouteEditor = lazy(() => import("./features/route-editor/containers/RouteEditor"));
+const ScheduleFlightContainer = lazy(() => import("./features/schedule-flight/ScheduleFlightContainer"));
 
 export const EditableRouteRouter = () => {
     return (
@@ -13,6 +14,7 @@ export const EditableRouteRouter = () => {
                     <Route path="/" element={<EditableRouteList />} />
                     <Route path="/edit/:routeId" element={<RouteEditor />} />
                     <Route path="/create" element={<RouteEditor />} />
+                    <Route path="/schedule" element={<ScheduleFlightContainer />} />
                     <Route path="*" element={
                         <div className="hero min-h-screen bg-base-200">
                             <div className="hero-content text-center">

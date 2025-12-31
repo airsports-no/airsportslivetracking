@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Trash2 } from 'lucide-react';
-import { Polygon } from '../types';
+import { Polygon } from '../../../types';
 
 interface EditPolygonViewProps {
     polygon: Polygon;

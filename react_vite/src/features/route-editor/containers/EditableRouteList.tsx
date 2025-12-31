@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ASTable } from "../components/filteredSearchableTable";
 import { Loading } from "../components/basicComponents";
-import { Route } from "../types";
+import { Route } from "../../../types";
 import { ColumnDef } from "@tanstack/react-table";
 
 export const EditableRouteList = () => {

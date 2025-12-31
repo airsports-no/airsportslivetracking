@@ -6,8 +6,8 @@ import {
   getDistanceFromLine,
   isPointInPolygon,
   getQuadraticBezierPoints
-} from '../../utils/geoUtils';
-import { RoutePoint, Gate, Polygon, Mode, SelectionType } from '../../types';
+} from '../../../../utils/geoUtils';
+import { RoutePoint, Gate, Polygon, Mode, SelectionType } from '../../../../types';
 
 export const clearLayers = (markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, polylinesRef: React.MutableRefObject<L.Layer[]>, routeLineRef: React.MutableRefObject<L.Polyline | null>, map: L.Map) => {
   Object.values(markersRef.current).forEach(layer => map.removeLayer(layer));

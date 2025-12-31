@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle, Camera, Hexagon } from 'lucide-react';
-import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../types';
+import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../../../types';
 
 interface RouteListViewProps {
     routePoints: RoutePoint[];
