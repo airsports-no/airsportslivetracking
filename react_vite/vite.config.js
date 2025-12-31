@@ -5,10 +5,10 @@ import path from 'path';
 import fs from 'fs';
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
   // Ensure 'base' is set to the GCS URL for production
-  base: process.env.NODE_ENV === 'production' 
+  base: mode === 'production' 
     ? 'https://storage.googleapis.com/airsports-static/' 
     : '/static/',
   resolve: {
@@ -36,7 +36,14 @@ export default defineConfig({
         // Output JS bundles to js/ directory with -bundle suffix
         entryFileNames: `js/[name]-bundle.js`,
         chunkFileNames: `js/[name]-chunk.js`,
-        assetFileNames: `css/[name].css`,
+        assetFileNames: (assetInfo) => {
+          // Keep CSS in css/ folder
+          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+            return 'css/[name].css';
+          }
+          // Put other assets (images, fonts) in an assets/ folder
+          return 'assets/[name][extname]';
+        },
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
             return 'vendor';
@@ -48,4 +55,4 @@ export default defineConfig({
     outDir: path.resolve(__dirname, '../assets_vite'), // Output directory for built assets
     emptyOutDir: true, // Clean output directory before building
   },
-})
+}));
