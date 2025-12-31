@@ -1,29 +1,31 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {ASTable} from "../components/filteredSearchableTable";
-import {Loading} from "../components/basicComponents";
+import { ASTable } from "../components/filteredSearchableTable";
+import { Loading } from "../components/basicComponents";
+import { Route } from "../types";
+import { ColumnDef } from "@tanstack/react-table";
 
 export const EditableRouteList = () => {
-    const [data, setData] = useState([]);
+    const [data, setData] = useState<Route[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAll, setShowAll] = useState(false);
 
     useEffect(() => {
         fetch(document.configuration.EDITABLE_ROUTES_URL)
             .then((res) => res.json())
-            .then((data) => {
+            .then((data: Route[]) => {
                 setData(data);
                 setLoading(false);
             })
             .catch(() => setLoading(false));
     }, []);
 
-    const columns = useMemo(() => [
+    const columns = useMemo((): ColumnDef<Route>[] => [
         {
             header: "",
             accessorKey: "thumbnail",
             cell: ({ getValue }) => {
-                const value = getValue();
+                const value = getValue() as string;
                 return value ? (
                     <img
                         className="zoom w-[50px] -my-5 -mr-5 max-w-none object-cover"
@@ -48,7 +50,7 @@ export const EditableRouteList = () => {
                         to={`/edit/${row.original.id}`}
                         className="link link-primary"
                     >
-                        {getValue()}
+                        {getValue() as string}
                     </Link>
                 </div>
             )
@@ -62,7 +64,7 @@ export const EditableRouteList = () => {
             header: "Length",
             accessorKey: "route_length",
             enableColumnFilter: false,
-            cell: ({ getValue }) => `${(getValue() / 1852).toFixed(2)} NM`
+            cell: ({ getValue }) => `${(getValue<number>() / 1852).toFixed(2)} NM`
         },
         {
             header: "Editors",
@@ -70,7 +72,7 @@ export const EditableRouteList = () => {
             cell: ({ getValue }) => (
                 <div className="whitespace-normal max-w-[16rem]">
                     <ul className="list-disc list-inside text-xs">
-                        {getValue().map((editor) => (
+                        {getValue<any[]>().map((editor) => (
                             <li key={editor.email}>
                                 {editor.first_name} {editor.last_name}
                             </li>

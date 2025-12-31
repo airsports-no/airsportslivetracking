@@ -31,9 +31,6 @@
 			] // Optional: List of global npm packages to install
 		}
 	},
-	"containerEnv": {
-		"GOOGLE_APPLICATION_CREDENTIALS": "/workspace/secret/application_default_credentials.json"
-	},
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -55,7 +52,7 @@
 		}
 	},
 	// "postCreateCommand": "pip install cython shapely -r requirements.txt && npm install && cd react_vite && npm install && cd ../reactjs/ && npm install && cd ../src/static/css && curl -sL daisyui.com/fast | bash",
-	"postCreateCommand": "cd src/static/css && curl -sL daisyui.com/fast | bash",
+	"postCreateCommand": "cd src/static/css && curl -sL daisyui.com/fast | bash && cd /workspace && npm install -g @google/gemini-cli",
 	"postStartCommand": "rm nohup.out && nohup bash -c 'cd react_vite && (npm run build --watch &) && cd ../reactjs && (npm run webpack-local &) && cd .. && (src/static/css/tailwindcss -i src/static/css/input.css -o src/static/css/output.css --watch &)'"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],

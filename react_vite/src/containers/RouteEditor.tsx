@@ -11,12 +11,14 @@ import {
   getDistanceFromLine,
   toRad
 } from '../utils/geoUtils';
+import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../types';
+import { Map } from 'leaflet';
 
 
 /**
  * Helper to get CSRF token
  */
-function getCookie(name) {
+function getCookie(name: string): string | null {
   let cookieValue = null;
   if (document.cookie && document.cookie !== '') {
     const cookies = document.cookie.split(';');
@@ -34,31 +36,31 @@ function getCookie(name) {
 /**
  * MAIN COMPONENT
  */
-export default function App() {
+export default function RouteEditor() {
   // --- STATE ---
-  const [routePoints, setRoutePoints] = useState([]);
-  const [gates, setGates] = useState([]); // { id, name, type, p1: {lat,lng}, p2: {lat,lng} }
-  const [observationMarkers, setObservationMarkers] = useState([]); // { id, lat, lng, name, notes }
-  const [polygons, setPolygons] = useState([]); // { id, name, type, points: [{lat,lng}] }
-  const [selectedId, setSelectedId] = useState(null);
-  const [selectionType, setSelectionType] = useState(null); // 'point' | 'gate' | 'observation'
-  const [routeId, setRouteId] = useState(null);
-  const { routeId: paramRouteId } = useParams();
+  const [routePoints, setRoutePoints] = useState<RoutePoint[]>([]);
+  const [gates, setGates] = useState<Gate[]>([]);
+  const [observationMarkers, setObservationMarkers] = useState<ObservationMarker[]>([]);
+  const [polygons, setPolygons] = useState<Polygon[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectionType, setSelectionType] = useState<SelectionType | null>(null);
+  const [routeId, setRouteId] = useState<string | null>(null);
+  const { routeId: paramRouteId } = useParams<{ routeId: string }>();
   const [routeName, setRouteName] = useState("");
   const [isDirty, setIsDirty] = useState(false);
 
   // Modes: 'view', 'add_point', 'add_landing...', 'add_takeoff...', 'add_observation', 'add_polygon'
-  const [mode, setMode] = useState('view');
-  const [tempGatePoint, setTempGatePoint] = useState(null); // Stores p1 while waiting for p2
-  const [tempPolygonPoints, setTempPolygonPoints] = useState([]);
+  const [mode, setMode] = useState<Mode>('view');
+  const [tempGatePoint, setTempGatePoint] = useState<LatLng | null>(null);
+  const [tempPolygonPoints, setTempPolygonPoints] = useState<LatLng[]>([]);
   const [showCorridor, setShowCorridor] = useState(false);
   const [addCurveMode, setAddCurveMode] = useState(false);
   const [maxObsDist, setMaxObsDist] = useState(926); // Default 0.5 NM
   const [hideLabels, setHideLabels] = useState(false);
 
   const modeRef = useRef(mode);
-  const [mapInstance, setMapInstance] = useState(null);
-  const [pendingBounds, setPendingBounds] = useState(null);
+  const [mapInstance, setMapInstance] = useState<Map | null>(null);
+  const [pendingBounds, setPendingBounds] = useState<L.LatLngBoundsExpression | null>(null);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -66,7 +68,7 @@ export default function App() {
 
   // --- WARN ON UNSAVED CHANGES (Browser Navigation) ---
   useEffect(() => {
-    const handleBeforeUnload = (e) => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
         e.preventDefault();
         e.returnValue = '';
@@ -77,21 +79,21 @@ export default function App() {
   }, [isDirty]);
 
   // --- LOAD ROUTE ---
-  const loadRouteData = useCallback((json) => {
+  const loadRouteData = useCallback((json: any) => {
     try {
-      const newPoints = [];
-      const newGates = [];
-      const newObs = [];
-      const newPolys = [];
+      const newPoints: RoutePoint[] = [];
+      const newGates: Gate[] = [];
+      const newObs: ObservationMarker[] = [];
+      const newPolys: Polygon[] = [];
 
       if (json.type === 'FeatureCollection') {
         // Parse Features
         const features = json.features;
 
         // Filter Points
-        const pointFeatures = features.filter(f => f.geometry.type === 'Point' && f.properties.featureType !== 'observation_photo').sort((a, b) => a.properties.sequence - b.properties.sequence);
+        const pointFeatures = features.filter((f: any) => f.geometry.type === 'Point' && f.properties.featureType !== 'observation_photo').sort((a: any, b: any) => a.properties.sequence - b.properties.sequence);
 
-        pointFeatures.forEach(f => {
+        pointFeatures.forEach((f: any) => {
           newPoints.push({
             id: f.properties.id || crypto.randomUUID(),
             lat: f.geometry.coordinates[1],
@@ -108,8 +110,8 @@ export default function App() {
         });
 
         // Filter Gates
-        const gateFeatures = features.filter(f => f.geometry.type === 'LineString' && f.properties.gateType);
-        gateFeatures.forEach(f => {
+        const gateFeatures = features.filter((f: any) => f.geometry.type === 'LineString' && f.properties.gateType);
+        gateFeatures.forEach((f: any) => {
           newGates.push({
             id: f.properties.id || crypto.randomUUID(),
             name: f.properties.name || "Gate",
@@ -121,8 +123,8 @@ export default function App() {
         });
 
         // Filter Observation Markers
-        const obsFeatures = features.filter(f => f.geometry.type === 'Point' && f.properties.featureType === 'observation_photo');
-        obsFeatures.forEach(f => {
+        const obsFeatures = features.filter((f: any) => f.geometry.type === 'Point' && f.properties.featureType === 'observation_photo');
+        obsFeatures.forEach((f: any) => {
           newObs.push({
             id: f.properties.id || crypto.randomUUID(),
             lat: f.geometry.coordinates[1],
@@ -132,8 +134,8 @@ export default function App() {
         });
 
         // Filter Polygons
-        const polyFeatures = features.filter(f => f.geometry.type === 'Polygon' && (f.properties.featureType === 'zone' || f.properties.featureType === 'waypoint_polygon'));
-        polyFeatures.forEach(f => {
+        const polyFeatures = features.filter((f: any) => f.geometry.type === 'Polygon' && (f.properties.featureType === 'zone' || f.properties.featureType === 'waypoint_polygon'));
+        polyFeatures.forEach((f: any) => {
           const coords = f.geometry.coordinates[0]; // Outer ring
           // Remove last point if it duplicates first (GeoJSON standard)
           if (coords.length > 0 && coords[0][0] === coords[coords.length - 1][0] && coords[0][1] === coords[coords.length - 1][1]) {
@@ -143,7 +145,7 @@ export default function App() {
             id: f.properties.id || crypto.randomUUID(),
             name: f.properties.name || "Zone",
             type: f.properties.featureType === 'waypoint_polygon' ? 'waypoint' : (f.properties.polygonType || 'prohibited'),
-            points: coords.map(c => ({ lng: c[0], lat: c[1] }))
+            points: coords.map((c: any) => ({ lng: c[0], lat: c[1] }))
           });
         });
 
@@ -159,7 +161,7 @@ export default function App() {
         let maxLng = -Infinity;
         let hasPoints = false;
 
-        const extend = (lat, lng) => {
+        const extend = (lat: number, lng: number) => {
           if (lat < minLat) minLat = lat;
           if (lat > maxLat) maxLat = lat;
           if (lng < minLng) minLng = lng;
@@ -187,7 +189,7 @@ export default function App() {
   useEffect(() => {
     if (mapInstance && pendingBounds) {
       const timer = setTimeout(() => {
-        let map = mapInstance;
+        let map = mapInstance as any;
         if (map.current) map = map.current;
         if (map) map = map.map || map.leafletElement || (map.getMap ? map.getMap() : map);
 
@@ -204,7 +206,7 @@ export default function App() {
   useEffect(() => {
     if (paramRouteId) {
       setRouteId(paramRouteId);
-      fetch(document.configuration.editableRouteUrl(paramRouteId))
+      fetch(document.configuration.editableRouteUrl(parseInt(paramRouteId)))
         .then(res => {
           if (!res.ok) throw new Error("Failed to load route");
           return res.json();
@@ -230,7 +232,7 @@ export default function App() {
 
   // --- HANDLERS (Defined before Map Logic to be used in deps) ---
 
-  const handleMapClick = useCallback((latlng) => {
+  const handleMapClick = useCallback((latlng: LatLng) => {
     if (mode === 'view') {
       setSelectedId(null);
       setSelectionType(null);
@@ -250,7 +252,7 @@ export default function App() {
           }
         }
 
-        let segmentType = 'straight';
+        let segmentType: "straight" | "curved" = 'straight';
         let controlLat = 0;
         let controlLng = 0;
 
@@ -264,7 +266,7 @@ export default function App() {
           controlLng = midLng - (latlng.lat - prev.lat) * 0.2;
         }
 
-        const newPoint = {
+        const newPoint: RoutePoint = {
           id: crypto.randomUUID(),
           lat: latlng.lat,
           lng: latlng.lng,
@@ -291,7 +293,7 @@ export default function App() {
         setTempGatePoint(latlng);
       } else {
         // Second point of the gate
-        const newGate = {
+        const newGate: Gate = {
           id: crypto.randomUUID(),
           name: `${gateType === 'landing' ? 'L' : 'TO'} Gate ${gates.length + 1}`,
           type: gateType,
@@ -359,7 +361,7 @@ export default function App() {
     }
   }, [mode, routePoints, gates.length, tempGatePoint, observationMarkers.length, polygons.length, addCurveMode]);
 
-  const updateSelectedPoint = (field, value) => {
+  const updateSelectedPoint = (field: keyof RoutePoint, value: any) => {
     setIsDirty(true);
     setRoutePoints(points => {
       const index = points.findIndex(p => p.id === selectedId);
@@ -400,7 +402,7 @@ export default function App() {
     });
   };
 
-  const updateSelectedGate = (field, value) => {
+  const updateSelectedGate = (field: keyof Gate, value: any) => {
     setIsDirty(true);
     setGates(gts => gts.map(g => {
       if (g.id !== selectedId) return g;
@@ -408,7 +410,7 @@ export default function App() {
     }));
   };
 
-  const updateSelectedObservation = (field, value) => {
+  const updateSelectedObservation = (field: keyof ObservationMarker, value: any) => {
     setIsDirty(true);
     setObservationMarkers(markers => markers.map(m => {
       if (m.id !== selectedId) return m;
@@ -416,7 +418,7 @@ export default function App() {
     }));
   };
 
-  const updateSelectedPolygon = (field, value) => {
+  const updateSelectedPolygon = (field: keyof Polygon, value: any) => {
     setIsDirty(true);
     setPolygons(polys => polys.map(p => {
       if (p.id !== selectedId) return p;
@@ -489,7 +491,7 @@ export default function App() {
     setSelectionType(null);
   };
 
-  const movePointOrder = (direction) => {
+  const movePointOrder = (direction: "up" | "down") => {
     setIsDirty(true);
     if (selectionType !== 'point') return;
     const idx = routePoints.findIndex(p => p.id === selectedId);
@@ -506,7 +508,7 @@ export default function App() {
 
   // --- VALIDATION LOGIC ---
   const validationErrors = useMemo(() => {
-    const errors = [];
+    const errors: string[] = [];
 
     if (routePoints.length < 2) {
       errors.push("Route must have at least 2 points.");
@@ -649,7 +651,7 @@ export default function App() {
       let method = 'POST';
 
       if (routeId) {
-        url = document.configuration.editableRouteUrl(routeId);
+        url = document.configuration.editableRouteUrl(parseInt(routeId));
         method = 'PUT';
       }
 
@@ -657,7 +659,7 @@ export default function App() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie('csrftoken')
+          'X-CSRFToken': getCookie('csrftoken')!
         },
         body: JSON.stringify(payload)
       });

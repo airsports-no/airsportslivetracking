@@ -6,12 +6,17 @@ import {
     getSortedRowModel,
     getFacetedUniqueValues,
     getFacetedMinMaxValues,
-    flexRender
+    flexRender,
+    Column,
+    Table,
+    ColumnDef,
+    FilterFn,
+    Row
 } from '@tanstack/react-table';
 import { matchSorter } from "match-sorter";
 
 // Define a default UI for filtering
-function GlobalFilter({ globalFilter, setGlobalFilter, count }) {
+function GlobalFilter({ globalFilter, setGlobalFilter, count }: { globalFilter: string, setGlobalFilter: (filter: string) => void, count: number }) {
     const [value, setValue] = useState(globalFilter || '');
 
     useEffect(() => {
@@ -41,13 +46,13 @@ function GlobalFilter({ globalFilter, setGlobalFilter, count }) {
 }
 
 // Define a default UI for filtering
-function DefaultColumnFilter({ column, table }) {
+function DefaultColumnFilter<T>({ column, table }: { column: Column<T, unknown>, table: Table<T> }) {
     const filterValue = column.getFilterValue();
     const count = table.getPreFilteredRowModel().rows.length;
 
     return (
         <input
-            value={filterValue || ''}
+            value={(filterValue || '') as string}
             onChange={e => {
                 column.setFilterValue(e.target.value || undefined); // Set undefined to remove the filter entirely
             }}
@@ -60,7 +65,7 @@ function DefaultColumnFilter({ column, table }) {
 
 // This is a custom filter UI for selecting
 // a unique option from a list
-export function SelectColumnFilter({ column }) {
+export function SelectColumnFilter<T>({ column }: { column: Column<T, unknown> }) {
     const filterValue = column.getFilterValue();
     // Calculate the options for filtering
     // using the getFacetedUniqueValues
@@ -72,7 +77,7 @@ export function SelectColumnFilter({ column }) {
     // Render a multi-select box
     return (
         <select
-            value={filterValue}
+            value={filterValue as string}
             onChange={e => {
                 column.setFilterValue(e.target.value || undefined);
             }}
@@ -92,7 +97,7 @@ export function SelectColumnFilter({ column }) {
 // This is a custom filter UI that uses a
 // slider to set the filter value between a column's
 // min and max values
-function SliderColumnFilter({ column }) {
+function SliderColumnFilter<T>({ column }: { column: Column<T, unknown> }) {
     const filterValue = column.getFilterValue();
     // Calculate the min and max
     // using the getFacetedMinMaxValues
@@ -106,7 +111,7 @@ function SliderColumnFilter({ column }) {
                 type="range"
                 min={min}
                 max={max}
-                value={filterValue || min}
+                value={(filterValue || min) as number}
                 onChange={e => {
                     column.setFilterValue(parseInt(e.target.value, 10));
                 }}
@@ -125,8 +130,8 @@ function SliderColumnFilter({ column }) {
 // This is a custom UI for our 'between' or number range
 // filter. It uses two number boxes and filters rows to
 // ones that have values between the two
-function NumberRangeColumnFilter({ column }) {
-    const filterValue = column.getFilterValue() || [];
+function NumberRangeColumnFilter<T>({ column }: { column: Column<T, unknown> }) {
+    const filterValue = (column.getFilterValue() || []) as [number, number];
     const [min, max] = useMemo(() => {
         return column.getFacetedMinMaxValues() || [0, 0];
     }, [column]);
@@ -138,7 +143,7 @@ function NumberRangeColumnFilter({ column }) {
                 type="number"
                 onChange={e => {
                     const val = e.target.value;
-                    column.setFilterValue((old = []) => [val ? parseInt(val, 10) : undefined, old[1]]);
+                    column.setFilterValue((old: [number, number] = [undefined, undefined]) => [val ? parseInt(val, 10) : undefined, old[1]]);
                 }}
                 placeholder={`Min (${min})`}
                 className="input input-bordered input-xs w-20"
@@ -149,7 +154,7 @@ function NumberRangeColumnFilter({ column }) {
                 type="number"
                 onChange={e => {
                     const val = e.target.value;
-                    column.setFilterValue((old = []) => [old[0], val ? parseInt(val, 10) : undefined]);
+                    column.setFilterValue((old: [number, number] = [undefined, undefined]) => [old[0], val ? parseInt(val, 10) : undefined]);
                 }}
                 placeholder={`Max (${max})`}
                 className="input input-bordered input-xs w-20"
@@ -158,7 +163,7 @@ function NumberRangeColumnFilter({ column }) {
     );
 }
 
-function fuzzyTextFilterFn(row, columnId, filterValue, addMeta) {
+const fuzzyTextFilterFn: FilterFn<any> = (row, columnId, filterValue) => {
     // matchSorter expects an array of items, so we pass the single cell value in an array
     const itemValue = row.getValue(columnId);
     const res = matchSorter([itemValue], filterValue);
@@ -166,10 +171,20 @@ function fuzzyTextFilterFn(row, columnId, filterValue, addMeta) {
 }
 
 // Let the table remove the filter if the string is empty
-fuzzyTextFilterFn.autoRemove = val => !val;
+fuzzyTextFilterFn.autoRemove = (val: any) => !val;
+
+interface ASTableProps<T> {
+    columns: ColumnDef<T, any>[];
+    data: T[];
+    rowEvents?: {
+        onClick?: (row: T) => void;
+    };
+    initialState?: any;
+    className?: string;
+}
 
 // Our table component
-export function ASTable({ columns = [], data = [], rowEvents, initialState, className }) {
+export function ASTable<T>({ columns = [], data = [], rowEvents, initialState, className }: ASTableProps<T>) {
     const [globalFilter, setGlobalFilter] = useState(initialState?.globalFilter || '');
     const [columnVisibility, setColumnVisibility] = useState({});
 
@@ -181,10 +196,10 @@ export function ASTable({ columns = [], data = [], rowEvents, initialState, clas
 
     // Initialize column visibility from columns prop
     useEffect(() => {
-        const visibility = {};
+        const visibility: { [key: string]: boolean } = {};
         (columns || []).forEach(col => {
-            if (col && col.hidden) {
-                visibility[col.id || col.accessorKey] = false;
+            if (col && (col as any).hidden) {
+                visibility[(col as any).id || col.accessorKey] = false;
             }
         });
         setColumnVisibility(prev => {
@@ -239,14 +254,14 @@ export function ASTable({ columns = [], data = [], rowEvents, initialState, clas
                                                 {{
                                                     asc: ' 🔼',
                                                     desc: ' 🔽',
-                                                }[column.column.getIsSorted()] ?? null}
+                                                }[(column.column.getIsSorted() as "asc" | "desc")] ?? null}
                                             </span>
                                         </div>
                                         <div onClick={e => e.stopPropagation()} className="font-normal normal-case">
                                             {column.column.getCanFilter() ? (
                                                 // Render the Filter component passed in column def or default
                                                 React.createElement(
-                                                    column.column.columnDef.Filter || defaultColumn.filterComponent,
+                                                    (column.column.columnDef as any).Filter || defaultColumn.filterComponent,
                                                     { column: column.column, table }
                                                 )
                                             ) : null}
@@ -282,7 +297,7 @@ export function ASTable({ columns = [], data = [], rowEvents, initialState, clas
 }
 
 // Define a custom filter filter function!
-function filterGreaterThan(row, columnId, filterValue) {
+function filterGreaterThan<T>(row: Row<T>, columnId: string, filterValue: any): boolean {
     const rowValue = row.getValue(columnId);
     return rowValue >= filterValue;
 }
@@ -291,4 +306,4 @@ function filterGreaterThan(row, columnId, filterValue) {
 // when given the new filter value and returns true, the filter
 // will be automatically removed. Normally this is just an undefined
 // check, but here, we want to remove the filter if it's not a number
-filterGreaterThan.autoRemove = val => typeof val !== 'number';
+filterGreaterThan.autoRemove = (val: any) => typeof val !== 'number';
