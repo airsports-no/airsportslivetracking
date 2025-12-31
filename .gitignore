@@ -35,3 +35,8 @@ assets_vite
 reactjs/**/*.jsx
 /assets/assets/
 /assets/bundles/
+src/static/css/tailwindcss
+src/static/css/output.css
+nohup.out
+*.mjs
+manifest.json
