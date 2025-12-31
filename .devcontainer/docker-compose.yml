@@ -1,4 +1,0 @@
-services:
-  tracker_daphne:
-    command: 'bash -c "while sleep 1000; do :; done"'
-    tty: true

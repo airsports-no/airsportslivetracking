@@ -1,0 +1,5 @@
+services:
+  tracker_daphne:
+    volumes:
+      - .:/workspace:cached
+    command: sleep infinity

@@ -1,23 +1,39 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-docker-compose
+// README at: https://github.com/devcontainers/templates/tree/main/src/python
 {
-	"name": "Existing Docker Compose (Extend)",
-
-	// Update the 'dockerComposeFile' list if you have more compose files or use different names.
-	// The .devcontainer/docker-compose.yml file contains any overrides you need/want to make.
+	"name": "Airsports live tracking",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
 	"dockerComposeFile": [
 		"../docker-compose.yml",
-		"docker-compose.yml"
+		// You can include additional override files if needed:
+		"docker-compose.override.yml" 
 	],
-
-	// The 'service' property is the name of the service for the container that VS Code should
-	// use. Update this value and .devcontainer/docker-compose.yml to the real service name.
+	// Specify the service VS Code should attach to
 	"service": "tracker_daphne",
-
-	// The optional 'workspaceFolder' property is the path VS Code should open by default when
-	// connected. This is typically a file mount in .devcontainer/docker-compose.yml
-	"workspaceFolder": "/workspace/",
-	"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+	"workspaceFolder": "/workspace",
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {
+			"ppa": true,
+			"version": "os-provided"
+		},
+		"ghcr.io/devcontainers-extra/features/curl-apt-get:1": {},
+		"ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
+			// "packages": "build-essential,pkg-config,cmake,curl,gdal-bin,proj-data,proj-bin,default-libmysqlclient-dev,libcliquer1,libgslcblas0,latexmk,texlive,texlive-latex-base,texlive-latex-extra,texlive-latex-recommended,ca-certificates,gnupg,watchman"
+			"packages": "watchman,curl,wget,build-essential,pkg-config,cmake"
+		},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "24", // Specify a Node.js version (e.g., "18", "lts", "latest")
+			"nodeGypDependencies": true, // Installs common C/C++ dependencies for native modules
+			"installVscodeCli": true, // Optional: installs the dev container CLI
+			"npmPackages": [
+				"eslint",
+				"prettier"
+			] // Optional: List of global npm packages to install
+		}
+	},
+	"containerEnv": {
+		"GOOGLE_APPLICATION_CREDENTIALS": "/workspace/secret/application_default_credentials.json"
+	},
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -37,31 +53,15 @@
 			]
 		}
 	},
-
-	// Features to add to the dev container. More info: https://containers.dev/features.
-	"features": {
-		"ghcr.io/devcontainers/features/git:1": {
-			"ppa": true,
-			"version": "os-provided"
-		},
-		"ghcr.io/devcontainers-contrib/features/curl-apt-get:1": {}
-	},
-
+	// "postCreateCommand": "pip install cython shapely -r requirements.txt && npm install && cd react_vite && npm install && cd ../reactjs/ && npm install && cd ../src/static/css && curl -sL daisyui.com/fast | bash",
+	"postCreateCommand": "cd src/static/css && curl -sL daisyui.com/fast | bash",
+	"postStartCommand": "rm nohup.out && nohup bash -c 'cd react_vite && (npm run build --watch &) && cd ../reactjs && (npm run webpack-local &) && cd .. && (src/static/css/tailwindcss -i src/static/css/input.css -o src/static/css/output.css --watch &)'"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
-
-	// Uncomment the next line if you want start specific services in your Docker Compose config.
-	// "runServices": [],
-
-	// Uncomment the next line if you want to keep your containers running after VS Code shuts down.
-	// "shutdownAction": "none",
-
-	// Uncomment the next line to run commands after the container is created.
-	// "postCreateCommand": "cat /etc/os-release",
-
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "pip3 install --user -r requirements.txt",
 	// Configure tool-specific properties.
 	// "customizations": {},
-
-	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "devcontainer"
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root"
 }
