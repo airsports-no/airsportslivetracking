@@ -870,17 +870,17 @@ class ConnectedRouteEditor extends Component {
             position: 'topleft',
             collapsed: false
         }).addTo(this.map);
-        this.map.on("locationerror", (e) => {
-            if (!this.props.routeId) {
-                this.map.setView(L.latLng(59, 10.5), 7)
-            }
-        })
-        if (!this.props.routeId) {
-            this.map.locate({ setView: true, maxZoom: 7 })
-        }
-        this.drawControl = new L.Control.Draw({
-            draw: this.drawingDisabledOptions
-        })
+                this.map.on("locationerror", (e) => {
+                    if (!this.props.routeId) {
+                        this.map.setView(L.latLng(59, 10.5), 7)
+                    }
+                })
+                if (!this.props.routeId) {
+                    this.map.locate({ setView: true, maxZoom: 7 })
+                }
+                this.drawControl = new L.Control.Draw({
+                    draw: this.drawingDisabledOptions
+                })
         this.map.whenReady(() => {
             this.map.addControl(this.drawControl);
             this.mapReady = true

@@ -188,6 +188,13 @@ export default function RouteEditor() {
   }, [mapInstance, pendingBounds]);
 
   useEffect(() => {
+    if (mapInstance && !paramRouteId) {
+      // Only locate user if map is ready and no route is being loaded (new route)
+      (mapInstance as L.Map).locate({ setView: true, maxZoom: 11 });
+    }
+  }, [mapInstance, paramRouteId]);
+
+  useEffect(() => {
     if (paramRouteId) {
       setRouteId(paramRouteId);
       fetchRoute(parseInt(paramRouteId))

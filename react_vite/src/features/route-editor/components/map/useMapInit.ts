@@ -13,7 +13,6 @@ export default function useMapInit(): React.MutableRefObject<L.Map | null> {
     if (mapRef.current) return; // Prevent double init
 
     const map = L.map('map-container', { zoomControl: false }).setView([51.505, -0.09], 13);
-    map.locate({ setView: true, maxZoom: 11 });
 
     // Tile Layers
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
