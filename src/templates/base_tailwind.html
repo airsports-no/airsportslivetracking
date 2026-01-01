@@ -48,7 +48,9 @@
             contestDetailsViewUrl: contestId => "{% url 'contest_details' 0 %}".replace("0", contestId),
             GET_PERSONS_FOR_SIGNUP_URL: "{% url 'get_persons_for_signup' %}",
             EDITABLE_ROUTE_LIST_VIEW_URL: "{% url 'frontend' %}routeeditor/",
-            STATIC_FILE_LOCATION:  "{% static '' %}"
+            STATIC_FILE_LOCATION:  "{% static '' %}",
+
+            currentUserEmail: "{{ user.email }}"
 
         }
         document.configuration.getCookie = (name) => {

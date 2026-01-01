@@ -65,6 +65,7 @@ from display.permissions import (
 )
 from display.serialisers import (
     ContestantTrackSerialiser,
+    NavigationTaskNestedTeamRouteSerialiserNestedContest,
     NavigationTasksSummarySerialiser,
     ContestTeamManagementSerialiser,
     PersonSerialiser,
@@ -184,17 +185,19 @@ class UserPersonViewSet(GenericViewSet):
         available_contests = Contest.visible_contests_for_user(request.user).filter()
         # for authorisation
         person = self.get_object()
-        contest_teams = (
-            ContestTeam.objects.filter(
-                Q(team__crew__member1=person) | Q(team__crew__member2=person),
+        navigation_tasks = (
+            NavigationTask.objects.filter(
+                Q(contestant__team__crew__member1=person) | Q(contestant__team__crew__member2=person),
                 contest__in=available_contests,
             )
             .order_by("contest__start_time")
             .distinct()
         )
-        for team in contest_teams:
-            team.can_edit = team.team.crew.member1 == person
-        return Response(ContestTeamManagementSerialiser(contest_teams, many=True, context={"request": request}).data)
+        return Response(
+            NavigationTaskNestedTeamRouteSerialiserNestedContest(
+                navigation_tasks, many=True, context={"request": request}
+            ).data
+        )
 
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):

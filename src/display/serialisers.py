@@ -1024,6 +1024,10 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         return navigation_task
 
 
+class NavigationTaskNestedTeamRouteSerialiserNestedContest(NavigationTaskNestedTeamRouteSerialiser):
+    contest = ContestSerialiser(read_only=True)
+
+
 class MyRoutesField(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
         user = self.context["request"].user
