@@ -90,7 +90,7 @@
 <body>
 <header>
     {% if not skip_nav %}
-        <div class="navbar bg-gray-900 text-white">
+        <div class="navbar bg-neutral text-neutral-content">
             <div class="navbar-start">
                 <a class="btn btn-ghost text-xl" href="/">
                     <img class="h-8" src="{% static 'img/airsports_live_tracking_white.png' %}" alt="AirSports">
@@ -108,7 +108,7 @@
                             <li>
                                 <details>
                                     <summary>Contests</summary>
-                                    <ul class="p-2 bg-gray-900 rounded-t-none z-50">
+                                    <ul class="p-2 bg-neutral rounded-t-none z-50">
                                         <li><a href="{% url 'contest_list' %}">My contests</a></li>
                                         <li><a href="{% url 'useruploadedmap_list' %}">My maps</a></li>
                                         <li><a href="{% url 'frontend' %}routeeditor/">Route editor</a></li>
@@ -133,7 +133,7 @@
                             <li>
                                 <details>
                                     <summary>Profile</summary>
-                                    <ul class="p-2 bg-gray-900 rounded-t-none z-50 right-0">
+                                    <ul class="p-2 bg-neutral rounded-t-none z-50 right-0">
                                         <li>{{ user.email }}</li>
                                         <li><a href="{% url 'password_change' %}?next=/">Change password</a></li>
                                         {% if perms.display.change_contest %}
@@ -174,7 +174,7 @@
         menuToggle.addEventListener('click', function() {
             if (mainMenu.classList.contains('hidden')) {
                 mainMenu.classList.remove('hidden');
-                mainMenu.classList.add('block', 'absolute', 'top-16', 'left-0', 'w-full', 'bg-gray-900', 'shadow-lg', 'py-2');
+                mainMenu.classList.add('block', 'absolute', 'top-16', 'left-0', 'w-full', 'bg-neutral', 'shadow-lg', 'py-2');
                 mainMenu.querySelector('ul').classList.remove('menu-horizontal');
                 mainMenu.querySelector('ul').classList.add('menu-vertical');
 
@@ -191,7 +191,7 @@
 
             } else {
                 mainMenu.classList.add('hidden');
-                mainMenu.classList.remove('block', 'absolute', 'top-16', 'left-0', 'w-full', 'bg-gray-900', 'shadow-lg', 'py-2');
+                mainMenu.classList.remove('block', 'absolute', 'top-16', 'left-0', 'w-full', 'bg-neutral', 'shadow-lg', 'py-2');
                 mainMenu.querySelector('ul').classList.remove('menu-vertical');
                 mainMenu.querySelector('ul').classList.add('menu-horizontal');
 

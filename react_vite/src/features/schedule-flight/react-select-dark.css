@@ -1,0 +1,47 @@
+
+/* react-select-dark.css */
+
+/* Control */
+.react-select__control {
+    background-color: hsl(var(--b1)) !important;
+    border-color: hsl(var(--b3)) !important;
+}
+
+.react-select__control--is-focused {
+    border-color: hsl(var(--p)) !important;
+    box-shadow: 0 0 0 1px hsl(var(--p)) !important;
+}
+
+/* Input */
+.react-select__input, .react-select__single-value {
+    color: hsl(var(--bc)) !important;
+}
+
+/* Menu */
+.react-select__menu {
+    background-color: hsl(var(--b1)) !important;
+}
+
+/* Option */
+.react-select__option {
+    background-color: hsl(var(--b1)) !important;
+    color: hsl(var(--bc)) !important;
+}
+
+.react-select__option--is-focused {
+    background-color: hsl(var(--b2)) !important;
+}
+
+.react-select__option--is-selected {
+    background-color: hsl(var(--p)) !important;
+    color: hsl(var(--pc)) !important;
+}
+
+/* Multi-value */
+.react-select__multi-value {
+    background-color: hsl(var(--b2)) !important;
+}
+
+.react-select__multi-value__label {
+    color: hsl(var(--bc)) !important;
+}

@@ -7,6 +7,7 @@ import Select from 'react-select';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
 import ContestRegistrationForm from './components/ContestRegistrationForm';
 import { Link } from "react-router-dom"; // Import Link
+import './react-select-dark.css';
 
 
 // Mock data for development
