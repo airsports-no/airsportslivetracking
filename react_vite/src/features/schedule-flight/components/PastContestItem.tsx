@@ -76,12 +76,16 @@ const PastContestItem: React.FC<PastContestItemProps> = ({ contest, showPastCont
                                                     (contestant.team.crew.member1?.email === currentUserEmail ||
                                                         contestant.team.crew.member2?.email === currentUserEmail);
 
+                                                const isStrikethrough =
+                                                    (contestant.contestanttrack.calculator_started === false && contestant.contestanttrack.score === 0) ||
+                                                    (contestant.contestanttrack.current_state === "Waiting...");
+
                                                 return (
                                                     <div
                                                         key={contestant.id}
                                                         className={`flex justify-between items-center text-sm p-2 rounded mb-1 ${
                                                             isCurrentUser ? 'bg-blue-200 font-bold' : 'bg-base-100'
-                                                        }`}
+                                                        } ${isStrikethrough ? 'line-through' : ''}`}
                                                     >
                                                         <span>
                                                             {contestant.team.crew.member1.first_name} {contestant.team.crew.member1.last_name}
