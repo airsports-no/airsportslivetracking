@@ -95,12 +95,17 @@
                 </a>
             </div>
             <div class="navbar-end">
-                <div class="flex-none">
+                <div class="flex-none lg:hidden">
+                    <button id="menu-toggle" class="btn btn-square btn-ghost">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                </div>
+                <div id="main-menu" class="hidden lg:flex lg:items-center lg:w-auto">
                     <ul class="menu menu-horizontal px-1">
                         {% if perms.display.add_contest %}
                             <li>
                                 <details>
-                                    <summary>Contest management</summary>
+                                    <summary>Contests</summary>
                                     <ul class="p-2 bg-gray-900 rounded-t-none z-50">
                                         <li><a href="{% url 'contest_list' %}">My contests</a></li>
                                         <li><a href="{% url 'useruploadedmap_list' %}">My maps</a></li>
@@ -125,8 +130,9 @@
                         {% else %}
                             <li>
                                 <details>
-                                    <summary>{{ user.email }}</summary>
+                                    <summary>Profile</summary>
                                     <ul class="p-2 bg-gray-900 rounded-t-none z-50 right-0">
+                                        <li>{{ user.email }}</li>
                                         <li><a href="{% url 'password_change' %}?next=/">Change password</a></li>
                                         {% if perms.display.change_contest %}
                                             <li><a href="{% url 'token' %}">Token</a></li>
@@ -158,5 +164,47 @@
         {% endblock %}
     </div>
 </main>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const menuToggle = document.getElementById('menu-toggle');
+        const mainMenu = document.getElementById('main-menu');
+
+        menuToggle.addEventListener('click', function() {
+            if (mainMenu.classList.contains('hidden')) {
+                mainMenu.classList.remove('hidden');
+                mainMenu.classList.add('block', 'absolute', 'top-16', 'left-0', 'w-full', 'bg-gray-900', 'shadow-lg', 'py-2');
+                mainMenu.querySelector('ul').classList.remove('menu-horizontal');
+                mainMenu.querySelector('ul').classList.add('menu-vertical');
+
+                // Adjust positioning of nested dropdowns for vertical display
+                const detailElements = mainMenu.querySelectorAll('details');
+                detailElements.forEach(detail => {
+                    const ul = detail.querySelector('ul');
+                    if (ul) {
+                        ul.classList.remove('rounded-t-none', 'z-50', 'right-0');
+                        ul.classList.add('w-full');
+                    }
+                });
+
+
+            } else {
+                mainMenu.classList.add('hidden');
+                mainMenu.classList.remove('block', 'absolute', 'top-16', 'left-0', 'w-full', 'bg-gray-900', 'shadow-lg', 'py-2');
+                mainMenu.querySelector('ul').classList.remove('menu-vertical');
+                mainMenu.querySelector('ul').classList.add('menu-horizontal');
+
+                // Revert positioning of nested dropdowns
+                const detailElements = mainMenu.querySelectorAll('details');
+                detailElements.forEach(detail => {
+                    const ul = detail.querySelector('ul');
+                    if (ul) {
+                        ul.classList.add('rounded-t-none', 'z-50', 'right-0');
+                        ul.classList.remove('w-full');
+                    }
+                });
+            }
+        });
+    });
+</script>
 </body>
 </html>

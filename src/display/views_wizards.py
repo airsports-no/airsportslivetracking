@@ -376,10 +376,10 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
                 self.request,
                 f"Unable to find original scorecard for task type {task_type}. Please notify support@airsports.no.",
             )
-            return redirect("editableroute_list")
+            return redirect("/frontend/routeeditor/")
         except ValidationError as e:
             messages.error(self.request, str(e))
-            return redirect("editableroute_list")
+            return redirect("/frontend/routeeditor/")
 
 
 def create_new_pilot(wizard):

@@ -1,6 +1,7 @@
 """
 URLs used by the front end
 """
+
 import os
 
 if __name__ == "__main__":
@@ -44,7 +45,6 @@ print_view_url("aircraft-list", [])
 print_view_url("clubs-list", [])
 print_view_url("frontend_view_map", [1])
 print_view_url("get_persons_for_signup", [])
-print_view_url("editableroute_list", [])
 
 print_view_url("autocomplete_aeroplane", [])
 print_view_url("autocomplete_club", [])

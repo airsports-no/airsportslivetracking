@@ -1846,7 +1846,7 @@ class EditableRouteDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = EditableRoute
     permission_required = ("display.delete_editableroute",)
     template_name = "model_delete.html"
-    success_url = reverse_lazy("editableroute_list")
+    success_url = "/frontend/routeeditor/"
 
     def get_permission_object(self):
         return self.get_object()
@@ -1865,7 +1865,7 @@ def copy_editable_route(request, pk):
     assign_perm("display.change_editableroute", request.user, editable_route)
     assign_perm("display.delete_editableroute", request.user, editable_route)
     assign_perm("display.view_editableroute", request.user, editable_route)
-    return HttpResponseRedirect(reverse("editableroute_list"))
+    return HttpResponseRedirect("/frontend/routeeditor/")
 
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
