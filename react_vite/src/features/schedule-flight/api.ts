@@ -1,4 +1,4 @@
-import { PaginatedContests, MyParticipatingContest, Club, Aircraft, Copilot, ScheduleFlightPayload, RegisterTeamPayload, Contest } from './types';
+import { PaginatedContests, MyParticipatingContest, Club, Aircraft, Copilot, ScheduleFlightPayload, RegisterTeamPayload, Contest, NavigationTask } from './types';
 import { getCookie } from '../../utils/csrf';
 
 
@@ -32,7 +32,7 @@ export const fetchMyParticipatingContests = async (url: string): Promise<MyParti
     return response.json();
 };
 
-export const fetchMyParticipatedContests = async (url: string): Promise<MyParticipatingContest[]> => {
+export const fetchMyParticipatedContests = async (url: string): Promise<NavigationTask[]> => {
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
         const error = new Error('Failed to fetch participated contests') as any;

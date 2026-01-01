@@ -30,11 +30,10 @@ export interface NavigationTask {
     start_time: string;
     finish_time: string;
     tracking_link: string;
-    future_contestants: FutureContestant[];
-    past_contestants: FutureContestant[];
     contestant_set: ContestantResult[];
-    score_sorting_direction: string;
+    score_sorting_direction: 'asc' | 'desc';
     allow_self_management: boolean;
+    contest: Contest;
 }
 
 export interface MyParticipatingContest {
@@ -94,33 +93,6 @@ export interface Club {
     country: string;
     name: string;
     logo: string;
-}
-
-export interface FutureContestant {
-    id: number;
-    gate_times: { [key: string]: string };
-    scorecard_rules: any[];
-    tracker_id_display: TrackerIdDisplay[];
-    default_map_url: string;
-    has_crossed_starting_line: boolean;
-    adaptive_start: boolean;
-    takeoff_time: string;
-    minutes_to_starting_point: number;
-    finished_by_time: string;
-    air_speed: number;
-    track_version: number;
-    contestant_number: number;
-    tracking_service: string;
-    tracking_device: string;
-    tracker_device_id: string;
-    tracker_start_time: string;
-    competition_class_longform: string | null;
-    competition_class_shortform: string | null;
-    wind_speed: number;
-    wind_direction: number;
-    annotation_index: number;
-    has_been_tracked_by_simulator: boolean;
-    team: number;
 }
 
 export interface TrackerIdDisplay {

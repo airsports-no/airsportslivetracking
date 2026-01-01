@@ -3,17 +3,14 @@ import { Contest, MyParticipatingContest, NavigationTask, ContestantResult } fro
 
 interface PastContestItemProps {
     contest: Contest;
-    myContests: MyParticipatingContest[];
     showPastContestants?: boolean;
 }
 
-const PastContestItem: React.FC<PastContestItemProps> = ({ contest, myContests, showPastContestants }) => {
-    const currentUserEmail = document.configuration.currentUserEmail; // Added
-    // myTeamIds is still relevant if myContests are passed and used for any internal logic
-    const myTeamIds = myContests.flatMap(mc => mc.team ? [mc.team.id] : []);
-    
+const PastContestItem: React.FC<PastContestItemProps> = ({ contest, showPastContestants }) => {
+    const currentUserEmail = document.configuration.currentUserEmail;
+
     return (
-        <div className={`card bg-base-100 shadow-xl`}> {/* No border for registered past contests */}
+        <div className={`card bg-base-100 shadow-xl`}>
             <div className="card-body">
                 <div className='flex items-start justify-between'>
                     <div className='flex items-start'>
@@ -36,20 +33,12 @@ const PastContestItem: React.FC<PastContestItemProps> = ({ contest, myContests, 
                             )}
                         </div>
                     </div>
-                    {/* Removed Register/Withdraw buttons */}
                 </div>
                 
                 <div className="divider">Navigation Tasks</div>
 
                 <div className="space-y-2">
                     {contest.navigationtask_set.map(task => {
-                        // In PastContestItem, we don't need to filter myFutureContestantsForThisTask
-                        // as we only care about past contestants.
-                        // However, we still need correspondingMyTask to access task.past_contestants which is in myContests
-                        const correspondingMyTask = myContests
-                            .find(mc => mc.contest.id === contest.id)
-                            ?.contest.navigationtask_set.find(nt => nt.pk === task.pk);
-
                         return (
                             <div key={task.pk} className="p-2 rounded-lg bg-base-200 mb-2">
                                 <div className="flex justify-between items-center">
@@ -66,7 +55,6 @@ const PastContestItem: React.FC<PastContestItemProps> = ({ contest, myContests, 
                                             Available: {new Date(task.start_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} to {new Date(task.finish_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
                                         </p>
                                     </div>
-                                    {/* Removed future contestant display and Schedule/Delete buttons */}
                                 </div>
                                 {task.contestant_set && task.contestant_set.length > 0 && (
                                     <div className="mt-4 border-t border-base-300 pt-2">
@@ -78,7 +66,7 @@ const PastContestItem: React.FC<PastContestItemProps> = ({ contest, myContests, 
 
                                                 if (task.score_sorting_direction === 'desc') {
                                                     return scoreB - scoreA;
-                                                } else { // 'asc' or default
+                                                } else {
                                                     return scoreA - scoreB;
                                                 }
                                             })
