@@ -32,6 +32,8 @@ export interface NavigationTask {
     tracking_link: string;
     future_contestants: FutureContestant[];
     past_contestants: FutureContestant[];
+    contestant_set: ContestantResult[];
+    score_sorting_direction: string;
     allow_self_management: boolean;
 }
 
@@ -171,4 +173,47 @@ export interface RegisterTeamPayload {
     airspeed: number;
     copilot_id: number | null;
     contestId: number;
+}
+
+export interface ContestantTrack {
+    id: number;
+    contest_summary: number | null;
+    score: number;
+    current_state: string;
+    current_leg: string;
+    last_gate: string;
+    last_gate_time_offset: number;
+    passed_starting_gate: boolean;
+    passed_finish_gate: boolean;
+    calculator_finished: boolean;
+    calculator_started: boolean;
+    contestant: number;
+}
+
+export interface ContestantResult {
+    id: number;
+    gate_times: { [key: string]: string };
+    scorecard_rules: any[];
+    tracker_id_display: TrackerIdDisplay[];
+    default_map_url: string;
+    has_crossed_starting_line: boolean;
+    team: Team;
+    contestanttrack: ContestantTrack;
+    adaptive_start: boolean;
+    takeoff_time: string;
+    minutes_to_starting_point: number;
+    finished_by_time: string;
+    air_speed: number;
+    track_version: number;
+    contestant_number: number;
+    tracking_service: string;
+    tracking_device: string;
+    tracker_device_id: string;
+    tracker_start_time: string;
+    competition_class_longform: string | null;
+    competition_class_shortform: string | null;
+    wind_speed: number;
+    wind_direction: number;
+    annotation_index: number;
+    has_been_tracked_by_simulator: boolean;
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Contest, MyParticipatingContest, NavigationTask } from '../types';
+import { Contest, MyParticipatingContest, NavigationTask, ContestantResult } from '../types';
 
 interface PastContestItemProps {
     contest: Contest;
@@ -8,6 +8,7 @@ interface PastContestItemProps {
 }
 
 const PastContestItem: React.FC<PastContestItemProps> = ({ contest, myContests, showPastContestants }) => {
+    const currentUserEmail = document.configuration.currentUserEmail; // Added
     // myTeamIds is still relevant if myContests are passed and used for any internal logic
     const myTeamIds = myContests.flatMap(mc => mc.team ? [mc.team.id] : []);
     
@@ -67,15 +68,42 @@ const PastContestItem: React.FC<PastContestItemProps> = ({ contest, myContests, 
                                     </div>
                                     {/* Removed future contestant display and Schedule/Delete buttons */}
                                 </div>
-                                {showPastContestants && correspondingMyTask && correspondingMyTask.past_contestants && correspondingMyTask.past_contestants.length > 0 && (
+                                {task.contestant_set && task.contestant_set.length > 0 && (
                                     <div className="mt-4 border-t border-base-300 pt-2">
-                                        <h5 className="font-semibold text-md mb-2">Past Flights:</h5>
-                                        {correspondingMyTask.past_contestants.map(pc => (
-                                            <div key={pc.id} className="flex justify-between items-center text-sm">
-                                                <span>Take-off: {new Date(pc.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-                                                <span className="text-gray-500">Contestant #{pc.contestant_number}</span>
-                                            </div>
-                                        ))}
+                                        <h5 className="font-semibold text-md mb-2">Contestants:</h5>
+                                        {task.contestant_set
+                                            .sort((a, b) => {
+                                                const scoreA = a.contestanttrack.score;
+                                                const scoreB = b.contestanttrack.score;
+
+                                                if (task.score_sorting_direction === 'desc') {
+                                                    return scoreB - scoreA;
+                                                } else { // 'asc' or default
+                                                    return scoreA - scoreB;
+                                                }
+                                            })
+                                            .map(contestant => {
+                                                const isCurrentUser =
+                                                    currentUserEmail &&
+                                                    (contestant.team.crew.member1?.email === currentUserEmail ||
+                                                        contestant.team.crew.member2?.email === currentUserEmail);
+
+                                                return (
+                                                    <div
+                                                        key={contestant.id}
+                                                        className={`flex justify-between items-center text-sm p-2 rounded mb-1 ${
+                                                            isCurrentUser ? 'bg-blue-200 font-bold' : 'bg-base-100'
+                                                        }`}
+                                                    >
+                                                        <span>
+                                                            {contestant.team.crew.member1.first_name} {contestant.team.crew.member1.last_name}
+                                                            {contestant.team.crew.member2 && ` & ${contestant.team.crew.member2.first_name} ${contestant.team.crew.member2.last_name}`}
+                                                            ({contestant.team.aeroplane.registration})
+                                                        </span>
+                                                        <span>Score: {contestant.contestanttrack.score}</span>
+                                                    </div>
+                                                );
+                                            })}
                                     </div>
                                 )}
                             </div>
