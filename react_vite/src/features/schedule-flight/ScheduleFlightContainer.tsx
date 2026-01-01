@@ -200,9 +200,9 @@ const ScheduleFlightContainer = () => {
 
     return (
         <div className="container mx-auto p-4">
-            <h1 className="text-4xl font-bold mb-4">
+            <h1 className="text-4xl font-bold mb-4 flex justify-between items-center">
                 Schedule a Flight
-                <Link to="/past-flights" className="btn btn-sm btn-link ml-4">View Past Flights</Link>
+                <Link to="/past-flights" className="btn btn-primary">View Past Flights</Link>
             </h1>
 
             {error && <div className="alert alert-error">{error}</div>}

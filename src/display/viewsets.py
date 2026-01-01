@@ -190,6 +190,21 @@ class UserPersonViewSet(GenericViewSet):
                 Q(contestant__team__crew__member1=person) | Q(contestant__team__crew__member2=person),
                 contest__in=available_contests,
             )
+            .select_related(
+                "contest",
+                "route",
+                "scorecard",
+            )
+            .prefetch_related(
+                "contestant_set__team__aeroplane",
+                "contestant_set__team__club",
+                "contestant_set__team__crew__member1",
+                "contestant_set__team__crew__member2",
+                "contestant_set__contestanttrack",
+                "contest__navigationtask_set",
+                "contest__contest_teams__crew__member1",
+                "contest__contest_teams__crew__member2",
+            )
             .order_by("contest__start_time")
             .distinct()
         )
