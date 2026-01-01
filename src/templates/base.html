@@ -107,7 +107,7 @@
                             <div class="dropdown-menu">
                                 <a class="dropdown-item" href="{% url 'contest_list' %}">My contests</a>
                                 <a class="dropdown-item" href="{% url 'useruploadedmap_list' %}">My maps</a>
-                                                                        <li><a href="{% url 'frontend' %}routeeditor/">Route editor</a></li>
+                                <a href="{% url 'frontend' %}routeeditor/">Route editor</a><
 
 
                                 {% if user.is_superuser  and user.is_staff %}
@@ -125,7 +125,7 @@
                         <a target="_blank" class="nav-link" href="https://home.airsports.no/">FAQ</a>
                     </li>
                     <li class="nav-item">
-                                                <li><a href="{% url 'frontend' %}schedule/">Flight schedule</a></li>
+                        <a class="nav-link" href="{% url 'frontend' %}schedule/">Flight schedule</a>
 
                     </li>
                 </ul>
