@@ -18,7 +18,7 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
     return (
         <div className={`card bg-base-100 shadow-xl ${isRegistered ? 'border-2 border-primary' : ''}`}>
             <div className="card-body">
-                <div className='flex items-start justify-between'>
+                <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4'>
                     <div className='flex items-start'>
                         <img src={contest.logo} alt={`${contest.name} logo`} className="h-16 w-16 mr-4" />
                         <div>
@@ -27,7 +27,6 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                                 {contest.country_flag_url && (
                                     <img src={contest.country_flag_url} alt={`${contest.country} flag`} className="w-6 h-4 ml-2 inline-block" />
                                 )}
-                                {isRegistered && <div className="badge badge-secondary">Registered</div>}
                             </h2>
                             <p>{new Date(contest.start_time).toLocaleDateString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric' })} - {new Date(contest.finish_time).toLocaleDateString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric' })}</p>
                             <p>{contest.location}</p>
@@ -40,11 +39,14 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                             )}
                         </div>
                     </div>
-                    <div className="flex-none">
-                        {!isRegistered ? (
-                            <button className="btn btn-success" onClick={() => onRegisterClick(contest)}>Register</button>
+                    <div className="flex flex-col items-center sm:items-end gap-2">
+                        {isRegistered ? (
+                            <>
+                                <div className="badge badge-secondary">Registered</div>
+                                <button className="btn btn-warning" onClick={() => onWithdrawClick(contest.id)}>Withdraw</button>
+                            </>
                         ) : (
-                            <button className="btn btn-warning" onClick={() => onWithdrawClick(contest.id)}>Withdraw</button>
+                            <button className="btn btn-success" onClick={() => onRegisterClick(contest)}>Register</button>
                         )}
                     </div>
                 </div>

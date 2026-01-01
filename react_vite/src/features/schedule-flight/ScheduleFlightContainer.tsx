@@ -31,33 +31,45 @@ const ScheduleFlightContainer = () => {
     const [myContests, setMyContests] = useState<MyParticipatingContest[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [nextContestsUrl, setNextContestsUrl] = useState<string | null>(CONTESTS_LIST_URL);
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
+    const [hasMore, setHasMore] = useState(true);
     const [nameFilter, setNameFilter] = useState('');
     const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
     const [selectedTask, setSelectedTask] = useState<{ contest: Contest, navigationTask: NavigationTask } | null>(null);
     const [selectedContestForRegistration, setSelectedContestForRegistration] = useState<Contest | null>(null);
 
-    const loadContests = () => {
-        if (!nextContestsUrl) return;
-        setLoading(true);
-        api.fetchContests(nextContestsUrl)
+    const loadContests = (loadMore = false) => {
+        let url = CONTESTS_LIST_URL;
+        if (loadMore && nextCursor) {
+            url += `?cursor=${nextCursor}`;
+        } else if (loadMore && !nextCursor) {
+            setHasMore(false);
+            return Promise.resolve();
+        }
+
+        return api.fetchContests(url)
             .then(data => {
                 const futureContests = data.results.filter(c => new Date(c.finish_time) > new Date());
-                setContests(prev => [...prev, ...futureContests]);
-                setNextContestsUrl(data.next);
-            })
-            .catch(err => setError(err.message))
-            .finally(() => setLoading(false));
+                if (loadMore) {
+                    setContests(prev => [...prev, ...futureContests]);
+                } else {
+                    setContests(futureContests);
+                }
+                setNextCursor(data.next);
+                if (!data.next) {
+                    setHasMore(false);
+                } else {
+                    setHasMore(true);
+                }
+            });
     };
 
     useEffect(() => {
         setLoading(true);
-        Promise.all([
-            api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL),
-        ])
-        .then(([myContestsData]) => {
+        api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL)
+        .then((myContestsData) => {
             setMyContests(myContestsData);
-            loadContests(); // initial load
+            return loadContests(); // initial load
         })
         .catch(err => {
             // Check for 401 Unauthorized specifically for fetchMyParticipatingContests
@@ -68,52 +80,42 @@ const ScheduleFlightContainer = () => {
                 setTimeout(() => {
                     window.location.href = loginPageUrl;
                 }, 5000); // 5000ms = 5 seconds
-                setLoading(false); // Stop loading animation
             } else {
                 setError(err.message);
-                setLoading(false);
             }
+        })
+        .finally(() => {
+            setLoading(false);
         });
     }, []);
 
+    const refreshData = () => {
+        setLoading(true);
+        api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL)
+            .then(data => {
+                setMyContests(data);
+                return loadContests();
+            })
+            .catch(err => {
+                setError(err.message);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    }
+
     const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number) => {
         try {
-            setLoading(true);
             await api.cancelFlight(contestId, navigationTaskId, futureContestantId);
-            // Refresh data
-            const [myContestsData, contestsData] = await Promise.all([
-                api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL),
-                api.fetchContests(CONTESTS_LIST_URL)
-            ]);
-            setMyContests(myContestsData);
-            const futureContests = contestsData.results.filter(c => new Date(c.finish_time) > new Date());
-            setContests(futureContests);
-            setNextContestsUrl(contestsData.next);
-            setLoading(false);
+            refreshData();
         } catch (error) {
             setError((error as Error).message);
-            setLoading(false);
         }
     };
 
 
     const handleScheduleFlight = async () => {
-        try {
-            setLoading(true);
-            // Refresh data
-            const [myContestsData, contestsData] = await Promise.all([
-                api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL),
-                api.fetchContests(CONTESTS_LIST_URL)
-            ]);
-            setMyContests(myContestsData);
-            const futureContests = contestsData.results.filter(c => new Date(c.finish_time) > new Date());
-            setContests(futureContests);
-            setNextContestsUrl(contestsData.next);
-            setLoading(false);
-        } catch (error) {
-            setError((error as Error).message);
-            setLoading(false);
-        }
+        refreshData();
     };
 
     const handleRegisterClick = (contest: Contest) => {
@@ -122,21 +124,10 @@ const ScheduleFlightContainer = () => {
 
     const handleWithdrawClick = async (contestId: number) => {
         try {
-            setLoading(true);
             await api.withdraw(contestId);
-            // Refresh data
-            const [myContestsData, contestsData] = await Promise.all([
-                api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL),
-                api.fetchContests(CONTESTS_LIST_URL)
-            ]);
-            setMyContests(myContestsData);
-            const futureContests = contestsData.results.filter(c => new Date(c.finish_time) > new Date());
-            setContests(futureContests);
-            setNextContestsUrl(contestsData.next);
-            setLoading(false);
+            refreshData();
         } catch (error) {
             setError((error as Error).message);
-            setLoading(false);
         }
     };
 
@@ -166,19 +157,7 @@ const ScheduleFlightContainer = () => {
 
     const onRegisterFormClose = () => {
         setSelectedContestForRegistration(null);
-        setLoading(true);
-        Promise.all([
-            api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL),
-            api.fetchContests(CONTESTS_LIST_URL)
-        ])
-        .then(([myContestsData, contestsData]) => {
-            setMyContests(myContestsData);
-            const futureContests = contestsData.results.filter(c => new Date(c.finish_time) > new Date());
-            setContests(futureContests);
-            setNextContestsUrl(contestsData.next);
-        })
-        .catch(err => setError(err.message))
-        .finally(() => setLoading(false));
+        refreshData();
     };
 
 
@@ -249,8 +228,11 @@ const ScheduleFlightContainer = () => {
                         ))}
                     </div>
                     {loading && <div className="loading loading-lg"></div>}
-                    {nextContestsUrl && !loading && (
-                        <button className="btn btn-primary mt-4" onClick={loadContests}>
+                    {hasMore && !loading && (
+                        <button className="btn btn-primary mt-4" onClick={() => {
+                            setLoading(true);
+                            loadContests(true).finally(() => setLoading(false));
+                        }}>
                             Load More
                         </button>
                     )}
