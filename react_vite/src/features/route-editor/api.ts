@@ -9,6 +9,7 @@ declare global {
             editableRouteUrl: (routeId: number) => string;
             EDITABLE_ROUTES_URL: string;
             editRouteViewUrl: (routeId: number) => string;
+            isAuthenticated?: boolean; // Add this line
         }
     }
 }

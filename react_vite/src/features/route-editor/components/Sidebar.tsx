@@ -38,6 +38,7 @@ interface SidebarProps {
   setMaxObsDist: (dist: number) => void;
   routeName: string;
   setRouteName: (name: string) => void;
+  isAuthenticated: boolean;
 }
 
 
@@ -65,7 +66,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   maxObsDist,
   setMaxObsDist,
   routeName,
-  setRouteName
+  setRouteName,
+  isAuthenticated
 }) => {
 
   const renderContent = () => {
@@ -197,28 +199,34 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Import/Export Footer */}
       <div className="p-4 border-t bg-base-200 space-y-2">
-        <div className="flex space-x-2">
-          <button
-            onClick={handleSave}
-            className="btn btn-primary btn-sm flex-1 gap-2"
-          >
-            <Save size={14} /> <span>Save Route</span>
-          </button>
-          <button
-            onClick={() => { setSelectedId(null); setSelectionType('settings'); }}
-            className="btn btn-outline btn-sm btn-square"
-            title="Settings"
-          >
-            <Settings size={14} />
-          </button>
-          <button
-            onClick={() => { setSelectedId(null); setSelectionType('help'); }}
-            className="btn btn-outline btn-sm btn-square"
-            title="Help"
-          >
-            <HelpCircle size={14} />
-          </button>
-        </div>
+        {isAuthenticated ? (
+          <div className="flex space-x-2">
+            <button
+              onClick={handleSave}
+              className="btn btn-primary btn-sm flex-1 gap-2"
+            >
+              <Save size={14} /> <span>Save Route</span>
+            </button>
+            <button
+              onClick={() => { setSelectedId(null); setSelectionType('settings'); }}
+              className="btn btn-outline btn-sm btn-square"
+              title="Settings"
+            >
+              <Settings size={14} />
+            </button>
+            <button
+              onClick={() => { setSelectedId(null); setSelectionType('help'); }}
+              className="btn btn-outline btn-sm btn-square"
+              title="Help"
+            >
+              <HelpCircle size={14} />
+            </button>
+          </div>
+        ) : (
+          <div className="text-sm text-center text-gray-500">
+            You must <a href="/accounts/login/?next=/frontend/routeditor/create/" className="link link-primary">log in</a> or <a href="/accounts/signup/" className="link link-primary">register</a> to save routes.
+          </div>
+        )}
       </div>
     </div>
   );

@@ -6,14 +6,14 @@ const EditableRouteList = lazy(() => import("./features/route-editor/containers/
 const RouteEditor = lazy(() => import("./features/route-editor/containers/RouteEditor"));
 const ScheduleFlightContainer = lazy(() => import("./features/schedule-flight/ScheduleFlightContainer"));
 
-export const EditableRouteRouter = () => {
+export const FrontendRouter = () => {
     return (
-        <BrowserRouter basename="/display/editableroutereact/">
+        <BrowserRouter basename="/frontend/">
             <Suspense fallback={<Loading />}>
                 <Routes>
-                    <Route path="/" element={<EditableRouteList />} />
-                    <Route path="/edit/:routeId" element={<RouteEditor />} />
-                    <Route path="/create" element={<RouteEditor />} />
+                    <Route path="routeeditor/" element={<EditableRouteList />} />
+                    <Route path="routeeditor/edit/:routeId" element={<RouteEditor />} />
+                    <Route path="routeeditor/create" element={<RouteEditor />} />
                     <Route path="/schedule" element={<ScheduleFlightContainer />} />
                     <Route path="*" element={
                         <div className="hero min-h-screen bg-base-200">

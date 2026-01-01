@@ -62,7 +62,8 @@
 
             contestDetailsViewUrl: contestId => "{% url 'contest_details' 0 %}".replace("0", contestId),
             GET_PERSONS_FOR_SIGNUP_URL: "{% url 'get_persons_for_signup' %}",
-            EDITABLE_ROUTE_LIST_VIEW_URL: "{% url 'editableroute_list' %}",
+            EDITABLE_ROUTE_LIST_VIEW_URL: "{% url 'frontend' %}routeeditor/",
+            
             STATIC_FILE_LOCATION:  "{% static '' %}"
 
         }
@@ -106,7 +107,8 @@
                             <div class="dropdown-menu">
                                 <a class="dropdown-item" href="{% url 'contest_list' %}">My contests</a>
                                 <a class="dropdown-item" href="{% url 'useruploadedmap_list' %}">My maps</a>
-                                <a class="dropdown-item" href="{% url 'editableroute_list' %}">Route editor</a>
+                                                                        <li><a href="{% url 'frontend' %}routeeditor/">Route editor</a></li>
+
 
                                 {% if user.is_superuser  and user.is_staff %}
                                     <hr/>
@@ -123,7 +125,8 @@
                         <a target="_blank" class="nav-link" href="https://home.airsports.no/">FAQ</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/participation/">Participation</a>
+                                                <li><a href="{% url 'frontend' %}schedule/">Flight schedule</a></li>
+
                     </li>
                 </ul>
                 <ul class="navbar-nav ml-auto">

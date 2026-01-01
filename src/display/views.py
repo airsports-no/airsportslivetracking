@@ -1830,13 +1830,12 @@ class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
         return context
 
 
-class EditableRouteList(GuardianPermissionRequiredMixin, TemplateView):
+class FrontEndView(TemplateView):
     """
     Render the react view to list editable routes
     """
 
-    permission_required = ("display.view_editableroute",)
-    template_name = "display/vite_route_editor.html"
+    template_name = "display/frontend.html"
 
 
 class EditableRouteDeleteView(GuardianPermissionRequiredMixin, DeleteView):

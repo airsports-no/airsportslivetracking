@@ -684,6 +684,7 @@ export default function RouteEditor() {
             setRouteName(name);
             setIsDirty(true);
           }}
+          isAuthenticated={document.configuration.isAuthenticated}
         />
       </div>
 

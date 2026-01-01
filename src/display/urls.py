@@ -42,7 +42,6 @@ from display.views import (
     share_navigation_task,
     get_contestant_default_map,
     get_contestant_email_flight_orders_link,
-    EditableRouteList,
     EditableRouteDeleteView,
     refresh_editable_route_navigation_task,
     get_contestant_email_flying_orders_link,
@@ -248,7 +247,6 @@ urlpatterns = [
     path("person/request_deletion_confirm/", user_request_profile_deletion, name="user_request_profile_deletion"),
     path("person/", PersonList.as_view(), name="person_list"),
     path("manifest/", manifest, name="tracking_manifest"),
-    re_path("editableroutereact/.?", EditableRouteList.as_view(), name="editableroute_list"),
     path("editableroute/import/", import_route, name="editableroute_import"),
     path("editableroute/<int:pk>/delete/", EditableRouteDeleteView.as_view(), name="editableroute_delete"),
     path("editableroute/<int:pk>/copy/", copy_editable_route, name="editableroute_copy"),
@@ -273,5 +271,4 @@ urlpatterns = [
         delete_user_editableroute_permissions,
         name="editableroute_permissions_delete",
     ),
-
 ]

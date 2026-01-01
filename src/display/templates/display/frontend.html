@@ -5,6 +5,8 @@
     document.configuration = {
         ...document.configuration,
         is_superuser: {{ user.is_superuser | lower }},
+        isAuthenticated: {{ user.is_authenticated | lower }},
+
         EDITABLE_ROUTES_URL: "{% url 'editableroutes-list' %}",
         editRouteViewUrl: routeId => "/display/editableroutereact/edit/0/".replace("0", routeId), // react router url
         createTaskViewUrl: routeId => "{% url 'editableroute_createnavigationtask' 0 %}".replace("0", routeId),
@@ -12,16 +14,16 @@
         permissionListViewUrl: routeId => "{% url 'editableroute_permissions_list' 0 %}".replace("0", routeId),
         deleteRouteViewUrl: routeId => "{% url 'editableroute_delete' 0 %}".replace("0", routeId),
         editableRouteUrl: editableRouteId => "{% url 'editableroutes-detail' 0 %}".replace("0", editableRouteId),
-        createRouteUrl: "/display/editableroutereact/create/",
+        createRouteUrl: "/frontend/routeeditor/create/",
 
         }
 </script>
 
-<link rel="stylesheet" href="{% static 'css/RouteEditorApp.css' %}">
+<link rel="stylesheet" href="{% static 'css/FrontendApp.css' %}">
 {% endblock %}
 {% block contentfull %}
     <div id="root">
         <img class="centered" src="{% static 'img/loading_airplane.gif' %}" alt="loading..." />
     </div>
-<script type="module" src="{% static 'js/RouteEditorApp-bundle.js' %}"></script>
+<script type="module" src="{% static 'js/FrontendApp-bundle.js' %}"></script>
 {% endblock %}

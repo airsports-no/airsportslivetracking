@@ -1,6 +1,7 @@
 """
 live_tracking_map URL Configuration
 """
+
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.generic import RedirectView, TemplateView
@@ -11,6 +12,7 @@ from rest_framework import permissions
 
 from display.views import (
     ContestList,
+    FrontEndView,
     global_map,
     view_token,
     firebase_token_login,
@@ -52,5 +54,6 @@ urlpatterns = [
     path("firebase_login/", firebase_token_login),  # Required, used by app
     path("docs/", docs.with_ui()),
     path("api/v1/", include(api.urlpatters)),
+    re_path("frontend/.?", FrontEndView.as_view(), name="frontend"),
     re_path(r"^.?", global_map, name="globalmap"),
 ]
