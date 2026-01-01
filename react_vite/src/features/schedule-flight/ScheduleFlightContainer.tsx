@@ -242,6 +242,7 @@ const ScheduleFlightContainer = () => {
                                 onScheduleClick={(task) => handleScheduleClick(contest, task)}
                                 onRegisterClick={handleRegisterClick}
                                 onWithdrawClick={handleWithdrawClick}
+                                onCancel={handleCancelFlight}
                                 myContests={myContests}
                             />
                         ))}
