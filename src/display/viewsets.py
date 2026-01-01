@@ -179,6 +179,23 @@ class UserPersonViewSet(GenericViewSet):
             team.can_edit = team.team.crew.member1 == person
         return Response(ContestTeamManagementSerialiser(contest_teams, many=True, context={"request": request}).data)
 
+    @action(detail=False, methods=["get"])
+    def my_participated_contests(self, request, *args, **kwargs):
+        available_contests = Contest.visible_contests_for_user(request.user).filter()
+        # for authorisation
+        person = self.get_object()
+        contest_teams = (
+            ContestTeam.objects.filter(
+                Q(team__crew__member1=person) | Q(team__crew__member2=person),
+                contest__in=available_contests,
+            )
+            .order_by("contest__start_time")
+            .distinct()
+        )
+        for team in contest_teams:
+            team.can_edit = team.team.crew.member1 == person
+        return Response(ContestTeamManagementSerialiser(contest_teams, many=True, context={"request": request}).data)
+
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):
         kwargs["partial"] = True
@@ -655,7 +672,7 @@ class NavigationTaskViewSet(ModelViewSet):
 
     @action(
         detail=True,
-        methods=["post", "put", "delete"],
+        methods=["post", "put"],
         permission_classes=[
             permissions.IsAuthenticated
             & NavigationTaskSelfManagementPermissions
@@ -727,26 +744,30 @@ class NavigationTaskViewSet(ModelViewSet):
                 (contestant.pk, request.user.email, request.user.first_name, True)
             )
             return Response(status=status.HTTP_201_CREATED)
-        elif request.method == "DELETE":
-            my_contestants = navigation_task.contestant_set.filter(team__crew__member1__email=request.user.email)
-            # Delete all contestants that have not started yet where I am the pilot
-            my_contestants.filter(
-                contestanttrack__calculator_started=False,
-            ).delete()
-            # If the contestant has not reached the takeoff time, delete the contestant
-            my_contestants.filter(
-                takeoff_time__gte=datetime.datetime.now(datetime.timezone.utc),
-            ).delete()
-            # Terminate ongoing contestants where the time has passed the takeoff time
-            for c in my_contestants.filter(
-                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
-                contestanttrack__calculator_started=True,
-            ):
-                # We know the takeoff time is in the past, so we can freely set it to now.
-                c.finished_by_time = datetime.datetime.now(datetime.timezone.utc)
-                c.save()
-                c.request_calculator_termination()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path="delete_self_managed_contestant/(?P<contestant_id>\\d+)",
+        permission_classes=[
+            permissions.IsAuthenticated
+            & NavigationTaskSelfManagementPermissions
+            & (NavigationTaskPublicPutDeletePermissions | NavigationTaskContestPermissions)
+        ],
+    )
+    def delete_self_managed_contestant(self, request, *args, **kwargs):
+        navigation_task: NavigationTask = self.get_object()
+
+        my_contestant = get_object_or_404(navigation_task.contestant_set, pk=kwargs["contestant_id"])
+        if not my_contestant.contestanttrack.calculator_started or my_contestant.take_off_time > datetime.datetime.now(
+            datetime.timezone.utc
+        ):
+            my_contestant.delete()
+        else:
+            my_contestant.finished_by_time = datetime.datetime.now(datetime.timezone.utc)
+            my_contestant.save()
+            my_contestant.request_calculator_termination()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["put"])
     def share(self, request, *args, **kwargs):

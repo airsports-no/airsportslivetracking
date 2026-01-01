@@ -3,7 +3,7 @@ import { MyParticipatingContest } from '../types';
 
 interface UpcomingFlightsProps {
     myContests: MyParticipatingContest[];
-    onCancel: (contestId: number, navigationTaskId: number) => void;
+    onCancel: (contestId: number, navigationTaskId: number, futureContestantId: number) => void;
 }
 
 const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myContests, onCancel }) => {
@@ -33,11 +33,11 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myContests, onCancel 
                             </a>
                         </h3>
                         <p>{flight.contest.name}</p>
-                        <p>Take-off: {new Date(flight.takeoff_time).toLocaleString()}</p>
+                        <p>Take-off: {new Date(flight.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</p>
                         <div className="card-actions justify-end">
                             <button 
                                 className="btn btn-error btn-sm"
-                                onClick={() => onCancel(flight.contest.id, flight.navigationTask.pk)}
+                                onClick={() => onCancel(flight.contest.id, flight.navigationTask.pk, flight.id)}
                             >
                                 Delete
                             </button>

@@ -31,6 +31,8 @@ export interface NavigationTask {
     finish_time: string;
     tracking_link: string;
     future_contestants: FutureContestant[];
+    past_contestants: FutureContestant[];
+    allow_self_management: boolean;
 }
 
 export interface MyParticipatingContest {

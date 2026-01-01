@@ -277,15 +277,16 @@ class ContestSummaryNestedSerialiser(serializers.ModelSerializer):
 class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
     class Meta:
         model = NavigationTask
-        fields = ("pk", "name", "start_time", "finish_time", "tracking_link")
+        fields = ("pk", "name", "start_time", "finish_time", "tracking_link", "allow_self_management")
 
 
 class NavigationTasksSummaryParticipationSerialiser(serializers.ModelSerializer):
     future_contestants = SerializerMethodField("get_future_contestants")
+    past_contestants = SerializerMethodField("get_past_contestants")
 
     class Meta:
         model = NavigationTask
-        fields = ("pk", "name", "start_time", "finish_time", "tracking_link", "future_contestants")
+        fields = ("pk", "name", "start_time", "finish_time", "tracking_link", "future_contestants", "past_contestants")
 
     def get_future_contestants(self, navigation_task):
         person = get_object_or_404(Person, email=self.context["request"].user.email)
@@ -293,6 +294,14 @@ class NavigationTasksSummaryParticipationSerialiser(serializers.ModelSerializer)
             team__crew__member1=person, finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc)
         )
         serialiser = ContestantSerialiser(future_contestants, many=True, read_only=True)
+        return serialiser.data
+
+    def get_past_contestants(self, navigation_task):
+        person = get_object_or_404(Person, email=self.context["request"].user.email)
+        past_contestants = navigation_task.contestant_set.filter(
+            team__crew__member1=person, finished_by_time__lte=datetime.datetime.now(datetime.timezone.utc)
+        )
+        serialiser = ContestantSerialiser(past_contestants, many=True, read_only=True)
         return serialiser.data
 
 
@@ -462,8 +471,7 @@ class RouteSerialiser(serializers.ModelSerializer):
     landing_gates = WaypointSerialiser(required=False, help_text="Optional landing gate", many=True)
     takeoff_gates = WaypointSerialiser(required=False, help_text="Optional takeoff gate", many=True)
     prohibited_set = ProhibitedSerialiser(many=True, required=False)
-    corridor_polygon = serializers.JSONField(required=False,read_only=True)
-
+    corridor_polygon = serializers.JSONField(required=False, read_only=True)
 
     class Meta:
         model = Route
@@ -1395,7 +1403,7 @@ Prohibited, penalty, information, gate zones
 
     """
     )
-    settings= serializers.JSONField()
+    settings = serializers.JSONField()
     editors = UserSerialiser(many=True, read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)
     number_of_waypoints = serializers.IntegerField(read_only=True)

@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Contest, MyParticipatingContest, PaginatedContests } from './types';
+import { Contest, MyParticipatingContest, PaginatedContests, NavigationTask } from './types';
 import * as api from './api';
 import UpcomingFlights from './components/UpcomingFlights';
 import ContestItem from './components/ContestItem';
 import Select from 'react-select';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
+import ContestRegistrationForm from './components/ContestRegistrationForm';
+import { Link } from "react-router-dom"; // Import Link
+
 
 // Mock data for development
 declare global {
@@ -12,7 +15,9 @@ declare global {
         configuration: {
             CONTESTS_LIST_URL: string;
             MY_PARTICIPATING_CONTESTS_URL: string;
+            MY_PARTICIPATED_CONTESTS_URL: string;
             contestSignUpUrl: (contestId: number) => string;
+            loginUrl: string;
         }
     }
 }
@@ -28,7 +33,8 @@ const ScheduleFlightContainer = () => {
     const [nextContestsUrl, setNextContestsUrl] = useState<string | null>(CONTESTS_LIST_URL);
     const [nameFilter, setNameFilter] = useState('');
     const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
-    const [selectedTask, setSelectedTask] = useState<{ contest: Contest, taskId: number } | null>(null);
+    const [selectedTask, setSelectedTask] = useState<{ contest: Contest, navigationTask: NavigationTask } | null>(null);
+    const [selectedContestForRegistration, setSelectedContestForRegistration] = useState<Contest | null>(null);
 
     const loadContests = () => {
         if (!nextContestsUrl) return;
@@ -53,15 +59,26 @@ const ScheduleFlightContainer = () => {
             loadContests(); // initial load
         })
         .catch(err => {
-            setError(err.message);
-            setLoading(false);
+            // Check for 401 Unauthorized specifically for fetchMyParticipatingContests
+            if (err.status === 401) {
+                console.log("User not authenticated, redirecting to login in 5 seconds.");
+                setError("You are not authenticated. Redirecting to login page in 5 seconds..."); // Provide user feedback
+                const loginPageUrl = document.configuration?.loginUrl || '/login';
+                setTimeout(() => {
+                    window.location.href = loginPageUrl;
+                }, 5000); // 5000ms = 5 seconds
+                setLoading(false); // Stop loading animation
+            } else {
+                setError(err.message);
+                setLoading(false);
+            }
         });
     }, []);
 
-    const handleCancelFlight = async (contestId: number, navigationTaskId: number) => {
+    const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number) => {
         try {
-            await api.cancelFlight(contestId, navigationTaskId);
             setLoading(true);
+            await api.cancelFlight(contestId, navigationTaskId, futureContestantId);
             // Refresh data
             const [myContestsData, contestsData] = await Promise.all([
                 api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL),
@@ -98,6 +115,30 @@ const ScheduleFlightContainer = () => {
         }
     };
 
+    const handleRegisterClick = (contest: Contest) => {
+        setSelectedContestForRegistration(contest);
+    };
+
+    const handleWithdrawClick = async (contestId: number) => {
+        try {
+            setLoading(true);
+            await api.withdraw(contestId);
+            // Refresh data
+            const [myContestsData, contestsData] = await Promise.all([
+                api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL),
+                api.fetchContests(CONTESTS_LIST_URL)
+            ]);
+            setMyContests(myContestsData);
+            const futureContests = contestsData.results.filter(c => new Date(c.finish_time) > new Date());
+            setContests(futureContests);
+            setNextContestsUrl(contestsData.next);
+            setLoading(false);
+        } catch (error) {
+            setError((error as Error).message);
+            setLoading(false);
+        }
+    };
+
     const filteredAndSortedContests = useMemo(() => {
         return contests
             .filter(contest => {
@@ -113,8 +154,8 @@ const ScheduleFlightContainer = () => {
         return uniqueCountries.map(country => ({ value: country, label: country }));
     }, [contests]);
 
-    const handleScheduleClick = (contest: Contest, taskId: number) => {
-        setSelectedTask({ contest, taskId });
+    const handleScheduleClick = (contest: Contest, navigationTask: NavigationTask) => {
+        setSelectedTask({ contest, navigationTask });
     };
     
     const onFormClose = () => {
@@ -122,18 +163,47 @@ const ScheduleFlightContainer = () => {
         handleScheduleFlight();
     }
 
+    const onRegisterFormClose = () => {
+        setSelectedContestForRegistration(null);
+        setLoading(true);
+        Promise.all([
+            api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL),
+            api.fetchContests(CONTESTS_LIST_URL)
+        ])
+        .then(([myContestsData, contestsData]) => {
+            setMyContests(myContestsData);
+            const futureContests = contestsData.results.filter(c => new Date(c.finish_time) > new Date());
+            setContests(futureContests);
+            setNextContestsUrl(contestsData.next);
+        })
+        .catch(err => setError(err.message))
+        .finally(() => setLoading(false));
+    };
+
+
     if (selectedTask) {
         return <ScheduleFlightForm 
             contest={selectedTask.contest} 
-            navigationTaskId={selectedTask.taskId} 
+            navigationTaskId={selectedTask.navigationTask.pk} 
             myContests={myContests}
             onClose={onFormClose} 
             />
     }
 
+    if (selectedContestForRegistration) {
+        return <ContestRegistrationForm
+            contest={selectedContestForRegistration}
+            myContests={myContests}
+            onClose={onRegisterFormClose}
+        />;
+    }
+
     return (
         <div className="container mx-auto p-4">
-            <h1 className="text-4xl font-bold mb-4">Schedule a Flight</h1>
+            <h1 className="text-4xl font-bold mb-4">
+                Schedule a Flight
+                <Link to="/past-flights" className="btn btn-sm btn-link ml-4">View Past Flights</Link>
+            </h1>
 
             {error && <div className="alert alert-error">{error}</div>}
 
@@ -169,8 +239,9 @@ const ScheduleFlightContainer = () => {
                                 key={contest.id}
                                 contest={contest}
                                 isRegistered={myContests.some(mc => mc.contest.id === contest.id)}
-                                onScheduleClick={(taskId) => handleScheduleClick(contest, taskId)}
-                                onCancel={handleCancelFlight}
+                                onScheduleClick={(task) => handleScheduleClick(contest, task)}
+                                onRegisterClick={handleRegisterClick}
+                                onWithdrawClick={handleWithdrawClick}
                                 myContests={myContests}
                             />
                         ))}

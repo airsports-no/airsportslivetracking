@@ -1,22 +1,18 @@
 import React from 'react';
 import { Contest, MyParticipatingContest, NavigationTask } from '../types';
 
-interface ContestItemProps {
+interface PastContestItemProps {
     contest: Contest;
-    isRegistered: boolean;
-    onScheduleClick: (task: NavigationTask) => void;
-    onCancel: (contestId: number, navigationTaskId: number, futureContestantId: number) => void;
     myContests: MyParticipatingContest[];
-    onRegisterClick: (contest: Contest) => void;
-    onWithdrawClick: (contestId: number) => void;
-    showPastContestants?: boolean; // New prop
+    showPastContestants?: boolean;
 }
 
-const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onScheduleClick, onCancel, myContests, onRegisterClick, onWithdrawClick, showPastContestants }) => {
+const PastContestItem: React.FC<PastContestItemProps> = ({ contest, myContests, showPastContestants }) => {
+    // myTeamIds is still relevant if myContests are passed and used for any internal logic
     const myTeamIds = myContests.flatMap(mc => mc.team ? [mc.team.id] : []);
     
     return (
-        <div className={`card bg-base-100 shadow-xl ${isRegistered ? 'border-2 border-primary' : ''}`}>
+        <div className={`card bg-base-100 shadow-xl`}> {/* No border for registered past contests */}
             <div className="card-body">
                 <div className='flex items-start justify-between'>
                     <div className='flex items-start'>
@@ -27,7 +23,6 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                                 {contest.country_flag_url && (
                                     <img src={contest.country_flag_url} alt={`${contest.country} flag`} className="w-6 h-4 ml-2 inline-block" />
                                 )}
-                                {isRegistered && <div className="badge badge-secondary">Registered</div>}
                             </h2>
                             <p>{new Date(contest.start_time).toLocaleDateString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric' })} - {new Date(contest.finish_time).toLocaleDateString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric' })}</p>
                             <p>{contest.location}</p>
@@ -40,26 +35,19 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                             )}
                         </div>
                     </div>
-                    <div className="flex-none">
-                        {!isRegistered ? (
-                            <button className="btn btn-success" onClick={() => onRegisterClick(contest)}>Register</button>
-                        ) : (
-                            <button className="btn btn-warning" onClick={() => onWithdrawClick(contest.id)}>Withdraw</button>
-                        )}
-                    </div>
+                    {/* Removed Register/Withdraw buttons */}
                 </div>
                 
                 <div className="divider">Navigation Tasks</div>
 
                 <div className="space-y-2">
                     {contest.navigationtask_set.map(task => {
+                        // In PastContestItem, we don't need to filter myFutureContestantsForThisTask
+                        // as we only care about past contestants.
+                        // However, we still need correspondingMyTask to access task.past_contestants which is in myContests
                         const correspondingMyTask = myContests
                             .find(mc => mc.contest.id === contest.id)
                             ?.contest.navigationtask_set.find(nt => nt.pk === task.pk);
-
-                        const myFutureContestantsForThisTask = correspondingMyTask ?
-                            correspondingMyTask.future_contestants.filter(fc => myTeamIds.includes(fc.team)) :
-                            [];
 
                         return (
                             <div key={task.pk} className="p-2 rounded-lg bg-base-200 mb-2">
@@ -77,33 +65,19 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                                             Available: {new Date(task.start_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} to {new Date(task.finish_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
                                         </p>
                                     </div>
-                                    {myFutureContestantsForThisTask.length > 0 ? (
-                                        <div className="text-right">
-                                            {myFutureContestantsForThisTask.map(fc => (
-                                                <div key={fc.id} className="flex items-center justify-end space-x-2">
-                                                    <p className="text-sm font-semibold">
-                                                        Scheduled: {new Date(fc.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
-                                                    </p>
-                                                    <button
-                                                        className="btn btn-error btn-sm"
-                                                        onClick={() => onCancel(contest.id, task.pk, fc.id)} // Pass fc.id
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        task.allow_self_management && (
-                                            <button
-                                                className="btn btn-primary btn-sm"
-                                                onClick={() => onScheduleClick(task)}
-                                            >
-                                                Schedule
-                                            </button>
-                                        )
-                                    )}
+                                    {/* Removed future contestant display and Schedule/Delete buttons */}
                                 </div>
+                                {showPastContestants && correspondingMyTask && correspondingMyTask.past_contestants && correspondingMyTask.past_contestants.length > 0 && (
+                                    <div className="mt-4 border-t border-base-300 pt-2">
+                                        <h5 className="font-semibold text-md mb-2">Past Flights:</h5>
+                                        {correspondingMyTask.past_contestants.map(pc => (
+                                            <div key={pc.id} className="flex justify-between items-center text-sm">
+                                                <span>Take-off: {new Date(pc.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                                                <span className="text-gray-500">Contestant #{pc.contestant_number}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         );
                     })}
@@ -112,4 +86,4 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
         </div>
     );
 };
-export default ContestItem;
+export default PastContestItem;

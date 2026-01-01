@@ -1,29 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
-import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamPayload, ScheduleFlightPayload } from '../types';
+import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamPayload } from '../types';
 import * as api from '../api';
 
-interface ScheduleFlightFormProps {
+interface ContestRegistrationFormProps {
     contest: Contest;
-    navigationTaskId: number;
     myContests: MyParticipatingContest[];
     onClose: () => void;
 }
 
-const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, navigationTaskId, myContests, onClose }) => {
+const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ contest, myContests, onClose }) => {
     const existingRegistration = myContests.find(mc => mc.contest.id === contest.id);
 
-    // Form state
+    // Form state for registration
     const [copilot, setCopilot] = useState<number | null>(existingRegistration?.team.crew.member2?.id || null);
     const [aircraft, setAircraft] = useState<string>(existingRegistration?.team.aeroplane.registration || '');
     const [airspeed, setAirspeed] = useState<number>(existingRegistration?.air_speed || 65);
     const [club, setClub] = useState<string>(existingRegistration?.team.club?.name || '');
     
-    const [startTime, setStartTime] = useState<string>(new Date().toISOString().slice(0, 16));
-    const [windSpeed, setWindSpeed] = useState<number>(0);
-    const [windDirection, setWindDirection] = useState<number>(0);
-    const [adaptiveStart, setAdaptiveStart] = useState<boolean>(false);
-
     // Autocomplete state
     const [clubs, setClubs] = useState<Club[]>([]);
     const [aircrafts, setAircrafts] = useState<Aircraft[]>([]);
@@ -50,8 +44,6 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
         setError(null);
 
         try {
-            let contestTeamId: number | undefined = existingRegistration?.id;
-
             const currentRegistrationDetails = {
                 club_name: club,
                 aircraft_registration: aircraft,
@@ -81,8 +73,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     contestId: contest.id,
                     ...currentRegistrationDetails,
                 };
-                const registrationResponse = await api.registerForContest(registrationPayload);
-                contestTeamId = registrationResponse.id;
+                await api.registerForContest(registrationPayload);
 
             } else if (!existingRegistration) {
                 // No existing registration, just register new
@@ -90,28 +81,11 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     contestId: contest.id,
                     ...currentRegistrationDetails,
                 };
-                const registrationResponse = await api.registerForContest(registrationPayload);
-                contestTeamId = registrationResponse.id;
+                await api.registerForContest(registrationPayload);
             }
             // Else: existingRegistration exists and registrationDetailsChanged is false,
-            // so contestTeamId already holds existingRegistration.id and no action is needed.
-
-
-            if(contestTeamId) {
-                // Step 2: Schedule the flight.
-                const schedulePayload: ScheduleFlightPayload = {
-                    contest_team: contestTeamId,
-                    starting_point_time: new Date(startTime + ':00Z').toISOString(),
-                    adaptive_start: adaptiveStart,
-                    wind_speed: windSpeed,
-                    wind_direction: windDirection,
-                };
-
-                await api.scheduleFlight(contest.id, navigationTaskId, schedulePayload);
-                onClose(); // Close form on success
-            } else {
-                setError("Failed to obtain contest team ID for scheduling flight.");
-            }
+            // so no action is needed as registration details haven't changed.
+            onClose(); // Close form on success
             
         } catch (err) {
             setError((err as Error).message);
@@ -124,7 +98,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
     return (
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
-                <h2 className="card-title">Schedule flight for {contest.name}</h2>
+                <h2 className="card-title">Register for {contest.name}</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <>
                         <div className="divider">Team Registration</div>
@@ -171,43 +145,13 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                         </label>
                     </>
                     
-                    <div className="divider">Flight Details</div>
-                    {/* Start Time */}
-                    <label className="form-control w-full">
-                        <div className="label"><span className="label-text">Start Time</span></div>
-                        <input type="datetime-local" required value={startTime} onChange={e => setStartTime(e.target.value)} className="input input-bordered w-full" />
-                    </label>
-                    {/* Wind */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <label className="form-control w-full">
-                            <div className="label"><span className="label-text">Wind Speed (knots)</span></div>
-                            <input type="number" value={windSpeed} onChange={e => setWindSpeed(parseInt(e.target.value))} className="input input-bordered w-full" />
-                        </label>
-                        <label className="form-control w-full">
-                            <div className="label"><span className="label-text">Wind Direction</span></div>
-                            <input type="number" value={windDirection} onChange={e => setWindDirection(parseInt(e.target.value))} className="input input-bordered w-full" />
-                        </label>
-                    </div>
-                    {/* Adaptive Start */}
-                    <div className="form-control">
-                        <label className="label cursor-pointer">
-                            <span className="label-text inline-flex items-center">
-                                Adaptive Start
-                                <div className="tooltip tooltip-right" data-tip="If adaptive start is selected, your start time will be set to the nearest whole minute you cross the 10 NM long line going through the starting gate anywhere between one hour before and one hour after the selected starting point time (FAQ).">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-4 h-4 ml-2"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                </div>
-                            </span> 
-                            <input type="checkbox" checked={adaptiveStart} onChange={e => setAdaptiveStart(e.target.checked)} className="checkbox checkbox-primary" />
-                        </label>
-                    </div>
-
                     {error && <div className="alert alert-error mt-4">{error}</div>}
 
                     <div className="card-actions justify-end">
                         <button type="button" onClick={onClose} className="btn btn-ghost">Cancel</button>
                         <button type="submit" className="btn btn-primary" disabled={loading}>
                             {loading && <span className="loading loading-spinner"></span>}
-                            Schedule
+                            Register
                         </button>
                     </div>
                 </form>
@@ -216,4 +160,4 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
     );
 };
 
-export default ScheduleFlightForm;
+export default ContestRegistrationForm;

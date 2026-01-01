@@ -25,7 +25,19 @@ export const fetchContests = async (url: string): Promise<PaginatedContests> => 
 export const fetchMyParticipatingContests = async (url: string): Promise<MyParticipatingContest[]> => {
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        throw new Error('Failed to fetch participating contests');
+        const error = new Error('Failed to fetch participating contests') as any;
+        error.status = response.status;
+        throw error;
+    }
+    return response.json();
+};
+
+export const fetchMyParticipatedContests = async (url: string): Promise<MyParticipatingContest[]> => {
+    const response = await fetch(url, { headers: getAuthHeaders() });
+    if (!response.ok) {
+        const error = new Error('Failed to fetch participated contests') as any;
+        error.status = response.status;
+        throw error;
     }
     return response.json();
 };
@@ -86,9 +98,9 @@ export const scheduleFlight = async (contestId: number, navigationTaskId: number
     return response.json();
 };
 
-export const cancelFlight = async (contestId: number, navigationTaskId: number): Promise<void> => {
+export const cancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number): Promise<void> => {
     const response = await fetch(
-        `${API_BASE_URL}contests/${contestId}/navigationtasks/${navigationTaskId}/contestant_self_registration/`,
+        `${API_BASE_URL}contests/${contestId}/navigationtasks/${navigationTaskId}/delete_self_managed_contestant/${futureContestantId}/`,
         {
             method: 'DELETE',
             headers: getAuthHeaders(),
