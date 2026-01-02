@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   Save,
   Settings,
@@ -39,6 +40,7 @@ interface SidebarProps {
   routeName: string;
   setRouteName: (name: string) => void;
   isAuthenticated: boolean;
+  isDirty: boolean;
 }
 
 
@@ -67,7 +69,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   setMaxObsDist,
   routeName,
   setRouteName,
-  isAuthenticated
+  isAuthenticated,
+  isDirty
 }) => {
 
   const renderContent = () => {
@@ -180,7 +183,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="w-80 h-[calc(100vh-66px)] flex flex-col bg-base-100 border-r shadow-xl z-20">
+    <div className="h-full flex flex-col bg-base-100 border-r">
       <div className="p-6 bg-neutral text-neutral-content flex flex-col items-center gap-3 shadow-sm">
         <h1 className="text-xl font-bold tracking-tight">Route Editor</h1>
       </div>
@@ -201,6 +204,17 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4 border-t bg-base-200 space-y-2">
         {isAuthenticated ? (
           <div className="flex space-x-2">
+            <Link
+              to="/routeeditor/"
+              onClick={(e) => {
+                if (isDirty && !confirm("Route has unsaved changes. Leave anyway?")) {
+                  e.preventDefault();
+                }
+              }}
+              className="btn btn-neutral btn-sm"
+            >
+              Back
+            </Link>
             <button
               onClick={handleSave}
               className="btn btn-primary btn-sm flex-1 gap-2"

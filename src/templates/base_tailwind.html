@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="utf-8">
     <!-- Tell IE to use the latest, best version. -->
@@ -87,8 +87,8 @@
         gtag('config', 'G-71DRK6HYHD');
     </script>
 </head>
-<body>
-<header>
+<body class="flex flex-col h-screen overflow-hidden">
+<header class="flex-none">
     {% if not skip_nav %}
         <div class="navbar bg-neutral text-neutral-content">
             <div class="navbar-start">
@@ -155,7 +155,7 @@
         </div>
     {% endif %}
 </header>
-<main role="main">
+<main role="main" class="flex-1 overflow-y-auto flex flex-col">
         {% block contentfull %}
         {% endblock %}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

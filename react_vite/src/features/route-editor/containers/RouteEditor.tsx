@@ -41,6 +41,7 @@ export default function RouteEditor() {
   const [addCurveMode, setAddCurveMode] = useState(false);
   const [maxObsDist, setMaxObsDist] = useState(926); // Default 0.5 NM
   const [hideLabels, setHideLabels] = useState(false);
+  
 
   const modeRef = useRef(mode);
   const [mapInstance, setMapInstance] = useState<Map | null>(null);
@@ -700,81 +701,69 @@ export default function RouteEditor() {
 
         {/* TOOLBAR */}
         <Toolbar
-          mode={mode}
-          setMode={setMode}
-          tempGatePoint={tempGatePoint}
-          setTempGatePoint={setTempGatePoint}
-          setTempPolygonPoints={setTempPolygonPoints}
+            mode={mode}
+            setMode={setMode}
+            tempGatePoint={tempGatePoint}
+            setTempGatePoint={setTempGatePoint}
+            setTempPolygonPoints={setTempPolygonPoints}
         />
 
-        <div className="absolute top-4 right-4 z-[1000]">
-          <Link
-            to="/"
-            onClick={(e) => {
-              if (isDirty && !confirm("Route has unsaved changes. Leave anyway?")) {
-                e.preventDefault();
-              }
-            }}
-            className="btn btn-primary shadow">
-            Back to list
-          </Link>
-        </div>
 
         {/* MAP CONTAINER */}
-        <MapCanvas
-          ref={setMapInstance}
-          routePoints={routePoints}
-          gates={gates}
-          observationMarkers={observationMarkers}
-          polygons={polygons}
-          selectedId={selectedId}
-          selectionType={selectionType}
-          mode={mode}
-          tempGatePoint={tempGatePoint}
-          tempPolygonPoints={tempPolygonPoints}
-          showCorridor={showCorridor}
-          hideLabels={hideLabels}
-          setRoutePoints={setRoutePoints}
-          setGates={setGates}
-          setObservationMarkers={setObservationMarkers}
-          setPolygons={setPolygons}
-          setSelectedId={setSelectedId}
-          setSelectionType={setSelectionType}
-          setMode={setMode}
-          setTempPolygonPoints={setTempPolygonPoints}
-          onMapClick={handleMapClick}
-          maxObsDist={maxObsDist}
-        />
+            <MapCanvas
+                ref={setMapInstance}
+                routePoints={routePoints}
+                gates={gates}
+                observationMarkers={observationMarkers}
+                polygons={polygons}
+                selectedId={selectedId}
+                selectionType={selectionType}
+                mode={mode}
+                tempGatePoint={tempGatePoint}
+                tempPolygonPoints={tempPolygonPoints}
+                showCorridor={showCorridor}
+                hideLabels={hideLabels}
+                setRoutePoints={setRoutePoints}
+                setGates={setGates}
+                setObservationMarkers={setObservationMarkers}
+                setPolygons={setPolygons}
+                setSelectedId={setSelectedId}
+                setSelectionType={setSelectionType}
+                setMode={setMode}
+                setTempPolygonPoints={setTempPolygonPoints}
+                onMapClick={handleMapClick}
+                maxObsDist={maxObsDist}
+            />
 
-        {/* OVERLAY CONTROLS */}
-        <div className="absolute bottom-4 left-4 z-[1000] flex flex-col gap-2">
-          {mode === 'add_point' && (
-            <div className="bg-base-100 p-2 rounded shadow flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="curveMode"
-                className="checkbox checkbox-sm"
-                checked={addCurveMode}
-                onChange={(e) => setAddCurveMode(e.target.checked)}
-              />
-              <label htmlFor="curveMode" className="text-sm font-bold">Add Curved Leg</label>
-            </div>
-          )}
+            {/* OVERLAY CONTROLS */}
+            <div className="absolute bottom-4 left-4 z-[1000] flex flex-col gap-2">
+                {mode === 'add_point' && (
+                <div className="bg-base-100 p-2 rounded shadow flex items-center gap-2">
+                    <input
+                    type="checkbox"
+                    id="curveMode"
+                    className="checkbox checkbox-sm"
+                    checked={addCurveMode}
+                    onChange={(e) => setAddCurveMode(e.target.checked)}
+                    />
+                    <label htmlFor="curveMode" className="text-sm font-bold">Add Curved Leg</label>
+                </div>
+                )}
 
-          {selectedId && selectionType === 'point' && routePoints.findIndex(p => p.id === selectedId) > 0 && (
-            <div className="bg-base-100 p-2 rounded shadow flex flex-col gap-2">
-              <button onClick={toggleCurve} className="btn btn-sm btn-link no-underline">
-                {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' ? 'Make Straight' : 'Make Curved'}
-              </button>
-              {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' && (
-                <button onClick={resetCurve} className="btn btn-sm btn-link text-neutral no-underline">
-                  Reset Curve
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+                {selectedId && selectionType === 'point' && routePoints.findIndex(p => p.id === selectedId) > 0 && (
+                <div className="bg-base-100 p-2 rounded shadow flex flex-col gap-2">
+                    <button onClick={toggleCurve} className="btn btn-sm btn-link no-underline">
+                    {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' ? 'Make Straight' : 'Make Curved'}
+                    </button>
+                    {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' && (
+                    <button onClick={resetCurve} className="btn btn-sm btn-link text-neutral no-underline">
+                        Reset Curve
+                    </button>
+                    )}
+                </div>
+                )}
+          </div>
       </div>
-    </div>
+  </div>
   );
 }
