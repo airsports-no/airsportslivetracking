@@ -12,7 +12,7 @@ spec:
     tls:
       mode: Terminate
       options:
-        networking.gke.io/cert-manager-certs: airsports-gateway-cert
+        networking.gke.io/cert-manager-certs: airsports
     allowedRoutes:
       kinds:
       - kind: HTTPRoute
