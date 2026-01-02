@@ -122,7 +122,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
 
 
     return (
-        <div className="card bg-base-100 shadow-xl">
+        <div className="card bg-base-100 shadow-xl max-w-2xl mx-auto">
             <div className="card-body">
                 <h2 className="card-title">Schedule flight for {contest.name}</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -137,7 +137,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                                 onChange={selectedOption => setCopilot(selectedOption ? selectedOption.value : null)}
                                 isClearable
                                 placeholder="Select a co-pilot"
-                                classNamePrefix="react-select"
+                                classNamePrefix="my-react-select"
                             />
                         </label>
                         {/* Aircraft */}
@@ -149,7 +149,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                                 onChange={selectedOption => setAircraft(selectedOption ? selectedOption.value : '')}
                                 isClearable
                                 placeholder="Select or type aircraft registration"
-                                classNamePrefix="react-select"
+                                classNamePrefix="my-react-select"
                             />
                         </label>
                         {/* Airspeed */}
@@ -166,7 +166,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                                 onChange={selectedOption => setClub(selectedOption ? selectedOption.value : '')}
                                 isClearable
                                 placeholder="Select or type club"
-                                classNamePrefix="react-select"
+                                classNamePrefix="my-react-select"
                             />
                         </label>
                     </>
@@ -178,7 +178,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                         <input type="datetime-local" required value={startTime} onChange={e => setStartTime(e.target.value)} className="input input-bordered w-full" />
                     </label>
                     {/* Wind */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <label className="form-control w-full">
                             <div className="label"><span className="label-text">Wind Speed (knots)</span></div>
                             <input type="number" value={windSpeed} onChange={e => setWindSpeed(parseInt(e.target.value))} className="input input-bordered w-full" />

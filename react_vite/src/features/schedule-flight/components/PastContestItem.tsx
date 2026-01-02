@@ -83,7 +83,7 @@ const PastContestItem: React.FC<PastContestItemProps> = ({ contest, showPastCont
                                                 return (
                                                     <div
                                                         key={contestant.id}
-                                                        className={`flex justify-between items-center text-sm p-2 rounded mb-1 ${
+                                                        className={`flex flex-col items-start sm:flex-row sm:justify-between sm:items-center text-sm p-2 rounded mb-1 ${
                                                             isCurrentUser ? 'bg-blue-200 font-bold' : 'bg-base-100'
                                                         } ${isStrikethrough ? 'line-through' : ''}`}
                                                     >

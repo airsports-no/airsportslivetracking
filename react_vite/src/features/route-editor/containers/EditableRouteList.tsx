@@ -28,7 +28,7 @@ export const EditableRouteList = () => {
                 const value = getValue() as string;
                 return value ? (
                     <img
-                        className="zoom w-[50px] -my-5 -mr-5 max-w-none object-cover"
+                        className="zoom w-[50px] -my-5 -mr-5 max-w-none object-cover transition-transform duration-300 ease-in-out hover:scale-[3] hover:shadow-2xl hover:z-10"
                         src={value}
                         alt="Thumbnail"
                         loading="lazy"
@@ -47,7 +47,7 @@ export const EditableRouteList = () => {
             cell: ({ row, getValue }) => (
                 <div className="whitespace-normal break-words max-w-[16rem]">
                     <Link
-                        to={`/edit/${row.original.id}`}
+                        to={`edit/${row.original.id}`}
                         className="link link-primary"
                     >
                         {getValue() as string}

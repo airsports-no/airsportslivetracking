@@ -7,7 +7,6 @@ import Select from 'react-select';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
 import ContestRegistrationForm from './components/ContestRegistrationForm';
 import { Link } from "react-router-dom"; // Import Link
-import './react-select-dark.css';
 
 
 // Mock data for development
@@ -67,26 +66,26 @@ const ScheduleFlightContainer = () => {
     useEffect(() => {
         setLoading(true);
         api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL)
-        .then((myContestsData) => {
-            setMyContests(myContestsData);
-            return loadContests(); // initial load
-        })
-        .catch(err => {
-            // Check for 401 Unauthorized specifically for fetchMyParticipatingContests
-            if (err.status === 401) {
-                console.log("User not authenticated, redirecting to login in 5 seconds.");
-                setError("You are not authenticated. Redirecting to login page in 5 seconds..."); // Provide user feedback
-                const loginPageUrl = document.configuration?.loginUrl || '/login';
-                setTimeout(() => {
-                    window.location.href = loginPageUrl;
-                }, 5000); // 5000ms = 5 seconds
-            } else {
-                setError(err.message);
-            }
-        })
-        .finally(() => {
-            setLoading(false);
-        });
+            .then((myContestsData) => {
+                setMyContests(myContestsData);
+                return loadContests(); // initial load
+            })
+            .catch(err => {
+                // Check for 401 Unauthorized specifically for fetchMyParticipatingContests
+                if (err.status === 401) {
+                    console.log("User not authenticated, redirecting to login in 5 seconds.");
+                    setError("You are not authenticated. Redirecting to login page in 5 seconds..."); // Provide user feedback
+                    const loginPageUrl = document.configuration?.loginUrl || '/login';
+                    setTimeout(() => {
+                        window.location.href = loginPageUrl;
+                    }, 5000); // 5000ms = 5 seconds
+                } else {
+                    setError(err.message);
+                }
+            })
+            .finally(() => {
+                setLoading(false);
+            });
     }, []);
 
     const refreshData = () => {
@@ -149,7 +148,7 @@ const ScheduleFlightContainer = () => {
     const handleScheduleClick = (contest: Contest, navigationTask: NavigationTask) => {
         setSelectedTask({ contest, navigationTask });
     };
-    
+
     const onFormClose = () => {
         setSelectedTask(null);
         handleScheduleFlight();
@@ -162,12 +161,12 @@ const ScheduleFlightContainer = () => {
 
 
     if (selectedTask) {
-        return <ScheduleFlightForm 
-            contest={selectedTask.contest} 
-            navigationTaskId={selectedTask.navigationTask.pk} 
+        return <ScheduleFlightForm
+            contest={selectedTask.contest}
+            navigationTaskId={selectedTask.navigationTask.pk}
             myContests={myContests}
-            onClose={onFormClose} 
-            />
+            onClose={onFormClose}
+        />
     }
 
     if (selectedContestForRegistration) {
@@ -180,26 +179,28 @@ const ScheduleFlightContainer = () => {
 
     return (
         <div className="container mx-auto p-2 sm:p-4">
-            <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4 flex justify-between items-center">
-                Schedule a Flight
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2 sm:mb-4">
+                <h1 className="text-2xl sm:text-4xl font-bold">
+                    Schedule a Flight
+                </h1>
                 <Link to="/past-flights" className="btn btn-primary">View Past Flights</Link>
-            </h1>
+            </div>
 
             {error && <div className="alert alert-error">{error}</div>}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4">
-                                <div>
+                <div>
                     <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">My Upcoming Flights</h2>
                     <UpcomingFlights myContests={myContests} onCancel={handleCancelFlight} />
                 </div>
 
                 <div className="md:col-span-2">
                     <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">Available Contests</h2>
-                    <div className="flex space-x-4 mb-4">
+                    <div className="flex flex-col sm:flex-row gap-4 mb-4">
                         <input
                             type="text"
                             placeholder="Filter by name"
-                            className="input input-bordered w-full max-w-xs"
+                            className="input input-bordered w-full sm:w-auto sm:max-w-xs"
                             value={nameFilter}
                             onChange={(e) => setNameFilter(e.target.value)}
                         />
@@ -208,9 +209,9 @@ const ScheduleFlightContainer = () => {
                             options={countryOptions}
                             value={countryOptions.filter(option => selectedCountries.includes(option.value))}
                             onChange={(selectedOptions) => setSelectedCountries(selectedOptions ? selectedOptions.map(option => option.value) : [])}
-                            className="w-full max-w-xs"
+                            className="my-react-select-container"
+                            classNamePrefix="my-react-select"
                             placeholder="Filter by country"
-                            classNamePrefix="react-select"
                         />
                     </div>
                     <div className="space-y-4">

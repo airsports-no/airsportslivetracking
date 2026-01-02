@@ -3,7 +3,6 @@ import { Contest, NavigationTask } from './types';
 import * as api from './api';
 import PastContestItem from './components/PastContestItem';
 import Select from 'react-select';
-import './react-select-dark.css';
 
 const MY_PARTICIPATED_CONTESTS_URL = document.configuration.MY_PARTICIPATED_CONTESTS_URL;
 
@@ -84,7 +83,7 @@ const PastFlightsPage = () => {
                             options={countryOptions}
                             value={countryOptions.filter(option => selectedCountries.includes(option.value))}
                             onChange={(selectedOptions) => setSelectedCountries(selectedOptions ? selectedOptions.map(option => option.value) : [])}
-                            className="w-full max-w-xs"
+                            className="w-full max-w-xs dark:bg-black"
                             placeholder="Filter by country"
                             classNamePrefix="react-select"
                         />

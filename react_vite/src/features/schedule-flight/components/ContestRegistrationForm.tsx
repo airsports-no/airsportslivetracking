@@ -96,7 +96,7 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
 
 
     return (
-        <div className="card bg-base-100 shadow-xl">
+        <div className="card bg-base-100 shadow-xl max-w-2xl mx-auto">
             <div className="card-body">
                 <h2 className="card-title">Register for {contest.name}</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -111,7 +111,7 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
                                 onChange={selectedOption => setCopilot(selectedOption ? selectedOption.value : null)}
                                 isClearable
                                 placeholder="Select a co-pilot"
-                                classNamePrefix="react-select"
+                                classNamePrefix="my-react-select"
                             />
                         </label>
                         {/* Aircraft */}
@@ -123,7 +123,7 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
                                 onChange={selectedOption => setAircraft(selectedOption ? selectedOption.value : '')}
                                 isClearable
                                 placeholder="Select or type aircraft registration"
-                                classNamePrefix="react-select"
+                                classNamePrefix="my-react-select"
                             />
                         </label>
                         {/* Airspeed */}
@@ -140,7 +140,7 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
                                 onChange={selectedOption => setClub(selectedOption ? selectedOption.value : '')}
                                 isClearable
                                 placeholder="Select or type club"
-                                classNamePrefix="react-select"
+                                classNamePrefix="my-react-select"
                             />
                         </label>
                     </>
