@@ -11,69 +11,113 @@
 }
 
 .my-react-select__control {
-    background-color: var(--color-base-200) !important;
-    border-color: var(--color-base-200) !important;
+    background-color: var(--color-base-100) !important;
+    border-color: color-mix(in oklab, var(--color-base-content) 20%, #0000);
+    border-style: solid !important;
+    border-width: 1px !important;
+    border-radius: var(--rounded-btn, 0.2rem) !important;
+    min-height: 2rem !important; /* Use min-height instead of height for better flexibility */
+    font-size: max(var(--font-size, 0.875rem), 0.875rem);
     box-shadow: none !important;
-    color: var(--color-base-content) !important
+    outline: none !important;
+    color: var(--content-neutral-content) !important; /* Use DaisyUI's neutral content color */
+    transition: all 0.2s ease-in-out;
+    cursor: pointer; /* Indicate it's clickable */
 }
 
 .my-react-select__control:hover {
-    border-color: hsl(var(--color-base-content) / 0.2);
+    border-color: var(--color-base-content) !important; /* Keep consistent on hover */
 }
 
 .my-react-select__control--is-focused {
-    border-color: var(--color-primary) !important; /* Use !important to override inline styles */
-    box-shadow: 0 0 0 1px var(--color-primary) !important;
+    border-color: var(--color-primary) !important; /* Primary color for focus */
+    box-shadow: 0 0 0 1px var(--color-primary) !important; /* Primary color for focus shadow */
+    outline: none !important;
 }
 
 .my-react-select__control--is-focused:hover {
     border-color: var(--color-primary) !important;
 }
 
-.my-react-select__menu {
-    background-color:var(--color-base-200) !important;
+.my-react-select__placeholder {
+    color: var(--color-base-content) / 0.4 !important; /* Neutral content with transparency */
+    margin-left: 0.5rem; /* Add consistent left margin */
+}
+
+.my-react-select__single-value {
     color: var(--color-base-content) !important;
+    font-size: max(var(--font-size, 0.875rem), 0.875rem);
+    margin-left: 0.5rem; /* Add consistent left margin */
+}
+
+.my-react-select__value-container {
+    padding: 0 0.5rem !important; /* Adjust padding for better look, was padding-left: 0.5rem */
+}
+
+.my-react-select__menu {
+    background-color: var(--color-base-100) !important;
+    color: var(--color-base-content) !important;
+    border-radius: var(--rounded-btn, 0.2rem) !important;
+    border-width: 1px !important;
+    border-color: var(--color-base-content) !important;
+    overflow: hidden;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); /* DaisyUI shadow */
+    margin-top: 0.25rem; /* Small gap between control and menu */
 }
 
 .my-react-select__option {
-    background-color: var(--color-base-200) !important;
+    background-color: transparent !important;
     color: var(--color-base-content) !important;
+    padding: 0.75rem 1rem !important; /* Standard DaisyUI list item padding */
+    cursor: pointer;
 }
 
 .my-react-select__option--is-selected {
     background-color: var(--color-primary) !important;
-    color: var(--pc) !important;
+    color: var(--color-primary-content) !important;
 }
 
 .my-react-select__option--is-focused {
-    background-color: var(--color-neutral) !important;
+    background-color: var(--color-base-200) !important; /* Base-200 for focus */
 }
 
 .my-react-select__option:active {
-    background-color: var(--color-primary) !important;
+    background-color: var(--color-primary) !important; /* Primary for active */
 }
 
 .my-react-select__option--is-selected.my-react-select__option--is-focused {
     background-color: var(--color-primary) !important;
+    color: var(--color-primary-content) !important;
 }
 
-.my-react-select__input, .my-react-select__single-value {
-    color: var(--color-base-content) !important;
+.my-react-select__input {
+    color: var(--color-neutral-content) !important;
+        font-size: max(var(--font-size, 0.875rem), 0.875rem);
+    margin-left: 0.5rem; /* Add consistent left margin */
 }
 
 .my-react-select__multi-value {
-    background-color: var(--color-neutral) !important;
+    background-color: var(--color-neutral) !important; /* Neutral background for tags */
+    color: var(--color-neutral-content) !important; /* Neutral content color */
+    border-radius: var(--rounded-badge, 1.9rem) !important; /* DaisyUI badge border-radius */
+    padding: 0.25rem 0.5rem !important; /* Adjust padding for multi-value tags */
+    margin: 0.25rem !important; /* Spacing between tags */
 }
 
 .my-react-select__multi-value__label {
     color: var(--color-neutral-content) !important;
+    font-size: max(var(--font-size, 0.875rem), 0.875rem);
+    padding-right: 0.25rem !important;
 }
 
 .my-react-select__multi-value__remove {
     color: var(--color-neutral-content) !important;
+    padding: 0.25rem !important;
+    border-radius: 50% !important; /* Circular remove button */
+    margin-left: 0.25rem !important;
 }
 
 .my-react-select__multi-value__remove:hover {
-    background-color: var(--color-error) !important;
-    color: var(--erc) !important;
+    background-color: var(--color-error) !important; /* Error color for remove button hover */
+    color: var(--color-error-content) !important;
 }

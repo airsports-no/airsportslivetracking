@@ -14,6 +14,15 @@ steps:
   args: ['push','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest']
+- name: gcr.io/cloud-builders/gcloud
+  entrypoint: bash
+  args:
+    - '-c'
+    - |
+      if [ "$BRANCH_NAME" = "main" ]
+      then
+      gcloud builds triggers run Deploy --branch=main --region=europe-west1 --project=${PROJECT_ID}
+      fi
 - name: 'gcr.io/cloud-builders/docker'
   args: ['compose','up','-d','tracker_daphne']
 - name: 'gcr.io/cloud-builders/docker'
@@ -27,15 +36,6 @@ steps:
     docker exec tracker_daphne /bin/bash -c "pytest"
 - name: 'gcr.io/cloud-builders/docker'
   args: ['compose','down']
-- name: gcr.io/cloud-builders/gcloud
-  entrypoint: bash
-  args:
-    - '-c'
-    - |
-      if [ "$BRANCH_NAME" = "main" ]
-      then
-      gcloud builds triggers run Deploy --branch=main --region=europe-west1 --project=${PROJECT_ID}
-      fi
 images:
 - 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}'
 - 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest'

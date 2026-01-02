@@ -85,7 +85,7 @@ const PastFlightsPage = () => {
                             onChange={(selectedOptions) => setSelectedCountries(selectedOptions ? selectedOptions.map(option => option.value) : [])}
                             className="w-full max-w-xs dark:bg-black"
                             placeholder="Filter by country"
-                            classNamePrefix="react-select"
+                            classNamePrefix="my-react-select"
                         />
                     </div>
                     <div className="space-y-2 sm:space-y-4">
