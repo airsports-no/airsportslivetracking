@@ -184,9 +184,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-base-100 border-r">
-      <div className="p-6 bg-neutral text-neutral-content flex flex-col items-center gap-3 shadow-sm">
-        <h1 className="text-xl font-bold tracking-tight">Route Editor</h1>
-      </div>
 
       <div className="flex-1 overflow-y-auto p-4">
         <input
