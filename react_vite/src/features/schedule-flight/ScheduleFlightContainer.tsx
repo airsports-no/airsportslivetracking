@@ -41,7 +41,7 @@ const ScheduleFlightContainer = () => {
     const loadContests = (loadMore = false) => {
         let url = CONTESTS_LIST_URL;
         if (loadMore && nextCursor) {
-            url += `?cursor=${nextCursor}`;
+            url += `&cursor=${nextCursor}`;
         } else if (loadMore && !nextCursor) {
             setHasMore(false);
             return Promise.resolve();
@@ -179,22 +179,22 @@ const ScheduleFlightContainer = () => {
     }
 
     return (
-        <div className="container mx-auto p-4">
-            <h1 className="text-4xl font-bold mb-4 flex justify-between items-center">
+        <div className="container mx-auto p-2 sm:p-4">
+            <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4 flex justify-between items-center">
                 Schedule a Flight
                 <Link to="/past-flights" className="btn btn-primary">View Past Flights</Link>
             </h1>
 
             {error && <div className="alert alert-error">{error}</div>}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4">
                                 <div>
-                    <h2 className="text-2xl font-bold mb-4">My Upcoming Flights</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">My Upcoming Flights</h2>
                     <UpcomingFlights myContests={myContests} onCancel={handleCancelFlight} />
                 </div>
 
                 <div className="md:col-span-2">
-                    <h2 className="text-2xl font-bold mb-4">Available Contests</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">Available Contests</h2>
                     <div className="flex space-x-4 mb-4">
                         <input
                             type="text"

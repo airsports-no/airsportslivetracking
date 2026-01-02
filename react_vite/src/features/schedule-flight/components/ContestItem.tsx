@@ -17,12 +17,12 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
     
     return (
         <div className={`card bg-base-100 shadow-xl ${isRegistered ? 'border-2 border-primary' : ''}`}>
-            <div className="card-body">
-                <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4'>
-                    <div className='flex items-start'>
-                        <img src={contest.logo} alt={`${contest.name} logo`} className="h-16 w-16 mr-4" />
+            <div className="card-body p-2 sm:p-4">
+                <div className='flex flex-col sm:flex-row items-start sm:justify-between gap-2 sm:gap-4'>
+                    <div className='flex items-start flex-grow'>
+                        <img src={contest.logo} alt={`${contest.name} logo`} className="h-12 w-12 sm:h-16 sm:w-16 mr-2 sm:mr-4" />
                         <div>
-                            <h2 className="card-title">
+                            <h2 className="card-title text-lg sm:text-xl">
                                 {contest.name}
                                 {contest.country_flag_url && (
                                     <img src={contest.country_flag_url} alt={`${contest.country} flag`} className="w-6 h-4 ml-2 inline-block" />
@@ -39,12 +39,12 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                             )}
                         </div>
                     </div>
-                    <div className="flex flex-col items-center sm:items-end gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
                         {isRegistered ? (
-                            <>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                 <div className="badge badge-secondary">Registered</div>
                                 <button className="btn btn-warning" onClick={() => onWithdrawClick(contest.id)}>Withdraw</button>
-                            </>
+                            </div>
                         ) : (
                             <button className="btn btn-success" onClick={() => onRegisterClick(contest)}>Register</button>
                         )}
@@ -64,10 +64,10 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                             [];
 
                         return (
-                            <div key={task.pk} className="p-2 rounded-lg bg-base-200 mb-2">
+                            <div key={task.pk} className="p-1 sm:p-2 rounded-lg bg-base-200 mb-1 sm:mb-2">
                                 <div className="flex justify-between items-center">
                                     <div>
-                                        <h4 className="font-bold">
+                                        <h4 className="font-bold text-base sm:text-lg">
                                             {task.name}
                                             <a href={task.tracking_link} target="_blank" rel="noopener noreferrer" className="ml-2">
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -82,7 +82,7 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                                     {myFutureContestantsForThisTask.length > 0 ? (
                                         <div className="text-right">
                                             {myFutureContestantsForThisTask.map(fc => (
-                                                <div key={fc.id} className="flex items-center justify-end space-x-2">
+                                                <div key={fc.id} className="flex items-center justify-end space-x-1 sm:space-x-2">
                                                     <p className="text-sm font-semibold">
                                                         Scheduled: {new Date(fc.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
                                                     </p>

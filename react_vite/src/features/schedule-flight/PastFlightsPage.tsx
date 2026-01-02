@@ -3,6 +3,7 @@ import { Contest, NavigationTask } from './types';
 import * as api from './api';
 import PastContestItem from './components/PastContestItem';
 import Select from 'react-select';
+import './react-select-dark.css';
 
 const MY_PARTICIPATED_CONTESTS_URL = document.configuration.MY_PARTICIPATED_CONTESTS_URL;
 
@@ -63,14 +64,14 @@ const PastFlightsPage = () => {
     }, [contests]);
 
     return (
-        <div className="container mx-auto p-4">
-            <h1 className="text-4xl font-bold mb-4">Past Flights</h1>
+        <div className="container mx-auto p-2 sm:p-4">
+            <h1 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-4">Past Flights</h1>
 
             {error && <div className="alert alert-error">{error}</div>}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:col-span-3 gap-2 sm:gap-4">
                 <div className="md:col-span-3">
-                    <div className="flex space-x-4 mb-4">
+                    <div className="flex space-x-2 sm:space-x-4 mb-2 sm:mb-4">
                         <input
                             type="text"
                             placeholder="Filter by name"
@@ -88,7 +89,7 @@ const PastFlightsPage = () => {
                             classNamePrefix="react-select"
                         />
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-2 sm:space-y-4">
                         {filteredAndSortedContests.map(contest => (
                             <PastContestItem
                                 key={contest.id}
@@ -99,7 +100,7 @@ const PastFlightsPage = () => {
                     </div>
                     {loading && <div className="loading loading-lg"></div>}
                     {!loading && filteredAndSortedContests.length === 0 && (
-                        <p className="text-center mt-4">No past flights found.</p>
+                        <p className="text-center mt-2 sm:mt-4">No past flights found.</p>
                     )}
                 </div>
             </div>
