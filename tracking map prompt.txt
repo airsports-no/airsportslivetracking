@@ -1,0 +1,2099 @@
+We are building an interactive competition flying map display using React Typescript and Tailwind/DaisyUI CSS. The application fetches information about the current navigation task from a rest interface. This contains data about the task itself as well as all previous competition data for all participants. Real time data is received through a websocket. The application should support both real time display of the flights as well as provide an option for playing back the competition at a configurable speed. There are some existing components for rendering the route and the predicted score at the next gate that can be reused. These should be ported to Typescript and placed inside the new application. The competition display map should be made available through the front end router.
+
+The navigation task itself is available through the following API endpoint: /api/v1/contests/632/navigationtasks/2129/
+It returns the following data block:
+{
+    "id": 2129,
+    "contestant_set": [
+        {
+            "id": 10251,
+            "gate_times": {
+                "SP": "2024-07-04T14:52:00+02:00",
+                "TP 1": "2024-07-04T14:56:09+02:00",
+                "SG 1": "2024-07-04T14:58:29+02:00",
+                "TP 2": "2024-07-04T15:00:55+02:00",
+                "SG 2": "2024-07-04T15:02:54+02:00",
+                "SG 3": "2024-07-04T15:04:28+02:00",
+                "TP A": "2024-07-04T15:06:01+02:00",
+                "SG 5": "2024-07-04T15:08:30+02:00",
+                "TP 3": "2024-07-04T15:10:56+02:00",
+                "SG 6": "2024-07-04T15:12:21+02:00",
+                "TP 4": "2024-07-04T15:13:12+02:00",
+                "TP 5": "2024-07-04T15:16:44+02:00",
+                "TP 6": "2024-07-04T15:20:11+02:00",
+                "Finish": "2024-07-04T15:22:24+02:00"
+            },
+            "scorecard_rules": [],
+            "tracker_id_display": [
+                {
+                    "tracker": "frankose@ifi.uio.no",
+                    "has_user": true,
+                    "is_active": false
+                },
+                {
+                    "tracker": "espengronstad@gmail.com",
+                    "has_user": true,
+                    "is_active": false
+                }
+            ],
+            "default_map_url": "/display/contestant/10251/defaultmap/",
+            "has_crossed_starting_line": true,
+            "team": {
+                "id": 1806,
+                "country_flag_url": null,
+                "aeroplane": {
+                    "id": 569,
+                    "registration": "LN-YYF",
+                    "colour": "White",
+                    "type": "C42A",
+                    "picture": "https://storage.googleapis.com/airsports-data/20240607_125738_1.jpg"
+                },
+                "country": "",
+                "crew": {
+                    "id": 68,
+                    "member1": {
+                        "id": 99,
+                        "phone": "+4741408110",
+                        "first_name": "Frank Olaf",
+                        "last_name": "Sem-Jacobsen",
+                        "email": "frankose@ifi.uio.no",
+                        "creation_time": "2021-02-21T21:22:16.314888Z",
+                        "validated": true,
+                        "app_aircraft_registration": "LNYYF",
+                        "picture": "https://storage.googleapis.com/airsports-data/kolaf_LTcH5ao.png",
+                        "biography": "Cofounder of Air Sports Live Tracking, https://airsports.no.",
+                        "country": "NO",
+                        "is_public": true,
+                        "last_seen": "2025-08-16T13:19:26Z"
+                    },
+                    "member2": {
+                        "id": 108,
+                        "phone": "+4790730408",
+                        "first_name": "Espen",
+                        "last_name": "Grønstad",
+                        "email": "espengronstad@gmail.com",
+                        "creation_time": "2021-03-08T07:15:38.139675Z",
+                        "validated": true,
+                        "app_aircraft_registration": "Test AirSports",
+                        "picture": "https://storage.googleapis.com/airsports-data/nobg_1FCF56F7-3D5B-42D6-B189-4E9A0DBA9D47_9IOVJN8.png",
+                        "biography": "Contact us for sponsorship or partners @ Air Sports Live Tracking..",
+                        "country": "NO",
+                        "is_public": true,
+                        "last_seen": "2026-01-01T23:16:16Z"
+                    }
+                },
+                "club": {
+                    "id": 50,
+                    "country_flag_url": "https://storage.googleapis.com/airsports-static/flags/no.gif",
+                    "country": "NO",
+                    "name": "Innlandet flyklubb",
+                    "logo": null
+                },
+                "logo": null
+            },
+            "contestanttrack": {
+                "id": 10416,
+                "contest_summary": 541,
+                "score": 198,
+                "current_state": "Finished",
+                "current_leg": "Finish",
+                "last_gate": "Finish",
+                "last_gate_time_offset": -10,
+                "passed_starting_gate": false,
+                "passed_finish_gate": true,
+                "calculator_finished": true,
+                "calculator_started": true,
+                "contestant": 10251
+            },
+            "adaptive_start": false,
+            "takeoff_time": "2024-07-04T12:40:00Z",
+            "minutes_to_starting_point": 12,
+            "finished_by_time": "2024-07-04T14:00:28.629856Z",
+            "air_speed": 60,
+            "track_version": 0,
+            "contestant_number": 1,
+            "tracking_service": "traccar",
+            "tracking_device": "pilot_app_or_copilot_a[[",
+            "tracker_device_id": "",
+            "tracker_start_time": "2024-07-04T12:30:00Z",
+            "competition_class_longform": null,
+            "competition_class_shortform": null,
+            "wind_speed": 10,
+            "wind_direction": 150,
+            "annotation_index": 0,
+            "has_been_tracked_by_simulator": false
+        },
+    ],
+    "original_scorecard": "Air Sports Race",
+    "scorecard": {
+        "gatescore_set": [
+            {
+                "gate_type": "dummy",
+                "extended_gate_width": 0,
+                "bad_crossing_extended_gate_penalty": 0,
+                "graceperiod_before": 1,
+                "graceperiod_after": 1,
+                "maximum_penalty": 200,
+                "penalty_per_second": 2,
+                "missed_penalty": 100,
+                "bad_course_crossing_penalty": 0,
+                "missed_procedure_turn_penalty": 0,
+                "backtracking_after_steep_gate_grace_period_seconds": 0,
+                "backtracking_before_gate_grace_period_nm": 0.5,
+                "backtracking_after_gate_grace_period_nm": 0.5
+            },
+            {
+                "gate_type": "fp",
+                "extended_gate_width": 0,
+                "bad_crossing_extended_gate_penalty": 0,
+                "graceperiod_before": 2,
+                "graceperiod_after": 2,
+                "maximum_penalty": 200,
+                "penalty_per_second": 3,
+                "missed_penalty": 100,
+                "bad_course_crossing_penalty": 0,
+                "missed_procedure_turn_penalty": 0,
+                "backtracking_after_steep_gate_grace_period_seconds": 0,
+                "backtracking_before_gate_grace_period_nm": 0.5,
+                "backtracking_after_gate_grace_period_nm": 0.5
+            },
+            {
+                "gate_type": "ldg",
+                "extended_gate_width": 0,
+                "bad_crossing_extended_gate_penalty": 0,
+                "graceperiod_before": 9999999999,
+                "graceperiod_after": 0,
+                "maximum_penalty": 0,
+                "penalty_per_second": 0,
+                "missed_penalty": 0,
+                "bad_course_crossing_penalty": 0,
+                "missed_procedure_turn_penalty": 0,
+                "backtracking_after_steep_gate_grace_period_seconds": 0,
+                "backtracking_before_gate_grace_period_nm": 0,
+                "backtracking_after_gate_grace_period_nm": 0.5
+            },
+            {
+                "gate_type": "secret",
+                "extended_gate_width": 0,
+                "bad_crossing_extended_gate_penalty": 0,
+                "graceperiod_before": 2,
+                "graceperiod_after": 2,
+                "maximum_penalty": 200,
+                "penalty_per_second": 3,
+                "missed_penalty": 100,
+                "bad_course_crossing_penalty": 0,
+                "missed_procedure_turn_penalty": 0,
+                "backtracking_after_steep_gate_grace_period_seconds": 0,
+                "backtracking_before_gate_grace_period_nm": 0.5,
+                "backtracking_after_gate_grace_period_nm": 0.5
+            },
+            {
+                "gate_type": "sp",
+                "extended_gate_width": 0.01,
+                "bad_crossing_extended_gate_penalty": 200,
+                "graceperiod_before": 2,
+                "graceperiod_after": 2,
+                "maximum_penalty": 200,
+                "penalty_per_second": 3,
+                "missed_penalty": 200,
+                "bad_course_crossing_penalty": 0,
+                "missed_procedure_turn_penalty": 0,
+                "backtracking_after_steep_gate_grace_period_seconds": 0,
+                "backtracking_before_gate_grace_period_nm": 0,
+                "backtracking_after_gate_grace_period_nm": 0.5
+            },
+            {
+                "gate_type": "to",
+                "extended_gate_width": 0,
+                "bad_crossing_extended_gate_penalty": 0,
+                "graceperiod_before": 3,
+                "graceperiod_after": 60,
+                "maximum_penalty": 200,
+                "penalty_per_second": 200,
+                "missed_penalty": 0,
+                "bad_course_crossing_penalty": 0,
+                "missed_procedure_turn_penalty": 0,
+                "backtracking_after_steep_gate_grace_period_seconds": 0,
+                "backtracking_before_gate_grace_period_nm": 0,
+                "backtracking_after_gate_grace_period_nm": 0.5
+            },
+            {
+                "gate_type": "tp",
+                "extended_gate_width": 0,
+                "bad_crossing_extended_gate_penalty": 0,
+                "graceperiod_before": 2,
+                "graceperiod_after": 2,
+                "maximum_penalty": 200,
+                "penalty_per_second": 3,
+                "missed_penalty": 100,
+                "bad_course_crossing_penalty": 0,
+                "missed_procedure_turn_penalty": 0,
+                "backtracking_after_steep_gate_grace_period_seconds": 0,
+                "backtracking_before_gate_grace_period_nm": 0.5,
+                "backtracking_after_gate_grace_period_nm": 0.5
+            },
+            {
+                "gate_type": "ul",
+                "extended_gate_width": 0,
+                "bad_crossing_extended_gate_penalty": 0,
+                "graceperiod_before": 1,
+                "graceperiod_after": 1,
+                "maximum_penalty": 200,
+                "penalty_per_second": 2,
+                "missed_penalty": 100,
+                "bad_course_crossing_penalty": 0,
+                "missed_procedure_turn_penalty": 0,
+                "backtracking_after_steep_gate_grace_period_seconds": 0,
+                "backtracking_before_gate_grace_period_nm": 0.5,
+                "backtracking_after_gate_grace_period_nm": 0.5
+            }
+        ],
+        "corridor_width": 0.5,
+        "task_type": [
+            "airsports"
+        ],
+        "shortcut_name": "Air Sports Race_2129",
+        "valid_from": "2022-01-01T00:00:00Z",
+        "free_text": "",
+        "initial_score": 0,
+        "backtracking_penalty": 10,
+        "backtracking_bearing_difference": 90,
+        "backtracking_grace_time_seconds": 5,
+        "backtracking_maximum_penalty": 100,
+        "below_minimum_altitude_penalty": 500,
+        "below_minimum_altitude_maximum_penalty": 500,
+        "prohibited_zone_penalty": 200,
+        "prohibited_zone_grace_time": 5,
+        "prohibited_zone_maximum": 3,
+        "penalty_zone_grace_time": 5,
+        "penalty_zone_penalty_per_second": 3,
+        "penalty_zone_maximum": 100,
+        "corridor_grace_time": 5,
+        "corridor_outside_penalty": 1,
+        "corridor_maximum_penalty": -1
+    },
+    "display_contestant_rank_summary": true,
+    "share_string": "Public",
+    "route": {
+        "id": 5425,
+        "waypoints": [
+            {
+                "name": "SP",
+                "latitude": 60.706007,
+                "longitude": 11.790921,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.70919568618436,
+                        11.806644651324055
+                    ],
+                    [
+                        60.702816472866544,
+                        11.775200468744178
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.712371603435706,
+                        11.822317475517465
+                    ],
+                    [
+                        60.69963505800337,
+                        11.759536961984242
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "sp",
+                "distance_next": 6417.09186706236,
+                "distance_previous": -1,
+                "bearing_next": 157.47969035926826,
+                "bearing_from_previous": -1,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 2639.0306223541197,
+                "inside_distance": 2139.0306223541197,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.70919568618436,
+                        11.806644651324055
+                    ],
+                    1,
+                    -1
+                ]
+            },
+            {
+                "name": "TP 1",
+                "latitude": 60.652812,
+                "longitude": 11.835918,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.65721815864156,
+                        11.850586238868463
+                    ],
+                    [
+                        60.64845842268148,
+                        11.821433986025914
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.66155456890393,
+                        11.86503142170989
+                    ],
+                    [
+                        60.64411731930303,
+                        11.807000545142838
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "tp",
+                "distance_next": 3615.1915475939686,
+                "distance_previous": 6417.09186706236,
+                "bearing_next": 139.49489979229583,
+                "bearing_from_previous": 157.47969035926826,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 2639.0306223541197,
+                "inside_distance": 2139.0306223541197,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.64845842268148,
+                        11.821433986025914
+                    ],
+                    -1,
+                    1
+                ]
+            },
+            {
+                "name": "SG 1",
+                "latitude": 60.628152,
+                "longitude": 11.878855,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.63366859010464,
+                        11.891578559837168
+                    ],
+                    [
+                        60.62263500826253,
+                        11.866137649748842
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.639166881602065,
+                        11.904267022864007
+                    ],
+                    [
+                        60.61713311005122,
+                        11.85346219113224
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "secret",
+                "distance_next": 3758.7966642502406,
+                "distance_previous": 3615.1915475939686,
+                "bearing_next": 137.53678101647472,
+                "bearing_from_previous": 139.49489979229583,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 0,
+                "inside_distance": 0,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.62263500826253,
+                        11.866137649748842
+                    ],
+                    -1,
+                    1
+                ]
+            },
+            {
+                "name": "TP 2",
+                "latitude": 60.603276,
+                "longitude": 11.925219,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.60690547899847,
+                        11.940489539712594
+                    ],
+                    [
+                        60.599486457215804,
+                        11.9092864827968
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.6105210554936,
+                        11.955712290542317
+                    ],
+                    [
+                        60.59586560812341,
+                        11.894074138290504
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "tp",
+                "distance_next": 3095.2816832527606,
+                "distance_previous": 3758.7966642502406,
+                "bearing_next": 170.7735279464532,
+                "bearing_from_previous": 137.53678101647472,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 2565.2628131212723,
+                "inside_distance": 2065.2628131212723,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.60690547899847,
+                        11.940489539712594
+                    ],
+                    1,
+                    -1
+                ]
+            },
+            {
+                "name": "SG 2",
+                "latitude": 60.575856499334364,
+                "longitude": 11.934285163879395,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.57719460030607,
+                        11.951016633603913
+                    ],
+                    [
+                        60.57451630785325,
+                        11.91755508075769
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.57852578186474,
+                        11.967688962285509
+                    ],
+                    [
+                        60.57317888498511,
+                        11.900886891839889
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "secret",
+                "distance_next": 2446.9987896806156,
+                "distance_previous": 3095.2816832527606,
+                "bearing_next": 170.71911986845203,
+                "bearing_from_previous": 170.7735279464532,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 0,
+                "inside_distance": 0,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.57451630785325,
+                        11.91755508075769
+                    ],
+                    -1,
+                    1
+                ]
+            },
+            {
+                "name": "SG 3",
+                "latitude": 60.55418313590625,
+                "longitude": 11.941489577293396,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.555525257708,
+                        11.958208499760921
+                    ],
+                    [
+                        60.552838925775745,
+                        11.92477204332008
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.556860449737314,
+                        11.974868353626956
+                    ],
+                    [
+                        60.55149749893481,
+                        11.908116334873025
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "secret",
+                "distance_next": 2422.702688213109,
+                "distance_previous": 2446.9987896806156,
+                "bearing_next": 170.71748161985647,
+                "bearing_from_previous": 170.71911986845203,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 0,
+                "inside_distance": 0,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.552838925775745,
+                        11.92477204332008
+                    ],
+                    -1,
+                    1
+                ]
+            },
+            {
+                "name": "TP A",
+                "latitude": 60.532725,
+                "longitude": 11.948619,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.538450594063946,
+                        11.963872489125354
+                    ],
+                    [
+                        60.5276715336212,
+                        11.935164445760675
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.543485722594944,
+                        11.977294810109028
+                    ],
+                    [
+                        60.522632180792364,
+                        11.921755233808584
+                    ]
+                ],
+                "time_check": false,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "secret",
+                "distance_next": 3941.4501142848085,
+                "distance_previous": 2422.702688213109,
+                "bearing_next": 114.57368807986632,
+                "bearing_from_previous": 170.71748161985647,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 0,
+                "inside_distance": 0,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.5276715336212,
+                        11.935164445760675
+                    ],
+                    -1,
+                    1
+                ]
+            },
+            {
+                "name": "SG 5",
+                "latitude": 60.518018,
+                "longitude": 12.013898,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.5255923455259,
+                        12.020931722024697
+                    ],
+                    [
+                        60.51044328471744,
+                        12.006867566668964
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.533148818591286,
+                        12.02795246937361
+                    ],
+                    [
+                        60.50288570579768,
+                        11.99985665502091
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "secret",
+                "distance_next": 3879.9557201493744,
+                "distance_previous": 3941.4501142848085,
+                "bearing_next": 114.53804266593272,
+                "bearing_from_previous": 114.57368807986632,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 0,
+                "inside_distance": 0,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.51044328471744,
+                        12.006867566668964
+                    ],
+                    -1,
+                    1
+                ]
+            },
+            {
+                "name": "TP 3",
+                "latitude": 60.50356037836172,
+                "longitude": 12.078148126602173,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.51704369689763,
+                        12.058875962512401
+                    ],
+                    [
+                        60.496748574031955,
+                        12.087876866247996
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.52383590688709,
+                        12.049160043376155
+                    ],
+                    [
+                        60.48995355356768,
+                        12.09757655618795
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "tp",
+                "distance_next": 3018.9922686034893,
+                "distance_previous": 3879.9557201493744,
+                "bearing_next": 355.21722202154336,
+                "bearing_from_previous": 114.53804266593272,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 2107.9782502647477,
+                "inside_distance": 1607.9782502647474,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.496748574031955,
+                        12.087876866247996
+                    ],
+                    1,
+                    1
+                ]
+            },
+            {
+                "name": "SG 6",
+                "latitude": 60.530561,
+                "longitude": 12.073556,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.52986366689703,
+                        12.056687973850849
+                    ],
+                    [
+                        60.531256206034456,
+                        12.09042475168187
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.52916676037377,
+                        12.039882157842413
+                    ],
+                    [
+                        60.53194676233831,
+                        12.107232733718773
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "secret",
+                "distance_next": 1804.9425694836623,
+                "distance_previous": 3018.9922686034893,
+                "bearing_next": 355.19073055336133,
+                "bearing_from_previous": 355.21722202154336,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 0,
+                "inside_distance": 0,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.531256206034456,
+                        12.09042475168187
+                    ],
+                    1,
+                    -1
+                ]
+            },
+            {
+                "name": "TP 4",
+                "latitude": 60.546703,
+                "longitude": 12.070794,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.54532063258043,
+                        12.054035127466163
+                    ],
+                    [
+                        60.54807861874775,
+                        12.087497798431448
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.54394582627423,
+                        12.037394516543575
+                    ],
+                    [
+                        60.5494471935033,
+                        12.104142657822248
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "tp",
+                "distance_next": 7591.616955444998,
+                "distance_previous": 1804.9425694836623,
+                "bearing_next": 345.7786965578514,
+                "bearing_from_previous": 355.19073055336133,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 2107.9782502647477,
+                "inside_distance": 1607.9782502647474,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.54807861874775,
+                        12.087497798431448
+                    ],
+                    1,
+                    -1
+                ]
+            },
+            {
+                "name": "TP 5",
+                "latitude": 60.612738,
+                "longitude": 12.036687,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.6114286873951,
+                        12.01992765339545
+                    ],
+                    [
+                        60.614050578575466,
+                        12.053516515740807
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.610122030953725,
+                        12.00323034196723
+                    ],
+                    [
+                        60.61535096819987,
+                        12.070217890165322
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "tp",
+                "distance_next": 7317.877488963106,
+                "distance_previous": 7591.616955444998,
+                "bearing_next": 356.14436198219397,
+                "bearing_from_previous": 345.7786965578514,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 2565.2628131212723,
+                "inside_distance": 2065.2628131212723,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.6114286873951,
+                        12.01992765339545
+                    ],
+                    -1,
+                    1
+                ]
+            },
+            {
+                "name": "TP 6",
+                "latitude": 60.678265,
+                "longitude": 12.027669,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.673030567714726,
+                        12.011348019627588
+                    ],
+                    [
+                        60.68282564893607,
+                        12.04189850128319
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.668481202810746,
+                        11.997172415266514
+                    ],
+                    [
+                        60.68737028626717,
+                        12.056086746177131
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "tp",
+                "distance_next": 4672.059355229157,
+                "distance_previous": 7317.877488963106,
+                "bearing_next": 297.43177307670277,
+                "bearing_from_previous": 356.14436198219397,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 2057.353118409719,
+                "inside_distance": 1557.353118409719,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.68282564893607,
+                        12.04189850128319
+                    ],
+                    1,
+                    -1
+                ]
+            },
+            {
+                "name": "Finish",
+                "latitude": 60.697536,
+                "longitude": 11.951725,
+                "elevation": 0,
+                "width": 1,
+                "gate_line": [
+                    [
+                        60.69014442134863,
+                        11.943887902627369
+                    ],
+                    [
+                        60.70492712092104,
+                        11.959565701042752
+                    ]
+                ],
+                "gate_line_extended": [
+                    [
+                        60.68277011501538,
+                        11.936073190053683
+                    ],
+                    [
+                        60.712300058451646,
+                        11.967391190077286
+                    ]
+                ],
+                "time_check": true,
+                "gate_check": true,
+                "end_curved": false,
+                "type": "fp",
+                "distance_next": -1,
+                "distance_previous": 4672.059355229157,
+                "bearing_next": -1,
+                "bearing_from_previous": 297.43177307670277,
+                "procedure_turn_points": [],
+                "is_procedure_turn": false,
+                "outside_distance": 2057.353118409719,
+                "inside_distance": 1557.353118409719,
+                "left_corridor_line": null,
+                "right_corridor_line": null,
+                "outer_corner_position": [
+                    [
+                        60.69014442134863,
+                        11.943887902627369
+                    ],
+                    -1,
+                    1
+                ]
+            }
+        ],
+        "landing_gates": [],
+        "takeoff_gates": [],
+        "prohibited_set": [
+            {
+                "id": 14620,
+                "path": [
+                    [
+                        11.940079,
+                        60.691523
+                    ],
+                    [
+                        11.870041,
+                        60.720567
+                    ],
+                    [
+                        11.833992,
+                        60.722746
+                    ],
+                    [
+                        11.915359,
+                        60.679568
+                    ],
+                    [
+                        11.940079,
+                        60.691523
+                    ]
+                ],
+                "name": "Penalty zone S",
+                "type": "prohibited",
+                "tooltip_position": null,
+                "route": 5425
+            },
+            {
+                "id": 14621,
+                "path": [
+                    [
+                        11.96085,
+                        60.704566
+                    ],
+                    [
+                        11.955528,
+                        60.706877
+                    ],
+                    [
+                        11.955357,
+                        60.714355
+                    ],
+                    [
+                        11.91433,
+                        60.738361
+                    ],
+                    [
+                        11.946774,
+                        60.737691
+                    ],
+                    [
+                        11.985912,
+                        60.721491
+                    ],
+                    [
+                        11.96085,
+                        60.704566
+                    ]
+                ],
+                "name": "Penalty zone N",
+                "type": "prohibited",
+                "tooltip_position": null,
+                "route": 5425
+            },
+            {
+                "id": 14622,
+                "path": [
+                    [
+                        11.944456,
+                        60.710404
+                    ],
+                    [
+                        11.929951,
+                        60.702004
+                    ],
+                    [
+                        11.918879,
+                        60.706708
+                    ],
+                    [
+                        11.923041,
+                        60.70906
+                    ],
+                    [
+                        11.929414,
+                        60.706467
+                    ],
+                    [
+                        11.931496,
+                        60.707716
+                    ],
+                    [
+                        11.92802,
+                        60.709102
+                    ],
+                    [
+                        11.930981,
+                        60.710887
+                    ],
+                    [
+                        11.934114,
+                        60.709354
+                    ],
+                    [
+                        11.939478,
+                        60.712797
+                    ],
+                    [
+                        11.944456,
+                        60.710404
+                    ]
+                ],
+                "name": "P1",
+                "type": "penalty",
+                "tooltip_position": null,
+                "route": 5425
+            },
+            {
+                "id": 14623,
+                "path": [
+                    [
+                        11.924973,
+                        60.713384
+                    ],
+                    [
+                        11.939993,
+                        60.720983
+                    ],
+                    [
+                        11.930637,
+                        60.725012
+                    ],
+                    [
+                        11.927719,
+                        60.723291
+                    ],
+                    [
+                        11.932783,
+                        60.721192
+                    ],
+                    [
+                        11.921368,
+                        60.715064
+                    ],
+                    [
+                        11.924973,
+                        60.713384
+                    ]
+                ],
+                "name": "P2",
+                "type": "penalty",
+                "tooltip_position": null,
+                "route": 5425
+            },
+            {
+                "id": 14624,
+                "path": [
+                    [
+                        11.916819,
+                        60.720858
+                    ],
+                    [
+                        11.913171,
+                        60.722725
+                    ],
+                    [
+                        11.906562,
+                        60.719556
+                    ],
+                    [
+                        11.891992,
+                        60.716922
+                    ],
+                    [
+                        11.895897,
+                        60.71519
+                    ],
+                    [
+                        11.905231,
+                        60.716995
+                    ],
+                    [
+                        11.90315,
+                        60.711611
+                    ],
+                    [
+                        11.907098,
+                        60.709889
+                    ],
+                    [
+                        11.910038,
+                        60.71773
+                    ],
+                    [
+                        11.916819,
+                        60.720858
+                    ]
+                ],
+                "name": "P3",
+                "type": "penalty",
+                "tooltip_position": null,
+                "route": 5425
+            }
+        ],
+        "corridor_polygon": [
+            {
+                "lat": 60.70919568618436,
+                "lng": 11.806644651324055,
+                "source_index": 0
+            },
+            {
+                "lat": 60.65721815864156,
+                "lng": 11.850586238868463,
+                "source_index": 1
+            },
+            {
+                "lat": 60.63366859010464,
+                "lng": 11.891578559837168,
+                "source_index": 2
+            },
+            {
+                "lat": 60.60889759744169,
+                "lng": 11.937737017798744,
+                "source_index": 3
+            },
+            {
+                "lat": 60.607950608739344,
+                "lng": 11.939260743725635,
+                "source_index": 3
+            },
+            {
+                "lat": 60.60690547899847,
+                "lng": 11.940489539712594,
+                "source_index": 3
+            },
+            {
+                "lat": 60.605784158853545,
+                "lng": 11.94139762731843,
+                "source_index": 3
+            },
+            {
+                "lat": 60.60461019679475,
+                "lng": 11.941965970259684,
+                "source_index": 3
+            },
+            {
+                "lat": 60.57719460030607,
+                "lng": 11.951016633603913,
+                "source_index": 4
+            },
+            {
+                "lat": 60.555525257708,
+                "lng": 11.958208499760921,
+                "source_index": 5
+            },
+            {
+                "lat": 60.538450594063946,
+                "lng": 11.963872489125354,
+                "source_index": 6
+            },
+            {
+                "lat": 60.5255923455259,
+                "lng": 12.020931722024697,
+                "source_index": 7
+            },
+            {
+                "lat": 60.51704369689763,
+                "lng": 12.058875962512401,
+                "source_index": 8
+            },
+            {
+                "lat": 60.52986366689703,
+                "lng": 12.056687973850849,
+                "source_index": 9
+            },
+            {
+                "lat": 60.54532063258043,
+                "lng": 12.054035127466163,
+                "source_index": 10
+            },
+            {
+                "lat": 60.610691137937444,
+                "lng": 12.020237376772641,
+                "source_index": 11
+            },
+            {
+                "lat": 60.6114286873951,
+                "lng": 12.01992765339545,
+                "source_index": 11
+            },
+            {
+                "lat": 60.612176951176465,
+                "lng": 12.019754954220916,
+                "source_index": 11
+            },
+            {
+                "lat": 60.673030567714726,
+                "lng": 12.011348019627588,
+                "source_index": 12
+            },
+            {
+                "lat": 60.69014442134863,
+                "lng": 11.943887902627369,
+                "source_index": 13
+            },
+            {
+                "lat": 60.70492712092104,
+                "lng": 11.959565701042752,
+                "source_index": 13
+            },
+            {
+                "lat": 60.68565612110138,
+                "lng": 12.035505003990579,
+                "source_index": 12
+            },
+            {
+                "lat": 60.684896370153346,
+                "lng": 12.037956573196434,
+                "source_index": 12
+            },
+            {
+                "lat": 60.68394363335974,
+                "lng": 12.040108614276743,
+                "source_index": 12
+            },
+            {
+                "lat": 60.68282564893607,
+                "lng": 12.04189850128319,
+                "source_index": 12
+            },
+            {
+                "lat": 60.68157496304587,
+                "lng": 12.04327416805973,
+                "source_index": 12
+            },
+            {
+                "lat": 60.68022798100462,
+                "lng": 12.044195621456758,
+                "source_index": 12
+            },
+            {
+                "lat": 60.6788239064408,
+                "lng": 12.044636100919432,
+                "source_index": 12
+            },
+            {
+                "lat": 60.614050578575466,
+                "lng": 12.053516515740807,
+                "source_index": 11
+            },
+            {
+                "lat": 60.548747845257815,
+                "lng": 12.087212118145322,
+                "source_index": 10
+            },
+            {
+                "lat": 60.54740012381356,
+                "lng": 12.087670839915598,
+                "source_index": 10
+            },
+            {
+                "lat": 60.531256206034456,
+                "lng": 12.09042475168187,
+                "source_index": 9
+            },
+            {
+                "lat": 60.50425366701223,
+                "lng": 12.095003148495541,
+                "source_index": 8
+            },
+            {
+                "lat": 60.502810254434,
+                "lng": 12.09499273175363,
+                "source_index": 8
+            },
+            {
+                "lat": 60.501389408249544,
+                "lng": 12.094476297699206,
+                "source_index": 8
+            },
+            {
+                "lat": 60.50003380835221,
+                "lng": 12.093469424028765,
+                "source_index": 8
+            },
+            {
+                "lat": 60.4987841695651,
+                "lng": 12.092002410763333,
+                "source_index": 8
+            },
+            {
+                "lat": 60.497678019739546,
+                "lng": 12.090119363872043,
+                "source_index": 8
+            },
+            {
+                "lat": 60.496748574031955,
+                "lng": 12.087876866247996,
+                "source_index": 8
+            },
+            {
+                "lat": 60.49602373897564,
+                "lng": 12.085342276437189,
+                "source_index": 8
+            },
+            {
+                "lat": 60.49552527603689,
+                "lng": 12.082591706394632,
+                "source_index": 8
+            },
+            {
+                "lat": 60.49526814955387,
+                "lng": 12.07970773885593,
+                "source_index": 8
+            },
+            {
+                "lat": 60.49526007844456,
+                "lng": 12.076776952427975,
+                "source_index": 8
+            },
+            {
+                "lat": 60.49550130500013,
+                "lng": 12.07388732802871,
+                "source_index": 8
+            },
+            {
+                "lat": 60.49598458762786,
+                "lng": 12.071125613701977,
+                "source_index": 8
+            },
+            {
+                "lat": 60.51044328471744,
+                "lng": 12.006867566668964,
+                "source_index": 7
+            },
+            {
+                "lat": 60.5251513616322,
+                "lng": 11.941580585877926,
+                "source_index": 6
+            },
+            {
+                "lat": 60.52581507104004,
+                "lng": 11.939171468954493,
+                "source_index": 6
+            },
+            {
+                "lat": 60.52666264263758,
+                "lng": 11.937013617578573,
+                "source_index": 6
+            },
+            {
+                "lat": 60.5276715336212,
+                "lng": 11.935164445760675,
+                "source_index": 6
+            },
+            {
+                "lat": 60.52881490830004,
+                "lng": 11.933673170861805,
+                "source_index": 6
+            },
+            {
+                "lat": 60.53006235081992,
+                "lng": 11.932579503177964,
+                "source_index": 6
+            },
+            {
+                "lat": 60.531380673289675,
+                "lng": 11.931912586677635,
+                "source_index": 6
+            },
+            {
+                "lat": 60.552838925775745,
+                "lng": 11.92477204332008,
+                "source_index": 5
+            },
+            {
+                "lat": 60.57451630785325,
+                "lng": 11.91755508075769,
+                "source_index": 4
+            },
+            {
+                "lat": 60.599486457215804,
+                "lng": 11.9092864827968,
+                "source_index": 3
+            },
+            {
+                "lat": 60.62252923276604,
+                "lng": 11.866331692153526,
+                "source_index": 2
+            },
+            {
+                "lat": 60.62274239454469,
+                "lng": 11.865947318729038,
+                "source_index": 2
+            },
+            {
+                "lat": 60.64740239391844,
+                "lng": 11.823000441502039,
+                "source_index": 1
+            },
+            {
+                "lat": 60.64845842268148,
+                "lng": 11.821433986025914,
+                "source_index": 1
+            },
+            {
+                "lat": 60.649621474865526,
+                "lng": 11.820223430675366,
+                "source_index": 1
+            },
+            {
+                "lat": 60.702816472866544,
+                "lng": 11.775200468744178,
+                "source_index": 0
+            }
+        ],
+        "name": "JEP Elverum 2",
+        "use_procedure_turns": false,
+        "rounded_corners": true,
+        "corridor_width": 0.5
+    },
+    "time_zone": "Europe/Paris",
+    "contest": 632,
+    "name": "Elverum training 2",
+    "score_sorting_direction": "asc",
+    "start_time": "2024-07-03T22:00:00Z",
+    "finish_time": "2024-07-30T22:00:00Z",
+    "is_public": true,
+    "is_featured": true,
+    "wind_speed": 0,
+    "wind_direction": 0,
+    "minutes_to_starting_point": 13,
+    "minutes_to_landing": 30,
+    "planning_time": 30,
+    "display_background_map": true,
+    "display_secrets": true,
+    "allow_self_management": false,
+    "calculation_delay_minutes": 0,
+    "_nominatim": "gAJ9cQAoWAgAAABwbGFjZV9pZHEBSikcighYBwAAAGxpY2VuY2VxAlhGAAAARGF0YSDCqSBPcGVuU3RyZWV0TWFwIGNvbnRyaWJ1dG9ycywgT0RiTCAxLjAuIGh0dHA6Ly9vc20ub3JnL2NvcHlyaWdodHEDWAgAAABvc21fdHlwZXEEWAQAAABub2RlcQVYBgAAAG9zbV9pZHEGigVrCPi5AFgDAAAAbGF0cQdYCQAAADYwLjcwNjIzMnEIWAMAAABsb25xCVgJAAAAMTEuNzkxNzg0cQpYBQAAAGNsYXNzcQtYBQAAAHBsYWNlcQxYBAAAAHR5cGVxDVgFAAAAaG91c2VxDlgKAAAAcGxhY2VfcmFua3EPSx5YCgAAAGltcG9ydGFuY2VxEEc+5Pi1iOMAAFgLAAAAYWRkcmVzc3R5cGVxEVgFAAAAcGxhY2VxElgEAAAAbmFtZXETWAAAAABxFFgMAAAAZGlzcGxheV9uYW1lcRVYSQAAADEyOCwgRGFtdmVnZW4sIEZvc3NiZXJnZXQsIEJyYXNrZXJlaWRmb3NzLCBWw6VsZXIsIElubmxhbmRldCwgMjQzNSwgTm9yZ2VxFlgHAAAAYWRkcmVzc3EXfXEYKFgMAAAAaG91c2VfbnVtYmVycRlYAwAAADEyOHEaWAQAAAByb2FkcRtYCAAAAERhbXZlZ2VucRxYBAAAAGZhcm1xHVgKAAAARm9zc2JlcmdldHEeWAcAAAB2aWxsYWdlcR9YDgAAAEJyYXNrZXJlaWRmb3NzcSBYDAAAAG11bmljaXBhbGl0eXEhWAYAAABWw6VsZXJxIlgGAAAAY291bnR5cSNYCQAAAElubmxhbmRldHEkWA4AAABJU08zMTY2LTItbHZsNHElWAUAAABOTy0zNHEmWAgAAABwb3N0Y29kZXEnWAQAAAAyNDM1cShYBwAAAGNvdW50cnlxKVgFAAAATm9yZ2VxKlgMAAAAY291bnRyeV9jb2RlcStYAgAAAG5vcSx1WAsAAABib3VuZGluZ2JveHEtXXEuKFgKAAAANjAuNzA2MTgyMHEvWAoAAAA2MC43MDYyODIwcTBYCgAAADExLjc5MTczNDBxMVgKAAAAMTEuNzkxODM0MHEyZXUu",
+    "editable_route": 1093
+}
+
+For each contestant in the contestant we fetched the already existing track data from the endpoint: /api/v1/contests/632/navigationtasks/2129/contestants/10251/paginated_track_data
+This endpoint returns a list positions for the contestant like this:
+{
+    "next": "cD0yMDI0LTA3LTA0KzE5JTNBNDclM0E0NiUyQjAwJTNBMDA=",
+    "previous": "cj0xJnA9MjAyNC0wNy0wNCsxOSUzQTE3JTNBMTclMkIwMCUzQTAw",
+    "results": [
+        {
+            "time": "2024-07-04T19:17:17Z",
+            "latitude": 60.88434975,
+            "longitude": 11.65853087,
+            "speed": 82.69112553964233,
+            "course": 43.400001525878906,
+            "altitude": 347.817138671875,
+            "progress": 0
+        },
+    ]
+}
+It is a paginated endpoint where the next page fetched by including the URL parameter cursor=data.next When fetching from the main endpoint.
+
+In addition to the track each contestant has score data that can be F fetched from the endpoint: /api/v1/contests/632/navigationtasks/2129/contestants/10251/score_data/
+It contains a list of all the scoring events for the contestant. There are several types of events, like passing away point Comm missing away point, backtracking, flying outside the corridor, etc.
+The score data looks like this:
+{
+    "contestant_id": 10251,
+    "positions": [],
+    "annotations": [
+        {
+            "id": 70905,
+            "time": "2024-07-04T12:52:09Z",
+            "latitude": 60.70532908333333,
+            "longitude": 11.789077100000002,
+            "message": "SP: 18.0 points passing gate (+8 s)\nplanned: 14:52:00\nactual: 14:52:08",
+            "gate": "SP",
+            "gate_type": "sp",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76937
+        },
+        {
+            "id": 70906,
+            "time": "2024-07-04T12:56:13Z",
+            "latitude": 60.652366416666666,
+            "longitude": 11.835624483333334,
+            "message": "TP 1: 3.0 points passing gate (+3 s)\nplanned: 14:56:09\nactual: 14:56:12",
+            "gate": "TP 1",
+            "gate_type": "tp",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76938
+        },
+        {
+            "id": 70907,
+            "time": "2024-07-04T12:58:19Z",
+            "latitude": 60.627557016666664,
+            "longitude": 11.878068166666665,
+            "message": "SG 1: 27.0 points passing gate (-11 s)\nplanned: 14:58:29\nactual: 14:58:18",
+            "gate": "SG 1",
+            "gate_type": "secret",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76939
+        },
+        {
+            "id": 70908,
+            "time": "2024-07-04T13:00:54Z",
+            "latitude": 60.60332906666666,
+            "longitude": 11.926464233333336,
+            "message": "TP 2: 0.0 points passing gate (-2 s)\nplanned: 15:00:55\nactual: 15:00:53",
+            "gate": "TP 2",
+            "gate_type": "tp",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76940
+        },
+        {
+            "id": 70909,
+            "time": "2024-07-04T13:02:48Z",
+            "latitude": 60.575445233333326,
+            "longitude": 11.931935216666668,
+            "message": "SG 2: 15.0 points passing gate (-7 s)\nplanned: 15:02:54\nactual: 15:02:47",
+            "gate": "SG 2",
+            "gate_type": "secret",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76941
+        },
+        {
+            "id": 70910,
+            "time": "2024-07-04T13:04:20Z",
+            "latitude": 60.55345056666667,
+            "longitude": 11.936493166666667,
+            "message": "SG 3: 21.0 points passing gate (-9 s)\nplanned: 15:04:28\nactual: 15:04:19",
+            "gate": "SG 3",
+            "gate_type": "secret",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76942
+        },
+        {
+            "id": 70911,
+            "time": "2024-07-04T13:05:59Z",
+            "latitude": 60.531186116666674,
+            "longitude": 11.945007783333331,
+            "message": "TP A: 0 points passing gate (no time check) (-3 s)\nplanned: 15:06:01\nactual: 15:05:58",
+            "gate": "TP A",
+            "gate_type": "secret",
+            "type": "information",
+            "contestant": 10251,
+            "score_log_entry": 76943
+        },
+        {
+            "id": 70912,
+            "time": "2024-07-04T13:08:32Z",
+            "latitude": 60.518229016666666,
+            "longitude": 12.014699366666665,
+            "message": "SG 5: 0 points passing gate (+1 s)\nplanned: 15:08:30\nactual: 15:08:31",
+            "gate": "SG 5",
+            "gate_type": "secret",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76944
+        },
+        {
+            "id": 70913,
+            "time": "2024-07-04T13:10:48Z",
+            "latitude": 60.50525893333333,
+            "longitude": 12.075790649999998,
+            "message": "TP 3: 18.0 points passing gate (-8 s)\nplanned: 15:10:56\nactual: 15:10:48",
+            "gate": "TP 3",
+            "gate_type": "tp",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76945
+        },
+        {
+            "id": 70914,
+            "time": "2024-07-04T13:12:25Z",
+            "latitude": 60.53070546666666,
+            "longitude": 12.073089783333334,
+            "message": "SG 6: 3.0 points passing gate (+3 s)\nplanned: 15:12:21\nactual: 15:12:24",
+            "gate": "SG 6",
+            "gate_type": "secret",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76946
+        },
+        {
+            "id": 70915,
+            "time": "2024-07-04T13:13:10Z",
+            "latitude": 60.546620299999994,
+            "longitude": 12.069024200000001,
+            "message": "TP 4: 0.0 points passing gate (-2 s)\nplanned: 15:13:12\nactual: 15:13:10",
+            "gate": "TP 4",
+            "gate_type": "tp",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76947
+        },
+        {
+            "id": 70916,
+            "time": "2024-07-04T13:16:33Z",
+            "latitude": 60.6126804,
+            "longitude": 12.032481116666668,
+            "message": "TP 5: 30.0 points passing gate (-12 s)\nplanned: 15:16:44\nactual: 15:16:32",
+            "gate": "TP 5",
+            "gate_type": "tp",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76949
+        },
+        {
+            "id": 70917,
+            "time": "2024-07-04T13:20:07Z",
+            "latitude": 60.677482383333334,
+            "longitude": 12.024473866666666,
+            "message": "TP 6: 9.0 points passing gate (-5 s)\nplanned: 15:20:11\nactual: 15:20:06",
+            "gate": "TP 6",
+            "gate_type": "tp",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76950
+        },
+        {
+            "id": 70918,
+            "time": "2024-07-04T13:22:14Z",
+            "latitude": 60.696383133333335,
+            "longitude": 11.9502459,
+            "message": "Finish: 24.0 points passing gate (-10 s)\nplanned: 15:22:24\nactual: 15:22:14",
+            "gate": "Finish",
+            "gate_type": "fp",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76951
+        },
+        {
+            "id": 70919,
+            "time": "2024-07-04T13:22:58Z",
+            "latitude": 60.70987301666667,
+            "longitude": 11.943490916666667,
+            "message": "Finish: 0 points entering penalty zone P1",
+            "gate": "Finish",
+            "gate_type": "fp",
+            "type": "information",
+            "contestant": 10251,
+            "score_log_entry": 76952
+        },
+        {
+            "id": 70920,
+            "time": "2024-07-04T13:23:08Z",
+            "latitude": 60.71151836666667,
+            "longitude": 11.936414583333333,
+            "message": "Finish: 15.0 points inside penalty zone P1 (10s)",
+            "gate": "Finish",
+            "gate_type": "fp",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76953
+        },
+        {
+            "id": 70921,
+            "time": "2024-07-04T13:23:46Z",
+            "latitude": 60.71581298333334,
+            "longitude": 11.90902606666667,
+            "message": "Finish: 0 points entering penalty zone P3",
+            "gate": "Finish",
+            "gate_type": "fp",
+            "type": "information",
+            "contestant": 10251,
+            "score_log_entry": 76954
+        },
+        {
+            "id": 70922,
+            "time": "2024-07-04T13:23:56Z",
+            "latitude": 60.71944283333334,
+            "longitude": 11.904347983333333,
+            "message": "Finish: 15.0 points inside penalty zone P3 (10s)",
+            "gate": "Finish",
+            "gate_type": "fp",
+            "type": "anomaly",
+            "contestant": 10251,
+            "score_log_entry": 76955
+        }
+    ],
+    "score_log_entries": [
+        {
+            "id": 76937,
+            "time": "2024-07-04T12:52:09Z",
+            "gate": "SP",
+            "message": "passing gate",
+            "string": "SP: 18.0 points passing gate (+8 s)\nplanned: 14:52:00\nactual: 14:52:08",
+            "points": 18,
+            "planned": "2024-07-04T12:52:00Z",
+            "actual": "2024-07-04T12:52:08Z",
+            "offset_string": "+8 s",
+            "times_string": "planned: 14:52:00\nactual: 14:52:08",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76938,
+            "time": "2024-07-04T12:56:13Z",
+            "gate": "TP 1",
+            "message": "passing gate",
+            "string": "TP 1: 3.0 points passing gate (+3 s)\nplanned: 14:56:09\nactual: 14:56:12",
+            "points": 3,
+            "planned": "2024-07-04T12:56:09Z",
+            "actual": "2024-07-04T12:56:12Z",
+            "offset_string": "+3 s",
+            "times_string": "planned: 14:56:09\nactual: 14:56:12",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76939,
+            "time": "2024-07-04T12:58:19Z",
+            "gate": "SG 1",
+            "message": "passing gate",
+            "string": "SG 1: 27.0 points passing gate (-11 s)\nplanned: 14:58:29\nactual: 14:58:18",
+            "points": 27,
+            "planned": "2024-07-04T12:58:29Z",
+            "actual": "2024-07-04T12:58:18Z",
+            "offset_string": "-11 s",
+            "times_string": "planned: 14:58:29\nactual: 14:58:18",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76940,
+            "time": "2024-07-04T13:00:54Z",
+            "gate": "TP 2",
+            "message": "passing gate",
+            "string": "TP 2: 0.0 points passing gate (-2 s)\nplanned: 15:00:55\nactual: 15:00:53",
+            "points": 0,
+            "planned": "2024-07-04T13:00:55Z",
+            "actual": "2024-07-04T13:00:53Z",
+            "offset_string": "-2 s",
+            "times_string": "planned: 15:00:55\nactual: 15:00:53",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76941,
+            "time": "2024-07-04T13:02:48Z",
+            "gate": "SG 2",
+            "message": "passing gate",
+            "string": "SG 2: 15.0 points passing gate (-7 s)\nplanned: 15:02:54\nactual: 15:02:47",
+            "points": 15,
+            "planned": "2024-07-04T13:02:54Z",
+            "actual": "2024-07-04T13:02:47Z",
+            "offset_string": "-7 s",
+            "times_string": "planned: 15:02:54\nactual: 15:02:47",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76942,
+            "time": "2024-07-04T13:04:20Z",
+            "gate": "SG 3",
+            "message": "passing gate",
+            "string": "SG 3: 21.0 points passing gate (-9 s)\nplanned: 15:04:28\nactual: 15:04:19",
+            "points": 21,
+            "planned": "2024-07-04T13:04:28Z",
+            "actual": "2024-07-04T13:04:19Z",
+            "offset_string": "-9 s",
+            "times_string": "planned: 15:04:28\nactual: 15:04:19",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76944,
+            "time": "2024-07-04T13:08:32Z",
+            "gate": "SG 5",
+            "message": "passing gate",
+            "string": "SG 5: 0 points passing gate (+1 s)\nplanned: 15:08:30\nactual: 15:08:31",
+            "points": 0,
+            "planned": "2024-07-04T13:08:30Z",
+            "actual": "2024-07-04T13:08:31Z",
+            "offset_string": "+1 s",
+            "times_string": "planned: 15:08:30\nactual: 15:08:31",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76945,
+            "time": "2024-07-04T13:10:48Z",
+            "gate": "TP 3",
+            "message": "passing gate",
+            "string": "TP 3: 18.0 points passing gate (-8 s)\nplanned: 15:10:56\nactual: 15:10:48",
+            "points": 18,
+            "planned": "2024-07-04T13:10:56Z",
+            "actual": "2024-07-04T13:10:48Z",
+            "offset_string": "-8 s",
+            "times_string": "planned: 15:10:56\nactual: 15:10:48",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76946,
+            "time": "2024-07-04T13:12:25Z",
+            "gate": "SG 6",
+            "message": "passing gate",
+            "string": "SG 6: 3.0 points passing gate (+3 s)\nplanned: 15:12:21\nactual: 15:12:24",
+            "points": 3,
+            "planned": "2024-07-04T13:12:21Z",
+            "actual": "2024-07-04T13:12:24Z",
+            "offset_string": "+3 s",
+            "times_string": "planned: 15:12:21\nactual: 15:12:24",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76947,
+            "time": "2024-07-04T13:13:10Z",
+            "gate": "TP 4",
+            "message": "passing gate",
+            "string": "TP 4: 0.0 points passing gate (-2 s)\nplanned: 15:13:12\nactual: 15:13:10",
+            "points": 0,
+            "planned": "2024-07-04T13:13:12Z",
+            "actual": "2024-07-04T13:13:10Z",
+            "offset_string": "-2 s",
+            "times_string": "planned: 15:13:12\nactual: 15:13:10",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76949,
+            "time": "2024-07-04T13:16:33Z",
+            "gate": "TP 5",
+            "message": "passing gate",
+            "string": "TP 5: 30.0 points passing gate (-12 s)\nplanned: 15:16:44\nactual: 15:16:32",
+            "points": 30,
+            "planned": "2024-07-04T13:16:44Z",
+            "actual": "2024-07-04T13:16:32Z",
+            "offset_string": "-12 s",
+            "times_string": "planned: 15:16:44\nactual: 15:16:32",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76950,
+            "time": "2024-07-04T13:20:07Z",
+            "gate": "TP 6",
+            "message": "passing gate",
+            "string": "TP 6: 9.0 points passing gate (-5 s)\nplanned: 15:20:11\nactual: 15:20:06",
+            "points": 9,
+            "planned": "2024-07-04T13:20:11Z",
+            "actual": "2024-07-04T13:20:06Z",
+            "offset_string": "-5 s",
+            "times_string": "planned: 15:20:11\nactual: 15:20:06",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76951,
+            "time": "2024-07-04T13:22:14Z",
+            "gate": "Finish",
+            "message": "passing gate",
+            "string": "Finish: 24.0 points passing gate (-10 s)\nplanned: 15:22:24\nactual: 15:22:14",
+            "points": 24,
+            "planned": "2024-07-04T13:22:24Z",
+            "actual": "2024-07-04T13:22:14Z",
+            "offset_string": "-10 s",
+            "times_string": "planned: 15:22:24\nactual: 15:22:14",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76953,
+            "time": "2024-07-04T13:23:08Z",
+            "gate": "Finish",
+            "message": "inside penalty zone P1 (10s)",
+            "string": "Finish: 15.0 points inside penalty zone P1 (10s)",
+            "points": 15,
+            "planned": null,
+            "actual": null,
+            "offset_string": "",
+            "times_string": "",
+            "type": "anomaly",
+            "contestant": 10251
+        },
+        {
+            "id": 76955,
+            "time": "2024-07-04T13:23:56Z",
+            "gate": "Finish",
+            "message": "inside penalty zone P3 (10s)",
+            "string": "Finish: 15.0 points inside penalty zone P3 (10s)",
+            "points": 15,
+            "planned": null,
+            "actual": null,
+            "offset_string": "",
+            "times_string": "",
+            "type": "anomaly",
+            "contestant": 10251
+        }
+    ],
+    "gate_scores": [
+        {
+            "id": 43503,
+            "gate": "Finish",
+            "points": 54,
+            "contestant": 10251
+        },
+        {
+            "id": 43492,
+            "gate": "SG 1",
+            "points": 27,
+            "contestant": 10251
+        },
+        {
+            "id": 43494,
+            "gate": "SG 2",
+            "points": 15,
+            "contestant": 10251
+        },
+        {
+            "id": 43495,
+            "gate": "SG 3",
+            "points": 21,
+            "contestant": 10251
+        },
+        {
+            "id": 43497,
+            "gate": "SG 5",
+            "points": 0,
+            "contestant": 10251
+        },
+        {
+            "id": 43499,
+            "gate": "SG 6",
+            "points": 3,
+            "contestant": 10251
+        },
+        {
+            "id": 43490,
+            "gate": "SP",
+            "points": 18,
+            "contestant": 10251
+        },
+        {
+            "id": 43491,
+            "gate": "TP 1",
+            "points": 3,
+            "contestant": 10251
+        },
+        {
+            "id": 43493,
+            "gate": "TP 2",
+            "points": 0,
+            "contestant": 10251
+        },
+        {
+            "id": 43498,
+            "gate": "TP 3",
+            "points": 18,
+            "contestant": 10251
+        },
+        {
+            "id": 43500,
+            "gate": "TP 4",
+            "points": 0,
+            "contestant": 10251
+        },
+        {
+            "id": 43501,
+            "gate": "TP 5",
+            "points": 30,
+            "contestant": 10251
+        },
+        {
+            "id": 43502,
+            "gate": "TP 6",
+            "points": 9,
+            "contestant": 10251
+        },
+        {
+            "id": 43496,
+            "gate": "TP A",
+            "points": 0,
+            "contestant": 10251
+        }
+    ],
+    "playing_cards": [],
+    "gate_times": {
+        "SP": "2024-07-04T14:52:00+02:00",
+        "TP 1": "2024-07-04T14:56:09+02:00",
+        "SG 1": "2024-07-04T14:58:29+02:00",
+        "TP 2": "2024-07-04T15:00:55+02:00",
+        "SG 2": "2024-07-04T15:02:54+02:00",
+        "SG 3": "2024-07-04T15:04:28+02:00",
+        "TP A": "2024-07-04T15:06:01+02:00",
+        "SG 5": "2024-07-04T15:08:30+02:00",
+        "TP 3": "2024-07-04T15:10:56+02:00",
+        "SG 6": "2024-07-04T15:12:21+02:00",
+        "TP 4": "2024-07-04T15:13:12+02:00",
+        "TP 5": "2024-07-04T15:16:44+02:00",
+        "TP 6": "2024-07-04T15:20:11+02:00",
+        "Finish": "2024-07-04T15:22:24+02:00"
+    },
+    "contestant_track": {
+        "id": 10416,
+        "contest_summary": 541,
+        "score": 198,
+        "current_state": "Finished",
+        "current_leg": "Finish",
+        "last_gate": "Finish",
+        "last_gate_time_offset": -10,
+        "passed_starting_gate": false,
+        "passed_finish_gate": true,
+        "calculator_finished": true,
+        "calculator_started": true,
+        "contestant": 10251
+    }
+}
+Real time data is Received through a websocket connection to the endpoint: /ws/tracks/2129/
+This continuously receives real time tracking data and scoring data from all competing aircraft. There are kinds of data blocks. The exact data blocks can be inferred by studying navigationTask.js. This also contains some information about how the routes are rendered. It also contains all logic old version of this application.
+
+
+The components that can be reused are:
+the files in danger_thermometer: which displays A thermometer which indicates the danger level relative to the corridor edge or danger zones in the area
+the renderers inside trackRenderers: These these components know how to render the different track types like Precision Air navigation Race Air sports race air sports challenge.
+teamBadges.js Is used to display information about the competing team and their current score in the lower right hand corner of the map
+gateScoreArrow: It displays the predicted score at the next gate crossing with a nice animated arrow that moves up and down a point scale.
+
+Create this new feature in the react_vite folder. We should have a map that This place each contestant as an airplane icon with correct orientation according to course. Each icon should have a trail that covers the past few minutes of flight. It should be possible to toggle on and off the full trail for all flights. The page should have results table that shows the current core and standing of the contestants.
+
+Do not use axios or any other non-standard libraries even if this is used in the old solution. Try to use standardized tools.
