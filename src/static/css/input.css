@@ -11,32 +11,53 @@
 }
 
 .my-react-select__control {
-    background-color: var(--color-base-200) !important;
-    border-color: var(--color-base-200) !important;
+    background-color: var(--color-base-100) !important;
+    border-color: var(--color-base-300) !important;
+    border-style: solid !important;
+    border-width: 1px !important;
+    border-radius: var(--rounded-btn, 0.5rem) !important;
+    height: 3rem !important;
+    font-size: 0.875rem !important;
     box-shadow: none !important;
-    color: var(--color-base-content) !important
+    outline: none !important;
+    color: var(--color-base-content) !important;
+    transition: all 0.2s ease-in-out;
 }
 
 .my-react-select__control:hover {
-    border-color: hsl(var(--color-base-content) / 0.2);
+    border-color: var(--color-base-300) !important;
 }
 
 .my-react-select__control--is-focused {
-    border-color: var(--color-primary) !important; /* Use !important to override inline styles */
+    border-color: var(--color-primary) !important;
     box-shadow: 0 0 0 1px var(--color-primary) !important;
+    outline: none !important;
 }
 
 .my-react-select__control--is-focused:hover {
     border-color: var(--color-primary) !important;
 }
 
+.my-react-select__placeholder {
+    color: hsl(var(--color-base-content) / 0.4) !important;
+}
+
+.my-react-select__value-container {
+    padding-left: 0.5rem !important;
+}
+
 .my-react-select__menu {
-    background-color:var(--color-base-200) !important;
+    background-color: var(--color-base-100) !important;
     color: var(--color-base-content) !important;
+    border-radius: var(--rounded-box, 1rem) !important;
+    border-width: 1px !important;
+    border-color: var(--color-base-300) !important;
+    overflow: hidden;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
 }
 
 .my-react-select__option {
-    background-color: var(--color-base-200) !important;
+    background-color: transparent !important;
     color: var(--color-base-content) !important;
 }
 
@@ -46,7 +67,7 @@
 }
 
 .my-react-select__option--is-focused {
-    background-color: var(--color-neutral) !important;
+    background-color: var(--color-base-200) !important;
 }
 
 .my-react-select__option:active {
@@ -59,6 +80,7 @@
 
 .my-react-select__input, .my-react-select__single-value {
     color: var(--color-base-content) !important;
+    font-size: 0.875rem !important;
 }
 
 .my-react-select__multi-value {
