@@ -15,12 +15,12 @@ interface ContestItemProps {
 const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onScheduleClick, onCancel, myContests, onRegisterClick, onWithdrawClick }) => {
     const [areNavigationTasksVisible, setAreNavigationTasksVisible] = useState(false);
     const myTeamIds = myContests.flatMap(mc => mc.team ? [mc.team.id] : []);
-    
+
     return (
         <div className={`card bg-base-100 shadow-xl ${isRegistered ? 'border-2 border-primary' : ''}`}>
             <div className="card-body p-2 sm:p-4">
-                <div className='flex flex-col sm:flex-row items-center justify-between gap-4'>
-                    <div className='flex items-center flex-grow w-full'>
+                <div className='flex flex-col gap-4'>
+                    <div className='flex items-center w-full'>
                         <img src={contest.logo} alt={`${contest.name} logo`} className="h-12 w-12 sm:h-16 sm:w-16 mr-2 sm:mr-4" />
                         <div className='flex-grow'>
                             <h2 className="card-title text-lg sm:text-xl">
@@ -29,8 +29,12 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                                     <img src={contest.country_flag_url} alt={`${contest.country} flag`} className="w-6 h-4 ml-2 inline-block" />
                                 )}
                             </h2>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                        <div>
                             <p>{new Date(contest.start_time).toLocaleDateString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric' })} - {new Date(contest.finish_time).toLocaleDateString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric' })}</p>
-                            <p>{contest.location}</p>
                             {contest.contest_website && (
                                 <p>
                                     <a href={contest.contest_website} target="_blank" rel="noopener noreferrer" className="link link-primary">
@@ -39,16 +43,14 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                                 </p>
                             )}
                         </div>
-                    </div>
-                    <div className="flex flex-col items-stretch sm:items-center gap-2">
-                        {isRegistered ? (
-                            <>
-                                <div className="badge badge-secondary self-center">Registered</div>
+
+                        <div className="flex flex-col items-stretch gap-2">
+                            {isRegistered ? (
                                 <button className="btn btn-warning" onClick={() => onWithdrawClick(contest.id)}>Withdraw</button>
-                            </>
-                        ) : (
-                            <button className="btn btn-success" onClick={() => onRegisterClick(contest)}>Register</button>
-                        )}
+                            ) : (
+                                <button className="btn btn-success" onClick={() => onRegisterClick(contest)}>Register</button>
+                            )}
+                        </div>
                     </div>
                 </div>
 

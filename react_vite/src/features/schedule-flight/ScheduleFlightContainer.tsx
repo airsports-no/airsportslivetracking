@@ -140,6 +140,12 @@ const ScheduleFlightContainer = () => {
             .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
     }, [contests, nameFilter, selectedCountries]);
 
+    const hasUpcomingFlights = useMemo(() => {
+        return myContests.some(mc =>
+            mc.contest.navigationtask_set.some(nt => nt.future_contestants && nt.future_contestants.length > 0)
+        );
+    }, [myContests]);
+
     const countryOptions = useMemo(() => {
         const uniqueCountries = Array.from(new Set(contests.map(c => c.country))).sort();
         return uniqueCountries.map(country => ({ value: country, label: country }));
@@ -179,17 +185,17 @@ const ScheduleFlightContainer = () => {
 
     return (
         <div className="container mx-auto p-2 sm:p-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2 sm:mb-4">
+            <div className="flex flex-row justify-between items-start gap-2 mb-2 sm:mb-4">
                 <h1 className="text-2xl sm:text-4xl font-bold">
-                    Schedule a Flight
+                    Schedule Flights
                 </h1>
-                <Link to="/past-flights" className="btn btn-primary">View Past Flights</Link>
+                <Link to="/past-flights" className="btn btn-primary">Past Flights</Link>
             </div>
 
             {error && <div className="alert alert-error">{error}</div>}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4">
-                <div>
+                <div className={!hasUpcomingFlights ? "hidden md:block" : ""}>
                     <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">My Upcoming Flights</h2>
                     <UpcomingFlights myContests={myContests} onCancel={handleCancelFlight} />
                 </div>
