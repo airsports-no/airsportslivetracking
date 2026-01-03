@@ -5,6 +5,7 @@ import { fetchNavigationTask, fetchContestantScoreData, makeWebSocket, fetchCont
 import type { NavigationTask, TrackPosition, ScoreAnnotation, ScoreLogEntry } from './types';
 import { planeIcon } from './components/icons';
 import ResultsTable from './components/ResultsTable';
+import ScoreLogTable from './components/ScoreLogTable';
 import { useParams, Link } from 'react-router-dom';
 import ProhibitedRenderer from "./components/track-renderers/ProhibitedRenderer";
 import RouteRenderer from "./components/track-renderers/RouteRenderer";
@@ -65,6 +66,7 @@ export default function CompetitionMapPage() {
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [playbackTimeInfo, setPlaybackTimeInfo] = useState<{start: Date, end: Date} | null>(null);
   const [selectedContestantId, setSelectedContestantId] = useState<number | null>(null);
+  const [showScoreLog, setShowScoreLog] = useState(false);
 
   // Data filtered by currentTime for display
   const [currentPositions, setCurrentPositions] = useState<Record<number, TrackPosition[]>>({});
@@ -308,7 +310,10 @@ export default function CompetitionMapPage() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const handler = () => setSelectedContestantId(null);
+    const handler = () => {
+        setSelectedContestantId(null);
+        setShowScoreLog(false);
+    };
     map.on('click', handler);
     return () => {
       map.off('click', handler);
@@ -341,6 +346,7 @@ export default function CompetitionMapPage() {
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
             setSelectedContestantId(c.id);
+            setShowScoreLog(false);
         });
         const recentTrail = L.polyline([], { color, weight: 3, opacity: 0.9 }).addTo(map);
         const fullTrail = L.polyline([], { color, weight: 2, opacity: 0.3 }).addTo(map);
@@ -414,6 +420,11 @@ export default function CompetitionMapPage() {
       .sort((a, b) => dir === 'asc' ? a.score - b.score : b.score - a.score);
   }, [navTask, mode, currentScores]);
 
+  const selectedContestant = useMemo(() => {
+    if (!selectedContestantId || !navTask) return null;
+    return navTask.contestant_set.find(c => c.id === selectedContestantId);
+  }, [selectedContestantId, navTask]);
+
   return (
     <div className="flex flex-col h-screen">
       <div className="navbar bg-base-200 px-4">
@@ -423,7 +434,8 @@ export default function CompetitionMapPage() {
           {navTask && <span className="opacity-60">{navTask.name}</span>}
         </div>
         <div className="flex items-center gap-4">
-          { selectedContestantId && <button className="btn btn-sm btn-warning" onClick={() => setSelectedContestantId(null)}>Clear Selection</button>}
+          { selectedContestantId && <button className="btn btn-sm btn-info" onClick={() => setShowScoreLog(true)}>View Score Log</button>}
+          { selectedContestantId && <button className="btn btn-sm btn-warning" onClick={() => {setSelectedContestantId(null); setShowScoreLog(false);}}>Clear Selection</button>}
           <label className="label cursor-pointer">
             <span className="label-text">Show full trails</span>
             <input type="checkbox" className="toggle toggle-primary ml-2" checked={showFullTrails} onChange={e => setShowFullTrails(e.target.checked)} />
@@ -447,7 +459,21 @@ export default function CompetitionMapPage() {
         <ProhibitedRenderer map={mapRef.current} navTask={navTask} />
         <RouteRenderer map={mapRef.current} navTask={navTask} />
         <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96">
-          <ResultsTable rows={standings} onRowClick={setSelectedContestantId} />
+            {showScoreLog && selectedContestantId && scoreLogByContestant[selectedContestantId] ? (
+                <ScoreLogTable
+                    scoreLog={scoreLogByContestant[selectedContestantId]}
+                    contestantName={`#${selectedContestant?.contestant_number} ${selectedContestant?.team?.crew?.member1?.first_name ?? ''}`}
+                    onClose={() => setShowScoreLog(false)}
+                />
+            ) : (
+                <ResultsTable
+                    rows={standings}
+                    onRowClick={(id) => {
+                        setSelectedContestantId(id);
+                        setShowScoreLog(false);
+                    }}
+                />
+            )}
         </div>
         {mode === 'playback' && playbackTimeInfo && (
             <TimelineControls
