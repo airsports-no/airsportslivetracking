@@ -34,21 +34,8 @@ class Waypoint:
         self.control_latitude: float|None = None
         self.control_longitude: float|None = None
 
-        self._left_corridor_line = None  # I think this is a list of (lat, lon)
-        self._right_corridor_line = None
-
         self.inside_distance = 0
         self.outside_distance = 0
-
-    # @property
-    # def gate_line(self):
-    #     return self._gate_line
-    #
-    # @gate_line.setter
-    # def gate_line(self, value):
-    #     if self._original_gate_line is None and len(self._gate_line):
-    #         self._original_gate_line = self._gate_line
-    #     self._gate_line = value
 
     @property
     def original_gate_line(self):
@@ -59,29 +46,6 @@ class Waypoint:
     @original_gate_line.setter
     def original_gate_line(self, value):
         self._original_gate_line = value
-
-    ######## Required for backwards compatibility
-    @property
-    def left_corridor_line(self):
-        if hasattr(self, "_left_corridor_line"):
-            return self._left_corridor_line
-        return []
-
-    @left_corridor_line.setter
-    def left_corridor_line(self, value):
-        self._left_corridor_line = value
-
-    @property
-    def right_corridor_line(self):
-        if hasattr(self, "_right_corridor_line"):
-            return self._right_corridor_line
-        return []
-
-    @right_corridor_line.setter
-    def right_corridor_line(self, value):
-        self._right_corridor_line = value
-
-    #########################
 
     @property
     def gate_line_infinite(self):
@@ -113,16 +77,6 @@ class Waypoint:
         :return: Each waypoint is represented in a returned list of track segments
         """
         return [(self.latitude, self.longitude)]
-        # Handling the centre track through a curve is not working correctly. We need to only deal with the actual
-        # waypoint position. This is made evident from testing by Yago.
-        # if self.right_corridor_line is None or len(self.right_corridor_line) == 0:
-        #     return [(self.latitude, self.longitude)]
-        # else:
-        #     track = []
-        #     for index in range(len(self.right_corridor_line)):
-        #         track.append(get_centre_of_line_lat_lon(self.left_corridor_line[index], self.right_corridor_line[index]))
-        #     return track
-        #
 
     def is_gate_line_pointing_right(self, original: bool = False):
         line = self.gate_line if not original else self.original_gate_line
