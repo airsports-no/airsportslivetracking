@@ -55,7 +55,7 @@ RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone &
     && apt-get -y install --no-install-recommends \
     gdal-bin proj-data proj-bin default-libmysqlclient-dev \
     libcliquer1 libgslcblas0 latexmk texlive \
-    texlive-latex-base texlive-latex-extra \
+    texlive-latex-base texlive-latex-extra lmodern  \
     texlive-latex-recommended ca-certificates gnupg \
     && apt-get autoremove -y \
     && apt-get clean -y \

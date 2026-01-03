@@ -715,8 +715,7 @@ def plot_anr_corridor_track(
     colour: str,
     plot_center_line: bool,
 ):
-    inner_track = []
-    outer_track = []
+    polygon_track=[(item["lat"], item["lng"]) for item in route.corridor_polygon]
     center_track = []
     for index, waypoint in enumerate(route.waypoints):
         ys, xs = np.array(waypoint.gate_line).T
@@ -734,12 +733,6 @@ def plot_anr_corridor_track(
                 "red",
                 character_padding=1,
             )
-        if waypoint.left_corridor_line is not None:
-            inner_track.extend(waypoint.left_corridor_line)
-            outer_track.extend(waypoint.right_corridor_line)
-        else:
-            inner_track.append(waypoint.gate_line[0])
-            outer_track.append(waypoint.gate_line[1])
         center_track.append((waypoint.latitude, waypoint.longitude))
         if waypoint.type not in (SECRETPOINT,):
             plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
@@ -760,10 +753,7 @@ def plot_anr_corridor_track(
         path = np.array(center_track)
         ys, xs = path.T
         plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width / 2)
-    path = np.array(inner_track)
-    ys, xs = path.T
-    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
-    path = np.array(outer_track)
+    path = np.array(polygon_track)
     ys, xs = path.T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
     return [path]
