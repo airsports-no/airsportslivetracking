@@ -1,27 +1,80 @@
 {
 	"version": "2.0.0",
 	"tasks": [
-    {
-      "label": "Run server",
-      "type": "shell",
-      "command": "(npm run webpack-local &) && cd src && python3 manage.py runserver 0.0.0.0:8000",
-      "group": "run",
-      "presentation": {
-        "reveal": "always",
-        "panel": "new"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Run celery",
-      "type": "shell",
-      "command": "cd src && celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log --concurrency 1",
-      "group": "run",
-      "presentation": {
-        "reveal": "always",
-        "panel": "new"
-      },
-      "problemMatcher": []
-    }
-  ]
+		{
+			"label": "Run server",
+			"type": "shell",
+			"command": "python3 manage.py runserver 0.0.0.0:8000",
+			"group": "run",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"options": {
+				"cwd": "${workspaceFolder}/src"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Run celery",
+			"type": "shell",
+			"command": "cd src && celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log --concurrency 1",
+			"group": "run",
+			"options": {
+				"cwd": "${workspaceFolder}/src"
+			},
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Watch React Vite",
+			"type": "shell",
+			"command": "npx vite build -m dev --watch",
+			"options": {
+				"cwd": "${workspaceFolder}/react_vite"
+			},
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Watch ReactJS Webpack",
+			"type": "shell",
+			"command": "npm run webpack-local",
+			"options": {
+				"cwd": "${workspaceFolder}/reactjs"
+			},
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Watch Tailwind CSS",
+			"type": "shell",
+			"command": "src/static/css/tailwindcss -i src/static/css/input.css -o src/static/css/output.css --watch",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start All Watchers",
+			"dependsOn": [
+				"Run server",
+				"Run celery",
+				"Watch React Vite",
+				"Watch ReactJS Webpack",
+				"Watch Tailwind CSS"
+			],
+			"problemMatcher": [],
+			"group": "run",
+			"runOptions": {
+				"runOn": "folderOpen"
+			}
+		}
+	]
 }
