@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import L from 'leaflet';
 import { useParams, Link } from 'react-router-dom';
 
-import useMapInit from '../../route-editor/components/map/useMapInit';
+import useMapInit from '../route-editor/components/map/useMapInit';
 import { useCompetitionData } from './hooks/useCompetitionData';
 import { usePlayback } from './hooks/usePlayback';
 import { useMapLayers } from './hooks/useMapLayers';
@@ -13,6 +13,7 @@ import ProhibitedRenderer from "./components/track-renderers/ProhibitedRenderer"
 import RouteRenderer from "./components/track-renderers/RouteRenderer";
 import TimelineControls from "./components/TimelineControls";
 import TeamPresentation from './components/TeamPresentation';
+import ClockDisplay from './components/ClockDisplay';
 
 
 export default function CompetitionMapPage() {
@@ -177,92 +178,97 @@ export default function CompetitionMapPage() {
         }
     }, [selectedContestantId, scoreLogByContestant, mode, currentTime]);
 
-    return (
-        <div className="flex flex-col h-[calc(100vh-66px)]">
-        <div className="navbar bg-base-200 px-4">
-            <div className="flex-1">
-            <Link to="/" className="btn btn-ghost text-xl">Home</Link>
-            <span className="mx-2">Competition Map</span>
-            {navTask && <span className="opacity-60">{navTask.name}</span>}
-            </div>
-            <div className="flex items-center gap-4">
-            { selectedContestantId && <button className="btn btn-sm btn-info" onClick={() => setShowScoreLog(true)}>View Score Log</button>}
-            { selectedContestantId && <button className="btn btn-sm btn-warning" onClick={() => {setSelectedContestantId(null); setShowScoreLog(false);}}>Clear Selection</button>}
-            <label className="label cursor-pointer">
-                <span className="label-text">Show full trails</span>
-                <input type="checkbox" className="toggle toggle-primary ml-2" checked={showFullTrails} onChange={e => setShowFullTrails(e.target.checked)} />
-            </label>
-            <div className="form-control">
-                <label className="label cursor-pointer">
-                <span className="label-text">Realtime</span>
-                <input type="radio" name="mode" className="radio ml-2" checked={mode === 'realtime'} onChange={() => {
-                    if (mode !== 'realtime') {
-                        setMode('realtime');
-                        setSelectedContestantId(null);
-                        setPlaybackTime(new Date());
-                    }
-                }} />
-                </label>
-            </div>
-            <div className="form-control">
-                <label className="label cursor-pointer">
-                <span className="label-text">Playback</span>
-                <input type="radio" name="mode" className="radio ml-2" checked={mode === 'playback'} onChange={() => {
-                    if (mode !== 'playback') {
-                        setMode('playback');
-                        setSelectedContestantId(null);
-                    }
-                }} />
-                </label>
-            </div>
-            </div>
-        </div>
-        <div className="flex-1 relative">
-            <div id="map-container" className="h-full w-full" />
-            <ProhibitedRenderer map={mapRef.current} navTask={navTask} />
-            <RouteRenderer map={mapRef.current} navTask={navTask} />
-            <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96">
-                {showScoreLog && selectedContestantId && scoreLogByContestant[selectedContestantId] ? (
-                    <ScoreLogTable
-                        scoreLog={filteredScoreLog}
-                        contestantName={`#${selectedContestant?.contestant_number} ${selectedContestant?.team?.crew?.member1?.first_name ?? ''}`}
-                        onClose={() => setShowScoreLog(false)}
-                    />
-                ) : (
-                    <ResultsTable
-                        rows={standings}
-                        dividerIndex={firstWaitingIndex}
-                        onRowClick={(id) => {
-                            setSelectedContestantId(id);
-                            setShowScoreLog(false);
-                        }}
-                    />
-                )}
-            </div>
-            {selectedContestant && (
-                <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24' : 'bottom-4'}`}>
-                    <TeamPresentation 
-                        contestant={selectedContestant} 
-                        dangerData={dangerDataByContestant[selectedContestant.id]}
-                        gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
-                        score={standings.find(s => s.id === selectedContestant.id)?.score ?? 0}
-                    />
-                </div>
-            )}
-            {mode === 'playback' && playbackTimeInfo && (
-                <TimelineControls
-                    currentTime={currentTime}
-                    startTime={playbackTimeInfo.start}
-                    endTime={playbackTimeInfo.end}
-                    isPlaying={isPlaying}
-                    playbackSpeed={playbackSpeed}
-                    onPlayPause={() => setIsPlaying(p => !p)}
-                    onJumpToStart={() => setPlaybackTime(playbackTimeInfo.start)}
-                    onTimeChange={setPlaybackTime}
-                    onSpeedChange={setPlaybackSpeed}
-                />
-            )}
-        </div>
-        </div>
-    );
-}
+        return (
+            <div className="flex flex-col h-screen">
+                <div className="flex-1 relative">
+                    <div id="map-container" className="h-full w-full" />
+                    <ProhibitedRenderer map={mapRef.current} navTask={navTask} />
+                                    <RouteRenderer map={mapRef.current} navTask={navTask} />
+                                    
+                                    <div className="absolute top-4 right-4 z-[1000]">
+                                        <ClockDisplay time={currentTime} />
+                                    </div>
+                    
+                                    <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96">
+                                        <div className="p-2 border-b border-base-300">
+                                            <h2 className="font-bold text-lg truncate" title={navTask?.name}>{navTask?.name ?? 'Loading...'}</h2>
+                                            
+                                            <div className="flex justify-between items-center mt-2">
+                                                <div className="join">
+                                                    <button className={`btn btn-xs join-item ${mode === 'realtime' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}>Realtime</button>
+                                                    <button className={`btn btn-xs join-item ${mode === 'playback' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'playback') { setMode('playback'); setSelectedContestantId(null); } }}>Playback</button>
+                                                </div>
+                                                
+                                                <label className="label cursor-pointer text-xs p-0">
+                                                    <span className="label-text mr-1">Full Trails</span>
+                                                    <input type="checkbox" className="toggle toggle-xs" checked={showFullTrails} onChange={e => setShowFullTrails(e.target.checked)} />
+                                                </label>
+                    
+                                                                            <Link to={`/competition-map/${contestIdNum}/${navigationTaskIdNum}/info`} className="btn btn-xs btn-outline">Task Info</Link>
+                                                                            {document.configuration.canChangeNavigationTask && (
+                                                                                <a href={document.configuration.navigationTaskManagementLink} className="btn btn-xs btn-outline ml-2">Manage Task</a>
+                                                                            )}
+                                                                        </div>
+                                                
+                                                                        {mode === 'realtime' && navTask?.calculation_delay_minutes > 0 && (
+                                                                            <div className="text-xs text-warning-content bg-warning rounded-md px-2 py-1 mt-2 text-center">
+                                                                                Live data is delayed by {navTask.calculation_delay_minutes} minute(s).
+                                                                            </div>
+                                                                        )}
+                                                                        
+                                                                        {selectedContestant && (
+                                                                            <div className="flex justify-between items-center mt-2 pt-2 border-t border-base-200 gap-2">
+                                                                                <span className="text-xs font-bold truncate flex-1" title={`${selectedContestant.team.crew.member1.first_name} ${selectedContestant.team.crew.member1.last_name}`}>
+                                                                                    Selected: #{selectedContestant.contestant_number} {selectedContestant.team.crew.member1.first_name}                                                    </span>
+                                                    <div className="flex-none">
+                                                        <button className="btn btn-xs btn-info mr-1" onClick={() => setShowScoreLog(true)}>Log</button>
+                                                        <button className="btn btn-xs btn-ghost" onClick={() => {setSelectedContestantId(null); setShowScoreLog(false);}}>Clear</button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                    
+                                        {showScoreLog && selectedContestantId ? (
+                                            <ScoreLogTable
+                                                scoreLog={filteredScoreLog}
+                                                contestantName={`#${selectedContestant?.contestant_number} ${selectedContestant?.team?.crew?.member1?.first_name ?? ''}`}
+                                                onClose={() => setShowScoreLog(false)}
+                                            />
+                                        ) : (
+                                            <ResultsTable
+                                                rows={standings}
+                                                dividerIndex={firstWaitingIndex}
+                                                onRowClick={(id) => {
+                                                    setSelectedContestantId(id);
+                                                    setShowScoreLog(false);
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                    
+                                    {selectedContestant && (
+                                        <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24' : 'bottom-4'}`}>
+                                            <TeamPresentation 
+                                                contestant={selectedContestant} 
+                                                dangerData={dangerDataByContestant[selectedContestant.id]}
+                                                gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
+                                                score={standings.find(s => s.id === selectedContestant.id)?.score ?? 0}
+                                            />
+                                        </div>
+                                    )}
+                                    {mode === 'playback' && playbackTimeInfo && (
+                                        <TimelineControls
+                                            currentTime={currentTime}
+                                            startTime={playbackTimeInfo.start}
+                                            endTime={playbackTimeInfo.end}
+                                            isPlaying={isPlaying}
+                                            playbackSpeed={playbackSpeed}
+                                            onPlayPause={() => setIsPlaying(p => !p)}
+                                            onJumpToStart={() => setPlaybackTime(playbackTimeInfo.start)}
+                                            onTimeChange={setPlaybackTime}
+                                            onSpeedChange={setPlaybackSpeed}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        );}

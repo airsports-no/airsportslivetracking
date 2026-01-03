@@ -132,6 +132,10 @@ export interface GateScoreRule {
   maximum_penalty: number;
   penalty_per_second: number;
   missed_penalty: number;
+  maximum_timing_penalty?: number;
+  missed_procedure_turn_penalty?: number;
+  extended_gate_width?: number;
+  bad_crossing_extended_gate_penalty?: number;
 }
 
 export interface Scorecard {
@@ -142,6 +146,17 @@ export interface Scorecard {
   valid_from: string;
   free_text: string;
   initial_score: number;
+  corridor_outside_penalty?: number;
+  corridor_grace_time?: number;
+  corridor_maximum_penalty?: number;
+  prohibited_zone_penalty?: number;
+  penalty_zone_penalty_per_second?: number;
+  penalty_zone_grace_time?: number;
+  penalty_zone_maximum?: number;
+  backtracking_bearing_difference?: number;
+  backtracking_grace_time_seconds?: number;
+  backtracking_penalty?: number;
+  backtracking_maximum_penalty?: number;
 }
 
 export interface NavigationTask {
@@ -156,6 +171,7 @@ export interface NavigationTask {
   time_zone: string;
   contest: number;
   score_sorting_direction: "asc" | "desc";
+  calculation_delay_minutes?: number;
 }
 
 export interface TrackPosition {

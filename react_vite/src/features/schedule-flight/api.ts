@@ -80,6 +80,16 @@ export const registerForContest = async (payload: RegisterTeamPayload): Promise<
 };
 
 
+export const fetchContest = async (contestId: number): Promise<Contest> => {
+    const response = await fetch(`${API_BASE_URL}contests/${contestId}/`, { headers: getAuthHeaders() });
+    if (!response.ok) {
+        const error = new Error(`Failed to fetch contest ${contestId}`) as any;
+        error.status = response.status;
+        throw error;
+    }
+    return response.json();
+};
+
 export const scheduleFlight = async (contestId: number, navigationTaskId: number, payload: ScheduleFlightPayload): Promise<any> => {
     const response = await fetch(
         `${API_BASE_URL}contests/${contestId}/navigationtasks/${navigationTaskId}/contestant_self_registration/`,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Contest, MyParticipatingContest, NavigationTask } from '../types';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface ContestItemProps {
     contest: Contest;
@@ -114,12 +115,12 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                                             </div>
                                         ) : (
                                             task.allow_self_management && (
-                                                <button
+                                                <Link
+                                                    to={`/schedule-flight?contestId=${contest.id}&navigationTaskId=${task.pk}`}
                                                     className="btn btn-primary btn-sm"
-                                                    onClick={() => onScheduleClick(task)}
                                                 >
                                                     Schedule
-                                                </button>
+                                                </Link>
                                             )
                                         )}
                                     </div>

@@ -7,6 +7,7 @@ const RouteEditor = lazy(() => import("./features/route-editor/containers/RouteE
 const ScheduleFlightContainer = lazy(() => import("./features/schedule-flight/ScheduleFlightContainer"));
 const PastFlightsPage = lazy(() => import("./features/schedule-flight/PastFlightsPage"));
 const CompetitionMapPage = lazy(() => import("./features/competition-map/CompetitionMapPage"));
+const TaskInfoPage = lazy(() => import("./features/competition-map/TaskInfoPage"));
 
 export const FrontendRouter = () => {
     return (
@@ -20,6 +21,7 @@ export const FrontendRouter = () => {
                     <Route path="/past-flights" element={<PastFlightsPage />} />
                     <Route path="/competition-map" element={<CompetitionMapPage />} />
                     <Route path="/competition-map/:contestId/:navigationTaskId" element={<CompetitionMapPage />} />
+                    <Route path="/competition-map/:contestId/:navigationTaskId/info" element={<TaskInfoPage />} />
                     <Route path="*" element={
                         <div className="hero min-h-screen bg-base-200">
                             <div className="hero-content text-center">

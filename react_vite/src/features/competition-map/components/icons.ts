@@ -29,3 +29,17 @@ export function planeIcon(number: number, color: string, headingDeg: number): L.
     iconAnchor: [size / 2, size / 2],
   });
 }
+
+export function getAnnotationIcon(annotationType: string): L.DivIcon {
+    let className = 'bg-gray-500'; // default
+    if (annotationType === 'anomaly') {
+        className = 'bg-red-500';
+    } else if (annotationType === 'information') {
+        className = 'bg-blue-500';
+    }
+    return L.divIcon({
+        html: `<div class="w-3 h-3 rounded-full ${className} border-2 border-white"></div>`,
+        className: 'bg-transparent',
+        iconSize: [12, 12],
+    });
+}

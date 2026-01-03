@@ -6,7 +6,7 @@ import ContestItem from './components/ContestItem';
 import Select from 'react-select';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
 import ContestRegistrationForm from './components/ContestRegistrationForm';
-import { Link } from "react-router-dom"; // Import Link
+import { Link, useSearchParams } from "react-router-dom";
 
 
 // Mock data for development
@@ -26,6 +26,10 @@ const MY_PARTICIPATING_CONTESTS_URL = document.configuration?.MY_PARTICIPATING_C
 
 
 const ScheduleFlightContainer = () => {
+    const [searchParams] = useSearchParams();
+    const contestIdParam = searchParams.get('contestId');
+    const navigationTaskIdParam = searchParams.get('navigationTaskId');
+
     const [contests, setContests] = useState<Contest[]>([]);
     const [myContests, setMyContests] = useState<MyParticipatingContest[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
@@ -36,6 +40,8 @@ const ScheduleFlightContainer = () => {
     const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
     const [selectedTask, setSelectedTask] = useState<{ contest: Contest, navigationTask: NavigationTask } | null>(null);
     const [selectedContestForRegistration, setSelectedContestForRegistration] = useState<Contest | null>(null);
+    const [initialSelectedTask, setInitialSelectedTask] = useState<{ contest: Contest, navigationTask: NavigationTask } | null>(null);
+    const [deepLinkProcessed, setDeepLinkProcessed] = useState(false);
 
     const loadContests = (loadMore = false) => {
         let url = CONTESTS_LIST_URL;
@@ -64,36 +70,62 @@ const ScheduleFlightContainer = () => {
     };
 
     useEffect(() => {
-        setLoading(true);
-        api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL)
-            .then((myContestsData) => {
+        const loadInitialData = async () => {
+            setLoading(true);
+            try {
+                const myContestsData = await api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL);
                 setMyContests(myContestsData);
-                return loadContests(); // initial load
-            })
-            .catch(err => {
-                // Check for 401 Unauthorized specifically for fetchMyParticipatingContests
+
+                if (contestIdParam && navigationTaskIdParam && !deepLinkProcessed) {
+                    const contestId = Number(contestIdParam);
+                    const navigationTaskId = Number(navigationTaskIdParam);
+
+                    if (!isNaN(contestId) && !isNaN(navigationTaskId)) {
+                        const contest = await api.fetchContest(contestId);
+                        const navigationTask = contest.navigationtask_set.find(
+                            (nt) => nt.pk === navigationTaskId
+                        );
+
+                        if (contest && navigationTask) {
+                            setInitialSelectedTask({ contest, navigationTask });
+                        } else {
+                            setError("Deep link: Contest or Navigation Task not found.");
+                        }
+                    } else {
+                        setError("Deep link: Invalid Contest ID or Navigation Task ID.");
+                    }
+                    setDeepLinkProcessed(true); // Mark deep link as processed
+                } else {
+                    await loadContests(); // Only load contests if no deep link or deep link already processed
+                }
+            } catch (err: any) {
                 if (err.status === 401) {
                     console.log("User not authenticated, redirecting to login in 5 seconds.");
-                    setError("You are not authenticated. Redirecting to login page in 5 seconds..."); // Provide user feedback
+                    setError("You are not authenticated. Redirecting to login page in 5 seconds...");
                     const loginPageUrl = document.configuration?.loginUrl || '/login';
                     setTimeout(() => {
                         window.location.href = loginPageUrl;
-                    }, 5000); // 5000ms = 5 seconds
+                    }, 5000);
                 } else {
                     setError(err.message);
                 }
-            })
-            .finally(() => {
+            } finally {
                 setLoading(false);
-            });
-    }, []);
+            }
+        };
+
+        loadInitialData();
+    }, [contestIdParam, navigationTaskIdParam, deepLinkProcessed]);
 
     const refreshData = () => {
         setLoading(true);
         api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL)
             .then(data => {
                 setMyContests(data);
-                return loadContests();
+                if (!(contestIdParam && navigationTaskIdParam)) { // Only reload contests if not deep linking
+                    return loadContests();
+                }
+                return Promise.resolve();
             })
             .catch(err => {
                 setError(err.message);
@@ -157,7 +189,8 @@ const ScheduleFlightContainer = () => {
 
     const onFormClose = () => {
         setSelectedTask(null);
-        handleScheduleFlight();
+        setInitialSelectedTask(null); // Clear deep link selection on close
+        refreshData();
     }
 
     const onRegisterFormClose = () => {
@@ -166,10 +199,13 @@ const ScheduleFlightContainer = () => {
     };
 
 
-    if (selectedTask) {
+    if (selectedTask || initialSelectedTask) {
+        const taskToDisplay = selectedTask || initialSelectedTask;
+        if (!taskToDisplay) return null; // Should not happen
+
         return <ScheduleFlightForm
-            contest={selectedTask.contest}
-            navigationTaskId={selectedTask.navigationTask.pk}
+            contest={taskToDisplay.contest}
+            navigationTaskId={taskToDisplay.navigationTask.pk}
             myContests={myContests}
             onClose={onFormClose}
         />
