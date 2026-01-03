@@ -8,6 +8,7 @@ import ResultsTable from './components/ResultsTable';
 import { useParams, Link } from 'react-router-dom';
 import ProhibitedRenderer from "./components/track-renderers/ProhibitedRenderer";
 import RouteRenderer from "./components/track-renderers/RouteRenderer";
+import TimelineControls from "./components/TimelineControls";
 
 interface ContestantLayers {
   marker: L.Marker;
@@ -60,6 +61,7 @@ export default function CompetitionMapPage() {
   const [showFullTrails, setShowFullTrails] = useState(false);
   const [mode, setMode] = useState<'realtime' | 'playback'>('realtime');
   const [playbackSpeed, setPlaybackSpeed] = useState(1); // 1x, 2x, etc.
+  const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [playbackTimeInfo, setPlaybackTimeInfo] = useState<{start: Date, end: Date} | null>(null);
   const [selectedContestantId, setSelectedContestantId] = useState<number | null>(null);
@@ -214,6 +216,7 @@ export default function CompetitionMapPage() {
   // Playback mode setup
   useEffect(() => {
     if (mode === 'playback') {
+      setIsPlaying(false);
       // Clear layers
       Object.values(layersRef.current).forEach(l => {
         l.marker.remove();
@@ -238,7 +241,7 @@ export default function CompetitionMapPage() {
 
   // Playback timer
   useEffect(() => {
-    if (mode !== 'playback' || !playbackTimeInfo) {
+    if (mode !== 'playback' || !playbackTimeInfo || !isPlaying) {
       if (playbackTimerRef.current) {
         window.clearInterval(playbackTimerRef.current);
         playbackTimerRef.current = null;
@@ -246,23 +249,28 @@ export default function CompetitionMapPage() {
       return;
     }
 
-    let t = new Date(currentTime);
-    const intervalMs = 1000 / Math.max(0.25, playbackSpeed); // speed up or slow down logical seconds
+    const SCREEN_UPDATE_INTERVAL_MS = 50;
+    const timeStepMs = playbackSpeed * SCREEN_UPDATE_INTERVAL_MS;
+
     playbackTimerRef.current = window.setInterval(() => {
-      t = new Date(t.getTime() + 1000);
-      if (t > playbackTimeInfo.end) {
-          t = playbackTimeInfo.end;
-          if(playbackTimerRef.current) clearInterval(playbackTimerRef.current);
-      }
-      setCurrentTime(new Date(t));
-    }, intervalMs);
+      setCurrentTime(prevTime => {
+        const newTime = new Date(prevTime.getTime() + timeStepMs);
+        if (newTime >= playbackTimeInfo.end) {
+            if(playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+            setIsPlaying(false);
+            return playbackTimeInfo.end;
+        }
+        return newTime;
+      });
+    }, SCREEN_UPDATE_INTERVAL_MS);
+    
     return () => {
       if (playbackTimerRef.current) {
         window.clearInterval(playbackTimerRef.current);
         playbackTimerRef.current = null;
       }
     };
-  }, [mode, playbackSpeed, playbackTimeInfo, currentTime]);
+  }, [mode, playbackSpeed, playbackTimeInfo, isPlaying]);
 
 
   // Process data for current time
@@ -351,16 +359,17 @@ export default function CompetitionMapPage() {
       }
 
       // Update trails
-      const recentLatLngs = visiblePositions.map(p => [p.latitude, p.longitude] as [number, number]);
-      recentTrail.setLatLngs(recentLatLngs);
-
-      const showFull = isSelected || showFullTrails;
-      if(showFull) {
-        const fullLatLngs = positions.map(p => [p.latitude, p.longitude] as [number, number]);
-        fullTrail.setLatLngs(fullLatLngs);
-        fullTrail.setStyle({ opacity: (isAnySelected && !isSelected) ? 0 : 0.5 });
+      if (showFullTrails || isSelected) {
+          const fullLatLngs = positions.map(p => [p.latitude, p.longitude] as [number, number]);
+          fullTrail.setLatLngs(fullLatLngs);
+          fullTrail.setStyle({opacity: 0.5});
+          recentTrail.setStyle({opacity: 0}); // Hide recent trail
       } else {
-        fullTrail.setStyle({ opacity: 0 });
+          const recentPositions = lastMinutesPositions(positions, 5, currentTime);
+          const recentLatLngs = recentPositions.map(p => [p.latitude, p.longitude] as [number, number]);
+          recentTrail.setLatLngs(recentLatLngs);
+          recentTrail.setStyle({opacity: 0.9});
+          fullTrail.setStyle({opacity: 0}); // Hide full trail
       }
     }
     
@@ -371,7 +380,9 @@ export default function CompetitionMapPage() {
         const allAnnotations = annotationsByContestant[selectedContestantId] ?? [];
         const allLogs = scoreLogByContestant[selectedContestantId] ?? [];
         
-        allAnnotations.forEach(ann => {
+        const visibleAnnotations = allAnnotations.filter(ann => new Date(ann.time) <= currentTime);
+
+        visibleAnnotations.forEach(ann => {
             const scoreLog = ann.score_log_entry ? allLogs.find(l => l.id === ann.score_log_entry) : null;
             const marker = L.marker([ann.latitude, ann.longitude], {icon: getAnnotationIcon(ann.type)})
                 .bindTooltip(`
@@ -429,13 +440,6 @@ export default function CompetitionMapPage() {
               <input type="radio" name="mode" className="radio ml-2" checked={mode === 'playback'} onChange={() => setMode('playback')} />
             </label>
           </div>
-          {mode === 'playback' && (
-            <div className="flex items-center gap-2">
-              <span className="label-text">Speed</span>
-              <input type="range" min={0.25} max={8} step={0.25} value={playbackSpeed} onChange={e => setPlaybackSpeed(Number(e.target.value))} className="range range-xs w-32" />
-              <span className="badge">{playbackSpeed}x</span>
-            </div>
-          )}
         </div>
       </div>
       <div className="flex-1 relative">
@@ -445,6 +449,22 @@ export default function CompetitionMapPage() {
         <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96">
           <ResultsTable rows={standings} onRowClick={setSelectedContestantId} />
         </div>
+        {mode === 'playback' && playbackTimeInfo && (
+            <TimelineControls
+                currentTime={currentTime}
+                startTime={playbackTimeInfo.start}
+                endTime={playbackTimeInfo.end}
+                isPlaying={isPlaying}
+                playbackSpeed={playbackSpeed}
+                onPlayPause={() => setIsPlaying(p => !p)}
+                onJumpToStart={() => setCurrentTime(playbackTimeInfo.start)}
+                onTimeChange={(t) => {
+                    setIsPlaying(false);
+                    setCurrentTime(t);
+                }}
+                onSpeedChange={setPlaybackSpeed}
+            />
+        )}
       </div>
     </div>
   );
