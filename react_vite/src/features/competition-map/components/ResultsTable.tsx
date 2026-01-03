@@ -6,7 +6,12 @@ interface Row {
   score: number;
 }
 
-export default function ResultsTable({ rows }: { rows: Row[] }) {
+interface Props {
+    rows: Row[];
+    onRowClick?: (id: number) => void;
+}
+
+export default function ResultsTable({ rows, onRowClick }: Props) {
   return (
     <div className="overflow-y-auto max-h-96">
       <table className="table table-zebra table-sm w-full">
@@ -19,7 +24,7 @@ export default function ResultsTable({ rows }: { rows: Row[] }) {
         </thead>
         <tbody>
           {rows.map((r, idx) => (
-            <tr key={r.id}>
+            <tr key={r.id} onClick={() => onRowClick?.(r.id)} className={onRowClick ? 'cursor-pointer hover:bg-base-300' : ''}>
               <td>{idx + 1}</td>
               <td>{r.name}</td>
               <td>{r.score}</td>
