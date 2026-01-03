@@ -82,8 +82,8 @@ export function useMapLayers({
                     L.DomEvent.stopPropagation(e);
                     onContestantSelect(c.id, false);
                 });
-                const recentTrail = L.polyline([], { color, weight: 3, opacity: 0.9 }).addTo(map);
-                const fullTrail = L.polyline([], { color, weight: 2, opacity: 0.3 }).addTo(map);
+                const recentTrail = L.polyline([], { color, weight: 5, opacity: 0.9 }).addTo(map);
+                const fullTrail = L.polyline([], { color, weight: 4, opacity: 0.5 }).addTo(map);
                 layersRef.current[c.id] = { marker, recentTrail, fullTrail };
             }
             const { marker, recentTrail, fullTrail } = layersRef.current[c.id];
@@ -102,7 +102,7 @@ export function useMapLayers({
             if (shouldBeVisible && (showFullTrails || isSelected)) {
                 const fullLatLngs = positions.map(p => [p.latitude, p.longitude] as [number, number]);
                 fullTrail.setLatLngs(fullLatLngs);
-                fullTrail.setStyle({opacity: 0.5});
+                fullTrail.setStyle({opacity: 0.7});
                 recentTrail.setLatLngs([]);
                 recentTrail.setStyle({opacity: 0});
             } else if (shouldBeVisible) {

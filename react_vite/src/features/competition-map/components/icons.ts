@@ -2,7 +2,7 @@ import L from 'leaflet';
 
 // Creates a DivIcon with a rotated airplane-like SVG, colored per contestant and labeled with contestant number
 export function planeIcon(number: number, color: string, headingDeg: number): L.DivIcon {
-  const size = 28;
+  const size = 36;
   const svg = `
     <div style="position: relative; width: ${size}px; height: ${size}px;">
       <div style="position:absolute; left:0; top:0; width:${size}px; height:${size}px; transform: rotate(${headingDeg}deg); transform-origin: 50% 50%;">
