@@ -140,33 +140,33 @@ def validate_that_gate_does_not_intersect_corridor(gates: list[Waypoint]):
                 previous_left_point = None
                 previous_right_point = None
                 continue
-            if previous_left_point is None:
-                previous_left_point = gates[second_index].left_corridor_line[0]
-                previous_right_point = gates[second_index].right_corridor_line[0]
-            for corridor_segment_index in range(0, len(gates[second_index].left_corridor_line)):
-                left_intersection = projector.intersect(
-                    gates[index].gate_line[0],
-                    gates[index].gate_line[1],
-                    previous_left_point,
-                    gates[second_index].left_corridor_line[corridor_segment_index],
-                )
-                if left_intersection:
-                    raise ValidationError(
-                        f"The gate line for gate {gates[index].name} intercepts the corridor from the left near gate {gates[second_index].name}"
-                    )
-                previous_left_point = gates[second_index].left_corridor_line[corridor_segment_index]
-            for corridor_segment_index in range(0, len(gates[second_index].right_corridor_line)):
-                right_intersection = projector.intersect(
-                    gates[index].gate_line[0],
-                    gates[index].gate_line[1],
-                    previous_right_point,
-                    gates[second_index].right_corridor_line[corridor_segment_index],
-                )
-                if right_intersection:
-                    raise ValidationError(
-                        f"The gate line for gate {gates[index].name} intercepts the corridor from the right near gate {gates[second_index].name}"
-                    )
-                previous_right_point = gates[second_index].right_corridor_line[corridor_segment_index]
+            # if previous_left_point is None:
+            #     previous_left_point = gates[second_index].left_corridor_line[0]
+            #     previous_right_point = gates[second_index].right_corridor_line[0]
+            # for corridor_segment_index in range(0, len(gates[second_index].left_corridor_line)):
+            #     left_intersection = projector.intersect(
+            #         gates[index].gate_line[0],
+            #         gates[index].gate_line[1],
+            #         previous_left_point,
+            #         gates[second_index].left_corridor_line[corridor_segment_index],
+            #     )
+            #     if left_intersection:
+            #         raise ValidationError(
+            #             f"The gate line for gate {gates[index].name} intercepts the corridor from the left near gate {gates[second_index].name}"
+            #         )
+            #     previous_left_point = gates[second_index].left_corridor_line[corridor_segment_index]
+            # for corridor_segment_index in range(0, len(gates[second_index].right_corridor_line)):
+            #     right_intersection = projector.intersect(
+            #         gates[index].gate_line[0],
+            #         gates[index].gate_line[1],
+            #         previous_right_point,
+            #         gates[second_index].right_corridor_line[corridor_segment_index],
+            #     )
+            #     if right_intersection:
+            #         raise ValidationError(
+            #             f"The gate line for gate {gates[index].name} intercepts the corridor from the right near gate {gates[second_index].name}"
+            #         )
+            #     previous_right_point = gates[second_index].right_corridor_line[corridor_segment_index]
 
 
 def load_features_from_kml(input_kml) -> Dict:
