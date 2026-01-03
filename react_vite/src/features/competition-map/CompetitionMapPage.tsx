@@ -405,25 +405,70 @@ export default function CompetitionMapPage() {
   }, [mapRef, navTask, currentPositions, showFullTrails, currentTime, mode, selectedContestantId, annotationsByContestant, scoreLogByContestant]);
 
   const standings = useMemo(() => {
-    if (!navTask) return [] as { id: number; name: string; score: number }[];
+    if (!navTask) return [] as { id: number; name: string; score: number, state: string }[];
     const dir = navTask.score_sorting_direction;
 
-    if (mode === 'playback' && Object.keys(currentScores).length > 0) {
-        return [...navTask.contestant_set]
-          .map(c => ({ id: c.id, name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`, score: currentScores[c.id] ?? navTask.scorecard.initial_score ?? 0 }))
-          .sort((a, b) => dir === 'asc' ? a.score - b.score : b.score - a.score);
-    }
+    const getContestantsWithState = () => {
+        if (mode === 'playback') {
+            const startGateName = navTask.route.waypoints.find(wp => wp.type === 'sp')?.name;
+            const finishGateName = navTask.route.waypoints.find(wp => wp.type === 'fp')?.name;
 
-    // Realtime mode
-    return [...navTask.contestant_set]
-      .map(c => ({ id: c.id, name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`, score: c.contestanttrack?.score ?? 0 }))
-      .sort((a, b) => dir === 'asc' ? a.score - b.score : b.score - a.score);
-  }, [navTask, mode, currentScores]);
+            return navTask.contestant_set.map(c => {
+                let state = 'Waiting...';
+                const logsForTime = (scoreLogByContestant[c.id] ?? []).filter(log => new Date(log.time) <= currentTime);
+                
+                if (finishGateName && logsForTime.some(log => log.gate === finishGateName)) {
+                    state = 'Finished';
+                } else if (startGateName && logsForTime.some(log => log.gate === startGateName)) {
+                    state = 'Enroute';
+                }
+                
+                return {
+                    id: c.id,
+                    name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
+                    score: currentScores[c.id] ?? navTask.scorecard.initial_score ?? 0,
+                    state: state
+                };
+            });
+        }
+
+        // Realtime mode
+        return navTask.contestant_set.map(c => ({
+            id: c.id,
+            name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
+            score: c.contestanttrack?.score ?? 0,
+            state: c.contestanttrack?.current_state ?? 'Waiting...'
+        }));
+    };
+
+    const allContestants = getContestantsWithState();
+    
+    const active = allContestants.filter(c => c.state !== 'Waiting...');
+    const waiting = allContestants.filter(c => c.state === 'Waiting...');
+
+    const sortFn = (a: {score: number}, b: {score:number}) => dir === 'asc' ? a.score - b.score : b.score - a.score;
+
+    active.sort(sortFn);
+    waiting.sort(sortFn);
+    
+    return [...active, ...waiting];
+  }, [navTask, mode, currentScores, currentTime, scoreLogByContestant]);
 
   const selectedContestant = useMemo(() => {
     if (!selectedContestantId || !navTask) return null;
     return navTask.contestant_set.find(c => c.id === selectedContestantId);
   }, [selectedContestantId, navTask]);
+
+  const firstWaitingIndex = standings.findIndex(s => s.state === 'Waiting...');
+
+  const filteredScoreLog = useMemo(() => {
+    if (!selectedContestantId || !scoreLogByContestant[selectedContestantId]) return [];
+    if (mode === 'realtime') {
+        return scoreLogByContestant[selectedContestantId];
+    } else { // mode === 'playback'
+        return scoreLogByContestant[selectedContestantId].filter(log => new Date(log.time) <= currentTime);
+    }
+  }, [selectedContestantId, scoreLogByContestant, mode, currentTime]);
 
   return (
     <div className="flex flex-col h-screen">
@@ -461,13 +506,14 @@ export default function CompetitionMapPage() {
         <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96">
             {showScoreLog && selectedContestantId && scoreLogByContestant[selectedContestantId] ? (
                 <ScoreLogTable
-                    scoreLog={scoreLogByContestant[selectedContestantId]}
+                    scoreLog={filteredScoreLog}
                     contestantName={`#${selectedContestant?.contestant_number} ${selectedContestant?.team?.crew?.member1?.first_name ?? ''}`}
                     onClose={() => setShowScoreLog(false)}
                 />
             ) : (
                 <ResultsTable
                     rows={standings}
+                    dividerIndex={firstWaitingIndex}
                     onRowClick={(id) => {
                         setSelectedContestantId(id);
                         setShowScoreLog(false);

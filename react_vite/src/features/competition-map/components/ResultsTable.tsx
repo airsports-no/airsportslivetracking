@@ -4,14 +4,16 @@ interface Row {
   id: number;
   name: string;
   score: number;
+  state?: string;
 }
 
 interface Props {
     rows: Row[];
     onRowClick?: (id: number) => void;
+    dividerIndex?: number;
 }
 
-export default function ResultsTable({ rows, onRowClick }: Props) {
+export default function ResultsTable({ rows, onRowClick, dividerIndex = -1 }: Props) {
   return (
     <div className="overflow-y-auto max-h-96">
       <table className="table table-zebra table-sm w-full">
@@ -24,11 +26,20 @@ export default function ResultsTable({ rows, onRowClick }: Props) {
         </thead>
         <tbody>
           {rows.map((r, idx) => (
-            <tr key={r.id} onClick={() => onRowClick?.(r.id)} className={onRowClick ? 'cursor-pointer hover:bg-base-300' : ''}>
-              <td>{idx + 1}</td>
-              <td>{r.name}</td>
-              <td>{r.score}</td>
-            </tr>
+            <React.Fragment key={r.id}>
+              {idx === dividerIndex && (
+                <tr className="bg-base-300 pointer-events-none">
+                    <td colSpan={3} className="h-1 p-0">
+                        <div className="w-full h-px bg-base-content/20"></div>
+                    </td>
+                </tr>
+              )}
+              <tr onClick={() => onRowClick?.(r.id)} className={onRowClick ? 'cursor-pointer hover:bg-base-300' : ''}>
+                <td>{idx + 1}</td>
+                <td>{r.name}</td>
+                <td>{r.score.toFixed(0)}</td>
+              </tr>
+            </React.Fragment>
           ))}
         </tbody>
       </table>
