@@ -6,6 +6,7 @@ const EditableRouteList = lazy(() => import("./features/route-editor/containers/
 const RouteEditor = lazy(() => import("./features/route-editor/containers/RouteEditor"));
 const ScheduleFlightContainer = lazy(() => import("./features/schedule-flight/ScheduleFlightContainer"));
 const PastFlightsPage = lazy(() => import("./features/schedule-flight/PastFlightsPage"));
+const CompetitionMapPage = lazy(() => import("./features/competition-map/CompetitionMapPage"));
 
 export const FrontendRouter = () => {
     return (
@@ -17,6 +18,8 @@ export const FrontendRouter = () => {
                     <Route path="routeeditor/create" element={<RouteEditor />} />
                     <Route path="/schedule" element={<ScheduleFlightContainer />} />
                     <Route path="/past-flights" element={<PastFlightsPage />} />
+                    <Route path="/competition-map" element={<CompetitionMapPage />} />
+                    <Route path="/competition-map/:contestId/:navigationTaskId" element={<CompetitionMapPage />} />
                     <Route path="*" element={
                         <div className="hero min-h-screen bg-base-200">
                             <div className="hero-content text-center">
