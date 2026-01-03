@@ -26,7 +26,7 @@ const MY_PARTICIPATING_CONTESTS_URL = document.configuration?.MY_PARTICIPATING_C
 
 
 const ScheduleFlightContainer = () => {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const contestIdParam = searchParams.get('contestId');
     const navigationTaskIdParam = searchParams.get('navigationTaskId');
 
@@ -41,7 +41,6 @@ const ScheduleFlightContainer = () => {
     const [selectedTask, setSelectedTask] = useState<{ contest: Contest, navigationTask: NavigationTask } | null>(null);
     const [selectedContestForRegistration, setSelectedContestForRegistration] = useState<Contest | null>(null);
     const [initialSelectedTask, setInitialSelectedTask] = useState<{ contest: Contest, navigationTask: NavigationTask } | null>(null);
-    const [deepLinkProcessed, setDeepLinkProcessed] = useState(false);
 
     const loadContests = (loadMore = false) => {
         let url = CONTESTS_LIST_URL;
@@ -75,29 +74,7 @@ const ScheduleFlightContainer = () => {
             try {
                 const myContestsData = await api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL);
                 setMyContests(myContestsData);
-
-                if (contestIdParam && navigationTaskIdParam && !deepLinkProcessed) {
-                    const contestId = Number(contestIdParam);
-                    const navigationTaskId = Number(navigationTaskIdParam);
-
-                    if (!isNaN(contestId) && !isNaN(navigationTaskId)) {
-                        const contest = await api.fetchContest(contestId);
-                        const navigationTask = contest.navigationtask_set.find(
-                            (nt) => nt.pk === navigationTaskId
-                        );
-
-                        if (contest && navigationTask) {
-                            setInitialSelectedTask({ contest, navigationTask });
-                        } else {
-                            setError("Deep link: Contest or Navigation Task not found.");
-                        }
-                    } else {
-                        setError("Deep link: Invalid Contest ID or Navigation Task ID.");
-                    }
-                    setDeepLinkProcessed(true); // Mark deep link as processed
-                } else {
-                    await loadContests(); // Only load contests if no deep link or deep link already processed
-                }
+                await loadContests();
             } catch (err: any) {
                 if (err.status === 401) {
                     console.log("User not authenticated, redirecting to login in 5 seconds.");
@@ -115,17 +92,43 @@ const ScheduleFlightContainer = () => {
         };
 
         loadInitialData();
-    }, [contestIdParam, navigationTaskIdParam, deepLinkProcessed]);
+    }, []);
+
+    useEffect(() => {
+        const handleDeepLink = async () => {
+            if (contestIdParam && navigationTaskIdParam) {
+                setLoading(true);
+                try {
+                    const contestId = Number(contestIdParam);
+                    const navigationTaskId = Number(navigationTaskIdParam);
+                    const contest = await api.fetchContest(contestId);
+                    const navigationTask = contest.navigationtask_set.find(
+                        (nt) => nt.pk === navigationTaskId
+                    );
+                    if (contest && navigationTask) {
+                        setInitialSelectedTask({ contest, navigationTask });
+                    } else {
+                        setError("Deep link: Contest or Navigation Task not found.");
+                    }
+                } catch (err) {
+                    setError((err as Error).message);
+                } finally {
+                    setLoading(false);
+                }
+            } else {
+                setInitialSelectedTask(null);
+            }
+        };
+
+        handleDeepLink();
+    }, [contestIdParam, navigationTaskIdParam]);
 
     const refreshData = () => {
         setLoading(true);
         api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL)
             .then(data => {
                 setMyContests(data);
-                if (!(contestIdParam && navigationTaskIdParam)) { // Only reload contests if not deep linking
-                    return loadContests();
-                }
-                return Promise.resolve();
+                return loadContests();
             })
             .catch(err => {
                 setError(err.message);
@@ -189,7 +192,7 @@ const ScheduleFlightContainer = () => {
 
     const onFormClose = () => {
         setSelectedTask(null);
-        setInitialSelectedTask(null); // Clear deep link selection on close
+        setSearchParams({});
         refreshData();
     }
 

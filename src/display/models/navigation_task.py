@@ -181,7 +181,7 @@ class NavigationTask(models.Model):
         """
         URL for the online tracking map
         """
-        return reverse("frontend_view_map", kwargs={"pk": self.pk})
+        return f"/frontend/competition-map/{self.contest.pk}/{self.pk}/"
 
     @property
     def everything_public(self):
