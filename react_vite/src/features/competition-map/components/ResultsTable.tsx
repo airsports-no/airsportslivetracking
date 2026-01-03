@@ -8,9 +8,9 @@ interface Row {
 
 export default function ResultsTable({ rows }: { rows: Row[] }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="table table-zebra w-full">
-        <thead>
+    <div className="overflow-y-auto max-h-96">
+      <table className="table table-zebra table-sm w-full">
+        <thead className="sticky top-0 bg-base-200 z-10">
           <tr>
             <th>Rank</th>
             <th>Contestant</th>

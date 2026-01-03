@@ -6,6 +6,8 @@ import type { NavigationTask, TrackPosition } from './types';
 import { planeIcon } from './components/icons';
 import ResultsTable from './components/ResultsTable';
 import { useParams, Link } from 'react-router-dom';
+import ProhibitedRenderer from "./components/track-renderers/ProhibitedRenderer";
+import RouteRenderer from "./components/track-renderers/RouteRenderer";
 
 interface ContestantLayers {
   marker: L.Marker;
@@ -38,14 +40,6 @@ export default function CompetitionMapPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const playbackTimerRef = useRef<number | null>(null);
   const layersRef = useRef<Record<number, ContestantLayers>>({});
-
-  // Center map to route area when loaded
-  useEffect(() => {
-    if (mapRef.current && navTask?.route?.waypoints?.length) {
-      const sp = navTask.route.waypoints[0];
-      mapRef.current.setView([sp.latitude, sp.longitude], 12);
-    }
-  }, [mapRef, navTask]);
 
   // Fetch navigation task
   useEffect(() => {
@@ -247,9 +241,13 @@ export default function CompetitionMapPage() {
           )}
         </div>
       </div>
-      <div id="map-container" className="flex-1" />
-      <div className="bg-base-100 border-t border-base-300">
-        <ResultsTable rows={standings} />
+      <div className="flex-1 relative">
+        <div id="map-container" className="h-full w-full" />
+        <ProhibitedRenderer map={mapRef.current} navTask={navTask} />
+        <RouteRenderer map={mapRef.current} navTask={navTask} />
+        <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96">
+          <ResultsTable rows={standings} />
+        </div>
       </div>
     </div>
   );
