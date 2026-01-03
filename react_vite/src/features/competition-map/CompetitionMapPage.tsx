@@ -526,7 +526,7 @@ export default function CompetitionMapPage() {
   }, [selectedContestantId, scoreLogByContestant, mode, currentTime]);
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-[calc(100vh-66px)]">
       <div className="navbar bg-base-200 px-4">
         <div className="flex-1">
           <Link to="/" className="btn btn-ghost text-xl">Home</Link>
