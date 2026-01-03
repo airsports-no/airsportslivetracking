@@ -334,10 +334,6 @@ export default function CompetitionMapPage() {
       const isSelected = selectedContestantId === c.id;
       const isAnySelected = selectedContestantId !== null;
 
-      const visiblePositions = (isAnySelected && !isSelected) ? [] : (mode === 'playback' || isSelected)
-        ? positions 
-        : lastMinutesPositions(positions, 5, currentTime);
-
       if (!layersRef.current[c.id]) {
         // Initialize layers
         const marker = L.marker([positions[0]?.latitude ?? 0, positions[0]?.longitude ?? 0], {
@@ -354,9 +350,11 @@ export default function CompetitionMapPage() {
       }
       const { marker, recentTrail, fullTrail } = layersRef.current[c.id];
 
+      const shouldBeVisible = !(isAnySelected && !isSelected);
+
       // Update marker position & orientation
       const latest = positions[positions.length - 1];
-      if (latest && !(isAnySelected && !isSelected)) {
+      if (latest && shouldBeVisible) {
         marker.setLatLng([latest.latitude, latest.longitude]);
         marker.setIcon(planeIcon(c.contestant_number, color, latest.course ?? 0));
         marker.setOpacity(1);
@@ -365,17 +363,20 @@ export default function CompetitionMapPage() {
       }
 
       // Update trails
-      if (showFullTrails || isSelected) {
-          const fullLatLngs = positions.map(p => [p.latitude, p.longitude] as [number, number]);
-          fullTrail.setLatLngs(fullLatLngs);
-          fullTrail.setStyle({opacity: 0.5});
-          recentTrail.setStyle({opacity: 0}); // Hide recent trail
+      if (shouldBeVisible && (showFullTrails || isSelected)) {
+        const fullLatLngs = positions.map(p => [p.latitude, p.longitude] as [number, number]);
+        fullTrail.setLatLngs(fullLatLngs);
+        fullTrail.setStyle({opacity: 0.5});
+        recentTrail.setStyle({opacity: 0}); // Hide recent trail
+      } else if (shouldBeVisible) {
+        const recentPositions = lastMinutesPositions(positions, 5, currentTime);
+        const recentLatLngs = recentPositions.map(p => [p.latitude, p.longitude] as [number, number]);
+        recentTrail.setLatLngs(recentLatLngs);
+        recentTrail.setStyle({opacity: 0.9});
+        fullTrail.setStyle({opacity: 0}); // Hide full trail
       } else {
-          const recentPositions = lastMinutesPositions(positions, 5, currentTime);
-          const recentLatLngs = recentPositions.map(p => [p.latitude, p.longitude] as [number, number]);
-          recentTrail.setLatLngs(recentLatLngs);
-          recentTrail.setStyle({opacity: 0.9});
-          fullTrail.setStyle({opacity: 0}); // Hide full trail
+        recentTrail.setStyle({opacity: 0});
+        fullTrail.setStyle({opacity: 0});
       }
     }
     
