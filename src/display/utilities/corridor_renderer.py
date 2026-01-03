@@ -99,27 +99,27 @@ def generate_corridor_polygon(route_points:list[Waypoint], round_edges:bool=True
             path_points.append({'lat': p.latitude, 'lng': p.longitude, 'width': p.width*1852, 'is_waypoint': True})  # Convert nm to m
             continue
 
-        prev = route_points[i - 1]
-        if p.end_curved and p.control_latitude is not None and p.control_longitude is not None:
-            control = (p.control_latitude, p.control_longitude)
-            curve = get_quadratic_bezier_points(prev, p, control)
+        # prev = route_points[i - 1]
+        # if p.end_curved and p.control_latitude is not None and p.control_longitude is not None:
+        #     control = (p.control_latitude, p.control_longitude)
+        #     curve = get_quadratic_bezier_points(prev, p, control)
             
-            for idx, cp in enumerate(curve):
-                # Avoid duplicate start point
-                if idx == 0 and len(path_points) > 0:
-                    last = path_points[-1]
-                    if abs(last["lat"] - cp["lat"]) < 1e-6 and abs(last["lng"] - cp["lng"]) < 1e-6:
-                        continue
+        #     for idx, cp in enumerate(curve):
+        #         # Avoid duplicate start point
+        #         if idx == 0 and len(path_points) > 0:
+        #             last = path_points[-1]
+        #             if abs(last["lat"] - cp["lat"]) < 1e-6 and abs(last["lng"] - cp["lng"]) < 1e-6:
+        #                 continue
                 
-                t = idx / (len(curve) - 1 or 1)
-                w = (prev.width + (p.width - prev.width) * t)*1852  # Interpolate width and convert nm to m
-                path_points.append({'lat': cp["lat"], 'lng': cp["lng"], 'width': w, 'is_waypoint': idx == len(curve) - 1})
-        else:
-            if len(path_points) > 0:
-                last = path_points[-1]
-                if abs(last["lat"] - p.latitude) < 1e-6 and abs(last["lng"] - p.longitude) < 1e-6:
-                    continue
-            path_points.append({'lat': p.latitude, 'lng': p.longitude, 'width': p.width*1852, 'is_waypoint': True})
+        #         t = idx / (len(curve) - 1 or 1)
+        #         w = (prev.width + (p.width - prev.width) * t)*1852  # Interpolate width and convert nm to m
+        #         path_points.append({'lat': cp["lat"], 'lng': cp["lng"], 'width': w, 'is_waypoint': idx == len(curve) - 1})
+        # else:
+        if len(path_points) > 0:
+            last = path_points[-1]
+            if abs(last["lat"] - p.latitude) < 1e-6 and abs(last["lng"] - p.longitude) < 1e-6:
+                continue
+        path_points.append({'lat': p.latitude, 'lng': p.longitude, 'width': p.width*1852, 'is_waypoint': True})  # Convert nm to m
 
     if len(path_points) < 2:
         return [], []

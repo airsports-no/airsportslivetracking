@@ -9,7 +9,7 @@ export async function fetchNavigationTask(contestId: number, navigationTaskId: n
 }
 
 export async function fetchContestantPaginatedTrack(contestId: number, navigationTaskId: number, contestantId: number, cursor?: string | null): Promise<PaginatedTrackResponse> {
-  const url = new URL(`/api/v1/contests/${contestId}/navigationtasks/${navigationTaskId}/contestants/${contestantId}/paginated_track_data`, window.location.origin);
+  const url = new URL(`/api/v1/contests/${contestId}/navigationtasks/${navigationTaskId}/contestants/${contestantId}/paginated_track_data/`, window.location.origin);
   if (cursor) url.searchParams.set('cursor', cursor);
   const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
   if (!res.ok) throw new Error(`Failed to fetch track for contestant ${contestantId}`);

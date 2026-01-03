@@ -226,7 +226,7 @@ class EditableRoute(models.Model):
                 is_passing = props["isPassing"]
 
             # Check for curve from previous point
-            if index > 0 and props.get("segmentType") == "curved" and precision_mode:
+            if index > 0 and props.get("segmentType") == "curved":
                 control_lat = props.get("controlLat")
                 control_lng = props.get("controlLng")
 

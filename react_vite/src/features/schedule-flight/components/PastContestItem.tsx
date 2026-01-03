@@ -57,7 +57,7 @@ const PastContestItem: React.FC<PastContestItemProps> = ({ contest, showPastCont
                                     </div>
                                 </div>
                                 {task.contestant_set && task.contestant_set.length > 0 && (
-                                    <div className="mt-4 border-t border-base-300 pt-2">
+                                    <div className="mt-4 pt-2 bg-base-100 p-2 rounded-lg">
                                         <h5 className="font-semibold text-md mb-2">Contestants:</h5>
                                         {task.contestant_set
                                             .sort((a, b) => {
@@ -84,15 +84,15 @@ const PastContestItem: React.FC<PastContestItemProps> = ({ contest, showPastCont
                                                     <div
                                                         key={contestant.id}
                                                         className={`flex flex-col items-start sm:flex-row sm:justify-between sm:items-center text-sm p-2 rounded mb-1 ${
-                                                            isCurrentUser ? 'bg-blue-200 font-bold' : 'bg-base-100'
-                                                        } ${isStrikethrough ? 'line-through' : ''}`}
+                                                            isCurrentUser ? 'bg-info text-info-content font-bold' : 'bg-base-100'
+                                                        } ${isStrikethrough ? 'line-through opacity-30' : ''}`}
                                                     >
                                                         <span>
                                                             {contestant.team.crew.member1.first_name} {contestant.team.crew.member1.last_name}
                                                             {contestant.team.crew.member2 && ` & ${contestant.team.crew.member2.first_name} ${contestant.team.crew.member2.last_name}`}
                                                             ({contestant.team.aeroplane.registration})
                                                         </span>
-                                                        <span>Score: {contestant.contestanttrack.score}</span>
+                                                        <span>Score: {contestant.contestanttrack.score.toFixed(0)}</span>
                                                     </div>
                                                 );
                                             })}
