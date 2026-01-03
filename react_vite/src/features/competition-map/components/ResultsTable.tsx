@@ -5,6 +5,7 @@ interface Row {
   name: string;
   score: number;
   state?: string;
+  color?: string;
 }
 
 interface Props {
@@ -35,7 +36,7 @@ export default function ResultsTable({ rows, onRowClick, dividerIndex = -1 }: Pr
                 </tr>
               )}
               <tr onClick={() => onRowClick?.(r.id)} className={onRowClick ? 'cursor-pointer hover:bg-base-300' : ''}>
-                <td>{idx + 1}</td>
+                <td style={{borderLeft: `4px solid ${r.color ?? 'transparent'}`}}>{idx + 1}</td>
                 <td>{r.name}</td>
                 <td>{r.score.toFixed(0)}</td>
               </tr>

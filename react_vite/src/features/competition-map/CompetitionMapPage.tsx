@@ -404,55 +404,109 @@ export default function CompetitionMapPage() {
 
   }, [mapRef, navTask, currentPositions, showFullTrails, currentTime, mode, selectedContestantId, annotationsByContestant, scoreLogByContestant]);
 
-  const standings = useMemo(() => {
-    if (!navTask) return [] as { id: number; name: string; score: number, state: string }[];
-    const dir = navTask.score_sorting_direction;
+    const standings = useMemo(() => {
 
-    const getContestantsWithState = () => {
-        if (mode === 'playback') {
-            const startGateName = navTask.route.waypoints.find(wp => wp.type === 'sp')?.name;
-            const finishGateName = navTask.route.waypoints.find(wp => wp.type === 'fp')?.name;
+      if (!navTask) return [] as { id: number; name: string; score: number, state: string, color: string }[];
 
-            return navTask.contestant_set.map(c => {
-                let state = 'Waiting...';
-                const logsForTime = (scoreLogByContestant[c.id] ?? []).filter(log => new Date(log.time) <= currentTime);
-                
-                if (finishGateName && logsForTime.some(log => log.gate === finishGateName)) {
-                    state = 'Finished';
-                } else if (startGateName && logsForTime.some(log => log.gate === startGateName)) {
-                    state = 'Enroute';
-                }
-                
-                return {
-                    id: c.id,
-                    name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
-                    score: currentScores[c.id] ?? navTask.scorecard.initial_score ?? 0,
-                    state: state
-                };
-            });
-        }
+      const dir = navTask.score_sorting_direction;
 
-        // Realtime mode
-        return navTask.contestant_set.map(c => ({
-            id: c.id,
-            name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
-            score: c.contestanttrack?.score ?? 0,
-            state: c.contestanttrack?.current_state ?? 'Waiting...'
-        }));
-    };
+      const total = navTask.contestant_set.length;
 
-    const allContestants = getContestantsWithState();
-    
-    const active = allContestants.filter(c => c.state !== 'Waiting...');
-    const waiting = allContestants.filter(c => c.state === 'Waiting...');
+  
 
-    const sortFn = (a: {score: number}, b: {score:number}) => dir === 'asc' ? a.score - b.score : b.score - a.score;
+      const getContestantsWithState = () => {
 
-    active.sort(sortFn);
-    waiting.sort(sortFn);
-    
-    return [...active, ...waiting];
-  }, [navTask, mode, currentScores, currentTime, scoreLogByContestant]);
+          if (mode === 'playback') {
+
+              const startGateName = navTask.route.waypoints.find(wp => wp.type === 'sp')?.name;
+
+              const finishGateName = navTask.route.waypoints.find(wp => wp.type === 'fp')?.name;
+
+  
+
+              return navTask.contestant_set.map((c, index) => {
+
+                  let state = 'Waiting...';
+
+                  const logsForTime = (scoreLogByContestant[c.id] ?? []).filter(log => new Date(log.time) <= currentTime);
+
+                  
+
+                  if (finishGateName && logsForTime.some(log => log.gate === finishGateName)) {
+
+                      state = 'Finished';
+
+                  } else if (startGateName && logsForTime.some(log => log.gate === startGateName)) {
+
+                      state = 'Enroute';
+
+                  }
+
+                  
+
+                  return {
+
+                      id: c.id,
+
+                      name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
+
+                      score: currentScores[c.id] ?? navTask.scorecard.initial_score ?? 0,
+
+                      state: state,
+
+                      color: hslColor(index, total)
+
+                  };
+
+              });
+
+          }
+
+  
+
+          // Realtime mode
+
+          return navTask.contestant_set.map((c, index) => ({
+
+              id: c.id,
+
+              name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
+
+              score: c.contestanttrack?.score ?? 0,
+
+              state: c.contestanttrack?.current_state ?? 'Waiting...',
+
+              color: hslColor(index, total)
+
+          }));
+
+      };
+
+  
+
+      const allContestants = getContestantsWithState();
+
+      
+
+      const active = allContestants.filter(c => c.state !== 'Waiting...');
+
+      const waiting = allContestants.filter(c => c.state === 'Waiting...');
+
+  
+
+      const sortFn = (a: {score: number}, b: {score:number}) => dir === 'asc' ? a.score - b.score : b.score - a.score;
+
+  
+
+      active.sort(sortFn);
+
+      waiting.sort(sortFn);
+
+      
+
+      return [...active, ...waiting];
+
+    }, [navTask, mode, currentScores, currentTime, scoreLogByContestant]);
 
   const selectedContestant = useMemo(() => {
     if (!selectedContestantId || !navTask) return null;
