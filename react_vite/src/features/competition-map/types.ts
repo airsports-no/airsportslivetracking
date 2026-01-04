@@ -171,7 +171,10 @@ export interface NavigationTask {
   time_zone: string;
   contest: number;
   score_sorting_direction: "asc" | "desc";
-  calculation_delay_minutes?: number;
+  calculation_delay_minutes: number;
+  user_has_change_permission: boolean;
+  allow_self_management: boolean;
+  
 }
 
 export interface TrackPosition {

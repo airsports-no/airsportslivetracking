@@ -18,6 +18,7 @@ declare global {
             MY_PARTICIPATED_CONTESTS_URL: string;
             contestSignUpUrl: (contestId: number) => string;
             loginUrl: string;
+            editNavigationTaskUrl: (navigationTaskId: number) => string;
         }
     }
 }

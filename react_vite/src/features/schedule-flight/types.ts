@@ -33,6 +33,8 @@ export interface NavigationTask {
     contestant_set: ContestantResult[];
     score_sorting_direction: 'asc' | 'desc';
     allow_self_management: boolean;
+    user_has_change_permission: boolean;
+    calculation_delay_minutes?: number;
     contest: Contest;
 }
 

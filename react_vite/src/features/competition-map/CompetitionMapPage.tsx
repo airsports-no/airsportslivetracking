@@ -218,8 +218,8 @@ export default function CompetitionMapPage() {
               </label>
 
               <Link to={`/competition-map/${contestIdNum}/${navigationTaskIdNum}/info`} className="btn btn-xs btn-outline">Task Info</Link>
-              {document.configuration.canChangeNavigationTask && (
-                <a href={document.configuration.navigationTaskManagementLink} className="btn btn-xs btn-outline ml-2">Manage Task</a>
+              {navTask?.user_has_change_permission && (
+                <a href={document.configuration.editNavigationTaskUrl(navigationTaskId)} className="btn btn-xs btn-outline ml-2">Manage Task</a>
               )}
               {navTask?.allow_self_management && (
                 <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline ml-2">Schedule Flight</Link>
@@ -228,7 +228,7 @@ export default function CompetitionMapPage() {
 
             {mode === 'realtime' && navTask?.calculation_delay_minutes > 0 && (
               <div className="text-xs text-warning-content bg-warning rounded-md px-2 py-1 mt-2 text-center">
-                Live data is delayed by {navTask.calculation_delay_minutes} minute(s).
+                Live data is delayed by {navTask?.calculation_delay_minutes} minute(s).
               </div>
             )}
 

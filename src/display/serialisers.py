@@ -986,6 +986,11 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     route = RouteSerialiser()
     time_zone = TimeZoneSerializerField(source="contest.time_zone", read_only=True)
     contest = serializers.PrimaryKeyRelatedField(read_only=True)
+    user_has_change_permission = SerializerMethodField("get_user_has_change_permission")
+
+    def get_user_has_change_permission(self, navigation_task):
+        user = self.context["request"].user
+        return navigation_task.user_has_change_permissions(user) or user.is_superuser
 
     class Meta:
         model = NavigationTask
