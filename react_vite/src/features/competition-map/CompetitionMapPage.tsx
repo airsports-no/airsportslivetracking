@@ -35,7 +35,6 @@ export default function CompetitionMapPage() {
     scoreLogByContestant,
     dangerDataByContestant,
     gateArrowDataByContestant,
-    realtimeTime,
   } = useCompetitionData(contestIdNum, navigationTaskIdNum, mode);
 
   const {
@@ -47,6 +46,20 @@ export default function CompetitionMapPage() {
     setPlaybackTime,
     playbackTimeInfo
   } = usePlayback(mode, positionsByContestant);
+
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const realtimeTime = useMemo(() => {
+    if (!navTask?.calculation_delay_minutes) {
+        return now;
+    }
+    const delayMs = navTask.calculation_delay_minutes * 60 * 1000;
+    return new Date(now.getTime() - delayMs);
+  }, [now, navTask]);
 
   const currentTime = mode === 'playback' ? playbackTime : realtimeTime;
 
@@ -186,7 +199,7 @@ export default function CompetitionMapPage() {
         <RouteRenderer map={mapRef.current} navTask={navTask} />
 
         <div className="absolute top-4 right-4 z-[1000]">
-          <ClockDisplay time={currentTime} />
+          <ClockDisplay time={currentTime} timeZone={navTask?.time_zone} />
         </div>
 
         <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96">

@@ -9,7 +9,6 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const [scoreLogByContestant, setScoreLogByContestant] = useState<Record<number, ScoreLogEntry[]>>({});
     const [dangerDataByContestant, setDangerDataByContestant] = useState<Record<number, DangerData>>({});
     const [gateArrowDataByContestant, setGateArrowDataByContestant] = useState<Record<number, GateArrowData>>({});
-    const [realtimeTime, setRealtimeTime] = useState<Date>(new Date());
     
     const [isReFetching, setIsReFetching] = useState(false);
     const wsBufferRef = useRef<string[]>([]);
@@ -19,12 +18,6 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         try {
             const msg = JSON.parse(data) as { type: string; data: string };
 
-            if (msg.type === 'current_time') {
-                const iso = JSON.parse(msg.data);
-                setRealtimeTime(new Date(iso));
-                return;
-            }
-            
             if (msg.type === 'contestant') {
                 const c = JSON.parse(msg.data);
                 setNavTask(prev => prev ? { ...prev, contestant_set: [...prev.contestant_set.filter(x => x.id !== c.id), c] } : prev);
@@ -179,24 +172,26 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     useEffect(() => {
         if (mode !== 'realtime' || !navTask) return;
 
-        let staleTimer: number | null = null;
-        let lastMsgTime = Date.now();
+        const handleOnline = () => {
+            console.log("Browser back online. Re-checking connection.");
+            handleStaleConnection();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log("Page became visible. Re-checking connection.");
+                handleStaleConnection();
+            }
+        };
+
+        window.addEventListener('online', handleOnline);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         const connect = () => {
             const ws = makeWebSocket(navigationTaskIdNum);
             wsRef.current = ws;
 
-            staleTimer = window.setInterval(() => {
-                if (Date.now() - lastMsgTime > 30000) {
-                    console.log("WebSocket timed out.");
-                    if(staleTimer) clearInterval(staleTimer);
-                    ws.close();
-                    handleStaleConnection();
-                }
-            }, 10000);
-
             ws.onmessage = (ev) => {
-                lastMsgTime = Date.now();
                 if (isReFetching) {
                     wsBufferRef.current.push(ev.data);
                 } else {
@@ -205,12 +200,11 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             };
 
             ws.onclose = () => {
-                if (staleTimer) clearInterval(staleTimer);
+                console.log("WebSocket closed.");
             };
 
             ws.onerror = (err) => {
                 console.error("WebSocket error:", err);
-                if (staleTimer) clearInterval(staleTimer);
                 ws.close();
             };
         };
@@ -218,7 +212,8 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         connect();
 
         return () => {
-            if (staleTimer) clearInterval(staleTimer);
+            window.removeEventListener('online', handleOnline);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (wsRef.current) {
                 wsRef.current.close();
             }
@@ -233,6 +228,5 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         scoreLogByContestant,
         dangerDataByContestant,
         gateArrowDataByContestant,
-        realtimeTime,
     };
 }
