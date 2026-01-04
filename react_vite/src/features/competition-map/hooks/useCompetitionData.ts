@@ -18,6 +18,17 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         navTaskRef.current = staticNavTaskData;
     }, [staticNavTaskData]);
     
+    // New refs for staticNavTaskData and contestantsById to stabilize processWsMessage dependencies
+    const staticNavTaskDataRef = useRef(staticNavTaskData);
+    useEffect(() => {
+        staticNavTaskDataRef.current = staticNavTaskData;
+    }, [staticNavTaskData]);
+
+    const contestantsByIdRef = useRef(contestantsById);
+    useEffect(() => {
+        contestantsByIdRef.current = contestantsById;
+    }, [contestantsById]);
+
     const [isReFetching, setIsReFetching] = useState(false);
     const isReFetchingRef = useRef(isReFetching);
     useEffect(() => {
@@ -46,7 +57,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 setContestantsById(prev => ({ ...prev, [c.id]: c }));
                 return;
             }
-            
+
             if (msg.type === 'contestant_delete') {
                 const c = JSON.parse(msg.data) as { contestant_id: number };
                 setContestantsById(prev => {
@@ -56,7 +67,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 });
                 return;
             }
-            
+
             const payload = JSON.parse(msg.data) as any;
             const contestantId = payload.contestant_id;
             if (!contestantId) return;
@@ -65,11 +76,6 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 setDangerDataByContestant(prev => ({ ...prev, [contestantId]: payload.danger_level }));
                 return;
             }
-            if (msg.type === 'gate_distance_and_estimate') {
-                setGateArrowDataByContestant(prev => ({ ...prev, [contestantId]: payload }));
-                return;
-            }
-
             if (msg.type === 'crossing_time') {
                 const crossingPayload = JSON.parse(msg.data) as {
                     contestant_id: number;
@@ -85,19 +91,8 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 const crossingContestantId = crossingPayload.contestant_id;
                 const gateData = crossingPayload.gate_distance_and_estimate;
 
-                if (gateData.final === true) {
-                    const contestant = contestantsById[crossingContestantId];
-                    const waypoint = staticNavTaskData?.route?.waypoints.find(wp => wp.name === gateData.waypoint_name);
-
-                    if (contestant && waypoint && (waypoint.type === 'sp' || waypoint.type === 'fp')) {
-                        const gateType = waypoint.type === 'sp' ? 'STARTING POINT' : 'FINISH POINT';
-                        const scoreMessage = gateData.estimated_score !== undefined ? `Score: ${gateData.estimated_score.toFixed(1)}` : '';
-                        showToast(
-                            `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} crossed the ${gateType}! ${scoreMessage}`,
-                            'success'
-                        );
-                    }
-                }
+                // Update gateArrowDataByContestant with the gate_distance_and_estimate from the crossing_time message
+                setGateArrowDataByContestant(prev => ({ ...prev, [crossingContestantId]: gateData }));
                 return;
             }
 
@@ -115,11 +110,39 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                     return { ...prev, [contestantId]: newAnnotations };
                 });
             }
-            if (payload.score_log_entries && payload.score_log_entries.length > 0) {
-                setScoreLogByContestantRef.current(prev => { // Use ref here
-                    const newEntries = [...(prev[contestantId] || []), ...payload.score_log_entries];
-                    newEntries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-                    return { ...prev, [contestantId]: newEntries };
+            if (msg.type === "score_log" && payload.score_log_entries && payload.score_log_entries.length > 0) {
+                setScoreLogByContestantRef.current(prev => {
+                    const existingScoreLogs = prev[contestantId] ?? [];
+                    const newEntries = payload.score_log_entries; // These are the *newly arrived* entries, not all of them yet.
+
+                    // Identify start and finish gates from navigation task data
+                    const startGateName = staticNavTaskDataRef.current?.route?.waypoints.find(wp => wp.type === 'sp')?.name;
+                    const finishGateName = staticNavTaskDataRef.current?.route?.waypoints.find(wp => wp.type === 'fp')?.name;
+
+                    if (staticNavTaskDataRef.current && (startGateName || finishGateName)) {
+                        const previousGateNames = new Set(existingScoreLogs.map(log => log.gate));
+
+                        newEntries.forEach(newLogEntry => {
+                            if (!previousGateNames.has(newLogEntry.gate) && newLogEntry.planned!==null) {
+                                // This is a new score log entry
+                                if (newLogEntry.gate === startGateName || newLogEntry.gate === finishGateName) {
+                                    const contestant = contestantsByIdRef.current[contestantId];
+                                    if (contestant) {
+                                        const gateType = newLogEntry.gate === startGateName ? 'STARTING POINT' : 'FINISH POINT';
+                                        const scoreMessage = newLogEntry.points !== undefined ? `Score: ${newLogEntry.points.toFixed(1)}` : '';
+                                        showToast(
+                                            `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} crossed the ${gateType}! ${scoreMessage}`,
+                                            'success'
+                                        );
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    const allScoreLogs = [...newEntries];
+                    allScoreLogs.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+                    return { ...prev, [contestantId]: allScoreLogs };
                 });
             }
             if (payload.contestant_track) {
@@ -136,10 +159,10 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         } catch (e) {
             console.error('WS parse error', e);
         }
-    }, [showToast, staticNavTaskData, contestantsById]);
+    }, [showToast]);
 
 
-    const fetchAllContestantData = useCallback(async (currentNavTask: NavigationTask, onProgress: (p: {loaded: number, total: number}) => void) => {
+    const fetchAllContestantData = useCallback(async (currentNavTask: NavigationTask, onProgress: (p: { loaded: number, total: number }) => void) => {
         const total = currentNavTask.contestant_set.length;
         onProgress({ loaded: 0, total });
         let loaded = 0;
@@ -169,7 +192,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 onProgress({ loaded, total });
             }
         });
-        
+
         const allContestantData = await Promise.all(contestantPromises);
         const positionUpdates: Record<number, TrackPosition[]> = {};
         const annotationUpdates: Record<number, ScoreAnnotation[]> = {};
@@ -197,12 +220,12 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         wsBufferRef.current = [];
 
         const { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates } = await fetchAllContestantData(navTaskRef.current, setProgress);
-        
+
         setPositionsByContestant(positionUpdates);
         setAnnotationsByContestant(annotationUpdates);
         setScoreLogByContestant(scoreLogUpdates);
         setContestantsById(prev => ({ ...prev, ...contestantUpdates }));
-        
+
         wsBufferRef.current.forEach(msg => processWsMessage(msg));
         wsBufferRef.current = [];
 
@@ -216,7 +239,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             const task = await fetchNavigationTask(contestIdNum, navigationTaskIdNum);
             if (!cancelled) {
                 // Set stable staticNavTaskData properties, exclude dynamic contestant_set
-                setStaticNavTaskData(task); 
+                setStaticNavTaskData(task);
 
                 // Populate new contestantsById state
                 const initialContestantsMap = task.contestant_set.reduce((acc, c) => {
@@ -235,8 +258,8 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 }
             }
         })().catch(console.error);
-        return () => { 
-            cancelled = true; 
+        return () => {
+            cancelled = true;
         };
     }, [contestIdNum, navigationTaskIdNum, fetchAllContestantData]);
 

@@ -48,6 +48,8 @@ interface Props {
   displaySecrets: boolean; // User preference
   contestants: Record<number, Contestant>; // Add this
   selectedContestantId: number | null; // Add this
+  isInitialLoad: boolean; // New prop
+  onMapFit: (fitted: boolean) => void; // New prop
 }
 
 // From precisionRenderer.js
@@ -140,7 +142,7 @@ function renderLandingRoute(map: L.Map, route: RouteData): L.Layer[] {
 }
 
 
-export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId }: Props) {
+export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
   const layersRef = useRef<L.Layer[]>([]);
 
   useEffect(() => {
@@ -176,8 +178,9 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
 
     if (layers.length > 0) {
         const bounds = new L.FeatureGroup(layers).getBounds();
-        if (bounds.isValid()) {
+        if (isInitialLoad && bounds.isValid()) { // Only fit bounds on initial load
             map.fitBounds(bounds, { padding: [50, 50] });
+            onMapFit(true); // Signal that initial fit has occurred
         }
     }
 
@@ -186,7 +189,7 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
       layersRef.current.forEach(layer => layer.remove());
       layersRef.current = [];
     };
-  }, [map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId]);
+  }, [map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit]);
 
   return null;
 }

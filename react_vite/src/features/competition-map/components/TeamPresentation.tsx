@@ -1,16 +1,17 @@
 import React from 'react';
-import { Contestant, DangerData, GateArrowData } from '../types';
+import { Contestant, DangerData, GateArrowData } from '../types'; // Remove NavigationTask import
 import DangerThermometerDisplay from './DangerThermometerDisplay';
-import GateScoreArrow from './GateScoreArrow';
+// Remove import for GateScoreArrowV2
 
 interface Props {
     contestant: Contestant;
     score: number;
     dangerData?: DangerData;
     gateArrowData?: GateArrowData;
+    // Remove navTask prop
 }
 
-const TeamPresentation = ({ contestant, score, dangerData, gateArrowData }: Props) => {
+const TeamPresentation = ({ contestant, score, dangerData, gateArrowData }: Props) => { // Remove navTask
     if (!contestant) return null;
 
     const { team } = contestant;
@@ -29,7 +30,8 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData }: Prop
                         <div className="text-xs opacity-60">CURRENT SCORE</div>
                     </div>
                     <div className="bg-black/20 rounded-lg">
-                        <GateScoreArrow gateArrowData={gateArrowData} />
+                        {/* Gate Score Arrow will be rendered externally */}
+                        <div className="w-48 h-24 bg-base-300/50 rounded flex items-center justify-center text-sm text-white/70">Gate Score Arrow</div>
                     </div>
                 </div>
 

@@ -15,6 +15,7 @@ import RouteRenderer from "./components/track-renderers/RouteRenderer";
 import TimelineControls from "./components/TimelineControls";
 import TeamPresentation from './components/TeamPresentation';
 import ClockDisplay from './components/ClockDisplay';
+import GateScoreArrowV2 from './components/GateScoreArrowV2'; // Import GateScoreArrowV2
 
 
 export default function CompetitionMapPage() {
@@ -28,6 +29,7 @@ export default function CompetitionMapPage() {
   const [showScoreLog, setShowScoreLog] = useState(false);
   const [userShowBackgroundMap, setUserShowBackgroundMap] = useState(true);
   const [userShowSecrets, setUserShowSecrets] = useState(true);
+  const [hasMapBeenFitted, setHasMapBeenFitted] = useState(false); // New state for initial map fit
 
   const { toasts, showToast, removeToast, ToastContainer } = useToast(); // Initialize toast hook
 
@@ -253,11 +255,16 @@ export default function CompetitionMapPage() {
           displaySecrets={userShowSecrets}
           contestants={contestantsById}
           selectedContestantId={selectedContestantId}
+          isInitialLoad={!hasMapBeenFitted}
+          onMapFit={setHasMapBeenFitted}
         />
 
         <div className="absolute top-4 right-4 z-[1000]">
           <ClockDisplay time={currentTime} timeZone={staticNavTaskData?.time_zone} />
         </div>
+        
+        {/* The toast display will now be placed relative to this flex-1 relative container */}
+
 
         <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96">
           <div className="p-2 border-b border-base-300">
@@ -362,12 +369,30 @@ export default function CompetitionMapPage() {
         </div>
 
         {selectedContestant && (
-          <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24' : 'bottom-4'}`}>
+          // Container for TeamPresentation and GateScoreArrowV2
+          <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24' : 'bottom-4'} flex items-end gap-4`}> {/* Added flex and gap */}
+            {staticNavTaskData && ( // Only render GateScoreArrowV2 if navTask is available
+                <div className="relative w-[512px] h-[110px]"> {/* Container for GateScoreArrowV2 with fixed size */}
+                    <GateScoreArrowV2
+                        contestant={selectedContestant}
+                        navigationTask={staticNavTaskData}
+                        gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
+                        width={512} // Explicitly pass width
+                        height={110} // Explicitly pass height
+                    />
+                </div>
+            )}
+            {!staticNavTaskData && (
+                 <div className="w-[512px] h-[110px] bg-base-300/50 rounded flex items-center justify-center text-sm text-white/70">Loading gate data...</div>
+            )}
+
+
             <TeamPresentation
               contestant={selectedContestant}
               dangerData={dangerDataByContestant[selectedContestant.id]}
               gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
               score={standings.find(s => s.id === selectedContestant.id)?.score ?? 0}
+              // navTask prop is removed from TeamPresentation
             />
           </div>
         )}

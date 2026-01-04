@@ -255,7 +255,7 @@ if __name__ == "__main__":
         arguments.number_of_contestants,
         datetime.timedelta(seconds=arguments.start_interval_seconds),
     )
+    load_data_traccar(new_contestants)
     logger.info(
         f"Created {len(new_contestants)} contestants, starting data upload. Navigation task link is http://localhost:8002/frontend/competition-map/{contest.pk}/{new_navigation_task.pk}/"
     )
-    load_data_traccar(new_contestants)
