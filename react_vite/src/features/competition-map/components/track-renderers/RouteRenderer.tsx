@@ -1,15 +1,34 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { NavigationTask, Waypoint } from '../../types';
+import type { NavigationTask, Waypoint, Contestant } from '../../types';
 
-function renderWaypointLabels(map: L.Map, waypoints: Waypoint[]): L.Layer[] {
+function formatTime(dt: Date): string {
+  const hh = String(dt.getHours()).padStart(2, '0');
+  const mm = String(dt.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+function renderWaypointLabels(
+    map: L.Map,
+    waypoints: Waypoint[],
+    contestants: Record<number, Contestant>,
+    selectedContestantId: number | null
+): L.Layer[] {
     const layers: L.Layer[] = [];
     waypoints.forEach(waypoint => {
+        let label = waypoint.name; // Initialize label with waypoint name
+
+        // Logic to add expected gate time
+        if (selectedContestantId !== null && contestants[selectedContestantId]?.gate_times && contestants[selectedContestantId].gate_times[waypoint.name]) {
+            const expectedTime = new Date(contestants[selectedContestantId].gate_times[waypoint.name]);
+            label = `${waypoint.name} ${formatTime(expectedTime)}`;
+        }
+
         const marker = L.marker([waypoint.latitude, waypoint.longitude], {
             opacity: 0, // Invisible marker
         }).addTo(map);
 
-        marker.bindTooltip(waypoint.name, {
+        marker.bindTooltip(label, { // Use the constructed label here
             permanent: true,
             direction: 'top',
             offset: [0, -10],
@@ -27,6 +46,8 @@ interface Props {
   taskType: string[] | null;
   navTaskDisplaySecrets: boolean;
   displaySecrets: boolean; // User preference
+  contestants: Record<number, Contestant>; // Add this
+  selectedContestantId: number | null; // Add this
 }
 
 // From precisionRenderer.js
@@ -119,7 +140,7 @@ function renderLandingRoute(map: L.Map, route: RouteData): L.Layer[] {
 }
 
 
-export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecrets, displaySecrets }: Props) {
+export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId }: Props) {
   const layersRef = useRef<L.Layer[]>([]);
 
   useEffect(() => {
@@ -149,7 +170,7 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
         ((navTaskDisplaySecrets && displaySecrets) || w.type !== "secret") && 
         w.type !== "dummy"
     );
-    layers = layers.concat(renderWaypointLabels(map, waypointsToLabel));
+    layers = layers.concat(renderWaypointLabels(map, waypointsToLabel, contestants, selectedContestantId));
 
     layersRef.current = layers;
 
@@ -165,7 +186,7 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
       layersRef.current.forEach(layer => layer.remove());
       layersRef.current = [];
     };
-  }, [map, route, taskType, navTaskDisplaySecrets, displaySecrets]);
+  }, [map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId]);
 
   return null;
 }

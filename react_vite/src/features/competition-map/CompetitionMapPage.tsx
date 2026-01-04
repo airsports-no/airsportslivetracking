@@ -247,6 +247,8 @@ export default function CompetitionMapPage() {
           taskType={staticNavTaskData?.scorecard?.task_type ?? null}
           navTaskDisplaySecrets={staticNavTaskData?.display_secrets ?? false}
           displaySecrets={userShowSecrets}
+          contestants={contestantsById}
+          selectedContestantId={selectedContestantId}
         />
 
         <div className="absolute top-4 right-4 z-[1000]">

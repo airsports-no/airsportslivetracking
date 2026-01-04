@@ -327,7 +327,7 @@ export function useMapLayers({
 
                 layers.marker.setLatLng([latest.latitude, latest.longitude]);
 
-                layers.marker.setIcon(planeIcon(c.contestant_number, layers.marker.options.icon.options.color, latest.course ?? 0)); // Reuse color
+                layers.marker.setIcon(planeIcon(c.contestant_number, layers.recentTrail.options.color as string, latest.course ?? 0));
 
                 layers.marker.setOpacity(1);
 
@@ -403,19 +403,19 @@ export function useMapLayers({
 
                 const scoreLog = ann.score_log_entry ? allLogs.find(l => l.id === ann.score_log_entry) : null;
 
-                const marker = L.marker([ann.latitude, ann.longitude], {icon: getAnnotationIcon(ann.type)})
+                                                const marker = L.marker([ann.latitude, ann.longitude], {icon: getAnnotationIcon(ann.type)})
 
-                    .bindTooltip(`
+                                                    .bindTooltip(`
 
-                        <b>${ann.gate} (${ann.type})</b><br/>
+                                                        <b>${ann.gate} (${ann.type})</b><br/>
 
-                        ${ann.message}<br/>
+                                                        ${ann.message}<br/>
 
-                        <small>${new Date(ann.time).toLocaleString()}</small>
+                                                        <small>${new Date(ann.time).toLocaleString()}</small>
 
-                        ${scoreLog ? `<br/><b>Score: ${scoreLog.points}</b>` : ''}
+                                                        ${scoreLog ? `<br/><b>Score: ${scoreLog.points}</b>` : ''}
 
-                    `)
+                                                    `)
 
                     .addTo(map);
 
