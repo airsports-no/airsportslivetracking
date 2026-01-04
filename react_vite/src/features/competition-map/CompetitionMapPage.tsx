@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { useParams, Link } from 'react-router-dom';
 
@@ -25,8 +25,9 @@ export default function CompetitionMapPage() {
   const [showFullTrails, setShowFullTrails] = useState(false);
   const [selectedContestantId, setSelectedContestantId] = useState<number | null>(null);
   const [showScoreLog, setShowScoreLog] = useState(false);
+  const [userShowBackgroundMap, setUserShowBackgroundMap] = useState(true);
+  const [userShowSecrets, setUserShowSecrets] = useState(true);
 
-  const mapRef = useMapInit();
 
   const {
     navTask,
@@ -35,8 +36,36 @@ export default function CompetitionMapPage() {
     scoreLogByContestant,
     dangerDataByContestant,
     gateArrowDataByContestant,
+    progress,
   } = useCompetitionData(contestIdNum, navigationTaskIdNum, mode);
 
+  const mapRef = useMapInit();
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+
+  useEffect(() => {
+    if (navTask) {
+        setUserShowBackgroundMap(navTask.display_background_map);
+        setUserShowSecrets(navTask.display_secrets);
+    }
+  }, [navTask]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (tileLayerRef.current) {
+        tileLayerRef.current.remove();
+    }
+
+    if (navTask?.display_background_map && userShowBackgroundMap) {
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        tileLayerRef.current = osm;
+    }
+  }, [navTask, mapRef]);
+
+  
   const {
     playbackSpeed,
     setPlaybackSpeed,
@@ -111,6 +140,7 @@ export default function CompetitionMapPage() {
     onContestantSelect: handleContestantSelect,
     annotationsByContestant,
     scoreLogByContestant,
+    userShowSecrets,
   });
 
   // Deselection handler
@@ -196,7 +226,7 @@ export default function CompetitionMapPage() {
       <div className="flex-1 relative">
         <div id="map-container" className="h-full w-full" />
         <ProhibitedRenderer map={mapRef.current} navTask={navTask} />
-        <RouteRenderer map={mapRef.current} navTask={navTask} />
+        <RouteRenderer map={mapRef.current} navTask={navTask} displaySecrets={userShowSecrets} />
 
         <div className="absolute top-4 right-4 z-[1000]">
           <ClockDisplay time={currentTime} timeZone={navTask?.time_zone} />
@@ -224,6 +254,36 @@ export default function CompetitionMapPage() {
               {navTask?.allow_self_management && (
                 <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline ml-2">Schedule Flight</Link>
               )}
+              {/* Settings Dropdown */}
+              <div className="dropdown dropdown-end">
+                <div tabIndex={0} role="button" className="btn btn-xs btn-outline ml-2">Settings</div>
+                <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+                  <li>
+                    <label className="label cursor-pointer">
+                      <span className="label-text">Show Background Map</span>
+                      <input 
+                        type="checkbox" 
+                        className="toggle toggle-primary" 
+                        checked={userShowBackgroundMap} 
+                        onChange={(e) => setUserShowBackgroundMap(e.target.checked)}
+                        disabled={!navTask?.display_background_map}
+                      />
+                    </label>
+                  </li>
+                  <li>
+                    <label className="label cursor-pointer">
+                      <span className="label-text">Show Secret Gates</span>
+                      <input 
+                        type="checkbox" 
+                        className="toggle toggle-primary" 
+                        checked={userShowSecrets} 
+                        onChange={(e) => setUserShowSecrets(e.target.checked)}
+                        disabled={!navTask?.display_secrets}
+                      />
+                    </label>
+                  </li>
+                </ul>
+              </div>
             </div>
 
             {mode === 'realtime' && navTask?.calculation_delay_minutes > 0 && (
@@ -243,6 +303,18 @@ export default function CompetitionMapPage() {
               </div>
             )}
           </div>
+
+          {progress.total > 0 && progress.loaded < progress.total && (
+            <div className="p-2 border-b border-base-300">
+                <div className="text-xs font-bold">Loading Contestant Data...</div>
+                <progress 
+                    className="progress progress-primary w-full" 
+                    value={progress.loaded} 
+                    max={progress.total}
+                ></progress>
+                <div className="text-xs text-right">{progress.loaded} / {progress.total}</div>
+            </div>
+          )}
 
           {showScoreLog && selectedContestantId ? (
             <ScoreLogTable

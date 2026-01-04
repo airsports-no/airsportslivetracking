@@ -1,14 +1,34 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { NavigationTask, Waypoint } from '../types';
+import type { NavigationTask, Waypoint } from '../../types';
+
+function renderWaypointLabels(map: L.Map, waypoints: Waypoint[]): L.Layer[] {
+    const layers: L.Layer[] = [];
+    waypoints.forEach(waypoint => {
+        const marker = L.marker([waypoint.latitude, waypoint.longitude], {
+            opacity: 0, // Invisible marker
+        }).addTo(map);
+
+        marker.bindTooltip(waypoint.name, {
+            permanent: true,
+            direction: 'top',
+            offset: [0, -10],
+            className: 'waypoint-label' // For potential custom styling
+        });
+
+        layers.push(marker);
+    });
+    return layers;
+}
 
 interface Props {
   map: L.Map | null;
   navTask: NavigationTask | null;
+  displaySecrets: boolean;
 }
 
 // From precisionRenderer.js
-function renderPrecisionRoute(map: L.Map, navTask: NavigationTask): L.Layer[] {
+function renderPrecisionRoute(map: L.Map, navTask: NavigationTask, displaySecrets: boolean): L.Layer[] {
   const layers: L.Layer[] = [];
 
   navTask.route.waypoints.filter((waypoint) => {
@@ -21,7 +41,7 @@ function renderPrecisionRoute(map: L.Map, navTask: NavigationTask): L.Layer[] {
   });
 
   const filterWaypoints = () => navTask.route.waypoints.filter((waypoint) => {
-    return ((waypoint.gate_check || waypoint.time_check) && (navTask.display_secrets || waypoint.type !== "secret") && waypoint.type!=="dummy")
+    return ((waypoint.gate_check || waypoint.time_check) && ((navTask.display_secrets && displaySecrets) || waypoint.type !== "secret") && waypoint.type!=="dummy")
   });
 
   filterWaypoints().forEach((gate) => {
@@ -62,7 +82,7 @@ function renderPrecisionRoute(map: L.Map, navTask: NavigationTask): L.Layer[] {
 }
 
 // From airsportsRenderer.js
-function renderAirsportsRoute(map: L.Map, navTask: NavigationTask, isAnr: boolean): L.Layer[] {
+function renderAirsportsRoute(map: L.Map, navTask: NavigationTask, isAnr: boolean, displaySecrets: boolean): L.Layer[] {
     const layers: L.Layer[] = [];
     
     if (navTask.route.corridor_polygon) {
@@ -75,7 +95,7 @@ function renderAirsportsRoute(map: L.Map, navTask: NavigationTask, isAnr: boolea
         if (isAnr) {
             return navTask.route.waypoints.filter(w => w.type === 'sp' || w.type === 'fp');
         }
-        return navTask.route.waypoints.filter(w => ((w.gate_check || w.time_check) && (navTask.display_secrets || w.type !== "secret") && w.type!=="dummy"));
+        return navTask.route.waypoints.filter(w => ((w.gate_check || w.time_check) && ((navTask.display_secrets && displaySecrets) || w.type !== "secret") && w.type!=="dummy"));
     }
 
     filterWaypoints().forEach(gate => {
@@ -97,7 +117,7 @@ function renderLandingRoute(map: L.Map, navTask: NavigationTask): L.Layer[] {
 }
 
 
-export default function RouteRenderer({ map, navTask }: Props) {
+export default function RouteRenderer({ map, navTask, displaySecrets }: Props) {
   const layersRef = useRef<L.Layer[]>([]);
 
   useEffect(() => {
@@ -111,18 +131,27 @@ export default function RouteRenderer({ map, navTask }: Props) {
     let layers: L.Layer[] = [];
 
     if (taskType.includes("precision") || taskType.includes("poker")) {
-      layers = layers.concat(renderPrecisionRoute(map, navTask));
+      layers = layers.concat(renderPrecisionRoute(map, navTask, displaySecrets));
     }
     if (taskType.includes("airsports") || taskType.includes("airsportchallenge")) {
-      layers = layers.concat(renderAirsportsRoute(map, navTask, false));
+      console.log("RouteRenderer: Calling renderAirsportsRoute for airsports/airsportchallenge. navTask.route.corridor_polygon:", navTask.route.corridor_polygon);
+      layers = layers.concat(renderAirsportsRoute(map, navTask, false, displaySecrets));
     }
     if (taskType.includes("anr_corridor")) {
-      layers = layers.concat(renderAirsportsRoute(map, navTask, true));
+      console.log("RouteRenderer: Calling renderAirsportsRoute for anr_corridor. navTask.route.corridor_polygon:", navTask.route.corridor_polygon);
+      layers = layers.concat(renderAirsportsRoute(map, navTask, true, displaySecrets));
     }
     if (taskType.includes("landing")) {
       layers = layers.concat(renderLandingRoute(map, navTask));
     }
     
+    const waypointsToLabel = navTask.route.waypoints.filter(w => 
+        (w.gate_check || w.time_check) && 
+        ((navTask.display_secrets && displaySecrets) || w.type !== "secret") && 
+        w.type !== "dummy"
+    );
+    layers = layers.concat(renderWaypointLabels(map, waypointsToLabel));
+
     layersRef.current = layers;
 
     if (layers.length > 0) {

@@ -30,6 +30,7 @@ interface MapLayersProps {
     onContestantSelect: (id: number | null, showLog: boolean) => void;
     annotationsByContestant: Record<number, any[]>;
     scoreLogByContestant: Record<number, any[]>;
+    userShowSecrets: boolean;
 }
 
 export function useMapLayers({
@@ -42,7 +43,8 @@ export function useMapLayers({
     selectedContestantId,
     onContestantSelect,
     annotationsByContestant,
-    scoreLogByContestant
+    scoreLogByContestant,
+    userShowSecrets
 }: MapLayersProps) {
     const layersRef = useRef<Record<number, ContestantLayers>>({});
     const annotationLayersRef = useRef<L.Marker[]>([]);
@@ -126,7 +128,10 @@ export function useMapLayers({
             const allAnnotations = annotationsByContestant[selectedContestantId] ?? [];
             const allLogs = scoreLogByContestant[selectedContestantId] ?? [];
             
-            const visibleAnnotations = allAnnotations.filter(ann => new Date(ann.time) <= currentTime);
+            const visibleAnnotations = allAnnotations.filter(ann => 
+                new Date(ann.time) <= currentTime && 
+                (ann.type !== 'secret' || (navTask.display_secrets && userShowSecrets))
+            );
 
             visibleAnnotations.forEach(ann => {
                 const scoreLog = ann.score_log_entry ? allLogs.find(l => l.id === ann.score_log_entry) : null;
@@ -142,5 +147,5 @@ export function useMapLayers({
             });
         }
 
-    }, [mapRef, navTask, currentPositions, showFullTrails, currentTime, mode, selectedContestantId, annotationsByContestant, scoreLogByContestant]);
+    }, [mapRef, navTask, currentPositions, showFullTrails, currentTime, mode, selectedContestantId, annotationsByContestant, scoreLogByContestant, userShowSecrets]);
 }

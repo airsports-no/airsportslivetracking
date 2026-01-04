@@ -32,6 +32,21 @@
 			"problemMatcher": []
 		},
 		{
+			"label": "Run position processor",
+			"type": "shell",
+			"command": "python3 position_processor.py",
+			"group": "run",
+			"options": {
+				"cwd": "${workspaceFolder}/src"
+			},
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
 			"label": "Watch React Vite",
 			"type": "shell",
 			"command": "npx vite build -m dev --watch",

@@ -9,8 +9,19 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const [scoreLogByContestant, setScoreLogByContestant] = useState<Record<number, ScoreLogEntry[]>>({});
     const [dangerDataByContestant, setDangerDataByContestant] = useState<Record<number, DangerData>>({});
     const [gateArrowDataByContestant, setGateArrowDataByContestant] = useState<Record<number, GateArrowData>>({});
+    const [progress, setProgress] = useState({ loaded: 0, total: 0 });
+    
+    const navTaskRef = useRef(navTask);
+    useEffect(() => {
+        navTaskRef.current = navTask;
+    }, [navTask]);
     
     const [isReFetching, setIsReFetching] = useState(false);
+    const isReFetchingRef = useRef(isReFetching);
+    useEffect(() => {
+        isReFetchingRef.current = isReFetching;
+    }, [isReFetching]);
+
     const wsBufferRef = useRef<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
 
@@ -82,7 +93,11 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     }, []);
 
 
-    const fetchAllContestantData = useCallback(async (currentNavTask: NavigationTask) => {
+    const fetchAllContestantData = useCallback(async (currentNavTask: NavigationTask, onProgress: (p: {loaded: number, total: number}) => void) => {
+        const total = currentNavTask.contestant_set.length;
+        onProgress({ loaded: 0, total });
+        let loaded = 0;
+
         const contestantPromises = currentNavTask.contestant_set.map(async (c) => {
             try {
                 let cursor: string | null | undefined = undefined;
@@ -103,6 +118,9 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             } catch (e) {
                 console.error('Failed to fetch data for contestant', c.id, e);
                 return null;
+            } finally {
+                loaded++;
+                onProgress({ loaded, total });
             }
         });
         
@@ -123,13 +141,16 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
 
     const handleStaleConnection = useCallback(async () => {
-        if (isReFetching || !navTask) return;
+        if (isReFetchingRef.current || !navTaskRef.current) {
+            console.log("handleStaleConnection: Blocked - isReFetchingRef.current:", isReFetchingRef.current, "navTaskRef.current:", navTaskRef.current);
+            return;
+        }
 
         console.log("Stale connection detected. Re-fetching and buffering...");
         setIsReFetching(true);
         wsBufferRef.current = [];
 
-        const { positionUpdates, annotationUpdates, scoreLogUpdates } = await fetchAllContestantData(navTask);
+        const { positionUpdates, annotationUpdates, scoreLogUpdates } = await fetchAllContestantData(navTaskRef.current, setProgress);
         
         setPositionsByContestant(positionUpdates);
         setAnnotationsByContestant(annotationUpdates);
@@ -141,7 +162,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
         setIsReFetching(false);
         console.log("Re-fetch complete.");
-    }, [isReFetching, navTask, fetchAllContestantData, processWsMessage]);
+    }, [fetchAllContestantData, processWsMessage]);
 
     // Fetch navigation task
     useEffect(() => {
@@ -159,7 +180,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         let cancelled = false;
         (async () => {
             if (!cancelled) {
-                const { positionUpdates, annotationUpdates, scoreLogUpdates } = await fetchAllContestantData(navTask);
+                const { positionUpdates, annotationUpdates, scoreLogUpdates } = await fetchAllContestantData(navTask, setProgress);
                 setPositionsByContestant(positionUpdates);
                 setAnnotationsByContestant(annotationUpdates);
                 setScoreLogByContestant(scoreLogUpdates);
@@ -170,7 +191,13 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
     // WebSocket and Stale Connection Detector
     useEffect(() => {
-        if (mode !== 'realtime' || !navTask) return;
+        if (mode !== 'realtime' || !navTaskRef.current) {
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+            return;
+        }
 
         const handleOnline = () => {
             console.log("Browser back online. Re-checking connection.");
@@ -192,7 +219,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             wsRef.current = ws;
 
             ws.onmessage = (ev) => {
-                if (isReFetching) {
+                if (isReFetchingRef.current) { // Use ref here
                     wsBufferRef.current.push(ev.data);
                 } else {
                     processWsMessage(ev.data);
@@ -212,13 +239,15 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         connect();
 
         return () => {
+            console.log("Cleaning up WebSocket effect.");
             window.removeEventListener('online', handleOnline);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (wsRef.current) {
                 wsRef.current.close();
+                wsRef.current = null;
             }
         };
-    }, [mode, navTask, isReFetching, handleStaleConnection, processWsMessage]);
+    }, [mode, navigationTaskIdNum, handleStaleConnection, processWsMessage]);
 
 
     return {
@@ -228,5 +257,6 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         scoreLogByContestant,
         dangerDataByContestant,
         gateArrowDataByContestant,
+        progress,
     };
 }

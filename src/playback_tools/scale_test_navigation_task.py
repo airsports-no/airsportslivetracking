@@ -19,6 +19,7 @@ if __name__ == "__main__":
 
     django.setup()
 
+from display.utilities.tracking_definitions import TrackingService
 from traccar_facade import Traccar
 
 from display.models import (
@@ -30,7 +31,6 @@ from display.models import (
     Contestant,
     Person,
     ContestTeam,
-    TRACCAR,
     Club,
     TRACKING_PILOT,
     ContestantReceivedPosition,
@@ -176,7 +176,7 @@ def create_contestants(
             contest=new_navigation_task.contest,
             defaults={
                 "air_speed": current_old_contestant.air_speed,
-                "tracking_service": TRACCAR,
+                "tracking_service": TrackingService.TRACCAR,
                 "tracker_device_id": contestant_email,
             },
         )
@@ -245,5 +245,8 @@ if __name__ == "__main__":
         new_navigation_task,
         arguments.number_of_contestants,
         datetime.timedelta(seconds=arguments.start_interval_seconds),
+    )
+    logger.info(
+        f"Created {len(new_contestants)} contestants, starting data upload. Navigation task link is http://localhost:8000/frontend/competition-map/{contest.pk}/{new_navigation_task.pk}/"
     )
     load_data_traccar(new_contestants)
