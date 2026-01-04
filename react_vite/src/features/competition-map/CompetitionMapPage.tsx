@@ -6,6 +6,7 @@ import useMapInit from '../route-editor/components/map/useMapInit';
 import { useCompetitionData } from './hooks/useCompetitionData';
 import { usePlayback } from './hooks/usePlayback';
 import { useMapLayers } from './hooks/useMapLayers';
+import { useToast } from './hooks/useToast.tsx'; // Import useToast
 
 import ResultsTable from './components/ResultsTable';
 import ScoreLogTable from './components/ScoreLogTable';
@@ -28,6 +29,8 @@ export default function CompetitionMapPage() {
   const [userShowBackgroundMap, setUserShowBackgroundMap] = useState(true);
   const [userShowSecrets, setUserShowSecrets] = useState(true);
 
+  const { toasts, showToast, removeToast, ToastContainer } = useToast(); // Initialize toast hook
+
 
   const {
     staticNavTaskData, // Renamed from navTask
@@ -38,7 +41,7 @@ export default function CompetitionMapPage() {
     dangerDataByContestant,
     gateArrowDataByContestant,
     progress,
-  } = useCompetitionData(contestIdNum, navigationTaskIdNum, mode);
+  } = useCompetitionData(contestIdNum, navigationTaskIdNum, mode, showToast); // Pass showToast
 
   const mapRef = useMapInit();
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -238,6 +241,7 @@ export default function CompetitionMapPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-66px)]">
+      <ToastContainer toasts={toasts} removeToast={removeToast} /> {/* Render ToastContainer */}
       <div className="flex-1 relative">
         <div id="map-container" className="h-full w-full" />
         <ProhibitedRenderer map={mapRef.current} navTask={staticNavTaskData} />

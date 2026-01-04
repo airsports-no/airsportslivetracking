@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchNavigationTask, fetchContestantPaginatedTrack, fetchContestantScoreData, makeWebSocket } from '../api';
 import type { Contestant, NavigationTask, TrackPosition, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData } from '../types';
 
-export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback') {
+export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback', showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void) {
     const [staticNavTaskData, setStaticNavTaskData] = useState<NavigationTask | null>(null);
     const [contestantsById, setContestantsById] = useState<Record<number, Contestant>>({});
     const [positionsByContestant, setPositionsByContestant] = useState<Record<number, TrackPosition[]>>({});
@@ -70,6 +70,37 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 return;
             }
 
+            if (msg.type === 'crossing_time') {
+                const crossingPayload = JSON.parse(msg.data) as {
+                    contestant_id: number;
+                    gate_distance_and_estimate: {
+                        seconds_to_planned_crossing: number;
+                        estimated_crossing_offset: number;
+                        estimated_score: number;
+                        waypoint_name: string;
+                        final: boolean;
+                        missed: boolean;
+                    };
+                };
+                const crossingContestantId = crossingPayload.contestant_id;
+                const gateData = crossingPayload.gate_distance_and_estimate;
+
+                if (gateData.final === true) {
+                    const contestant = contestantsById[crossingContestantId];
+                    const waypoint = staticNavTaskData?.route?.waypoints.find(wp => wp.name === gateData.waypoint_name);
+
+                    if (contestant && waypoint && (waypoint.type === 'sp' || waypoint.type === 'fp')) {
+                        const gateType = waypoint.type === 'sp' ? 'STARTING POINT' : 'FINISH POINT';
+                        const scoreMessage = gateData.estimated_score !== undefined ? `Score: ${gateData.estimated_score.toFixed(1)}` : '';
+                        showToast(
+                            `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} crossed the ${gateType}! ${scoreMessage}`,
+                            'success'
+                        );
+                    }
+                }
+                return;
+            }
+
             if (payload.positions && payload.positions.length > 0) {
                 setPositionsByContestantRef.current(prev => { // Use ref here
                     const newPositions = [...(prev[contestantId] || []), ...payload.positions];
@@ -105,7 +136,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         } catch (e) {
             console.error('WS parse error', e);
         }
-    }, []);
+    }, [showToast, staticNavTaskData, contestantsById]);
 
 
     const fetchAllContestantData = useCallback(async (currentNavTask: NavigationTask, onProgress: (p: {loaded: number, total: number}) => void) => {
