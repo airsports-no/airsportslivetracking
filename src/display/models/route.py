@@ -32,6 +32,7 @@ class Route(models.Model):
             waypoints=self.waypoints,
             takeoff_gates=self.takeoff_gates,
             landing_gates=self.landing_gates,
+            corridor_polygon=self.corridor_polygon,
         )
 
     def get_extent(self) -> tuple[float, float, float, float]:

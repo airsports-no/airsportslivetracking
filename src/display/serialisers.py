@@ -724,6 +724,7 @@ class PositionSerialiser(serializers.Serializer):
     time = serializers.DateTimeField()
     progress = serializers.FloatField()
     device_id = serializers.CharField()
+    course = serializers.FloatField()
     position_id = serializers.IntegerField()
 
 

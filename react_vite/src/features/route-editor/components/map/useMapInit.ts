@@ -17,7 +17,7 @@ export default function useMapInit(): React.MutableRefObject<L.Map | null> {
     // Tile Layers
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    });
 
     const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
       maxZoom: 20,
@@ -31,13 +31,6 @@ export default function useMapInit(): React.MutableRefObject<L.Map | null> {
       attribution: '<a href="https://www.openaip.net/">OpenAIP Data</a>',
       apiKey: '3d5d3f82528731731362a23f445951d8'
     });
-
-    L.control.layers({
-      "OpenStreetMap": osm,
-      "Google Satellite": googleSat
-    }, {
-      "OpenAIP Data": openAip
-    }, { position: 'bottomright' }).addTo(map);
 
     mapRef.current = map;
     setReady(true);

@@ -1,26 +1,38 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchNavigationTask, fetchContestantPaginatedTrack, fetchContestantScoreData, makeWebSocket } from '../api';
-import type { NavigationTask, TrackPosition, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData } from '../types';
+import type { Contestant, NavigationTask, TrackPosition, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData } from '../types';
 
 export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback') {
-    const [navTask, setNavTask] = useState<NavigationTask | null>(null);
+    const [staticNavTaskData, setStaticNavTaskData] = useState<NavigationTask | null>(null);
+    const [contestantsById, setContestantsById] = useState<Record<number, Contestant>>({});
     const [positionsByContestant, setPositionsByContestant] = useState<Record<number, TrackPosition[]>>({});
     const [annotationsByContestant, setAnnotationsByContestant] = useState<Record<number, ScoreAnnotation[]>>({});
     const [scoreLogByContestant, setScoreLogByContestant] = useState<Record<number, ScoreLogEntry[]>>({});
     const [dangerDataByContestant, setDangerDataByContestant] = useState<Record<number, DangerData>>({});
     const [gateArrowDataByContestant, setGateArrowDataByContestant] = useState<Record<number, GateArrowData>>({});
     const [progress, setProgress] = useState({ loaded: 0, total: 0 });
-    
-    const navTaskRef = useRef(navTask);
+    const [shouldConnectWs, setShouldConnectWs] = useState(false); // New state
+
+    const navTaskRef = useRef(staticNavTaskData);
     useEffect(() => {
-        navTaskRef.current = navTask;
-    }, [navTask]);
+        navTaskRef.current = staticNavTaskData;
+    }, [staticNavTaskData]);
     
     const [isReFetching, setIsReFetching] = useState(false);
     const isReFetchingRef = useRef(isReFetching);
     useEffect(() => {
         isReFetchingRef.current = isReFetching;
     }, [isReFetching]);
+
+    // Refs for state setters
+    const setPositionsByContestantRef = useRef(setPositionsByContestant);
+    useEffect(() => { setPositionsByContestantRef.current = setPositionsByContestant; }, [setPositionsByContestant]);
+
+    const setAnnotationsByContestantRef = useRef(setAnnotationsByContestant);
+    useEffect(() => { setAnnotationsByContestantRef.current = setAnnotationsByContestant; }, [setAnnotationsByContestant]);
+
+    const setScoreLogByContestantRef = useRef(setScoreLogByContestant);
+    useEffect(() => { setScoreLogByContestantRef.current = setScoreLogByContestant; }, [setScoreLogByContestant]);
 
     const wsBufferRef = useRef<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
@@ -30,14 +42,18 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             const msg = JSON.parse(data) as { type: string; data: string };
 
             if (msg.type === 'contestant') {
-                const c = JSON.parse(msg.data);
-                setNavTask(prev => prev ? { ...prev, contestant_set: [...prev.contestant_set.filter(x => x.id !== c.id), c] } : prev);
+                const c = JSON.parse(msg.data) as Contestant;
+                setContestantsById(prev => ({ ...prev, [c.id]: c }));
                 return;
             }
             
             if (msg.type === 'contestant_delete') {
-                const c = JSON.parse(msg.data);
-                setNavTask(prev => prev ? { ...prev, contestant_set: prev.contestant_set.filter(x => x.id !== c.id) } : prev);
+                const c = JSON.parse(msg.data) as { contestant_id: number };
+                setContestantsById(prev => {
+                    const newContestants = { ...prev };
+                    delete newContestants[c.contestant_id];
+                    return newContestants;
+                });
                 return;
             }
             
@@ -55,36 +71,35 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             }
 
             if (payload.positions && payload.positions.length > 0) {
-                setPositionsByContestant(prev => {
+                setPositionsByContestantRef.current(prev => { // Use ref here
                     const newPositions = [...(prev[contestantId] || []), ...payload.positions];
                     newPositions.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                     return { ...prev, [contestantId]: newPositions };
                 });
             }
             if (payload.annotations && payload.annotations.length > 0) {
-                setAnnotationsByContestant(prev => {
+                setAnnotationsByContestantRef.current(prev => { // Use ref here
                     const newAnnotations = [...(prev[contestantId] || []), ...payload.annotations];
                     newAnnotations.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                     return { ...prev, [contestantId]: newAnnotations };
                 });
             }
             if (payload.score_log_entries && payload.score_log_entries.length > 0) {
-                setScoreLogByContestant(prev => {
+                setScoreLogByContestantRef.current(prev => { // Use ref here
                     const newEntries = [...(prev[contestantId] || []), ...payload.score_log_entries];
                     newEntries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                     return { ...prev, [contestantId]: newEntries };
                 });
             }
             if (payload.contestant_track) {
-                setNavTask(prev => {
-                    if (!prev) return prev;
-                    const newContestantSet = prev.contestant_set.map(c => {
-                        if (c.id === contestantId) {
-                            return { ...c, contestanttrack: payload.contestant_track };
-                        }
-                        return c;
-                    });
-                    return { ...prev, contestant_set: newContestantSet };
+                setContestantsById(prev => {
+                    const existingContestant = prev[contestantId];
+                    if (existingContestant) {
+                        return { ...prev, [contestantId]: { ...existingContestant, contestanttrack: payload.contestant_track } };
+                    }
+                    // If contestant doesn't exist, this means we received track data before contestant data.
+                    // This is an edge case, but we should create a basic entry.
+                    return { ...prev, [contestantId]: { id: contestantId, contestanttrack: payload.contestant_track } as Contestant };
                 });
             }
         } catch (e) {
@@ -110,7 +125,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 }
                 const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id);
                 return {
-                    contestantId: c.id,
+                    contestant: { ...c, contestanttrack: scoreData.contestant_track }, // Return full contestant object
                     positions: allPositions.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     annotations: scoreData.annotations.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     scoreLogs: scoreData.score_log_entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
@@ -128,70 +143,75 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         const positionUpdates: Record<number, TrackPosition[]> = {};
         const annotationUpdates: Record<number, ScoreAnnotation[]> = {};
         const scoreLogUpdates: Record<number, ScoreLogEntry[]> = {};
+        const contestantUpdates: Record<number, Contestant> = {};
 
         for (const data of allContestantData) {
             if (data) {
-                positionUpdates[data.contestantId] = data.positions;
-                annotationUpdates[data.contestantId] = data.annotations;
-                scoreLogUpdates[data.contestantId] = data.scoreLogs;
+                positionUpdates[data.contestant.id] = data.positions;
+                annotationUpdates[data.contestant.id] = data.annotations;
+                scoreLogUpdates[data.contestant.id] = data.scoreLogs;
+                contestantUpdates[data.contestant.id] = data.contestant;
             }
         }
-        return { positionUpdates, annotationUpdates, scoreLogUpdates };
+        return { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates };
     }, [contestIdNum, navigationTaskIdNum]);
 
 
     const handleStaleConnection = useCallback(async () => {
         if (isReFetchingRef.current || !navTaskRef.current) {
-            console.log("handleStaleConnection: Blocked - isReFetchingRef.current:", isReFetchingRef.current, "navTaskRef.current:", navTaskRef.current);
             return;
         }
 
-        console.log("Stale connection detected. Re-fetching and buffering...");
         setIsReFetching(true);
         wsBufferRef.current = [];
 
-        const { positionUpdates, annotationUpdates, scoreLogUpdates } = await fetchAllContestantData(navTaskRef.current, setProgress);
+        const { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates } = await fetchAllContestantData(navTaskRef.current, setProgress);
         
         setPositionsByContestant(positionUpdates);
         setAnnotationsByContestant(annotationUpdates);
         setScoreLogByContestant(scoreLogUpdates);
+        setContestantsById(prev => ({ ...prev, ...contestantUpdates }));
         
-        console.log(`Processing ${wsBufferRef.current.length} buffered messages...`);
         wsBufferRef.current.forEach(msg => processWsMessage(msg));
         wsBufferRef.current = [];
 
         setIsReFetching(false);
-        console.log("Re-fetch complete.");
     }, [fetchAllContestantData, processWsMessage]);
 
-    // Fetch navigation task
+    // Fetch navigation task and initial data
     useEffect(() => {
         let cancelled = false;
         (async () => {
             const task = await fetchNavigationTask(contestIdNum, navigationTaskIdNum);
-            if (!cancelled) setNavTask(task);
-        })().catch(console.error);
-        return () => { cancelled = true; };
-    }, [contestIdNum, navigationTaskIdNum]);
-
-    // Initial data fetch
-    useEffect(() => {
-        if (!navTask) return;
-        let cancelled = false;
-        (async () => {
             if (!cancelled) {
-                const { positionUpdates, annotationUpdates, scoreLogUpdates } = await fetchAllContestantData(navTask, setProgress);
-                setPositionsByContestant(positionUpdates);
-                setAnnotationsByContestant(annotationUpdates);
-                setScoreLogByContestant(scoreLogUpdates);
+                // Set stable staticNavTaskData properties, exclude dynamic contestant_set
+                setStaticNavTaskData(task); 
+
+                // Populate new contestantsById state
+                const initialContestantsMap = task.contestant_set.reduce((acc, c) => {
+                    acc[c.id] = c;
+                    return acc;
+                }, {} as Record<number, Contestant>);
+                setContestantsById(initialContestantsMap);
+                setShouldConnectWs(true);
+
+                const { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates } = await fetchAllContestantData(task, setProgress);
+                if (!cancelled) {
+                    setPositionsByContestant(positionUpdates);
+                    setAnnotationsByContestant(annotationUpdates);
+                    setScoreLogByContestant(scoreLogUpdates);
+                    setContestantsById(prev => ({ ...prev, ...contestantUpdates }));
+                }
             }
-        })();
-        return () => { cancelled = true; };
-    }, [navTask, fetchAllContestantData]);
+        })().catch(console.error);
+        return () => { 
+            cancelled = true; 
+        };
+    }, [contestIdNum, navigationTaskIdNum, fetchAllContestantData]);
 
     // WebSocket and Stale Connection Detector
     useEffect(() => {
-        if (mode !== 'realtime' || !navTaskRef.current) {
+        if (mode !== 'realtime' || !shouldConnectWs) {
             if (wsRef.current) {
                 wsRef.current.close();
                 wsRef.current = null;
@@ -200,13 +220,11 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         }
 
         const handleOnline = () => {
-            console.log("Browser back online. Re-checking connection.");
             handleStaleConnection();
         };
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log("Page became visible. Re-checking connection.");
                 handleStaleConnection();
             }
         };
@@ -218,6 +236,9 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             const ws = makeWebSocket(navigationTaskIdNum);
             wsRef.current = ws;
 
+            ws.onopen = () => {
+            };
+
             ws.onmessage = (ev) => {
                 if (isReFetchingRef.current) { // Use ref here
                     wsBufferRef.current.push(ev.data);
@@ -227,11 +248,10 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             };
 
             ws.onclose = () => {
-                console.log("WebSocket closed.");
             };
 
             ws.onerror = (err) => {
-                console.error("WebSocket error:", err);
+                console.error("ws.onerror: WebSocket error:", err);
                 ws.close();
             };
         };
@@ -239,7 +259,6 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         connect();
 
         return () => {
-            console.log("Cleaning up WebSocket effect.");
             window.removeEventListener('online', handleOnline);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (wsRef.current) {
@@ -247,11 +266,12 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 wsRef.current = null;
             }
         };
-    }, [mode, navigationTaskIdNum, handleStaleConnection, processWsMessage]);
+    }, [mode, shouldConnectWs, navigationTaskIdNum, handleStaleConnection, processWsMessage]);
 
 
     return {
-        navTask,
+        staticNavTaskData, // This is now the stable task definition
+        contestantsById, // This is the dynamic map of contestants
         positionsByContestant,
         annotationsByContestant,
         scoreLogByContestant,

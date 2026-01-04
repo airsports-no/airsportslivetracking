@@ -80,8 +80,15 @@ if __name__ == "__main__":
     traccar.get_device_map()
 
 
-def send(id, timestamp, lat, lon, speed):
-    params = (("id", id), ("timestamp", int(timestamp)), ("lat", lat), ("lon", lon), ("speed", speed))
+def send(id, timestamp, lat, lon, speed, course):
+    params = (
+        ("id", id),
+        ("timestamp", int(timestamp)),
+        ("lat", lat),
+        ("lon", lon),
+        ("speed", speed),
+        ("course", course),
+    )
     requests.post("http://" + server + "/?" + urlencode(params))
 
 
@@ -114,8 +121,10 @@ def send_data_thread(contestant, positions):
                 data["latitude"],
                 data["longitude"],
                 data["speed"],
+                data["course"],
             )
         time.sleep(1)
+    logger.info(f"Finished sending positions for {contestant}, requesting calculator termination")
     contestant.blocking_request_calculator_termination()
     logger.info(f"Completed sending positions for {contestant}")
 
@@ -247,6 +256,6 @@ if __name__ == "__main__":
         datetime.timedelta(seconds=arguments.start_interval_seconds),
     )
     logger.info(
-        f"Created {len(new_contestants)} contestants, starting data upload. Navigation task link is http://localhost:8000/frontend/competition-map/{contest.pk}/{new_navigation_task.pk}/"
+        f"Created {len(new_contestants)} contestants, starting data upload. Navigation task link is http://localhost:8002/frontend/competition-map/{contest.pk}/{new_navigation_task.pk}/"
     )
     load_data_traccar(new_contestants)

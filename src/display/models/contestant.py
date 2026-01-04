@@ -519,7 +519,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     @staticmethod
     def _convert_to_individual_leg_times(
-        crossing_times: list[tuple[str, datetime.timedelta]]
+        crossing_times: list[tuple[str, datetime.timedelta]],
     ) -> list[tuple[str, datetime.timedelta]]:
         """
         Calculate the planned duration for each leg.
@@ -676,7 +676,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             longitude=float(position_data["longitude"]),
             altitude=float(position_data["altitude"]),
             speed=float(position_data["speed"]),
-            course=float(position_data["course"]),
+            course=float(position_data["attributes"]["course"]),
             battery_level=float(position_data["attributes"].get("batteryLevel", -1.0)),
             position_id=position_data["id"],
             device_id=position_data["deviceId"],

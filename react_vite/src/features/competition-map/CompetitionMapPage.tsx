@@ -30,7 +30,8 @@ export default function CompetitionMapPage() {
 
 
   const {
-    navTask,
+    staticNavTaskData, // Renamed from navTask
+    contestantsById, // New, dynamic map of contestants
     positionsByContestant,
     annotationsByContestant,
     scoreLogByContestant,
@@ -42,12 +43,24 @@ export default function CompetitionMapPage() {
   const mapRef = useMapInit();
   const tileLayerRef = useRef<L.TileLayer | null>(null);
 
+  const previousStaticNavTaskDataRef = useRef(); // Add this ref
+
   useEffect(() => {
-    if (navTask) {
-        setUserShowBackgroundMap(navTask.display_background_map);
-        setUserShowSecrets(navTask.display_secrets);
+    console.log("CompetitionMapPage: staticNavTaskData change detection.");
+    if (previousStaticNavTaskDataRef.current && previousStaticNavTaskDataRef.current !== staticNavTaskData) {
+      console.log("CompetitionMapPage: staticNavTaskData reference CHANGED!");
+      console.log("  Old ref:", previousStaticNavTaskDataRef.current);
+      console.log("  New ref:", staticNavTaskData);
     }
-  }, [navTask]);
+    previousStaticNavTaskDataRef.current = staticNavTaskData;
+  }, [staticNavTaskData]); // Trigger on staticNavTaskData changes
+
+  useEffect(() => {
+    if (staticNavTaskData) {
+        setUserShowBackgroundMap(staticNavTaskData.display_background_map);
+        setUserShowSecrets(staticNavTaskData.display_secrets);
+    }
+  }, [staticNavTaskData]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -57,13 +70,13 @@ export default function CompetitionMapPage() {
         tileLayerRef.current.remove();
     }
 
-    if (navTask?.display_background_map && userShowBackgroundMap) {
+    if (staticNavTaskData?.display_background_map && userShowBackgroundMap) {
         const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
         tileLayerRef.current = osm;
     }
-  }, [navTask, mapRef]);
+  }, [staticNavTaskData, mapRef]);
 
   
   const {
@@ -83,12 +96,12 @@ export default function CompetitionMapPage() {
   }, []);
 
   const realtimeTime = useMemo(() => {
-    if (!navTask?.calculation_delay_minutes) {
+    if (!staticNavTaskData?.calculation_delay_minutes) {
         return now;
     }
-    const delayMs = navTask.calculation_delay_minutes * 60 * 1000;
+    const delayMs = staticNavTaskData.calculation_delay_minutes * 60 * 1000;
     return new Date(now.getTime() - delayMs);
-  }, [now, navTask]);
+  }, [now, staticNavTaskData]);
 
   const currentTime = mode === 'playback' ? playbackTime : realtimeTime;
 
@@ -96,7 +109,7 @@ export default function CompetitionMapPage() {
   const [currentScores, setCurrentScores] = useState<Record<number, number>>({});
 
   useEffect(() => {
-    if (!navTask) return;
+    if (!staticNavTaskData) return; // Still needs staticNavTaskData for scorecard
 
     if (mode !== 'playback') {
       setCurrentPositions(positionsByContestant);
@@ -109,20 +122,20 @@ export default function CompetitionMapPage() {
     const pos: Record<number, any[]> = {};
     const scores: Record<number, number> = {};
 
-    for (const c of navTask.contestant_set) {
+    for (const c of Object.values(contestantsById)) { // <--- Changed
       const contestantId = c.id;
       const allPos = positionsByContestant[contestantId] ?? [];
       pos[contestantId] = allPos.filter(p => new Date(p.time) <= currentTime);
 
       const allLogs = scoreLogByContestant[contestantId] ?? [];
-      const initialScore = navTask.scorecard.initial_score ?? 0;
+      const initialScore = staticNavTaskData.scorecard.initial_score ?? 0;
       scores[contestantId] = allLogs
         .filter(l => new Date(l.time) <= currentTime)
         .reduce((total, log) => total + log.points, initialScore);
     }
     setCurrentPositions(pos);
     setCurrentScores(scores);
-  }, [mode, currentTime, positionsByContestant, scoreLogByContestant, navTask]);
+  }, [mode, currentTime, positionsByContestant, scoreLogByContestant, staticNavTaskData, contestantsById]);
 
   const handleContestantSelect = (id: number | null, showLog: boolean) => {
     setSelectedContestantId(id);
@@ -131,7 +144,8 @@ export default function CompetitionMapPage() {
 
   useMapLayers({
     mapRef,
-    navTask,
+    navTask: staticNavTaskData,
+    contestants: Object.values(contestantsById), // Pass the dynamic contestants
     currentPositions,
     showFullTrails,
     currentTime,
@@ -158,16 +172,17 @@ export default function CompetitionMapPage() {
   }, [mapRef]);
 
   const standings = useMemo(() => {
-    if (!navTask) return [] as any[];
-    const dir = navTask.score_sorting_direction;
-    const total = navTask.contestant_set.length;
+    if (!staticNavTaskData) return [] as any[];
+    const dir = staticNavTaskData.score_sorting_direction;
+    const allContestantsData = Object.values(contestantsById);
+    const total = allContestantsData.length;
 
     const getContestantsWithState = () => {
       if (mode === 'playback') {
-        const startGateName = navTask.route.waypoints.find(wp => wp.type === 'sp')?.name;
-        const finishGateName = navTask.route.waypoints.find(wp => wp.type === 'fp')?.name;
+        const startGateName = staticNavTaskData.route.waypoints.find(wp => wp.type === 'sp')?.name;
+        const finishGateName = staticNavTaskData.route.waypoints.find(wp => wp.type === 'fp')?.name;
 
-        return navTask.contestant_set.map((c, index) => {
+        return allContestantsData.map((c, index) => { // Updated
           let state = 'Waiting...';
           const logsForTime = (scoreLogByContestant[c.id] ?? []).filter(log => new Date(log.time) <= currentTime);
 
@@ -180,14 +195,14 @@ export default function CompetitionMapPage() {
           return {
             id: c.id,
             name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
-            score: currentScores[c.id] ?? navTask.scorecard.initial_score ?? 0,
+            score: currentScores[c.id] ?? staticNavTaskData.scorecard.initial_score ?? 0,
             state: state,
             color: `hsl(${(index / total) * 360}, 70%, 50%)`
           };
         });
       }
 
-      return navTask.contestant_set.map((c, index) => ({
+      return allContestantsData.map((c, index) => ({ // Updated
         id: c.id,
         name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
         score: c.contestanttrack?.score ?? 0,
@@ -203,12 +218,12 @@ export default function CompetitionMapPage() {
     active.sort(sortFn);
     waiting.sort(sortFn);
     return [...active, ...waiting];
-  }, [navTask, mode, currentScores, currentTime, scoreLogByContestant]);
+  }, [staticNavTaskData, contestantsById, mode, currentScores, currentTime, scoreLogByContestant]);
 
   const selectedContestant = useMemo(() => {
-    if (!selectedContestantId || !navTask) return null;
-    return navTask.contestant_set.find(c => c.id === selectedContestantId);
-  }, [selectedContestantId, navTask]);
+    if (!selectedContestantId || !staticNavTaskData) return null; // Still needs staticNavTaskData for general check
+    return contestantsById[selectedContestantId]; // Updated
+  }, [selectedContestantId, staticNavTaskData, contestantsById]);
 
   const firstWaitingIndex = standings.findIndex(s => s.state === 'Waiting...');
 
@@ -225,16 +240,22 @@ export default function CompetitionMapPage() {
     <div className="flex flex-col h-[calc(100vh-66px)]">
       <div className="flex-1 relative">
         <div id="map-container" className="h-full w-full" />
-        <ProhibitedRenderer map={mapRef.current} navTask={navTask} />
-        <RouteRenderer map={mapRef.current} navTask={navTask} displaySecrets={userShowSecrets} />
+        <ProhibitedRenderer map={mapRef.current} navTask={staticNavTaskData} />
+        <RouteRenderer
+          map={mapRef.current}
+          route={staticNavTaskData?.route ?? null}
+          taskType={staticNavTaskData?.scorecard?.task_type ?? null}
+          navTaskDisplaySecrets={staticNavTaskData?.display_secrets ?? false}
+          displaySecrets={userShowSecrets}
+        />
 
         <div className="absolute top-4 right-4 z-[1000]">
-          <ClockDisplay time={currentTime} timeZone={navTask?.time_zone} />
+          <ClockDisplay time={currentTime} timeZone={staticNavTaskData?.time_zone} />
         </div>
 
         <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96">
           <div className="p-2 border-b border-base-300">
-            <h2 className="font-bold text-lg truncate" title={navTask?.name}>{navTask?.name ?? 'Loading...'}</h2>
+            <h2 className="font-bold text-lg truncate" title={staticNavTaskData?.name}>{staticNavTaskData?.name ?? 'Loading...'}</h2>
 
             <div className="flex justify-between items-center mt-2 flex-wrap gap-2">
               <div className="join">
@@ -248,10 +269,10 @@ export default function CompetitionMapPage() {
               </label>
 
               <Link to={`/competition-map/${contestIdNum}/${navigationTaskIdNum}/info`} className="btn btn-xs btn-outline">Task Info</Link>
-              {navTask?.user_has_change_permission && (
+              {staticNavTaskData?.user_has_change_permission && (
                 <a href={document.configuration.editNavigationTaskUrl(navigationTaskId)} className="btn btn-xs btn-outline ml-2">Manage Task</a>
               )}
-              {navTask?.allow_self_management && (
+              {staticNavTaskData?.allow_self_management && (
                 <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline ml-2">Schedule Flight</Link>
               )}
               {/* Settings Dropdown */}
@@ -266,7 +287,7 @@ export default function CompetitionMapPage() {
                         className="toggle toggle-primary" 
                         checked={userShowBackgroundMap} 
                         onChange={(e) => setUserShowBackgroundMap(e.target.checked)}
-                        disabled={!navTask?.display_background_map}
+                        disabled={!staticNavTaskData?.display_background_map}
                       />
                     </label>
                   </li>
@@ -278,7 +299,7 @@ export default function CompetitionMapPage() {
                         className="toggle toggle-primary" 
                         checked={userShowSecrets} 
                         onChange={(e) => setUserShowSecrets(e.target.checked)}
-                        disabled={!navTask?.display_secrets}
+                        disabled={!staticNavTaskData?.display_secrets}
                       />
                     </label>
                   </li>
@@ -286,9 +307,9 @@ export default function CompetitionMapPage() {
               </div>
             </div>
 
-            {mode === 'realtime' && navTask?.calculation_delay_minutes > 0 && (
+            {mode === 'realtime' && staticNavTaskData?.calculation_delay_minutes > 0 && (
               <div className="text-xs text-warning-content bg-warning rounded-md px-2 py-1 mt-2 text-center">
-                Live data is delayed by {navTask?.calculation_delay_minutes} minute(s).
+                Live data is delayed by {staticNavTaskData?.calculation_delay_minutes} minute(s).
               </div>
             )}
 
