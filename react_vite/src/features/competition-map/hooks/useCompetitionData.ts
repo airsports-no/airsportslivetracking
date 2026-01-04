@@ -62,7 +62,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             if (!contestantId) return;
 
             if (msg.type === 'danger_level') {
-                setDangerDataByContestant(prev => ({ ...prev, [contestantId]: payload }));
+                setDangerDataByContestant(prev => ({ ...prev, [contestantId]: payload.danger_level }));
                 return;
             }
             if (msg.type === 'gate_distance_and_estimate') {

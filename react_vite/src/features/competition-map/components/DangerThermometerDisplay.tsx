@@ -13,7 +13,7 @@ const DangerThermometerDisplay = ({ dangerData }: Props) => {
 
     return (
         <div className="flex flex-col items-center">
-            {clamped === 100 && (
+            {clamped === 100 && accumulatedScore > 0 && (
                 <div className="relative mb-2">
                     <img alt="Accumulated score background" src={`${document.configuration.STATIC_FILE_LOCATION}img/gate_score_arrow_black.gif`} style={{width: "100px"}}/>
                     <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">
