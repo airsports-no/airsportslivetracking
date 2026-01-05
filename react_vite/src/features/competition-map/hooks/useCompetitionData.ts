@@ -47,14 +47,21 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
     const wsBufferRef = useRef<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
+    const reconnectTimerRef = useRef<number | null>(null);
+    const reconnectAttemptsRef = useRef(0);
+
 
     const processWsMessage = useCallback((data: string) => {
         try {
             const msg = JSON.parse(data) as { type: string; data: string };
 
             if (msg.type === 'contestant') {
-                const c = JSON.parse(msg.data) as Contestant;
-                setContestantsById(prev => ({ ...prev, [c.id]: c }));
+                const c = JSON.parse(msg.data) as Partial<Contestant> & { id: number };
+                setContestantsById(prev => {
+                    const existingContestant = prev[c.id] || {};
+                    const updatedContestant = { ...existingContestant, ...c };
+                    return { ...prev, [c.id]: updatedContestant as Contestant };
+                });
                 return;
             }
 
@@ -307,14 +314,22 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         const connect = () => {
+            if (wsRef.current) {
+                // Prevent onclose from firing during manual reconnection/cleanup
+                wsRef.current.onclose = null;
+                wsRef.current.close();
+            }
+
             const ws = makeWebSocket(navigationTaskIdNum);
             wsRef.current = ws;
 
             ws.onopen = () => {
+                console.log("WebSocket connected");
+                reconnectAttemptsRef.current = 0; // Reset on successful connection
             };
 
             ws.onmessage = (ev) => {
-                if (isReFetchingRef.current) { // Use ref here
+                if (isReFetchingRef.current) {
                     wsBufferRef.current.push(ev.data);
                 } else {
                     processWsMessage(ev.data);
@@ -322,10 +337,22 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             };
 
             ws.onclose = () => {
+                console.log(`WebSocket closed. Attempting to reconnect... (Attempt: ${reconnectAttemptsRef.current + 1})`);
+                reconnectAttemptsRef.current++;
+                // Exponential backoff with a cap
+                const delay = Math.min(30000, 1000 * (2 ** reconnectAttemptsRef.current));
+
+                if (reconnectTimerRef.current) {
+                    clearTimeout(reconnectTimerRef.current);
+                }
+
+                reconnectTimerRef.current = window.setTimeout(connect, delay);
             };
 
             ws.onerror = (err) => {
                 console.error("ws.onerror: WebSocket error:", err);
+                // The onclose event will be fired automatically by the browser,
+                // which will trigger the reconnection logic.
                 ws.close();
             };
         };
@@ -335,7 +362,14 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         return () => {
             window.removeEventListener('online', handleOnline);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
+            
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+            }
+
             if (wsRef.current) {
+                // Prevent onclose from firing and attempting to reconnect
+                wsRef.current.onclose = null;
                 wsRef.current.close();
                 wsRef.current = null;
             }
