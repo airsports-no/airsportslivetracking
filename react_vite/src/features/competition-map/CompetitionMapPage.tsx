@@ -15,6 +15,7 @@ import RouteRenderer from "./components/track-renderers/RouteRenderer";
 import TimelineControls from "./components/TimelineControls";
 import TeamPresentation from './components/TeamPresentation';
 import ClockDisplay from './components/ClockDisplay';
+import Disclaimer from './components/Disclaimer';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import GateScoreArrowV2 from './components/gateScoreArrow/GateScoreArrowV2'; // Import GateScoreArrowV2
 
@@ -276,6 +277,7 @@ export default function CompetitionMapPage() {
       <ToastContainer toasts={toasts} removeToast={removeToast} /> {/* Render ToastContainer */}
       <div className="flex-1 relative">
         <div id="map-container" className="h-full w-full" />
+        <Disclaimer />
         <ProhibitedRenderer map={mapRef.current} navTask={staticNavTaskData} />
         <RouteRenderer
           map={mapRef.current}
