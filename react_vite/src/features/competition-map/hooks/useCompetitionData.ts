@@ -76,6 +76,26 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 setDangerDataByContestant(prev => ({ ...prev, [contestantId]: payload.danger_level }));
                 return;
             }
+            if (msg.type === 'playing_cards') {
+                const playingCardsPayload = JSON.parse(msg.data);
+                const contestantId = playingCardsPayload.contestant_id;
+                const playing_cards = playingCardsPayload.playing_cards;
+
+                setContestantsById(prev => {
+                    const existingContestant = prev[contestantId];
+                    if (existingContestant) {
+                        return {
+                            ...prev,
+                            [contestantId]: {
+                                ...existingContestant,
+                                playing_cards: playing_cards
+                            }
+                        };
+                    }
+                    return prev;
+                });
+                return;
+            }
             if (msg.type === 'crossing_time') {
                 const crossingPayload = JSON.parse(msg.data) as {
                     contestant_id: number;
@@ -179,7 +199,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 }
                 const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id);
                 return {
-                    contestant: { ...c, contestanttrack: scoreData.contestant_track }, // Return full contestant object
+                    contestant: { ...c, contestanttrack: scoreData.contestant_track, playing_cards: scoreData.playing_cards }, // Return full contestant object
                     positions: allPositions.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     annotations: scoreData.annotations.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     scoreLogs: scoreData.score_log_entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),

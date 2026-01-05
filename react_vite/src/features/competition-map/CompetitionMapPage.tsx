@@ -411,7 +411,7 @@ export default function CompetitionMapPage() {
               dangerData={dangerDataByContestant[selectedContestant.id]}
               gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
               score={standings.find(s => s.id === selectedContestant.id)?.score ?? 0}
-              // navTask prop is removed from TeamPresentation
+              navigationTask={staticNavTaskData}
             />
           </div>
         )}

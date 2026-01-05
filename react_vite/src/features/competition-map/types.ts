@@ -72,6 +72,7 @@ export interface Contestant {
   gate_times?: Record<string, string>;
   default_map_url?: string;
   tracker_id_display?: TrackerDisplay[];
+  playing_cards?: { card: string }[];
 }
 
 export interface GateLine {

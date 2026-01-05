@@ -79,7 +79,7 @@ function renderPrecisionRoute(map: L.Map, route: RouteData, navTaskDisplaySecret
   let currentTrack: L.LatLngExpression[] = [];
   const typesToIgnore = ["to", "ldg", "ildg", "dummy"];
   
-  navTask.route.waypoints.forEach(waypoint => {
+  route.waypoints.forEach(waypoint => {
     if (waypoint.type === 'isp') { // This type is not in the Waypoint type, assuming it's a string from old code.
         tracks.push(currentTrack);
         currentTrack = [];
