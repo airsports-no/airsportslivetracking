@@ -51,6 +51,7 @@ export default function CompetitionMapPage() {
     dangerDataByContestant,
     gateArrowDataByContestant,
     progress,
+    wsStatus,
   } = useCompetitionData(contestIdNum, navigationTaskIdNum, mode, showToast); // Pass showToast
 
   const selectedContestant = useMemo(() => {
@@ -295,6 +296,13 @@ export default function CompetitionMapPage() {
           <ClockDisplay time={currentTime} timeZone={staticNavTaskData?.time_zone} />
         </div>
         
+        {mode === 'realtime' && wsStatus === 'disconnected' && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1000] bg-error text-error-content p-4 rounded-lg shadow-lg text-center">
+                <h3 className="font-bold text-lg">Offline</h3>
+                <p>Connection lost. Attempting to reconnect...</p>
+            </div>
+        )}
+
         {/* The toast display will now be placed relative to this flex-1 relative container */}
 
 

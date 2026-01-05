@@ -12,6 +12,8 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const [gateArrowDataByContestant, setGateArrowDataByContestant] = useState<Record<number, GateArrowData>>({});
     const [progress, setProgress] = useState({ loaded: 0, total: 0 });
     const [shouldConnectWs, setShouldConnectWs] = useState(false); // New state
+    const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected'>('disconnected');
+
 
     const navTaskRef = useRef(staticNavTaskData);
     useEffect(() => {
@@ -330,12 +332,46 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             const ws = makeWebSocket(navigationTaskIdNum);
             wsRef.current = ws;
 
+            let pingInterval: number | null = null;
+            let pongTimeout: number | null = null;
+
+            const heartbeat = () => {
+                if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+                    return; // Don't ping if not open
+                }
+                
+                pongTimeout = window.setTimeout(() => {
+                    console.log("WebSocket pong timeout. Closing connection.");
+                    wsRef.current?.close(); // This will trigger onclose and reconnection
+                }, 5000); // 5 seconds for pong response
+
+                ws.send(JSON.stringify({ type: 'ping' }));
+            };
+
             ws.onopen = () => {
                 console.log("WebSocket connected");
+                setWsStatus('connected');
                 reconnectAttemptsRef.current = 0; // Reset on successful connection
+                
+                if (pingInterval) clearInterval(pingInterval);
+                heartbeat(); // Send immediate ping on connect
+                pingInterval = window.setInterval(heartbeat, 10000); // Send a ping every 10 seconds
             };
 
             ws.onmessage = (ev) => {
+                try {
+                    const msg = JSON.parse(ev.data);
+                    if (msg.type === 'pong') {
+                        if (pongTimeout) {
+                            clearTimeout(pongTimeout);
+                            pongTimeout = null;
+                        }
+                        return; // Pong handled, do nothing else.
+                    }
+                } catch (e) {
+                    // Not a pong message or not valid JSON, proceed to normal processing.
+                }
+
                 if (isReFetchingRef.current) {
                     wsBufferRef.current.push(ev.data);
                 } else {
@@ -345,6 +381,12 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
             ws.onclose = () => {
                 console.log(`WebSocket closed. Attempting to reconnect... (Attempt: ${reconnectAttemptsRef.current + 1})`);
+                setWsStatus('disconnected');
+                
+                // Clear intervals and timeouts
+                if (pingInterval) clearInterval(pingInterval);
+                if (pongTimeout) clearTimeout(pongTimeout);
+
                 reconnectAttemptsRef.current++;
                 // Exponential backoff with a cap
                 const delay = Math.min(30000, 1000 * (2 ** reconnectAttemptsRef.current));
@@ -393,5 +435,6 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         dangerDataByContestant,
         gateArrowDataByContestant,
         progress,
+        wsStatus,
     };
 }

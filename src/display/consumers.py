@@ -50,7 +50,13 @@ class TrackingConsumer(WebsocketConsumer):
         self.accept()
 
     def receive(self, text_data, **kwargs):
-        pass
+        try:
+            message = json.loads(text_data)
+            if message.get("type") == "ping":
+                self.send(text_data=json.dumps({"type": "pong"}))
+        except json.JSONDecodeError:
+            logger.debug(f"Received non-JSON message: {text_data}")
+        # pass
         # message = json.loads(text_data)
 
     def tracking_data(self, event):
