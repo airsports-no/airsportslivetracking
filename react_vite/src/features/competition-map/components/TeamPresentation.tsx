@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Contestant, DangerData, GateArrowData, NavigationTask } from '../types';
 import DangerThermometerDisplay from './DangerThermometerDisplay';
 import PlayingCards from './playing-cards/PlayingCards';
+import GateScoreArrowV2 from './gateScoreArrow/GateScoreArrowV2';
 
 interface Props {
     contestant: Contestant;
@@ -13,16 +14,46 @@ interface Props {
 
 const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, navigationTask }: Props) => {
     if (!contestant) return null;
-
+    const gateScoreArrowWidth=512, gateScoreArrowHeight=90;
     const { team } = contestant;
     const { crew, club } = team;
     const isPoker = navigationTask?.scorecard.task_type.includes("poker");
 
+    const gateArrowContainerRef = useRef<HTMLDivElement>(null);
+    const [gateArrowSize, setGateArrowSize] = useState({ width: gateScoreArrowWidth, height: gateScoreArrowHeight });
+
+    useEffect(() => {
+        const element = gateArrowContainerRef.current;
+        if (!element) return;
+
+        const observer = new ResizeObserver(entries => {
+            if (entries[0]) {
+                const width = entries[0].contentRect.width;
+                if (width > 0) {
+                    setGateArrowSize({ width, height: (width * gateScoreArrowHeight) / gateScoreArrowWidth });
+                }
+            }
+        });
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, []);
+
     return (
-        <div className="flex flex-col items-center">
+        <div className="flex items-end gap-4">
             {isPoker && contestant.playing_cards && contestant.playing_cards.length > 0 && (
                 <div>
                     <PlayingCards playingCards={contestant.playing_cards} />
+                </div>
+            )}
+            {!isPoker && navigationTask && (
+                <div ref={gateArrowContainerRef} className="flex-shrink-0 max-w-md">
+                    <GateScoreArrowV2
+                        contestant={contestant}
+                        navigationTask={navigationTask}
+                        gateArrowData={gateArrowData}
+                        width={gateArrowSize.width}
+                        height={gateArrowSize.height}
+                    />
                 </div>
             )}
             <div className="flex items-end gap-4 relative z-20">
@@ -38,13 +69,17 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
 
                     {/* Bottom part with crew info */}
                     <div className="flex items-center gap-4">
-                        {crew.member1.picture && (
-                            <div className="avatar">
+                        <div className="avatar">
+                            {crew.member1.picture ? (
                                 <div className="w-16 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
                                     <img src={crew.member1.picture} alt={`${crew.member1.first_name} ${crew.member1.last_name}`}/>
                                 </div>
-                            </div>
-                        )}
+                            ) : (
+                                <div className="placeholder bg-neutral-focus text-neutral-content rounded-full w-16 ring ring-primary ring-offset-base-100 ring-offset-2">
+                                    <span className="text-xl">{(crew.member1.first_name?.[0] || '') + (crew.member1.last_name?.[0] || '')}</span>
+                                </div>
+                            )}
+                        </div>
                         <div>
                             <div className="font-bold">{crew.member1.first_name} {crew.member1.last_name}</div>
                             <div className="text-sm opacity-50">{club?.name ?? 'No club'}</div>
@@ -52,13 +87,17 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
 
                         {crew.member2 && (
                             <>
-                                 {crew.member2.picture && (
-                                    <div className="avatar ml-4"> {/* Removed ml-4 for compactness */}
+                                <div className="avatar ml-4">
+                                    {crew.member2.picture ? (
                                         <div className="w-16 rounded-full">
                                             <img src={crew.member2.picture} alt={`${crew.member2.first_name} ${crew.member2.last_name}`} />
                                         </div>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <div className="placeholder bg-neutral-focus text-neutral-content rounded-full w-16">
+                                            <span className="text-xl">{(crew.member2.first_name?.[0] || '') + (crew.member2.last_name?.[0] || '')}</span>
+                                        </div>
+                                    )}
+                                </div>
                                 <div>
                                     <div className="font-bold">{crew.member2.first_name} {crew.member2.last_name}</div>
                                 </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import "./gateScore.css";
 import GateScoreArrowRenderer from "./GateScoreArrowRenderer";
 import GateCountdownTimer from "./GateCountdownTimer";
 import { Contestant, NavigationTask, GateArrowData } from "../../types";
@@ -18,7 +19,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     navigationTask,
     gateArrowData,
     width = 512, // Default width from original css
-    height = 110, // Default height from original css
+    height = 80, // Default height from original css
 }) => {
     const [currentArrowData, setCurrentArrowData] = useState<GateArrowData | undefined>(gateArrowData);
     const [finished, setFinished] = useState<{ [key: number]: boolean }>({});

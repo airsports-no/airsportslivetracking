@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from "react";
 import blackImageSrc from './gate_score_arrow_black.gif';
 import redImageSrc from './gate_score_arrow_red.gif';
 
-const HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW = 55, HORIZONTAL_LINE_THICKNESS = 3, NUMBER_PADDING = 12, PADDING = 36,
+const HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW = 20, HORIZONTAL_LINE_THICKNESS = 3, NUMBER_PADDING = 12, PADDING = 36,
     ARROW_ICON_HEIGHT = 50,  BELOW_LINE_TEXT_X_OFFSET = 20, ANIMATION_STEPS = 10,
     ANIMATION_TIME = 1000,  TOP_OFFSET = 0
 const ARROW_ICON_WIDTH = ARROW_ICON_HEIGHT / 1.3
@@ -147,10 +147,10 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
         if (final) {
             imageObj = redImage;
         }
+        const arrowY=height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW - ARROW_ICON_HEIGHT - 4
         if (previousArrowPositionRef.current !== null) {
-            context.clearRect(previousArrowPositionRef.current - ARROW_ICON_WIDTH / 2, 0, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT+4);
+            context.clearRect(previousArrowPositionRef.current - ARROW_ICON_WIDTH / 2, arrowY, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT);
         }
-        const arrowY=height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW - ARROW_ICON_HEIGHT
         previousArrowPositionRef.current = x;
         drawRerenderedBackground(context);
         context.fillStyle = "#FFFFFF";
