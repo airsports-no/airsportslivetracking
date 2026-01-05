@@ -15,6 +15,13 @@ function renderWaypointLabels(
     selectedContestantId: number | null
 ): L.Layer[] {
     const layers: L.Layer[] = [];
+    const emptyIcon = L.divIcon({
+        className: 'leaflet-div-icon-empty',
+        html: '',
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+    });
+
     waypoints.forEach(waypoint => {
         let label = waypoint.name; // Initialize label with waypoint name
 
@@ -25,7 +32,7 @@ function renderWaypointLabels(
         }
 
         const marker = L.marker([waypoint.latitude, waypoint.longitude], {
-            opacity: 0, // Invisible marker
+            icon: emptyIcon, // Use a completely transparent icon
         }).addTo(map);
 
         marker.bindTooltip(label, { // Use the constructed label here
