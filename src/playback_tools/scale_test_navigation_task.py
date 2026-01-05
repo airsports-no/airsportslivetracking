@@ -202,8 +202,14 @@ def create_contestants(
             tracking_device=TRACKING_PILOT,
             wind_direction=current_old_contestant.wind_direction,
             wind_speed=current_old_contestant.wind_speed,
-            adaptive_start=True,
+            adaptive_start=False,
         )
+        Contestant.objects.filter(pk=contestant_object.pk).update(
+            predefined_gate_times=contestant_object.calculate_missing_gate_times(
+                {}, start_time + (current_contestant_index + 1) * start_interval
+            )
+        )
+
         created_contestants.append(
             (
                 contestant_object,

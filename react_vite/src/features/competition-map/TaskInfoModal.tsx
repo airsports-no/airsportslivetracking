@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { fetchNavigationTask } from './api';
 import type { NavigationTask } from './types';
 import { Loading } from '../route-editor/components/basicComponents';
@@ -8,22 +8,27 @@ import AboutAirsports from './components/rules/AboutAirsports';
 import AboutANR from './components/rules/AboutANR';
 import AboutPilotPokerRun from './components/rules/AboutPilotPokerRun';
 import AboutPrecisionFlying from './components/rules/AboutPrecisionFlying';
-import { ArrowLeft } from 'lucide-react';
 
-const TaskInfoPage: React.FC = () => {
+interface Props {
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+const TaskInfoModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const { contestId, navigationTaskId } = useParams();
     const [navTask, setNavTask] = useState<NavigationTask | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (contestId && navigationTaskId) {
+        // Only fetch data when the modal is opened for the first time
+        if (isOpen && !navTask && contestId && navigationTaskId) {
             setLoading(true);
             fetchNavigationTask(Number(contestId), Number(navigationTaskId))
                 .then(setNavTask)
                 .catch(console.error)
                 .finally(() => setLoading(false));
         }
-    }, [contestId, navigationTaskId]);
+    }, [isOpen, navTask, contestId, navigationTaskId]);
 
     const renderRules = () => {
         if (!navTask) return null;
@@ -47,31 +52,38 @@ const TaskInfoPage: React.FC = () => {
         
         return <div className="alert alert-warning">No specific rules found for this task type.</div>;
     };
+    
+    if (!isOpen) {
+        return null;
+    }
 
     return (
-        <div className="container mx-auto p-4 max-w-4xl">
-            <div className="mb-6">
-                <Link to={`/competition-map/${contestId}/${navigationTaskId}`} className="btn btn-ghost">
-                    <ArrowLeft size={16} className="mr-2" />
-                    Back to Map
-                </Link>
-            </div>
+        <dialog className="modal modal-open z-[2000]" onClick={onClose}>
+            <div className="modal-box w-11/12 max-w-4xl relative" onClick={e => e.stopPropagation()}>
+                <form method="dialog">
+                    <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onClick={onClose}>✕</button>
+                </form>
 
-            {loading ? (
-                <div className="text-center p-10">
-                    <Loading />
+                {loading ? (
+                    <div className="text-center p-10">
+                        <Loading />
+                    </div>
+                ) : navTask ? (
+                    <div className="prose lg:prose-xl max-w-none">
+                        <h1 className="text-4xl font-extrabold text-primary mb-2">{navTask.name}</h1>
+                        <h2 className="text-xl font-bold text-secondary mb-6">{navTask.contest.name}</h2>
+                        <div className="divider"></div>
+                        {renderRules()}
+                    </div>
+                ) : (
+                    <div className="alert alert-error">Could not load navigation task information.</div>
+                )}
+                 <div className="modal-action mt-6">
+                    <button className="btn" onClick={onClose}>Close</button>
                 </div>
-            ) : navTask ? (
-                <div className="prose lg:prose-xl bg-base-100 p-6 rounded-lg shadow">
-                    <h1>{navTask.name}</h1>
-                    <div className="divider"></div>
-                    {renderRules()}
-                </div>
-            ) : (
-                <div className="alert alert-error">Could not load navigation task information.</div>
-            )}
-        </div>
+            </div>
+        </dialog>
     );
 }
 
-export default TaskInfoPage;
+export default TaskInfoModal;

@@ -16,8 +16,10 @@ import TimelineControls from "./components/TimelineControls";
 import TeamPresentation from './components/TeamPresentation';
 import ClockDisplay from './components/ClockDisplay';
 import Disclaimer from './components/Disclaimer';
+import TaskInfoModal from './TaskInfoModal';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import GateScoreArrowV2 from './components/gateScoreArrow/GateScoreArrowV2'; // Import GateScoreArrowV2
+
 
 
 
@@ -34,6 +36,8 @@ export default function CompetitionMapPage() {
   const [userShowSecrets, setUserShowSecrets] = useState(true);
   const [hasMapBeenFitted, setHasMapBeenFitted] = useState(false); // New state for initial map fit
   const [isRankingCollapsed, setIsRankingCollapsed] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+
 
 
   const teamPresentationContainerRef = useRef<HTMLDivElement>(null);
@@ -216,10 +220,10 @@ export default function CompetitionMapPage() {
     const dir = staticNavTaskData.score_sorting_direction;
     const allContestantsData = Object.values(contestantsById);
     const total = allContestantsData.length;
+    const startGateName = staticNavTaskData.route.waypoints.find(wp => wp.type === 'sp')?.name;
 
     const getContestantsWithState = () => {
       if (mode === 'playback') {
-        const startGateName = staticNavTaskData.route.waypoints.find(wp => wp.type === 'sp')?.name;
         const finishGateName = staticNavTaskData.route.waypoints.find(wp => wp.type === 'fp')?.name;
 
         return allContestantsData.map((c, index) => { // Updated
@@ -232,23 +236,44 @@ export default function CompetitionMapPage() {
             state = 'Enroute';
           }
 
+          let countdown = null;
+          if (state === 'Waiting...' && !c.adaptive_start && startGateName && c.gate_times?.[startGateName]) {
+              const startTime = new Date(c.gate_times[startGateName]);
+              const diffSeconds = (startTime.getTime() - currentTime.getTime()) / 1000;
+              if (diffSeconds > 0) {
+                  countdown = diffSeconds;
+              }
+          }
+
           return {
             id: c.id,
             name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
             score: currentScores[c.id] ?? staticNavTaskData.scorecard.initial_score ?? 0,
             state: state,
-            color: `hsl(${(index / total) * 360}, 70%, 50%)`
+            color: `hsl(${(index / total) * 360}, 70%, 50%)`,
+            countdown: countdown,
           };
         });
       }
 
-      return allContestantsData.map((c, index) => ({ // Updated
-        id: c.id,
-        name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
-        score: c.contestanttrack?.score ?? 0,
-        state: c.contestanttrack?.current_state ?? 'Waiting...',
-        color: `hsl(${(index / total) * 360}, 70%, 50%)`
-      }));
+      return allContestantsData.map((c, index) => {
+        let countdown = null;
+        if (c.contestanttrack?.current_state === 'Waiting...' && !c.adaptive_start && startGateName && c.gate_times?.[startGateName]) {
+            const startTime = new Date(c.gate_times[startGateName]);
+            const diffSeconds = (startTime.getTime() - currentTime.getTime()) / 1000;
+            if (diffSeconds > 0) {
+                countdown = diffSeconds;
+            }
+        }
+        return {
+            id: c.id,
+            name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
+            score: c.contestanttrack?.score ?? 0,
+            state: c.contestanttrack?.current_state ?? 'Waiting...',
+            color: `hsl(${(index / total) * 360}, 70%, 50%)`,
+            countdown: countdown,
+        };
+      });
     };
 
     const allContestants = getContestantsWithState();
@@ -275,6 +300,7 @@ export default function CompetitionMapPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-66px)]">
+      <TaskInfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
       <ToastContainer toasts={toasts} removeToast={removeToast} /> {/* Render ToastContainer */}
       <div className="flex-1 relative">
         <div id="map-container" className="h-full w-full" />
@@ -327,7 +353,7 @@ export default function CompetitionMapPage() {
                 <input type="checkbox" className="toggle toggle-xs" checked={showFullTrails} onChange={e => setShowFullTrails(e.target.checked)} />
               </label>
 
-              <Link to={`/competition-map/${contestIdNum}/${navigationTaskIdNum}/info`} className="btn btn-xs btn-outline">Task Info</Link>
+              <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline">Task Info</button>
               {staticNavTaskData?.user_has_change_permission && (
                 <a href={document.configuration.editNavigationTaskUrl(navigationTaskId)} className="btn btn-xs btn-outline ml-2">Manage Task</a>
               )}

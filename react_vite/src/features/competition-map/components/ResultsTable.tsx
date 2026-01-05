@@ -6,12 +6,28 @@ interface Row {
   score: number;
   state?: string;
   color?: string;
+  countdown?: number | null;
 }
 
 interface Props {
     rows: Row[];
     onRowClick?: (id: number) => void;
     dividerIndex?: number;
+}
+
+function formatCountdown(totalSeconds: number): string {
+    const negative = totalSeconds < 0;
+    const seconds = Math.abs(totalSeconds);
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    
+    const pad = (num: number) => String(num).padStart(2, '0');
+    let timeString = `${pad(m)}:${pad(s)}`;
+    if (h > 0) {
+        timeString = `${pad(h)}:${timeString}`;
+    }
+    return negative ? `+${timeString}` : `-${timeString}`;
 }
 
 export default function ResultsTable({ rows, onRowClick, dividerIndex = -1 }: Props) {
@@ -38,7 +54,13 @@ export default function ResultsTable({ rows, onRowClick, dividerIndex = -1 }: Pr
               <tr onClick={() => onRowClick?.(r.id)} className={onRowClick ? 'cursor-pointer hover:bg-base-300' : ''}>
                 <td style={{borderLeft: `4px solid ${r.color ?? 'transparent'}`}}>{idx + 1}</td>
                 <td>{r.name}</td>
-                <td>{r.score.toFixed(0)}</td>
+                <td>
+                    {r.countdown && r.countdown > 0 ? (
+                        formatCountdown(r.countdown)
+                    ) : (
+                        r.score.toFixed(0)
+                    )}
+                </td>
               </tr>
             </React.Fragment>
           ))}
