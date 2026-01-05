@@ -8,7 +8,7 @@ interface Props {
     score: number;
     dangerData?: DangerData;
     gateArrowData?: GateArrowData;
-    // Remove navTask prop
+    // navTask prop is removed from TeamPresentation
 }
 
 const TeamPresentation = ({ contestant, score, dangerData, gateArrowData }: Props) => { // Remove navTask
@@ -19,23 +19,15 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData }: Prop
 
     return (
         <div className="flex items-end gap-4">
-            {/* Right side: Thermometer */}
-            <DangerThermometerDisplay dangerData={dangerData} />
-
-            <div className="bg-base-100/80 backdrop-blur-md shadow-lg rounded-lg p-4 w-[450px]">
-                {/* Top part with score and gate arrow */}
-                <div className="grid grid-cols-2 gap-4 items-center">
-                    <div>
-                        <div className="text-5xl font-bold text-primary">{score.toFixed(0)}</div>
-                        <div className="text-xs opacity-60">CURRENT SCORE</div>
-                    </div>
-                    <div className="bg-black/20 rounded-lg">
-                        {/* Gate Score Arrow will be rendered externally */}
-                        <div className="w-48 h-24 bg-base-300/50 rounded flex items-center justify-center text-sm text-white/70">Gate Score Arrow</div>
-                    </div>
+            {/* Main Content Box: Score and Crew Info */}
+            <div className="bg-base-100/80 backdrop-blur-md shadow-lg rounded-lg p-3 w-auto"> {/* Removed fixed width, reduced padding */}
+                {/* Top part with score (Gate Score Arrow placeholder removed) */}
+                <div className="text-center mb-2"> {/* Simplified layout, smaller font for compactness */}
+                    <div className="text-4xl font-bold text-primary">{score.toFixed(0)}</div>
+                    <div className="text-xs opacity-60">CURRENT SCORE</div>
                 </div>
 
-                <div className="divider my-3"></div>
+                {/* Removed divider my-3 */}
 
                 {/* Bottom part with crew info */}
                 <div className="flex items-center gap-4">
@@ -54,7 +46,7 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData }: Prop
                     {crew.member2 && (
                         <>
                              {crew.member2.picture && (
-                                <div className="avatar ml-4">
+                                <div className="avatar ml-4"> {/* Removed ml-4 for compactness */}
                                     <div className="w-16 rounded-full">
                                         <img src={crew.member2.picture} alt={`${crew.member2.first_name} ${crew.member2.last_name}`} />
                                     </div>
@@ -67,6 +59,9 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData }: Prop
                     )}
                 </div>
             </div>
+            
+            {/* Thermometer Display (moved to the right) */}
+            <DangerThermometerDisplay dangerData={dangerData} />
         </div>
     );
 };

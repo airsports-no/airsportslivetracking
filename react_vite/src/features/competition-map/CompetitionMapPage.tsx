@@ -389,9 +389,9 @@ export default function CompetitionMapPage() {
 
         {selectedContestant && (
           // Container for TeamPresentation and GateScoreArrowV2
-          <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24' : 'bottom-4'} flex items-end gap-4 w-11/12 md:w-3/4 lg:w-1/2 max-w-screen-md justify-end`}> {/* Responsive container */}
+          <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-12' : 'bottom-2'} flex items-end gap-4 w-11/12 md:w-3/4 lg:w-1/2 max-w-screen-md justify-end`}> {/* Responsive container */}
             {staticNavTaskData && ( // Only render GateScoreArrowV2 if navTask is available
-                <div ref={gateArrowContainerRef} className="relative w-full"> {/* Responsive container for GateScoreArrowV2 */}
+                <div ref={gateArrowContainerRef} className="relative flex-1"> {/* Responsive container for GateScoreArrowV2 */}
                     <GateScoreArrowV2
                         contestant={selectedContestant}
                         navigationTask={staticNavTaskData}
