@@ -60,15 +60,18 @@ class GatekeeperRoute(Gatekeeper):
         """
         Calculate expected crossing times for all outstanding gates given the start time.
         """
+        self.contestant.refresh_from_db()
         gate_times = self.contestant.calculate_missing_gate_times({}, start_time)
-        self.contestant.gate_times = gate_times
-        logger.info(f"Recalculating gates times for contestant {self.contestant}: {self.contestant.gate_times}")
-        for item in self.outstanding_gates:  # type: Gate
+        Contestant.objects.filter(pk=self.contestant.pk).update(predefined_gate_times=gate_times)
+        logger.info(f"Recalculating gates times for contestant {self.contestant}: {gate_times}")
+        self.contestant.refresh_from_db()
+        self.websocket_facade.transmit_contestant(self.contestant)
+        for item in self.outstanding_gates:
             item.expected_time = gate_times[item.name]
         if self.landing_gate is not None:
             self.landing_gate.set_expected_time(gate_times[self.landing_gate.name])
         self.recalculation_completed = True
-        self.contestant.save()
+        self.websocket_facade.transmit_contestant(self.contestant)
 
     def update_gate_score(
         self,
