@@ -16,7 +16,7 @@ const DangerThermometerDisplay = ({ dangerData }: Props) => {
             {clamped === 100 && accumulatedScore > 0 && (
                 <div className="relative mb-2">
                     <img alt="Accumulated score background" src={`${document.configuration.STATIC_FILE_LOCATION}img/gate_score_arrow_black.gif`} style={{width: "100px"}}/>
-                    <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">
+                    <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-[10px]">
                         {accumulatedScore}
                     </div>
                 </div>
@@ -28,7 +28,7 @@ const DangerThermometerDisplay = ({ dangerData }: Props) => {
                 style={{ height: `${clamped}%`, transition: 'height 0.3s ease' }}
                 />
             </div>
-            <div className="mt-1 text-xs text-white/80">{clamped.toFixed(0)}%</div>
+            <div className="mt-1 text-lg text-black">{clamped.toFixed(0)}%</div>
         </div>
     );
 }

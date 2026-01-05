@@ -158,7 +158,7 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
         context.font = "bold 12pt Verdana";
         let string = "" + Math.round(value);
         if (missed) {
-            context.font = "bold 13pt Verdana";
+            context.font = "bold 10pt Verdana";
             string = "MISS";
         }
         context.fillText(string, x - context.measureText(string).width / 2, arrowY+25);
