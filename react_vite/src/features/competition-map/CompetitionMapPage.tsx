@@ -15,7 +15,9 @@ import RouteRenderer from "./components/track-renderers/RouteRenderer";
 import TimelineControls from "./components/TimelineControls";
 import TeamPresentation from './components/TeamPresentation';
 import ClockDisplay from './components/ClockDisplay';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import GateScoreArrowV2 from './components/gateScoreArrow/GateScoreArrowV2'; // Import GateScoreArrowV2
+
 
 
 export default function CompetitionMapPage() {
@@ -30,6 +32,8 @@ export default function CompetitionMapPage() {
   const [userShowBackgroundMap, setUserShowBackgroundMap] = useState(true);
   const [userShowSecrets, setUserShowSecrets] = useState(true);
   const [hasMapBeenFitted, setHasMapBeenFitted] = useState(false); // New state for initial map fit
+  const [isRankingCollapsed, setIsRankingCollapsed] = useState(false);
+
 
   const teamPresentationContainerRef = useRef<HTMLDivElement>(null);
   const [teamPresentationScale, setTeamPresentationScale] = useState(1);
@@ -292,9 +296,15 @@ export default function CompetitionMapPage() {
         {/* The toast display will now be placed relative to this flex-1 relative container */}
 
 
-        <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96">
+        <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96 max-w-[calc(100vw-2rem)]">
           <div className="p-2 border-b border-base-300">
-            <h2 className="font-bold text-lg truncate" title={staticNavTaskData?.name}>{staticNavTaskData?.name ?? 'Loading...'}</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="font-bold text-lg truncate" title={staticNavTaskData?.name}>{staticNavTaskData?.name ?? 'Loading...'}</h2>
+              <button onClick={() => setIsRankingCollapsed(!isRankingCollapsed)} className="btn btn-ghost btn-sm btn-square">
+                {isRankingCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+              </button>
+            </div>
+
 
             <div className="flex justify-between items-center mt-2 flex-wrap gap-2">
               <div className="join">
@@ -364,33 +374,37 @@ export default function CompetitionMapPage() {
             )}
           </div>
 
-          {progress.total > 0 && progress.loaded < progress.total && (
-            <div className="p-2 border-b border-base-300">
-                <div className="text-xs font-bold">Loading Contestant Data...</div>
-                <progress 
-                    className="progress progress-primary w-full" 
-                    value={progress.loaded} 
-                    max={progress.total}
-                ></progress>
-                <div className="text-xs text-right">{progress.loaded} / {progress.total}</div>
-            </div>
-          )}
+          {!isRankingCollapsed && (
+            <>
+              {progress.total > 0 && progress.loaded < progress.total && (
+                <div className="p-2 border-b border-base-300">
+                    <div className="text-xs font-bold">Loading Contestant Data...</div>
+                    <progress 
+                        className="progress progress-primary w-full" 
+                        value={progress.loaded} 
+                        max={progress.total}
+                    ></progress>
+                    <div className="text-xs text-right">{progress.loaded} / {progress.total}</div>
+                </div>
+              )}
 
-          {showScoreLog && selectedContestantId ? (
-            <ScoreLogTable
-              scoreLog={filteredScoreLog}
-              contestantName={`#${selectedContestant?.contestant_number} ${selectedContestant?.team?.crew?.member1?.first_name ?? ''}`}
-              onClose={() => setShowScoreLog(false)}
-            />
-          ) : (
-            <ResultsTable
-              rows={standings}
-              dividerIndex={firstWaitingIndex}
-              onRowClick={(id) => {
-                setSelectedContestantId(id);
-                setShowScoreLog(false);
-              }}
-            />
+              {showScoreLog && selectedContestantId ? (
+                <ScoreLogTable
+                  scoreLog={filteredScoreLog}
+                  contestantName={`#${selectedContestant?.contestant_number} ${selectedContestant?.team?.crew?.member1?.first_name ?? ''}`}
+                  onClose={() => setShowScoreLog(false)}
+                />
+              ) : (
+                <ResultsTable
+                  rows={standings}
+                  dividerIndex={firstWaitingIndex}
+                  onRowClick={(id) => {
+                    setSelectedContestantId(id);
+                    setShowScoreLog(false);
+                  }}
+                />
+              )}
+            </>
           )}
         </div>
 
