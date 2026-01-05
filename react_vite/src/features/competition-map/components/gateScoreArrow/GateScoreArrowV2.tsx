@@ -97,7 +97,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
 
     return (
         <div className={"gate-score-arrow"}>
-            <div className="flex justify-between items-center p-1">
+            <div className="flex justify-between items-start p-1">
                 <div className={"gate-score-next-gate"}>
                     NEXT GATE: {currentArrowData.waypoint_name}
                 </div>

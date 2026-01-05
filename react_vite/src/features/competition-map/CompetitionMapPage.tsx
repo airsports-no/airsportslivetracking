@@ -31,6 +31,25 @@ export default function CompetitionMapPage() {
   const [userShowSecrets, setUserShowSecrets] = useState(true);
   const [hasMapBeenFitted, setHasMapBeenFitted] = useState(false); // New state for initial map fit
 
+  const gateArrowContainerRef = useRef<HTMLDivElement>(null);
+  const [gateArrowSize, setGateArrowSize] = useState({ width: 512, height: 110 });
+
+  useEffect(() => {
+      const element = gateArrowContainerRef.current;
+      if (!element) return;
+
+      const observer = new ResizeObserver(entries => {
+          if (entries[0]) {
+              const width = entries[0].contentRect.width;
+              if (width > 0) {
+                setGateArrowSize({ width, height: (width * 110) / 512 });
+              }
+          }
+      });
+      observer.observe(element);
+      return () => observer.disconnect();
+  }, []);
+
   const { toasts, showToast, removeToast, ToastContainer } = useToast(); // Initialize toast hook
 
 
@@ -370,20 +389,20 @@ export default function CompetitionMapPage() {
 
         {selectedContestant && (
           // Container for TeamPresentation and GateScoreArrowV2
-          <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24' : 'bottom-4'} flex items-end gap-4`}> {/* Added flex and gap */}
+          <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24' : 'bottom-4'} flex items-end gap-4 w-11/12 md:w-3/4 lg:w-1/2 max-w-screen-md justify-end`}> {/* Responsive container */}
             {staticNavTaskData && ( // Only render GateScoreArrowV2 if navTask is available
-                <div className="relative w-[512px] h-[110px]"> {/* Container for GateScoreArrowV2 with fixed size */}
+                <div ref={gateArrowContainerRef} className="relative w-full"> {/* Responsive container for GateScoreArrowV2 */}
                     <GateScoreArrowV2
                         contestant={selectedContestant}
                         navigationTask={staticNavTaskData}
                         gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
-                        width={512} // Explicitly pass width
-                        height={110} // Explicitly pass height
+                        width={gateArrowSize.width} // Dynamic width
+                        height={gateArrowSize.height} // Dynamic height
                     />
                 </div>
             )}
             {!staticNavTaskData && (
-                 <div className="w-[512px] h-[110px] bg-base-300/50 rounded flex items-center justify-center text-sm text-white/70">Loading gate data...</div>
+                 <div className="w-full h-[110px] bg-base-300/50 rounded flex items-center justify-center text-sm text-white/70">Loading gate data...</div>
             )}
 
 

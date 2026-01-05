@@ -9,16 +9,14 @@ const GateCountdownTimer: React.FC<GateCountdownTimerProps> = ({ secondsToPlanne
     // Note that the seconds to planned crossing is negative before and positive after. We therefore play with 
     // signs to make it correct.
     return (
-        <div className="text-black mt-2"> {/* color: black; margin-top: 7px; */}
+        <div className="text-black text-right">
             <div
-                className={`text-center text-xl ${secondsToPlannedCrossing >= 1 ? "text-red-600" : ""}`} // text-align: center; font-size: x-large; color: #e50000;
+                className={`text-xl ${secondsToPlannedCrossing >= 1 ? "text-red-600" : ""}`}
             >
-                {secondsToPlannedCrossing <= 0 ? (-secondsToPlannedCrossing).toFixed(0) : secondsToPlannedCrossing.toFixed(0)}
+                {secondsToPlannedCrossing <= 0 ? (-secondsToPlannedCrossing).toFixed(0) : secondsToPlannedCrossing.toFixed(0)}s
+                <span className="text-base ml-2">({crossingOffsetEstimate < 0 ? "" : "+"}{crossingOffsetEstimate.toFixed(0)}s)</span>
             </div>
-            <div className="text-center text-xs w-full">COUNTDOWN SEC</div> {/* font-size: 8px; width: 100vw; (changed to w-full) */}
-            <div className="text-center text-base"> {/* text-align: center; font-size: medium; */}
-                {crossingOffsetEstimate < 0 ? "-" : "+"}{Math.abs(crossingOffsetEstimate).toFixed(0)}s
-            </div>
+            <div className="text-center text-xs w-full">COUNTDOWN SEC</div>
         </div>
     );
 }

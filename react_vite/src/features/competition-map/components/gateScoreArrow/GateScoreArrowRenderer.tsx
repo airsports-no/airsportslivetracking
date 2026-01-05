@@ -2,10 +2,10 @@ import React, { useRef, useEffect } from "react";
 import blackImageSrc from './gate_score_arrow_black.gif';
 import redImageSrc from './gate_score_arrow_red.gif';
 
-const ARROW_HEIGHT = 92, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 10, NUMBER_PADDING = 5, PADDING = 36,
-    ARROW_ICON_WIDTH = 70, BELOW_LINE_TEXT_POSITION = 75, BELOW_LINE_TEXT_X_OFFSET = 20, ANIMATION_STEPS = 10,
-    ANIMATION_TIME = 1000, ARROW_TOP_OFFSET = 0, TOP_OFFSET = 42
-const ARROW_ICON_HEIGHT = ARROW_ICON_WIDTH * 1.3
+const HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW = 55, HORIZONTAL_LINE_THICKNESS = 3, NUMBER_PADDING = 12, PADDING = 36,
+    ARROW_ICON_HEIGHT = 50,  BELOW_LINE_TEXT_X_OFFSET = 20, ANIMATION_STEPS = 10,
+    ANIMATION_TIME = 1000,  TOP_OFFSET = 0
+const ARROW_ICON_WIDTH = ARROW_ICON_HEIGHT / 1.3
 
 interface GateScoreArrowRendererProps {
     width: number;
@@ -81,44 +81,45 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
         context.fillStyle = "#a6a6a6";
         context.font = "10pt Verdana";
         const string = "" + Math.ceil(value);
-        context.fillText(string, x - context.measureText(string).width / 2, ARROW_HEIGHT + length + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING);
+        context.fillText(string, x - context.measureText(string).width / 2, height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING);
     };
 
     const drawGracePeriod = (context: CanvasRenderingContext2D) => {
         context.fillStyle = "#92d468";
         const x = secondsToPosition(-gracePeriodBefore);
         const graceWidth = secondsToPosition(gracePeriodAfter) - x;
-        context.fillRect(x - 1, TOP_OFFSET, graceWidth + 2, ARROW_ICON_HEIGHT - TOP_OFFSET + 1);
+        context.fillRect(x - 1, TOP_OFFSET, graceWidth + 2, height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW - HORIZONTAL_LINE_THICKNESS);
     };
 
     const drawNumberLine = (context: CanvasRenderingContext2D) => {
         const maximumSeconds = Math.max(gracePeriodAfter, gracePeriodBefore) + Math.ceil(maximumTimingPenalty / pointsPerSecond);
         // Mainline
         context.fillStyle = "#000000";
-        context.fillRect(PADDING, ARROW_HEIGHT, width - PADDING * 2, HORIZONTAL_LINE_THICKNESS);
+        context.fillRect(PADDING, height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW, width - PADDING * 2, HORIZONTAL_LINE_THICKNESS);
         drawGracePeriod(context);
         context.font = "10pt Verdana";
         context.fillStyle = "#262626";
         const textSize = context.measureText("PENALTY");
         const penaltytext = secondsToPosition(0) - textSize.width / 2;
-        context.fillText("PENALTY", penaltytext, ARROW_HEIGHT + VERTICAL_LINE_LENGTH + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING);
+        context.fillText("PENALTY", penaltytext, height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING);
         for (let i = maximumSeconds; i > Math.max(gracePeriodAfter, gracePeriodBefore); i /= 4) {
             const leftPosition = secondsToPosition(-i);
             const rightPosition = secondsToPosition(i);
             if (leftPosition > penaltytext - 5 || rightPosition < penaltytext + textSize.width + 5) {
                 continue;
             }
-            drawNumberAtPosition(context, leftPosition, secondsToPoints(Math.floor(-i)), VERTICAL_LINE_LENGTH);
-            drawNumberAtPosition(context, rightPosition, secondsToPoints(Math.ceil(i)), VERTICAL_LINE_LENGTH);
+            drawNumberAtPosition(context, leftPosition, secondsToPoints(Math.floor(-i)), 0);
+            drawNumberAtPosition(context, rightPosition, secondsToPoints(Math.ceil(i)), 0);
         }
     };
 
     const drawRerenderedBackground = (context: CanvasRenderingContext2D) => {
         context.font = "16pt Verdana";
         context.fillStyle = "#a6a6a6";
-        context.fillText("EARLY", PADDING + BELOW_LINE_TEXT_X_OFFSET, BELOW_LINE_TEXT_POSITION);
+        const y= height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW - 10;
+        context.fillText("EARLY", PADDING + BELOW_LINE_TEXT_X_OFFSET, y);
         const latex = width - context.measureText("Late").width - PADDING - BELOW_LINE_TEXT_X_OFFSET;
-        context.fillText("LATE", latex, BELOW_LINE_TEXT_POSITION);
+        context.fillText("LATE", latex, y);
         drawGracePeriod(context);
     };
 
@@ -147,19 +148,20 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
             imageObj = redImage;
         }
         if (previousArrowPositionRef.current !== null) {
-            context.clearRect(previousArrowPositionRef.current - ARROW_ICON_WIDTH / 2, 0, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT);
+            context.clearRect(previousArrowPositionRef.current - ARROW_ICON_WIDTH / 2, 0, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT+4);
         }
+        const arrowY=height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW - ARROW_ICON_HEIGHT
         previousArrowPositionRef.current = x;
         drawRerenderedBackground(context);
         context.fillStyle = "#FFFFFF";
-        context.drawImage(imageObj, start, ARROW_TOP_OFFSET, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT);
-        context.font = "bold 18pt Verdana";
+        context.drawImage(imageObj, start, arrowY, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT);
+        context.font = "bold 12pt Verdana";
         let string = "" + Math.round(value);
         if (missed) {
             context.font = "bold 13pt Verdana";
             string = "MISS";
         }
-        context.fillText(string, x - context.measureText(string).width / 2, 45 + ARROW_TOP_OFFSET);
+        context.fillText(string, x - context.measureText(string).width / 2, arrowY+25);
     };
 
     const drawEverything = () => {
@@ -237,7 +239,7 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
 
 
     return (
-        <div className="gate-arrow-canvas">
+        <div className="">
             <canvas id="myCanvas" ref={canvasRef} width={width} height={height} />
         </div>
     );
