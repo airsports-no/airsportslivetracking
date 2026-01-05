@@ -18,7 +18,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     gateArrowData,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [size, setSize] = useState({ width: 0, height: 0 });
+    const [size, setSize] = useState({ width: 512, height: 90 }); // Default aspect ratio
 
     useEffect(() => {
         const element = containerRef.current;
@@ -32,7 +32,6 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                 }
             }
         });
-
         observer.observe(element);
         return () => observer.disconnect();
     }, []);
@@ -124,21 +123,19 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                 />
             </div>
             <div className={"gate-arrow-shadow"}>
-                {size.width > 0 && 
-                    <GateScoreArrowRenderer
-                        width={size.width}
-                        height={size.height}
-                        pointsPerSecond={getPointsPerSecond()}
-                        maximumTimingPenalty={getMaximumTimingPenalty()}
-                        gracePeriodBefore={getGracePeriodBefore()}
-                        gracePeriodAfter={getGracePeriodAfter()}
-                        crossingOffsetEstimate={currentArrowData.estimated_crossing_offset}
-                        estimatedScore={currentArrowData.estimated_score}
-                        contestantId={contestant.id}
-                        final={currentArrowData.final}
-                        missed={currentArrowData.missed}
-                    />
-                }
+                <GateScoreArrowRenderer
+                    width={size.width}
+                    height={size.height}
+                    pointsPerSecond={getPointsPerSecond()}
+                    maximumTimingPenalty={getMaximumTimingPenalty()}
+                    gracePeriodBefore={getGracePeriodBefore()}
+                    gracePeriodAfter={getGracePeriodAfter()}
+                    crossingOffsetEstimate={currentArrowData.estimated_crossing_offset}
+                    estimatedScore={currentArrowData.estimated_score}
+                    contestantId={contestant.id}
+                    final={currentArrowData.final}
+                    missed={currentArrowData.missed}
+                />
             </div>
         </div>
     );
