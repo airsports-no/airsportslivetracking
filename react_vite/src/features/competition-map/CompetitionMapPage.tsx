@@ -423,6 +423,7 @@ export default function CompetitionMapPage() {
           <div ref={teamPresentationContainerRef} className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-12' : 'bottom-2'} w-11/12 md:w-3/4 lg:w-1/2 max-w-screen-md`}> {/* Responsive container */}
             <div className="flex items-end gap-4 justify-end">
               <TeamPresentation
+                key={selectedContestant.id}
                 scale={teamPresentationScale}
                 contestant={selectedContestant}
                 dangerData={dangerDataByContestant[selectedContestant.id]}

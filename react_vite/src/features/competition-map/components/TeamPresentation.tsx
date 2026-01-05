@@ -49,12 +49,12 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
                     <div className="flex items-center gap-4">
                         <div className="avatar">
                             {crew.member1.picture ? (
-                                <div className="w-16 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-                                    <img src={crew.member1.picture} alt={`${crew.member1.first_name} ${crew.member1.last_name}`}/>
+                                <div className="w-24 h-32 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2 overflow-hidden">
+                                    <img src={crew.member1.picture} alt={`${crew.member1.first_name} ${crew.member1.last_name}`} className="w-full h-full object-cover object-top" />
                                 </div>
                             ) : (
-                                <div className="placeholder bg-neutral-focus text-neutral-content rounded-full w-16 ring ring-primary ring-offset-base-100 ring-offset-2">
-                                    <span className="text-xl">{(crew.member1.first_name?.[0] || '') + (crew.member1.last_name?.[0] || '')}</span>
+                                <div className="placeholder bg-neutral-focus text-neutral-content w-24 h-32 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2">
+                                    <span className="text-3xl">{(crew.member1.first_name?.[0] || '') + (crew.member1.last_name?.[0] || '')}</span>
                                 </div>
                             )}
                         </div>
@@ -67,12 +67,12 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
                             <>
                                 <div className="avatar ml-4">
                                     {crew.member2.picture ? (
-                                        <div className="w-16 rounded-full">
-                                            <img src={crew.member2.picture} alt={`${crew.member2.first_name} ${crew.member2.last_name}`} />
+                                        <div className="w-24 h-32 rounded-lg overflow-hidden">
+                                            <img src={crew.member2.picture} alt={`${crew.member2.first_name} ${crew.member2.last_name}`} className="w-full h-full object-cover object-top" />
                                         </div>
                                     ) : (
-                                        <div className="placeholder bg-neutral-focus text-neutral-content rounded-full w-16">
-                                            <span className="text-xl">{(crew.member2.first_name?.[0] || '') + (crew.member2.last_name?.[0] || '')}</span>
+                                        <div className="placeholder bg-neutral-focus text-neutral-content w-24 h-32 rounded-lg">
+                                            <span className="text-3xl">{(crew.member2.first_name?.[0] || '') + (crew.member2.last_name?.[0] || '')}</span>
                                         </div>
                                     )}
                                 </div>
@@ -85,7 +85,7 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
                 </div>
                 
                 {/* Thermometer Display (moved to the right) */}
-                <DangerThermometerDisplay dangerData={dangerData} />
+                {dangerData && <DangerThermometerDisplay dangerData={dangerData} />}
             </div>
         </div>
     );
