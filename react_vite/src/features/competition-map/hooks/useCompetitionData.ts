@@ -51,6 +51,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimerRef = useRef<number | null>(null);
     const reconnectAttemptsRef = useRef(0);
+    const lastMessageTimeRef = useRef<number>(Date.now());
 
 
     const processWsMessage = useCallback((data: string) => {
@@ -332,33 +333,44 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             const ws = makeWebSocket(navigationTaskIdNum);
             wsRef.current = ws;
 
-            let pingInterval: number | null = null;
+            let heartbeatTimeout: number | null = null;
             let pongTimeout: number | null = null;
 
             const heartbeat = () => {
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
                     return; // Don't ping if not open
                 }
-                
+
+                // Schedule closing if pong is not received
                 pongTimeout = window.setTimeout(() => {
                     console.log("WebSocket pong timeout. Closing connection.");
                     wsRef.current?.close(); // This will trigger onclose and reconnection
                 }, 5000); // 5 seconds for pong response
 
                 ws.send(JSON.stringify({ type: 'ping' }));
+                
+                // Determine next ping interval based on activity
+                const timeSinceLastMessage = Date.now() - lastMessageTimeRef.current;
+                const INACTIVE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+                const NORMAL_PING_INTERVAL = 10000; // 10 seconds
+                const INACTIVE_PING_INTERVAL = 60000; // 60 seconds
+                const nextPingInterval = timeSinceLastMessage > INACTIVE_THRESHOLD ? INACTIVE_PING_INTERVAL : NORMAL_PING_INTERVAL;
+
+                if (heartbeatTimeout) clearTimeout(heartbeatTimeout);
+                heartbeatTimeout = window.setTimeout(heartbeat, nextPingInterval);
             };
 
             ws.onopen = () => {
                 console.log("WebSocket connected");
                 setWsStatus('connected');
                 reconnectAttemptsRef.current = 0; // Reset on successful connection
-                
-                if (pingInterval) clearInterval(pingInterval);
-                heartbeat(); // Send immediate ping on connect
-                pingInterval = window.setInterval(heartbeat, 10000); // Send a ping every 10 seconds
+                lastMessageTimeRef.current = Date.now();
+                heartbeat(); // Start the heartbeat loop
             };
 
             ws.onmessage = (ev) => {
+                lastMessageTimeRef.current = Date.now(); // Update activity timestamp
+
                 try {
                     const msg = JSON.parse(ev.data);
                     if (msg.type === 'pong') {
@@ -384,7 +396,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 setWsStatus('disconnected');
                 
                 // Clear intervals and timeouts
-                if (pingInterval) clearInterval(pingInterval);
+                if (heartbeatTimeout) clearTimeout(heartbeatTimeout);
                 if (pongTimeout) clearTimeout(pongTimeout);
 
                 reconnectAttemptsRef.current++;
@@ -416,6 +428,8 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 clearTimeout(reconnectTimerRef.current);
             }
 
+            // The connect function now handles clearing its own timers,
+            // but we still need to cleanly close the connection.
             if (wsRef.current) {
                 // Prevent onclose from firing and attempting to reconnect
                 wsRef.current.onclose = null;
