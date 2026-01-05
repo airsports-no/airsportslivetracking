@@ -31,7 +31,10 @@ export default function CompetitionMapPage() {
   const [userShowSecrets, setUserShowSecrets] = useState(true);
   const [hasMapBeenFitted, setHasMapBeenFitted] = useState(false); // New state for initial map fit
 
-  const { toasts, showToast, removeToast, ToastContainer } = useToast(); // Initialize toast hook
+  const teamPresentationContainerRef = useRef<HTMLDivElement>(null);
+  const [teamPresentationScale, setTeamPresentationScale] = useState(1);
+
+    const { toasts, showToast, removeToast, ToastContainer } = useToast(); // Initialize toast hook
 
 
   const {
@@ -44,6 +47,32 @@ export default function CompetitionMapPage() {
     gateArrowDataByContestant,
     progress,
   } = useCompetitionData(contestIdNum, navigationTaskIdNum, mode, showToast); // Pass showToast
+
+  const selectedContestant = useMemo(() => {
+    if (!selectedContestantId || !staticNavTaskData) return null; // Still needs staticNavTaskData for general check
+    return contestantsById[selectedContestantId]; // Updated
+  }, [selectedContestantId, staticNavTaskData, contestantsById]);
+
+  useEffect(() => {
+    const element = teamPresentationContainerRef.current;
+    if (!element) return;
+
+    const observer = new ResizeObserver(entries => {
+      if (entries[0]) {
+        const width = entries[0].contentRect.width;
+        // This is the ideal width of the TeamPresentation component at scale=1.
+        // It's used as a baseline to calculate the scale factor.
+        const designWidth = 800;
+        if (width > 0) {
+          setTeamPresentationScale(width / designWidth);
+        }
+      }
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [selectedContestant]);
+
 
   const mapRef = useMapInit();
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -225,10 +254,7 @@ export default function CompetitionMapPage() {
     return [...active, ...waiting];
   }, [staticNavTaskData, contestantsById, mode, currentScores, currentTime, scoreLogByContestant]);
 
-  const selectedContestant = useMemo(() => {
-    if (!selectedContestantId || !staticNavTaskData) return null; // Still needs staticNavTaskData for general check
-    return contestantsById[selectedContestantId]; // Updated
-  }, [selectedContestantId, staticNavTaskData, contestantsById]);
+
 
   const firstWaitingIndex = standings.findIndex(s => s.state === 'Waiting...');
 
@@ -370,14 +396,17 @@ export default function CompetitionMapPage() {
 
         {selectedContestant && (
           // Container for TeamPresentation and GateScoreArrowV2
-          <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-12' : 'bottom-2'} flex items-end gap-4 w-11/12 md:w-3/4 lg:w-1/2 max-w-screen-md justify-end`}> {/* Responsive container */}
-            <TeamPresentation
-              contestant={selectedContestant}
-              dangerData={dangerDataByContestant[selectedContestant.id]}
-              gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
-              score={standings.find(s => s.id === selectedContestant.id)?.score ?? 0}
-              navigationTask={staticNavTaskData}
-            />
+          <div ref={teamPresentationContainerRef} className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-12' : 'bottom-2'} w-11/12 md:w-3/4 lg:w-1/2 max-w-screen-md`}> {/* Responsive container */}
+            <div className="flex items-end gap-4 justify-end">
+              <TeamPresentation
+                scale={teamPresentationScale}
+                contestant={selectedContestant}
+                dangerData={dangerDataByContestant[selectedContestant.id]}
+                gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
+                score={standings.find(s => s.id === selectedContestant.id)?.score ?? 0}
+                navigationTask={staticNavTaskData}
+              />
+            </div>
           </div>
         )}
         {mode === 'playback' && playbackTimeInfo && (

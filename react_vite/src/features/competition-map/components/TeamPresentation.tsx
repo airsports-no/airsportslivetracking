@@ -10,52 +10,30 @@ interface Props {
     dangerData?: DangerData;
     gateArrowData?: GateArrowData;
     navigationTask: NavigationTask | null;
+    scale?: number;
 }
 
-const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, navigationTask }: Props) => {
+const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, navigationTask, scale = 1 }: Props) => {
     if (!contestant) return null;
-    const gateScoreArrowWidth=512, gateScoreArrowHeight=90;
     const { team } = contestant;
     const { crew, club } = team;
     const isPoker = navigationTask?.scorecard.task_type.includes("poker");
 
-    const gateArrowContainerRef = useRef<HTMLDivElement>(null);
-    const [gateArrowSize, setGateArrowSize] = useState({ width: gateScoreArrowWidth, height: gateScoreArrowHeight });
-
-    useEffect(() => {
-        const element = gateArrowContainerRef.current;
-        if (!element) return;
-
-        const observer = new ResizeObserver(entries => {
-            if (entries[0]) {
-                const width = entries[0].contentRect.width;
-                if (width > 0) {
-                    setGateArrowSize({ width, height: (width * gateScoreArrowHeight) / gateScoreArrowWidth });
-                }
-            }
-        });
-        observer.observe(element);
-        return () => observer.disconnect();
-    }, []);
-
     return (
-        <div className="flex items-end gap-4">
-            {isPoker && contestant.playing_cards && contestant.playing_cards.length > 0 && (
-                <div>
-                    <PlayingCards playingCards={contestant.playing_cards} />
-                </div>
-            )}
-            {!isPoker && navigationTask && (
-                <div ref={gateArrowContainerRef} className="flex-shrink-0 max-w-md">
+        <div className="flex items-end gap-4" style={{ transform: `scale(${scale})`, transformOrigin: 'bottom right' }}>
+            <div className="flex-shrink-0" style={{width: '512px'}}>
+                {isPoker ? (
+                    contestant.playing_cards && contestant.playing_cards.length > 0 && (
+                        <PlayingCards playingCards={contestant.playing_cards} />
+                    )
+                ) : (
                     <GateScoreArrowV2
                         contestant={contestant}
                         navigationTask={navigationTask}
                         gateArrowData={gateArrowData}
-                        width={gateArrowSize.width}
-                        height={gateArrowSize.height}
                     />
-                </div>
-            )}
+                )}
+            </div>
             <div className="flex items-end gap-4 relative z-20">
                 {/* Main Content Box: Score and Crew Info */}
                 <div className="bg-base-100/80 backdrop-blur-md shadow-lg rounded-lg p-3 w-auto"> {/* Removed fixed width, reduced padding */}

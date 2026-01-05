@@ -8,8 +8,6 @@ interface GateScoreArrowV2Props {
     contestant: Contestant;
     navigationTask: NavigationTask; // Need this to get scorecard and waypoints
     gateArrowData?: GateArrowData;
-    width?: number; // Prop to pass to renderer
-    height?: number; // Prop to pass to renderer
 }
 
 const GATE_FREEZE_TIME = 15; // seconds
@@ -18,9 +16,27 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     contestant,
     navigationTask,
     gateArrowData,
-    width = 512, // Default width from original css
-    height = 80, // Default height from original css
 }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [size, setSize] = useState({ width: 0, height: 0 });
+
+    useEffect(() => {
+        const element = containerRef.current;
+        if (!element) return;
+
+        const observer = new ResizeObserver(entries => {
+            if (entries[0]) {
+                const { width } = entries[0].contentRect;
+                if (width > 0) {
+                    setSize({ width, height: (width * 90) / 512 });
+                }
+            }
+        });
+
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, []);
+
     const [currentArrowData, setCurrentArrowData] = useState<GateArrowData | undefined>(gateArrowData);
     const [finished, setFinished] = useState<{ [key: number]: boolean }>({});
     const frozenTimeRef = useRef<number | null>(null);
@@ -97,7 +113,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     }
 
     return (
-        <div className={"gate-score-arrow"}>
+        <div className={"gate-score-arrow"} ref={containerRef}>
             <div className="flex justify-between items-start p-1">
                 <div className={"gate-score-next-gate"}>
                     NEXT GATE: {currentArrowData.waypoint_name}
@@ -108,22 +124,25 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                 />
             </div>
             <div className={"gate-arrow-shadow"}>
-                <GateScoreArrowRenderer
-                    width={width}
-                    height={height}
-                    pointsPerSecond={getPointsPerSecond()}
-                    maximumTimingPenalty={getMaximumTimingPenalty()}
-                    gracePeriodBefore={getGracePeriodBefore()}
-                    gracePeriodAfter={getGracePeriodAfter()}
-                    crossingOffsetEstimate={currentArrowData.estimated_crossing_offset}
-                    estimatedScore={currentArrowData.estimated_score}
-                    contestantId={contestant.id}
-                    final={currentArrowData.final}
-                    missed={currentArrowData.missed}
-                />
+                {size.width > 0 && 
+                    <GateScoreArrowRenderer
+                        width={size.width}
+                        height={size.height}
+                        pointsPerSecond={getPointsPerSecond()}
+                        maximumTimingPenalty={getMaximumTimingPenalty()}
+                        gracePeriodBefore={getGracePeriodBefore()}
+                        gracePeriodAfter={getGracePeriodAfter()}
+                        crossingOffsetEstimate={currentArrowData.estimated_crossing_offset}
+                        estimatedScore={currentArrowData.estimated_score}
+                        contestantId={contestant.id}
+                        final={currentArrowData.final}
+                        missed={currentArrowData.missed}
+                    />
+                }
             </div>
         </div>
     );
 };
+
 
 export default GateScoreArrowV2;

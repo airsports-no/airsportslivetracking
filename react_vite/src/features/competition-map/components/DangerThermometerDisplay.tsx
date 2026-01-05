@@ -28,7 +28,7 @@ const DangerThermometerDisplay = ({ dangerData }: Props) => {
                 style={{ height: `${clamped}%`, transition: 'height 0.3s ease' }}
                 />
             </div>
-            <div className="mt-1 text-lg text-black">{clamped.toFixed(0)}%</div>
+            <div className="mt-1 text-lg text-black bg-white">{clamped.toFixed(0)}%</div>
         </div>
     );
 }
