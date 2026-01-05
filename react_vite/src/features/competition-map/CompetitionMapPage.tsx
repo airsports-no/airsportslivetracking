@@ -15,7 +15,7 @@ import RouteRenderer from "./components/track-renderers/RouteRenderer";
 import TimelineControls from "./components/TimelineControls";
 import TeamPresentation from './components/TeamPresentation';
 import ClockDisplay from './components/ClockDisplay';
-import GateScoreArrowV2 from './components/GateScoreArrowV2'; // Import GateScoreArrowV2
+import GateScoreArrowV2 from './components/gateScoreArrow/GateScoreArrowV2'; // Import GateScoreArrowV2
 
 
 export default function CompetitionMapPage() {

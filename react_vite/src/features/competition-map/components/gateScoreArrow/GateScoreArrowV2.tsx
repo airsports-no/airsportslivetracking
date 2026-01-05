@@ -97,31 +97,29 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
 
     return (
         <div className={"gate-score-arrow"}>
-            <div className={"gate-score-next-gate row col-12"}>
-                NEXT GATE: {currentArrowData.waypoint_name}
+            <div className="flex justify-between items-center p-1">
+                <div className={"gate-score-next-gate"}>
+                    NEXT GATE: {currentArrowData.waypoint_name}
+                </div>
+                <GateCountdownTimer
+                    secondsToPlannedCrossing={currentArrowData.seconds_to_planned_crossing}
+                    crossingOffsetEstimate={currentArrowData.estimated_crossing_offset}
+                />
             </div>
-            <div className={"row gate-arrow-shadow"}>
-                <div className={"col-2"}>
-                    <GateCountdownTimer
-                        secondsToPlannedCrossing={currentArrowData.seconds_to_planned_crossing}
-                        crossingOffsetEstimate={currentArrowData.estimated_crossing_offset}
-                    />
-                </div>
-                <div className={"col-10"}>
-                    <GateScoreArrowRenderer
-                        width={width}
-                        height={height}
-                        pointsPerSecond={getPointsPerSecond()}
-                        maximumTimingPenalty={getMaximumTimingPenalty()}
-                        gracePeriodBefore={getGracePeriodBefore()}
-                        gracePeriodAfter={getGracePeriodAfter()}
-                        crossingOffsetEstimate={currentArrowData.estimated_crossing_offset}
-                        estimatedScore={currentArrowData.estimated_score}
-                        contestantId={contestant.id}
-                        final={currentArrowData.final}
-                        missed={currentArrowData.missed}
-                    />
-                </div>
+            <div className={"gate-arrow-shadow"}>
+                <GateScoreArrowRenderer
+                    width={width}
+                    height={height}
+                    pointsPerSecond={getPointsPerSecond()}
+                    maximumTimingPenalty={getMaximumTimingPenalty()}
+                    gracePeriodBefore={getGracePeriodBefore()}
+                    gracePeriodAfter={getGracePeriodAfter()}
+                    crossingOffsetEstimate={currentArrowData.estimated_crossing_offset}
+                    estimatedScore={currentArrowData.estimated_score}
+                    contestantId={contestant.id}
+                    final={currentArrowData.final}
+                    missed={currentArrowData.missed}
+                />
             </div>
         </div>
     );

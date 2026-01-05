@@ -1,4 +1,6 @@
 import React, { useRef, useEffect } from "react";
+import blackImageSrc from './gate_score_arrow_black.gif';
+import redImageSrc from './gate_score_arrow_red.gif';
 
 const ARROW_HEIGHT = 92, HORIZONTAL_LINE_THICKNESS = 3, VERTICAL_LINE_LENGTH = 10, NUMBER_PADDING = 5, PADDING = 36,
     ARROW_ICON_WIDTH = 70, BELOW_LINE_TEXT_POSITION = 75, BELOW_LINE_TEXT_X_OFFSET = 20, ANIMATION_STEPS = 10,
@@ -20,9 +22,9 @@ interface GateScoreArrowRendererProps {
 }
 
 const blackImage = new Image();
-blackImage.src = document.configuration.STATIC_FILE_LOCATION + 'img/gate_score_arrow_black.gif';
+blackImage.src = blackImageSrc;
 const redImage = new Image();
-redImage.src = document.configuration.STATIC_FILE_LOCATION + 'img/gate_score_arrow_red.gif';
+redImage.src = redImageSrc;
 
 const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
     width,
@@ -235,7 +237,7 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
 
 
     return (
-        <div className="mt-[-42px]">
+        <div className="gate-arrow-canvas">
             <canvas id="myCanvas" ref={canvasRef} width={width} height={height} />
         </div>
     );
