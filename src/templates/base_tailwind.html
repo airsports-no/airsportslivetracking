@@ -21,6 +21,7 @@
             contestantInitialTrackDataUrl: (contestId, navigationTaskId, contestantId) => "{% url 'contestants-paginated-track-data' -1 -2 -3 %}".replace("-1", contestId).replace("/-2/", '/' + navigationTaskId + '/').replace("/-3/", '/' + contestantId + '/'),
             contestantScoreDataUrl: (contestId, navigationTaskId, contestantId) => "{% url 'contestants-score-data' -1 -2 -3 %}".replace("-1", contestId).replace("/-2/", '/' + navigationTaskId + '/').replace("/-3/", '/' + contestantId + '/'),
             CONTESTS_LIST_URL: "{% url 'contests-list' %}",
+            contestDetailsApiUrl: contestId => "{% url 'contests-detail' 0 %}".replace("0", contestId),
             CONTESTS_WITH_ONGOING_NAVIGATION_URL: "{% url 'contests-ongoing-navigation' %}",
             MY_PARTICIPATING_CONTESTS_URL: "{% url 'userprofile-my-participating-contests' %}",
             MY_PARTICIPATED_CONTESTS_URL: "{% url 'userprofile-my-participated-contests' %}",

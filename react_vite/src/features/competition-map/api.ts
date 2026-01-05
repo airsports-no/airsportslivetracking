@@ -29,3 +29,12 @@ export function makeWebSocket(navigationTaskId: number): WebSocket {
   const wsProtocol = protocol === 'https:' ? 'wss' : 'ws';
   return new WebSocket(`${wsProtocol}://${host}/ws/tracks/${navigationTaskId}/`);
 }
+
+export async function fetchContestDetails(contestId: number): Promise<any> {
+    const url = document.configuration.contestDetailsApiUrl(contestId);
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch contest details: ${res.statusText}`);
+    }
+    return await res.json();
+}

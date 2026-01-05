@@ -7,6 +7,7 @@ import { useCompetitionData } from './hooks/useCompetitionData';
 import { usePlayback } from './hooks/usePlayback';
 import { useMapLayers } from './hooks/useMapLayers';
 import { useToast } from './hooks/useToast.tsx'; // Import useToast
+import { fetchContestDetails } from './api';
 
 import ResultsTable from './components/ResultsTable';
 import ScoreLogTable from './components/ScoreLogTable';
@@ -37,6 +38,20 @@ export default function CompetitionMapPage() {
   const [hasMapBeenFitted, setHasMapBeenFitted] = useState(false); // New state for initial map fit
   const [isRankingCollapsed, setIsRankingCollapsed] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [contestDetails, setContestDetails] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (contestIdNum) {
+        fetchContestDetails(contestIdNum)
+            .then(setContestDetails)
+            .catch(err => {
+                console.error("Error fetching contest details for contest ID", contestIdNum, ":", err);
+                setContestDetails(null); // Ensure state is reset on error
+            });
+    } else {
+        console.log("contestIdNum is falsy, not fetching contest details.");
+    }
+  }, [contestIdNum]);
 
 
 
@@ -444,7 +459,7 @@ export default function CompetitionMapPage() {
           )}
         </div>
 
-        {selectedContestant && (
+        {selectedContestant ? (
           // Container for TeamPresentation and GateScoreArrowV2
           <div ref={teamPresentationContainerRef} className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-12' : 'bottom-2'} w-11/12 md:w-3/4 lg:w-1/2 max-w-screen-md`}> {/* Responsive container */}
             <div className="flex items-end gap-4 justify-end">
@@ -459,6 +474,14 @@ export default function CompetitionMapPage() {
               />
             </div>
           </div>
+        ) : (
+          contestDetails?.logo && (
+            <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-12' : 'bottom-2'}`}>
+                <div className="bg-base-100/80 backdrop-blur-sm p-2 rounded-lg shadow-lg">
+                    <img src={contestDetails.logo} alt={`${contestDetails.name} logo`} className="max-h-32 max-w-xs" />
+                </div>
+            </div>
+          )
         )}
         {mode === 'playback' && playbackTimeInfo && (
           <TimelineControls
