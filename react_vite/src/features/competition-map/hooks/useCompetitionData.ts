@@ -259,6 +259,13 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         setIsReFetching(false);
     }, [fetchAllContestantData, processWsMessage]);
 
+    // Effect to handle mode change to 'realtime'
+    useEffect(() => {
+        if (mode === 'realtime') {
+            handleStaleConnection();
+        }
+    }, [mode, handleStaleConnection]);
+
     // Fetch navigation task and initial data
     useEffect(() => {
         let cancelled = false;
