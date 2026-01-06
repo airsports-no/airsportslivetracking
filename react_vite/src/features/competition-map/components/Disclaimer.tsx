@@ -1,44 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { reverse } from '../../../urls';
+import { fetchDisclaimerHtml } from '../api'; // Import new API function
 
 const Disclaimer = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [disclaimer, setDisclaimer] = useState('');
 
     useEffect(() => {
-        // Assume 'terms_and_conditions' is the Django URL name for the disclaimer page
-        const disclaimerUrl = reverse('terms_and_conditions'); 
-        if (disclaimerUrl) {
-            fetch(disclaimerUrl)
-                .then(res => {
-                    if (res.ok) {
-                        return res.text();
-                    }
-                    throw new Error('Network response was not ok.');
-                })
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    
-                    // Extract styles and links from the head
-                    const styleTags = Array.from(doc.head.querySelectorAll('style'));
-                    const linkTags = Array.from(doc.head.querySelectorAll('link[rel="stylesheet"]'));
-                    const stylesHtml = styleTags.map(tag => tag.outerHTML).join('');
-                    const linksHtml = linkTags.map(tag => tag.outerHTML).join('');
-
-                    // Extract body content
-                    const bodyContent = doc.body.innerHTML;
-
-                    setDisclaimer(stylesHtml + linksHtml + bodyContent);
-                })
-                .catch(error => {
-                    console.error("Failed to fetch disclaimer:", error);
-                    setDisclaimer("<p>Failed to load terms and conditions. Please try again later.</p>");
-                });
-        } else {
-            console.error("Disclaimer URL not found in configuration or URL reversing service.");
-            setDisclaimer("<p>Configuration error: Disclaimer URL is missing.</p>");
-        }
+        fetchDisclaimerHtml()
+            .then(setDisclaimer)
+            .catch(error => {
+                console.error("Failed to fetch disclaimer:", error);
+                setDisclaimer("<p>Failed to load terms and conditions. Please try again later.</p>");
+            });
     }, []);
 
     const openModal = (e: React.MouseEvent) => {

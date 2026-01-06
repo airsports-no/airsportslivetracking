@@ -370,7 +370,7 @@ export default function CompetitionMapPage() {
 
               <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline">Task Info</button>
               {staticNavTaskData?.user_has_change_permission && (
-                <a href={reverse("navigationtask_detail",navigationTaskId)} className="btn btn-xs btn-outline ml-2">Manage Task</a>
+                <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline ml-2">Manage Task</a>
               )}
               {staticNavTaskData?.allow_self_management && (
                 <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline ml-2">Schedule Flight</Link>

@@ -42,3 +42,32 @@ export async function fetchContestDetails(contestId: number): Promise<any> {
     }
     return await res.json();
 }
+
+export async function fetchDisclaimerHtml(): Promise<string> {
+    // Assume 'terms_and_conditions' is the Django URL name for the disclaimer page
+    const disclaimerUrl = reverse('terms_and_conditions'); 
+    if (!disclaimerUrl) {
+        throw new Error("Disclaimer URL not found in configuration or URL reversing service.");
+    }
+
+    const res = await fetch(disclaimerUrl);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch disclaimer: ${res.statusText}`);
+    }
+    const html = await res.text();
+    
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Extract styles and links from the head
+    const styleTags = Array.from(doc.head.querySelectorAll('style'));
+    const linkTags = Array.from(doc.head.querySelectorAll('link[rel="stylesheet"]'));
+    const stylesHtml = styleTags.map(tag => tag.outerHTML).join('');
+    const linksHtml = linkTags.map(tag => tag.outerHTML).join('');
+
+    // Extract body content
+    const bodyContent = doc.body.innerHTML;
+
+    return stylesHtml + linksHtml + bodyContent;
+}
+

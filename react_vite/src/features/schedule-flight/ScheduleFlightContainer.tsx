@@ -7,10 +7,10 @@ import ScheduleFlightForm from './components/ScheduleFlightForm';
 import ContestRegistrationForm from './components/ContestRegistrationForm';
 import { Link, useSearchParams } from "react-router-dom";
 import { reverse } from '../../urls';
+import { Contest, MyParticipatingContest, NavigationTask } from './types';
 
 
 const CONTESTS_LIST_URL_REVERSE_NAME = 'contests-list';
-const ACCOUNT_LOGIN_URL_REVERSE_NAME = 'login';
 
 const ScheduleFlightContainer = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -31,15 +31,15 @@ const ScheduleFlightContainer = () => {
     const [initialSelectedTask, setInitialSelectedTask] = useState<{ contest: Contest, navigationTask: NavigationTask } | null>(null);
 
     const loadContests = (loadMore = false) => {
-        let url = reverse(CONTESTS_LIST_URL_REVERSE_NAME) + '?is_public=true&is_featured=true';
+        let cursorParam: string | null = null;
         if (loadMore && nextCursor) {
-            url += `&cursor=${nextCursor}`;
+            cursorParam = nextCursor;
         } else if (loadMore && !nextCursor) {
             setHasMore(false);
             return Promise.resolve();
         }
 
-        return api.fetchContests(url)
+        return api.fetchContests(cursorParam)
             .then(data => {
                 const futureContests = data.results.filter(c => new Date(c.finish_time) > new Date());
                 if (loadMore) {
@@ -67,7 +67,7 @@ const ScheduleFlightContainer = () => {
                 if (err.status === 401) {
                     console.log("User not authenticated, redirecting to login in 5 seconds.");
                     setError("You are not authenticated. Redirecting to login page in 5 seconds...");
-                    const loginPageUrl = reverse(ACCOUNT_LOGIN_URL_REVERSE_NAME);
+                    const loginPageUrl = reverse('login');
                     setTimeout(() => {
                         window.location.href = loginPageUrl;
                     }, 5000);

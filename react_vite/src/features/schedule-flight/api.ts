@@ -12,8 +12,14 @@ const getAuthHeaders = () => {
     };
 };
 
-export const fetchContests = async (url: string): Promise<PaginatedContests> => {
-    const response = await fetch(url, { headers: getAuthHeaders() });
+export const fetchContests = async (cursor?: string | null): Promise<PaginatedContests> => {
+    const baseUrl = reverse('contests-list');
+    const url = new URL(baseUrl, window.location.origin);
+    if (cursor) {
+        url.searchParams.set('cursor', cursor);
+    }
+
+    const response = await fetch(url.toString(), { headers: getAuthHeaders() });
     if (!response.ok) {
         throw new Error('Failed to fetch contests');
     }
@@ -31,7 +37,8 @@ export const fetchMyParticipatingContests = async (): Promise<MyParticipatingCon
     return response.json();
 };
 
-export const fetchMyParticipatedContests = async (url: string): Promise<NavigationTask[]> => {
+export const fetchMyParticipatedContests = async (): Promise<NavigationTask[]> => {
+    const url = reverse('userprofile-my-participated-contests');
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
         const error = new Error('Failed to fetch participated contests') as any;

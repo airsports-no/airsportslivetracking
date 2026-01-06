@@ -6,9 +6,6 @@ import Select from 'react-select';
 import { reverse } from '../../urls';
 
 
-const MY_PARTICIPATED_CONTESTS_URL_REVERSE_NAME = 'userprofile-my-participated-contests';
-const ACCOUNT_LOGIN_URL_REVERSE_NAME = 'login';
-
 const PastFlightsPage = () => {
     const [contests, setContests] = useState<Contest[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
@@ -18,7 +15,7 @@ const PastFlightsPage = () => {
 
     useEffect(() => {
         setLoading(true);
-        api.fetchMyParticipatedContests(reverse(MY_PARTICIPATED_CONTESTS_URL_REVERSE_NAME))
+        api.fetchMyParticipatedContests()
             .then(myTasksData => {
                 const contestsMap = new Map<number, Contest>();
                 myTasksData.forEach(task => {
@@ -40,7 +37,7 @@ const PastFlightsPage = () => {
                 if (err.status === 401) {
                     console.log("User not authenticated, redirecting to login in 5 seconds.");
                     setError("You are not authenticated. Redirecting to login page in 5 seconds...");
-                    const loginPageUrl = reverse(ACCOUNT_LOGIN_URL_REVERSE_NAME);
+                    const loginPageUrl = reverse('login');
                     setTimeout(() => {
                         window.location.href = loginPageUrl;
                     }, 5000);
