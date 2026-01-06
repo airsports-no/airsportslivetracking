@@ -3,7 +3,6 @@ from django.views.generic import TemplateView
 
 from display.views import (
     fly_master_data_post,
-    frontend_view_map,
     import_contest_team_from_contest,
     renew_token,
     NavigationTaskDetailView,
@@ -37,7 +36,6 @@ from display.views import (
     contestant_card_remove,
     delete_score_item,
     terminate_contestant_calculator,
-    frontend_playback_map,
     share_contest,
     share_navigation_task,
     get_contestant_default_map,
@@ -91,8 +89,6 @@ urlpatterns = [
     path("healthz/", healthz),
     path("readyz/", readyz),
     path("statistics/", StatisticsView.as_view(), name="statistics"),
-    path("task/<int:pk>/map/", frontend_view_map, name="frontend_view_map"),
-    path("task/<int:pk>/playbackmap/", frontend_playback_map, name="frontend_playback_map"),
     path("useruploadedmaps/", UserUploadedMapList.as_view(), name="useruploadedmap_list"),
     path("useruploadedmaps/create/", UserUploadedMapCreate.as_view(), name="useruploadedmap_add"),
     path("useruploadedmaps/<int:pk>/update/", UserUploadedMapUpdate.as_view(), name="useruploadedmap_change"),

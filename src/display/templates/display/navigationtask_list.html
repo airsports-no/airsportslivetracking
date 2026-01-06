@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load frontend_urls %}
 {% block content %}
 <H1>Contests</H1>
 <table class="table table-condensed">
@@ -23,7 +24,7 @@
             <td>
                 <a href="{% url 'frontend_view' object.pk %}">Live view</a> |
                 <a href="{% url 'frontend_view_table' object.pk %}">Table only</a> |
-                <a href="{% url 'frontend_view_map' object.pk %}">Map only</a>
+                <a href="{% fe_url 'COMPETITION_MAP_DETAIL' contestId=object.contest.pk navigationTaskId=object.pk %}">Map only</a>
             </td>
         </tr>
     {% endfor %}

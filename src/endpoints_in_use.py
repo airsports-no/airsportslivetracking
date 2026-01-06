@@ -43,7 +43,6 @@ print_view_url("contest_details", [1])
 
 print_view_url("aircraft-list", [])
 print_view_url("clubs-list", [])
-print_view_url("frontend_view_map", [1])
 print_view_url("get_persons_for_signup", [])
 
 print_view_url("autocomplete_aeroplane", [])

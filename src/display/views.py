@@ -19,6 +19,7 @@ from django.contrib.auth.mixins import (
     UserPassesTestMixin,
 )
 
+from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculator_running_utilities import is_calculator_running
 from playback_tools.playback import validate_gpx_file
 import rest_framework.exceptions as drf_exceptions
@@ -207,74 +208,6 @@ def get_contest_creators_emails(request):
     )
 
 
-def frontend_view_map(request, pk):
-    """
-    Render the navigation task tracking map frontend in live mode.
-    """
-    my_contests = get_objects_for_user(request.user, "display.view_contest", accept_global_perms=False)
-    public_contests = Contest.objects.filter(is_public=True)
-    try:
-        navigation_task = NavigationTask.objects.get(
-            Q(contest__in=my_contests) | Q(contest__in=public_contests, is_public=True),
-            pk=pk,
-        )
-    except ObjectDoesNotExist:
-        raise Http404
-    return render(
-        request,
-        "display/root.html",
-        {
-            "contest_id": navigation_task.contest.pk,
-            "navigation_task_id": pk,
-            "live_mode": "true",
-            "display_map": "true",
-            "display_table": "false",
-            "skip_nav": "true",
-            "playback": "false",
-            "can_change_navigation_task": (
-                "true" if navigation_task.user_has_change_permissions(request.user) else "false"
-            ),
-            "navigation_task_management_link": reverse("navigationtask_detail", args=(navigation_task.pk,)),
-            "playback_link": reverse("frontend_playback_map", args=(navigation_task.pk,)),
-            "live_map_link": reverse("frontend_view_map", args=(navigation_task.pk,)),
-        },
-    )
-
-
-def frontend_playback_map(request, pk):
-    """
-    Render the navigation task tracking map frontend in playback mode.
-    """
-    my_contests = get_objects_for_user(request.user, "display.view_contest", accept_global_perms=False)
-    public_contests = Contest.objects.filter(is_public=True)
-    try:
-        navigation_task = NavigationTask.objects.get(
-            Q(contest__in=my_contests) | Q(contest__in=public_contests, is_public=True),
-            pk=pk,
-        )
-    except ObjectDoesNotExist:
-        raise Http404
-    return render(
-        request,
-        "display/root.html",
-        {
-            "contest_id": navigation_task.contest.pk,
-            "navigation_task_id": pk,
-            "live_mode": "true",
-            "display_map": "true",
-            "display_table": "false",
-            "skip_nav": "true",
-            "playback": "true",
-            "can_change_navigation_task": (
-                "true" if navigation_task.user_has_change_permissions(request.user) else "false"
-            ),
-            "navigation_task_management_link": reverse("navigationtask_detail", args=(navigation_task.pk,)),
-            "playback_link": reverse("frontend_playback_map", args=(navigation_task.pk,)),
-            "live_map_link": reverse("frontend_view_map", args=(navigation_task.pk,)),
-        },
-    )
-
-
 def global_map(request):
     """
     Render the global map react application
@@ -378,13 +311,14 @@ def tracking_qr_code_view(request, pk):
     """
     Renderer page that displays a QR code that links to the live tracking map
     """
-    url = reverse("frontend_view_map", kwargs={"pk": pk})
+    navigation_task = NavigationTask.objects.get(pk=pk)
+    url = fe_url("COMPETITION_MAP_DETAIL", contestId=navigation_task.contest.pk, navigationTaskId=navigation_task.pk)
     return render(
         request,
         "display/tracking_qr_code.html",
         {
             "url": "https://airsports.no{}".format(url),
-            "navigation_task": NavigationTask.objects.get(pk=pk),
+            "navigation_task": navigation_task,
         },
     )
 
