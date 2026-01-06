@@ -107,6 +107,7 @@ INSTALLED_APPS = [
     "storages",
     "crispy_bootstrap4",
     "location_field.apps.DefaultConfig",
+    "django_js_reverse",
 ]
 if os.environ.get("MODE") != "dev":
     INSTALLED_APPS.append("drf_firebase_auth")
@@ -177,7 +178,7 @@ WSGI_APPLICATION = "live_tracking_map.wsgi.application"
 WEBPACK_LOADER = {
     "DEFAULT": {
         "BUNDLE_DIR_NAME": "bundles/local/",  # end with slash
-        "STATS_FILE": os.path.join(BASE_DIR, "..","assets", "webpack-stats-local.json"),
+        "STATS_FILE": os.path.join(BASE_DIR, "..", "assets", "webpack-stats-local.json"),
     }
 }
 
@@ -278,11 +279,7 @@ if os.environ.get("MODE") == "dev":
 
 TEMPORARY_FOLDER = "/tmp"
 
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "static"),
-    "/assets",
-    "/assets_vite"
-]
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static"), "/assets", "/assets_vite"]
 
 LOGGING = LOG_CONFIGURATION
 

@@ -1,8 +1,6 @@
 import { PaginatedContests, MyParticipatingContest, Club, Aircraft, Copilot, ScheduleFlightPayload, RegisterTeamPayload, Contest, NavigationTask } from './types';
 import { getCookie } from '../../utils/csrf';
-
-
-const API_BASE_URL = '/api/v1/';
+import { reverse } from '../../urls';
 
 const getAuthHeaders = () => {
     // In a real app, you would get the token from a secure place.
@@ -22,7 +20,8 @@ export const fetchContests = async (url: string): Promise<PaginatedContests> => 
     return response.json();
 };
 
-export const fetchMyParticipatingContests = async (url: string): Promise<MyParticipatingContest[]> => {
+export const fetchMyParticipatingContests = async (): Promise<MyParticipatingContest[]> => {
+    const url = reverse('userprofile-my-participating-contests');
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
         const error = new Error('Failed to fetch participating contests') as any;
@@ -43,7 +42,8 @@ export const fetchMyParticipatedContests = async (url: string): Promise<Navigati
 };
 
 export const fetchClubs = async (): Promise<Club[]> => {
-    const response = await fetch(`${API_BASE_URL}clubs/`, { headers: getAuthHeaders() });
+    const url = reverse('clubs-list');
+    const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
         throw new Error('Failed to fetch clubs');
     }
@@ -51,7 +51,8 @@ export const fetchClubs = async (): Promise<Club[]> => {
 };
 
 export const fetchAircrafts = async (): Promise<Aircraft[]> => {
-    const response = await fetch(`${API_BASE_URL}aircraft/`, { headers: getAuthHeaders() });
+    const url = reverse('aircraft-list');
+    const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
         throw new Error('Failed to fetch aircrafts');
     }
@@ -59,7 +60,8 @@ export const fetchAircrafts = async (): Promise<Aircraft[]> => {
 };
 
 export const fetchPilots = async (): Promise<Copilot[]> => {
-    const response = await fetch(`/display/api/person/signuplist/`, { headers: getAuthHeaders() });
+    const url = reverse('get_persons_for_signup');
+    const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
         throw new Error('Failed to fetch pilots');
     }
@@ -68,7 +70,8 @@ export const fetchPilots = async (): Promise<Copilot[]> => {
 
 export const registerForContest = async (payload: RegisterTeamPayload): Promise<any> => {
     const { contestId, ...apiPayload } = payload;
-    const response = await fetch(document.configuration.contestSignUpUrl(contestId), {
+    const url = reverse("contests-signup", contestId);
+    const response = await fetch(url, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(apiPayload),
@@ -81,7 +84,8 @@ export const registerForContest = async (payload: RegisterTeamPayload): Promise<
 
 
 export const fetchContest = async (contestId: number): Promise<Contest> => {
-    const response = await fetch(`${API_BASE_URL}contests/${contestId}/`, { headers: getAuthHeaders() });
+    const url = reverse('contests-detail', contestId);
+    const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
         const error = new Error(`Failed to fetch contest ${contestId}`) as any;
         error.status = response.status;
@@ -91,8 +95,8 @@ export const fetchContest = async (contestId: number): Promise<Contest> => {
 };
 
 export const scheduleFlight = async (contestId: number, navigationTaskId: number, payload: ScheduleFlightPayload): Promise<any> => {
-    const response = await fetch(
-        `${API_BASE_URL}contests/${contestId}/navigationtasks/${navigationTaskId}/contestant_self_registration/`,
+    const url = reverse('navigationtasks-contestant-self-registration', contestId, navigationTaskId);
+    const response = await fetch(url,
         {
             method: 'POST',
             headers: getAuthHeaders(),
@@ -109,8 +113,8 @@ export const scheduleFlight = async (contestId: number, navigationTaskId: number
 };
 
 export const cancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number): Promise<void> => {
-    const response = await fetch(
-        `${API_BASE_URL}contests/${contestId}/navigationtasks/${navigationTaskId}/delete_self_managed_contestant/${futureContestantId}/`,
+    const url = reverse('navigationtasks-delete-self-managed-contestant', contestId, navigationTaskId, futureContestantId);
+    const response = await fetch(url,
         {
             method: 'DELETE',
             headers: getAuthHeaders(),
@@ -122,7 +126,8 @@ export const cancelFlight = async (contestId: number, navigationTaskId: number, 
 };
 
 export const withdraw = async (contestId: number): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}contests/${contestId}/withdraw/`, {
+    const url = reverse('contests-withdraw', contestId);
+    const response = await fetch(url, {
         method: 'DELETE',
         headers: getAuthHeaders(),
     });

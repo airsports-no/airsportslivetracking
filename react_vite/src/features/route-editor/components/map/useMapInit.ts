@@ -33,24 +33,6 @@ export default function useMapInit(): React.MutableRefObject<L.Map | null> {
 
     const map = L.map('map-container', { zoomControl: false }).setView([51.505, -0.09], 13);
 
-    // Tile Layers
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    });
-
-    const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-      maxZoom: 20,
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-      attribution: '&copy; Google'
-    });
-
-    const openAip = L.tileLayer('https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey={apiKey}', {
-      maxZoom: 14,
-      minZoom: 4,
-      attribution: '<a href="https://www.openaip.net/">OpenAIP Data</a>',
-      apiKey: '3d5d3f82528731731362a23f445951d8'
-    });
-
     mapRef.current = map;
     setReady(true);
 

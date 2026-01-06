@@ -41,7 +41,9 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
             setClubs(clubsData);
             setAircrafts(aircraftsData);
             setPilots(pilotsData);
-        }).catch(err => setError(err.message));
+        }).catch(err => {setError(err.message)
+                    console.error("Fetching autocomplete data:", err);
+    });
     }, []);
     
     const handleSubmit = async (e: React.FormEvent) => {
@@ -111,10 +113,13 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                 onClose(); // Close form on success
             } else {
                 setError("Failed to obtain contest team ID for scheduling flight.");
+                    console.error("Failed to obtain contest team ID for scheduling flight:");
+
             }
             
         } catch (err) {
             setError((err as Error).message);
+                                console.error("Scheduling flight failed:", err);
         } finally {
             setLoading(false);
         }

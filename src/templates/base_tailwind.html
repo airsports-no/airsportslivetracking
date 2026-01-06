@@ -16,41 +16,7 @@
     <title>AirSports</title>
     <script>
         document.configuration = {
-            navigationTaskUrl: (contestId, navigationTaskId) => "{% url 'navigationtasks-detail' -1 -2 %}".replace("/-1/", '/' + contestId + '/').replace("/-2/", '/' + navigationTaskId + '/',),
-            editableRouteUrl: editableRouteId => "{% url 'editableroutes-detail' 0 %}".replace("0", editableRouteId),
-            contestantInitialTrackDataUrl: (contestId, navigationTaskId, contestantId) => "{% url 'contestants-paginated-track-data' -1 -2 -3 %}".replace("-1", contestId).replace("/-2/", '/' + navigationTaskId + '/').replace("/-3/", '/' + contestantId + '/'),
-            contestantScoreDataUrl: (contestId, navigationTaskId, contestantId) => "{% url 'contestants-score-data' -1 -2 -3 %}".replace("-1", contestId).replace("/-2/", '/' + navigationTaskId + '/').replace("/-3/", '/' + contestantId + '/'),
-            CONTESTS_LIST_URL: "{% url 'contests-list' %}",
-            contestDetailsApiUrl: contestId => "{% url 'contests-detail' 0 %}".replace("0", contestId),
-            CONTESTS_WITH_ONGOING_NAVIGATION_URL: "{% url 'contests-ongoing-navigation' %}",
-            MY_PARTICIPATING_CONTESTS_URL: "{% url 'userprofile-my-participating-contests' %}",
-            MY_PARTICIPATED_CONTESTS_URL: "{% url 'userprofile-my-participated-contests' %}",
-            TERMS_AND_CONDITIONS_URL: "{% url 'terms_and_conditions' %}",
-            EDITABLE_ROUTES_URL: "{% url 'editableroutes-list' %}",
-            navigationTaskMap: navigationTaskId => "{% url 'frontend_view_map' 0 %}".replace("0", navigationTaskId),
-            contestResultsDetailsUrl: contestId => "{% url 'contests-results-details' 0 %}".replace("0", contestId),
-            contestUpdateContestSummaryUrl: contestId => "{% url 'contests-update-contest-summary' 0 %}".replace("0", contestId),
-            contestUpdateTaskSummaryUrl: contestId => "{% url 'contests-update-task-summary' 0 %}".replace("0", contestId),
-            contestUpdateTestResultUrl: contestId => "{% url 'contests-update-test-result' 0 %}".replace("0", contestId),
-            contestDeleteTeamResultsUrl: contestId => "{% url 'contests-team-results-delete' 0 %}".replace("0", contestId),
-            taskListUrl: contestId => "{% url 'tasks-list' 0 %}".replace("0", contestId),
-            taskDetailUrl: (contestId, taskId) => "{% url 'tasks-detail' -1 -2 %}".replace("-1", contestId).replace("/-2/", '/' + taskId + '/'),
-            taskTestListUrl: contestId => "{% url 'tasktests-list' 0 %}".replace("0", contestId),
-            taskTestDetailUrl: (contestId, taskTestId) => "{% url 'tasktests-detail' -1 -2 %}".replace("-1", contestId).replace("/-2/", '/' + taskTestId + '/'),
-
-            CONTEST_FRONT_END: "{% url 'contestsfrontend-list' %}",
-            contestWithdrawUrl: contestId => "{% url 'contests-withdraw' 0 %}".replace("0", contestId),
-            contestSignUpUrl: contestId => "{% url 'contests-signup' 0 %}".replace("0", contestId),
-            navigationTaskContestantSelfRegistration: (contestId, navigationTaskId) => "{% url 'navigationtasks-contestant-self-registration' -1 -2 %}".replace("-1", contestId).replace("/-2/", '/' + navigationTaskId + '/'),
-
-            AIRCRAFT_LIST_URL: "{% url 'aircraft-list' %}",
-            CLUB_LIST_URL: "{% url 'clubs-list' %}",
-
-            contestDetailsViewUrl: contestId => "{% url 'contest_details' 0 %}".replace("0", contestId),
-            GET_PERSONS_FOR_SIGNUP_URL: "{% url 'get_persons_for_signup' %}",
-            EDITABLE_ROUTE_LIST_VIEW_URL: "{% url 'frontend' %}routeeditor/",
             STATIC_FILE_LOCATION:  "{% static '' %}",
-
             currentUserEmail: "{{ user.email }}"
 
         }
@@ -124,7 +90,7 @@
                             </li>
                         {% endif %}
                         <li><a href="https://home.airsports.no/" target="_blank">FAQ</a></li>
-                        <li><a href="{% url 'frontend' %}schedule/">Flight schedule</a></li>
+                        <li><a href="{% url 'frontend' %}schedule-flight/">Flight schedule</a></li>
                         {% if user.is_superuser and user.is_staff %}
                             <li><a href="/admin/">Admin</a></li>
                         {% endif %}

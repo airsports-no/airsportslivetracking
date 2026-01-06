@@ -73,6 +73,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   const markersRef = useRef<{[key: string]: L.Layer}>({});
   const polylinesRef = useRef<L.Layer[]>([]);
   const routeLineRef = useRef<L.Polyline | null>(null);
+  const layerControlRef = useRef<L.Control.Layers | null>(null); // Ref for layer control
   
   const { handleDragMove, handleDragEnd, dragRef } = useDragHandlers({
     mapRef,
@@ -97,6 +98,66 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
       }
     }
   });
+
+  // --- Add Tile Layers and Layer Control ---
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    // Remove existing control and layers if the effect re-runs
+    if (layerControlRef.current) {
+      map.removeControl(layerControlRef.current);
+    }
+    // Remove the previously added osm layer if any, before adding a new one.
+    // This is important because osm.addTo(map) creates a new layer instance each time.
+    map.eachLayer((layer) => {
+      if ((layer as any)._url && (layer as any)._url.includes('openstreetmap')) {
+        map.removeLayer(layer);
+      }
+    });
+
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+
+    const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+      attribution: '&copy; Google'
+    });
+
+    const openAip = L.tileLayer('https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey={apiKey}', {
+      maxZoom: 14,
+      minZoom: 4,
+      attribution: '<a href="https://www.openaip.net/">OpenAIP Data</a>',
+      apiKey: '3d5d3f82528731731362a23f445951d8'
+    });
+
+    osm.addTo(map);
+
+    const newLayerControl = L.control.layers({
+      "OpenStreetMap": osm,
+      "Google Satellite": googleSat,
+    }, {
+      "OpenAIP": openAip
+    }).addTo(map);
+
+    layerControlRef.current = newLayerControl;
+
+    return () => {
+      if (layerControlRef.current) {
+        map.removeControl(layerControlRef.current);
+        layerControlRef.current = null;
+      }
+      // Ensure the osm layer is also removed during cleanup
+      map.eachLayer((layer) => {
+        if ((layer as any)._url && (layer as any)._url.includes('openstreetmap')) {
+          map.removeLayer(layer);
+        }
+      });
+    };
+  }, [mapRef.current]);
+
 
   // --- 2. Bind Map Click Event ---
   // We attach this separately so it can access the latest 'onMapClick' prop without re-initializing the map

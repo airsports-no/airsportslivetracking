@@ -5,6 +5,7 @@ import { Loading } from "../components/basicComponents";
 import { Route } from "../../../types";
 import { ColumnDef } from "@tanstack/react-table";
 import { fetchEditableRoutes } from "../api"; // New import
+import { reverse } from "../../../urls";
 
 export const EditableRouteList = () => {
     const [data, setData] = useState<Route[]>([]);
@@ -88,10 +89,10 @@ export const EditableRouteList = () => {
             id: "actions",
             cell: ({ row }) => (
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                    <a href={document.configuration.createTaskViewUrl(row.original.id)} className="link link-primary text-xs">Create task</a>
-                    <a href={document.configuration.copyRouteViewUrl(row.original.id)} className="link link-primary text-xs">Copy</a>
-                    <a href={document.configuration.permissionListViewUrl(row.original.id)} className="link link-primary text-xs">Perms</a>
-                    <a href={document.configuration.deleteRouteViewUrl(row.original.id)} className="link link-error text-xs">Del</a>
+                    <a href={reverse("editableroute_createnavigationtask",row.original.id)} className="link link-primary text-xs">Create task</a>
+                    <a href={reverse("editableroute_copy",row.original.id)} className="link link-primary text-xs">Copy</a>
+                    <a href={reverse("editableroute_permissions_list",row.original.id)} className="link link-primary text-xs">Perms</a>
+                    <a href={reverse("editableroute_delete",row.original.id)} className="link link-error text-xs">Del</a>
                 </div>
             ),
             enableSorting: false,

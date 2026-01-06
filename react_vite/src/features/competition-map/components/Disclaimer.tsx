@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { reverse } from '../../../urls';
 
 const Disclaimer = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [disclaimer, setDisclaimer] = useState('');
 
     useEffect(() => {
-        if (document.configuration && document.configuration.TERMS_AND_CONDITIONS_URL) {
-            fetch(document.configuration.TERMS_AND_CONDITIONS_URL)
+        // Assume 'terms_and_conditions' is the Django URL name for the disclaimer page
+        const disclaimerUrl = reverse('terms_and_conditions'); 
+        if (disclaimerUrl) {
+            fetch(disclaimerUrl)
                 .then(res => {
                     if (res.ok) {
                         return res.text();
@@ -33,7 +36,7 @@ const Disclaimer = () => {
                     setDisclaimer("<p>Failed to load terms and conditions. Please try again later.</p>");
                 });
         } else {
-            console.error("Disclaimer URL not found in configuration.");
+            console.error("Disclaimer URL not found in configuration or URL reversing service.");
             setDisclaimer("<p>Configuration error: Disclaimer URL is missing.</p>");
         }
     }, []);

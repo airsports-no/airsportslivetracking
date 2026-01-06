@@ -16,7 +16,9 @@ export const FrontendRouter = () => {
                     <Route path="routeeditor/" element={<EditableRouteList />} />
                     <Route path="routeeditor/edit/:routeId" element={<RouteEditor />} />
                     <Route path="routeeditor/create" element={<RouteEditor />} />
-                    <Route path="/schedule" element={<ScheduleFlightContainer />} />
+                    {/* Deep link for scheduling a flight: /schedule-flight?contestId=<CONTEST_ID>&navigationTaskId=<TASK_ID> */}
+                    {/* Deep link for registering for a contest: /schedule-flight?registerContestId=<CONTEST_ID> */}
+                    <Route path="/schedule-flight" element={<ScheduleFlightContainer />} />
                     <Route path="/past-flights" element={<PastFlightsPage />} />
                     <Route path="/competition-map" element={<CompetitionMapPage />} />
                     <Route path="/competition-map/:contestId/:navigationTaskId" element={<CompetitionMapPage />} />

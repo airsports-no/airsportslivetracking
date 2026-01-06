@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Contest, MyParticipatingContest, PaginatedContests, NavigationTask } from './types';
 import * as api from './api';
 import UpcomingFlights from './components/UpcomingFlights';
 import ContestItem from './components/ContestItem';
@@ -7,29 +6,17 @@ import Select from 'react-select';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
 import ContestRegistrationForm from './components/ContestRegistrationForm';
 import { Link, useSearchParams } from "react-router-dom";
+import { reverse } from '../../urls';
 
 
-// Mock data for development
-declare global {
-    interface Document {
-        configuration: {
-            CONTESTS_LIST_URL: string;
-            MY_PARTICIPATING_CONTESTS_URL: string;
-            MY_PARTICIPATED_CONTESTS_URL: string;
-            contestSignUpUrl: (contestId: number) => string;
-            loginUrl: string;
-            editNavigationTaskUrl: (navigationTaskId: number) => string;
-        }
-    }
-}
-const CONTESTS_LIST_URL = document.configuration?.CONTESTS_LIST_URL || '/api/v1/contests/?is_public=true&is_featured=true';
-const MY_PARTICIPATING_CONTESTS_URL = document.configuration?.MY_PARTICIPATING_CONTESTS_URL || '/api/v1/myparticipatingcontests/';
-
+const CONTESTS_LIST_URL_REVERSE_NAME = 'contests-list';
+const ACCOUNT_LOGIN_URL_REVERSE_NAME = 'login';
 
 const ScheduleFlightContainer = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const contestIdParam = searchParams.get('contestId');
     const navigationTaskIdParam = searchParams.get('navigationTaskId');
+    const registerContestIdParam = searchParams.get('registerContestId');
 
     const [contests, setContests] = useState<Contest[]>([]);
     const [myContests, setMyContests] = useState<MyParticipatingContest[]>([]);
@@ -44,7 +31,7 @@ const ScheduleFlightContainer = () => {
     const [initialSelectedTask, setInitialSelectedTask] = useState<{ contest: Contest, navigationTask: NavigationTask } | null>(null);
 
     const loadContests = (loadMore = false) => {
-        let url = CONTESTS_LIST_URL;
+        let url = reverse(CONTESTS_LIST_URL_REVERSE_NAME) + '?is_public=true&is_featured=true';
         if (loadMore && nextCursor) {
             url += `&cursor=${nextCursor}`;
         } else if (loadMore && !nextCursor) {
@@ -73,14 +60,14 @@ const ScheduleFlightContainer = () => {
         const loadInitialData = async () => {
             setLoading(true);
             try {
-                const myContestsData = await api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL);
+                const myContestsData = await api.fetchMyParticipatingContests();
                 setMyContests(myContestsData);
                 await loadContests();
             } catch (err: any) {
                 if (err.status === 401) {
                     console.log("User not authenticated, redirecting to login in 5 seconds.");
                     setError("You are not authenticated. Redirecting to login page in 5 seconds...");
-                    const loginPageUrl = document.configuration?.loginUrl || '/login';
+                    const loginPageUrl = reverse(ACCOUNT_LOGIN_URL_REVERSE_NAME);
                     setTimeout(() => {
                         window.location.href = loginPageUrl;
                     }, 5000);
@@ -124,9 +111,33 @@ const ScheduleFlightContainer = () => {
         handleDeepLink();
     }, [contestIdParam, navigationTaskIdParam]);
 
+    useEffect(() => {
+        const handleRegistrationDeepLink = async () => {
+            if (registerContestIdParam) {
+                setLoading(true);
+                try {
+                    const contestId = Number(registerContestIdParam);
+                    const contest = await api.fetchContest(contestId);
+                    if (contest) {
+                        setSelectedContestForRegistration(contest);
+                    } else {
+                        setError("Deep link: Contest not found for registration.");
+                    }
+                } catch (err) {
+                    setError((err as Error).message);
+                } finally {
+                    setLoading(false);
+                }
+            } else {
+                setSelectedContestForRegistration(null);
+            }
+        };
+        handleRegistrationDeepLink();
+    }, [registerContestIdParam]);
+
     const refreshData = () => {
         setLoading(true);
-        api.fetchMyParticipatingContests(MY_PARTICIPATING_CONTESTS_URL)
+        api.fetchMyParticipatingContests()
             .then(data => {
                 setMyContests(data);
                 return loadContests();
@@ -151,10 +162,6 @@ const ScheduleFlightContainer = () => {
 
     const handleScheduleFlight = async () => {
         refreshData();
-    };
-
-    const handleRegisterClick = (contest: Contest) => {
-        setSelectedContestForRegistration(contest);
     };
 
     const handleWithdrawClick = async (contestId: number) => {
@@ -199,6 +206,7 @@ const ScheduleFlightContainer = () => {
 
     const onRegisterFormClose = () => {
         setSelectedContestForRegistration(null);
+        setSearchParams({});
         refreshData();
     };
 
@@ -267,7 +275,6 @@ const ScheduleFlightContainer = () => {
                                 contest={contest}
                                 isRegistered={myContests.some(mc => mc.contest.id === contest.id)}
                                 onScheduleClick={(task) => handleScheduleClick(contest, task)}
-                                onRegisterClick={handleRegisterClick}
                                 onWithdrawClick={handleWithdrawClick}
                                 onCancel={handleCancelFlight}
                                 myContests={myContests}

@@ -6,14 +6,12 @@ import { Link } from 'react-router-dom';
 interface ContestItemProps {
     contest: Contest;
     isRegistered: boolean;
-    onScheduleClick: (task: NavigationTask) => void;
     onCancel: (contestId: number, navigationTaskId: number, futureContestantId: number) => void;
     myContests: MyParticipatingContest[];
-    onRegisterClick: (contest: Contest) => void;
     onWithdrawClick: (contestId: number) => void;
 }
 
-const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onScheduleClick, onCancel, myContests, onRegisterClick, onWithdrawClick }) => {
+const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onCancel, myContests, onWithdrawClick }) => {
     const [areNavigationTasksVisible, setAreNavigationTasksVisible] = useState(false);
     const myTeamIds = myContests.flatMap(mc => mc.team ? [mc.team.id] : []);
 
@@ -49,7 +47,7 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                             {isRegistered ? (
                                 <button className="btn btn-warning" onClick={() => onWithdrawClick(contest.id)}>Withdraw</button>
                             ) : (
-                                <button className="btn btn-success" onClick={() => onRegisterClick(contest)}>Register</button>
+                                <Link to={`/schedule-flight?registerContestId=${contest.id}`} className="btn btn-success">Register</Link>
                             )}
                         </div>
                     </div>
@@ -116,7 +114,7 @@ const ContestItem: React.FC<ContestItemProps> = ({ contest, isRegistered, onSche
                                         ) : (
                                             task.allow_self_management && (
                                                 <Link
-                                                    to={`/schedule-flight?contestId=${contest.id}&navigationTaskId=${task.pk}`}
+                                                   to={`/schedule-flight?contestId=${contest.id}&navigationTaskId=${task.pk}`}
                                                     className="btn btn-primary btn-sm"
                                                 >
                                                     Schedule

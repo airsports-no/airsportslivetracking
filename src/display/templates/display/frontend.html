@@ -7,15 +7,7 @@
         is_superuser: {{ user.is_superuser | lower }},
         isAuthenticated: {{ user.is_authenticated | lower }},
 
-        EDITABLE_ROUTES_URL: "{% url 'editableroutes-list' %}",
-        editRouteViewUrl: routeId => "/display/editableroutereact/edit/0/".replace("0", routeId), // react router url
-        createTaskViewUrl: routeId => "{% url 'editableroute_createnavigationtask' 0 %}".replace("0", routeId),
-        copyRouteViewUrl: routeId => "{% url 'editableroute_copy' 0 %}".replace("0", routeId),
-        permissionListViewUrl: routeId => "{% url 'editableroute_permissions_list' 0 %}".replace("0", routeId),
-        deleteRouteViewUrl: routeId => "{% url 'editableroute_delete' 0 %}".replace("0", routeId),
-        editableRouteUrl: editableRouteId => "{% url 'editableroutes-detail' 0 %}".replace("0", editableRouteId),
         createRouteUrl: "/frontend/routeeditor/create/",
-        editNavigationTaskUrl: navigationTaskId => "{% url 'navigationtask_detail' 0 %}".replace("0", navigationTaskId),
 
         }
 </script>

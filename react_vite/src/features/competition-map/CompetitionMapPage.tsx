@@ -6,7 +6,7 @@ import useMapInit from '../route-editor/components/map/useMapInit';
 import { useCompetitionData } from './hooks/useCompetitionData';
 import { usePlayback } from './hooks/usePlayback';
 import { useMapLayers } from './hooks/useMapLayers';
-import { useToast } from './hooks/useToast.tsx'; // Import useToast
+import { useToast } from './hooks/useToast'; // Import useToast
 import { fetchContestDetails } from './api';
 
 import ResultsTable from './components/ResultsTable';
@@ -19,7 +19,7 @@ import ClockDisplay from './components/ClockDisplay';
 import Disclaimer from './components/Disclaimer';
 import TaskInfoModal from './TaskInfoModal';
 import { ChevronUp, ChevronDown } from 'lucide-react';
-import GateScoreArrowV2 from './components/gateScoreArrow/GateScoreArrowV2'; // Import GateScoreArrowV2
+import { reverse } from '../../urls';
 
 
 
@@ -370,7 +370,7 @@ export default function CompetitionMapPage() {
 
               <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline">Task Info</button>
               {staticNavTaskData?.user_has_change_permission && (
-                <a href={document.configuration.editNavigationTaskUrl(navigationTaskId)} className="btn btn-xs btn-outline ml-2">Manage Task</a>
+                <a href={reverse("navigationtask_detail",navigationTaskId)} className="btn btn-xs btn-outline ml-2">Manage Task</a>
               )}
               {staticNavTaskData?.allow_self_management && (
                 <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline ml-2">Schedule Flight</Link>
