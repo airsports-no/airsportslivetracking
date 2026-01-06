@@ -135,7 +135,7 @@ export default function CompetitionMapPage() {
         }).addTo(map);
         tileLayerRef.current = osm;
     }
-  }, [staticNavTaskData, mapRef]);
+  }, [staticNavTaskData, mapRef, userShowBackgroundMap]);
 
   
   const {
@@ -378,7 +378,7 @@ export default function CompetitionMapPage() {
               {/* Settings Dropdown */}
               <div className="dropdown dropdown-end">
                 <div tabIndex={0} role="button" className="btn btn-xs btn-outline ml-2">Settings</div>
-                <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+                <ul tabIndex={0} className="dropdown-content z-[11] menu p-2 shadow bg-base-100 rounded-box w-52">
                   <li>
                     <label className="label cursor-pointer">
                       <span className="label-text">Show Background Map</span>
