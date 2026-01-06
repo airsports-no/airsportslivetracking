@@ -1,5 +1,6 @@
 {% extends "base_tailwind.html" %}
 {% load static %}
+{% load frontend_urls %}
 {% block document_configuration %}
 <script>
     document.configuration = {
@@ -7,7 +8,7 @@
         is_superuser: {{ user.is_superuser | lower }},
         isAuthenticated: {{ user.is_authenticated | lower }},
 
-        createRouteUrl: "/frontend/routeeditor/create/",
+        createRouteUrl: "{% fe_url 'ROUTE_EDITOR_CREATE' %}",
 
         }
 </script>

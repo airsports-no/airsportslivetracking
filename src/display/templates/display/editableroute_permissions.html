@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load frontend_urls %}
 {% block content %}
   <H1>Route permissions {{ editableroute }}</H1>
   <p>
@@ -7,7 +8,7 @@
     <b>Delete</b> allows the user to do everything, including deleting the route.<br/>
     Assigning the permission "nothing" removes all permissions from the user.
   </p>
-  <a href="/frontend/routeeditor/">Back to Routes</a>
+  <a href="{% fe_url 'ROUTE_EDITOR_LIST' %}">Back to Routes</a>
   <table class="table table-condensed">
     <thead>
       <tr>

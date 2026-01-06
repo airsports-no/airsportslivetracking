@@ -1,4 +1,5 @@
 {% load static %}
+{% load frontend_urls %}
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
@@ -78,7 +79,7 @@
                                     <ul class="p-2 bg-neutral rounded-t-none z-50">
                                         <li><a href="{% url 'contest_list' %}">My contests</a></li>
                                         <li><a href="{% url 'useruploadedmap_list' %}">My maps</a></li>
-                                        <li><a href="{% url 'frontend' %}routeeditor/">Route editor</a></li>
+                                        <li><a href="{% fe_url 'ROUTE_EDITOR_LIST' %}">Route editor</a></li>
                                         {% if user.is_superuser and user.is_staff %}
                                             <li><a href="{% url 'statistics' %}">Statistics</a></li>
                                             <li><a href="{% url 'user_emails' %}">User emails</a></li>

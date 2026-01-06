@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 
 import os
 import sys
+import json
 from pathlib import Path
 from django.core.cache import cache
 from google.auth.exceptions import DefaultCredentialsError
@@ -26,6 +27,10 @@ from log_configuration import LOG_CONFIGURATION
 django.utils.encoding.smart_text = smart_str
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
+
+with open(BASE_DIR.parent / "react_vite/src/routes.json") as f:
+    FRONTEND_ROUTES = json.load(f)
+
 ADMINS = [("admin", "test@test.com")]
 
 # SECURITY WARNING: keep the secret key used in production secret!
