@@ -128,12 +128,9 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
             if (payload.positions && payload.positions.length > 0) {
                 setPositionsByContestantRef.current(prev => { // Use ref here
-                    const allPositions = [...(prev[contestantId] || []), ...payload.positions];
-                    // deduping positions by time
-                    const uniquePositions = Array.from(new Map(allPositions.map(p => [p.time, p])).values());
-                    
-                    uniquePositions.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-                    return { ...prev, [contestantId]: uniquePositions };
+                    const newPositions = [...(prev[contestantId] || []), ...payload.positions];
+                    newPositions.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+                    return { ...prev, [contestantId]: newPositions };
                 });
             }
             if (payload.annotations && payload.annotations.length > 0) {
