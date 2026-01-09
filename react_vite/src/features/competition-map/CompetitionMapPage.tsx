@@ -338,9 +338,9 @@ export default function CompetitionMapPage() {
         </div>
         
         {mode === 'realtime' && wsStatus === 'disconnected' && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1000] bg-error text-error-content p-4 rounded-lg shadow-lg text-center">
-                <h3 className="font-bold text-lg">Offline</h3>
-                <p>Connection lost. Attempting to reconnect...</p>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-error text-error-content p-2 rounded-lg shadow-md text-center max-w-sm">
+                <h3 className="font-bold text-base">Offline</h3>
+                <p className="text-sm">Connection lost. Attempting to reconnect...</p>
             </div>
         )}
 
