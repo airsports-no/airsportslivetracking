@@ -192,12 +192,12 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     }, [showToast]);
 
 
-    const fetchAllContestantData = useCallback(async (currentNavTask: NavigationTask, onProgress: (p: { loaded: number, total: number }) => void) => {
-        const total = currentNavTask.contestant_set.length;
+    const fetchAllContestantData = useCallback(async (contestantsToFetch: Contestant[], onProgress: (p: { loaded: number, total: number }) => void) => {
+        const total = contestantsToFetch.length;
         onProgress({ loaded: 0, total });
         let loaded = 0;
 
-        const contestantPromises = currentNavTask.contestant_set.map(async (c) => {
+        const contestantPromises = contestantsToFetch.map(async (c) => {
             try {
                 let cursor: string | null | undefined = undefined;
                 const allPositions: TrackPosition[] = [];
@@ -249,12 +249,17 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         setIsReFetching(true);
         wsBufferRef.current = [];
 
-        const { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates } = await fetchAllContestantData(navTaskRef.current, setProgress);
+        const contestantsToRefetch = Object.values(contestantsByIdRef.current).filter(c => c && !c.contestanttrack?.calculator_finished);
 
-        setPositionsByContestant(positionUpdates);
-        setAnnotationsByContestant(annotationUpdates);
-        setScoreLogByContestant(scoreLogUpdates);
-        setContestantsById(prev => ({ ...prev, ...contestantUpdates }));
+        if (contestantsToRefetch.length > 0) {
+            const { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates } = await fetchAllContestantData(contestantsToRefetch, setProgress);
+
+            setPositionsByContestant(prev => ({...prev, ...positionUpdates}));
+            setAnnotationsByContestant(prev => ({...prev, ...annotationUpdates}));
+            setScoreLogByContestant(prev => ({...prev, ...scoreLogUpdates}));
+            setContestantsById(prev => ({ ...prev, ...contestantUpdates }));
+        }
+
 
         wsBufferRef.current.forEach(msg => processWsMessage(msg));
         wsBufferRef.current = [];
@@ -286,7 +291,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 setContestantsById(initialContestantsMap);
                 setShouldConnectWs(true);
 
-                const { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates } = await fetchAllContestantData(task, setProgress);
+                const { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates } = await fetchAllContestantData(task.contestant_set, setProgress);
                 if (!cancelled) {
                     setPositionsByContestant(positionUpdates);
                     setAnnotationsByContestant(annotationUpdates);
