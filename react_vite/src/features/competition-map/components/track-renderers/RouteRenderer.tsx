@@ -31,27 +31,39 @@ function renderWaypointLabels(
             label = `${waypoint.name} ${formatTime(expectedTime)}`;
         }
 
-        let position: L.LatLngExpression;
-        if (waypoint.gate_line && waypoint.gate_line[0] && waypoint.gate_line[1]) {
-            const point1 = waypoint.gate_line[0];
-            const point2 = waypoint.gate_line[1];
-            // North-most point has the greater latitude
-            position = point1[0] > point2[0] ? point1 : point2;
-        } else {
-            // Fallback to waypoint's center
-            position = [waypoint.latitude, waypoint.longitude];
+        const anyWaypoint = waypoint as any;
+        let position: L.LatLngExpression = [waypoint.latitude, waypoint.longitude]; // Fallback position
+        let tooltipDirection: L.TooltipOptions['direction'] = 'top'; // Fallback direction
+        let tooltipOffset: L.PointTuple = [0, -10]; // Fallback offset
+
+        const X_OFFSET = 15;
+        const Y_OFFSET = 15;
+
+        if (anyWaypoint.outer_corner_position && anyWaypoint.outer_corner_position.length >= 3) {
+            position = anyWaypoint.outer_corner_position[0];
+            const horizontalMultiplier = anyWaypoint.outer_corner_position[1]; // e.g., +1 or -1
+            const verticalMultiplier = anyWaypoint.outer_corner_position[2];   // e.g., +1 or -1
+
+            tooltipDirection = 'center';
+
+            const offsetX = horizontalMultiplier * X_OFFSET;
+            const offsetY = verticalMultiplier * Y_OFFSET;
+
+            tooltipOffset = [offsetX, offsetY];
         }
+
+        const tooltipOptions: L.TooltipOptions = {
+            permanent: true,
+            direction: tooltipDirection,
+            offset: tooltipOffset,
+            className: 'waypoint-label'
+        };
 
         const marker = L.marker(position, {
             icon: emptyIcon, // Use a completely transparent icon
         }).addTo(map);
 
-        marker.bindTooltip(label, { // Use the constructed label here
-            permanent: true,
-            direction: 'top',
-            offset: [0, 0],
-            className: 'waypoint-label' // For potential custom styling
-        });
+        marker.bindTooltip(label, tooltipOptions);
 
         layers.push(marker);
     });
