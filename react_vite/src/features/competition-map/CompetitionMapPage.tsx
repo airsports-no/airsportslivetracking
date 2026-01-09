@@ -38,6 +38,7 @@ export default function CompetitionMapPage() {
   const [hasMapBeenFitted, setHasMapBeenFitted] = useState(false); // New state for initial map fit
   const [isRankingCollapsed, setIsRankingCollapsed] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [permanentAnnotations, setPermanentAnnotations] = useState(false);
   const [contestDetails, setContestDetails] = useState<any | null>(null);
 
   useEffect(() => {
@@ -214,6 +215,7 @@ export default function CompetitionMapPage() {
     annotationsByContestant,
     scoreLogByContestant,
     userShowSecrets,
+    permanentAnnotations,
   });
 
   // Deselection handler
@@ -400,6 +402,17 @@ export default function CompetitionMapPage() {
                         checked={userShowSecrets} 
                         onChange={(e) => setUserShowSecrets(e.target.checked)}
                         disabled={!staticNavTaskData?.display_secrets}
+                      />
+                    </label>
+                  </li>
+                  <li>
+                    <label className="label cursor-pointer">
+                      <span className="label-text">Permanent Annotations</span>
+                      <input
+                        type="checkbox"
+                        className="toggle toggle-primary"
+                        checked={permanentAnnotations}
+                        onChange={(e) => setPermanentAnnotations(e.target.checked)}
                       />
                     </label>
                   </li>

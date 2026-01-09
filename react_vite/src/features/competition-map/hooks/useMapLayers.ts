@@ -45,6 +45,8 @@ interface MapLayersProps {
 
     userShowSecrets: boolean;
 
+    permanentAnnotations: boolean;
+
 }
 
 
@@ -73,7 +75,9 @@ export function useMapLayers({
 
     scoreLogByContestant,
 
-    userShowSecrets
+    userShowSecrets,
+
+    permanentAnnotations
 
 }: MapLayersProps) {
 
@@ -403,21 +407,21 @@ export function useMapLayers({
 
                 const scoreLog = ann.score_log_entry ? allLogs.find(l => l.id === ann.score_log_entry) : null;
 
-                                                const marker = L.marker([ann.latitude, ann.longitude], {icon: getAnnotationIcon(ann.type)})
+                                                                                                const marker = L.marker([ann.latitude, ann.longitude], {icon: getAnnotationIcon(ann.type)})
 
-                                                    .bindTooltip(`
+                                                                                                    .bindTooltip(`
 
-                                                        <b>${ann.gate} (${ann.type})</b><br/>
+                                                                                                        <b>${ann.gate} (${ann.type})</b><br/>
 
-                                                        ${ann.message}<br/>
+                                                                                                        ${ann.message.replace(/\n/g, '<br/>')}<br/>
 
-                                                        <small>${new Date(ann.time).toLocaleString()}</small>
+                                                                                                        <small>${new Date(ann.time).toLocaleString()}</small>
 
-                                                        ${scoreLog ? `<br/><b>Score: ${scoreLog.points}</b>` : ''}
+                                                                                                        ${scoreLog ? `<br/><b>Score: ${scoreLog.points}</b>` : ''}
 
-                                                    `)
+                                                                                                    `, { permanent: permanentAnnotations, direction: 'top' })
 
-                    .addTo(map);
+                                                                    .addTo(map);
 
                 annotationLayersRef.current.push(marker);
 
@@ -425,6 +429,6 @@ export function useMapLayers({
 
         }
 
-    }, [mapRef, navTask, contestants, currentPositions, showFullTrails, currentTime, mode, selectedContestantId, annotationsByContestant, scoreLogByContestant, userShowSecrets]);
+    }, [mapRef, navTask, contestants, currentPositions, showFullTrails, currentTime, mode, selectedContestantId, annotationsByContestant, scoreLogByContestant, userShowSecrets, permanentAnnotations]);
 }
 

@@ -31,14 +31,25 @@ function renderWaypointLabels(
             label = `${waypoint.name} ${formatTime(expectedTime)}`;
         }
 
-        const marker = L.marker([waypoint.latitude, waypoint.longitude], {
+        let position: L.LatLngExpression;
+        if (waypoint.gate_line && waypoint.gate_line[0] && waypoint.gate_line[1]) {
+            const point1 = waypoint.gate_line[0];
+            const point2 = waypoint.gate_line[1];
+            // North-most point has the greater latitude
+            position = point1[0] > point2[0] ? point1 : point2;
+        } else {
+            // Fallback to waypoint's center
+            position = [waypoint.latitude, waypoint.longitude];
+        }
+
+        const marker = L.marker(position, {
             icon: emptyIcon, // Use a completely transparent icon
         }).addTo(map);
 
         marker.bindTooltip(label, { // Use the constructed label here
             permanent: true,
             direction: 'top',
-            offset: [0, -10],
+            offset: [0, 0],
             className: 'waypoint-label' // For potential custom styling
         });
 
