@@ -21,3 +21,7 @@
 .waypoint-label.leaflet-tooltip-right:before {
   border: none !important;
 }
+
+.hide-waypoint-labels .waypoint-label {
+    visibility: hidden;
+}

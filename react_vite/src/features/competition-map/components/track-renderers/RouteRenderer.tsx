@@ -37,7 +37,7 @@ function renderWaypointLabels(
         let tooltipDirection: L.TooltipOptions['direction'] = 'top'; // Fallback direction
         let tooltipOffset: L.PointTuple = [0, -10]; // Fallback offset
 
-        const X_OFFSET = 5;
+        const X_OFFSET = 0;
         const Y_OFFSET = 10;
 
         if (anyWaypoint.outer_corner_position && anyWaypoint.outer_corner_position.length >= 3) {
@@ -208,6 +208,18 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
 
     layersRef.current = layers;
 
+    const ZOOM_THRESHOLD = 9;
+    const handleZoom = () => {
+        if (map.getZoom() < ZOOM_THRESHOLD) {
+            map.getContainer().classList.add('hide-waypoint-labels');
+        } else {
+            map.getContainer().classList.remove('hide-waypoint-labels');
+        }
+    };
+
+    map.on('zoomend', handleZoom);
+    handleZoom(); // Initial check
+
     if (layers.length > 0) {
         const bounds = new L.FeatureGroup(layers).getBounds();
         if (isInitialLoad && bounds.isValid()) { // Only fit bounds on initial load
@@ -220,6 +232,8 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
     return () => {
       layersRef.current.forEach(layer => layer.remove());
       layersRef.current = [];
+      map.off('zoomend', handleZoom);
+      map.getContainer().classList.remove('hide-waypoint-labels');
     };
   }, [map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit]);
 
