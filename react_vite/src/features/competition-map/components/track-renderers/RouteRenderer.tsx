@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import type { NavigationTask, Waypoint, Contestant } from '../../types';
+import './WaypointLabel.css';
 
 function formatTime(dt: Date): string {
   const hh = String(dt.getHours()).padStart(2, '0');
@@ -36,15 +37,16 @@ function renderWaypointLabels(
         let tooltipDirection: L.TooltipOptions['direction'] = 'top'; // Fallback direction
         let tooltipOffset: L.PointTuple = [0, -10]; // Fallback offset
 
-        const X_OFFSET = 15;
-        const Y_OFFSET = 15;
+        const X_OFFSET = 5;
+        const Y_OFFSET = 10;
 
         if (anyWaypoint.outer_corner_position && anyWaypoint.outer_corner_position.length >= 3) {
             position = anyWaypoint.outer_corner_position[0];
             const horizontalMultiplier = anyWaypoint.outer_corner_position[1]; // e.g., +1 or -1
             const verticalMultiplier = anyWaypoint.outer_corner_position[2];   // e.g., +1 or -1
 
-            tooltipDirection = 'center';
+            if(horizontalMultiplier > 0) tooltipDirection = 'right';
+            if(horizontalMultiplier < 0) tooltipDirection = 'left';
 
             const offsetX = horizontalMultiplier * X_OFFSET;
             const offsetY = verticalMultiplier * Y_OFFSET;
