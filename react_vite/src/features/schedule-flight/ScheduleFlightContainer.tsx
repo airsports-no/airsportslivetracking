@@ -237,7 +237,10 @@ const ScheduleFlightContainer = () => {
                 <h1 className="text-2xl sm:text-4xl font-bold">
                     Schedule Flights
                 </h1>
-                <Link to="/past-flights" className="btn btn-primary">Past Flights</Link>
+                <div>
+                    <Link to="/past-flights" className="btn btn-primary">Past Flights</Link>
+                    <Link to="/mission-dashboard" className="btn btn-secondary ml-2">Mission Dashboard</Link>
+                </div>
             </div>
 
             {error && <div className="alert alert-error">{error}</div>}

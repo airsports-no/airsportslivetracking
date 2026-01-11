@@ -1,0 +1,45 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+
+interface TaskCardProps {
+    name: string;
+    status: 'Open' | 'Scheduled' | 'Live' | 'Finalized';
+    takeOffTime?: string;
+    contestId: number;
+    taskId: number;
+}
+
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, takeOffTime, contestId, taskId }) => {
+    return (
+        <div className="card bg-base-200 shadow-xl">
+            <div className="card-body">
+                <h2 className="card-title">{name}</h2>
+                <div className="flex justify-between items-center mt-4">
+                    <div>
+                        {status === 'Open' && <Link to={`/schedule-flight?contestId=${contestId}&navigationTaskId=${taskId}`} className="btn btn-primary">Register Flight Plan</Link>}
+                        {status === 'Scheduled' && (
+                            <div>
+                                <p>Take-off: {takeOffTime}</p>
+                                <button className="btn btn-secondary mt-2">Manage</button>
+                            </div>
+                        )}
+                        {status === 'Live' && (
+                            <div>
+                                <p className="text-error">🔴 LIVE</p>
+                                <button className="btn btn-primary mt-2">Watch Tracking</button>
+                            </div>
+                        )}
+                        {status === 'Finalized' && (
+                             <div>
+                                <p>Results Ready</p>
+                                <button className="btn btn-secondary mt-2">View Scorecard</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default TaskCard;

@@ -5,6 +5,8 @@
   "ROUTE_EDITOR_CREATE": "routeeditor/create",
   "SCHEDULE_FLIGHT": "schedule-flight",
   "PAST_FLIGHTS": "past-flights",
+  "MISSION_DASHBOARD": "mission-dashboard",
+  "MISSION_DASHBOARD_DETAIL": "mission-dashboard/:contestId",
   "COMPETITION_MAP": "competition-map",
   "COMPETITION_MAP_DETAIL": "competition-map/:contestId/:navigationTaskId",
   "NOT_FOUND": "*"

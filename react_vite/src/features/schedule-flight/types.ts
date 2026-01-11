@@ -30,9 +30,10 @@ export interface NavigationTask {
     start_time: string;
     finish_time: string;
     tracking_link: string;
+    allow_self_management: boolean;
+    future_contestants?: any[];
     contestant_set: ContestantResult[];
     score_sorting_direction: 'asc' | 'desc';
-    allow_self_management: boolean;
     user_has_change_permission: boolean;
     calculation_delay_minutes?: number;
     contest: Contest;
