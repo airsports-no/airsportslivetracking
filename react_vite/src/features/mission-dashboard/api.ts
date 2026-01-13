@@ -1,4 +1,4 @@
-import { OngoingNavigation, PaginatedContests, MyParticipatingContest, Club, Aircraft, Copilot, ScheduleFlightPayload, RegisterTeamPayload, Contest, NavigationTask } from './types';
+import { OngoingNavigation, PaginatedContests, MyParticipatingContest, Club, Aircraft, Copilot, ScheduleFlightPayload, RegisterTeamPayload, Contest, NavigationTask, ContestResults } from './types';
 import { getCookie } from '../../utils/csrf';
 import { reverse } from '../../urls';
 
@@ -30,7 +30,7 @@ const _fetchContestsPage = async (cursor?: string | null): Promise<PaginatedCont
     const url = new URL(baseUrl, window.location.origin);
     if (cursor) {
         url.searchParams.set('cursor', cursor);
-    }1
+    }
 
     const response = await fetch(url.toString(), { headers: getAuthHeaders() });
     if (!response.ok) {
@@ -58,6 +58,18 @@ export const fetchContests = async (): Promise<Contest[]> => {
     cachedContests = allContests;
     return allContests;
 };
+
+export const fetchContestResults = async (contestId: number): Promise<ContestResults> => {
+    const url = reverse('contests-results-details', contestId);
+    const response = await fetch(url, { headers: getAuthHeaders() });
+    if (!response.ok) {
+        const error = new Error(`Failed to fetch contest results for ${contestId}`) as any;
+        error.status = response.status;
+        throw error;
+    }
+    return response.json();
+};
+
 
 export const fetchMyParticipatingContests = async (): Promise<MyParticipatingContest[]> => {
     const url = reverse('userprofile-my-participating-contests');

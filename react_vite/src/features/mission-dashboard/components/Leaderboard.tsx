@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
-import { Contest } from '../types';
+import { ContestResults, ContestSummary } from '../types';
 import { ASTable } from '../../route-editor/components/filteredSearchableTable';
 
 interface LeaderboardProps {
-    contest: Contest;
+    results: ContestResults | null;
 }
 
 interface LeaderboardData {
@@ -13,31 +13,26 @@ interface LeaderboardData {
     score: number;
 }
 
-const Leaderboard: React.FC<LeaderboardProps> = ({ contest }) => {
+const Leaderboard: React.FC<LeaderboardProps> = ({ results }) => {
 
     const data = useMemo(() => {
-        const allContestants = contest.navigationtask_set.flatMap(task => 
-            (task.contestant_set || []).map(c => ({
-                name: `${c.team.crew.member1.first_name} ${c.team.crew.member1.last_name}`,
-                score: c.contestanttrack.score
-            }))
-        );
-        
-        // This is a simplified aggregation. A real implementation might need more complex logic
-        // to handle multiple tasks per contestant. For now, we just list all participants.
-        const sorted = allContestants.sort((a, b) => {
-            if (contest.summary_score_sorting_direction === 'desc') {
-                return b.score - a.score;
+        if (!results || !results.contestsummary_set) {
+            return [];
+        }
+
+        const sorted = [...results.contestsummary_set].sort((a, b) => {
+            if (results.summary_score_sorting_direction === 'desc') {
+                return b.points - a.points;
             }
-            return a.score - b.score;
+            return a.points - b.points;
         });
 
-        return sorted.map((c, index) => ({
+        return sorted.map((summary, index) => ({
             rank: index + 1,
-            name: c.name,
-            score: c.score
+            name: `${summary.team.crew.member1.first_name} ${summary.team.crew.member1.last_name}`,
+            score: summary.points
         }));
-    }, [contest]);
+    }, [results]);
 
     const columns = useMemo<ColumnDef<LeaderboardData>[]>(() => [
         {
@@ -54,6 +49,10 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ contest }) => {
             cell: ({ getValue }) => (getValue() as number).toFixed(0),
         },
     ], []);
+
+    if (!results) {
+        return <div className="card bg-base-200 shadow-xl"><div className="card-body">No results available yet.</div></div>;
+    }
 
     return (
         <div className="card bg-base-200 shadow-xl">

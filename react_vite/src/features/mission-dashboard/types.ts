@@ -213,11 +213,41 @@ export interface ActiveContestant {
 }
 
 export interface OngoingNavigation {
+
     pk: number;
+
     name: string;
+
     start_time: string;
+
     finish_time: string;
+
     tracking_link: string;
+
     active_contestants: ActiveContestant[];
+
     contest: Contest;
+
+}
+
+
+
+export interface ContestSummary {
+
+    id: number;
+
+    team: Team;
+
+    points: number;
+
+    contest: number;
+
+}
+
+
+
+export interface ContestResults {
+    id: number;
+    contestsummary_set: ContestSummary[];
+    summary_score_sorting_direction: 'asc' | 'desc';
 }

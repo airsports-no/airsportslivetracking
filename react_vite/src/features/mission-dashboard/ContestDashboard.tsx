@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Contest, MyParticipatingContest, NavigationTask } from './types';
-import { fetchContest, fetchMyParticipatingContests, fetchOngoingNavigation, withdraw, cancelFlight } from './api';
+import { Contest, MyParticipatingContest, NavigationTask, ContestResults } from './types';
+import { fetchContest, fetchMyParticipatingContests, fetchOngoingNavigation, withdraw, cancelFlight, fetchContestResults } from './api';
 import { Loading } from '../route-editor/components/basicComponents';
 import TaskCard from './components/TaskCard';
 import Leaderboard from './components/Leaderboard';
@@ -13,6 +13,7 @@ import ScheduleFlightForm from './components/ScheduleFlightForm';
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
     const [contest, setContest] = useState<Contest | null>(null);
+    const [results, setResults] = useState<ContestResults | null>(null);
     const [myContests, setMyContests] = useState<MyParticipatingContest[]>([]);
     const [ongoingNavigations, setOngoingNavigations] = useState<OngoingNavigation[]>([]);
     const [loading, setLoading] = useState(true);
@@ -29,20 +30,22 @@ const ContestDashboard = () => {
             Promise.all([
                 fetchContest(Number(contestId)),
                 fetchMyParticipatingContests(),
-                fetchOngoingNav()
-            ]).then(([contestData, myContestsData, ongoingData]) => {
+                fetchOngoingNav(),
+                fetchContestResults(Number(contestId)),
+            ]).then(([contestData, myContestsData, ongoingData, resultsData]) => {
                 setContest(contestData);
                 setMyContests(myContestsData);
                 setOngoingNavigations(ongoingData);
+                setResults(resultsData);
             }).catch(err => setError((err as Error).message))
-            .finally(() => setLoading(false));
+                .finally(() => setLoading(false));
         }
     }
 
     useEffect(() => {
         refreshData();
     }, [contestId]);
-    
+
     const handleWithdrawClick = async (contestId: number) => {
         try {
             await withdraw(contestId);
@@ -76,7 +79,7 @@ const ContestDashboard = () => {
                 return 'Scheduled';
             }
         }
-        
+
         return 'Open';
     };
 
@@ -100,7 +103,7 @@ const ContestDashboard = () => {
                 </div>
             )}
             {showScheduleForm && (
-                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
                     <ScheduleFlightForm
                         contest={contest}
                         navigationTaskId={showScheduleForm.pk}
@@ -137,7 +140,7 @@ const ContestDashboard = () => {
                             )}
                         </div>
                     </div>
-                     <div className="flex flex-col items-stretch gap-2">
+                    <div className="flex flex-col items-stretch gap-2">
                         {isRegistered ? (
                             <button className="btn btn-warning" onClick={() => handleWithdrawClick(contest.id)}>Withdraw</button>
                         ) : (
@@ -151,7 +154,7 @@ const ContestDashboard = () => {
                 {/* Leaderboard */}
                 <div className="lg:col-span-2">
                     <h2 className="text-2xl font-bold mb-4">Leaderboard</h2>
-                    <Leaderboard contest={contest} />
+                    <Leaderboard results={results} />
                 </div>
 
                 {/* Task Suite */}
@@ -170,11 +173,11 @@ const ContestDashboard = () => {
                                     status={getTaskStatus(task)}
                                     contestId={contest.id}
                                     taskId={task.pk}
+                                    tracking_link={task.tracking_link}
                                     onScheduleClick={() => setShowScheduleForm(task)}
                                     futureContestantId={futureContestant?.id}
                                     onCancelClick={() => futureContestant && handleCancelFlight(contest.id, task.pk, futureContestant.id)}
-                                />
-                            );
+                                />);
                         })}
                     </div>
                 </div>
@@ -183,5 +186,4 @@ const ContestDashboard = () => {
         </div>
     );
 };
-
 export default ContestDashboard;

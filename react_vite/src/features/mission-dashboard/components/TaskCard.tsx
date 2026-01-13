@@ -10,13 +10,16 @@ interface TaskCardProps {
     onScheduleClick: () => void;
     onCancelClick?: () => void;
     futureContestantId?: number;
+    tracking_link: string;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, takeOffTime, contestId, taskId, onScheduleClick, onCancelClick, futureContestantId }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, takeOffTime, contestId, taskId, onScheduleClick, onCancelClick, futureContestantId, tracking_link }) => {
     return (
         <div className="card bg-base-200 shadow-xl">
             <div className="card-body">
-                <h2 className="card-title">{name}</h2>
+                <h2 className="card-title">
+                    <Link to={tracking_link}>{name}</Link>
+                </h2>
                 <div className="flex justify-between items-center mt-4">
                     <div>
                         {status === 'Open' && <button onClick={onScheduleClick} className="btn btn-primary">Register Flight Plan</button>}

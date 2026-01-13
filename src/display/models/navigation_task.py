@@ -11,6 +11,7 @@ from geopy import Nominatim
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 
 from display.fields.my_pickled_object_field import MyPickledObjectField
+from display.templatetags.frontend_urls import fe_url
 from display.utilities.navigation_task_type_definitions import (
     POKER,
     PRECISION,
@@ -181,7 +182,7 @@ class NavigationTask(models.Model):
         """
         URL for the online tracking map
         """
-        return f"/frontend/competition-map/{self.contest.pk}/{self.pk}/"
+        return fe_url("COMPETITION_MAP_DETAIL", contestId=self.contest.pk, navigationTaskId=self.pk)
 
     @property
     def everything_public(self):
