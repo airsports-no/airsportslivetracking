@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
+import { LatLngBounds } from 'leaflet';
 import { fetchContests, fetchOngoingNavigation, fetchMyParticipatingContests, cancelFlight } from './api';
 import { Contest, OngoingNavigation, MyParticipatingContest } from './types';
 import ContestCard from './components/ContestCard';
@@ -18,6 +19,7 @@ const MissionDashboard = () => {
     const [activeTab, setActiveTab] = useState('allContests');
     const [nameFilter, setNameFilter] = useState('');
     const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+    const [mapBounds, setMapBounds] = useState<LatLngBounds | null>(null);
 
     const refreshData = async () => {
         try {
@@ -77,7 +79,7 @@ const MissionDashboard = () => {
         return uniqueCountries.map(country => ({ value: country!, label: country! }));
     }, [contests]);
 
-    const filteredContests = useMemo(() => {
+    const textFilteredContests = useMemo(() => {
         if (!contests) return [];
         return contests
             .filter(contest => {
@@ -87,6 +89,14 @@ const MissionDashboard = () => {
             });
     }, [contests, nameFilter, selectedCountries]);
 
+    const listFilteredContests = useMemo(() => {
+        if (!textFilteredContests) return [];
+        return textFilteredContests.filter(contest => {
+            const boundsMatch = !mapBounds || (contest.latitude != null && contest.longitude != null && mapBounds.contains([contest.latitude, contest.longitude]));
+            return boundsMatch;
+        })
+    }, [textFilteredContests, mapBounds]);
+
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
             <h1 className="text-4xl font-bold mb-4">Mission Dashboard</h1>
@@ -95,7 +105,7 @@ const MissionDashboard = () => {
             
             <div className="mb-8 hidden lg:block">
                 <h2 className="text-2xl font-bold mb-4">Contest Map</h2>
-                <ContestMap contests={filteredContests} />
+                <ContestMap contests={textFilteredContests} onBoundsChanged={setMapBounds} />
             </div>
 
             {/* Live Now Section */}
@@ -149,7 +159,7 @@ const MissionDashboard = () => {
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredContests.map(contest => (
+                        {listFilteredContests.map(contest => (
                             <Link to={`/mission-dashboard/${contest.id}`} key={contest.id}>
                                 <ContestCard
                                     contest={contest}
@@ -158,7 +168,7 @@ const MissionDashboard = () => {
                                 />
                             </Link>
                         ))}
-                        {filteredContests.length === 0 && !loading && (
+                        {listFilteredContests.length === 0 && !loading && (
                             <p className="text-center mt-2 sm:mt-4 col-span-full">No contests match your filters.</p>
                         )}
                     </div>
