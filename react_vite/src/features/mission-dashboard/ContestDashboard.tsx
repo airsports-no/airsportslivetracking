@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Contest, MyParticipatingContest, NavigationTask, ContestResults } from './types';
 import { fetchContest, fetchMyParticipatingContests, fetchOngoingNavigation, withdraw, cancelFlight, fetchContestResults } from './api';
+import { fetchNavigationTask } from '../competition-map/api';
 import { Loading } from '../route-editor/components/basicComponents';
 import TaskCard from './components/TaskCard';
 import Leaderboard from './components/Leaderboard';
@@ -9,6 +10,7 @@ import { OngoingNavigation } from './types';
 import { fetchOngoingNavigation as fetchOngoingNav } from './api';
 import ContestRegistrationForm from './components/ContestRegistrationForm';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
+import TaskScoreDisplay from './components/TaskScoreDisplay';
 
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
@@ -21,8 +23,11 @@ const ContestDashboard = () => {
 
     const [showRegistrationForm, setShowRegistrationForm] = useState(false);
     const [showScheduleForm, setShowScheduleForm] = useState<NavigationTask | null>(null);
+    const [viewingScoresForTask, setViewingScoresForTask] = useState<NavigationTask | null>(null);
+    const [loadingTaskScores, setLoadingTaskScores] = useState(false);
 
     const isRegistered = myContests.some(mc => mc.contest.id === contest?.id);
+    const currentUserEmail = document.configuration.currentUserEmail;
 
     const refreshData = () => {
         if (contestId) {
@@ -38,14 +43,14 @@ const ContestDashboard = () => {
                 setOngoingNavigations(ongoingData);
                 setResults(resultsData);
             }).catch(err => setError((err as Error).message))
-                .finally(() => setLoading(false));
+            .finally(() => setLoading(false));
         }
     }
 
     useEffect(() => {
         refreshData();
     }, [contestId]);
-
+    
     const handleWithdrawClick = async (contestId: number) => {
         try {
             await withdraw(contestId);
@@ -64,6 +69,20 @@ const ContestDashboard = () => {
         }
     };
 
+    const handleViewScoresClick = async (task: NavigationTask) => {
+        setLoadingTaskScores(true);
+        setViewingScoresForTask(task); // Show modal immediately with partial data
+        try {
+            const fullTaskData = await fetchNavigationTask(contest.id, task.pk);
+            setViewingScoresForTask(fullTaskData);
+        } catch (err) {
+            setError('Failed to load task scores.');
+            setViewingScoresForTask(null);
+        } finally {
+            setLoadingTaskScores(false);
+        }
+    };
+
     const getTaskStatus = (task: NavigationTask): 'Open' | 'Scheduled' | 'Live' | 'Finalized' => {
         if (ongoingNavigations.some(nav => nav.pk === task.pk)) {
             return 'Live';
@@ -79,7 +98,7 @@ const ContestDashboard = () => {
                 return 'Scheduled';
             }
         }
-
+        
         return 'Open';
     };
 
@@ -103,7 +122,7 @@ const ContestDashboard = () => {
                 </div>
             )}
             {showScheduleForm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
                     <ScheduleFlightForm
                         contest={contest}
                         navigationTaskId={showScheduleForm.pk}
@@ -113,6 +132,22 @@ const ContestDashboard = () => {
                             refreshData();
                         }}
                     />
+                </div>
+            )}
+            {viewingScoresForTask && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                    <div className="card bg-base-100 shadow-xl max-w-4xl w-full">
+                        <div className="card-body">
+                            {loadingTaskScores ? (
+                                <Loading />
+                            ) : (
+                                <TaskScoreDisplay task={viewingScoresForTask} currentUserEmail={currentUserEmail} />
+                            )}
+                            <div className="card-actions justify-end">
+                                <button onClick={() => setViewingScoresForTask(null)} className="btn">Close</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -140,7 +175,7 @@ const ContestDashboard = () => {
                             )}
                         </div>
                     </div>
-                    <div className="flex flex-col items-stretch gap-2">
+                     <div className="flex flex-col items-stretch gap-2">
                         {isRegistered ? (
                             <button className="btn btn-warning" onClick={() => handleWithdrawClick(contest.id)}>Withdraw</button>
                         ) : (
@@ -177,7 +212,9 @@ const ContestDashboard = () => {
                                     onScheduleClick={() => setShowScheduleForm(task)}
                                     futureContestantId={futureContestant?.id}
                                     onCancelClick={() => futureContestant && handleCancelFlight(contest.id, task.pk, futureContestant.id)}
-                                />);
+                                    onViewScoresClick={() => handleViewScoresClick(task)}
+                                />
+                            );
                         })}
                     </div>
                 </div>

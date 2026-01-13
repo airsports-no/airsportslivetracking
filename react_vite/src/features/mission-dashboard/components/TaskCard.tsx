@@ -11,9 +11,10 @@ interface TaskCardProps {
     onCancelClick?: () => void;
     futureContestantId?: number;
     tracking_link: string;
+    onViewScoresClick: () => void;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, takeOffTime, contestId, taskId, onScheduleClick, onCancelClick, futureContestantId, tracking_link }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, takeOffTime, contestId, taskId, onScheduleClick, onCancelClick, futureContestantId, tracking_link, onViewScoresClick }) => {
     return (
         <div className="card bg-base-200 shadow-xl">
             <div className="card-body">
@@ -40,7 +41,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, takeOffTime, contestI
                         {status === 'Finalized' && (
                              <div>
                                 <p>Results Ready</p>
-                                <button className="btn btn-secondary mt-2">View Scorecard</button>
+                                <button onClick={onViewScoresClick} className="btn btn-secondary mt-2">View Scores</button>
                             </div>
                         )}
                     </div>

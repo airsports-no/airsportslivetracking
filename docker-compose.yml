@@ -12,6 +12,7 @@ services:
       - REMOVE_BG_KEY
       - GOOGLE_APPLICATION_CREDENTIALS=/secret/application_default_credentials.json
       - GOOGLE_CLOUD_PROJECT=airsports-613ce
+      
     # env_file:
     #   - .env.private
     build:
