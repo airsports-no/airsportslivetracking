@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Contest, MyParticipatingContest, NavigationTask } from './types';
-import { fetchContest, fetchMyParticipatingContests, fetchOngoingNavigation, withdraw } from './api';
+import { fetchContest, fetchMyParticipatingContests, fetchOngoingNavigation, withdraw, cancelFlight } from './api';
 import { Loading } from '../route-editor/components/basicComponents';
 import TaskCard from './components/TaskCard';
 import Leaderboard from './components/Leaderboard';
@@ -46,6 +46,15 @@ const ContestDashboard = () => {
     const handleWithdrawClick = async (contestId: number) => {
         try {
             await withdraw(contestId);
+            refreshData();
+        } catch (error) {
+            setError((error as Error).message);
+        }
+    };
+
+    const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number) => {
+        try {
+            await cancelFlight(contestId, navigationTaskId, futureContestantId);
             refreshData();
         } catch (error) {
             setError((error as Error).message);
@@ -106,8 +115,12 @@ const ContestDashboard = () => {
 
             {/* Contest Header */}
             <div className="mb-8">
-                {contest.header_image && (
-                    <img src={contest.header_image} alt={contest.name} className="w-full h-64 object-cover rounded-lg mb-4" />
+                {(contest.header_image || contest.logo) && (
+                    <img
+                        src={contest.header_image || contest.logo}
+                        alt={contest.name}
+                        className="w-full h-64 object-cover rounded-lg mb-4"
+                    />
                 )}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -145,16 +158,24 @@ const ContestDashboard = () => {
                 <div>
                     <h2 className="text-2xl font-bold mb-4">Task Suite</h2>
                     <div className="space-y-4">
-                        {contest.navigationtask_set.map(task => (
-                            <TaskCard
-                                key={task.pk}
-                                name={task.name}
-                                status={getTaskStatus(task)}
-                                contestId={contest.id}
-                                taskId={task.pk}
-                                onScheduleClick={() => setShowScheduleForm(task)}
-                            />
-                        ))}
+                        {contest.navigationtask_set.map(task => {
+                            const myContest = myContests.find(mc => mc.contest.id === contest.id);
+                            const myTask = myContest?.contest.navigationtask_set.find(nt => nt.pk === task.pk);
+                            const futureContestant = myTask?.future_contestants?.[0];
+
+                            return (
+                                <TaskCard
+                                    key={task.pk}
+                                    name={task.name}
+                                    status={getTaskStatus(task)}
+                                    contestId={contest.id}
+                                    taskId={task.pk}
+                                    onScheduleClick={() => setShowScheduleForm(task)}
+                                    futureContestantId={futureContestant?.id}
+                                    onCancelClick={() => futureContestant && handleCancelFlight(contest.id, task.pk, futureContestant.id)}
+                                />
+                            );
+                        })}
                     </div>
                 </div>
             </div>

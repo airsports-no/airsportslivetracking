@@ -9,6 +9,7 @@ import PastFlights from './components/PastFlights';
 import ContestMap from './components/ContestMap';
 import { Loading } from '../route-editor/components/basicComponents';
 import { Link } from 'react-router-dom';
+import { reverse } from '../../urls';
 
 const MissionDashboard = () => {
     const [contests, setContests] = useState<Contest[]>([]);
@@ -20,6 +21,7 @@ const MissionDashboard = () => {
     const [nameFilter, setNameFilter] = useState('');
     const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
     const [mapBounds, setMapBounds] = useState<LatLngBounds | null>(null);
+    const [hasUserInteractedWithMap, setHasUserInteractedWithMap] = useState(false);
 
     const refreshData = async () => {
         try {
@@ -29,7 +31,7 @@ const MissionDashboard = () => {
                 fetchOngoingNavigation(),
                 fetchMyParticipatingContests(),
             ]);
-            setContests(contestsData.results);
+            setContests(contestsData);
             setOngoingNavigations(ongoingData);
             setMyContests(myContestsData);
         } catch (err) {
@@ -73,6 +75,23 @@ const MissionDashboard = () => {
         return new Set(myContests.map(mc => mc.contest.id));
     }, [myContests]);
 
+    const scheduledFlightContestIds = useMemo(() => {
+        if (!myContests) return new Set();
+
+        const upcomingFlights = myContests.flatMap(mc => 
+            mc.contest.navigationtask_set.flatMap(nt => 
+                nt.future_contestants.map(fc => ({...fc, contest: mc.contest}))
+            )
+        ).filter(flight => new Date(flight.finished_by_time) > new Date());
+
+        return new Set(upcomingFlights.map(flight => flight.contest.id));
+    }, [myContests]);
+
+    const editorContests = useMemo(() => {
+        if (!contests) return [];
+        return contests.filter(contest => contest.is_editor);
+    }, [contests]);
+
     const countryOptions = useMemo(() => {
         if (!contests) return [];
         const uniqueCountries = Array.from(new Set(contests.map(c => c.country).filter(Boolean))).sort();
@@ -91,11 +110,14 @@ const MissionDashboard = () => {
 
     const listFilteredContests = useMemo(() => {
         if (!textFilteredContests) return [];
+        if (!hasUserInteractedWithMap) {
+            return textFilteredContests;
+        }
         return textFilteredContests.filter(contest => {
             const boundsMatch = !mapBounds || (contest.latitude != null && contest.longitude != null && mapBounds.contains([contest.latitude, contest.longitude]));
             return boundsMatch;
         })
-    }, [textFilteredContests, mapBounds]);
+    }, [textFilteredContests, mapBounds, hasUserInteractedWithMap]);
 
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
@@ -105,7 +127,12 @@ const MissionDashboard = () => {
             
             <div className="mb-8 hidden lg:block">
                 <h2 className="text-2xl font-bold mb-4">Contest Map</h2>
-                <ContestMap contests={textFilteredContests} onBoundsChanged={setMapBounds} />
+                <ContestMap 
+                    contests={textFilteredContests} 
+                    onBoundsChanged={setMapBounds} 
+                    minZoom={1}
+                    onInteraction={() => setHasUserInteractedWithMap(true)} 
+                />
             </div>
 
             {/* Live Now Section */}
@@ -133,13 +160,17 @@ const MissionDashboard = () => {
                 <a className={`tab ${activeTab === 'allContests' ? 'tab-active' : ''}`} onClick={() => setActiveTab('allContests')}>All Contests</a> 
                 <a className={`tab ${activeTab === 'upcoming' ? 'tab-active' : ''}`} onClick={() => setActiveTab('upcoming')}>My Upcoming Flights</a>
                 <a className={`tab ${activeTab === 'past' ? 'tab-active' : ''}`} onClick={() => setActiveTab('past')}>My Past Flights</a>
+                <a className={`tab ${activeTab === 'editorContests' ? 'tab-active' : ''}`} onClick={() => setActiveTab('editorContests')}>My Edited Contests</a>
             </div>
 
             {loading && <Loading />}
 
             {activeTab === 'allContests' && (
                 <div>
-                    <h2 className="text-2xl font-bold mb-4">All Contests</h2>
+                    <h2 className="text-2xl font-bold mb-4">
+                        All Contests
+                        <span className="ml-2 text-gray-500 text-lg">({listFilteredContests.length})</span>
+                    </h2>
                      <div className="flex space-x-2 sm:space-x-4 mb-2 sm:mb-4">
                         <input
                             type="text"
@@ -165,6 +196,7 @@ const MissionDashboard = () => {
                                     contest={contest}
                                     status={getContestStatus(contest)}
                                     isRegistered={registeredContestIds.has(contest.id)}
+                                    hasScheduledFlight={scheduledFlightContestIds.has(contest.id)}
                                 />
                             </Link>
                         ))}
@@ -186,6 +218,27 @@ const MissionDashboard = () => {
                 <div>
                     <h2 className="text-2xl font-bold mb-4">My Past Flights</h2>
                     <PastFlights />
+                </div>
+            )}
+
+            {activeTab === 'editorContests' && (
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">My Edited Contests</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {editorContests.map(contest => (
+                            <Link to={reverse('contests-detail', contest.id)} key={contest.id}>
+                                <ContestCard
+                                    contest={contest}
+                                    status={getContestStatus(contest)}
+                                    isRegistered={registeredContestIds.has(contest.id)}
+                                    hasScheduledFlight={scheduledFlightContestIds.has(contest.id)}
+                                />
+                            </Link>
+                        ))}
+                        {editorContests.length === 0 && !loading && (
+                            <p className="text-center mt-2 sm:mt-4 col-span-full">You are not an editor for any contests.</p>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

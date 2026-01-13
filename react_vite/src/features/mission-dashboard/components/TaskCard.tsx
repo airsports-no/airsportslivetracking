@@ -8,9 +8,11 @@ interface TaskCardProps {
     contestId: number;
     taskId: number;
     onScheduleClick: () => void;
+    onCancelClick?: () => void;
+    futureContestantId?: number;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, takeOffTime, contestId, taskId, onScheduleClick }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, takeOffTime, contestId, taskId, onScheduleClick, onCancelClick, futureContestantId }) => {
     return (
         <div className="card bg-base-200 shadow-xl">
             <div className="card-body">
@@ -21,7 +23,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, takeOffTime, contestI
                         {status === 'Scheduled' && (
                             <div>
                                 <p>Take-off: {takeOffTime}</p>
-                                <button className="btn btn-secondary mt-2">Manage</button>
+                                {futureContestantId && onCancelClick && (
+                                     <button onClick={onCancelClick} className="btn btn-error mt-2">Cancel Flight</button>
+                                )}
                             </div>
                         )}
                         {status === 'Live' && (

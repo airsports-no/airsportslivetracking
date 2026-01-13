@@ -23,18 +23,40 @@ const getAuthHeaders = () => {
     };
 };
 
-export const fetchContests = async (cursor?: string | null): Promise<PaginatedContests> => {
+let cachedContests: Contest[] | null = null;
+
+const _fetchContestsPage = async (cursor?: string | null): Promise<PaginatedContests> => {
     const baseUrl = reverse('contests-list');
     const url = new URL(baseUrl, window.location.origin);
     if (cursor) {
         url.searchParams.set('cursor', cursor);
-    }
+    }1
 
     const response = await fetch(url.toString(), { headers: getAuthHeaders() });
     if (!response.ok) {
         throw new Error('Failed to fetch contests');
     }
     return response.json();
+};
+
+export const fetchContests = async (): Promise<Contest[]> => {
+    if (cachedContests) {
+        return Promise.resolve(cachedContests);
+    }
+
+    let allContests: Contest[] = [];
+    let nextCursor: string | null = null;
+    let hasMore = true;
+
+    while(hasMore) {
+        const response = await _fetchContestsPage(nextCursor);
+        allContests = allContests.concat(response.results);
+        nextCursor = response.next;
+        hasMore = !!response.next;
+    }
+
+    cachedContests = allContests;
+    return allContests;
 };
 
 export const fetchMyParticipatingContests = async (): Promise<MyParticipatingContest[]> => {

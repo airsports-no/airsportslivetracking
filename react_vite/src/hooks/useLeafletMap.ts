@@ -23,6 +23,8 @@ interface UseLeafletMapOptions {
     initialCenter?: L.LatLngExpression;
     initialZoom?: number;
     zoomControl?: boolean;
+    minZoom?: number;
+    maxZoom?: number;
 }
 
 /**
@@ -39,16 +41,24 @@ export default function useLeafletMap(
 
     useEffect(() => {
         if (mapContainerRef.current && !map) {
+            var southWest = L.latLng(-90, -180),
+            northEast = L.latLng(90, 180),
+            bounds = L.latLngBounds(southWest, northEast);
             const mapInstance = L.map(mapContainerRef.current, {
                 zoomControl: options?.zoomControl ?? true,
+                minZoom: options?.minZoom,
+                maxZoom: options?.maxZoom,
+                maxBounds: bounds
             }).setView(
                 options?.initialCenter ?? [20, 0], // Default to global view
                 options?.initialZoom ?? 2 // Default zoom level
             );
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                noWrap: true
             }).addTo(mapInstance);
+
 
             setMap(mapInstance);
         }
