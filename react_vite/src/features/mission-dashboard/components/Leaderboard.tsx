@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
-import { Contest } from '../../schedule-flight/types';
+import { Contest } from '../types';
 import { ASTable } from '../../route-editor/components/filteredSearchableTable';
 
 interface LeaderboardProps {

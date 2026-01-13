@@ -5,8 +5,6 @@ import routes from "./routes.json";
 
 const EditableRouteList = lazy(() => import("./features/route-editor/containers/EditableRouteList").then(module => ({ default: module.EditableRouteList })));
 const RouteEditor = lazy(() => import("./features/route-editor/containers/RouteEditor"));
-const ScheduleFlightContainer = lazy(() => import("./features/schedule-flight/ScheduleFlightContainer"));
-const PastFlightsPage = lazy(() => import("./features/schedule-flight/PastFlightsPage"));
 const MissionDashboard = lazy(() => import("./features/mission-dashboard/MissionDashboard"));
 const ContestDashboard = lazy(() => import("./features/mission-dashboard/ContestDashboard"));
 const CompetitionMapPage = lazy(() => import("./features/competition-map/CompetitionMapPage"));
@@ -19,10 +17,6 @@ export const FrontendRouter = () => {
                     <Route path={routes.ROUTE_EDITOR_LIST} element={<EditableRouteList />} />
                     <Route path={routes.ROUTE_EDITOR_EDIT} element={<RouteEditor />} />
                     <Route path={routes.ROUTE_EDITOR_CREATE} element={<RouteEditor />} />
-                    {/* Deep link for scheduling a flight: /schedule-flight?contestId=<CONTEST_ID>&navigationTaskId=<TASK_ID> */}
-                    {/* Deep link for registering for a contest: /schedule-flight?registerContestId=<CONTEST_ID> */}
-                    <Route path={routes.SCHEDULE_FLIGHT} element={<ScheduleFlightContainer />} />
-                    <Route path={routes.PAST_FLIGHTS} element={<PastFlightsPage />} />
                     <Route path={routes.MISSION_DASHBOARD} element={<MissionDashboard />} />
                     <Route path={routes.MISSION_DASHBOARD_DETAIL} element={<ContestDashboard />} />
                     <Route path={routes.COMPETITION_MAP} element={<CompetitionMapPage />} />

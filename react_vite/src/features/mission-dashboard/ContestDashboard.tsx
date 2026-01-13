@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Contest, MyParticipatingContest } from '../schedule-flight/types';
-import { fetchContest, fetchMyParticipatingContests } from '../schedule-flight/api';
+import { Contest, MyParticipatingContest, NavigationTask } from './types';
+import { fetchContest, fetchMyParticipatingContests, fetchOngoingNavigation, withdraw } from './api';
 import { Loading } from '../route-editor/components/basicComponents';
 import TaskCard from './components/TaskCard';
 import Leaderboard from './components/Leaderboard';
 import { OngoingNavigation } from './types';
-import { fetchOngoingNavigation } from './api';
+import { fetchOngoingNavigation as fetchOngoingNav } from './api';
+import ContestRegistrationForm from './components/ContestRegistrationForm';
+import ScheduleFlightForm from './components/ScheduleFlightForm';
 
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
@@ -16,12 +18,18 @@ const ContestDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
+    const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+    const [showScheduleForm, setShowScheduleForm] = useState<NavigationTask | null>(null);
+
+    const isRegistered = myContests.some(mc => mc.contest.id === contest?.id);
+
+    const refreshData = () => {
         if (contestId) {
+            setLoading(true);
             Promise.all([
                 fetchContest(Number(contestId)),
                 fetchMyParticipatingContests(),
-                fetchOngoingNavigation()
+                fetchOngoingNav()
             ]).then(([contestData, myContestsData, ongoingData]) => {
                 setContest(contestData);
                 setMyContests(myContestsData);
@@ -29,9 +37,22 @@ const ContestDashboard = () => {
             }).catch(err => setError((err as Error).message))
             .finally(() => setLoading(false));
         }
-    }, [contestId]);
+    }
 
-    const getTaskStatus = (task: import('../schedule-flight/types').NavigationTask): 'Open' | 'Scheduled' | 'Live' | 'Finalized' => {
+    useEffect(() => {
+        refreshData();
+    }, [contestId]);
+    
+    const handleWithdrawClick = async (contestId: number) => {
+        try {
+            await withdraw(contestId);
+            refreshData();
+        } catch (error) {
+            setError((error as Error).message);
+        }
+    };
+
+    const getTaskStatus = (task: NavigationTask): 'Open' | 'Scheduled' | 'Live' | 'Finalized' => {
         if (ongoingNavigations.some(nav => nav.pk === task.pk)) {
             return 'Live';
         }
@@ -56,22 +77,58 @@ const ContestDashboard = () => {
 
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
+            {/* Modals for forms */}
+            {showRegistrationForm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                    <ContestRegistrationForm
+                        contest={contest}
+                        myContests={myContests}
+                        onClose={() => {
+                            setShowRegistrationForm(false);
+                            refreshData();
+                        }}
+                    />
+                </div>
+            )}
+            {showScheduleForm && (
+                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                    <ScheduleFlightForm
+                        contest={contest}
+                        navigationTaskId={showScheduleForm.pk}
+                        myContests={myContests}
+                        onClose={() => {
+                            setShowScheduleForm(null);
+                            refreshData();
+                        }}
+                    />
+                </div>
+            )}
+
             {/* Contest Header */}
             <div className="mb-8">
                 {contest.header_image && (
                     <img src={contest.header_image} alt={contest.name} className="w-full h-64 object-cover rounded-lg mb-4" />
                 )}
-                <div className="flex items-center">
-                    {contest.logo && (
-                        <img src={contest.logo} alt={`${contest.name} logo`} className="h-24 w-24 mr-4" />
-                    )}
-                    <div>
-                        <h1 className="text-4xl font-bold">{contest.name}</h1>
-                        <p>{contest.location}</p>
-                        {contest.contest_website && (
-                            <a href={contest.contest_website} target="_blank" rel="noopener noreferrer" className="link link-primary">
-                                Contest Website
-                            </a>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                        {contest.logo && (
+                            <img src={contest.logo} alt={`${contest.name} logo`} className="h-24 w-24 mr-4" />
+                        )}
+                        <div>
+                            <h1 className="text-4xl font-bold">{contest.name}</h1>
+                            <p>{contest.location}</p>
+                            {contest.contest_website && (
+                                <a href={contest.contest_website} target="_blank" rel="noopener noreferrer" className="link link-primary">
+                                    Contest Website
+                                </a>
+                            )}
+                        </div>
+                    </div>
+                     <div className="flex flex-col items-stretch gap-2">
+                        {isRegistered ? (
+                            <button className="btn btn-warning" onClick={() => handleWithdrawClick(contest.id)}>Withdraw</button>
+                        ) : (
+                            <button className="btn btn-success" onClick={() => setShowRegistrationForm(true)}>Register</button>
                         )}
                     </div>
                 </div>
@@ -95,6 +152,7 @@ const ContestDashboard = () => {
                                 status={getTaskStatus(task)}
                                 contestId={contest.id}
                                 taskId={task.pk}
+                                onScheduleClick={() => setShowScheduleForm(task)}
                             />
                         ))}
                     </div>
