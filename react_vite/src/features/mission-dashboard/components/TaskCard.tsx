@@ -16,7 +16,7 @@ interface TaskCardProps {
     canSchedule?: boolean;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, onScheduleClick, onCancelClick, futureContestant, tracking_link, onViewScoresClick, contestName }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, onScheduleClick, onCancelClick, futureContestant, tracking_link, onViewScoresClick, contestName, canSchedule }) => {
     return (
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">

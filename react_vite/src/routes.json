@@ -9,6 +9,6 @@
   "MISSION_DASHBOARD_DETAIL": "mission-dashboard/:contestId",
   "COMPETITION_MAP": "competition-map",
   "COMPETITION_MAP_DETAIL": "competition-map/:contestId/:navigationTaskId",
-  "CONTEST_RESULTS_TABLE": "contests/:contestId/results",
+  "CONTEST_RESULTS_TABLE": "mission-dashboard/:contestId/results",
   "NOT_FOUND": "*"
 }

@@ -79,7 +79,6 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ contes
       }),
       columnHelper.accessor('contestSummary', {
         header: 'Σ',
-        cell: info => info.getValue(),
         enableSorting: true,
         cell: EditableCell, // Make this cell editable
         // The original component had 'sortDirection' on the columnDef, but tanstack/react-table handles this via table state
@@ -98,7 +97,6 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ contes
             </span>
           ),
           id: `task-${task.id}`, // Unique ID for the column
-          cell: info => info.getValue(), // Render score directly
           enableSorting: true,
           cell: EditableCell, // Make this cell editable
           // Custom properties can be added to columnDef and accessed via cell.column.columnDef as any

@@ -40,6 +40,7 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myFutureFlights, cont
                         onCancelClick={() => onCancel(flight.contest_id, flight.navigation_task, flight.id)}
                         tracking_link={navTask.tracking_link}
                         onViewScoresClick={() => {}}
+                        canSchedule={false}
                     />
                 );
             })}
