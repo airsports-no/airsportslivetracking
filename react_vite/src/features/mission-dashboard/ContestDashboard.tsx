@@ -120,7 +120,7 @@ const ContestDashboard = () => {
         <div className="container mx-auto p-4" data-theme="aviation">
             {/* Modals for forms */}
             {showRegistrationForm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-center">
                     <ContestRegistrationForm
                         contest={contest}
                         myFutureParticipations={myFutureFlights}
@@ -133,7 +133,7 @@ const ContestDashboard = () => {
                 </div>
             )}
             {showScheduleForm && (
-                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                 <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-center">
                     <ScheduleFlightForm
                         contest={contest}
                         navigationTaskId={showScheduleForm.pk}
@@ -146,7 +146,7 @@ const ContestDashboard = () => {
                 </div>
             )}
             {viewingScoresForTask && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-center">
                     <div className="card bg-base-100 shadow-xl max-w-4xl w-full">
                         <div className="card-body">
                             {loadingTaskScores ? (
@@ -240,7 +240,7 @@ const ContestDashboard = () => {
                     </div>
                 </div>
             </div>
-            <Link to="/mission-dashboard" className="btn btn-secondary mt-4">Back to Dashboard</Link>
+            <Link to="/" className="btn btn-secondary mt-4">Back to Dashboard</Link>
         </div>
     );
 };

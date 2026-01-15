@@ -2,70 +2,43 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Contest, NavigationTask } from '../types';
 import * as api from '../api';
 import { fetchNavigationTask } from '../../competition-map/api';
-import PastContestItem from './PastContestItem';
 import Select from 'react-select';
 import { reverse } from '../../../urls';
+import { Contestant } from '../../competition-map/types';
+import { Loading } from '../../route-editor/components/basicComponents';
+import ContestCard from '../components/ContestCard';
+import TaskScoreDisplay from '../components/TaskScoreDisplay';
 
 const PastFlights = () => {
+    const [myPreviousFlights, setMyPreviousFlights] = useState<Contestant[]>([]);
     const [contests, setContests] = useState<Contest[]>([]);
     const [myContestantIds, setMyContestantIds] = useState<Set<number>>(new Set());
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+
     const [nameFilter, setNameFilter] = useState('');
     const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+    
+    const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
+    const [modalContent, setModalContent] = useState<NavigationTask[] | null>(null);
+    const [loadingModal, setLoadingModal] = useState<boolean>(false);
 
     useEffect(() => {
         setLoading(true);
         api.fetchMyPreviousFlights()
-            .then(async (myContestants: any[]) => {
+            .then(async (myContestants: Contestant[]) => {
                 if (myContestants.length === 0) {
                     setContests([]);
                     setLoading(false);
                     return;
                 }
-
+                setMyPreviousFlights(myContestants);
                 setMyContestantIds(new Set(myContestants.map(c => c.id)));
 
-                // 1. Get unique contest IDs and fetch contests
                 const contestIds = [...new Set(myContestants.map(c => c.contest_id).filter(id => id != null))];
                 const fetchedContests = contestIds.length > 0 ? await api.fetchContests({ pks: contestIds }) : [];
-                const contestsDataMap = new Map<number, Contest>(fetchedContests.map(c => [c.id, c]));
-
-                // 2. Get unique nav tasks and fetch them
-                const uniqueNavTaskKeys = new Set(myContestants
-                    .filter(c => c.contest_id != null && c.navigation_task != null)
-                    .map(c => `${c.contest_id}-${c.navigation_task}`)
-                );
-                const navTaskPromises = [...uniqueNavTaskKeys].map(key => {
-                    const [contestId, taskId] = key.split('-').map(Number);
-                    return fetchNavigationTask(contestId, taskId);
-                });
                 
-                const settledNavTasks = await Promise.allSettled(navTaskPromises);
-                const resolvedNavTasks = settledNavTasks
-                    .filter(result => result.status === 'fulfilled')
-                    .map(result => (result as PromiseFulfilledResult<NavigationTask>).value);
-                
-                // 3. Grouping logic
-                const groupedContests = new Map<number, Contest & { navigationtask_set: (NavigationTask)[] }>();
-
-                resolvedNavTasks.forEach((navTask: any) => {
-                    const contest = contestsDataMap.get(navTask.contest);
-
-                    if (!contest) {
-                        console.error("Missing contest for navTask", navTask);
-                        return;
-                    }
-
-                    let groupedContest = groupedContests.get(contest.id);
-                    if (!groupedContest) {
-                        groupedContest = { ...contest, navigationtask_set: [] };
-                        groupedContests.set(contest.id, groupedContest);
-                    }
-                    groupedContest.navigationtask_set.push(navTask);
-                });
-                
-                const pastContests = Array.from(groupedContests.values())
+                const pastContests = fetchedContests
                     .sort((a, b) => new Date(b.finish_time).getTime() - new Date(a.finish_time).getTime());
 
                 setContests(pastContests);
@@ -85,23 +58,79 @@ const PastFlights = () => {
             .finally(() => setLoading(false));
     }, []);
 
+    useEffect(() => {
+        if (!selectedContest) {
+            setModalContent(null);
+            return;
+        }
+
+        const fetchTasksForContest = async () => {
+            setLoadingModal(true);
+            
+            const relevantFlights = myPreviousFlights.filter(f => f.contest_id === selectedContest.id);
+            const uniqueNavTaskIds = [...new Set(relevantFlights.map(f => f.navigation_task))];
+
+            const navTaskPromises = uniqueNavTaskIds.map(taskId => 
+                fetchNavigationTask(selectedContest.id, taskId)
+            );
+            
+            const settledNavTasks = await Promise.allSettled(navTaskPromises);
+            const resolvedNavTasks = settledNavTasks
+                .filter(result => result.status === 'fulfilled')
+                .map(result => (result as PromiseFulfilledResult<NavigationTask>).value);
+            
+            setModalContent(resolvedNavTasks);
+            setLoadingModal(false);
+        };
+
+        fetchTasksForContest();
+
+    }, [selectedContest, myPreviousFlights]);
+
     const filteredAndSortedContests = useMemo(() => {
         return contests
             .filter(contest => {
                 const nameMatch = nameFilter === '' || contest.name.toLowerCase().includes(nameFilter.toLowerCase());
-                const countryMatch = selectedCountries.length === 0 || selectedCountries.includes(contest.country);
+                const countryMatch = selectedCountries.length === 0 || (contest.country && selectedCountries.includes(contest.country));
                 return nameMatch && countryMatch;
             });
     }, [contests, nameFilter, selectedCountries]);
 
     const countryOptions = useMemo(() => {
-        const uniqueCountries = Array.from(new Set(contests.map(c => c.country))).sort();
-        return uniqueCountries.map(country => ({ value: country, label: country }));
+        if (!contests) return [];
+        const uniqueCountries = Array.from(new Set(contests.map(c => c.country).filter(Boolean))).sort();
+        return uniqueCountries.map(country => ({ value: country!, label: country! }));
     }, [contests]);
 
     return (
         <div>
             {error && <div className="alert alert-error">{error}</div>}
+
+            {selectedContest && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-center">
+                    <div className="card bg-base-100 shadow-xl max-w-4xl w-full">
+                        <div className="card-body">
+                            <h2 className="card-title">Results for {selectedContest.name}</h2>
+                            {loadingModal ? (
+                                <Loading />
+                            ) : (
+                                <div className="max-h-96 overflow-y-auto space-y-4 p-4">
+                                    {modalContent && modalContent.map(task => (
+                                        <div key={task.pk} className="p-2 rounded-lg bg-base-200">
+                                            <h4 className="font-bold text-lg">{task.name}</h4>
+                                            <TaskScoreDisplay task={task} myContestantIds={myContestantIds} />
+                                        </div>
+                                    ))}
+                                    {(!modalContent || modalContent.length === 0) && <p>No tasks found for this contest.</p>}
+                                </div>
+                            )}
+                            <div className="card-actions justify-end">
+                                <button onClick={() => setSelectedContest(null)} className="btn">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="flex space-x-2 sm:space-x-4 mb-2 sm:mb-4">
                 <input
@@ -121,14 +150,14 @@ const PastFlights = () => {
                     classNamePrefix="my-react-select"
                 />
             </div>
-            <div className="space-y-2 sm:space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredAndSortedContests.map(contest => (
-                    <PastContestItem
-                        key={contest.id}
-                        contest={contest}
-                        myContestantIds={myContestantIds}
-                        showPastContestants={true}
-                    />
+                    <div key={contest.id} onClick={() => setSelectedContest(contest)} className="cursor-pointer">
+                        <ContestCard
+                            contest={contest}
+                            status={'past'}
+                        />
+                    </div>
                 ))}
             </div>
             {loading && <div className="loading loading-lg"></div>}

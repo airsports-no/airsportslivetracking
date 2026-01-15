@@ -127,7 +127,7 @@ const MissionDashboard = () => {
 
             {error && <div className="alert alert-error">{error}</div>}
             
-            <div className="mb-8 hidden lg:block">
+            <div className="mb-8 hidden lg:block z-30">
                 <h2 className="text-2xl font-bold mb-4">Contest Map</h2>
                 <ContestMap 
                     contests={textFilteredContests} 
