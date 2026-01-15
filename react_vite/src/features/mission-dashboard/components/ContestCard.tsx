@@ -1,5 +1,6 @@
 import React from 'react';
 import { Contest } from '../types';
+import { Link } from 'react-router-dom';
 
 interface ContestCardProps {
     contest: Contest;
@@ -7,9 +8,11 @@ interface ContestCardProps {
     isRegistered?: boolean;
     hasScheduledFlight?: boolean;
     isEditorContest?: boolean;
+    viewLink: string;
+    manageLink?: string;
 }
 
-const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight, isEditorContest }) => {
+const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight, isEditorContest, viewLink, manageLink }) => {
     return (
         <div className="card bg-base-200 shadow-xl image-full h-[280px] overflow-hidden">
             {contest.header_image && (
@@ -25,11 +28,18 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                 {contest.navigationtask_set && contest.navigationtask_set.length > 0 && (
                     <p className="text-sm text-gray-400">{contest.navigationtask_set.length} tasks</p>
                 )}
-                <div className="card-actions justify-end">
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 p-4 flex justify-between items-end">
+                <div className="flex flex-wrap gap-2">
+                    {status === 'live' && <div className="badge badge-error">LIVE</div>}
                     {hasScheduledFlight && <div className="badge badge-info">Scheduled</div>}
                     {isRegistered && <div className="badge badge-success">Registered</div>}
-                    {status === 'live' && <div className="badge badge-error">LIVE</div>}
-                    <button className="btn btn-primary">{isEditorContest ? 'Manage' : 'View'}</button>
+                </div>
+                <div className="flex gap-2">
+                    <Link to={viewLink} className="btn btn-primary">View</Link>
+                    {isEditorContest && manageLink && (
+                        <Link to={manageLink} className="btn btn-secondary">Manage</Link>
+                    )}
                 </div>
             </div>
         </div>

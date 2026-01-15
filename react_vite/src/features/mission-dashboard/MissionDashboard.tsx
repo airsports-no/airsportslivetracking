@@ -132,7 +132,7 @@ const MissionDashboard = () => {
                 <ContestMap 
                     contests={textFilteredContests} 
                     onBoundsChanged={setMapBounds} 
-                    minZoom={1}
+                    minZoom={2}
                     onInteraction={() => setHasUserInteractedWithMap(true)} 
                 />
             </div>
@@ -192,16 +192,24 @@ const MissionDashboard = () => {
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {listFilteredContests.map(contest => (
-                            <Link to={`/mission-dashboard/${contest.id}`} key={contest.id}>
+                        {listFilteredContests.map(contest => {
+                            const canManageThisContest = contest.is_editor || document.configuration.is_superuser;
+                            const viewLink = `/mission-dashboard/${contest.id}`;
+                            const manageLink = canManageThisContest ? reverse('contest_details', contest.id) : undefined;
+
+                            return (
                                 <ContestCard
+                                    key={contest.id}
                                     contest={contest}
                                     status={getContestStatus(contest)}
                                     isRegistered={registeredContestIds.has(contest.id)}
                                     hasScheduledFlight={scheduledFlightContestIds.has(contest.id)}
+                                    isEditorContest={canManageThisContest}
+                                    viewLink={viewLink}
+                                    manageLink={manageLink}
                                 />
-                            </Link>
-                        ))}
+                            );
+                        })}
                         {listFilteredContests.length === 0 && !loading && (
                             <p className="text-center mt-2 sm:mt-4 col-span-full">No contests match your filters.</p>
                         )}
@@ -225,19 +233,27 @@ const MissionDashboard = () => {
 
             {activeTab === 'editorContests' && (
                 <div>
-                    <h2 className="text-2xl font-bold mb-4">My Contests</h2>
+                    <h2 className="text-2xl font-bold mb-4">
+                        My Contests
+                        <Link to={reverse("contest_create")} className="btn btn-primary btn-sm ml-4">Create New Contest</Link>
+                    </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {editorContests.map(contest => (
-                            <Link to={reverse('contest_details', contest.id)} key={contest.id}>
+                        {editorContests.map(contest => {
+                            const viewLink = `/mission-dashboard/${contest.id}`;
+                            const manageLink = reverse('contest_details', contest.id);
+                            return (
                                 <ContestCard
+                                    key={contest.id}
                                     contest={contest}
                                     status={getContestStatus(contest)}
                                     isRegistered={registeredContestIds.has(contest.id)}
                                     hasScheduledFlight={scheduledFlightContestIds.has(contest.id)}
                                     isEditorContest={true}
+                                    viewLink={viewLink}
+                                    manageLink={manageLink}
                                 />
-                            </Link>
-                        ))}
+                            );
+                        })}
                         {editorContests.length === 0 && !loading && (
                             <p className="text-center mt-2 sm:mt-4 col-span-full">You are not an editor for any contests.</p>
                         )}
