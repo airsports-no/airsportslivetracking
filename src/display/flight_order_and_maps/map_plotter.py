@@ -1093,7 +1093,8 @@ def plot_route(
     waypoints_only: bool = False,
     annotations: bool = True,
     scale: int = 200,
-    dpi: int = 300,
+    # Default DPI is set to 150 to reduce memory consumption. 300 is suitable for high-quality printing but can be memory-intensive.
+    dpi: int = 150,
     map_source: str = "osm",
     user_map_source: UserUploadedMap = None,
     line_width: float = 0.5,
