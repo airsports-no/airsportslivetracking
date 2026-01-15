@@ -144,7 +144,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
       columnHelper.accessor('contestSummary', {
         header: 'Σ',
         enableSorting: true,
-        cell: results.permission_change_contest ? EditableCell : (info) => info.getValue(),
+        cell: results.permission_change_contest && !results.autosum_scores ? EditableCell : (info) => info.getValue(),
       }),
     ];
 
@@ -159,7 +159,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
             columnHelper.accessor(testDataField, {
               header: () => <span>{test.heading}</span>,
               id: `test-${test.id}`,
-              cell: results.permission_change_contest ? EditableCell : (info) => info.getValue(),
+              cell: results.permission_change_contest && !task.autosum_scores ? EditableCell : (info) => info.getValue(),
               meta: {
                 columnType: 'test',
                 testId: test.id,
@@ -285,7 +285,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
 
     (results.task_set || []).forEach((task) => {
       (task.tasksummary_set || []).forEach((taskSummary: any) => {
-        const teamId = taskSummary.team?.id;
+        const teamId = taskSummary.team;
         if (teamId) {
           const existingEntry = transformedData.find((d) => d.id === teamId);
           if (existingEntry) {
