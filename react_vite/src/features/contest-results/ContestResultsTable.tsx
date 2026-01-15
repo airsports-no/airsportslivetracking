@@ -8,6 +8,7 @@ import { useContestResultsStore } from '../../store/contestResultsStore';
 import { EditableCell } from '../../components/common/DataTable/EditableCell';
 import { mdiChevronDown, mdiChevronUp } from '@mdi/js';
 import Icon from '@mdi/react';
+import { useScoreUpdates } from '../../hooks/useScoreUpdates'; // Import the new hook
 
 // Helper function from original reactjs
 const teamRankingTable = (team: any) => {
@@ -30,15 +31,36 @@ interface ContestResultsTableProps {
 export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ contestId, navigationTaskId }) => {
   const { results, loading, error, fetchResults } = useContestResults(contestId);
   useContestResultsWebSocket(contestId); // Listen for real-time updates
+  const { updateContestSummary, updateTaskSummary, updateTestResult } = useScoreUpdates(); // Use the new hook
 
   const columnHelper = createColumnHelper<ContestSummary & { [key: string]: any }>(); // Extend ContestSummary for dynamic task scores
 
-  // Function to simulate updating data - this will be replaced by actual API calls in Subtask 7
-  const updateMyData = (rowIndex: number, columnId: string, value: any) => {
-    // This is a placeholder for updating the data
-    console.log(`Updating row ${rowIndex}, column ${columnId} with value ${value}`);
-    // In a real scenario, you'd dispatch an action to update the backend
-    // and then potentially update the local state after a successful response.
+  const updateMyData = async (rowIndex: number, columnId: string, value: any) => {
+    if (!results) return;
+
+    // Assuming `data` in DataTable is derived directly from `results.contestsummary_set` or similar.
+    // We need to find the actual `teamId` for the row being updated.
+    const row = data[rowIndex];
+    const teamId = row.team.id; // Assuming `team` object in `row` has an `id`
+
+    // Determine which update function to call based on the columnId
+    if (columnId === 'contestSummary') {
+      await updateContestSummary(contestId, teamId, value);
+    } else if (columnId.startsWith('task_')) {
+      const taskId = parseInt(columnId.replace('task_', ''));
+      // In a real scenario, you might need to distinguish between task summary and test results
+      // For now, assuming task_X is for TaskSummary
+      await updateTaskSummary(contestId, teamId, taskId, value);
+    }
+    // else if (columnId.startsWith('test_')) {
+    //   const testId = parseInt(columnId.replace('test_', ''));
+    //   await updateTestResult(contestId, teamId, testId, value);
+    // }
+
+    // After updating the backend, re-fetch results to ensure local state is synchronized
+    // Or, if WebSockets push updates, this might not be strictly necessary,
+    // but a re-fetch ensures consistency for non-realtime updates as well.
+    fetchResults();
   };
 
   const columns = useMemo<ColumnDef<ContestSummary & { [key: string]: any }>[]>(() => {
@@ -59,6 +81,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ contes
         header: 'Σ',
         cell: info => info.getValue(),
         enableSorting: true,
+        cell: EditableCell, // Make this cell editable
         // The original component had 'sortDirection' on the columnDef, but tanstack/react-table handles this via table state
       }),
     ];
@@ -77,6 +100,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ contes
           id: `task-${task.id}`, // Unique ID for the column
           cell: info => info.getValue(), // Render score directly
           enableSorting: true,
+          cell: EditableCell, // Make this cell editable
           // Custom properties can be added to columnDef and accessed via cell.column.columnDef as any
           meta: {
             columnType: 'task',
@@ -88,7 +112,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ contes
     });
 
     return baseColumns;
-  }, [results, navigationTaskId, columnHelper]);
+  }, [results, navigationTaskId, columnHelper, updateContestSummary, updateTaskSummary, updateTestResult, fetchResults, contestId]);
 
   const data = useMemo(() => {
     if (!results) return [];
@@ -159,11 +183,6 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ contes
       columns={columns}
       data={data}
       className="table table-striped table-hover table-condensed table-dark" // Example styling
-      initialState={{
-        // The original component used sortBy, but tanstack/react-table handles this through sorting state
-        // For initial sort, you would set the `sorting` state of useReactTable.
-        // The original also had 'id: "contestSummary"', I need to map it correctly.
-      }}
       updateMyData={updateMyData}
     />
   );
