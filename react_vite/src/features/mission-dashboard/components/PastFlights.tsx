@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Contest, NavigationTask } from '../types';
 import * as api from '../api';
+import { fetchNavigationTask } from '../../competition-map/api';
 import PastContestItem from './PastContestItem';
 import Select from 'react-select';
 import { reverse } from '../../../urls';
 
 const PastFlights = () => {
     const [contests, setContests] = useState<Contest[]>([]);
+    const [myContestantIds, setMyContestantIds] = useState<Set<number>>(new Set());
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [nameFilter, setNameFilter] = useState('');
@@ -14,20 +16,56 @@ const PastFlights = () => {
 
     useEffect(() => {
         setLoading(true);
-        api.fetchMyParticipatedContests()
-            .then(myTasksData => {
-                const contestsMap = new Map<number, Contest>();
-                myTasksData.forEach(task => {
-                    if (task.contestant_set && task.contestant_set.length > 0) {
-                        const contest = task.contest;
-                        if (!contestsMap.has(contest.id)) {
-                            contestsMap.set(contest.id, { ...contest, navigationtask_set: [] });
-                        }
-                        contestsMap.get(contest.id)!.navigationtask_set.push(task);
-                    }
-                });
+        api.fetchMyPreviousFlights()
+            .then(async (myContestants: any[]) => {
+                if (myContestants.length === 0) {
+                    setContests([]);
+                    setLoading(false);
+                    return;
+                }
 
-                const pastContests = Array.from(contestsMap.values())
+                setMyContestantIds(new Set(myContestants.map(c => c.id)));
+
+                // 1. Get unique contest IDs and fetch contests
+                const contestIds = [...new Set(myContestants.map(c => c.contest_id).filter(id => id != null))];
+                const fetchedContests = contestIds.length > 0 ? await api.fetchContests({ pks: contestIds }) : [];
+                const contestsDataMap = new Map<number, Contest>(fetchedContests.map(c => [c.id, c]));
+
+                // 2. Get unique nav tasks and fetch them
+                const uniqueNavTaskKeys = new Set(myContestants
+                    .filter(c => c.contest_id != null && c.navigation_task != null)
+                    .map(c => `${c.contest_id}-${c.navigation_task}`)
+                );
+                const navTaskPromises = [...uniqueNavTaskKeys].map(key => {
+                    const [contestId, taskId] = key.split('-').map(Number);
+                    return fetchNavigationTask(contestId, taskId);
+                });
+                
+                const settledNavTasks = await Promise.allSettled(navTaskPromises);
+                const resolvedNavTasks = settledNavTasks
+                    .filter(result => result.status === 'fulfilled')
+                    .map(result => (result as PromiseFulfilledResult<NavigationTask>).value);
+                
+                // 3. Grouping logic
+                const groupedContests = new Map<number, Contest & { navigationtask_set: (NavigationTask)[] }>();
+
+                resolvedNavTasks.forEach((navTask: any) => {
+                    const contest = contestsDataMap.get(navTask.contest);
+
+                    if (!contest) {
+                        console.error("Missing contest for navTask", navTask);
+                        return;
+                    }
+
+                    let groupedContest = groupedContests.get(contest.id);
+                    if (!groupedContest) {
+                        groupedContest = { ...contest, navigationtask_set: [] };
+                        groupedContests.set(contest.id, groupedContest);
+                    }
+                    groupedContest.navigationtask_set.push(navTask);
+                });
+                
+                const pastContests = Array.from(groupedContests.values())
                     .sort((a, b) => new Date(b.finish_time).getTime() - new Date(a.finish_time).getTime());
 
                 setContests(pastContests);
@@ -41,7 +79,7 @@ const PastFlights = () => {
                         window.location.href = loginPageUrl;
                     }, 5000);
                 } else {
-                    setError(err.message);
+                    setError(`Error fetching past flights: ${err.message}`);
                 }
             })
             .finally(() => setLoading(false));
@@ -88,6 +126,7 @@ const PastFlights = () => {
                     <PastContestItem
                         key={contest.id}
                         contest={contest}
+                        myContestantIds={myContestantIds}
                         showPastContestants={true}
                     />
                 ))}

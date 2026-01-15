@@ -1,12 +1,43 @@
 import type { NavigationTask, PaginatedTrackResponse, ContestantScoreData } from './types';
 import { reverse } from '../../urls';
 
-export async function fetchNavigationTask(contestId: number, navigationTaskId: number): Promise<NavigationTask> {
-  const url = reverse('navigationtasks-detail', contestId, navigationTaskId);
-  const res = await fetch(url, {
+export interface NavigationTaskFilters {
+  pks?: number[];
+  startTimeGte?: string;
+  finishTimeLte?: string;
+}
+
+export async function fetchNavigationTask(contestId: number, navigationTaskId: number, filters?: Omit<NavigationTaskFilters, 'pks'>): Promise<NavigationTask> {
+  const url = new URL(reverse('navigationtasks-detail', contestId, navigationTaskId), window.location.origin);
+  if (filters?.startTimeGte) {
+    url.searchParams.set('start_time__gte', filters.startTimeGte);
+  }
+  if (filters?.finishTimeLte) {
+    url.searchParams.set('finish_time__lte', filters.finishTimeLte);
+  }
+  const res = await fetch(url.toString(), {
     headers: { 'Accept': 'application/json' }
   });
   if (!res.ok) throw new Error(`Failed to fetch navigation task ${navigationTaskId}`);
+  return res.json();
+}
+
+export async function fetchNavigationTasks(contestId: number, filters?: NavigationTaskFilters): Promise<NavigationTask[]> {
+  const url = new URL(reverse('navigationtasks-list', contestId), window.location.origin);
+  if (filters?.pks?.length) {
+    url.searchParams.set('pks', filters.pks.join(','));
+  }
+  if (filters?.startTimeGte) {
+    url.searchParams.set('start_time__gte', filters.startTimeGte);
+  }
+  if (filters?.finishTimeLte) {
+    url.searchParams.set('finish_time__lte', filters.finishTimeLte);
+  }
+
+  const res = await fetch(url.toString(), {
+    headers: { 'Accept': 'application/json' }
+  });
+  if (!res.ok) throw new Error(`Failed to fetch navigation tasks for contest ${contestId}`);
   return res.json();
 }
 

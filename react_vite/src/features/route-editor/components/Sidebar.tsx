@@ -235,7 +235,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         ) : (
           <div className="text-sm text-center text-gray-500">
-            You must <a href="/accounts/login/?next=/frontend/routeditor/create/" className="link link-primary">log in</a> or <a href="/accounts/signup/" className="link link-primary">register</a> to save routes.
+            You must <a href="/accounts/login/?next=/routeditor/create/" className="link link-primary">log in</a> or <a href="/accounts/signup/" className="link link-primary">register</a> to save routes.
           </div>
         )}
       </div>

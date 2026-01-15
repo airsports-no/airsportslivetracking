@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
 import { LatLngBounds } from 'leaflet';
-import { fetchContests, fetchOngoingNavigation, fetchMyParticipatingContests, cancelFlight } from './api';
-import { Contest, OngoingNavigation, MyParticipatingContest } from './types';
+import { fetchContests, fetchOngoingNavigation, fetchMyFutureFlights, cancelFlight, fetchMyContestTeams } from './api';
+import { Contest, OngoingNavigation, MyContestTeam } from './types';
+import { Contestant } from '../competition-map/types';
 import ContestCard from './components/ContestCard';
 import UpcomingFlights from './components/UpcomingFlights';
 import PastFlights from './components/PastFlights';
@@ -14,7 +15,8 @@ import { reverse } from '../../urls';
 const MissionDashboard = () => {
     const [contests, setContests] = useState<Contest[]>([]);
     const [ongoingNavigations, setOngoingNavigations] = useState<OngoingNavigation[]>([]);
-    const [myContests, setMyContests] = useState<MyParticipatingContest[]>([]);
+    const [myFutureFlights, setMyFutureFlights] = useState<Contestant[]>([]);
+    const [myContestTeams, setMyContestTeams] = useState<MyContestTeam[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState('allContests');
@@ -26,16 +28,19 @@ const MissionDashboard = () => {
     const refreshData = async () => {
         try {
             setLoading(true);
-            const [contestsData, ongoingData, myContestsData] = await Promise.all([
+            const [contestsData, ongoingData, myFutureFlightsData, myContestTeamsData] = await Promise.all([
                 fetchContests(),
                 fetchOngoingNavigation(),
-                fetchMyParticipatingContests(),
+                fetchMyFutureFlights(),
+                fetchMyContestTeams(),
             ]);
             setContests(contestsData);
             setOngoingNavigations(ongoingData);
-            setMyContests(myContestsData);
+            setMyFutureFlights(myFutureFlightsData);
+            setMyContestTeams(myContestTeamsData);
         } catch (err) {
             setError((err as Error).message);
+            console.error(err);
         } finally {
             setLoading(false);
         }
@@ -51,6 +56,7 @@ const MissionDashboard = () => {
             refreshData(); // Refresh data to reflect the cancellation
         } catch (error) {
             setError((error as Error).message);
+            console.error(error);
         }
     };
 
@@ -72,20 +78,16 @@ const MissionDashboard = () => {
     };
 
     const registeredContestIds = useMemo(() => {
-        return new Set(myContests.map(mc => mc.contest.id));
-    }, [myContests]);
+        const futureFlightContestIds = myFutureFlights.map(flight => flight.contest_id);
+        const contestTeamIds = myContestTeams.map(team => team.contest);
+        return new Set([...futureFlightContestIds, ...contestTeamIds]);
+    }, [myFutureFlights, myContestTeams]);
 
     const scheduledFlightContestIds = useMemo(() => {
-        if (!myContests) return new Set();
+        if (!myFutureFlights) return new Set();
 
-        const upcomingFlights = myContests.flatMap(mc => 
-            mc.contest.navigationtask_set.flatMap(nt => 
-                nt.future_contestants.map(fc => ({...fc, contest: mc.contest}))
-            )
-        ).filter(flight => new Date(flight.finished_by_time) > new Date());
-
-        return new Set(upcomingFlights.map(flight => flight.contest.id));
-    }, [myContests]);
+        return new Set(myFutureFlights.map(flight => flight.contest_id));
+    }, [myFutureFlights]);
 
     const editorContests = useMemo(() => {
         if (!contests) return [];
@@ -160,7 +162,7 @@ const MissionDashboard = () => {
                 <a className={`tab ${activeTab === 'allContests' ? 'tab-active' : ''}`} onClick={() => setActiveTab('allContests')}>All Contests</a> 
                 <a className={`tab ${activeTab === 'upcoming' ? 'tab-active' : ''}`} onClick={() => setActiveTab('upcoming')}>My Upcoming Flights</a>
                 <a className={`tab ${activeTab === 'past' ? 'tab-active' : ''}`} onClick={() => setActiveTab('past')}>My Past Flights</a>
-                <a className={`tab ${activeTab === 'editorContests' ? 'tab-active' : ''}`} onClick={() => setActiveTab('editorContests')}>My Edited Contests</a>
+                <a className={`tab ${activeTab === 'editorContests' ? 'tab-active' : ''}`} onClick={() => setActiveTab('editorContests')}>My Contests</a>
             </div>
 
             {loading && <Loading />}
@@ -210,7 +212,7 @@ const MissionDashboard = () => {
             {activeTab === 'upcoming' && (
                 <div>
                     <h2 className="text-2xl font-bold mb-4">My Upcoming Flights</h2>
-                    <UpcomingFlights myContests={myContests} onCancel={handleCancelFlight} />
+                    <UpcomingFlights myFutureFlights={myFutureFlights} contests={contests} onCancel={handleCancelFlight} />
                 </div>
             )}
 
@@ -223,15 +225,16 @@ const MissionDashboard = () => {
 
             {activeTab === 'editorContests' && (
                 <div>
-                    <h2 className="text-2xl font-bold mb-4">My Edited Contests</h2>
+                    <h2 className="text-2xl font-bold mb-4">My Contests</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {editorContests.map(contest => (
-                            <Link to={reverse('contests-detail', contest.id)} key={contest.id}>
+                            <Link to={reverse('contest_details', contest.id)} key={contest.id}>
                                 <ContestCard
                                     contest={contest}
                                     status={getContestStatus(contest)}
                                     isRegistered={registeredContestIds.has(contest.id)}
                                     hasScheduledFlight={scheduledFlightContestIds.has(contest.id)}
+                                    isEditorContest={true}
                                 />
                             </Link>
                         ))}

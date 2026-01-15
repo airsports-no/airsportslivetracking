@@ -3,10 +3,10 @@ import { NavigationTask } from '../types';
 
 interface TaskScoreDisplayProps {
     task: NavigationTask;
-    currentUserEmail: string;
+    myContestantIds: Set<number>;
 }
 
-const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, currentUserEmail }) => {
+const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantIds }) => {
     if (!task.contestant_set || task.contestant_set.length === 0) {
         return <p>No scores recorded for this task yet.</p>;
     }
@@ -14,7 +14,7 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, currentUserEm
     return (
         <div className="mt-4 pt-2 bg-base-100 p-2 rounded-lg">
             <h5 className="font-semibold text-md mb-2">Scores for {task.name}:</h5>
-            {task.contestant_set
+            {(task.contestant_set as any[])
                 .sort((a, b) => {
                     const scoreA = a.contestanttrack.score;
                     const scoreB = b.contestanttrack.score;
@@ -26,10 +26,7 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, currentUserEm
                     }
                 })
                 .map(contestant => {
-                    const isCurrentUser =
-                        currentUserEmail &&
-                        (contestant.team.crew.member1?.email === currentUserEmail ||
-                            contestant.team.crew.member2?.email === currentUserEmail);
+                    const isCurrentUser = myContestantIds.has(contestant.id);
 
                     const isStrikethrough =
                         (contestant.contestanttrack.calculator_started === false && contestant.contestanttrack.score === 0) ||

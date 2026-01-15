@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
-import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamPayload, ScheduleFlightPayload } from '../types';
+import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamPayload, ScheduleFlightPayload, MyContestTeam, Team } from '../types';
 import * as api from '../api';
 
 interface ScheduleFlightFormProps {
     contest: Contest;
     navigationTaskId: number;
-    myContests: MyParticipatingContest[];
+    myContestTeams: MyContestTeam[];
     onClose: () => void;
 }
 
-const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, navigationTaskId, myContests, onClose }) => {
-    const existingRegistration = myContests.find(mc => mc.contest.id === contest.id);
+const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, navigationTaskId, myContestTeams, onClose }) => {
+    const [prefillRegistration, setPrefillRegistration] = useState<MyParticipatingContest | null>(null);
+    const [loadingPrefillData, setLoadingPrefillData] = useState<boolean>(false);
 
     // Form state
-    const [copilot, setCopilot] = useState<number | null>(existingRegistration?.team.crew.member2?.id || null);
-    const [aircraft, setAircraft] = useState<string>(existingRegistration?.team.aeroplane.registration || '');
-    const [airspeed, setAirspeed] = useState<number>(existingRegistration?.air_speed || 65);
-    const [club, setClub] = useState<string>(existingRegistration?.team.club?.name || '');
+    const [copilot, setCopilot] = useState<number | null>(null);
+    const [aircraft, setAircraft] = useState<string>('');
+    const [airspeed, setAirspeed] = useState<number>(65);
+    const [club, setClub] = useState<string>('');
     
     const [startTime, setStartTime] = useState<string>(new Date().toISOString().slice(0, 16));
     const [windSpeed, setWindSpeed] = useState<number>(0);
@@ -33,6 +34,51 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        const fetchPrefillData = async () => {
+            setLoadingPrefillData(true);
+            setError(null);
+            let registrationToPrefill: MyParticipatingContest | null = null;
+
+            const existingContestTeamRegistration = myContestTeams.find(mct => mct.contest === contest.id);
+            if (existingContestTeamRegistration) {
+                try {
+                    const teamData = await api.fetchTeam(existingContestTeamRegistration.team);
+                    registrationToPrefill = {
+                        id: existingContestTeamRegistration.id,
+                        air_speed: existingContestTeamRegistration.air_speed,
+                        tracking_service: existingContestTeamRegistration.tracking_service,
+                        tracking_device: existingContestTeamRegistration.tracking_device,
+                        tracker_device_id: existingContestTeamRegistration.tracker_device_id,
+                        contest: contest,
+                        team: teamData,
+                        can_edit: true, // Assuming default
+                    };
+                } catch (err) {
+                    setError(`Failed to load team data for prefill: ${(err as Error).message}`);
+                }
+            }
+            setPrefillRegistration(registrationToPrefill);
+            setLoadingPrefillData(false);
+        };
+
+        fetchPrefillData();
+    }, [contest, myContestTeams]);
+
+    useEffect(() => {
+        if (prefillRegistration) {
+            setCopilot(prefillRegistration.team.crew.member2?.id || null);
+            setAircraft(prefillRegistration.team.aeroplane.registration || '');
+            setAirspeed(prefillRegistration.air_speed || 65);
+            setClub(prefillRegistration.team.club?.name || '');
+        } else {
+            setCopilot(null);
+            setAircraft('');
+            setAirspeed(65);
+            setClub('');
+        }
+    }, [prefillRegistration]);
+
+    useEffect(() => {
         Promise.all([
             api.fetchClubs(),
             api.fetchAircrafts(),
@@ -41,9 +87,10 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
             setClubs(clubsData);
             setAircrafts(aircraftsData);
             setPilots(pilotsData);
-        }).catch(err => {setError(err.message)
-                    console.error("Fetching autocomplete data:", err);
-    });
+        }).catch(err => {
+            setError(err.message);
+            console.error("Fetching autocomplete data:", err);
+        });
     }, []);
     
     const handleSubmit = async (e: React.FormEvent) => {
@@ -52,7 +99,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
         setError(null);
 
         try {
-            let contestTeamId: number | undefined = existingRegistration?.id;
+            let contestTeamId: number | undefined = prefillRegistration?.id;
 
             const currentRegistrationDetails = {
                 club_name: club,
@@ -61,23 +108,18 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                 copilot_id: copilot,
             };
 
-            // Check if registration details have changed if an existing registration exists
             let registrationDetailsChanged = false;
-            if (existingRegistration) {
+            if (prefillRegistration) {
                 const existingRegistrationDetails = {
-                    club_name: existingRegistration.team.club?.name || '',
-                    aircraft_registration: existingRegistration.team.aeroplane.registration || '',
-                    airspeed: existingRegistration.air_speed,
-                    copilot_id: existingRegistration.team.crew.member2?.id || null,
+                    club_name: prefillRegistration.team.club?.name || '',
+                    aircraft_registration: prefillRegistration.team.aeroplane.registration || '',
+                    airspeed: prefillRegistration.air_speed,
+                    copilot_id: prefillRegistration.team.crew.member2?.id || null,
                 };
-
-                // Perform a deep comparison. For simplicity, convert to JSON and compare strings.
                 registrationDetailsChanged = JSON.stringify(currentRegistrationDetails) !== JSON.stringify(existingRegistrationDetails);
             }
             
-            // Logic for handling registration
-            if (existingRegistration && registrationDetailsChanged) {
-                // withdraw existing and register new
+            if (prefillRegistration && registrationDetailsChanged) {
                 await api.withdraw(contest.id);
                 const registrationPayload: RegisterTeamPayload = {
                     contestId: contest.id,
@@ -85,9 +127,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                 };
                 const registrationResponse = await api.registerForContest(registrationPayload);
                 contestTeamId = registrationResponse.id;
-
-            } else if (!existingRegistration) {
-                // No existing registration, just register new
+            } else if (!prefillRegistration) {
                 const registrationPayload: RegisterTeamPayload = {
                     contestId: contest.id,
                     ...currentRegistrationDetails,
@@ -95,12 +135,8 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                 const registrationResponse = await api.registerForContest(registrationPayload);
                 contestTeamId = registrationResponse.id;
             }
-            // Else: existingRegistration exists and registrationDetailsChanged is false,
-            // so contestTeamId already holds existingRegistration.id and no action is needed.
-
 
             if(contestTeamId) {
-                // Step 2: Schedule the flight.
                 const schedulePayload: ScheduleFlightPayload = {
                     contest_team: contestTeamId,
                     starting_point_time: new Date(startTime + ':00Z').toISOString(),
@@ -108,23 +144,22 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     wind_speed: windSpeed,
                     wind_direction: windDirection,
                 };
-
                 await api.scheduleFlight(contest.id, navigationTaskId, schedulePayload);
-                onClose(); // Close form on success
+                onClose();
             } else {
                 setError("Failed to obtain contest team ID for scheduling flight.");
-                    console.error("Failed to obtain contest team ID for scheduling flight:");
-
+                console.error("Failed to obtain contest team ID for scheduling flight:");
             }
             
         } catch (err) {
             setError((err as Error).message);
-                                console.error("Scheduling flight failed:", err);
+            console.error("Scheduling flight failed:", err);
         } finally {
             setLoading(false);
         }
     };
 
+    if (loadingPrefillData) return <div className="w-full text-center py-4"><span className="loading loading-spinner"></span> Loading registration data...</div>;
 
     return (
         <div className="card bg-base-100 shadow-xl max-w-2xl mx-auto">
@@ -133,7 +168,6 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <>
                         <div className="divider">Team Registration</div>
-                        {/* Copilot */}
                         <label className="form-control w-full">
                             <div className="label"><span className="label-text">Co-pilot (optional)</span></div>
                             <Select
@@ -145,7 +179,6 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                                 classNamePrefix="my-react-select"
                             />
                         </label>
-                        {/* Aircraft */}
                         <label className="form-control w-full">
                             <div className="label"><span className="label-text">Aircraft Registration</span></div>
                             <Select
@@ -157,12 +190,10 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                                 classNamePrefix="my-react-select"
                             />
                         </label>
-                        {/* Airspeed */}
                          <label className="form-control w-full">
                             <div className="label"><span className="label-text">Airspeed (knots)</span></div>
                             <input type="number" required value={airspeed} onChange={e => setAirspeed(parseInt(e.target.value))} className="input input-bordered w-full" />
                         </label>
-                        {/* Club */}
                         <label className="form-control w-full">
                             <div className="label"><span className="label-text">Club</span></div>
                             <Select
@@ -177,12 +208,10 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     </>
                     
                     <div className="divider">Flight Details</div>
-                    {/* Start Time */}
                     <label className="form-control w-full">
                         <div className="label"><span className="label-text">Start Time</span></div>
                         <input type="datetime-local" required value={startTime} onChange={e => setStartTime(e.target.value)} className="input input-bordered w-full" />
                     </label>
-                    {/* Wind */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <label className="form-control w-full">
                             <div className="label"><span className="label-text">Wind Speed (knots)</span></div>
@@ -193,7 +222,6 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                             <input type="number" value={windDirection} onChange={e => setWindDirection(parseInt(e.target.value))} className="input input-bordered w-full" />
                         </label>
                     </div>
-                    {/* Adaptive Start */}
                     <div className="form-control">
                         <label className="label cursor-pointer">
                             <span className="label-text inline-flex items-center">

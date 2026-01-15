@@ -39,6 +39,16 @@ export interface NavigationTask {
     contest: Contest;
 }
 
+export interface MyContestTeam {
+    id: number;
+    air_speed: number;
+    tracking_service: string;
+    tracking_device: string;
+    tracker_device_id: string;
+    contest: number;
+    team: number;
+}
+
 export interface MyParticipatingContest {
     id: number;
     contest: Contest;
@@ -185,8 +195,10 @@ export interface ContestantResult {
     has_been_tracked_by_simulator: boolean;
 }
 
-export interface ActiveContestant {
+export interface Contestant {
     id: number;
+    contest_id: number;
+    navigation_task: number;
     gate_times: { [key: string]: string };
     scorecard_rules: any[];
     tracker_id_display: TrackerIdDisplay[];
@@ -209,7 +221,8 @@ export interface ActiveContestant {
     wind_direction: number;
     annotation_index: number;
     has_been_tracked_by_simulator: boolean;
-    team: number;
+    team: Team;
+
 }
 
 export interface OngoingNavigation {
@@ -224,7 +237,7 @@ export interface OngoingNavigation {
 
     tracking_link: string;
 
-    active_contestants: ActiveContestant[];
+    active_contestants: Contestant[];
 
     contest: Contest;
 

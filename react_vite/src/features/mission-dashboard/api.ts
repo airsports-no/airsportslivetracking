@@ -1,6 +1,19 @@
-import { OngoingNavigation, PaginatedContests, MyParticipatingContest, Club, Aircraft, Copilot, ScheduleFlightPayload, RegisterTeamPayload, Contest, NavigationTask, ContestResults } from './types';
+import { OngoingNavigation, PaginatedContests, MyParticipatingContest, Club, Aircraft, Copilot, ScheduleFlightPayload, RegisterTeamPayload, Contest, NavigationTask, ContestResults, MyContestTeam, Team } from './types';
+import { Contestant } from '../competition-map/types';
 import { getCookie } from '../../utils/csrf';
 import { reverse } from '../../urls';
+
+
+export const fetchMyContestTeams = async (): Promise<MyContestTeam[]> => {
+    const url = reverse('userprofile-my-contest-teams');
+    const response = await fetch(url, { headers: getAuthHeaders() });
+    if (!response.ok) {
+        const error = new Error('Failed to fetch my contest teams') as any;
+        error.status = response.status;
+        throw error;
+    }
+    return response.json();
+};
 
 
 export const fetchOngoingNavigation = async (): Promise<OngoingNavigation[]> => {
@@ -25,11 +38,26 @@ const getAuthHeaders = () => {
 
 let cachedContests: Contest[] | null = null;
 
-const _fetchContestsPage = async (cursor?: string | null): Promise<PaginatedContests> => {
+export interface ContestFilters {
+    pks?: number[];
+    startTimeGte?: string;
+    finishTimeLte?: string;
+}
+
+const _fetchContestsPage = async (cursor?: string | null, filters?: ContestFilters): Promise<PaginatedContests> => {
     const baseUrl = reverse('contests-list');
     const url = new URL(baseUrl, window.location.origin);
     if (cursor) {
         url.searchParams.set('cursor', cursor);
+    }
+    if (filters?.pks?.length) {
+        url.searchParams.set('pks', filters.pks.join(','));
+    }
+    if (filters?.startTimeGte) {
+        url.searchParams.set('start_time__gte', filters.startTimeGte);
+    }
+    if (filters?.finishTimeLte) {
+        url.searchParams.set('finish_time__lte', filters.finishTimeLte);
     }
 
     const response = await fetch(url.toString(), { headers: getAuthHeaders() });
@@ -39,8 +67,10 @@ const _fetchContestsPage = async (cursor?: string | null): Promise<PaginatedCont
     return response.json();
 };
 
-export const fetchContests = async (): Promise<Contest[]> => {
-    if (cachedContests) {
+export const fetchContests = async (filters?: ContestFilters): Promise<Contest[]> => {
+    const hasFilters = filters && (filters.pks?.length || filters.startTimeGte || filters.finishTimeLte);
+
+    if (!hasFilters && cachedContests) {
         return Promise.resolve(cachedContests);
     }
 
@@ -49,13 +79,15 @@ export const fetchContests = async (): Promise<Contest[]> => {
     let hasMore = true;
 
     while(hasMore) {
-        const response = await _fetchContestsPage(nextCursor);
+        const response = await _fetchContestsPage(nextCursor, filters);
         allContests = allContests.concat(response.results);
         nextCursor = response.next;
         hasMore = !!response.next;
     }
 
-    cachedContests = allContests;
+    if (!hasFilters) {
+        cachedContests = allContests;
+    }
     return allContests;
 };
 
@@ -71,22 +103,22 @@ export const fetchContestResults = async (contestId: number): Promise<ContestRes
 };
 
 
-export const fetchMyParticipatingContests = async (): Promise<MyParticipatingContest[]> => {
-    const url = reverse('userprofile-my-participating-contests');
+export const fetchMyFutureFlights = async (): Promise<Contestant[]> => {
+    const url = reverse('userprofile-my-future-flights');
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        const error = new Error('Failed to fetch participating contests') as any;
+        const error = new Error('Failed to fetch future flights') as any;
         error.status = response.status;
         throw error;
     }
     return response.json();
 };
 
-export const fetchMyParticipatedContests = async (): Promise<NavigationTask[]> => {
-    const url = reverse('userprofile-my-participated-contests');
+export const fetchMyPreviousFlights = async (): Promise<Contestant[]> => {
+    const url = reverse('userprofile-my-previous-flights');
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        const error = new Error('Failed to fetch participated contests') as any;
+        const error = new Error('Failed to fetch previous flights') as any;
         error.status = response.status;
         throw error;
     }
@@ -116,6 +148,17 @@ export const fetchPilots = async (): Promise<Copilot[]> => {
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
         throw new Error('Failed to fetch pilots');
+    }
+    return response.json();
+};
+
+export const fetchTeam = async (teamId: number): Promise<Team> => {
+    const url = reverse('teams-detail', teamId);
+    const response = await fetch(url, { headers: getAuthHeaders() });
+    if (!response.ok) {
+        const error = new Error(`Failed to fetch team ${teamId}`) as any;
+        error.status = response.status;
+        throw error;
     }
     return response.json();
 };

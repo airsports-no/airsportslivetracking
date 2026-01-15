@@ -20,6 +20,9 @@ from rest_framework.exceptions import NotFound
 import rest_framework.exceptions as drf_exceptions
 from urllib import parse
 
+from django_filters.rest_framework import DjangoFilterBackend
+
+from display.filters import ContestFilter, NavigationTaskFilter
 from display.tasks import (
     import_gpx_track,
     generate_and_maybe_notify_flight_order,
@@ -162,56 +165,54 @@ class UserPersonViewSet(GenericViewSet):
         serializer.save()
 
     @action(detail=False, methods=["get"])
-    def my_participating_contests(self, request, *args, **kwargs):
-        available_contests = Contest.visible_contests_for_user(request.user).filter(
-            finish_time__gte=datetime.datetime.now(datetime.timezone.utc)
-        )
+    def my_contest_teams(self, request, *args, **kwargs):
         # for authorisation
         person = self.get_object()
-        contest_teams = (
-            ContestTeam.objects.filter(
-                Q(team__crew__member1=person) | Q(team__crew__member2=person),
-                contest__in=available_contests,
-            )
-            .order_by("contest__start_time")
-            .distinct()
+        contest_teams = ContestTeam.objects.filter(
+            Q(team__crew__member1=person) | Q(team__crew__member2=person),
         )
-        for team in contest_teams:
-            team.can_edit = team.team.crew.member1 == person
-        return Response(ContestTeamManagementSerialiser(contest_teams, many=True, context={"request": request}).data)
+        return Response(ContestTeamSerialiser(contest_teams, many=True, context={"request": request}).data)
 
     @action(detail=False, methods=["get"])
-    def my_participated_contests(self, request, *args, **kwargs):
+    def my_future_flights(self, request, *args, **kwargs):
+        available_contests = Contest.visible_contests_for_user(request.user)
+        # for authorisation
+        person = self.get_object()
+        contestants = (
+            Contestant.objects.filter(
+                Q(team__crew__member1=person) | Q(team__crew__member2=person),
+                navigation_task__contest__in=available_contests,
+                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
+            )
+            .order_by("takeoff_time")
+            .distinct()
+        )
+        return Response(ContestantNestedTeamSerialiser(contestants, many=True, context={"request": request}).data)
+
+    @action(detail=False, methods=["get"])
+    def my_previous_flights(self, request, *args, **kwargs):
         available_contests = Contest.visible_contests_for_user(request.user).filter()
         # for authorisation
         person = self.get_object()
-        navigation_tasks = (
-            NavigationTask.objects.filter(
-                Q(contestant__team__crew__member1=person) | Q(contestant__team__crew__member2=person),
-                contest__in=available_contests,
-            )
-            .select_related(
-                "contest",
-                "route",
-                "scorecard",
+
+        contestants = (
+            Contestant.objects.filter(
+                Q(team__crew__member1=person) | Q(team__crew__member2=person),
+                navigation_task__contest__in=available_contests,
+                finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc),
             )
             .prefetch_related(
-                "contestant_set__team__aeroplane",
-                "contestant_set__team__club",
-                "contestant_set__team__crew__member1",
-                "contestant_set__team__crew__member2",
-                "contestant_set__contestanttrack",
-                "contest__navigationtask_set",
-                "contest__contest_teams__crew__member1",
-                "contest__contest_teams__crew__member2",
+                "team__aeroplane",
+                "team__club",
+                "team__crew__member1",
+                "team__crew__member2",
+                "contestanttrack",
             )
-            .order_by("contest__start_time")
+            .order_by("navigation_task__contest__start_time")
             .distinct()
         )
         return Response(
-            NavigationTaskNestedTeamRouteSerialiserNestedContest(
-                navigation_tasks, many=True, context={"request": request}
-            ).data
+            ContestantNestedTeamSerialiserWithContestantTrack(contestants, many=True, context={"request": request}).data
         )
 
     @action(detail=False, methods=["patch"])
@@ -384,6 +385,8 @@ class ContestViewSet(ModelViewSet):
     pagination_class = ContestPagination
 
     permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ContestFilter
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
@@ -637,6 +640,8 @@ class NavigationTaskViewSet(ModelViewSet):
     permission_classes = [
         NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)
     ]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = NavigationTaskFilter
 
     http_method_names = ["get", "post", "delete", "put"]
 

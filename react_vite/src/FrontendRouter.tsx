@@ -11,7 +11,7 @@ const CompetitionMapPage = lazy(() => import("./features/competition-map/Competi
 
 export const FrontendRouter = () => {
     return (
-        <BrowserRouter basename="/frontend/">
+        <BrowserRouter basename="/">
             <Suspense fallback={<Loading />}>
                 <Routes>
                     <Route path={routes.ROUTE_EDITOR_LIST} element={<EditableRouteList />} />

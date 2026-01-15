@@ -1,14 +1,14 @@
 import React from 'react';
-import { Contest, MyParticipatingContest, NavigationTask, ContestantResult } from '../types';
+import { Contest, NavigationTask } from '../types';
 import TaskScoreDisplay from './TaskScoreDisplay';
 
 interface PastContestItemProps {
     contest: Contest;
+    myContestantIds: Set<number>;
     showPastContestants?: boolean;
 }
 
-const PastContestItem: React.FC<PastContestItemProps> = ({ contest, showPastContestants }) => {
-    const currentUserEmail = document.configuration.currentUserEmail;
+const PastContestItem: React.FC<PastContestItemProps> = ({ contest, myContestantIds, showPastContestants }) => {
 
     return (
         <div className={`card bg-base-100 shadow-xl`}>
@@ -39,9 +39,9 @@ const PastContestItem: React.FC<PastContestItemProps> = ({ contest, showPastCont
                 <div className="divider">Navigation Tasks</div>
 
                 <div className="space-y-2">
-                    {contest.navigationtask_set.map(task => {
+                    {(contest.navigationtask_set as any[]).map(task => {
                         return (
-                            <div key={task.pk} className="p-1 sm:p-2 rounded-lg bg-base-200 mb-1 sm:mb-2">
+                            <div key={task.id} className="p-1 sm:p-2 rounded-lg bg-base-200 mb-1 sm:mb-2">
                                 <div className="flex justify-between items-center">
                                     <div>
                                         <h4 className="font-bold text-base sm:text-lg">
@@ -58,7 +58,7 @@ const PastContestItem: React.FC<PastContestItemProps> = ({ contest, showPastCont
                                     </div>
                                 </div>
                                 {task.contestant_set && task.contestant_set.length > 0 && (
-                                    <TaskScoreDisplay task={task} currentUserEmail={currentUserEmail} />
+                                    <TaskScoreDisplay task={task} myContestantIds={myContestantIds} />
                                 )}
                             </div>
                         );

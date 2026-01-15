@@ -57,6 +57,5 @@ urlpatterns = [
     path("docs/", docs.with_ui()),
     path("api/v1/reverse-urls/", cache_page(3600)(urls_json), name="js_reverse"),
     path("api/v1/", include(api.urlpatters)),
-    re_path(r"frontend/.*", FrontEndView.as_view(), name="frontend"),
-    re_path(r"^.?", global_map, name="globalmap"),
+    re_path(r"^.?", FrontEndView.as_view(), name="frontend"),
 ]

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Contest, MyParticipatingContest, NavigationTask, ContestResults } from './types';
-import { fetchContest, fetchMyParticipatingContests, fetchOngoingNavigation, withdraw, cancelFlight, fetchContestResults } from './api';
+import { Contest, NavigationTask, ContestResults, MyContestTeam } from './types';
+import { Contestant } from '../competition-map/types';
+import { fetchContest, fetchMyFutureFlights, fetchOngoingNavigation, withdraw, cancelFlight, fetchContestResults, fetchMyContestTeams } from './api';
 import { fetchNavigationTask } from '../competition-map/api';
 import { Loading } from '../route-editor/components/basicComponents';
 import TaskCard from './components/TaskCard';
@@ -16,7 +17,8 @@ const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
     const [contest, setContest] = useState<Contest | null>(null);
     const [results, setResults] = useState<ContestResults | null>(null);
-    const [myContests, setMyContests] = useState<MyParticipatingContest[]>([]);
+    const [myFutureFlights, setMyFutureFlights] = useState<Contestant[]>([]);
+    const [myContestTeams, setMyContestTeams] = useState<MyContestTeam[]>([]);
     const [ongoingNavigations, setOngoingNavigations] = useState<OngoingNavigation[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -26,7 +28,7 @@ const ContestDashboard = () => {
     const [viewingScoresForTask, setViewingScoresForTask] = useState<NavigationTask | null>(null);
     const [loadingTaskScores, setLoadingTaskScores] = useState(false);
 
-    const isRegistered = myContests.some(mc => mc.contest.id === contest?.id);
+    const isRegistered = myFutureFlights.some(flight => flight.contest_id === contest?.id);
     const currentUserEmail = document.configuration.currentUserEmail;
 
     const refreshData = () => {
@@ -34,15 +36,20 @@ const ContestDashboard = () => {
             setLoading(true);
             Promise.all([
                 fetchContest(Number(contestId)),
-                fetchMyParticipatingContests(),
+                fetchMyFutureFlights(),
                 fetchOngoingNav(),
                 fetchContestResults(Number(contestId)),
-            ]).then(([contestData, myContestsData, ongoingData, resultsData]) => {
+                fetchMyContestTeams(),
+            ]).then(([contestData, myFutureFlightsData, ongoingData, resultsData, myContestTeamsData]) => {
                 setContest(contestData);
-                setMyContests(myContestsData);
+                setMyFutureFlights(myFutureFlightsData);
                 setOngoingNavigations(ongoingData);
                 setResults(resultsData);
-            }).catch(err => setError((err as Error).message))
+                setMyContestTeams(myContestTeamsData);
+            }).catch(err => {
+                setError((err as Error).message)
+                console.error(err);
+            })
             .finally(() => setLoading(false));
         }
     }
@@ -57,6 +64,7 @@ const ContestDashboard = () => {
             refreshData();
         } catch (error) {
             setError((error as Error).message);
+                       console.error(error);
         }
     };
 
@@ -66,6 +74,7 @@ const ContestDashboard = () => {
             refreshData();
         } catch (error) {
             setError((error as Error).message);
+            console.error(error);
         }
     };
 
@@ -77,6 +86,7 @@ const ContestDashboard = () => {
             setViewingScoresForTask(fullTaskData);
         } catch (err) {
             setError('Failed to load task scores.');
+            console.error(err);
             setViewingScoresForTask(null);
         } finally {
             setLoadingTaskScores(false);
@@ -91,12 +101,9 @@ const ContestDashboard = () => {
             return 'Finalized';
         }
 
-        const myContest = myContests.find(mc => mc.contest.id === contest?.id);
-        if (myContest) {
-            const myTask = myContest.contest.navigationtask_set.find(nt => nt.pk === task.pk);
-            if (myTask && myTask.future_contestants && myTask.future_contestants.length > 0) {
-                return 'Scheduled';
-            }
+        const isTaskScheduled = myFutureFlights.some(flight => flight.navigation_task === task.pk);
+        if (isTaskScheduled) {
+            return 'Scheduled';
         }
         
         return 'Open';
@@ -113,7 +120,8 @@ const ContestDashboard = () => {
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
                     <ContestRegistrationForm
                         contest={contest}
-                        myContests={myContests}
+                        myFutureParticipations={myFutureFlights}
+                        myContestTeams={myContestTeams}
                         onClose={() => {
                             setShowRegistrationForm(false);
                             refreshData();
@@ -126,7 +134,7 @@ const ContestDashboard = () => {
                     <ScheduleFlightForm
                         contest={contest}
                         navigationTaskId={showScheduleForm.pk}
-                        myContests={myContests}
+                        myContestTeams={myContestTeams}
                         onClose={() => {
                             setShowScheduleForm(null);
                             refreshData();
@@ -197,9 +205,7 @@ const ContestDashboard = () => {
                     <h2 className="text-2xl font-bold mb-4">Task Suite</h2>
                     <div className="space-y-4">
                         {contest.navigationtask_set.map(task => {
-                            const myContest = myContests.find(mc => mc.contest.id === contest.id);
-                            const myTask = myContest?.contest.navigationtask_set.find(nt => nt.pk === task.pk);
-                            const futureContestant = myTask?.future_contestants?.[0];
+                            const futureContestant = myFutureFlights.find(f => f.navigation_task === task.pk);
 
                             return (
                                 <TaskCard
@@ -210,7 +216,7 @@ const ContestDashboard = () => {
                                     taskId={task.pk}
                                     tracking_link={task.tracking_link}
                                     onScheduleClick={() => setShowScheduleForm(task)}
-                                    futureContestantId={futureContestant?.id}
+                                    futureContestant={futureContestant}
                                     onCancelClick={() => futureContestant && handleCancelFlight(contest.id, task.pk, futureContestant.id)}
                                     onViewScoresClick={() => handleViewScoresClick(task)}
                                 />

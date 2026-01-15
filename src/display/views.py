@@ -1780,7 +1780,7 @@ class EditableRouteDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = EditableRoute
     permission_required = ("display.delete_editableroute",)
     template_name = "model_delete.html"
-    success_url = "/frontend/routeeditor/"
+    success_url = "/routeeditor/"
 
     def get_permission_object(self):
         return self.get_object()

@@ -6,9 +6,10 @@ interface ContestCardProps {
     status: 'live' | 'upcoming' | 'past';
     isRegistered?: boolean;
     hasScheduledFlight?: boolean;
+    isEditorContest?: boolean;
 }
 
-const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight }) => {
+const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight, isEditorContest }) => {
     return (
         <div className="card bg-base-200 shadow-xl image-full h-[280px] overflow-hidden">
             {contest.header_image && (
@@ -28,7 +29,7 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                     {hasScheduledFlight && <div className="badge badge-info">Scheduled</div>}
                     {isRegistered && <div className="badge badge-success">Registered</div>}
                     {status === 'live' && <div className="badge badge-error">LIVE</div>}
-                    <button className="btn btn-primary">View</button>
+                    <button className="btn btn-primary">{isEditorContest ? 'Manage' : 'View'}</button>
                 </div>
             </div>
         </div>

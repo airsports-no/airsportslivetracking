@@ -38,7 +38,6 @@
             contestantScoreDataUrl: (contestId, navigationTaskId, contestantId) => "{% url 'contestants-score-data' -1 -2 -3 %}".replace("-1", contestId).replace("/-2/", '/' + navigationTaskId + '/').replace("/-3/", '/' + contestantId + '/'),
             CONTESTS_LIST_URL: "{% url 'contests-list' %}",
             CONTESTS_WITH_ONGOING_NAVIGATION_URL: "{% url 'contests-ongoing-navigation' %}",
-            MY_PARTICIPATING_CONTESTS_URL: "{% url 'userprofile-my-participating-contests' %}",
             TERMS_AND_CONDITIONS_URL: "{% url 'terms_and_conditions' %}",
             EDITABLE_ROUTES_URL: "{% url 'editableroutes-list' %}",
             contestResultsDetailsUrl: contestId => "{% url 'contests-results-details' 0 %}".replace("0", contestId),
@@ -122,10 +121,6 @@
                     {% endif %}
                     <li class="nav-item">
                         <a target="_blank" class="nav-link" href="https://home.airsports.no/">FAQ</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'frontend' %}schedule/">Flight schedule</a>
-
                     </li>
                 </ul>
                 <ul class="navbar-nav ml-auto">

@@ -91,7 +91,6 @@
                             </li>
                         {% endif %}
                         <li><a href="https://home.airsports.no/" target="_blank">FAQ</a></li>
-                        <li><a href="{% url 'frontend' %}schedule-flight/">Flight schedule</a></li>
                         {% if user.is_superuser and user.is_staff %}
                             <li><a href="/admin/">Admin</a></li>
                         {% endif %}

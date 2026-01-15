@@ -7,7 +7,7 @@ import dateutil
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -322,6 +322,17 @@ class ContestFrontEndSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMi
         return "change_contest" in get_user_perms(self.context["request"].user, contest)
 
 
+class ContestTeamSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = ContestTeam
+        fields = "__all__"
+
+    def validate_team(self, team: Team):
+        if not team.crew.member1.has_user and (not team.crew.member2 or not team.crew.member2.has_user):
+            raise ValidationError(f"The team {team} is not tied to any registered user")
+        return team
+
+
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, serializers.ModelSerializer):
     time_zone = TimeZoneSerializerField(required=True)
     navigationtask_set = SerializerMethodField("get_visiblenavigationtasks")
@@ -333,6 +344,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     latitude = serializers.FloatField(read_only=True)
     longitude = serializers.FloatField(read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor")
+    contestteam_set = ContestTeamSerialiser(read_only=True, many=True)
 
     def get_is_editor(self, contest):
         return "change_contest" in get_user_perms(self.context["request"].user, contest)
@@ -513,17 +525,6 @@ class RouteSerialiser(serializers.ModelSerializer):
         instance.landing_gates = [self._create_waypoint(data) for data in validated_data.pop("landing_gates")]
         instance.takeoff_gates = [self._create_waypoint(data) for data in validated_data.pop("takeoff_gates")]
         return instance
-
-
-class ContestTeamSerialiser(serializers.ModelSerializer):
-    class Meta:
-        model = ContestTeam
-        fields = "__all__"
-
-    def validate_team(self, team: Team):
-        if not team.crew.member1.has_user and (not team.crew.member2 or not team.crew.member2.has_user):
-            raise ValidationError(f"The team {team} is not tied to any registered user")
-        return team
 
 
 class SignupSerialiser(serializers.Serializer):
@@ -793,7 +794,7 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
 class ContestantSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Contestant
-        exclude = ("navigation_task", "predefined_gate_times")
+        exclude = ("predefined_gate_times",)
 
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the "
@@ -805,6 +806,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
     tracker_id_display = serializers.JSONField(help_text="", read_only=True)
     default_map_url = SerializerMethodField("get_default_map_url", read_only=True)
     has_crossed_starting_line = serializers.BooleanField(read_only=True)
+    contest_id = SerializerMethodField("get_contest_id", read_only=True)
+
+    def get_contest_id(self, contestant):
+        return contestant.navigation_task.contest.pk
 
     def get_default_map_url(self, contestant):
         return reverse("contestant_default_map", kwargs={"pk": contestant.pk})
@@ -942,7 +947,7 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
     class Meta:
         model = Contestant
         list_serializer_class = FilteredContestantNestedTeamSerialiser
-        exclude = ("navigation_task", "predefined_gate_times")
+        exclude = ("predefined_gate_times",)
 
     def create(self, validated_data):
         team_data = validated_data.pop("team")
@@ -988,6 +993,27 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     time_zone = TimeZoneSerializerField(source="contest.time_zone", read_only=True)
     contest = serializers.PrimaryKeyRelatedField(read_only=True)
     user_has_change_permission = SerializerMethodField("get_user_has_change_permission")
+
+    @staticmethod
+    def setup_eager_loading(queryset):
+        """
+        This method is used by viewsets to optimise database queries
+        """
+        queryset = queryset.select_related("route", "scorecard", "contest").prefetch_related(
+            "scorecard__gatescore_set",
+            "route__prohibited_set",
+            Prefetch(
+                "contestant_set",
+                queryset=Contestant.objects.select_related(
+                    "team__crew__member1",
+                    "team__crew__member2",
+                    "team__aeroplane",
+                    "team__club",
+                    "contestanttrack",
+                ).order_by("pk"),
+            ),
+        )
+        return queryset
 
     def get_user_has_change_permission(self, navigation_task):
         user = self.context["request"].user
