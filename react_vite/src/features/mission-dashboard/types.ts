@@ -47,6 +47,7 @@ export interface MyContestTeam {
     tracker_device_id: string;
     contest: number;
     team: number;
+    is_user_pilot: boolean; // Added property
 }
 
 export interface MyParticipatingContest {

@@ -28,7 +28,7 @@ const ContestDashboard = () => {
     const [viewingScoresForTask, setViewingScoresForTask] = useState<NavigationTask | null>(null);
     const [loadingTaskScores, setLoadingTaskScores] = useState(false);
 
-    const isRegistered = myFutureFlights.some(flight => flight.contest_id === contest?.id);
+
     const currentUserEmail = document.configuration.currentUserEmail;
 
     const refreshData = () => {
@@ -113,6 +113,9 @@ const ContestDashboard = () => {
     if (error) return <div className="alert alert-error">{error}</div>;
     if (!contest) return <div className="alert alert-warning">Contest not found.</div>;
 
+    const userContestTeam = myContestTeams.find(team => team.contest === contest?.id);
+    const canSchedule = !!userContestTeam?.is_user_pilot;
+
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
             {/* Modals for forms */}
@@ -184,11 +187,21 @@ const ContestDashboard = () => {
                         </div>
                     </div>
                      <div className="flex flex-col items-stretch gap-2">
-                        {isRegistered ? (
-                            <button className="btn btn-warning" onClick={() => handleWithdrawClick(contest.id)}>Withdraw</button>
-                        ) : (
-                            <button className="btn btn-success" onClick={() => setShowRegistrationForm(true)}>Register</button>
-                        )}
+                        {(() => {
+                            if (userContestTeam?.is_user_pilot) {
+                                return (
+                                    <button className="btn btn-warning" onClick={() => handleWithdrawClick(contest.id)}>Withdraw</button>
+                                );
+                            } else if (userContestTeam) {
+                                return (
+                                    <button className="btn btn-info" disabled>Registered</button>
+                                );
+                            } else {
+                                return (
+                                    <button className="btn btn-success" onClick={() => setShowRegistrationForm(true)}>Register</button>
+                                );
+                            }
+                        })()}
                     </div>
                 </div>
             </div>
@@ -206,6 +219,7 @@ const ContestDashboard = () => {
                     <div className="space-y-4">
                         {contest.navigationtask_set.map(task => {
                             const futureContestant = myFutureFlights.find(f => f.navigation_task === task.pk);
+                            const canCancelThisFlight = futureContestant && userContestTeam && futureContestant.team.id === userContestTeam.team && userContestTeam.is_user_pilot;
 
                             return (
                                 <TaskCard
@@ -217,8 +231,9 @@ const ContestDashboard = () => {
                                     tracking_link={task.tracking_link}
                                     onScheduleClick={() => setShowScheduleForm(task)}
                                     futureContestant={futureContestant}
-                                    onCancelClick={() => futureContestant && handleCancelFlight(contest.id, task.pk, futureContestant.id)}
+                                    onCancelClick={canCancelThisFlight ? () => futureContestant && handleCancelFlight(contest.id, task.pk, futureContestant.id) : undefined}
                                     onViewScoresClick={() => handleViewScoresClick(task)}
+                                    canSchedule={canSchedule}
                                 />
                             );
                         })}

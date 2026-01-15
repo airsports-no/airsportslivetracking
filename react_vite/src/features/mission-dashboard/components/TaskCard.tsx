@@ -13,6 +13,7 @@ interface TaskCardProps {
     tracking_link: string;
     onViewScoresClick: () => void;
     contestName?: string;
+    canSchedule?: boolean;
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, onScheduleClick, onCancelClick, futureContestant, tracking_link, onViewScoresClick, contestName }) => {
@@ -28,7 +29,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, on
                     </a>
                 </h3>
                 {contestName && <p>{contestName}</p>}
-                {status === 'Open' && <div className="card-actions justify-end"><button onClick={onScheduleClick} className="btn btn-primary">Register Flight Plan</button></div>}
+                {status === 'Open' && canSchedule && <div className="card-actions justify-end"><button onClick={onScheduleClick} className="btn btn-primary">Register Flight Plan</button></div>}
                 {status === 'Scheduled' && futureContestant && (
                     <>
                         <p>Take-off: {new Date(futureContestant.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</p>
