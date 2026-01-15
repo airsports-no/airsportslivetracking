@@ -1,15 +1,4 @@
-import React, { useEffect } from 'react';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  flexRender,
-  ColumnDef,
-  SortingState,
-  Table as ReactTableType,
-} from '@tanstack/react-table';
-import Icon from '@mdi/react';
-import { mdiChevronDown, mdiChevronUp } from '@mdi/js';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 // Define the props for the DataTable component
 interface DataTableProps<TData extends object> {
@@ -96,8 +85,8 @@ export function DataTable<TData extends object>({
                 >
                   {flexRender(header.column.columnDef.header, header.getContext())}
                   {{
-                    asc: <Icon path={mdiChevronUp} title={'Ascending'} size={1} />,
-                    desc: <Icon path={mdiChevronDown} title={'Descending'} size={1} />,
+                    asc: <ChevronUp size={16} />,
+                    desc: <ChevronDown size={16} />,
                   }[header.column.getIsSorted() as string] ?? null}
                 </th>
               );
