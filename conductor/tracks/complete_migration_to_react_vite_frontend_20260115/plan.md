@@ -11,7 +11,7 @@
 
 ## Phase 3: Integration and Testing
 
-- [ ] Task: Update Django views and URL configurations to serve the `react_vite` application instead of `reactjs`.
+- [~] Task: Update Django views and URL configurations to serve the `react_vite` application instead of `reactjs`.
 - [ ] Task: Write unit and integration tests for the migrated components in `react_vite`.
 - [ ] Task: Perform end-to-end testing to ensure full feature parity and identify any regressions.
 
