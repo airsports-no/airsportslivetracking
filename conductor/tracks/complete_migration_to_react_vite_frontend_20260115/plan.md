@@ -1,6 +1,6 @@
 # Implementation Plan: Complete Migration to React Vite Frontend
 
-## Phase 1: Analysis and Setup
+## Phase 1: Analysis and Setup [checkpoint: 66b86d6]
 
 - [x] Task: Analyze the existing `reactjs` application to identify all components, views, and functionalities that need to be migrated. (6d5144b)
 - [x] Task: Set up the `react_vite` application with necessary dependencies and configurations to support the migration. (d8b0fc6c)
