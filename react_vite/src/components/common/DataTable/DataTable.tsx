@@ -1,0 +1,140 @@
+import React, { useEffect } from 'react';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  flexRender,
+  ColumnDef,
+  SortingState,
+  Table as ReactTableType,
+} from '@tanstack/react-table';
+import Icon from '@mdi/react';
+import { mdiChevronDown, mdiChevronUp } from '@mdi/js';
+
+// Define the props for the DataTable component
+interface DataTableProps<TData extends object> {
+  data: TData[];
+  columns: ColumnDef<TData>[];
+  rowEvents?: {
+    onClick?: (row: TData) => void;
+    onMouseEnter?: (row: TData) => void;
+    onMouseLeave?: (row: TData) => void;
+  };
+  headerRowEvents?: {
+    onClick?: () => void;
+    onMouseEnter?: () => void;
+    onMouseLeave?: () => void;
+  };
+  className?: string;
+  updateMyData?: (rowIndex: number, columnId: string, value: any) => void;
+  initialState?: {
+    hiddenColumns?: string[];
+  };
+}
+
+export function DataTable<TData extends object>({
+  data,
+  columns,
+  rowEvents,
+  headerRowEvents,
+  className,
+  updateMyData,
+  initialState,
+}: DataTableProps<TData>) {
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState({});
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: {
+      sorting,
+      columnVisibility,
+    },
+    onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    // Pass the custom updateMyData function to the table context if provided
+    meta: {
+      updateMyData: updateMyData,
+    },
+  });
+
+  // Handle hidden columns from initialState
+  useEffect(() => {
+    if (initialState?.hiddenColumns) {
+      const newVisibility = initialState.hiddenColumns.reduce((acc, columnId) => {
+        acc[columnId] = false;
+        return acc;
+      }, {} as Record<string, boolean>);
+      setColumnVisibility((prev) => ({ ...prev, ...newVisibility }));
+    }
+  }, [initialState?.hiddenColumns]);
+
+  return (
+    <table className={className}>
+      <thead>
+        {table.getHeaderGroups().map((headerGroup) => (
+          <tr
+            key={headerGroup.id}
+            onClick={() => (headerRowEvents && headerRowEvents.onClick) ? headerRowEvents.onClick() : null}
+            onMouseEnter={() => (headerRowEvents && headerRowEvents.onMouseEnter) ? headerRowEvents.onMouseEnter() : null}
+            onMouseLeave={() => (headerRowEvents && headerRowEvents.onMouseLeave) ? headerRowEvents.onMouseLeave() : null}
+          >
+            {headerGroup.headers.map((header) => {
+              // Cast header.column.columnDef as any to access custom properties like headerHidden
+              const customHeaderDef = header.column.columnDef as any;
+              if (customHeaderDef.headerHidden) return null;
+
+              return (
+                <th
+                  key={header.id}
+                  colSpan={header.colSpan}
+                  style={{ position: 'relative', height: '100%' }}
+                  onClick={header.column.getToggleSortingHandler()}
+                >
+                  {flexRender(header.column.columnDef.header, header.getContext())}
+                  {{
+                    asc: <Icon path={mdiChevronUp} title={'Ascending'} size={1} />,
+                    desc: <Icon path={mdiChevronDown} title={'Descending'} size={1} />,
+                  }[header.column.getIsSorted() as string] ?? null}
+                </th>
+              );
+            })}
+          </tr>
+        ))}
+      </thead>
+      <tbody>
+        {table.getRowModel().rows.map((row) => (
+          <tr
+            key={row.id}
+            className={(row.original as any).className} // Assuming className can be on original data
+            onClick={() => (rowEvents && rowEvents.onClick) ? rowEvents.onClick(row.original) : null}
+            onMouseEnter={() => (rowEvents && rowEvents.onMouseEnter) ? rowEvents.onMouseEnter(row.original) : null}
+            onMouseLeave={() => (rowEvents && rowEvents.onMouseLeave) ? rowEvents.onMouseLeave(row.original) : null}
+          >
+            {row.getVisibleCells().map((cell) => {
+              // Cast cell.column.columnDef as any to access custom properties like classes and style
+              const customCellDef = cell.column.columnDef as any;
+              return (
+                <td
+                  key={cell.id}
+                  className={customCellDef.classes}
+                  style={customCellDef.style ? customCellDef.style(row.original) : undefined}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// Helper to get the updateMyData function from the table instance
+export function getTableUpdateMyData<TData extends object>(table: ReactTableType<TData>) {
+  return (table.options.meta as { updateMyData?: (rowIndex: number, columnId: string, value: any) => void })?.updateMyData;
+}
