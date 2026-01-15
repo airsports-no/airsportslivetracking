@@ -6,8 +6,6 @@ import { useContestResultsWebSocket } from '../../hooks/useContestResultsWebSock
 import { ContestSummary, ContestResultsState, Task } from '../../store/contestResultsStore'; // Assuming these interfaces
 import { useContestResultsStore } from '../../store/contestResultsStore';
 import { EditableCell } from '../../components/common/DataTable/EditableCell';
-import { mdiChevronDown, mdiChevronUp } from '@mdi/js';
-import Icon from '@mdi/react';
 import { useScoreUpdates } from '../../hooks/useScoreUpdates'; // Import the new hook
 
 // Helper function from original reactjs
