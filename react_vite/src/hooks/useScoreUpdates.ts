@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import axios from 'axios';
 import { useFrontendContext } from './useFrontendContext';
 
 interface ScoreUpdatePayload {
@@ -20,9 +19,18 @@ export const useScoreUpdates = () => {
     const url = context.urls.contests_update_contest_summary(contestId);
     const payload: ScoreUpdatePayload = { team: teamId, points: points };
     try {
-      await axios.put(url, payload);
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          // You might need to include a CSRF token here depending on your Django setup
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
       console.log('Contest summary updated successfully.');
-      // Optionally, trigger a re-fetch of results or rely on WebSocket for update
     } catch (error) {
       console.error('Failed to update contest summary:', error);
       throw error;
@@ -37,7 +45,16 @@ export const useScoreUpdates = () => {
     const url = context.urls.contests_update_task_summary(contestId);
     const payload: ScoreUpdatePayload = { team: teamId, task: taskId, points: points };
     try {
-      await axios.put(url, payload);
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
       console.log('Task summary updated successfully.');
     } catch (error) {
       console.error('Failed to update task summary:', error);
@@ -53,7 +70,16 @@ export const useScoreUpdates = () => {
     const url = context.urls.contests_update_test_result(contestId);
     const payload: ScoreUpdatePayload = { team: teamId, task_test: taskTestId, points: points };
     try {
-      await axios.put(url, payload);
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
       console.log('Test result updated successfully.');
     } catch (error) {
       console.error('Failed to update test result:', error);

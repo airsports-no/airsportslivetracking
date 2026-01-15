@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 
 interface FrontendContext {
   is_authenticated: boolean;
@@ -24,8 +23,12 @@ export const useFrontendContext = () => {
     const fetchContext = async () => {
       try {
         setLoading(true);
-        const response = await axios.get<FrontendContext>('/api/v1/frontend-context/');
-        setContext(response.data);
+        const response = await fetch('/api/v1/frontend-context/');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data: FrontendContext = await response.json();
+        setContext(data);
       } catch (err) {
         setError('Failed to load frontend context.');
         console.error('Failed to load frontend context:', err);

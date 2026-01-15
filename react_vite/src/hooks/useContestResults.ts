@@ -1,5 +1,4 @@
 import { useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { useContestResultsStore } from '../store/contestResultsStore';
 import { useFrontendContext } from './useFrontendContext';
 
@@ -19,8 +18,12 @@ export const useContestResults = (contestId: number | null) => {
       // contestResultsDetailsUrl is a function in django_js_reverse, so it will be in context.urls.contestResultsDetailsUrl.
       // We need to call it with contestId.
       const url = context.urls.contestResultsDetailsUrl(contestId);
-      const response = await axios.get(url);
-      setResults(response.data);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      setResults(data);
     } catch (err) {
       setError('Failed to fetch contest results.');
       console.error('Failed to fetch contest results:', err);
