@@ -98,6 +98,7 @@ from display.flight_order_and_maps.map_plotter import (
     A3_HEIGHT,
     A4_HEIGHT,
     A3_WIDTH,
+    MemoryEstimationExceededError,
 )
 from display.models import (
     NavigationTask,
@@ -562,24 +563,36 @@ def get_contestant_map(request, pk):
         form.fields["user_map_source"].queryset = contestant.navigation_task.get_available_user_maps()
         if form.is_valid():
             margin = 10
-            map_image = plot_route(
-                contestant.navigation_task,
-                form.cleaned_data["size"],
-                zoom_level=int(form.cleaned_data["zoom_level"]),
-                landscape=form.cleaned_data["orientation"] == LANDSCAPE,
-                contestant=contestant,
-                annotations=form.cleaned_data["include_annotations"],
-                waypoints_only=not form.cleaned_data["plot_track_between_waypoints"],
-                dpi=form.cleaned_data["dpi"],
-                scale=int(form.cleaned_data["scale"]),
-                map_source=form.cleaned_data["map_source"],
-                user_map_source=form.cleaned_data["user_map_source"],
-                line_width=float(form.cleaned_data["line_width"]),
-                minute_mark_line_width=float(form.cleaned_data["minute_mark_line_width"]),
-                colour=form.cleaned_data["colour"],
-                include_meridians_and_parallels_lines=form.cleaned_data["include_meridians_and_parallels_lines"],
-                margins_mm=margin,
-            )
+            try:
+                map_image = plot_route(
+                    contestant.navigation_task,
+                    form.cleaned_data["size"],
+                    zoom_level=int(form.cleaned_data["zoom_level"]),
+                    landscape=form.cleaned_data["orientation"] == LANDSCAPE,
+                    contestant=contestant,
+                    annotations=form.cleaned_data["include_annotations"],
+                    waypoints_only=not form.cleaned_data["plot_track_between_waypoints"],
+                    dpi=form.cleaned_data["dpi"],
+                    scale=int(form.cleaned_data["scale"]),
+                    map_source=form.cleaned_data["map_source"],
+                    user_map_source=form.cleaned_data["user_map_source"],
+                    line_width=float(form.cleaned_data["line_width"]),
+                    minute_mark_line_width=float(form.cleaned_data["minute_mark_line_width"]),
+                    colour=form.cleaned_data["colour"],
+                    include_meridians_and_parallels_lines=form.cleaned_data["include_meridians_and_parallels_lines"],
+                    margins_mm=margin,
+                )
+            except MemoryEstimationExceededError as e:
+                messages.error(request, str(e))
+                return render(
+                    request,
+                    "display/map_form.html",
+                    {
+                        "form": form,
+                        "redirect": reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}),
+                        "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
+                    },
+                )
             # noinspection PyTypeChecker
             pdf = embed_map_in_pdf(
                 "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
@@ -672,23 +685,27 @@ def get_contestant_default_map(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
     configuration = contestant.navigation_task.flightorderconfiguration
     margin = 10
-    map_image = plot_route(
-        contestant.navigation_task,
-        configuration.document_size,
-        zoom_level=configuration.map_zoom_level,
-        landscape=configuration.map_orientation == LANDSCAPE,
-        contestant=contestant,
-        annotations=configuration.map_include_annotations,
-        waypoints_only=not configuration.map_plot_track_between_waypoints,
-        dpi=configuration.map_dpi,
-        scale=configuration.map_scale,
-        map_source=configuration.map_source,
-        user_map_source=configuration.map_user_source,
-        line_width=configuration.map_line_width,
-        colour=configuration.map_line_colour,
-        include_meridians_and_parallels_lines=configuration.map_include_meridians_and_parallels_lines,
-        margins_mm=margin,
-    )
+    try:
+        map_image = plot_route(
+            contestant.navigation_task,
+            configuration.document_size,
+            zoom_level=configuration.map_zoom_level,
+            landscape=configuration.map_orientation == LANDSCAPE,
+            contestant=contestant,
+            annotations=configuration.map_include_annotations,
+            waypoints_only=not configuration.map_plot_track_between_waypoints,
+            dpi=configuration.map_dpi,
+            scale=configuration.map_scale,
+            map_source=configuration.map_source,
+            user_map_source=configuration.map_user_source,
+            line_width=configuration.map_line_width,
+            colour=configuration.map_line_colour,
+            include_meridians_and_parallels_lines=configuration.map_include_meridians_and_parallels_lines,
+            margins_mm=margin,
+        )
+    except MemoryEstimationExceededError as e:
+        messages.error(request, str(e))
+        return redirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
     # noinspection PyTypeChecker
     pdf = embed_map_in_pdf(
         "a4paper" if configuration.document_size == A4 else "a3paper",
@@ -806,21 +823,33 @@ def get_navigation_task_map(request, pk):
         form.fields["user_map_source"].queryset = navigation_task.get_available_user_maps()
         if form.is_valid():
             margin = 10
-            map_image = plot_route(
-                navigation_task,
-                form.cleaned_data["size"],
-                zoom_level=form.cleaned_data["zoom_level"],
-                landscape=form.cleaned_data["orientation"] == LANDSCAPE,
-                waypoints_only=not form.cleaned_data["plot_track_between_waypoints"],
-                dpi=form.cleaned_data["dpi"],
-                scale=int(form.cleaned_data["scale"]),
-                map_source=form.cleaned_data["map_source"],
-                user_map_source=form.cleaned_data["user_map_source"],
-                line_width=float(form.cleaned_data["line_width"]),
-                colour=form.cleaned_data["colour"],
-                margins_mm=margin,
-                include_meridians_and_parallels_lines=form.cleaned_data["include_meridians_and_parallels_lines"],
-            )
+            try:
+                map_image = plot_route(
+                    navigation_task,
+                    form.cleaned_data["size"],
+                    zoom_level=form.cleaned_data["zoom_level"],
+                    landscape=form.cleaned_data["orientation"] == LANDSCAPE,
+                    waypoints_only=not form.cleaned_data["plot_track_between_waypoints"],
+                    dpi=form.cleaned_data["dpi"],
+                    scale=int(form.cleaned_data["scale"]),
+                    map_source=form.cleaned_data["map_source"],
+                    user_map_source=form.cleaned_data["user_map_source"],
+                    line_width=float(form.cleaned_data["line_width"]),
+                    colour=form.cleaned_data["colour"],
+                    margins_mm=margin,
+                    include_meridians_and_parallels_lines=form.cleaned_data["include_meridians_and_parallels_lines"],
+                )
+            except MemoryEstimationExceededError as e:
+                messages.error(request, str(e))
+                return render(
+                    request,
+                    "display/map_form.html",
+                    {
+                        "form": form,
+                        "redirect": reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}),
+                        "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
+                    },
+                )
             # noinspection PyTypeChecker
             pdf = embed_map_in_pdf(
                 "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",

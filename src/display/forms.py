@@ -83,7 +83,7 @@ class MapForm(forms.Form):
         UserUploadedMap.objects.all(), help_text="Overrides map source if set", required=False
     )
     zoom_level = forms.TypedChoiceField(initial=12, choices=[(x, x) for x in range(1, 15)], coerce=int, empty_value=12)
-    dpi = forms.IntegerField(initial=300, min_value=100, max_value=1000)
+    dpi = forms.IntegerField(initial=150, min_value=100, max_value=300)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
 
@@ -102,7 +102,7 @@ class MapForm(forms.Form):
 
 class ContestantMapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
-    dpi = forms.IntegerField(initial=300, min_value=100, max_value=500)
+    dpi = forms.IntegerField(initial=150, min_value=100, max_value=300)
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=PORTRAIT)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=[], help_text="Is overridden by user map source if set", required=False)
