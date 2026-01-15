@@ -114,7 +114,7 @@ const ContestDashboard = () => {
     if (!contest) return <div className="alert alert-warning">Contest not found.</div>;
 
     const userContestTeam = myContestTeams.find(team => team.contest === contest?.id);
-    const canSchedule = !!userContestTeam?.is_user_pilot;
+    const canSchedule = !userContestTeam || !!userContestTeam?.is_user_pilot;
 
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
@@ -209,7 +209,10 @@ const ContestDashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Leaderboard */}
                 <div className="lg:col-span-2">
-                    <h2 className="text-2xl font-bold mb-4">Leaderboard</h2>
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold mb-4">Leaderboard</h2>
+                        <Link to={`/contests/${contestId}/results`} className="btn btn-primary">View Full Results</Link>
+                    </div>
                     <Leaderboard results={results} />
                 </div>
 
