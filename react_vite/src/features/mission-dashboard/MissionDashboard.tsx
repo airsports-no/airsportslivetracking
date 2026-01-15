@@ -24,36 +24,76 @@ const MissionDashboard = () => {
     const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
     const [mapBounds, setMapBounds] = useState<LatLngBounds | null>(null);
     const [hasUserInteractedWithMap, setHasUserInteractedWithMap] = useState(false);
+    const [oldestContestDate, setOldestContestDate] = useState<Date | null>(null);
+    const [loadingMore, setLoadingMore] = useState(false);
 
-    const refreshData = async () => {
-        try {
+    useEffect(() => {
+        const loadInitialData = async () => {
             setLoading(true);
-            const [contestsData, ongoingData, myFutureFlightsData, myContestTeamsData] = await Promise.all([
-                fetchContests(),
-                fetchOngoingNavigation(),
-                fetchMyFutureFlights(),
-                fetchMyContestTeams(),
-            ]);
-            setContests(contestsData);
-            setOngoingNavigations(ongoingData);
-            setMyFutureFlights(myFutureFlightsData);
-            setMyContestTeams(myContestTeamsData);
+            try {
+                const oneYearAgo = new Date();
+                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+                const [contestsData, ongoingData, myFutureFlightsData, myContestTeamsData] = await Promise.all([
+                    fetchContests({ startTimeGte: oneYearAgo.toISOString().split('T')[0] }),
+                    fetchOngoingNavigation(),
+                    fetchMyFutureFlights(),
+                    fetchMyContestTeams(),
+                ]);
+
+                setContests(contestsData);
+                if (contestsData.length > 0) {
+                    const oldest = new Date(contestsData.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0].start_time);
+                    setOldestContestDate(oldest);
+                } else {
+                    setOldestContestDate(oneYearAgo);
+                }
+
+                setOngoingNavigations(ongoingData);
+                setMyFutureFlights(myFutureFlightsData);
+                setMyContestTeams(myContestTeamsData);
+            } catch (err) {
+                setError((err as Error).message);
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadInitialData();
+    }, []);
+
+    const handleFetchMore = async () => {
+        if (!oldestContestDate) return;
+        setLoadingMore(true);
+    
+        const oneYearBeforeOldest = new Date(oldestContestDate);
+        oneYearBeforeOldest.setFullYear(oneYearBeforeOldest.getFullYear() - 1);
+    
+        try {
+            const moreContests = await fetchContests({
+                startTimeGte: oneYearBeforeOldest.toISOString().split('T')[0],
+                finishTimeLte: oldestContestDate.toISOString().split('T')[0]
+            });
+    
+            const existingContestIds = new Set(contests.map(c => c.id));
+            const newContests = moreContests.filter(c => !existingContestIds.has(c.id));
+    
+            setContests([...contests, ...newContests]);
+            setOldestContestDate(oneYearBeforeOldest);
         } catch (err) {
             setError((err as Error).message);
             console.error(err);
         } finally {
-            setLoading(false);
+            setLoadingMore(false);
         }
     };
-
-    useEffect(() => {
-        refreshData();
-    }, []);
 
     const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number) => {
         try {
             await cancelFlight(contestId, navigationTaskId, futureContestantId);
-            refreshData(); // Refresh data to reflect the cancellation
+            // Re-fetch future flights after cancellation
+            const myFutureFlightsData = await fetchMyFutureFlights();
+            setMyFutureFlights(myFutureFlightsData);
         } catch (error) {
             setError((error as Error).message);
             console.error(error);
@@ -191,6 +231,12 @@ const MissionDashboard = () => {
                             classNamePrefix="my-react-select"
                         />
                     </div>
+                    <div className="text-center mt-4 mb-4">
+                        <p className="mb-2">Showing contests since {oldestContestDate?.toLocaleDateString()}</p>
+                        <button onClick={handleFetchMore} className="btn btn-secondary" disabled={loadingMore}>
+                            {loadingMore ? 'Loading...' : 'Fetch More'}
+                        </button>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {listFilteredContests.map(contest => {
                             const canManageThisContest = contest.is_editor || document.configuration.is_superuser;
@@ -214,13 +260,6 @@ const MissionDashboard = () => {
                             <p className="text-center mt-2 sm:mt-4 col-span-full">No contests match your filters.</p>
                         )}
                     </div>
-                </div>
-            )}
-
-            {activeTab === 'upcoming' && (
-                <div>
-                    <h2 className="text-2xl font-bold mb-4">My Upcoming Flights</h2>
-                    <UpcomingFlights myFutureFlights={myFutureFlights} contests={contests} onCancel={handleCancelFlight} />
                 </div>
             )}
 

@@ -335,7 +335,7 @@ class MyCursorPagination(CursorPagination):
 
 class ContestPagination(MyCursorPagination):
     page_size = 50
-    ordering = ["-finish_time", "-start_time", "id"]
+    ordering = ["-start_time", "-finish_time", "id"]
     max_page_size = 200
 
 
@@ -359,7 +359,7 @@ class ContestFrontEndViewSet(mixins.ListModelMixin, GenericViewSet):
                 accept_global_perms=False,
             )
             .annotate(Count("navigationtask", distinct=True))
-            .order_by("-finish_time")
+            .order_by("-start_time")
         )
 
 
@@ -403,7 +403,7 @@ class ContestViewSet(ModelViewSet):
                 | self.queryset.filter(is_public=True, is_featured=True)
             )
             .prefetch_related("navigationtask_set", "contest_teams")
-            .order_by("-finish_time")
+            .order_by("-start_time")
         )
 
     @action(detail=True, methods=["get"], url_path=r"contest_team_for_team/(?P<team_id>\d+)")
