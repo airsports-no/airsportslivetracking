@@ -1,14 +1,12 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useContestResultsStore } from '../store/contestResultsStore';
-import { useFrontendContext } from './useFrontendContext';
 
 export const useContestResultsWebSocket = (contestId: number | null) => {
-  const { context, loading: contextLoading, error: contextError } = useFrontendContext();
   const { setResults, setError } = useContestResultsStore();
   const ws = useRef<WebSocket | null>(null);
 
   const connectWebSocket = useCallback(() => {
-    if (!contestId || !context || contextLoading || contextError) {
+    if (!contestId) {
       return;
     }
 
@@ -59,7 +57,7 @@ export const useContestResultsWebSocket = (contestId: number | null) => {
         ws.current.close(1000, 'Component unmounted'); // Clean closure
       }
     };
-  }, [contestId, context, contextLoading, contextError, setResults, setError]);
+  }, [contestId, setResults, setError]);
 
   useEffect(() => {
     connectWebSocket();

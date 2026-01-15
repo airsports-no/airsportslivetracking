@@ -1,3 +1,13 @@
+import React, { useEffect, useState } from 'react';
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
+  useReactTable,
+  Table as ReactTableType,
+} from '@tanstack/react-table';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 // Define the props for the DataTable component
@@ -30,8 +40,8 @@ export function DataTable<TData extends object>({
   updateMyData,
   initialState,
 }: DataTableProps<TData>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState({});
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnVisibility, setColumnVisibility] = useState({});
 
   const table = useReactTable({
     data,

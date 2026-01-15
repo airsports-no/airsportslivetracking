@@ -1,26 +1,26 @@
 import React from 'react';
 import { CellContext } from '@tanstack/react-table';
 
-interface EditableCellProps<TData, TValue> extends CellContext<TData, TValue> {
-  updateMyData: (rowIndex: number, columnId: string, value: TValue) => void;
-}
-
 export const EditableCell = <TData, TValue>({
   getValue,
   row: { index },
   column: { id },
   table,
-  updateMyData, // Custom function from the table instance
-}: EditableCellProps<TData, TValue>) => {
+}: CellContext<TData, TValue>) => {
   const initialValue = getValue() as TValue;
   const [value, setValue] = React.useState(initialValue);
+
+  // Get the update function from the table meta
+  const updateMyData = (table.options.meta as any)?.updateMyData;
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setValue(e.target.value as TValue);
   };
 
   const onBlur = () => {
-    updateMyData(index, id, value);
+    if (updateMyData) {
+      updateMyData(index, id, value);
+    }
   };
 
   React.useEffect(() => {

@@ -1,9 +1,6 @@
 from rest_framework_nested import routers
-from django.urls import path, include, reverse
-from django.http import JsonResponse
-from django.conf import settings
-from django_js_reverse.views import urls_json
-import json
+
+from django.urls import path, include
 
 from display.viewsets import (
     ContestFrontEndViewSet,
@@ -55,29 +52,7 @@ router.register(r"editableroutes", EditableRouteViewSet, basename="editableroute
 # results_details_router = routers.NestedSimpleRouter(router, r'contestresults', lookup='contest')
 # results_details_router.register(r'details', ContestResultsDetailsViewSet, basename="contestresultsdetails")
 
-
-def frontend_context_view(request):
-    user_data = {
-        "is_authenticated": request.user.is_authenticated,
-        "is_superuser": request.user.is_superuser,
-        "is_staff": request.user.is_staff,
-        "email": request.user.email if request.user.is_authenticated else None,
-        "STATIC_FILE_LOCATION": settings.STATIC_URL,
-        "loginLink": reverse("login") + "?next=/",
-        "logoutLink": reverse("logout"),
-    }
-    
-    # Get Django reversed URLs from django_js_reverse
-    urls_data_response = urls_json(request)
-    urls_data = json.loads(urls_data_response.content)
-
-    # Combine user data and URLs
-    context_data = {**user_data, "urls": urls_data}
-    
-    return JsonResponse(context_data)
-
 urlpatters = [
-    path("frontend-context/", frontend_context_view, name="frontend-context"),
     path("", include(router.urls)),
     path("", include(navigation_task_router.urls)),
     path("", include(contestant_router.urls)),

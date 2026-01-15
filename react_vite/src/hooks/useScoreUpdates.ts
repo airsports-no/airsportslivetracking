@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useFrontendContext } from './useFrontendContext';
+import { reverse } from '../urls';
 
 interface ScoreUpdatePayload {
   team: number;
@@ -9,14 +9,8 @@ interface ScoreUpdatePayload {
 }
 
 export const useScoreUpdates = () => {
-  const { context } = useFrontendContext();
-
   const updateContestSummary = useCallback(async (contestId: number, teamId: number, points: number) => {
-    if (!context || !context.urls.contests_update_contest_summary) {
-      console.error('Frontend context or contestUpdateContestSummaryUrl not available.');
-      return;
-    }
-    const url = context.urls.contests_update_contest_summary(contestId);
+    const url = reverse('contests-update-contest-summary',contestId);
     const payload: ScoreUpdatePayload = { team: teamId, points: points };
     try {
       const response = await fetch(url, {
@@ -35,14 +29,10 @@ export const useScoreUpdates = () => {
       console.error('Failed to update contest summary:', error);
       throw error;
     }
-  }, [context]);
+  }, []);
 
   const updateTaskSummary = useCallback(async (contestId: number, teamId: number, taskId: number, points: number) => {
-    if (!context || !context.urls.contests_update_task_summary) {
-      console.error('Frontend context or contestUpdateTaskSummaryUrl not available.');
-      return;
-    }
-    const url = context.urls.contests_update_task_summary(contestId);
+    const url = reverse('contest-update-task-summary', contestId);
     const payload: ScoreUpdatePayload = { team: teamId, task: taskId, points: points };
     try {
       const response = await fetch(url, {
@@ -60,14 +50,10 @@ export const useScoreUpdates = () => {
       console.error('Failed to update task summary:', error);
       throw error;
     }
-  }, [context]);
+  }, []);
 
   const updateTestResult = useCallback(async (contestId: number, teamId: number, taskTestId: number, points: number) => {
-    if (!context || !context.urls.contests_update_test_result) {
-      console.error('Frontend context or contestUpdateTestResultUrl not available.');
-      return;
-    }
-    const url = context.urls.contests_update_test_result(contestId);
+    const url = reverse('contests-update-test-result', contestId);
     const payload: ScoreUpdatePayload = { team: teamId, task_test: taskTestId, points: points };
     try {
       const response = await fetch(url, {
@@ -85,7 +71,7 @@ export const useScoreUpdates = () => {
       console.error('Failed to update test result:', error);
       throw error;
     }
-  }, [context]);
+  }, []);
 
   return { updateContestSummary, updateTaskSummary, updateTestResult };
 };
