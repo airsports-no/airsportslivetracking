@@ -1828,7 +1828,7 @@ def copy_editable_route(request, pk):
     assign_perm("display.change_editableroute", request.user, editable_route)
     assign_perm("display.delete_editableroute", request.user, editable_route)
     assign_perm("display.view_editableroute", request.user, editable_route)
-    return HttpResponseRedirect("/frontend/routeeditor/")
+    return HttpResponseRedirect(fe_url("ROUTE_EDITOR_LIST"))
 
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))

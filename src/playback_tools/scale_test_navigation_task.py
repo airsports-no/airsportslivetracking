@@ -263,5 +263,5 @@ if __name__ == "__main__":
     )
     load_data_traccar(new_contestants)
     logger.info(
-        f"Created {len(new_contestants)} contestants, starting data upload. Navigation task link is http://localhost:8002/frontend/competition-map/{contest.pk}/{new_navigation_task.pk}/"
+        f"Created {len(new_contestants)} contestants, starting data upload. Navigation task link is http://localhost:8002/competition-map/{contest.pk}/{new_navigation_task.pk}/"
     )

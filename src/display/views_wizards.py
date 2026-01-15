@@ -41,6 +41,7 @@ from display.models import (
     Club,
     ContestTeam,
 )
+from display.templatetags.frontend_urls import fe_url
 from display.utilities.navigation_task_type_definitions import (
     PRECISION,
     POKER,
@@ -376,10 +377,10 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
                 self.request,
                 f"Unable to find original scorecard for task type {task_type}. Please notify support@airsports.no.",
             )
-            return redirect("/frontend/routeeditor/")
+            return redirect(fe_url("ROUTE_EDITOR_LIST"))
         except ValidationError as e:
             messages.error(self.request, str(e))
-            return redirect("/frontend/routeeditor/")
+            return redirect(fe_url("ROUTE_EDITOR_LIST"))
 
 
 def create_new_pilot(wizard):
