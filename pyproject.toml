@@ -49,6 +49,7 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
+    "fly_master_data_test.py",
 ]
 
 # Same as Black.
@@ -77,3 +78,10 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
+
+[tool.pytest.ini_options]
+norecursedirs = [
+    "venv",
+    "node_modules",
+    "fly_master_data_test.py",
+]

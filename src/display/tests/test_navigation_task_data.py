@@ -826,7 +826,11 @@ expected_route = {
     ],
 }
 
-with open("display/tests/demo_contests/2017_WPFC/Route-1-Blue.gpx", "r") as f:
+import os
+
+# ... other imports ...
+
+with open(os.path.join(os.path.dirname(__file__), "demo_contests", "2017_WPFC", "Route-1-Blue.gpx"), "r") as f:
     route_string = base64.b64encode(f.read().encode("utf-8")).decode("utf-8")
 
 data["route_file"] = route_string
