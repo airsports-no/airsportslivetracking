@@ -5,7 +5,7 @@ from django.conf import settings
 from django_js_reverse.views import urls_json
 import json
 
-from display.viewsets.py import (
+from display.viewsets import (
     ContestFrontEndViewSet,
     ContestViewSet,
     ImportFCNavigationTask,
@@ -55,6 +55,7 @@ router.register(r"editableroutes", EditableRouteViewSet, basename="editableroute
 # results_details_router = routers.NestedSimpleRouter(router, r'contestresults', lookup='contest')
 # results_details_router.register(r'details', ContestResultsDetailsViewSet, basename="contestresultsdetails")
 
+
 def frontend_context_view(request):
     user_data = {
         "is_authenticated": request.user.is_authenticated,
@@ -71,7 +72,7 @@ def frontend_context_view(request):
     urls_data = json.loads(urls_data_response.content)
 
     # Combine user data and URLs
-    context_data = {**user_data, **urls_data["urls"]} # urls_json returns a dict with a single key 'urls'
+    context_data = {**user_data, "urls": urls_data}
     
     return JsonResponse(context_data)
 
