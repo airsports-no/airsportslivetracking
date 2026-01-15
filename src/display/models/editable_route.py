@@ -59,7 +59,7 @@ class EditableRoute(models.Model):
     Each element can be included multiple times except for 'track' which can appear at most once.
     """,
     )
-    settings= MyPickledObjectField(default=dict, help_text="Settings for the route editor")
+    settings = MyPickledObjectField(default=dict, help_text="Settings for the route editor")
     number_of_waypoints = models.IntegerField(default=0)
     route_length = models.FloatField(default=0, help_text="NM")
     thumbnail = models.ImageField(upload_to="route_thumbnails/", blank=True, null=True)
@@ -185,11 +185,11 @@ class EditableRoute(models.Model):
         precision_mode: bool = False,
         force_secret_type: bool = False,
         override_timing_passing_false: bool = False,
-        corridor_width:float|None = None,
+        corridor_width: float | None = None,
     ) -> list[Waypoint]:
         """
         Docstring for _create_waypoint_list
-        
+
         :param self: Description
         :param precision_mode: Description
         :type precision_mode: bool
@@ -261,7 +261,20 @@ class EditableRoute(models.Model):
                         )
 
             # Add the current waypoint
-            waypoint_list.append(build_waypoint(props["name"], lat, lon, point_type, width, is_timing, is_passing,control_latitude=props.get("controlLat"), control_longitude=props.get("controlLng"), end_curved=props.get("segmentType") == "curved"))
+            waypoint_list.append(
+                build_waypoint(
+                    props["name"],
+                    lat,
+                    lon,
+                    point_type,
+                    width,
+                    is_timing,
+                    is_passing,
+                    control_latitude=props.get("controlLat"),
+                    control_longitude=props.get("controlLng"),
+                    end_curved=props.get("segmentType") == "curved",
+                )
+            )
 
         return waypoint_list
 
@@ -286,7 +299,9 @@ class EditableRoute(models.Model):
         from display.utilities.route_building_utilities import create_anr_corridor_route_from_waypoint_list
 
         self.validate_valid_corridor_route("ANR")
-        waypoint_list = self._create_waypoint_list(force_secret_type=True, override_timing_passing_false=True, corridor_width=corridor_width)
+        waypoint_list = self._create_waypoint_list(
+            force_secret_type=True, override_timing_passing_false=True, corridor_width=corridor_width
+        )
         if not waypoint_list:
             return None
 
@@ -301,9 +316,7 @@ class EditableRoute(models.Model):
         # waypoint_list[-1].width = scorecard.get_extended_gate_width_for_gate_type(FINISHPOINT)
 
         logger.debug(f"Created waypoints {waypoint_list}")
-        route = create_anr_corridor_route_from_waypoint_list(
-            self.name, waypoint_list, rounded_corners, scorecard
-        )
+        route = create_anr_corridor_route_from_waypoint_list(self.name, waypoint_list, rounded_corners, scorecard)
         self.amend_route_with_additional_features(route)
         return route
 
@@ -349,11 +362,10 @@ class EditableRoute(models.Model):
         # Create prohibited zones
         for feature in self.get_features_type("zone"):
             logger.debug(feature)
-            # We flip the feature coordinates in the calculators, so leave as lon, lat for now.
             Prohibited.objects.create(
                 name=feature["properties"]["name"],
                 route=route,
-                path=self.get_feature_coordinates(feature, flip=False),
+                path=self.get_feature_coordinates(feature, flip=True),
                 type=feature["properties"]["polygonType"],
                 # tooltip_position=feature.get("tooltip_position", []),
             )

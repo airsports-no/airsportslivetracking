@@ -2,6 +2,33 @@ import io
 import logging
 from io import BytesIO
 
+
+class MemoryEstimationExceededError(ValueError):
+    pass
+
+
+def estimate_memory_usage(figure_width_cm, figure_height_cm, dpi):
+    """Estimates memory usage in MB for an RGBA image based on output dimensions and DPI."""
+    figure_width_inches = figure_width_cm / 2.54
+    figure_height_inches = figure_height_cm / 2.54
+    pixels_width = figure_width_inches * dpi
+    pixels_height = figure_height_inches * dpi
+    bytes_per_pixel = 4  # RGBA
+    total_bytes = pixels_width * pixels_height * bytes_per_pixel
+    return total_bytes / (1024 * 1024)  # Convert to MB
+
+
+import math
+
+
+def deg2num(lat_deg, lon_deg, zoom):
+    lat_rad = math.radians(lat_deg)
+    n = 2.0**zoom
+    xtile = int(n * ((lon_deg + 180.0) / 360.0))
+    ytile = int(n * (1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi) / 2.0)
+    return xtile, ytile
+
+
 import PIL
 import requests
 import six
@@ -715,7 +742,7 @@ def plot_anr_corridor_track(
     colour: str,
     plot_center_line: bool,
 ):
-    polygon_track=[(item["lat"], item["lng"]) for item in route.corridor_polygon]
+    polygon_track = [(item["lat"], item["lng"]) for item in route.corridor_polygon]
     center_track = []
     for index, waypoint in enumerate(route.waypoints):
         ys, xs = np.array(waypoint.gate_line).T
@@ -1146,6 +1173,7 @@ def plot_route(
             figure_height = A4_HEIGHT
     figure_width -= 0.2 * margins_mm
     figure_height -= 0.2 * margins_mm
+
     fig = plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)))
     ax = fig.add_axes([0, 0, 1, 1], projection=imagery.crs)
     # ax.background_patch.set_fill(False)
@@ -1272,6 +1300,41 @@ def plot_route(
             centre_y + height_metres / 2,
         )
         extent = [lower_left[0], upper_right[0], lower_left[1], upper_right[1]]
+
+    # Estimate memory usage and raise an exception if it exceeds a threshold
+    # 1. Final image memory
+    final_image_mb = estimate_memory_usage(figure_width, figure_height, dpi)
+
+    # 2. Map tiles memory
+    proj_pc = ccrs.PlateCarree()
+    x0, x1, y0, y1 = extent
+    lon_min, lat_min = proj_pc.transform_point(x0, y0, utm)
+    lon_max, lat_max = proj_pc.transform_point(x1, y1, utm)
+
+    zoom = min(zoom_level, 14)  # Using the capped zoom level
+
+    top_left_xtile, top_left_ytile = deg2num(lat_max, lon_min, zoom)
+    bottom_right_xtile, bottom_right_ytile = deg2num(lat_min, lon_max, zoom)
+
+    num_tiles_x = abs(bottom_right_xtile - top_left_xtile) + 1
+    num_tiles_y = abs(bottom_right_ytile - top_left_ytile) + 1
+    total_tiles = num_tiles_x * num_tiles_y
+
+    # Each tile is 256x256 RGBA -> 0.25 MB
+    tiles_mb = total_tiles * 0.25
+
+    estimated_mb = final_image_mb + tiles_mb
+    MEMORY_THRESHOLD_MB = 750
+    logger.info(
+        f"Estimated memory usage: {estimated_mb:.0f}MB ({final_image_mb:.0f}MB for map + {tiles_mb:.0f}MB for tiles)"
+    )
+
+    if estimated_mb > MEMORY_THRESHOLD_MB:
+        raise MemoryEstimationExceededError(
+            f"Estimated memory usage of {estimated_mb:.0f}MB ({final_image_mb:.0f}MB for map + {tiles_mb:.0f}MB for tiles) exceeds the limit of {MEMORY_THRESHOLD_MB}MB. "
+            "Please reduce the map size, choose a smaller scale, or lower the DPI."
+        )
+
     ax.set_extent(extent, crs=utm)
     # scale_bar(ax, ccrs.PlateCarree(), 5, units="NM", m_per_unit=1852, scale=scale)
     scale_bar_y(ax, ccrs.PlateCarree(), 5, units="NM", m_per_unit=1852, scale=scale)
@@ -1351,6 +1414,8 @@ def plot_route(
         dpi=dpi,
         transparent=True,
     )  # , bbox_inches="tight", pad_inches=margin_inches/2)
+    plt.clf()
+    plt.close()
     figdata.seek(0)
     if landscape:
         image = Image.open(figdata)
@@ -1359,7 +1424,6 @@ def plot_route(
         rotated.save(rotated_data, format="PNG")
         rotated_data.seek(0)
         figdata = rotated_data
-    plt.close()
     return figdata
 
 
