@@ -1234,7 +1234,7 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
-        instance.validate_and_set_country()
+        instance.country = form.cleaned_data['country_code']
         instance.initialise(self.request.user)
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())
@@ -1255,7 +1255,7 @@ class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, U
 
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
-        instance.validate_and_set_country()
+        instance.country = form.cleaned_data['country_code']
         instance.save()
         return HttpResponseRedirect(self.get_success_url())
 

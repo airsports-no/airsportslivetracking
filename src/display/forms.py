@@ -343,17 +343,21 @@ class ContestForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        location = cleaned_data.get("location")
+        if not location:
+            raise ValidationError("Please select a valid location for the contest.", code="invalid")
+
         try:
-            get_country_code_from_location(*[float(x) for x in cleaned_data["location"].split(",")])
+            lat, lon = [float(x) for x in location.split(",")]
+            country_code = get_country_code_from_location(lat, lon)
+            cleaned_data['country_code'] = country_code
+        except (ValueError, TypeError):
+            raise ValidationError("Invalid location format. Expected 'latitude,longitude'.", code="invalid")
         except CountryNotFoundException:
             raise ValidationError(
-                f"The contest location {cleaned_data['location']} is not in a valid country",
+                f"The contest location {location} is not in a valid country",
                 code="invalid",
             )
-        except KeyError:
-            raise ValidationError("Please select a valid location for the contest.", code="invalid")
-        # except:
-        #     pass
         return cleaned_data
 
 
