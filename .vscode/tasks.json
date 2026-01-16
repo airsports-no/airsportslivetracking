@@ -57,16 +57,6 @@
 			"problemMatcher": []
 		},
 		{
-			"label": "Watch ReactJS Webpack",
-			"type": "shell",
-			"command": "npm run webpack-local",
-			"options": {
-				"cwd": "${workspaceFolder}/reactjs"
-			},
-			"isBackground": true,
-			"problemMatcher": []
-		},
-		{
 			"label": "Watch Tailwind CSS",
 			"type": "shell",
 			"command": "src/static/css/tailwindcss -i src/static/css/input.css -o src/static/css/output.css --watch",
@@ -82,7 +72,6 @@
 				"Run server",
 				"Run celery",
 				"Watch React Vite",
-				"Watch ReactJS Webpack",
 				"Watch Tailwind CSS"
 			],
 			"problemMatcher": [],

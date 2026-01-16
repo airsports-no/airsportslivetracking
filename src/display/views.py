@@ -209,19 +209,6 @@ def get_contest_creators_emails(request):
     )
 
 
-def global_map(request):
-    """
-    Render the global map react application
-    """
-    visited = request.session.get("visited", False)
-    request.session["visited"] = True
-    return render(
-        request,
-        "display/globalmap.html",
-        {"skip_nav": True, "first_visit": not visited},
-    )
-
-
 def manifest(request):
     data = {
         "short_name": "Airsports live tracking",
@@ -1201,16 +1188,6 @@ def add_user_contest_permissions(request, pk):
 
 
 ###### Contest permission management ends
-
-
-class ContestList(PermissionRequiredMixin, TemplateView):
-    """
-    Render the react contest list view
-    """
-
-    model = Contest
-    permission_required = ("display.view_contest",)
-    template_name = "display/contest_list_react.html"
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))

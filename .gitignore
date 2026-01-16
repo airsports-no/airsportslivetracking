@@ -32,7 +32,6 @@ private_values_gcloud.yaml
 webpack-stats-local.json
 src/polygon.png
 assets_vite
-reactjs/**/*.jsx
 /assets/assets/
 /assets/bundles/
 src/static/css/tailwindcss

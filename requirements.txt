@@ -19,7 +19,6 @@ django-solo==2.1.0
 django-storages[google]
 django-timezone-field==7.0
 django-use-email-as-username==1.4.0
-django-webpack-loader==3.0.0
 django-vite
 djangorestframework-guardian==0.3.0
 djangorestframework==3.14.0

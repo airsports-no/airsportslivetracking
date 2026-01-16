@@ -2,10 +2,8 @@ import { create } from 'zustand';
 import { reverse } from '../urls';
 import { getCookie } from '../utils/csrf';
 
-// Define the interfaces for the data structures based on the reactjs analysis
 export interface ContestSummary {
   id: number;
-  // Add other properties as identified from reactjs/components/resultsService/contestRankTable.js and backend data
   // Example:
   team_name: string;
   total_score: number;

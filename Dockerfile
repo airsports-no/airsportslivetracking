@@ -6,11 +6,6 @@ COPY src /app/src
 WORKDIR /app/src/static/css
 RUN curl -sL daisyui.com/fast | bash
 
-COPY reactjs /app/reactjs
-WORKDIR /app/reactjs
-RUN --mount=type=cache,target=/root/.npm npm ci
-RUN npm run webpack
-
 COPY react_vite /app/react_vite
 WORKDIR /app/react_vite
 RUN --mount=type=cache,target=/root/.npm npm ci

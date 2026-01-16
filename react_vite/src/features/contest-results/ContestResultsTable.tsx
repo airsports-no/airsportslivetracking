@@ -12,7 +12,6 @@ import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownI
 import { useParams } from 'react-router-dom';
 import { Test } from '../../store/contestResultsStore';
 
-// Helper function from original reactjs
 const teamRankingTable = (team: any) => {
   if (!team) return 'N/A';
   let crewNames = '';

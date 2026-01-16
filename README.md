@@ -60,13 +60,6 @@ This executes the three primary containers which also brings up the additional i
 
 After optimizing the docker image the various front end systems must be compiled outside of the container. For development the docker compose file maps they build results into the container. This is done in the following manners:
 
-##### Webpack react
-
-```bash
-cd reactjs/
-npm ci
-npm run webpack
-```
 
 ##### Vite react
 

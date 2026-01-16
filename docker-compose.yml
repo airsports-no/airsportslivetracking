@@ -52,7 +52,6 @@ services:
       - ./static:/static
       - ./assets:/assets
       - ./src:/src
-      - ./reactjs:/reactjs
       - ./data:/data
       - ./celerylog:/logs
       - ./mapserver:/maptiles

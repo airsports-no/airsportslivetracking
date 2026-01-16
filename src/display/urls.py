@@ -1,5 +1,4 @@
-from django.urls import path, re_path
-from django.views.generic import TemplateView
+from django.urls import path
 
 from display.views import (
     fly_master_data_post,

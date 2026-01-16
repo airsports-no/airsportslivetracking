@@ -13,9 +13,7 @@ from rest_framework import permissions
 from django_js_reverse.views import urls_json
 
 from display.views import (
-    ContestList,
     FrontEndView,
-    global_map,
     view_token,
     firebase_token_login,
 )
@@ -40,7 +38,6 @@ docs = get_schema_view(
 )
 
 urlpatterns = [
-    path("contests/", ContestList.as_view(), name="contest_list"),
     path(
         "terms_and_conditions/",
         TemplateView.as_view(template_name="display/terms_and_conditions.html"),
