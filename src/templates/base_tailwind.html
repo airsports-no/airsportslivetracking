@@ -54,6 +54,22 @@
 
         gtag('config', 'G-71DRK6HYHD');
     </script>
+    <script>
+        // Function to set the theme based on system preference
+        function setSystemTheme() {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        }
+
+        // Set theme on initial load
+        setSystemTheme();
+
+        // Listen for changes in system theme preference
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', setSystemTheme);
+    </script>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 <header class="flex-none relative" style="z-index: 1000;">

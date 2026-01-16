@@ -123,6 +123,16 @@
 }
 
 
+.loading-lg {
+    width: 100px;
+    height: 100px;
+}
+
+/* Override text-gray-700 for dark mode for better contrast */
+html[data-theme="dark"] .text-gray-700 {
+    color: var(--fallback-bc, oklch(80% 0.05 270)) !important; /* Light grey from DaisyUI's base-content */
+}
+
 /* gatescorearrow.css */
 /* .gate-score-arrow {
     height: 150px;

@@ -123,7 +123,7 @@ PRODUCTION = os.environ.get("MODE") != "dev"
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
-CRISPY_ALLOWED_TEMPLATE_PACKS = ("bootstrap4", "tailwind")
+CRISPY_ALLOWED_TEMPLATE_PACKS = ("tailwind",)
 CRISPY_TEMPLATE_PACK = "tailwind"
 GUARDIAN_MONKEY_PATCH = False
 AUTH_USER_MODEL = "display.MyUser"

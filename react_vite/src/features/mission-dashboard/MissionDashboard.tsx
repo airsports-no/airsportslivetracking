@@ -40,36 +40,69 @@ const MissionDashboard = () => {
     useEffect(() => {
         const loadInitialData = async () => {
             setLoading(true);
-            try {
-                const oneYearAgo = new Date();
-                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-                const [contestsData, ongoingData, myFutureFlightsData, myContestTeamsData, myEditorContestsData] = await Promise.all([
-                    fetchContests({ startTimeGte: oneYearAgo.toISOString().split('T')[0] }),
-                    fetchOngoingNavigation(),
-                    fetchMyFutureFlights(),
-                    fetchMyContestTeams(),
-                    fetchContests({ isEditor: true }), // New API call
-                ]);
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-                setContests(contestsData);
-                if (contestsData.length > 0) {
-                    const oldest = new Date(contestsData.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0].start_time);
-                    setOldestContestDate(oldest);
-                } else {
-                    setOldestContestDate(oneYearAgo);
+            const fetchPromises = [];
+
+            // Fetch All Contests incrementally
+            const allContestsFetchPromise = fetchContests(
+                { startTimeGte: oneYearAgo.toISOString().split('T')[0] },
+                (pageResults, nextCursor) => {
+                    // This callback is called for each page fetched
+                    setContests(prevContests => {
+                        const newContests = [...prevContests, ...pageResults];
+                        // Ensure oldestContestDate is updated if new contests are older
+                        if (newContests.length > 0) {
+                            const oldest = new Date(newContests.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0].start_time);
+                            setOldestContestDate(oldest);
+                        }
+                        return newContests;
+                    });
                 }
-
-                setOngoingNavigations(ongoingData);
-                setMyFutureFlights(myFutureFlightsData);
-                setMyContestTeams(myContestTeamsData);
-                setMyEditorContests(myEditorContestsData); // Update new state
-            } catch (err) {
+            ).catch(err => {
                 setError((err as Error).message);
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
+                console.error("Failed to fetch all contests:", err);
+            });
+            fetchPromises.push(allContestsFetchPromise);
+
+            // Other fetches (these are not paginated, so they can still use .then directly)
+            const ongoingNavPromise = fetchOngoingNavigation()
+                .then(ongoingData => setOngoingNavigations(ongoingData))
+                .catch(err => {
+                    setError((err as Error).message);
+                    console.error("Failed to fetch ongoing navigations:", err);
+                });
+            fetchPromises.push(ongoingNavPromise);
+
+            const myFutureFlightsPromise = fetchMyFutureFlights()
+                .then(myFutureFlightsData => setMyFutureFlights(myFutureFlightsData))
+                .catch(err => {
+                    setError((err as Error).message);
+                    console.error("Failed to fetch my future flights:", err);
+                });
+            fetchPromises.push(myFutureFlightsPromise);
+
+            const myContestTeamsPromise = fetchMyContestTeams()
+                .then(myContestTeamsData => setMyContestTeams(myContestTeamsData))
+                .catch(err => {
+                    setError((err as Error).message);
+                    console.error("Failed to fetch my contest teams:", err);
+                });
+            fetchPromises.push(myContestTeamsPromise);
+
+            const myEditorContestsPromise = fetchContests({ isEditor: true })
+                .then(myEditorContestsData => setMyEditorContests(myEditorContestsData))
+                .catch(err => {
+                    setError((err as Error).message);
+                    console.error("Failed to fetch my editor contests:", err);
+                });
+            fetchPromises.push(myEditorContestsPromise);
+
+            // Wait for all promises to settle (resolve or reject) before setting loading to false
+            await Promise.allSettled(fetchPromises);
+            setLoading(false); // All fetches have finished (successfully or with errors)
         };
         loadInitialData();
     }, []);
@@ -169,7 +202,7 @@ const MissionDashboard = () => {
     }, [textFilteredContests, mapBounds, hasUserInteractedWithMap]);
 
     return (
-        <div className="container mx-auto p-4" data-theme="aviation">
+        <div className="container mx-auto p-4">
             <h1 className="text-4xl font-bold mb-4">Mission Dashboard</h1>
 
             {error && <div className="alert alert-error">{error}</div>}
@@ -282,7 +315,7 @@ const MissionDashboard = () => {
                     <h2 className="text-2xl font-bold mb-4">
                         My Contests
                         <span className="ml-2 text-gray-500 text-lg">({myEditorContests.length})</span>
-                        <Link to={reverse("contest_create")} className="btn btn-primary btn-sm ml-4">Create New Contest</Link>
+                        <a href={reverse("contest_create")} className="btn btn-primary btn-sm ml-4">Create New Contest</a>
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {myEditorContests.map(contest => {

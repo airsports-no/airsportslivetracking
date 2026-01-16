@@ -392,19 +392,30 @@ class ContestViewSet(ModelViewSet):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_queryset(self):
-        return (
-            (
-                get_objects_for_user(
-                    self.request.user,
-                    "display.view_contest",
-                    klass=self.queryset,
-                    accept_global_perms=False,
-                )
-                | self.queryset.filter(is_public=True, is_featured=True)
+        user = self.request.user
+        queryset = self.queryset
+
+        is_editor_filter_param = self.request.query_params.get("is_editor", "false").lower() == "true"
+        logger.info(f"ContestViewSet.get_queryset called. is_editor_filter_param: {is_editor_filter_param}")
+
+        if is_editor_filter_param:
+            filtered_qs = get_objects_for_user(
+                user,
+                "display.change_contest",
+                with_superuser=False,
+                klass=Contest,  # Changed from `queryset` to `Contest`
+                accept_global_perms=False,
             )
-            .prefetch_related("navigationtask_set", "contest_teams")
-            .order_by("-start_time")
-        )
+            # logger.info(f"Returning editable contests. Count: {filtered_qs.count()}")
+            return filtered_qs.prefetch_related("navigationtask_set", "contest_teams").order_by("-start_time")
+        else:
+            # Default behavior
+            default_qs = get_objects_for_user(
+                user,
+                "display.view_contest",
+                klass=Contest,  # Changed from `queryset` to `Contest`
+                accept_global_perms=False,
+            ) | self.queryset.filter(is_public=True, is_featured=True)
 
     @action(detail=True, methods=["get"], url_path=r"contest_team_for_team/(?P<team_id>\d+)")
     def contest_team_for_team(self, request, team_id, **kwargs):

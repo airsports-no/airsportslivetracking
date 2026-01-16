@@ -71,8 +71,10 @@ const _fetchContestsPage = async (cursor?: string | null, filters?: ContestFilte
     return response.json();
 };
 
-export const fetchContests = async (filters?: ContestFilters): Promise<Contest[]> => {
-    const hasFilters = filters && (filters.pks?.length || filters.startTimeGte || filters.finishTimeLte);
+export type OnContestPageFetched = (contests: Contest[], nextCursor: string | null) => void;
+
+export const fetchContests = async (filters?: ContestFilters, onPageFetched?: OnContestPageFetched): Promise<Contest[]> => {
+    const hasFilters = filters && (filters.pks?.length || filters.startTimeGte || filters.finishTimeLte || filters.isEditor !== undefined);
 
     if (!hasFilters && cachedContests) {
         return Promise.resolve(cachedContests);
@@ -87,6 +89,10 @@ export const fetchContests = async (filters?: ContestFilters): Promise<Contest[]
         allContests = allContests.concat(response.results);
         nextCursor = response.next;
         hasMore = !!response.next;
+
+        if (onPageFetched) {
+            onPageFetched(response.results, response.next);
+        }
     }
 
     if (!hasFilters) {
