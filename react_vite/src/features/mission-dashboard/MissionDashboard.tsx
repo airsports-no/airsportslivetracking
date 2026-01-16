@@ -9,7 +9,7 @@ import UpcomingFlights from './components/UpcomingFlights';
 import PastFlights from './components/PastFlights';
 import ContestMap from './components/ContestMap';
 import { Loading } from '../route-editor/components/basicComponents';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { reverse } from '../../urls';
 
 const MissionDashboard = () => {
@@ -26,6 +26,15 @@ const MissionDashboard = () => {
     const [hasUserInteractedWithMap, setHasUserInteractedWithMap] = useState(false);
     const [oldestContestDate, setOldestContestDate] = useState<Date | null>(null);
     const [loadingMore, setLoadingMore] = useState(false);
+    const location = useLocation();
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get('tab');
+        if (tab && ['allContests', 'upcoming', 'past', 'editorContests'].includes(tab)) {
+            setActiveTab(tab);
+        }
+    }, [location.search]);
 
     useEffect(() => {
         const loadInitialData = async () => {
