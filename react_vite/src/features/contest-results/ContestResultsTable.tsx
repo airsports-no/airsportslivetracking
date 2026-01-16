@@ -100,7 +100,10 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
   };
 
   const handleToggleTask = (taskId: number) => {
-    setExpandedTasks((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
+    setExpandedTasks((prev) => {
+      const isCurrentlyExpanded = prev[taskId];
+      return isCurrentlyExpanded ? {} : { [taskId]: true };
+    });
   };
 
   const handleTaskSubmit = async (task: Task) => {
@@ -138,7 +141,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
       columnHelper.accessor('rank', {
         header: '#',
         cell: (info) => <span className="align-middle">{info.getValue()}</span>,
-        enableSorting: true,
+        enableSorting: false,
       }),
       columnHelper.accessor('team', {
         header: 'CREW',
@@ -152,6 +155,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
                   handleDeleteTeamResults(info.row.original.team.id);
                 }}
                 className="btn btn-xs btn-ghost"
+                title="Delete team results"
               >
                 <Trash2Icon size={12} />
               </button>
@@ -168,6 +172,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
               <button
                 onClick={handleNewTask}
                 className="btn btn-xs btn-ghost"
+                title="Add new task"
               >
                 <PlusCircleIcon size={12} />
               </button>
@@ -179,8 +184,12 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
       }),
     ];
 
-    const tasks = (results.task_set || []).sort((a, b) => ((a.index || 0) > (b.index || 0) ? 1 : -1));
-    tasks.forEach((task, index) => {
+    const expandedTaskId = Object.keys(expandedTasks).find((id) => expandedTasks[id]);
+    const tasksToRender = expandedTaskId
+        ? (results.task_set || []).filter((task) => task.id === parseInt(expandedTaskId))
+        : (results.task_set || []).sort((a, b) => ((a.index || 0) > (b.index || 0) ? 1 : -1));
+
+    tasksToRender.forEach((task, index) => {
       // Add columns for tests within the task if expanded
       if (expandedTasks[task.id]) {
         const tests = (task.tasktest_set || []).sort((a, b) => ((a.index || 0) > (b.index || 0) ? 1 : -1));
@@ -227,6 +236,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
                     }}
                     className="btn btn-xs btn-ghost"
                     disabled={index === 0}
+                    title="Move task left"
                   >
                     <ChevronLeftIcon size={12} />
                   </button>
@@ -236,7 +246,8 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
                       handleMoveTask(task, 'right');
                     }}
                     className="btn btn-xs btn-ghost"
-                    disabled={index === tasks.length - 1}
+                    disabled={index === tasksToRender.length - 1}
+                    title="Move task right"
                   >
                     <ChevronRightIcon size={12} />
                   </button>
@@ -246,6 +257,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
                       handleEditTask(task);
                     }}
                     className="btn btn-xs btn-ghost"
+                    title="Edit task"
                   >
                     <PencilIcon size={12} />
                   </button>
@@ -255,6 +267,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
                       handleDeleteTask(task.id);
                     }}
                     className="btn btn-xs btn-ghost"
+                    title="Delete task"
                   >
                     <Trash2Icon size={12} />
                   </button>
@@ -265,6 +278,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
                       handleNewTest(task);
                     }}
                     className="btn btn-xs btn-ghost"
+                    title="Add new test"
                   >
                     <PlusCircleIcon size={12} />
                   </button>
