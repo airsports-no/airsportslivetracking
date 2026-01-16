@@ -26,6 +26,7 @@ const MissionDashboard = () => {
     const [hasUserInteractedWithMap, setHasUserInteractedWithMap] = useState(false);
     const [oldestContestDate, setOldestContestDate] = useState<Date | null>(null);
     const [loadingMore, setLoadingMore] = useState(false);
+    const [myEditorContests, setMyEditorContests] = useState<Contest[]>([]); // New state
     const location = useLocation();
 
     useEffect(() => {
@@ -43,11 +44,12 @@ const MissionDashboard = () => {
                 const oneYearAgo = new Date();
                 oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-                const [contestsData, ongoingData, myFutureFlightsData, myContestTeamsData] = await Promise.all([
+                const [contestsData, ongoingData, myFutureFlightsData, myContestTeamsData, myEditorContestsData] = await Promise.all([
                     fetchContests({ startTimeGte: oneYearAgo.toISOString().split('T')[0] }),
                     fetchOngoingNavigation(),
                     fetchMyFutureFlights(),
                     fetchMyContestTeams(),
+                    fetchContests({ isEditor: true }), // New API call
                 ]);
 
                 setContests(contestsData);
@@ -61,6 +63,7 @@ const MissionDashboard = () => {
                 setOngoingNavigations(ongoingData);
                 setMyFutureFlights(myFutureFlightsData);
                 setMyContestTeams(myContestTeamsData);
+                setMyEditorContests(myEditorContestsData); // Update new state
             } catch (err) {
                 setError((err as Error).message);
                 console.error(err);
@@ -137,11 +140,6 @@ const MissionDashboard = () => {
 
         return new Set(myFutureFlights.map(flight => flight.contest_id));
     }, [myFutureFlights]);
-
-    const editorContests = useMemo(() => {
-        if (!contests) return [];
-        return contests.filter(contest => contest.is_editor);
-    }, [contests]);
 
     const countryOptions = useMemo(() => {
         if (!contests) return [];
@@ -220,9 +218,12 @@ const MissionDashboard = () => {
                 <div>
                     <h2 className="text-2xl font-bold mb-4">
                         All Contests
-                        <span className="ml-2 text-gray-500 text-lg">({listFilteredContests.length})</span>
+                        <span className="ml-2 text-gray-500 text-lg">
+                            ({listFilteredContests.length})
+                            {oldestContestDate && ` since ${oldestContestDate?.toLocaleDateString()}`}
+                        </span>
                     </h2>
-                     <div className="flex space-x-2 sm:space-x-4 mb-2 sm:mb-4">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
                         <input
                             type="text"
                             placeholder="Filter by name"
@@ -239,9 +240,6 @@ const MissionDashboard = () => {
                             placeholder="Filter by country"
                             classNamePrefix="my-react-select"
                         />
-                    </div>
-                    <div className="text-center mt-4 mb-4">
-                        <p className="mb-2">Showing contests since {oldestContestDate?.toLocaleDateString()}</p>
                         <button onClick={handleFetchMore} className="btn btn-secondary" disabled={loadingMore}>
                             {loadingMore ? 'Loading...' : 'Fetch More'}
                         </button>
@@ -283,10 +281,11 @@ const MissionDashboard = () => {
                 <div>
                     <h2 className="text-2xl font-bold mb-4">
                         My Contests
+                        <span className="ml-2 text-gray-500 text-lg">({myEditorContests.length})</span>
                         <Link to={reverse("contest_create")} className="btn btn-primary btn-sm ml-4">Create New Contest</Link>
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {editorContests.map(contest => {
+                        {myEditorContests.map(contest => {
                             const viewLink = `/mission-dashboard/${contest.id}`;
                             const manageLink = reverse('contest_details', contest.id);
                             return (
@@ -302,7 +301,7 @@ const MissionDashboard = () => {
                                 />
                             );
                         })}
-                        {editorContests.length === 0 && !loading && (
+                        {myEditorContests.length === 0 && !loading && (
                             <p className="text-center mt-2 sm:mt-4 col-span-full">You are not an editor for any contests.</p>
                         )}
                     </div>

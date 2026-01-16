@@ -96,7 +96,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "timezone_field",
-    "webpack_loader",
     "drf_yasg",
     "solo",
     "guardian",
@@ -179,13 +178,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "live_tracking_map.wsgi.application"
-
-WEBPACK_LOADER = {
-    "DEFAULT": {
-        "BUNDLE_DIR_NAME": "bundles/local/",  # end with slash
-        "STATS_FILE": os.path.join(BASE_DIR, "..", "assets", "webpack-stats-local.json"),
-    }
-}
 
 # AUTH_PASSWORD_VALIDATORS = []
 
