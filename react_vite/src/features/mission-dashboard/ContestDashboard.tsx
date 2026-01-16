@@ -12,6 +12,7 @@ import { fetchOngoingNavigation as fetchOngoingNav } from './api';
 import ContestRegistrationForm from './components/ContestRegistrationForm';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
 import TaskScoreDisplay from './components/TaskScoreDisplay';
+import { reverse, generatePath } from '../../urls';
 
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
@@ -30,6 +31,7 @@ const ContestDashboard = () => {
 
 
     const currentUserEmail = document.configuration.currentUserEmail;
+    const canManageThisContest = contest?.is_editor || document.configuration.is_superuser;
 
     const refreshData = () => {
         if (contestId) {
@@ -184,6 +186,11 @@ const ContestDashboard = () => {
                                     Contest Website
                                 </a>
                             )}
+                            {canManageThisContest && (
+                                <Link to={generatePath('CONTEST_MANAGEMENT', { contestId: contestId })} className="btn btn-primary btn-sm mt-2">
+                                    Manage Contest
+                                </Link>
+                            )}
                         </div>
                     </div>
                      <div className="flex flex-col items-stretch gap-2">
@@ -211,7 +218,7 @@ const ContestDashboard = () => {
                 <div className="lg:col-span-2">
                     <div className="flex justify-between items-center">
                         <h2 className="text-2xl font-bold mb-4">Leaderboard</h2>
-                        <Link to={`/contests/${contestId}/results`} className="btn btn-primary">View Full Results</Link>
+                        <Link to={generatePath('CONTEST_RESULTS_TABLE', { contestId: contestId })} className="btn btn-primary">View Full Results</Link>
                     </div>
                     <Leaderboard results={results} />
                 </div>

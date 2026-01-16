@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { reverse } from '../urls';
+import { getCookie } from '../utils/csrf';
 
 interface ScoreUpdatePayload {
   team: number;
@@ -17,7 +18,7 @@ export const useScoreUpdates = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          // You might need to include a CSRF token here depending on your Django setup
+          'X-CSRFToken': getCookie('csrftoken')!,
         },
         body: JSON.stringify(payload),
       });
@@ -39,6 +40,7 @@ export const useScoreUpdates = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')!,
         },
         body: JSON.stringify(payload),
       });
@@ -60,6 +62,7 @@ export const useScoreUpdates = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')!,
         },
         body: JSON.stringify(payload),
       });

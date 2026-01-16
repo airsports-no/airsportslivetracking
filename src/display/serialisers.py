@@ -323,6 +323,17 @@ class ContestFrontEndSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMi
 
 
 class ContestTeamSerialiser(serializers.ModelSerializer):
+    is_user_pilot = serializers.SerializerMethodField("get_is_user_pilot")
+
+    def get_is_user_pilot(self, contest_team):
+        request = self.context.get("request", None)
+        if request is None or not request.user.is_authenticated:
+            return False
+        user_person = Person.objects.filter(email=request.user.email).first()
+        if user_person is None:
+            return False
+        return contest_team.team.crew.member1 == user_person
+
     class Meta:
         model = ContestTeam
         fields = "__all__"

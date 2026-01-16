@@ -1123,8 +1123,6 @@ def list_contest_permissions(request, pk):
     users_and_permissions = get_users_with_perms(contest, attach_perms=True)
     users = []
     for user in users_and_permissions.keys():
-        if user == request.user:
-            continue
         data = {}
         data["permission"] = map_contest_permissions_to_permission_name(users_and_permissions[user]).capitalize()
         data["email"] = user.email

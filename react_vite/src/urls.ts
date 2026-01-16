@@ -1,4 +1,5 @@
 import djangoJsReverse from 'django-js-reverse';
+import routes from '../src/routes.json';
 
 let _urls: any = null;
 
@@ -30,4 +31,12 @@ export const reverse = (name: string, ...args: (string | number)[]) => {
     }
     // @ts-ignore
     return _urls[name](...args);
+};
+
+export const generatePath = (routeName: keyof typeof routes, params: { [key: string]: string | number }) => {
+    let path = routes[routeName];
+    for (const key in params) {
+        path = path.replace(`:${key}`, String(params[key]));
+    }
+    return `/${path}`;
 };

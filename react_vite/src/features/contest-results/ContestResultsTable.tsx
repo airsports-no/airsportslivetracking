@@ -157,7 +157,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
           const testDataField = `test_${test.id.toFixed(0)}`;
           baseColumns.push(
             columnHelper.accessor(testDataField, {
-              header: () => <span>{test.heading}</span>,
+              header: () => <span className="px-2 py-1 text-sm">{test.heading}</span>,
               id: `test-${test.id}`,
               cell: results.permission_change_contest && !task.autosum_scores ? EditableCell : (info) => info.getValue(),
               meta: {
@@ -173,7 +173,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
       baseColumns.push(
         columnHelper.accessor(dataField, {
           header: () => (
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleToggleTask(task.id)}>
+            <div className="flex items-center gap-2 cursor-pointer bg-base-200 hover:bg-base-300 px-2 py-1 rounded-md font-semibold" onClick={() => handleToggleTask(task.id)}>
               <span>
                 {task.heading} {expandedTasks[task.id] ? '(Σ)' : ''}
               </span>

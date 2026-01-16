@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { reverse } from '../urls';
+import { getCookie } from '../utils/csrf';
 
 // Define the interfaces for the data structures based on the reactjs analysis
 export interface ContestSummary {
@@ -99,8 +100,8 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
 
   createOrUpdateTask: async (contestId: number, task: Task) => {
     const url = task.id
-      ? reverse('contests-tasks-update', contestId, task.id)
-      : reverse('contests-tasks-create', contestId);
+      ? reverse('tasks-detail', contestId, task.id)
+      : reverse('tasks-list', contestId);
     const method = task.id ? 'PUT' : 'POST';
 
     try {
@@ -108,7 +109,7 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
         method,
         headers: {
           'Content-Type': 'application/json',
-          // You may need to add authentication headers (e.g., CSRF token) here
+          'X-CSRFToken': getCookie('csrftoken')!,
         },
         body: JSON.stringify(task),
       });
@@ -125,12 +126,12 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
   },
 
   deleteTask: async (contestId: number, taskId: number) => {
-    const url = reverse('contests-tasks-delete', contestId, taskId);
+    const url = reverse('tasks-detail', contestId, taskId);
     try {
       const response = await fetch(url, {
         method: 'DELETE',
         headers: {
-          // You may need to add authentication headers (e.g., CSRF token) here
+          'X-CSRFToken': getCookie('csrftoken')!,
         },
       });
 
@@ -146,12 +147,12 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
   },
 
   deleteTeamResults: async (contestId: number, teamId: number) => {
-    const url = reverse('contests-contestteams-delete', contestId, teamId);
+    const url = reverse('contestteams-detail', contestId, teamId);
     try {
       const response = await fetch(url, {
         method: 'DELETE',
         headers: {
-          // You may need to add authentication headers (e.g., CSRF token) here
+          'X-CSRFToken': getCookie('csrftoken')!,
         },
       });
 
