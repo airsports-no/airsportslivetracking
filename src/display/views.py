@@ -533,7 +533,7 @@ def import_route(request):
             assign_perm("display.view_editableroute", request.user, editable_route)
             for message in return_messages:
                 messages.success(request, message)
-            return redirect(f"/routeeditor/{editable_route.pk}/")
+            return redirect(fe_url("ROUTE_EDITOR_EDIT", routeId=editable_route.pk))
     form = ImportRouteForm()
     return render(request, "display/import_route_form.html", {"form": form})
 
@@ -1234,7 +1234,7 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
-        instance.country = form.cleaned_data['country_code']
+        instance.country = form.cleaned_data["country_code"]
         instance.initialise(self.request.user)
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())
@@ -1255,7 +1255,7 @@ class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, U
 
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
-        instance.country = form.cleaned_data['country_code']
+        instance.country = form.cleaned_data["country_code"]
         instance.save()
         return HttpResponseRedirect(self.get_success_url())
 
