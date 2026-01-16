@@ -1,77 +1,108 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% load static %}
-{% load crispy_forms_tags %}{% block head %}
+{% load crispy_forms_tags %}
+
+{% block head %}
     {{ wizard.form.media }}
 {% endblock %}
 
 {% block content %}
-    <h2>Search for an existing or create a new aircraft</h2>
-    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
-    <form method="post" class="form" enctype="multipart/form-data">
-        {{ form.media }}
-        {{ wizard.management_form }}
-        {% crispy wizard.form %}
-    </form>
-    <script type="text/javascript">
-        function setResponse(response) {
-            var len = response.length;
+<div class="container mx-auto p-4 md:p-8">
+  <div class="card bg-base-100 shadow-xl max-w-lg mx-auto">
+    <div class="card-body">
+      <h2 class="card-title">Search for an existing or create a new aircraft</h2>
+      <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+      <form method="post" class="form" enctype="multipart/form-data">
+          {{ wizard.management_form }}
+          {% crispy wizard.form %}
+      </form>
+    </div>
+  </div>
+</div>
 
-            if (len > 0) {
-                var registration = response[0]['registration'];
-                var type = response[0]['type'];
-                var colour = response[0]['colour'];
-                var picture = response[0]['picture'];
-
-                document.getElementById('id_registration').value = registration;
-                document.getElementById('id_type').value = type;
-                document.getElementById('id_colour').value = colour;
-                document.getElementById('picture_display_field').src = picture;
-
-            }
+<script type="text/javascript">
+    function setResponse(response) {
+        if (response.length > 0) {
+            const { registration, type, colour, picture } = response[0];
+            document.getElementById('id_registration').value = registration;
+            document.getElementById('id_type').value = type;
+            document.getElementById('id_colour').value = colour;
+            const pictureDisplay = document.getElementById('picture_display_field');
+            if(pictureDisplay) pictureDisplay.src = picture;
         }
+    }
 
-        $(document).ready(function () {
-            $("#id_registration").autocomplete({
-                source: function (request, response) {
-                    $.ajax({
-                        url: "{% url 'autocomplete_aeroplane' %}",
-                        type: 'post',
-                        dataType: "json",
-                        data: {
-                            search: request.term, request: 1
-                        },
-                        success: function (data) {
-                            response(data);
-                        }
-                    });
-                },
-                select: function (event, ui) {
-                    $(this).val(ui.item.label); // display the selected text
-                    var val = ui.item.value; // selected value
+    document.addEventListener('DOMContentLoaded', function () {
+        const registrationInput = document.getElementById('id_registration');
+        if (!registrationInput) return;
 
-                    // AJAX
-                    $.ajax({
-                        url: "{% url 'autocomplete_aeroplane' %}",
-                        type: 'post',
-                        data: {search: val, request: 2},
-                        dataType: 'json',
-                        success: setResponse
-                    });
+        // Autocomplete functionality
+        let autocompleteContainer = document.createElement('div');
+        autocompleteContainer.setAttribute('class', 'absolute z-10 w-full bg-base-100 rounded-box shadow-lg');
+        registrationInput.parentNode.style.position = 'relative'; // Needed for absolute positioning of child
+        registrationInput.parentNode.appendChild(autocompleteContainer);
 
-                    return false;
-                }
-            });
-            if (document.getElementById('id_registration').value) {
-                $.ajax({
-                    url: "{% url 'autocomplete_aeroplane' %}",
-                    type: 'post',
-                    data: {search: document.getElementById('id_registration').value, request: 2},
-                    dataType: 'json',
-                    success: setResponse
-                });
+        registrationInput.addEventListener('input', async function(e) {
+            const searchTerm = e.target.value;
+            autocompleteContainer.innerHTML = '';
+            if (searchTerm.length < 1) {
+                return;
             }
 
-
+            try {
+                const response = await fetch("{% url 'autocomplete_aeroplane' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-CSRFToken': document.configuration.csrftoken
+                    },
+                    body: `search=${encodeURIComponent(searchTerm)}&request=1`
+                });
+                const data = await response.json();
+                
+                data.forEach(item => {
+                    let option = document.createElement('a');
+                    option.setAttribute('class', 'block p-2 hover:bg-base-200 cursor-pointer');
+                    option.textContent = item.label;
+                    option.addEventListener('click', function() {
+                        registrationInput.value = item.label;
+                        autocompleteContainer.innerHTML = '';
+                        
+                        // Fetch full data
+                        fetch("{% url 'autocomplete_aeroplane' %}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                'X-CSRFToken': document.configuration.csrftoken
+                            },
+                            body: `search=${encodeURIComponent(item.value)}&request=2`
+                        }).then(res => res.json()).then(setResponse);
+                    });
+                    autocompleteContainer.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Autocomplete error:', error);
+            }
         });
-    </script>
+
+        // Hide autocomplete when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!registrationInput.contains(e.target)) {
+                autocompleteContainer.innerHTML = '';
+            }
+        });
+
+        // Initial data fetch if registration value exists
+        if (registrationInput.value) {
+             fetch("{% url 'autocomplete_aeroplane' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-CSRFToken': document.configuration.csrftoken
+                },
+                body: `search=${encodeURIComponent(registrationInput.value)}&request=2`
+            }).then(res => res.json()).then(setResponse);
+        }
+    });
+</script>
 {% endblock %}

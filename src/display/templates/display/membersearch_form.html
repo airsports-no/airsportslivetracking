@@ -1,210 +1,157 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% load static %}
 {% load i18n %}
 {% load crispy_forms_tags %}
+
 {% block head %}
     {{ wizard.form.media }}
 {% endblock %}
 
 {% block content %}
-    {% if form.errors %}
-        <!-- Error messaging -->
-        <div id="errors">
-            <div class="inner">
-                <p>There were some errors in the information you entered. Please correct the following:</p>
-                {{ form.non_field_errors }}
-                <ul>
-                    {% for field in form %}
-                        {% if field.errors %}
-                            <li>{{ field.label }}: {{ field.errors|striptags }}</li>{% endif %}
-                    {% endfor %}
-                </ul>
-            </div>
+<div class="container mx-auto p-4 md:p-8">
+    <div class="card bg-base-100 shadow-xl max-w-2xl mx-auto">
+        <div class="card-body">
+            <h2 class="card-title">Search for Member</h2>
+            <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+            {% if form.errors %}
+                <div role="alert" class="alert alert-error mt-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <div>
+                        <h3 class="font-bold">There were some errors in the information you entered. Please correct the following:</h3>
+                        {{ form.non_field_errors }}
+                        <ul class="list-disc list-inside">
+                            {% for field in form %}
+                                {% if field.errors %}
+                                    <li>{{ field.label }}: {{ field.errors|striptags }}</li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            {% endif %}
+
+            <p class="mt-4">
+                This form is only for searching for an existing person. In order to create a new person in the system, click "Create
+                new (co)pilot". "Use existing (co)pilot" will only become available after selecting an existing pilot from the drop
+                down list. Any changes to the text after selecting the person will disable the button again, and a new person must be
+                selected for it to become available.
+            </p>
+            <p>Editing existing persons is only available to administrators.</p>
+
+            <form method="post" class="form" enctype="multipart/form-data">
+                {{ wizard.management_form }}
+                {% crispy form %}
+            </form>
         </div>
-        <!-- /Error messaging -->
-    {% endif %}
-    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
-    This form is only for searching for an existing person. In order to create a new person in the system, click "Create
-    new (co)pilot". "Use existing (co)pilot" will only become available after selecting an existing pilot from the drop
-    down
-    list. Any changes to the text after selecting the person will disable the button again, and a new person must be
-    selected for it to become available.
+    </div>
+</div>
 
-    Editing existing persons is only available to administrators.
-    <form method="post" class="form" enctype="multipart/form-data">
-        {{ form.media }}
-        {{ form.field_errors }}
-        {{ form.non_field_errors }}
-        {{ wizard.management_form }}
-        {% crispy form %}
-    </form>
-    <script type="text/javascript">
-        function setResponse(response) {
-            var len = response.length;
+<script type="text/javascript">
+    function setResponse(response) {
+        if (response.length > 0) {
+            const useExistingButton = document.getElementById('id_use_existing');
+            if (useExistingButton) useExistingButton.disabled = false;
 
-            if (len > 0) {
-                document.getElementById('use_existing').disabled = false;
+            const { first_name, last_name, email, phone, picture, country_flag_url, id } = response[0];
 
-                var first_name = response[0]['first_name'];
-                var last_name = response[0]['last_name'];
-                var email = response[0]['email'];
-                var phone = response[0]['phone'];
-                var picture = response[0]['picture'];
-                var flag = response[0]['country_flag_url'];
-                var id = response[0]['id'];
+            document.getElementById('id_person_id').value = id;
+            document.getElementById('id_first_name').value = first_name;
+            document.getElementById('id_last_name').value = last_name;
+            document.getElementById('id_email').value = email;
+            document.getElementById('id_phone').value = phone;
+            const pictureDisplay = document.getElementById('picture_display_field');
+            if(pictureDisplay) pictureDisplay.src = picture;
+            const countryFlag = document.getElementById('country_flag_display_field');
+            if(countryFlag) countryFlag.src = country_flag_url;
+        }
+    }
 
-                document.getElementById('id_person_id').value = id;
-                document.getElementById('id_first_name').value = first_name;
-                document.getElementById('id_last_name').value = last_name;
-                document.getElementById('id_email').value = email;
-                document.getElementById('id_phone').value = phone;
-                document.getElementById('picture_display_field').src = picture;
-                document.getElementById('country_flag_display_field').src = flag;
-
-            }
+    document.addEventListener('DOMContentLoaded', function () {
+        const useExistingButton = document.getElementById('id_use_existing');
+        if (useExistingButton) {
+            useExistingButton.disabled = true;
         }
 
-        $(document).ready(function () {
-            document.getElementById('use_existing').disabled = true;
-            $("#id_phone").autocomplete({
-                source: function (request, response) {
-                    document.getElementById('use_existing').disabled = true;
-                    $.ajax({
-                        url: "{% url 'autocomplete_phone' %}",
-                        type: 'post',
-                        dataType: "json",
-                        data: {
-                            search: request.term, request: 1
+        const autocompleteFields = [
+            { id: 'id_phone', url: '{% url 'autocomplete_phone' %}' },
+            { id: 'id_email', url: '{% url 'autocomplete_email' %}' },
+            { id: 'id_first_name', url: '{% url 'autocomplete_first_name' %}' },
+            { id: 'id_last_name', url: '{% url 'autocomplete_last_name' %}' },
+        ];
+
+        autocompleteFields.forEach(field => {
+            const input = document.getElementById(field.id);
+            if (!input) return;
+
+            const autocompleteContainer = document.createElement('div');
+            autocompleteContainer.setAttribute('class', 'absolute z-10 w-full bg-base-100 rounded-box shadow-lg');
+            input.parentNode.style.position = 'relative'; // Ensure parent has relative positioning
+            input.parentNode.appendChild(autocompleteContainer);
+
+            input.addEventListener('input', async function(e) {
+                if (useExistingButton) useExistingButton.disabled = true;
+                const searchTerm = e.target.value;
+                autocompleteContainer.innerHTML = '';
+                if (searchTerm.length < 1) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(field.url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                            'X-CSRFToken': document.configuration.csrftoken
                         },
-                        success: function (data) {
-                            response(data);
-                        }
+                        body: `search=${encodeURIComponent(searchTerm)}&request=1`
                     });
-                },
-                select: function (event, ui) {
-                    $(this).val(ui.item.label); // display the selected text
-                    var val = ui.item.value; // selected value
-
-                    // AJAX
-                    $.ajax({
-                        url: "{% url 'autocomplete_phone' %}",
-                        type: 'post',
-                        data: {search: val, request: 2},
-                        dataType: 'json',
-                        success: setResponse
+                    const data = await response.json();
+                    
+                    data.forEach(item => {
+                        let option = document.createElement('a');
+                        option.setAttribute('class', 'block p-2 hover:bg-base-200 cursor-pointer');
+                        option.textContent = item.label;
+                        option.addEventListener('click', function() {
+                            input.value = item.label;
+                            autocompleteContainer.innerHTML = '';
+                            
+                            fetch(field.url, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                    'X-CSRFToken': document.configuration.csrftoken
+                                },
+                                body: `search=${encodeURIComponent(item.value)}&request=2`
+                            }).then(res => res.json()).then(setResponse);
+                        });
+                        autocompleteContainer.appendChild(option);
                     });
-
-                    return false;
+                } catch (error) {
+                    console.error('Autocomplete error:', error);
                 }
             });
 
-            $("#id_email").autocomplete({
-                source: function (request, response) {
-                    document.getElementById('use_existing').disabled = true;
-                    $.ajax({
-                        url: "{% url 'autocomplete_email' %}",
-                        type: 'post',
-                        dataType: "json",
-                        data: {
-                            search: request.term, request: 1
-                        },
-                        success: function (data) {
-                            response(data);
-                        }
-                    });
-                },
-                select: function (event, ui) {
-                    $(this).val(ui.item.label); // display the selected text
-                    var val = ui.item.value; // selected value
-
-                    // AJAX
-                    $.ajax({
-                        url: "{% url 'autocomplete_email' %}",
-                        type: 'post',
-                        data: {search: val, request: 2},
-                        dataType: 'json',
-                        success: setResponse
-                    });
-
-                    return false;
-                }
+            input.addEventListener('blur', function() {
+                // Delay hiding to allow click event on autocomplete suggestions
+                setTimeout(() => {
+                    if (!autocompleteContainer.contains(document.activeElement)) {
+                        autocompleteContainer.innerHTML = '';
+                    }
+                }, 100);
             });
-
-
-            $("#id_first_name").autocomplete({
-                source: function (request, response) {
-                    document.getElementById('use_existing').disabled = true;
-                    $.ajax({
-                        url: "{% url 'autocomplete_first_name' %}",
-                        type: 'post',
-                        dataType: "json",
-                        data: {
-                            search: request.term, request: 1
-                        },
-                        success: function (data) {
-                            response(data);
-                        }
-                    });
-                },
-                select: function (event, ui) {
-                    $(this).val(ui.item.label); // display the selected text
-                    var val = ui.item.value; // selected value
-
-                    // AJAX
-                    $.ajax({
-                        url: "{% url 'autocomplete_first_name' %}",
-                        type: 'post',
-                        data: {search: val, request: 2},
-                        dataType: 'json',
-                        success: setResponse
-                    });
-
-                    return false;
-                }
-            });
-
-
-            $("#id_last_name").autocomplete({
-                source: function (request, response) {
-                    document.getElementById('use_existing').disabled = true;
-                    $.ajax({
-                        url: "{% url 'autocomplete_last_name' %}",
-                        type: 'post',
-                        dataType: "json",
-                        data: {
-                            search: request.term, request: 1
-                        },
-                        success: function (data) {
-                            response(data);
-                        }
-                    });
-                },
-                select: function (event, ui) {
-                    $(this).val(ui.item.label); // display the selected text
-                    var val = ui.item.value; // selected value
-
-                    // AJAX
-                    $.ajax({
-                        url: "{% url 'autocomplete_last_name' %}",
-                        type: 'post',
-                        data: {search: val, request: 2},
-                        dataType: 'json',
-                        success: setResponse
-                    });
-
-                    return false;
-                }
-            });
-            if (document.getElementById('id_person_id').value) {
-                $.ajax({
-                    url: "{% url 'autocomplete_id' %}",
-                    type: 'post',
-                    data: {search: document.getElementById('id_person_id').value, request: 2},
-                    dataType: 'json',
-                    success: setResponse
-                });
-            }
-
         });
-    </script>
+
+        const personIdInput = document.getElementById('id_person_id');
+        if (personIdInput && personIdInput.value) {
+            fetch('{% url 'autocomplete_id' %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-CSRFToken': document.configuration.csrftoken
+                },
+                body: `search=${encodeURIComponent(personIdInput.value)}&request=2`
+            }).then(res => res.json()).then(setResponse);
+        }
+    });
+</script>
 {% endblock %}

@@ -1,12 +1,17 @@
-{% extends "base.html" %}
-{% load bootstrap4 %}
+{% extends "base_tailwind.html" %}
 {% load static %}
 {% block content %}
-    <h2>Sorry</h2>
-    You do not have permission to view this page.<br>
-    Feel free to proceed to the map page at <a href="/">airsports.no</a><br/>
-    <img src= "{% static 'img/AirSportsLiveTracking.png' %}" alt="Logo" style="width: 50%;">
-    <p>
-    <pre>403: Permission denied</pre>
-    </p>
+<div class="hero min-h-screen bg-base-200">
+  <div class="hero-content text-center">
+    <div class="max-w-md">
+      <h1 class="text-5xl font-bold">Sorry</h1>
+      <p class="py-6">You do not have permission to view this page.</p>
+      <p>Feel free to proceed to the map page at <a href="/" class="link link-primary">airsports.no</a></p>
+      <img src= "{% static 'img/AirSportsLiveTracking.png' %}" alt="Logo" class="mx-auto my-4 w-1/2">
+      <div class="mockup-code">
+        <pre data-prefix=">"><code>403: Permission denied</code></pre>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

@@ -1,17 +1,33 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% load static %}
 {% load crispy_forms_tags %}
 
 {% block content %}
-    <h2>Update Navigation Task {{ object }}</h2>
-    {{ form.media }}
-    {{ form.errors }}
-    <form method="post" class="form">
-        {% csrf_token %}
-        {% crispy form %}
-    </form>
-    <script type="text/javascript">
-        $('#id_start_time').datetimepicker({dateFormat: "yy-mm-dd"});
-        $('#id_finish_time').datetimepicker({dateFormat: "yy-mm-dd"});
-    </script>
+<div class="container mx-auto p-4 md:p-8">
+    <div class="card bg-base-100 shadow-xl max-w-lg mx-auto">
+        <div class="card-body">
+            <h2 class="card-title">Update Navigation Task {{ object }}</h2>
+            {{ form.media }}
+            {{ form.errors }}
+            <form method="post" class="form mt-4">
+                {% csrf_token %}
+                {% crispy form %}
+            </form>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+        const startTime = document.getElementById('id_start_time');
+        if (startTime) {
+            startTime.type = 'datetime-local';
+        }
+        
+        const finishTime = document.getElementById('id_finish_time');
+        if (finishTime) {
+            finishTime.type = 'datetime-local';
+        }
+    });
+</script>
 {% endblock %}

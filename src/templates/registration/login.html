@@ -1,52 +1,60 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
+{% load static %}
+
 {% block content %}
-    <h1>Log into Air Sports Live Tracking</h1>
-    {% if next %}
-        {% if user.is_authenticated %}
-            <p>Your account doesn't have access to this page. To proceed,
-                please login with an account that has access.</p>
-        {% else %}
-            <p>Please login to see this page.</p>
-        {% endif %}
-    {% endif %}
-    {{ form.media }}
-    <form method="post" action="{% url 'login' %}">
-        {% csrf_token %}
-        <table>
-            <tr>
-                <td>{{ form.username.label_tag }}</td>
-                <td>{{ form.username }}</td>
-            </tr>
-            <tr>
-                <td>{{ form.password.label_tag }}</td>
-                <td>{{ form.password }}</td>
-            </tr>
-        </table>
-
-        <input type="submit" value="login"/>
-        <input type="hidden" name="next" value="{{ next }}"/>
-    </form>
-
-    <p><a href="{% url 'password_reset' %}">Reset password</a></p>
-    <p>First time user of the website and registered in the app? <a href="{% url 'password_reset' %}">Click here</a> to generate a password</p>
-    All users must be registered in the app to create a profile user on the Air Sport Live Tracking website.
-    Register for free in the app:
-    <div
-            class="d-flex"
-            style="padding-bottom: 0; padding-top: 0">
-        <a target={"_blank"}
-           href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img
-                alt='Get it on Google Play' style="height: 80px; margin-top: -5px"
-                src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/></a>
-        <a target={"_blank"}
-           href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200"><img
-                style="height: 70px; padding: 8px"
-                src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0"
-                alt="Download on the App Store"/></a>
+<div class="hero min-h-screen bg-base-200">
+  <div class="hero-content flex-col lg:flex-row-reverse">
+    <div class="text-center lg:text-left lg:pl-8">
+      <h1 class="text-5xl font-bold">Log into Air Sports Live Tracking</h1>
+      <p class="py-6">Air Sports Live Tracking is an online tracking platform for general aviation leisure flying all competitions. Use your cell phone as a tracker and share your position with other GA pilots. We fly together! Download the Air Sports Live Tracking app from Google Play or Apple App Store.</p>
+        <div class="flex justify-center lg:justify-start items-center space-x-2">
+            <a target="_blank" href='https://play.google.com/store/apps/details?id=no.airsports.android.livetracking&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'>
+                <img alt='Get it on Google Play' class="h-20 -mt-1" src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'/>
+            </a>
+            <a target="_blank" href="https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686?itsct=apps_box&amp;itscg=30200">
+                <img class="h-14" src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us??size=500x166&amp;releaseDate=1436918400&h=a41916586b4763422c974414dc18bad0" alt="Download on the App Store"/>
+            </a>
+        </div>
     </div>
-    <p>
-        Air Sports Live Tracking is an online tracking platform for general aviation leisure flying all competitions.
-        Use your cell phone as a tracker and share your position with other GA pilots. We fly together! Download the Air
-        Sports Live Tracking aap from Google Play or Apple App Store.
-    </p>
+    <div class="card shrink-0 w-full max-w-sm shadow-2xl bg-base-100">
+      <form class="card-body" method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        {% if next %}
+            {% if user.is_authenticated %}
+                <div role="alert" class="alert alert-warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <span>Your account doesn't have access to this page. To proceed, please login with an account that has access.</span>
+                </div>
+            {% else %}
+                <div role="alert" class="alert alert-info">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>Please login to see this page.</span>
+                </div>
+            {% endif %}
+        {% endif %}
+        
+        <div class="form-control">
+          <label class="label" for="{{ form.username.id_for_label }}">
+            <span class="label-text">{{ form.username.label }}</span>
+          </label>
+          <input type="text" name="{{ form.username.name }}" id="{{ form.username.id_for_label }}" class="input input-bordered" required>
+        </div>
+        <div class="form-control">
+          <label class="label" for="{{ form.password.id_for_label }}">
+            <span class="label-text">{{ form.password.label }}</span>
+          </label>
+          <input type="password" name="{{ form.password.name }}" id="{{ form.password.id_for_label }}" class="input input-bordered" required>
+        </div>
+        <div class="form-control mt-6">
+          <button type="submit" class="btn btn-primary">Login</button>
+        </div>
+        <input type="hidden" name="next" value="{{ next }}"/>
+         <div class="text-sm mt-4 text-center">
+            <p><a href="{% url 'password_reset' %}" class="link">Reset password</a></p>
+            <p>First time user of the website and registered in the app? <a href="{% url 'password_reset' %}" class="link">Click here</a> to generate a password</p>
+         </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}

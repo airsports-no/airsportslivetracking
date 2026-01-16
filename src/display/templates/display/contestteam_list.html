@@ -1,46 +1,61 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% block content %}
-    <H1>Teams for contest {{ contest }}</H1>
-    <a href="{% url 'contest_details' contest.pk %}">Back to contest</a> | 
-    <a href="{% url 'import_teams' contest.pk %}">Import teams</a> |
-    <a href="{% url 'contest_team_images' contest.pk %}">View images</a>
+<div class="container mx-auto p-4 md:p-8">
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <div class="flex justify-between items-center">
+                <h1 class="card-title text-2xl font-bold">Teams for contest {{ contest }}</h1>
+                <div class="flex space-x-2">
+                    <a href="{% url 'contest_details' contest.pk %}" class="btn btn-secondary">Back to contest</a>
+                    <a href="{% url 'import_teams' contest.pk %}" class="btn btn-primary">Import teams</a>
+                    <a href="{% url 'contest_team_images' contest.pk %}" class="btn btn-primary">View images</a>
+                </div>
+            </div>
 
-    <table class="table table-condensed">
-        <thead>
-        <tr>
-            <th>Team</th>
-            <th>Country</th>
-            <th>Airspeed</th>
-            <th>Tracking device</th>
-            <th>Tracker id</th>
-            <th>Actions</th>
-        </tr>
-        </thead>
-
-        {% for object in object_list %}
-            <tr>
-                <td>{{ object.team }}</td>
-                <td>{{ object.team.country }}</td>
-                <td>{{ object.air_speed }}</td>
-                <td>
-                    {{ object.get_tracking_device_display }}
-                </td>
-                <td>{% if object.tracker_device_id|length > 0 %}{{ object.tracker_device_id }}{% else %}N/A{% endif %}</td>
-                <td>
-                    <a href="{% url 'team_wizard' contest.pk object.team.pk %}">Modify team information</a> |
-                    <a href="{% url 'contestteamtracking_update' contest.pk object.pk %}">Update tracking
-                        information</a> |
-                    <a href="{% url 'remove_team' contest.pk object.team.pk %}">Remove team</a>
-                    {% if user.is_superuser %}
-                        | <a href="{% url 'person_update' object.team.crew.member1.pk %}">Edit crewmember one</a>
-                        {% if object.team.crew.member2 %}
-                            | <a href="{% url 'person_update' object.team.crew.member2.pk %}">Edit crewmember two</a>
-                        {% endif %}
-                    {% endif %}
-
-                </td>
-            </tr>
-        {% endfor %}
-    </table>
-    <a href="{% url 'create_team' contest.pk %}">Add team</a>
+            <div class="overflow-x-auto mt-6">
+                <table class="table table-sm w-full">
+                    <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Country</th>
+                        <th>Airspeed</th>
+                        <th>Tracking device</th>
+                        <th>Tracker id</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for object in object_list %}
+                        <tr>
+                            <td>{{ object.team }}</td>
+                            <td>{{ object.team.country }}</td>
+                            <td>{{ object.air_speed }}</td>
+                            <td>
+                                {{ object.get_tracking_device_display }}
+                            </td>
+                            <td>{% if object.tracker_device_id|length > 0 %}{{ object.tracker_device_id }}{% else %}N/A{% endif %}</td>
+                            <td>
+                                <div class="flex flex-col">
+                                    <a href="{% url 'team_wizard' contest.pk object.team.pk %}" class="link">Modify team information</a>
+                                    <a href="{% url 'contestteamtracking_update' contest.pk object.pk %}" class="link">Update tracking information</a>
+                                    <a href="{% url 'remove_team' contest.pk object.team.pk %}" class="link link-error">Remove team</a>
+                                    {% if user.is_superuser %}
+                                        <a href="{% url 'person_update' object.team.crew.member1.pk %}" class="link">Edit crewmember one</a>
+                                        {% if object.team.crew.member2 %}
+                                            <a href="{% url 'person_update' object.team.crew.member2.pk %}" class="link">Edit crewmember two</a>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-actions justify-start mt-4">
+                 <a href="{% url 'create_team' contest.pk %}" class="btn btn-primary">Add team</a>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

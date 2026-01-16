@@ -1,35 +1,41 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% load i18n %}
-{% load bootstrap4 %}
+{% load crispy_forms_tags %}
 
 {% block head %}
     {{ wizard.form.media }}
 {% endblock %}
 
 {% block content %}
-    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
-    <form action="" method="post" enctype="multipart/form-data">{% csrf_token %}
-        {% csrf_token %}
-        <table>
-            {{ wizard.management_form }}
-            {% if wizard.form.forms %}
-                {{ wizard.form.management_form }}
-                {% for form in wizard.form.forms %}
-                    {% bootstrap_form form %}
-                {% endfor %}
-            {% else %}
-                {{ form.media }}
-                {% bootstrap_form wizard.form %}
-
-            {% endif %}
-        </table>
-        {% if wizard.steps.prev %}
-            <button name="wizard_goto_step" type="submit" class="btn btn-primary"
-                    value="{{ wizard.steps.first }}">{% trans "first step" %}</button>
-            <button name="wizard_goto_step" type="submit" class="btn btn-primary"
-                    value="{{ wizard.steps.prev }}">{% trans "prev step" %}</button>
-        {% endif %}
-        <input type="submit" class="btn btn-primary" value="{% trans "submit" %}"/>
-    </form>
-
+<div class="container mx-auto p-4 md:p-8">
+    <div class="card bg-base-100 shadow-xl max-w-lg mx-auto">
+        <div class="card-body">
+            <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+            <form action="" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                {{ wizard.management_form }}
+                {% if wizard.form.forms %}
+                    {{ wizard.form.management_form }}
+                    {% for form in wizard.form.forms %}
+                        {{ form|crispy }}
+                    {% endfor %}
+                {% else %}
+                    {{ form.media }}
+                    {% crispy wizard.form %}
+                {% endif %}
+                
+                <div class="card-actions justify-end mt-4">
+                    {% if wizard.steps.prev %}
+                        <button name="wizard_goto_step" type="submit" class="btn btn-secondary"
+                                value="{{ wizard.steps.first }}">{% trans "first step" %}</button>
+                        <button name="wizard_goto_step" type="submit" class="btn btn-secondary"
+                                value="{{ wizard.steps.prev }}">{% trans "prev step" %}</button>
+                    {% endif %}
+                    <input type="submit" class="btn btn-primary" value="{% trans "submit" %}"/>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

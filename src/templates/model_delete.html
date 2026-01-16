@@ -1,10 +1,19 @@
-{% extends "base.html" %}
-{% load bootstrap4 %}
+{% extends "base_tailwind.html" %}
+
 {% block content %}
-    <form action="" method="post">{% csrf_token %}
-        <p>Are you sure you want to delete "{{ object }}"?</p>
-        {% buttons %}
-            <button type="submit" class="btn btn-primary">Submit</button>
-        {% endbuttons %}
-    </form>
+<div class="container mx-auto p-4 md:p-8">
+    <div class="card bg-base-100 shadow-xl max-w-md mx-auto">
+        <div class="card-body">
+            <h2 class="card-title">Confirm Deletion</h2>
+            <p>Are you sure you want to delete "{{ object }}"?</p>
+            <form action="" method="post">
+                {% csrf_token %}
+                <div class="card-actions justify-end mt-4">
+                    <button type="submit" class="btn btn-error">Delete</button>
+                    <a href="{{ request.META.HTTP_REFERER }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -1,46 +1,56 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% load guardian_tags %}
 {% load tz %}
+
 {% block content %}
-    <H1>Contests</H1>
-    <table class="table table-condensed">
-        <thead>
-        <tr>
-            <th>Task</th>
-            <th>Start time</th>
-            <th>Finish time</th>
-            <th>Editors</th>
-        </tr>
-        </thead>
-
-        {% for contest in object_list %}
-            {% get_obj_perms request.user for contest as "contest_permissions" %}
-
-            <tr>
-                <td>
-                    <a href="{% url 'contest_details' contest.pk %}">{{ contest.name }} ({{ contest.share_string }})</a>
-                </td>
-                <td class="no-wrap">
-                    {{ contest.start_time|timezone:contest.time_zone|date:"Y-m-d" }}
-                </td>
-                <td class="no-wrap">
-                    {{ contest.finish_time|timezone:contest.time_zone|date:"Y-m-d" }}
-                </td>
-                <td>
-                    {#                {{ contest.editors|join:", " }}#}
-                    <ul>
-                        {% for user in contest.editors %}
-                            <li>{{ user.first_name }} {{ user.last_name }} ({{ user.email }})</li>
-                        {% endfor %}
-                    </ul>
-                </td>
-            </tr>
-        {% endfor %}
-    </table>
-    {% if perms.display.add_contest %}
-        <a href="{% url 'contest_create' %}">New contest</a>
-        {% if user.is_superuser %}
-            | <a href="{% url 'person_list' %}">Person overview</a>
-        {% endif %}
-    {% endif %}
+<div class="container mx-auto p-4 md:p-8">
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h1 class="card-title text-2xl font-bold">Contests</h1>
+            <div class="overflow-x-auto">
+                <table class="table table-sm w-full">
+                    <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Start time</th>
+                        <th>Finish time</th>
+                        <th>Editors</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for contest in object_list %}
+                        {% get_obj_perms request.user for contest as "contest_permissions" %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'contest_details' contest.pk %}" class="link">{{ contest.name }} ({{ contest.share_string }})</a>
+                            </td>
+                            <td class="whitespace-nowrap">
+                                {{ contest.start_time|timezone:contest.time_zone|date:"Y-m-d" }}
+                            </td>
+                            <td class="whitespace-nowrap">
+                                {{ contest.finish_time|timezone:contest.time_zone|date:"Y-m-d" }}
+                            </td>
+                            <td>
+                                <ul class="list-disc list-inside">
+                                    {% for user in contest.editors %}
+                                        <li>{{ user.first_name }} {{ user.last_name }} ({{ user.email }})</li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-actions justify-start mt-4">
+                {% if perms.display.add_contest %}
+                    <a href="{% url 'contest_create' %}" class="btn btn-primary">New contest</a>
+                    {% if user.is_superuser %}
+                        <a href="{% url 'person_list' %}" class="btn btn-secondary">Person overview</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

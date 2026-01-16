@@ -1,24 +1,46 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% load i18n %}
 {% load crispy_forms_tags %}
+
 {% block head %}
     {{ wizard.form.media }}
 {% endblock %}
 
 {% block content %}
-    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
-    <form method="post" class="form" enctype="multipart/form-data">
-        {{ form.media }}
-        {{ wizard.management_form }}
-        {% crispy wizard.form %}
-    </form>
-    <script type="text/javascript">
-        $('#id_task_content-start_time').datetimepicker({dateFormat: "yy-mm-dd"});
-        $('#id_task_content-finish_time').datetimepicker({dateFormat: "yy-mm-dd"});
-    </script>
-    <script type="text/javascript">
-        $('#id_contest_creation-start_time').datetimepicker({dateFormat: "yy-mm-dd"});
-        $('#id_contest_creation-finish_time').datetimepicker({dateFormat: "yy-mm-dd"});
-    </script>
+<div class="container mx-auto p-4 md:p-8">
+    <div class="card bg-base-100 shadow-xl max-w-lg mx-auto">
+        <div class="card-body">
+            <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+            <form method="post" class="form" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ wizard.management_form }}
+                {% crispy wizard.form %}
+            </form>
+        </div>
+    </div>
+</div>
 
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+        const taskStartTime = document.getElementById('id_task_content-start_time');
+        if (taskStartTime) {
+            taskStartTime.type = 'datetime-local';
+        }
+        
+        const taskFinishTime = document.getElementById('id_task_content-finish_time');
+        if (taskFinishTime) {
+            taskFinishTime.type = 'datetime-local';
+        }
+
+        const contestCreationStartTime = document.getElementById('id_contest_creation-start_time');
+        if (contestCreationStartTime) {
+            contestCreationStartTime.type = 'datetime-local';
+        }
+
+        const contestCreationFinishTime = document.getElementById('id_contest_creation-finish_time');
+        if (contestCreationFinishTime) {
+            contestCreationFinishTime.type = 'datetime-local';
+        }
+    });
+</script>
 {% endblock %}

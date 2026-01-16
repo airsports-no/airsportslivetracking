@@ -1,19 +1,26 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% load static %}
 {% load i18n %}
 {% load crispy_forms_tags %}
+
 {% block head %}
     {{ wizard.form.media }}
 {% endblock %}
 
 {% block content %}
-    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
-    {{ form.errors }}
-    <form method="post" class="form" enctype="multipart/form-data">
-        {{ form.media }}
-        {{ form.field_errors }}
-        {{ form.non_field_errors }}
-        {{ wizard.management_form }}
-        {% crispy wizard.form %}
-    </form>
+<div class="container mx-auto p-4 md:p-8">
+    <div class="card bg-base-100 shadow-xl max-w-lg mx-auto">
+        <div class="card-body">
+            <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+            {{ form.errors }}
+            <form method="post" class="form" enctype="multipart/form-data">
+                {{ form.media }}
+                {{ form.field_errors }}
+                {{ form.non_field_errors }}
+                {{ wizard.management_form }}
+                {% crispy wizard.form %}
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

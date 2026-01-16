@@ -1,77 +1,106 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% load static %}
 {% load crispy_forms_tags %}
+
 {% block head %}
     {{ wizard.form.media }}
 {% endblock %}
 
 {% block content %}
-    <h2>Search for an existing or create a new club</h2>
-    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
-    <form method="post" class="form" enctype="multipart/form-data">
-        {{ form.media }}
-        {{ wizard.management_form }}
-        {% crispy wizard.form %}
-    </form>
-    <script type="text/javascript">
-        function setResponse(response) {
-            var len = response.length;
+<div class="container mx-auto p-4 md:p-8">
+  <div class="card bg-base-100 shadow-xl max-w-lg mx-auto">
+    <div class="card-body">
+      <h2 class="card-title">Search for an existing or create a new club</h2>
+      <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+      <form method="post" class="form" enctype="multipart/form-data">
+          {{ wizard.management_form }}
+          {% crispy wizard.form %}
+      </form>
+    </div>
+  </div>
+</div>
 
-            if (len > 0) {
-                var name = response[0]['name'];
-                var logo = response[0]['logo'];
-                var country = response[0]['country'];
-                var country_flag = response[0]['country_flag_url'];
-
-                document.getElementById('id_name').value = name;
-                document.getElementById('id_country').value = country;
-                document.getElementById('country_flag_display_field').src = country_flag;
-                document.getElementById('logo_display_field').src = logo;
-
-            }
+<script type="text/javascript">
+    function setResponse(response) {
+        if (response.length > 0) {
+            const { name, logo, country, country_flag_url } = response[0];
+            document.getElementById('id_name').value = name;
+            document.getElementById('id_country').value = country;
+            const countryFlag = document.getElementById('country_flag_display_field');
+            if(countryFlag) countryFlag.src = country_flag_url;
+            const logoDisplay = document.getElementById('logo_display_field');
+            if(logoDisplay) logoDisplay.src = logo;
         }
+    }
 
-        $(document).ready(function () {
-            $("#id_name").autocomplete({
-                source: function (request, response) {
-                    $.ajax({
-                        url: "{% url 'autocomplete_club' %}",
-                        type: 'post',
-                        dataType: "json",
-                        data: {
-                            search: request.term, request: 1
-                        },
-                        success: function (data) {
-                            response(data);
-                        }
-                    });
-                },
-                select: function (event, ui) {
-                    $(this).val(ui.item.label); // display the selected text
-                    var val = ui.item.value; // selected value
+    document.addEventListener('DOMContentLoaded', function () {
+        const nameInput = document.getElementById('id_name');
+        if (!nameInput) return;
 
-                    // AJAX
-                    $.ajax({
-                        url: "{% url 'autocomplete_club' %}",
-                        type: 'post',
-                        data: {search: val, request: 2},
-                        dataType: 'json',
-                        success: setResponse
-                    });
+        // Autocomplete functionality
+        let autocompleteContainer = document.createElement('div');
+        autocompleteContainer.setAttribute('class', 'absolute z-10 w-full bg-base-100 rounded-box shadow-lg');
+        nameInput.parentNode.style.position = 'relative';
+        nameInput.parentNode.appendChild(autocompleteContainer);
 
-                    return false;
-                }
-            });
-            if (document.getElementById('id_name').value) {
-                $.ajax({
-                    url: "{% url 'autocomplete_club' %}",
-                    type: 'post',
-                    data: {search: document.getElementById('id_name').value, request: 2},
-                    dataType: 'json',
-                    success: setResponse
-                });
+        nameInput.addEventListener('input', async function(e) {
+            const searchTerm = e.target.value;
+            autocompleteContainer.innerHTML = '';
+            if (searchTerm.length < 1) {
+                return;
             }
 
+            try {
+                const response = await fetch("{% url 'autocomplete_club' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-CSRFToken': document.configuration.csrftoken
+                    },
+                    body: `search=${encodeURIComponent(searchTerm)}&request=1`
+                });
+                const data = await response.json();
+                
+                data.forEach(item => {
+                    let option = document.createElement('a');
+                    option.setAttribute('class', 'block p-2 hover:bg-base-200 cursor-pointer');
+                    option.textContent = item.label;
+                    option.addEventListener('click', function() {
+                        nameInput.value = item.label;
+                        autocompleteContainer.innerHTML = '';
+                        
+                        fetch("{% url 'autocomplete_club' %}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                'X-CSRFToken': document.configuration.csrftoken
+                            },
+                            body: `search=${encodeURIComponent(item.value)}&request=2`
+                        }).then(res => res.json()).then(setResponse);
+                    });
+                    autocompleteContainer.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Autocomplete error:', error);
+            }
         });
-    </script>
+
+        document.addEventListener('click', function(e) {
+            if (!nameInput.contains(e.target)) {
+                autocompleteContainer.innerHTML = '';
+            }
+        });
+
+        if (nameInput.value) {
+             fetch("{% url 'autocomplete_club' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-CSRFToken': document.configuration.csrftoken
+                },
+                body: `search=${encodeURIComponent(nameInput.value)}&request=2`
+            }).then(res => res.json()).then(setResponse);
+        }
+    });
+</script>
 {% endblock %}

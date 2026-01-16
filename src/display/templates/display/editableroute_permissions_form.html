@@ -1,22 +1,28 @@
-{% extends "base.html" %}
-{% load static %}
+{% extends "base_tailwind.html" %}
 {% load i18n %}
-{% load bootstrap4 %}
-
+{% load crispy_forms_tags %}
 
 {% block content %}
-    <h2>Manage permissions for route {{ editableroute }}</h2>
-    <p>
-        <b>View</b> permission allows the user to view the route, but not make any modifications.<br/>
-        <b>Cange</b> allows the user to modify the route.<br/>
-        <b>Delete</b> allows the user to do everything, including deleting the route.<br/>
-        Assigning the permission "nothing" removes all permissions from the user.
-      </p>
-      
-    <form method="post" class="form">
-        {% csrf_token %}
-        {% bootstrap_form form %}
-        {% buttons %}
-            <button type="submit" class="btn btn-primary">Submit</button>
-        {% endbuttons %}
-    </form>{% endblock %}
+<div class="container mx-auto p-4 md:p-8">
+    <div class="card bg-base-100 shadow-xl max-w-lg mx-auto">
+        <div class="card-body">
+            <h2 class="card-title">Manage permissions for route {{ editableroute }}</h2>
+            <div class="alert alert-info mt-4">
+                <div>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>
+                        <b>View:</b> Allows the user to view the route, but not make any modifications.<br/>
+                        <b>Change:</b> Allows the user to modify the route.<br/>
+                        <b>Delete:</b> Allows the user to do everything, including deleting the route.<br/>
+                        Assigning the permission "nothing" removes all permissions from the user.
+                    </span>
+                </div>
+            </div>
+            <form method="post" class="form mt-4">
+                {% csrf_token %}
+                {% crispy form %}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

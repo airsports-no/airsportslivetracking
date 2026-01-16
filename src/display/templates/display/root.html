@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% load render_bundle from webpack_loader %}
 {% load static %}
 {% block document_configuration %}
@@ -20,10 +20,10 @@
     </script>
 {% endblock %}
 
-{% block contentfluid %}
-    <div class="row">
-        <div id="root">
-            <img class="centered" src="{% static 'img/loading_airplane.gif' %}" alt="loading..."/>
+{% block contentfull %}
+    <div id="root" class="h-full">
+        <div class="flex items-center justify-center h-full">
+            <span class="loading loading-lg loading-spinner text-primary"></span>
         </div>
     </div>
     {% render_bundle 'Root' %}

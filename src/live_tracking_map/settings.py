@@ -97,7 +97,6 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "timezone_field",
     "webpack_loader",
-    "bootstrap4",
     "drf_yasg",
     "solo",
     "guardian",
@@ -106,11 +105,11 @@ INSTALLED_APPS = [
     "phonenumber_field",
     "qr_code",
     "crispy_forms",
+    "crispy_tailwind",
     "channels",
     "display.apps.DisplayConfig",
     "firebase.apps.FirebaseConfig",
     "storages",
-    "crispy_bootstrap4",
     "location_field.apps.DefaultConfig",
     "django_js_reverse",
 ]
@@ -125,7 +124,8 @@ PRODUCTION = os.environ.get("MODE") != "dev"
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
-CRISPY_TEMPLATE_PACK = "bootstrap4"
+CRISPY_ALLOWED_TEMPLATE_PACKS = ("bootstrap4", "tailwind")
+CRISPY_TEMPLATE_PACK = "tailwind"
 GUARDIAN_MONKEY_PATCH = False
 AUTH_USER_MODEL = "display.MyUser"
 

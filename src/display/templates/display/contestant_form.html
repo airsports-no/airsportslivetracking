@@ -1,132 +1,140 @@
-{% extends 'base.html' %}
+{% extends 'base_tailwind.html' %}
 {% load static %}
-{% load bootstrap4 %}
 {% load crispy_forms_tags %}
+
 {% block content %}
-  {% if object %}
-    <h2>Update Contestant {{ object }} for navigation task {{ object.navigation_task }}</h2>
-  {% else %}
-    <h2>Create new Contestant for navigation task {{ navigation_task }}</h2>
-  {% endif %}
-  {{ form.media }}
-  Contest time zone is {{ navigation_task.contest.time_zone }}
-  {% crispy form %}
-  <script type="text/javascript">
-        Date.prototype.addHours = function(h) {
-            this.setTime(this.getTime() + (h*60*60*1000));
-            return this;
-          }
-        Date.prototype.toMyString = function() {
-            return this.format("yyyy-mm-dd HH:MM")
+<div class="container mx-auto p-4 md:p-8">
+  <div class="card bg-base-100 shadow-xl max-w-2xl mx-auto">
+    <div class="card-body">
+      <h2 class="card-title">
+        {% if object %}
+          Update Contestant {{ object }} for navigation task {{ object.navigation_task }}
+        {% else %}
+          Create new Contestant for navigation task {{ navigation_task }}
+        {% endif %}
+      </h2>
+      <p class="text-sm">Contest time zone is {{ navigation_task.contest.time_zone }}</p>
+      
+      {{ form.media }}
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% crispy form %}
+      </form>
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        function formatForInput(date) {
+            if (!date) return '';
+            const d = new Date(date);
+            const pad = (num) => num.toString().padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+        
+        function addHours(date, h) {
+            const newDate = new Date(date.getTime());
+            newDate.setTime(newDate.getTime() + (h * 60 * 60 * 1000));
+            return newDate;
         }
 
-          
         const adaptiveStart = document.getElementById("id_adaptive_start");
         const takeoffTime = document.getElementById("id_takeoff_time");
         const trackingStart = document.getElementById("id_tracker_start_time");
-        const finishedByTime=document.getElementById('id_finished_by_time')
-        const teamSelector=document.getElementById("id_team")
+        const finishedByTime = document.getElementById('id_finished_by_time');
+        const teamSelector = document.getElementById("id_team");
+        const trackingServiceSelector = document.getElementById("id_tracking_service");
+        const trackingDeviceSelector = document.getElementById("id_tracking_device");
+        const trackerDeviceId = document.getElementById("id_tracker_device_id");
+        const trackerDeviceIdGroup = document.getElementById("div_id_tracker_device_id");
 
-        const trackingServiceSelector=document.getElementById("id_tracking_service")
-
-        const trackingDeviceSelector=document.getElementById("id_tracking_device")
-        const trackerDeviceId=document.getElementById("id_tracker_device_id")
-        const trackerDeviceIdGroup=document.getElementById("div_id_tracker_device_id")
-
-        
+        // Change input types to datetime-local
+        if (takeoffTime) takeoffTime.type = 'datetime-local';
+        if (trackingStart) trackingStart.type = 'datetime-local';
+        if (finishedByTime) finishedByTime.type = 'datetime-local';
 
         function updateTracking() {
-            trackingStart.value = new Date(Date.parse(takeoffTime.value)).addHours(-0.16666667).toMyString()
-            let hours=2
-            if (adaptiveStart.checked) {
-                hours=5
+            const takeoffDate = new Date(takeoffTime.value);
+            if (isNaN(takeoffDate.getTime())) return;
+
+            if(trackingStart) trackingStart.value = formatForInput(addHours(takeoffDate, -0.16666667));
+            
+            let hours = 2;
+            if (adaptiveStart && adaptiveStart.checked) {
+                hours = 5;
             }
-            finishedByTime.value=new Date(Date.parse(takeoffTime.value)).addHours(hours).toMyString()
+            if(finishedByTime) finishedByTime.value = formatForInput(addHours(takeoffDate, hours));
         }
 
-        $("#id_takeoff_time").datetimepicker({dateFormat: "yy-mm-dd", onSelect: updateTracking});
-        $("#id_finished_by_time").datetimepicker({dateFormat: "yy-mm-dd"});
-        $("#id_tracking_start").datetimepicker({dateFormat: "yy-mm-dd"});
-        takeoffTime.addEventListener("change",(event)=>{updateTracking()})
-       
-        adaptiveStart.addEventListener("change", (event) => {
-            trackingStart.readOnly = adaptiveStart.checked;
-            updateTracking()
-        })
+        if(takeoffTime) takeoffTime.addEventListener("change", updateTracking);
+        if(adaptiveStart) {
+            adaptiveStart.addEventListener("change", (event) => {
+                if(trackingStart) trackingStart.readOnly = adaptiveStart.checked;
+                updateTracking();
+            });
+             if(trackingStart) trackingStart.readOnly = adaptiveStart.checked;
+        }
+
 
         async function teamChanged(event){
-            const selectedTeam=teamSelector.value
-            const response=await fetch("/api/v1/contests/"+{{ navigation_task.contest.id }}+"/contest_team_for_team/"+selectedTeam+"/",{method: "GET"})
+            const selectedTeam = teamSelector.value;
+            if (!selectedTeam) return;
+            const response = await fetch(`/api/v1/contests/{{ navigation_task.contest.id }}/contest_team_for_team/${selectedTeam}/`, { method: "GET" });
             if(response.ok){
-                const data=await response.json()
-                document.getElementById("id_air_speed").value=data.air_speed
-                trackingServiceSelector.value=data.tracking_service
-                trackingDeviceSelector.value=data.tracking_device
-                trackerDeviceId.value=data.tracker_device_id
-                changedTrackingDevice()
-                maybeDisableTrackingDeviceOptions()
+                const data = await response.json();
+                document.getElementById("id_air_speed").value = data.air_speed;
+                trackingServiceSelector.value = data.tracking_service;
+                trackingDeviceSelector.value = data.tracking_device;
+                trackerDeviceId.value = data.tracker_device_id;
+                changedTrackingDevice();
+                maybeDisableTrackingDeviceOptions();
             }
         }
 
-        function maybeDisableTrackingDeviceOptions(){
-            if(trackingServiceSelector.value==='flymaster'){
+        function maybeDisableTrackingDeviceOptions() {
+            if (!trackingServiceSelector) return;
+            const isFlymaster = trackingServiceSelector.value === 'flymaster';
             document.querySelectorAll("#id_tracking_device option").forEach(opt => {
-                if (opt.value != "device") {
-                    opt.disabled = true;
+                if (isFlymaster) {
+                    opt.disabled = (opt.value !== "device");
+                } else {
+                    opt.disabled = false;
                 }
             });
-        }else {
-            document.querySelectorAll("#id_tracking_device option").forEach(opt => {
-                        opt.disabled = false;
-                });
         }
 
-        }
-
-        async function changedTrackingService(event){
-            if(trackingServiceSelector.value==='flymaster'){
-                trackingDeviceSelector.value='device'
-            }else{
-                trackingDeviceSelector.value='pilot_app_or_copilot_a[['
-            }
-            changedTrackingDevice()
-            maybeDisableTrackingDeviceOptions()
-
-        }
-
-        async function changedTrackingDevice(event){
-            if(trackingDeviceSelector.value==='device'){
-                trackerDeviceId.required=true
-                trackerDeviceIdGroup.style.display=''
-
-            }else{
-                trackerDeviceId.required=false
-                trackerDeviceId.value=''
-                trackerDeviceIdGroup.style.display='none'
-            }
-        }
-
-        teamSelector.addEventListener("change", teamChanged)
-        trackingDeviceSelector.addEventListener("change",changedTrackingDevice)
-        trackingServiceSelector.addEventListener("change",changedTrackingService)
-        
-        function docReady(fn) {
-            // see if DOM is already available
-            if (document.readyState === "complete" || document.readyState === "interactive") {
-                // call on next available tick
-                setTimeout(fn, 1);
+        function changedTrackingService(event) {
+            if (!trackingServiceSelector || !trackingDeviceSelector) return;
+            if (trackingServiceSelector.value === 'flymaster') {
+                trackingDeviceSelector.value = 'device';
             } else {
-                document.addEventListener("DOMContentLoaded", fn);
+                trackingDeviceSelector.value = 'pilot_app_or_copilot_a[['; // Note: original value looks malformed
             }
-        }    
+            changedTrackingDevice();
+            maybeDisableTrackingDeviceOptions();
+        }
 
-        docReady(()=>{
-
-        changedTrackingDevice()
-        maybeDisableTrackingDeviceOptions()
-    })
-        {% if object.adaptive_start %}
-            trackingStart.readOnly = adaptiveStart.checked;
-        {% endif %}
-    </script>
+        function changedTrackingDevice(event) {
+            if (!trackingDeviceSelector || !trackerDeviceId) return;
+            if (trackingDeviceSelector.value === 'device') {
+                trackerDeviceId.required = true;
+                if (trackerDeviceIdGroup) trackerDeviceIdGroup.style.display = '';
+            } else {
+                trackerDeviceId.required = false;
+                trackerDeviceId.value = '';
+                if (trackerDeviceIdGroup) trackerDeviceIdGroup.style.display = 'none';
+            }
+        }
+        
+        if (teamSelector) teamSelector.addEventListener("change", teamChanged);
+        if (trackingDeviceSelector) trackingDeviceSelector.addEventListener("change", changedTrackingDevice);
+        if (trackingServiceSelector) trackingServiceSelector.addEventListener("change", changedTrackingService);
+        
+        // Initial state
+        changedTrackingDevice();
+        maybeDisableTrackingDeviceOptions();
+    });
+</script>
 {% endblock %}

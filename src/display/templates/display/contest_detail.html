@@ -1,68 +1,78 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% load guardian_tags %}
+{% load frontend_urls %}
 {% load tz %}
+
 {% block content %}
-    <H1>{{ object.name }} ({{ object.share_string }})</H1>
-    {{ object.start_time|date:"Y-m-d" }} -
-    {{ object.finish_time|date:"Y-m-d" }} {{ object.start_time|date:"e" }}
-    <div class="alert alert-warning" role="alert">
-        Air Sports Live Tracking is currently running under a best effort SLA. This means that the service may be
-        intermittently interrupted and become unavailable for a few minutes while operation is restored. This will cause
-        all ongoing tracking to stop, but rest assured that the system automatically handles this and catches up to any
-        ongoing flights within a few minutes. Please refer to our <a
-            href="https://home.airsports.no/news/#cloudhosting" target="_blank">cloud hosting news announcement</a> for
-        more
-        information.
-    </div>
-    <p>
-        {% get_obj_perms request.user for contest as "contest_permissions" %}
+<div class="container mx-auto p-4 md:p-8">
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="card-title text-2xl font-bold">{{ object.name }} ({{ object.share_string }})</h1>
+                    <p>{{ object.start_time|date:"Y-m-d" }} - {{ object.finish_time|date:"Y-m-d" }} {{ object.start_time|date:"e" }}</p>
+                </div>
+                {% get_obj_perms request.user for contest as "contest_permissions" %}
+                {% if "change_contest" in contest_permissions %}
+                <div class="dropdown dropdown-end">
+                    <label tabindex="0" class="btn btn-primary">Management</label>
+                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">
+                        <li><a href="{% url 'navigationtaskwizard' object.pk %}">New navigation task</a></li>
+                        <li><a href="{% url 'contest_permissions_list' object.pk %}">Permissions</a></li>
+                        <li><a href="{% url 'contest_update' object.pk %}">Update</a></li>
+                        {% if "delete_contest" in contest_permissions %}
+                            <li><a href="{% url 'contest_delete' object.pk %}">Delete</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
 
-
-        {% if "change_contest" in contest_permissions %}
-            <div class="btn-group float-right">
-                <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
-                        aria-haspopup="true" aria-expanded="false">
-                    Management
-                </button>
-                <div class="dropdown-menu">
-                    <a class="dropdown-item" href="{% url 'navigationtaskwizard' object.pk %}">New navigation task</a>
-                    <a class="dropdown-item" href= {% url 'contest_permissions_list' object.pk %}>Permissions</a>
-                    <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="{% url 'contest_update' object.pk %}">Update</a>
-                    {% if "delete_contest" in contest_permissions %}
-                        <a class="dropdown-item" href="{% url 'contest_delete' object.pk %}">Delete</a>
-                    {% endif %}
+            <div class="alert alert-warning mt-4">
+                <div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <span>Air Sports Live Tracking is currently running under a best effort SLA. This means that the service may be intermittently interrupted and become unavailable for a few minutes while operation is restored. This will cause all ongoing tracking to stop, but rest assured that the system automatically handles this and catches up to any ongoing flights within a few minutes. Please refer to our <a href="https://home.airsports.no/news/#cloudhosting" target="_blank" class="link">cloud hosting news announcement</a> for more information.</span>
                 </div>
             </div>
-            <a href="{% url 'contest_share' object.pk %}">Share</a> |
-            <a href="{% url 'contest_team_list' object.pk %}">Team list</a> |
-            <a href="/resultsservice/{{ object.pk }}/taskresults/">Contest results</a>
-        {% endif %}
-    <table class="table table-condensed">
-        <thead>
-        <tr>
-            <th>Task</th>
-            <th>Start time</th>
-            <th>Finish time</th>
-            <th>Scorecard</th>
-        </tr>
-        </thead>
-        {% for navigation_task in object.navigationtask_set.all %}
-            <tr>
-                <td>
-                    {% if "view_contest" in contest_permissions %}
-                        <a href="{% url 'navigationtask_detail' navigation_task.id %}">{{ navigation_task.name }}</a>
-                    {% else %}
-                        {{ navigation_task.name }}
-                    {% endif %}
-                    ({{ navigation_task.share_string }})
-                </td>
-                <td>
-                    {{ navigation_task.start_time|date:"Y-m-d H:i:s e" }}
-                </td>
-                <td>{{ navigation_task.finish_time|date:"Y-m-d H:i:s e" }}</td>
-                <td>{{ navigation_task.original_scorecard }}</td>
-            </tr>
-        {% endfor %}
-    </table>
+
+            {% if "change_contest" in contest_permissions %}
+            <div class="mt-4">
+                <a href="{% url 'contest_share' object.pk %}" class="link">Share</a> |
+                <a href="{% url 'contest_team_list' object.pk %}" class="link">Team list</a> |
+                <a href="{% fe_url 'CONTEST_RESULTS_TABLE' contestId=object.pk %}" class="link">Contest results</a>
+            </div>
+            {% endif %}
+
+            <div class="overflow-x-auto mt-6">
+                <table class="table table-sm w-full">
+                    <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Start time</th>
+                        <th>Finish time</th>
+                        <th>Scorecard</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for navigation_task in object.navigationtask_set.all %}
+                        <tr>
+                            <td>
+                                {% if "view_contest" in contest_permissions %}
+                                    <a href="{% url 'navigationtask_detail' navigation_task.id %}" class="link">{{ navigation_task.name }}</a>
+                                {% else %}
+                                    {{ navigation_task.name }}
+                                {% endif %}
+                                ({{ navigation_task.share_string }})
+                            </td>
+                            <td>{{ navigation_task.start_time|date:"Y-m-d H:i:s e" }}</td>
+                            <td>{{ navigation_task.finish_time|date:"Y-m-d H:i:s e" }}</td>
+                            <td>{{ navigation_task.original_scorecard }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

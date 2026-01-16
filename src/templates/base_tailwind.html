@@ -75,9 +75,9 @@
                         {% if perms.display.add_contest %}
                             <li>
                                 <details>
-                                    <summary>Contests</summary>
+                                    <summary>Management</summary>
                                     <ul class="p-2 bg-neutral rounded-t-none z-50">
-                                        <li><a href="{% url 'contest_list' %}">My contests</a></li>
+                                        <li><a href="{% fe_url 'MISSION_DASHBOARD' %}">My contests</a></li>
                                         <li><a href="{% url 'useruploadedmap_list' %}">My maps</a></li>
                                         <li><a href="{% fe_url 'ROUTE_EDITOR_LIST' %}">Route editor</a></li>
                                         {% if user.is_superuser and user.is_staff %}

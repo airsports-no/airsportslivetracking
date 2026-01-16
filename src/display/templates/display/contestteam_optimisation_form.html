@@ -1,55 +1,61 @@
-{% extends "base.html" %}
+{% extends "base_tailwind.html" %}
 {% load static %}
-{% load bootstrap4 %}
+{% load crispy_forms_tags %}
+
 {% block content %}
+<div class="container mx-auto p-4 md:p-8">
+    <div class="card bg-base-100 shadow-xl max-w-2xl mx-auto">
+        <div class="card-body">
+            <h2 class="card-title">Contestant scheduling</h2>
+            <div class="prose">
+                <p>
+                    Scheduling the contestants should ideally be done before the task starts when there are no existing contestants
+                    in the task. Scheduling requires that there are no contestants from the first tracking start time to the latest
+                    finished by time when creating a schedule and will warn accordingly if this is the case to give you the
+                    opportunity to clean out the interval or change the initial time.
+                </p>
+                <p>
+                    The system first uses a simple algorithm to create a valid good schedule that ensures that no aircraft overtakes
+                    another while respecting the constraints below. It then optionally applies a linear programming (LP)
+                    optimiser to minimise the latest finish point time (to make the final contestant complete the task as early as
+                    possible).
+                </p>
+                <p>
+                    If leaving the "optimise" checkbox checked takes too long to complete, try unchecking it for a less optimal, but
+                    still correct solution.
+                </p>
+            </div>
+            <div class="mt-4">
+                <button class="btn btn-sm" onclick="selectAll()">Select all</button>
+                <button class="btn btn-sm" onclick="deselectAll()">Deselect all</button>
+            </div>
+            <form method="post" class="form mt-4">
+                {% csrf_token %}
+                {% crispy form %}
 
-    {{ form.media }}
-    {{ form.errors }}
-    <h2>Contestant scheduling</h2>
-    <p>
-        Scheduling the contestants should ideally be done before the task starts when there are no existing contestants
-        in
-        the task. Scheduling requires that there are no contestants from the first tracking start time to the latest
-        finished by time when creating a schedule and will warn accordingly if this is the case to give you the
-        opportunity
-        to clean out the interval or change the initial time.
-    </p>
-    <p>
-        The system first uses a simple algorithm to create a valid good schedule that ensures that no aircraft overtakes
-        another while respecting the constraints below. It then optionally applies a linear programming (LP)
-        optimiser to minimise the latest finish point time (to make the final contestant complete the task as early as
-        possible).
-    </p>
-    <p>
-        If leaving the "optimise" checkbox checked takes too long to complete, try unchecking it for a less optimal, but
-        still correct solution.
-    </p>
-    <p>
-    </p>
-    <p>
-        <a href="#" onclick="select_all()">Select all</a>/<a href="#" onclick="deselect_all()">Deselect all</a>
-    </p>
-    <form method="post" class="form">
-        {% csrf_token %}
-        {% bootstrap_form form %}
-        {% buttons %}
-            <button type="submit" class="btn btn-primary">Optimise</button>
-            <a href="{% url 'navigationtask_detail' navigation_task.pk %}" class="btn btn-secondary">Cancel</a>
-        {% endbuttons %}
-    </form>
+                <div class="card-actions justify-end mt-4">
+                    <button type="submit" class="btn btn-primary">Optimise</button>
+                    <a href="{% url 'navigationtask_detail' navigation_task.pk %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-    <script type="text/javascript">
-        function select_all() {
-            $('input[type=checkbox]').prop('checked', true);
+<script type="text/javascript">
+    function selectAll() {
+        document.querySelectorAll('input[type=checkbox]').forEach(el => el.checked = true);
+    }
+
+    function deselectAll() {
+        document.querySelectorAll('input[type=checkbox]').forEach(el => el.checked = false);
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const firstTakeoffTime = document.getElementById('id_first_takeoff_time');
+        if(firstTakeoffTime) {
+            firstTakeoffTime.type = 'datetime-local';
         }
-
-        function deselect_all() {
-            $('input[type=checkbox]').prop('checked', false);
-        }
-
-    </script>
-    <script type="text/javascript">
-        $('#id_first_takeoff_time').datetimepicker({dateFormat: "yy-mm-dd"});
-    </script>
-
+    });
+</script>
 {% endblock %}
