@@ -37,7 +37,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ show, onClose, onSubmit, t
       ...task,
       id: task?.id || 0,
       name,
-      heading,
+      heading: name, // Ensure heading is always the same as name
       weight,
       autosum_scores: autosumScores,
       summary_score_sorting_direction: sortingDirection,
@@ -67,7 +67,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ show, onClose, onSubmit, t
             value={name}
             onChange={(e) => {
               setName(e.target.value);
-              if (!heading) setHeading(e.target.value);
             }}
             className="input input-bordered"
           />

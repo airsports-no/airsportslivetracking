@@ -7,8 +7,10 @@ import { useContestResultsStore } from '../../store/contestResultsStore';
 import { EditableCell } from '../../components/common/DataTable/EditableCell';
 import { useScoreUpdates } from '../../hooks/useScoreUpdates';
 import { TaskModal } from './TaskModal';
-import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { TestModal } from './TestModal';
+import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon } from 'lucide-react';
 import { useParams } from 'react-router-dom';
+import { Test } from '../../store/contestResultsStore';
 
 // Helper function from original reactjs
 const teamRankingTable = (team: any) => {
@@ -38,11 +40,14 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
   const error = useContestResultsStore((state) => state.error);
   const fetchResults = useContestResultsStore((state) => state.fetchResults);
   const createOrUpdateTask = useContestResultsStore((state) => state.createOrUpdateTask);
+  const createOrUpdateTest = useContestResultsStore((state) => state.createOrUpdateTest);
   const deleteTask = useContestResultsStore((state) => state.deleteTask);
   const deleteTeamResults = useContestResultsStore((state) => state.deleteTeamResults);
 
   const [isTaskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isTestModalOpen, setTestModalOpen] = useState(false);
+  const [editingTest, setEditingTest] = useState<Test | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
@@ -52,7 +57,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
   }, [contestId, fetchResults]);
 
   useContestResultsWebSocket(contestId); // Listen for real-time updates
-  const { updateContestSummary, updateTaskSummary } = useScoreUpdates(); // Use the new hook
+  const { updateContestSummary, updateTaskSummary, updateTestResult } = useScoreUpdates(); // Use the new hook
 
   const handleNewTask = () => {
     setEditingTask(null);
@@ -62,6 +67,12 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
     setTaskModalOpen(true);
+  };
+
+  const handleNewTest = (task: Task) => {
+    setEditingTest(null);
+    setEditingTask(task); // We need to know which task to add the test to
+    setTestModalOpen(true);
   };
 
   const handleDeleteTask = async (taskId: number) => {
@@ -97,6 +108,11 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
     setTaskModalOpen(false);
   };
 
+  const handleTestSubmit = async (test: Test) => {
+    await createOrUpdateTest(contestId, editingTask.id, test);
+    setTestModalOpen(false);
+  };
+
   const updateMyData = async (rowIndex: number, columnId: string, value: any) => {
     if (!results || !results.permission_change_contest) return;
 
@@ -108,6 +124,9 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
     } else if (columnId.startsWith('task_')) {
       const taskId = parseInt(columnId.replace('task_', ''));
       await updateTaskSummary(contestId, teamId, taskId, value);
+    } else if (columnId.startsWith('test-')) {
+      const testId = parseInt(columnId.replace('test-', ''));
+      await updateTestResult(contestId, teamId, testId, value);
     }
     fetchResults(contestId);
   };
@@ -142,8 +161,20 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
         enableSorting: false,
       }),
       columnHelper.accessor('contestSummary', {
-        header: 'Σ',
-        enableSorting: true,
+        header: () => (
+          <div className="flex items-center gap-2">
+            <span>Σ</span>
+            {results.permission_change_contest && (
+              <button
+                onClick={handleNewTask}
+                className="btn btn-xs btn-ghost"
+              >
+                <PlusCircleIcon size={12} />
+              </button>
+            )}
+          </div>
+        ),
+        enableSorting: false,
         cell: results.permission_change_contest && !results.autosum_scores ? EditableCell : (info) => info.getValue(),
       }),
     ];
@@ -157,9 +188,10 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
           const testDataField = `test_${test.id.toFixed(0)}`;
           baseColumns.push(
             columnHelper.accessor(testDataField, {
-              header: () => <span className="px-2 py-1 text-sm">{test.heading}</span>,
+              header: () => <span className="px-2 py-1 text-sm bg-base-200 text-base-content font-normal">{test.heading}</span>,
               id: `test-${test.id}`,
-              cell: results.permission_change_contest && !task.autosum_scores ? EditableCell : (info) => info.getValue(),
+              enableSorting: false,
+              cell: results.permission_change_contest && test.navigation_task === null ? EditableCell : (info) => info.getValue(),
               meta: {
                 columnType: 'test',
                 testId: test.id,
@@ -173,12 +205,21 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
       baseColumns.push(
         columnHelper.accessor(dataField, {
           header: () => (
-            <div className="flex items-center gap-2 cursor-pointer bg-base-200 hover:bg-base-300 px-2 py-1 rounded-md font-semibold" onClick={() => handleToggleTask(task.id)}>
-              <span>
-                {task.heading} {expandedTasks[task.id] ? '(Σ)' : ''}
-              </span>
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className="flex items-center gap-2 cursor-pointer bg-primary text-primary-content hover:bg-primary-focus px-2 py-1 rounded-md font-semibold"
+                onClick={() => handleToggleTask(task.id)}
+              >
+                <ChevronDownIcon
+                  size={16}
+                  className={`transition-transform duration-200 ${expandedTasks[task.id] ? 'rotate-180' : ''}`}
+                />
+                <span>
+                  {task.heading} {expandedTasks[task.id] ? '(Σ)' : ''}
+                </span>
+              </div>
               {results.permission_change_contest && (
-                <>
+                <div className="flex items-center gap-1">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -217,12 +258,23 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
                   >
                     <Trash2Icon size={12} />
                   </button>
-                </>
+                  {expandedTasks[task.id] && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNewTest(task);
+                    }}
+                    className="btn btn-xs btn-ghost"
+                  >
+                    <PlusCircleIcon size={12} />
+                  </button>
+                  )}
+                </div>
               )}
             </div>
           ),
           id: `task-${task.id}`,
-          enableSorting: true,
+          enableSorting: false,
           cell: results.permission_change_contest && !task.autosum_scores ? EditableCell : (info) => info.getValue(),
           meta: {
             columnType: 'task',
@@ -317,22 +369,24 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">{results.name}</h2>
-        {results.permission_change_contest && (
-          <button onClick={handleNewTask} className="btn btn-primary">
-            New Task
-          </button>
-        )}
       </div>
       <DataTable
         columns={columns}
         data={data}
-        className="table table-striped table-hover table-condensed table-dark"
+        className="table table-zebra table-pin-rows table-pin-cols"
         updateMyData={updateMyData}
       />
       <TaskModal
         show={isTaskModalOpen}
         onClose={() => setTaskModalOpen(false)}
         onSubmit={handleTaskSubmit}
+        task={editingTask}
+      />
+      <TestModal
+        show={isTestModalOpen}
+        onClose={() => setTestModalOpen(false)}
+        onSubmit={handleTestSubmit}
+        test={editingTest}
         task={editingTask}
       />
     </div>

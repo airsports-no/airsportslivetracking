@@ -68,6 +68,7 @@ export interface ContestResultsState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   createOrUpdateTask: (contestId: number, task: Task) => Promise<void>;
+  createOrUpdateTest: (contestId: number, taskId: number, test: Test) => Promise<void>;
   deleteTask: (contestId: number, taskId: number) => Promise<void>;
   deleteTeamResults: (contestId: number, teamId: number) => Promise<void>;
 }
@@ -103,6 +104,11 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
       ? reverse('tasks-detail', contestId, task.id)
       : reverse('tasks-list', contestId);
     const method = task.id ? 'PUT' : 'POST';
+    const payload = { ...task };
+    if (method === 'POST') {
+      delete payload.id;
+    }
+    payload.contest = contestId;
 
     try {
       const response = await fetch(url, {
@@ -111,7 +117,7 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
           'Content-Type': 'application/json',
           'X-CSRFToken': getCookie('csrftoken')!,
         },
-        body: JSON.stringify(task),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -121,6 +127,38 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
       await get().fetchResults(contestId);
     } catch (error: any) {
       console.error("Error creating/updating task:", error);
+      set({ error: error.message });
+    }
+  },
+
+  createOrUpdateTest: async (contestId: number, taskId: number, test: Test) => {
+    const url = test.id
+      ? reverse('tasktests-detail', contestId, test.id)
+      : reverse('tasktests-list', contestId);
+    const method = test.id ? 'PUT' : 'POST';
+    const payload = { ...test };
+    if (method === 'POST') {
+      delete payload.id;
+    }
+    payload.task = taskId;
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')!,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save test');
+      }
+      // Refresh results to get the latest state
+      await get().fetchResults(contestId);
+    } catch (error: any) {
+      console.error("Error creating/updating test:", error);
       set({ error: error.message });
     }
   },
