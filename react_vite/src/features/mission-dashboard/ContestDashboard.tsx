@@ -246,26 +246,34 @@ const ContestDashboard = () => {
                     )}
                     <h2 className="text-2xl font-bold mb-4">Task Suite</h2>
                     <div className="space-y-4">
-                        {contest.navigationtask_set.map(task => {
-                            const futureContestant = myFutureFlights.find(f => f.navigation_task === task.pk);
-                            const canCancelThisFlight = futureContestant && userContestTeam && futureContestant.team.id === userContestTeam.team && userContestTeam.is_user_pilot;
+                        {contest.navigationtask_set
+                            .filter(task => {
+                                if (contest.is_editor) {
+                                    return true;
+                                } else {
+                                    return task.is_featured && task.is_public;
+                                }
+                            })
+                            .map(task => {
+                                const futureContestant = myFutureFlights.find(f => f.navigation_task === task.pk);
+                                const canCancelThisFlight = futureContestant && userContestTeam && futureContestant.team.id === userContestTeam.team && userContestTeam.is_user_pilot;
 
-                            return (
-                                <TaskCard
-                                    key={task.pk}
-                                    name={task.name}
-                                    status={getTaskStatus(task)}
-                                    contestId={contest.id}
-                                    taskId={task.pk}
-                                    tracking_link={task.tracking_link}
-                                    onScheduleClick={() => setShowScheduleForm(task)}
-                                    futureContestant={futureContestant}
-                                    onCancelClick={canCancelThisFlight ? () => futureContestant && handleCancelFlight(contest.id, task.pk, futureContestant.id) : undefined}
-                                    onViewScoresClick={() => handleViewScoresClick(task)}
-                                    canSchedule={canSchedule}
-                                />
-                            );
-                        })}
+                                return (
+                                    <TaskCard
+                                        key={task.pk}
+                                        name={task.name}
+                                        status={getTaskStatus(task)}
+                                        contestId={contest.id}
+                                        taskId={task.pk}
+                                        tracking_link={task.tracking_link}
+                                        onScheduleClick={() => setShowScheduleForm(task)}
+                                        futureContestant={futureContestant}
+                                        onCancelClick={canCancelThisFlight ? () => futureContestant && handleCancelFlight(contest.id, task.pk, futureContestant.id) : undefined}
+                                        onViewScoresClick={() => handleViewScoresClick(task)}
+                                        canSchedule={canSchedule}
+                                    />
+                                );
+                            })}
                     </div>
                 </div>
             </div>

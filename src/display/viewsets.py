@@ -374,23 +374,26 @@ class ContestViewSet(ModelViewSet):
         logger.info(f"ContestViewSet.get_queryset called. is_editor_filter_param: {is_editor_filter_param}")
 
         if is_editor_filter_param:
-            filtered_qs = get_objects_for_user(
+            if not user.is_authenticated:
+                return queryset.none()
+            return get_objects_for_user(
                 user,
                 "display.change_contest",
                 with_superuser=False,
-                klass=Contest,  # Changed from `queryset` to `Contest`
+                klass=Contest,
                 accept_global_perms=False,
-            )
-            # logger.info(f"Returning editable contests. Count: {filtered_qs.count()}")
-            return filtered_qs.prefetch_related("navigationtask_set", "contest_teams").order_by("-start_time")
-        else:
-            # Default behavior
-            default_qs = get_objects_for_user(
+            ).prefetch_related("navigationtask_set", "contest_teams").order_by("-start_time")
+
+        # Default behavior for non-editors
+        if user.is_authenticated:
+            return (get_objects_for_user(
                 user,
                 "display.view_contest",
-                klass=Contest,  # Changed from `queryset` to `Contest`
+                klass=Contest,
                 accept_global_perms=False,
-            ) | self.queryset.filter(is_public=True, is_featured=True)
+            ) | queryset.filter(is_public=True, is_featured=True)).distinct()
+        else: # unauthenticated
+            return queryset.filter(is_public=True, is_featured=True)
 
     @action(detail=True, methods=["get"], url_path=r"contest_team_for_team/(?P<team_id>\d+)")
     def contest_team_for_team(self, request, team_id, **kwargs):
