@@ -87,7 +87,7 @@ class PolygonHelper:
     def build_polygon(self, path):
         line = []
         for element in path:
-            line.append(self.utm.transform_point(*list(reversed(element)), self.pc))
+            line.append(self.utm.transform_point(*list(element), self.pc))
         return Polygon(line)
 
     def check_inside_polygons(self, polygons: list[tuple[int, Polygon]], latitude, longitude) -> list[int]:

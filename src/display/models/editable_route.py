@@ -365,7 +365,7 @@ class EditableRoute(models.Model):
             Prohibited.objects.create(
                 name=feature["properties"]["name"],
                 route=route,
-                path=self.get_feature_coordinates(feature, flip=True),
+                path=self.get_feature_coordinates(feature, flip=False),
                 type=feature["properties"]["polygonType"],
                 # tooltip_position=feature.get("tooltip_position", []),
             )

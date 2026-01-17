@@ -626,7 +626,8 @@ def plot_prohibited_polygon(
 ):
     line = []
     for element in polygon_path:
-        line.append(target_projection.transform_point(*list(reversed(element)), ccrs.PlateCarree()))
+        line.append(target_projection.transform_point(*list(element), ccrs.PlateCarree()))
+    print(f"Plotting prohibited zone: {name} with line {polygon_path}")
     polygon = Polygon(line)
     centre = polygon.centroid
     ax.add_geometries(

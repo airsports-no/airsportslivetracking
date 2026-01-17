@@ -51,8 +51,8 @@ class Route(models.Model):
             longitudes.append(waypoint.gate_line[0][1])
             longitudes.append(waypoint.gate_line[1][1])
         for prohibited in self.prohibited_set.all():
-            latitudes.extend([item[0] for item in prohibited.path])
-            longitudes.extend([item[1] for item in prohibited.path])
+            latitudes.extend([item[1] for item in prohibited.path])
+            longitudes.extend([item[0] for item in prohibited.path])
         return min(latitudes), max(latitudes), min(longitudes), max(longitudes)
 
     @property

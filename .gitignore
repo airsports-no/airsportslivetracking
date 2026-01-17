@@ -41,3 +41,4 @@ nohup.out
 manifest.json
 .env.*
 src/static/output.css
+firebase-admin

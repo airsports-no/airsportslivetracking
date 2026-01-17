@@ -6,6 +6,7 @@ import { Route } from "../../../types";
 import { ColumnDef } from "@tanstack/react-table";
 import { fetchEditableRoutes } from "../api"; // New import
 import { reverse } from "../../../urls";
+import routes from "../../../routes.json";
 
 export const EditableRouteList = () => {
     const [data, setData] = useState<Route[]>([]);
@@ -126,9 +127,9 @@ export const EditableRouteList = () => {
                     )}
                 </div>
                 <div className="flex gap-2">
-                    <a href={reverse('editableroute_create')} className="btn btn-primary btn-sm">
+                    <Link to={'/'+routes.ROUTE_EDITOR_CREATE} className="btn btn-primary btn-sm">
                         Create new route
-                    </a>
+                    </Link>
                     <a href={reverse('editableroute_import')} className="btn btn-secondary btn-sm">
                         Import route
                     </a>

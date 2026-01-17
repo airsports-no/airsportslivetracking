@@ -1,4 +1,5 @@
 {% extends "base_tailwind.html" %}
+{% load static %}
 {% block content %}
 <div class="container mx-auto p-4 md:p-8">
     <div class="card bg-base-100 shadow-xl">
@@ -12,46 +13,60 @@
                 </div>
             </div>
 
-            <div class="overflow-x-auto mt-6">
-                <table class="table table-sm w-full">
-                    <thead>
-                    <tr>
-                        <th>Team</th>
-                        <th>Country</th>
-                        <th>Airspeed</th>
-                        <th>Tracking device</th>
-                        <th>Tracker id</th>
-                        <th>Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for object in object_list %}
-                        <tr>
-                            <td>{{ object.team }}</td>
-                            <td>{{ object.team.country }}</td>
-                            <td>{{ object.air_speed }}</td>
-                            <td>
-                                {{ object.get_tracking_device_display }}
-                            </td>
-                            <td>{% if object.tracker_device_id|length > 0 %}{{ object.tracker_device_id }}{% else %}N/A{% endif %}</td>
-                            <td>
-                                <div class="flex flex-col">
-                                    <a href="{% url 'team_wizard' contest.pk object.team.pk %}" class="link">Modify team information</a>
-                                    <a href="{% url 'contestteamtracking_update' contest.pk object.pk %}" class="link">Update tracking information</a>
-                                    <a href="{% url 'remove_team' contest.pk object.team.pk %}" class="link link-error">Remove team</a>
+            <div class="flex flex-wrap justify-center gap-4 mt-6">
+                {% for object in object_list %}
+                <div class="card w-96 bg-base-100 shadow-xl">
+                    <div class="flex justify-around pt-4">
+                        <div class="avatar">
+                            <div class="w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                                {% if object.team.crew.member1.picture %}
+                                    <img src="{{ object.team.crew.member1.picture.url }}" alt="{{ object.team.crew.member1.first_name }} {{ object.team.crew.member1.last_name }}" class="object-cover object-top"/>
+                                {% else %}
+                                    <img src="{% static 'img/profile_missing.png' %}" alt="Missing profile picture" class="object-cover object-top"/>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if object.team.crew.member2 %}
+                        <div class="avatar">
+                            <div class="w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                                {% if object.team.crew.member2.picture %}
+                                    <img src="{{ object.team.crew.member2.picture.url }}" alt="{{ object.team.crew.member2.first_name }} {{ object.team.crew.member2.last_name }}" class="object-cover object-top"/>
+                                {% else %}
+                                    <img src="{% static 'img/profile_missing.png' %}" alt="Missing profile picture" class="object-cover object-top"/>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-body items-center text-center">
+                        <h2 class="card-title">{{ object.team }}</h2>
+                        <p>{{ object.team.country }}</p>
+                        <div class="mt-2">
+                            <p><strong>Airspeed:</strong> {{ object.air_speed }}</p>
+                            <p><strong>Device:</strong> {{ object.get_tracking_device_display }}</p>
+                            <p><strong>Tracker ID:</strong> {% if object.tracker_device_id|length > 0 %}{{ object.tracker_device_id }}{% else %}N/A{% endif %}</p>
+                        </div>
+                        <div class="card-actions justify-center mt-4">
+                            <div class="dropdown dropdown-top">
+                                <label tabindex="0" class="btn btn-primary btn-sm">Actions</label>
+                                <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">
+                                    <li><a href="{% url 'team_wizard' contest.pk object.team.pk %}">Modify team information</a></li>
+                                    <li><a href="{% url 'contestteamtracking_update' contest.pk object.pk %}">Update tracking information</a></li>
+                                    <li><a href="{% url 'remove_team' contest.pk object.team.pk %}" class="link-error">Remove team</a></li>
                                     {% if user.is_superuser %}
-                                        <a href="{% url 'person_update' object.team.crew.member1.pk %}" class="link">Edit crewmember one</a>
+                                        <li><a href="{% url 'person_update' object.team.crew.member1.pk %}">Edit crewmember one</a></li>
                                         {% if object.team.crew.member2 %}
-                                            <a href="{% url 'person_update' object.team.crew.member2.pk %}" class="link">Edit crewmember two</a>
+                                            <li><a href="{% url 'person_update' object.team.crew.member2.pk %}">Edit crewmember two</a></li>
                                         {% endif %}
                                     {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
+            
             <div class="card-actions justify-start mt-4">
                  <a href="{% url 'create_team' contest.pk %}" class="btn btn-primary">Add team</a>
             </div>

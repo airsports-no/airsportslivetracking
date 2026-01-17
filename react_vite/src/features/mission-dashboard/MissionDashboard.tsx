@@ -201,6 +201,14 @@ const MissionDashboard = () => {
         })
     }, [textFilteredContests, mapBounds, hasUserInteractedWithMap]);
 
+    const filteredMyEditorContests = useMemo(() => { // NEW useMemo for My Contests filtering
+        if (!myEditorContests) return [];
+        return myEditorContests.filter(contest => {
+            const nameMatch = nameFilter === '' || contest.name.toLowerCase().includes(nameFilter.toLowerCase());
+            return nameMatch;
+        });
+    }, [myEditorContests, nameFilter]);
+
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-4xl font-bold mb-4">Mission Dashboard</h1>
@@ -314,11 +322,20 @@ const MissionDashboard = () => {
                 <div>
                     <h2 className="text-2xl font-bold mb-4">
                         My Contests
-                        <span className="ml-2 text-gray-500 text-lg">({myEditorContests.length})</span>
+                        <span className="ml-2 text-gray-500 text-lg">({filteredMyEditorContests.length})</span>
                         <a href={reverse("contest_create")} className="btn btn-primary btn-sm ml-4">Create New Contest</a>
                     </h2>
+                    <div className="flex space-x-2 sm:space-x-4 mb-2 sm:mb-4">
+                        <input
+                            type="text"
+                            placeholder="Filter by name"
+                            className="input input-bordered w-full max-w-xs"
+                            value={nameFilter}
+                            onChange={(e) => setNameFilter(e.target.value)}
+                        />
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {myEditorContests.map(contest => {
+                        {filteredMyEditorContests.map(contest => {
                             const viewLink = `/mission-dashboard/${contest.id}`;
                             const manageLink = reverse('contest_details', contest.id);
                             return (
@@ -334,8 +351,8 @@ const MissionDashboard = () => {
                                 />
                             );
                         })}
-                        {myEditorContests.length === 0 && !loading && (
-                            <p className="text-center mt-2 sm:mt-4 col-span-full">You are not an editor for any contests.</p>
+                        {filteredMyEditorContests.length === 0 && !loading && (
+                            <p className="text-center mt-2 sm:mt-4 col-span-full">No contests match your filters.</p>
                         )}
                     </div>
                 </div>
