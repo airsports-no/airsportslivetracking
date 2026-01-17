@@ -14,6 +14,7 @@
                 </div>
                 {% get_obj_perms request.user for contest as "contest_permissions" %}
                 {% if "change_contest" in contest_permissions %}
+                <a href="{% fe_url 'MISSION_DASHBOARD_DETAIL' contestId=object.pk %}" class="btn btn-secondary mr-2">Contest Dashboard</a>
                 <div class="dropdown dropdown-end">
                     <label tabindex="0" class="btn btn-primary">Management</label>
                     <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">

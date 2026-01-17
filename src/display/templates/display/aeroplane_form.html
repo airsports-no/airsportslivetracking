@@ -63,19 +63,21 @@
                 data.forEach(item => {
                     let option = document.createElement('a');
                     option.setAttribute('class', 'block p-2 hover:bg-base-200 cursor-pointer');
-                    option.textContent = item.label;
+
+                    option.textContent = item;
+                    
                     option.addEventListener('click', function() {
-                        registrationInput.value = item.label;
-                        autocompleteContainer.innerHTML = '';
+                        registrationInput.value = item;
+                        autocompleteContainer.innerHTML = ''; // Hide autocomplete
                         
-                        // Fetch full data
+                        // Fetch full data for the selected aircraft
                         fetch("{% url 'autocomplete_aeroplane' %}", {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                                 'X-CSRFToken': document.configuration.csrftoken
                             },
-                            body: `search=${encodeURIComponent(item.value)}&request=2`
+                            body: `search=${encodeURIComponent(item)}&request=2`
                         }).then(res => res.json()).then(setResponse);
                     });
                     autocompleteContainer.appendChild(option);
@@ -87,7 +89,7 @@
 
         // Hide autocomplete when clicking outside
         document.addEventListener('click', function(e) {
-            if (!registrationInput.contains(e.target)) {
+            if (!registrationInput.parentNode.contains(e.target)) {
                 autocompleteContainer.innerHTML = '';
             }
         });

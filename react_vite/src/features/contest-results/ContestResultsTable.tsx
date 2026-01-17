@@ -11,6 +11,8 @@ import { TestModal } from './TestModal';
 import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { Test } from '../../store/contestResultsStore';
+import { fetchContest } from '../mission-dashboard/api';
+import { Contest } from '../mission-dashboard/types';
 
 const teamRankingTable = (team: any) => {
   if (!team) return 'N/A';
@@ -48,10 +50,12 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
   const [isTestModalOpen, setTestModalOpen] = useState(false);
   const [editingTest, setEditingTest] = useState<Test | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Record<number, boolean>>({});
+  const [contest, setContest] = useState<Contest | null>(null);
 
   useEffect(() => {
     if (contestId) {
       fetchResults(contestId);
+      fetchContest(contestId).then(setContest);
     }
   }, [contestId, fetchResults]);
 
@@ -380,15 +384,15 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
 
   return (
     <div>
-      <div className="flex flex-col items-center mb-4">
-        {results.header_image_url && (
+      <div className="mb-8">
+        {(contest?.header_image || contest?.logo) && (
           <img
-            src={results.header_image_url}
+            src={contest.header_image || contest.logo}
             alt={`${results.name} Header`}
-            className="max-h-32 w-full object-contain mb-4"
+            className="w-full h-64 object-cover rounded-lg mb-4"
           />
         )}
-        <h2 className="text-2xl font-bold">{results.name}</h2>
+        <h2 className="text-2xl font-bold text-center">{results.name}</h2>
       </div>
       <DataTable
         columns={columns}

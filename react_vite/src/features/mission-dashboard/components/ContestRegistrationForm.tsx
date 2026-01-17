@@ -10,7 +10,7 @@ interface ContestRegistrationFormProps {
 }
 
 const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ contest, myContests, onClose }) => {
-    const existingRegistration = myContests.find(mc => mc.contest.id === contest.id);
+    const existingRegistration = (myContests || []).find(mc => mc.contest.id === contest.id);
 
     // Form state for registration
     const [copilot, setCopilot] = useState<number | null>(existingRegistration?.team.crew.member2?.id || null);

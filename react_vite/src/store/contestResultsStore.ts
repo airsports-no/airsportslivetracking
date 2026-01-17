@@ -50,7 +50,6 @@ export interface ContestResults {
   contest_teams: ContestTeam[];
   permission_change_contest: boolean;
   name: string;
-  header_image_url?: string;
   // Potentially other top-level properties from the backend results API
 }
 
