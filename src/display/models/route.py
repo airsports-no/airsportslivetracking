@@ -7,6 +7,8 @@ from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.waypoint import Waypoint
 
 
+from display.utilities.coordinate_utilities import calculate_distance_lat_lon
+
 class Route(models.Model):
     """
     An internal representation of a route used by the calculators. It is created based on an EditableRoute and depends
@@ -80,6 +82,45 @@ class Route(models.Model):
         if len(self.landing_gates) > 0:
             return self.landing_gates[0].latitude, self.landing_gates[0].longitude
         return None
+
+    @property
+    def number_of_wayoints(self):
+        return len(self.waypoints)
+
+    @property
+    def route_length_nm(self):
+        total_length_meters = 0.0
+        path = [(wp.longitude, wp.latitude) for wp in self.waypoints]
+
+        for index in range(0, len(path) - 1):
+            total_length_meters += calculate_distance_lat_lon(
+                (path[index][1], path[index][0]),
+                (path[index + 1][1], path[index + 1][0])
+            )
+
+        return total_length_meters / 1852.0 # Convert meters to nautical miles (1 nautical mile = 1852 meters)
+
+    @property
+    def number_of_prohibited_zones(self):
+        return self.prohibited_set.filter(type='prohibited').count()
+
+    @property
+    def number_of_penalty_zones(self):
+        return self.prohibited_set.filter(type='penalty').count()
+
+    @property
+    def has_landing_gate(self):
+        return len(self.landing_gates) > 0
+
+    @property
+    def has_takeoff_gate(self):
+        return len(self.takeoff_gates) > 0
+
+    @property
+    def number_of_photos(self):
+        return self.photo_set.count()
+
+
 
     def clean(self):
         return

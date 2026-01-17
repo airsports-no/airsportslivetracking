@@ -24,6 +24,18 @@ export interface Contest {
     contest_teams: number[];
 }
 
+export interface Route {
+    id: number;
+    name: string;
+    number_of_wayoints: number;
+    route_length_nm: number;
+    number_of_prohibited_zones: number;
+    number_of_penalty_zones: number;
+    has_landing_gate: boolean;
+    has_takeoff_gate: boolean;
+    number_of_photos: number;
+}
+
 export interface NavigationTask {
     pk: number;
     name: string;
@@ -37,6 +49,10 @@ export interface NavigationTask {
     user_has_change_permission: boolean;
     calculation_delay_minutes?: number;
     contest: Contest;
+    route: Route;
+    flown_contestants_count: number;
+    is_public: boolean;
+    is_featured: boolean;
 }
 
 export interface MyContestTeam {

@@ -657,20 +657,19 @@ class ScorecardFormSetHelper(FormHelper):
 
 kml_description = HTML(
     """
-            <p>The KML must contain at least the following:
-            <ol>
-            <li>route: A path with the name "route" which makes up the route that should be flown.</li>
-            </ol>
-            The KML file can optionally also include:
-            <ol>
-            <li>to: A path with the name "to" that defines the takeoff gate. This is typically located across the runway</li>
-            <li>ldg: A path with the name "ldg" that defines the landing gate. This is typically located across the runway. It can be at the same location as the take of gate, but it must be a separate path</li>
-            <li>prohibited: Zero or more polygons with the name "prohibited_*" where '*' can be replaced with an arbitrary text. These polygons describe prohibited zones either in an ANR context, or can be used to mark airspace that should not be infringed, for instance. Prohibited zones incur a fixed penalty for each entry.</li>
-            <li>penalty: Zero or more polygons with the name "penalty_*" where '*' can be replaced with an arbitrary text. These polygons describe penalty zones Where points are added for each second spent inside the zone.</li>
-            <li>info: Zero or more polygons with the name "info_*" where '*' can be replaced with an arbitrary text. These polygons Are for information only and not give any penalties. Can be used to indicate RMZ with frequency information, for instance</li>
-            </ol>
-            </p>
-            """
+<p>The KML must contain at least the following:</p>
+<ol class="list-decimal list-inside mb-2">
+    <li><strong>route</strong>: A path with the name "route" which makes up the route that should be flown.</li>
+</ol>
+<p>The KML file can optionally also include:</p>
+<ol class="list-decimal list-inside space-y-1">
+    <li><strong>to</strong>: A path with the name "to" that defines the takeoff gate. This is typically located across the runway.</li>
+    <li><strong>ldg</strong>: A path with the name "ldg" that defines the landing gate. This is typically located across the runway. It can be at the same location as the take off gate, but it must be a separate path.</li>
+    <li><strong>prohibited</strong>: Zero or more polygons with the name "prohibited_*" where '*' can be replaced with an arbitrary text. These polygons describe prohibited zones either in an ANR context, or can be used to mark airspace that should not be infringed, for instance. Prohibited zones incur a fixed penalty for each entry.</li>
+    <li><strong>penalty</strong>: Zero or more polygons with the name "penalty_*" where '*' can be replaced with an arbitrary text. These polygons describe penalty zones where points are added for each second spent inside the zone.</li>
+    <li><strong>info</strong>: Zero or more polygons with the name "info_*" where '*' can be replaced with an arbitrary text. These polygons are for information only and not give any penalties. Can be used to indicate RMZ with frequency information, for instance.</li>
+</ol>
+    """
 )
 
 

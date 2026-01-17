@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin } from 'lucide-react'; // Changed from Globe to MapPin
+import { MapPin } from 'lucide-react';
 import { Contestant } from '../../competition-map/types';
 import PublicityIcon from './PublicityIcon';
+import { Route } from '../types';
+import TaskStatistics from './TaskStatistics';
 
 interface TaskCardProps {
     name: string;
@@ -19,9 +21,11 @@ interface TaskCardProps {
     is_public: boolean;
     is_featured: boolean;
     timeZone?: string;
+    route: Route;
+    flown_contestants_count: number;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, onScheduleClick, onCancelClick, futureContestant, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, onScheduleClick, onCancelClick, futureContestant, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count }) => {
     return (
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
@@ -34,6 +38,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, on
                         </a>
                     </div>
                 </h3>
+                
+                <TaskStatistics route={route} flown_contestants_count={flown_contestants_count} />
+
                 {contestName && <p>{contestName}</p>}
                 {status === 'Open' && canSchedule && <div className="card-actions justify-end"><button onClick={onScheduleClick} className="btn btn-primary">Register Flight Plan</button></div>}
                 {status === 'Scheduled' && futureContestant && (

@@ -124,6 +124,18 @@ const MissionDashboard = () => {
         loadInitialData();
     }, []);
 
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchOngoingNavigation()
+                .then(ongoingData => setOngoingNavigations(ongoingData))
+                .catch(err => {
+                    console.error("Failed to refresh ongoing navigations:", err);
+                });
+        }, 2 * 60 * 1000); // Every 2 minutes
+
+        return () => clearInterval(interval); // Cleanup on unmount
+    }, []);
+
     const handleFetchMore = async () => {
         if (!oldestContestDate) return;
         setLoadingMore(true);

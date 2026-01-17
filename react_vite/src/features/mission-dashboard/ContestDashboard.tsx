@@ -13,6 +13,7 @@ import ScheduleFlightForm from './components/ScheduleFlightForm';
 import TaskScoreDisplay from './components/TaskScoreDisplay';
 import UpcomingFlights from './components/UpcomingFlights';
 import PublicityIcon from './components/PublicityIcon';
+import { HelpCircle } from 'lucide-react'; // Import HelpCircle
 import { reverse, generatePath } from '../../urls';
 
 const ContestDashboard = () => {
@@ -197,7 +198,12 @@ const ContestDashboard = () => {
                                 {contest.name}
                                 <PublicityIcon isPublic={contest.is_public} isFeatured={contest.is_featured} size={24} />
                             </h1>
-                            <p>{contest.location}</p>
+                            <p className="flex items-center gap-2">
+                                {contest.latitude?.toFixed(2)}, {contest.longitude?.toFixed(2)}
+                                {contest.country_flag_url && (
+                                    <img src={contest.country_flag_url} alt={`${contest.country} flag`} className="w-6 h-4 inline-block" />
+                                )}
+                            </p>
                             {contest.time_zone && <p className="text-sm text-gray-500">Time Zone: {contest.time_zone}</p>}
                             {contest.contest_website && (
                                 <a href={contest.contest_website} target="_blank" rel="noopener noreferrer" className="link link-primary">
@@ -250,7 +256,22 @@ const ContestDashboard = () => {
                             <UpcomingFlights myFutureFlights={upcomingFlightsForThisContest} contests={contest ? [contest] : []} onCancel={handleCancelFlight} />
                         </div>
                     )}
-                    <h2 className="text-2xl font-bold mb-4">Task Suite</h2>
+                    <h2 className="text-2xl font-bold mb-1 flex items-center gap-2">
+                        Task Suite
+                        <div className="dropdown dropdown-hover dropdown-left">
+                            <label tabIndex={0} className="m-1"><HelpCircle size={20} className="cursor-pointer" /></label>
+                            <div tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-64">
+                                <p className="font-bold">Open:</p>
+                                <p className="mb-2">The task's finish time has not passed, and you currently do not have a flight scheduled for it. It is ready for flight plan registration.</p>
+                                <p className="font-bold">Scheduled:</p>
+                                <p className="mb-2">You have successfully registered a flight plan.</p>
+                                <p className="font-bold">Live:</p>
+                                <p className="mb-2">The task is actively being tracked.</p>
+                                <p className="font-bold">Finalized:</p>
+                                <p>The task's finish time has passed and results are available.</p>
+                            </div>
+                        </div>
+                    </h2>
                     <div className="space-y-4">
                         {contest.navigationtask_set
                             .filter(task => {
@@ -280,6 +301,8 @@ const ContestDashboard = () => {
                                         is_public={task.is_public}
                                         is_featured={task.is_featured}
                                         timeZone={contest.time_zone}
+                                        route={task.route}
+                                        flown_contestants_count={task.flown_contestants_count}
                                     />
                                 );
                             })}

@@ -45,6 +45,8 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myFutureFlights, cont
                         is_public={navTask.is_public}
                         is_featured={navTask.is_featured}
                         timeZone={contest.time_zone}
+                        route={navTask.route}
+                        flown_contestants_count={navTask.flown_contestants_count}
                     />
                 );
             })}

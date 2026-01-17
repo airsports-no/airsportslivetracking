@@ -274,10 +274,145 @@ class ContestSummaryNestedSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class WaypointSerialiser(serializers.Serializer):
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+    name = serializers.CharField(max_length=200)
+    latitude = serializers.FloatField(help_text="degrees")
+    longitude = serializers.FloatField(help_text="degrees")
+    elevation = serializers.FloatField(help_text="Metres above MSL")
+    width = serializers.FloatField(help_text="Width of the gate in NM")
+    gate_line = serializers.JSONField(
+        help_text="Coordinates that describe the starting point and finish point of the gate line, e.g. [[lat1,lon2],[lat2,lon2]"
+    )
+    gate_line_extended = serializers.JSONField(
+        help_text="Coordinates that describe the starting point and finish point of the extended gate line, e.g. [[lat1,lon2],[lat2,lon2]",
+        required=False,
+    )
+    time_check = serializers.BooleanField()
+    gate_check = serializers.BooleanField()
+    end_curved = serializers.BooleanField()
+    type = serializers.CharField(max_length=50, help_text="The type of the gate (tp, sp, fp, to, ldg, secret)")
+    distance_next = serializers.FloatField(help_text="Distance to the next gate (NM)")
+    distance_previous = serializers.FloatField(help_text="Distance from the previous gate (NM)")
+    bearing_next = serializers.FloatField(help_text="True track to the next gate (degrees)")
+    bearing_from_previous = serializers.FloatField(help_text="True track from the previous gates to this")
+    procedure_turn_points = serializers.JSONField(
+        help_text="Curve that describes the procedure turn (read-only)", required=False, read_only=True
+    )
+    is_procedure_turn = serializers.BooleanField()
+    outside_distance = serializers.FloatField(
+        help_text="The distance at which we leave the gate vicinity", read_only=True, required=False
+    )
+    inside_distance = serializers.FloatField(
+        help_text="The distance at which we enter the gate vicinity", read_only=True, required=False
+    )
+
+    outer_corner_position = serializers.JSONField(required=False)
+
+
+class ProhibitedSerialiser(serializers.ModelSerializer):
+    path = serializers.JSONField()
+
+    class Meta:
+        model = Prohibited
+        fields = "__all__"
+
+
+class RouteSerialiser(serializers.ModelSerializer):
+    waypoints = WaypointSerialiser(many=True)
+    landing_gates = WaypointSerialiser(required=False, help_text="Optional landing gate", many=True)
+    takeoff_gates = WaypointSerialiser(required=False, help_text="Optional takeoff gate", many=True)
+    prohibited_set = ProhibitedSerialiser(many=True, required=False)
+    corridor_polygon = serializers.JSONField(required=False, read_only=True)
+    number_of_wayoints = serializers.IntegerField(read_only=True)
+    route_length_nm = serializers.FloatField(read_only=True)
+    number_of_prohibited_zones = serializers.IntegerField(read_only=True)
+    number_of_penalty_zones = serializers.IntegerField(read_only=True)
+    has_landing_gate = serializers.BooleanField(read_only=True)
+    has_takeoff_gate = serializers.BooleanField(read_only=True)
+    number_of_photos = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Route
+        fields = [
+            "id", "name", "use_procedure_turns", "rounded_corners", "corridor_width", "waypoints",
+            "takeoff_gates", "landing_gates", "corridor_polygon", "prohibited_set",
+            "number_of_wayoints", "route_length_nm", "number_of_prohibited_zones",
+            "number_of_penalty_zones", "has_landing_gate", "has_takeoff_gate", "number_of_photos"
+        ]
+
+    @staticmethod
+    def _create_waypoint(waypoint_data) -> Waypoint:
+        waypoint = Waypoint(waypoint_data["name"])
+        waypoint.latitude = waypoint_data["latitude"]
+        waypoint.longitude = waypoint_data["longitude"]
+        waypoint.elevation = waypoint_data["elevation"]
+        waypoint.gate_line = waypoint_data["gate_line"]
+        waypoint.width = waypoint_data["width"]
+        waypoint.time_check = waypoint_data["time_check"]
+        waypoint.gate_check = waypoint_data["gate_check"]
+        waypoint.end_curved = waypoint_data["end_curved"]
+        waypoint.type = waypoint_data["type"]
+        waypoint.distance_next = waypoint_data["distance_next"]
+        waypoint.distance_previous = waypoint_data["distance_previous"]
+        waypoint.bearing_next = waypoint_data["bearing_next"]
+        waypoint.bearing_from_previous = waypoint_data["bearing_from_previous"]
+        waypoint.is_procedure_turn = waypoint_data["is_procedure_turn"]
+        waypoint.control_latitude = waypoint_data.get("control_latitude", None)
+        waypoint.control_longitude = waypoint_data.get("control_longitude", None)
+
+        # waypoint.inside_distance = waypoint_data["inside_distance"]
+        # waypoint.outside_distance = waypoint_data["outside_distance"]
+        return waypoint
+
+    def create(self, validated_data):
+        waypoints = []
+        for waypoint_data in validated_data.pop("waypoints"):
+            waypoints.append(self._create_waypoint(waypoint_data))
+        route = Route.objects.create(
+            waypoints=waypoints,
+            landing_gates=[self._create_waypoint(data) for data in validated_data.pop("landing_gates")],
+            takeoff_gates=[self._create_waypoint(data) for data in validated_data.pop("takeoff_gates")],
+            **validated_data,
+        )
+        return route
+
+    def update(self, instance, validated_data):
+        waypoints = []
+        for waypoint_data in validated_data.pop("waypoints"):
+            waypoints.append(self._create_waypoint(waypoint_data))
+        instance.waypoints = waypoints
+        instance.landing_gates = [self._create_waypoint(data) for data in validated_data.pop("landing_gates")]
+        instance.takeoff_gates = [self._create_waypoint(data) for data in validated_data.pop("takeoff_gates")]
+        return instance
+
+
 class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
+    route = RouteSerialiser(read_only=True)
+    flown_contestants_count = serializers.SerializerMethodField()
+
     class Meta:
         model = NavigationTask
-        fields = ("pk", "name", "start_time", "finish_time", "tracking_link", "allow_self_management")
+        fields = (
+            "pk",
+            "name",
+            "start_time",
+            "finish_time",
+            "tracking_link",
+            "allow_self_management",
+            "route",
+            "flown_contestants_count",
+            "is_public",
+            "is_featured",
+        )
+
+    def get_flown_contestants_count(self, obj):
+        return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
 
 
 class NavigationTasksSummaryParticipationSerialiser(serializers.ModelSerializer):
@@ -413,112 +548,6 @@ class SelfManagementSerialiser(serializers.Serializer):
     adaptive_start = serializers.BooleanField(required=False)
     wind_speed = serializers.FloatField(validators=[MaxValueValidator(40), MinValueValidator(0)])
     wind_direction = serializers.FloatField(validators=[MaxValueValidator(360), MinValueValidator(0)])
-
-
-class WaypointSerialiser(serializers.Serializer):
-    def create(self, validated_data):
-        pass
-
-    def update(self, instance, validated_data):
-        pass
-
-    name = serializers.CharField(max_length=200)
-    latitude = serializers.FloatField(help_text="degrees")
-    longitude = serializers.FloatField(help_text="degrees")
-    elevation = serializers.FloatField(help_text="Metres above MSL")
-    width = serializers.FloatField(help_text="Width of the gate in NM")
-    gate_line = serializers.JSONField(
-        help_text="Coordinates that describe the starting point and finish point of the gate line, e.g. [[lat1,lon2],[lat2,lon2]"
-    )
-    gate_line_extended = serializers.JSONField(
-        help_text="Coordinates that describe the starting point and finish point of the extended gate line, e.g. [[lat1,lon2],[lat2,lon2]",
-        required=False,
-    )
-    time_check = serializers.BooleanField()
-    gate_check = serializers.BooleanField()
-    end_curved = serializers.BooleanField()
-    type = serializers.CharField(max_length=50, help_text="The type of the gate (tp, sp, fp, to, ldg, secret)")
-    distance_next = serializers.FloatField(help_text="Distance to the next gate (NM)")
-    distance_previous = serializers.FloatField(help_text="Distance from the previous gate (NM)")
-    bearing_next = serializers.FloatField(help_text="True track to the next gate (degrees)")
-    bearing_from_previous = serializers.FloatField(help_text="True track from the previous gates to this")
-    procedure_turn_points = serializers.JSONField(
-        help_text="Curve that describes the procedure turn (read-only)", required=False, read_only=True
-    )
-    is_procedure_turn = serializers.BooleanField()
-    outside_distance = serializers.FloatField(
-        help_text="The distance at which we leave the gate vicinity", read_only=True, required=False
-    )
-    inside_distance = serializers.FloatField(
-        help_text="The distance at which we enter the gate vicinity", read_only=True, required=False
-    )
-
-    outer_corner_position = serializers.JSONField(required=False)
-
-
-class ProhibitedSerialiser(serializers.ModelSerializer):
-    path = serializers.JSONField()
-
-    class Meta:
-        model = Prohibited
-        fields = "__all__"
-
-
-class RouteSerialiser(serializers.ModelSerializer):
-    waypoints = WaypointSerialiser(many=True)
-    landing_gates = WaypointSerialiser(required=False, help_text="Optional landing gate", many=True)
-    takeoff_gates = WaypointSerialiser(required=False, help_text="Optional takeoff gate", many=True)
-    prohibited_set = ProhibitedSerialiser(many=True, required=False)
-    corridor_polygon = serializers.JSONField(required=False, read_only=True)
-
-    class Meta:
-        model = Route
-        fields = "__all__"
-
-    @staticmethod
-    def _create_waypoint(waypoint_data) -> Waypoint:
-        waypoint = Waypoint(waypoint_data["name"])
-        waypoint.latitude = waypoint_data["latitude"]
-        waypoint.longitude = waypoint_data["longitude"]
-        waypoint.elevation = waypoint_data["elevation"]
-        waypoint.gate_line = waypoint_data["gate_line"]
-        waypoint.width = waypoint_data["width"]
-        waypoint.time_check = waypoint_data["time_check"]
-        waypoint.gate_check = waypoint_data["gate_check"]
-        waypoint.end_curved = waypoint_data["end_curved"]
-        waypoint.type = waypoint_data["type"]
-        waypoint.distance_next = waypoint_data["distance_next"]
-        waypoint.distance_previous = waypoint_data["distance_previous"]
-        waypoint.bearing_next = waypoint_data["bearing_next"]
-        waypoint.bearing_from_previous = waypoint_data["bearing_from_previous"]
-        waypoint.is_procedure_turn = waypoint_data["is_procedure_turn"]
-        waypoint.control_latitude = waypoint_data.get("control_latitude", None)
-        waypoint.control_longitude = waypoint_data.get("control_longitude", None)
-
-        # waypoint.inside_distance = waypoint_data["inside_distance"]
-        # waypoint.outside_distance = waypoint_data["outside_distance"]
-        return waypoint
-
-    def create(self, validated_data):
-        waypoints = []
-        for waypoint_data in validated_data.pop("waypoints"):
-            waypoints.append(self._create_waypoint(waypoint_data))
-        route = Route.objects.create(
-            waypoints=waypoints,
-            landing_gates=[self._create_waypoint(data) for data in validated_data.pop("landing_gates")],
-            takeoff_gates=[self._create_waypoint(data) for data in validated_data.pop("takeoff_gates")],
-            **validated_data,
-        )
-        return route
-
-    def update(self, instance, validated_data):
-        waypoints = []
-        for waypoint_data in validated_data.pop("waypoints"):
-            waypoints.append(self._create_waypoint(waypoint_data))
-        instance.waypoints = waypoints
-        instance.landing_gates = [self._create_waypoint(data) for data in validated_data.pop("landing_gates")]
-        instance.takeoff_gates = [self._create_waypoint(data) for data in validated_data.pop("takeoff_gates")]
-        return instance
 
 
 class SignupSerialiser(serializers.Serializer):
@@ -987,6 +1016,10 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     time_zone = TimeZoneSerializerField(source="contest.time_zone", read_only=True)
     contest = serializers.PrimaryKeyRelatedField(read_only=True)
     user_has_change_permission = SerializerMethodField("get_user_has_change_permission")
+    flown_contestants_count = serializers.SerializerMethodField()
+
+    def get_flown_contestants_count(self, obj):
+        return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
 
     @staticmethod
     def setup_eager_loading(queryset):
