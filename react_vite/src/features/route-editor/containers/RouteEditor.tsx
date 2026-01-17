@@ -650,11 +650,76 @@ export default function RouteEditor() {
     }
   };
 
+  const handleReverseRoute = useCallback(() => {
+    setIsDirty(true);
+    setRoutePoints(prevPoints => {
+        if (prevPoints.length < 2) {
+            return prevPoints;
+        }
+
+        const reversedPoints = [...prevPoints].reverse();
+        // Segments are defined on the END point of the segment. The first point has no segment.
+        const segmentInfo = prevPoints.slice(1).map(p => ({
+            segmentType: p.segmentType,
+            controlLat: p.controlLat,
+            controlLng: p.controlLng
+        }));
+        const reversedSegmentInfo = segmentInfo.reverse();
+
+        const newPoints = reversedPoints.map((point, index) => {
+            const newPoint = { ...point };
+
+            // Set type and name
+            if (index === 0) {
+                newPoint.type = 'sp';
+                newPoint.name = 'Start';
+            } else if (index === reversedPoints.length - 1) {
+                newPoint.type = 'fp';
+                newPoint.name = 'Finish';
+            } else {
+                if (newPoint.type !== 'secret') {
+                    newPoint.type = 'tp';
+                }
+            }
+
+            // Set segment info
+            if (index > 0) {
+                const segment = reversedSegmentInfo[index - 1];
+                newPoint.segmentType = segment.segmentType || 'straight';
+                newPoint.controlLat = segment.controlLat;
+                newPoint.controlLng = segment.controlLng;
+            } else {
+                // First point has no incoming segment
+                newPoint.segmentType = 'straight';
+                delete newPoint.controlLat;
+                delete newPoint.controlLng;
+            }
+
+            return newPoint;
+        });
+
+        // Re-number intermediate waypoints to maintain consistency
+        let wpCounter = 1;
+        const finalPoints = newPoints.map(p => {
+            if (p.type === 'tp' && p.name.startsWith('WP')) {
+                return { ...p, name: `WP ${wpCounter++}` };
+            }
+            if (p.type === 'tp') {
+              wpCounter++;
+            }
+            return p;
+        });
+
+        return finalPoints;
+    });
+  }, []);
+
+
   return (
     <div className="flex w-full h-[calc(100vh-66px)] bg-base-200 font-sans text-base-content overflow-hidden">
 
       {/* SIDEBAR */}
-      <div className="h-full overflow-y-auto shrink-0">
+      <div className="h-full overflow-y-auto shrink-0 max-w-xs">
         <Sidebar
           routePoints={routePoints}
           gates={gates}
@@ -682,6 +747,7 @@ export default function RouteEditor() {
           deleteSelected={deleteSelected}
           movePointOrder={movePointOrder}
           handleSave={handleSave}
+          handleReverseRoute={handleReverseRoute}
           maxObsDist={maxObsDist}
           setMaxObsDist={(val) => {
             setMaxObsDist(val);
@@ -693,6 +759,7 @@ export default function RouteEditor() {
             setIsDirty(true);
           }}
           isAuthenticated={document.configuration.isAuthenticated}
+          isDirty={isDirty}
         />
       </div>
 

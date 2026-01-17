@@ -5,6 +5,7 @@ import {
   Settings,
   HelpCircle,
   X,
+  RefreshCcw, // Added RefreshCcw import
 } from 'lucide-react';
 import EditPointView from './EditPointView';
 import EditGateView from './EditGateView';
@@ -35,6 +36,7 @@ interface SidebarProps {
   deleteSelected: () => void;
   movePointOrder: (direction: "up" | "down") => void;
   handleSave: () => void;
+  handleReverseRoute: () => void; // Added new prop
   maxObsDist: number;
   setMaxObsDist: (dist: number) => void;
   routeName: string;
@@ -65,6 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   deleteSelected,
   movePointOrder,
   handleSave,
+  handleReverseRoute, // Destructured new prop
   maxObsDist,
   setMaxObsDist,
   routeName,
@@ -200,38 +203,48 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Import/Export Footer */}
       <div className="p-4 border-t bg-base-200 space-y-2">
         {isAuthenticated ? (
-          <div className="flex space-x-2">
-            <Link
-              to="/routeeditor/"
-              onClick={(e) => {
-                if (isDirty && !confirm("Route has unsaved changes. Leave anyway?")) {
-                  e.preventDefault();
-                }
-              }}
-              className="btn btn-neutral btn-sm"
-            >
-              Back
-            </Link>
-            <button
-              onClick={handleSave}
-              className="btn btn-primary btn-sm flex-1 gap-2"
-            >
-              <Save size={14} /> <span>Save Route</span>
-            </button>
-            <button
-              onClick={() => { setSelectedId(null); setSelectionType('settings'); }}
-              className="btn btn-outline btn-sm btn-square"
-              title="Settings"
-            >
-              <Settings size={14} />
-            </button>
-            <button
-              onClick={() => { setSelectedId(null); setSelectionType('help'); }}
-              className="btn btn-outline btn-sm btn-square"
-              title="Help"
-            >
-              <HelpCircle size={14} />
-            </button>
+          <div className="flex flex-col gap-2">
+            <div className="flex space-x-2">
+              <Link
+                to="/routeeditor/"
+                onClick={(e) => {
+                  if (isDirty && !confirm("Route has unsaved changes. Leave anyway?")) {
+                    e.preventDefault();
+                  }
+                }}
+                className="btn btn-neutral btn-sm"
+              >
+                Back
+              </Link>
+              <button
+                onClick={handleSave}
+                className="btn btn-primary btn-sm flex-1 gap-2"
+              >
+                <Save size={14} /> <span>Save Route</span>
+              </button>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleReverseRoute}
+                className="btn btn-neutral btn-sm flex-1"
+              >
+                <RefreshCcw size={14} /> <span>Reverse Route</span>
+              </button>
+              <button
+                onClick={() => { setSelectedId(null); setSelectionType('settings'); }}
+                className="btn btn-outline btn-sm btn-square"
+                title="Settings"
+              >
+                <Settings size={14} />
+              </button>
+              <button
+                onClick={() => { setSelectedId(null); setSelectionType('help'); }}
+                className="btn btn-outline btn-sm btn-square"
+                title="Help"
+              >
+                <HelpCircle size={14} />
+              </button>
+            </div>
           </div>
         ) : (
           <div className="text-sm text-center text-gray-500">
