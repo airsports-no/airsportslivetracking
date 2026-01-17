@@ -33,7 +33,22 @@ const MissionDashboard = () => {
         const params = new URLSearchParams(location.search);
         const tab = params.get('tab');
         if (tab && ['allContests', 'upcoming', 'past', 'editorContests'].includes(tab)) {
-            setActiveTab(tab);
+            let shouldSetActiveTab = true;
+            if (!document.configuration.isAuthenticated) {
+                if (['upcoming', 'past', 'editorContests'].includes(tab)) {
+                    shouldSetActiveTab = false;
+                }
+            } else { // Authenticated
+                if (tab === 'editorContests' && !document.configuration.isOrganizer) {
+                    shouldSetActiveTab = false;
+                }
+            }
+
+            if (shouldSetActiveTab) {
+                setActiveTab(tab);
+            } else {
+                setActiveTab('allContests');
+            }
         }
     }, [location.search]);
 
@@ -76,29 +91,31 @@ const MissionDashboard = () => {
                 });
             fetchPromises.push(ongoingNavPromise);
 
-            const myFutureFlightsPromise = fetchMyFutureFlights()
-                .then(myFutureFlightsData => setMyFutureFlights(myFutureFlightsData))
-                .catch(err => {
-                    setError((err as Error).message);
-                    console.error("Failed to fetch my future flights:", err);
-                });
-            fetchPromises.push(myFutureFlightsPromise);
+            if (document.configuration.isAuthenticated) {
+                const myFutureFlightsPromise = fetchMyFutureFlights()
+                    .then(myFutureFlightsData => setMyFutureFlights(myFutureFlightsData))
+                    .catch(err => {
+                        setError((err as Error).message);
+                        console.error("Failed to fetch my future flights:", err);
+                    });
+                fetchPromises.push(myFutureFlightsPromise);
 
-            const myContestTeamsPromise = fetchMyContestTeams()
-                .then(myContestTeamsData => setMyContestTeams(myContestTeamsData))
-                .catch(err => {
-                    setError((err as Error).message);
-                    console.error("Failed to fetch my contest teams:", err);
-                });
-            fetchPromises.push(myContestTeamsPromise);
+                const myContestTeamsPromise = fetchMyContestTeams()
+                    .then(myContestTeamsData => setMyContestTeams(myContestTeamsData))
+                    .catch(err => {
+                        setError((err as Error).message);
+                        console.error("Failed to fetch my contest teams:", err);
+                    });
+                fetchPromises.push(myContestTeamsPromise);
 
-            const myEditorContestsPromise = fetchContests({ isEditor: true })
-                .then(myEditorContestsData => setMyEditorContests(myEditorContestsData))
-                .catch(err => {
-                    setError((err as Error).message);
-                    console.error("Failed to fetch my editor contests:", err);
-                });
-            fetchPromises.push(myEditorContestsPromise);
+                const myEditorContestsPromise = fetchContests({ isEditor: true })
+                    .then(myEditorContestsData => setMyEditorContests(myEditorContestsData))
+                    .catch(err => {
+                        setError((err as Error).message);
+                        console.error("Failed to fetch my editor contests:", err);
+                    });
+                fetchPromises.push(myEditorContestsPromise);
+            }
 
             // Wait for all promises to settle (resolve or reject) before setting loading to false
             await Promise.allSettled(fetchPromises);
@@ -246,12 +263,18 @@ const MissionDashboard = () => {
                 </div>
             )}
 
-            <div className="tabs tabs-boxed mb-4">
-                <a className={`tab ${activeTab === 'allContests' ? 'tab-active' : ''}`} onClick={() => setActiveTab('allContests')}>All Contests</a> 
-                <a className={`tab ${activeTab === 'upcoming' ? 'tab-active' : ''}`} onClick={() => setActiveTab('upcoming')}>My Upcoming Flights</a>
-                <a className={`tab ${activeTab === 'past' ? 'tab-active' : ''}`} onClick={() => setActiveTab('past')}>My Past Flights</a>
-                <a className={`tab ${activeTab === 'editorContests' ? 'tab-active' : ''}`} onClick={() => setActiveTab('editorContests')}>My Contests</a>
-            </div>
+            {document.configuration.isAuthenticated && (
+                <div className="tabs tabs-boxed mb-4">
+                    <a className={`tab ${activeTab === 'allContests' ? 'tab-active' : ''}`} onClick={() => setActiveTab('allContests')}>All Contests</a> 
+                    <>
+                        <a className={`tab ${activeTab === 'upcoming' ? 'tab-active' : ''}`} onClick={() => setActiveTab('upcoming')}>My Upcoming Flights</a>
+                        <a className={`tab ${activeTab === 'past' ? 'tab-active' : ''}`} onClick={() => setActiveTab('past')}>My Past Flights</a>
+                        {document.configuration.isOrganizer && (
+                            <a className={`tab ${activeTab === 'editorContests' ? 'tab-active' : ''}`} onClick={() => setActiveTab('editorContests')}>My Contests</a>
+                        )}
+                    </>
+                </div>
+            )}
 
             {loading && <Loading />}
 
@@ -311,14 +334,25 @@ const MissionDashboard = () => {
                 </div>
             )}
 
-            {activeTab === 'past' && (
+            {activeTab === 'upcoming' && document.configuration.isAuthenticated && (
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">My Upcoming Flights</h2>
+                    <UpcomingFlights
+                        myFutureFlights={myFutureFlights}
+                        contests={contests}
+                        onCancel={handleCancelFlight}
+                    />
+                </div>
+            )}
+
+            {activeTab === 'past' && document.configuration.isAuthenticated && (
                 <div>
                     <h2 className="text-2xl font-bold mb-4">My Past Flights</h2>
                     <PastFlights />
                 </div>
             )}
 
-            {activeTab === 'editorContests' && (
+            {activeTab === 'editorContests' && document.configuration.isAuthenticated && document.configuration.isOrganizer && (
                 <div>
                     <h2 className="text-2xl font-bold mb-4">
                         My Contests

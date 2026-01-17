@@ -11,6 +11,7 @@ import { OngoingNavigation } from './types';
 import ContestRegistrationForm from './components/ContestRegistrationForm';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
 import TaskScoreDisplay from './components/TaskScoreDisplay';
+import UpcomingFlights from './components/UpcomingFlights';
 import { reverse, generatePath } from '../../urls';
 
 const ContestDashboard = () => {
@@ -45,11 +46,11 @@ const ContestDashboard = () => {
             setLoading(true);
             Promise.all([
                 api.fetchContest(Number(contestId)),
-                api.fetchMyFutureFlights(),
-                api.fetchMyPreviousFlights(),
+                document.configuration.isAuthenticated ? api.fetchMyFutureFlights() : Promise.resolve([] as Contestant[]),
+                document.configuration.isAuthenticated ? api.fetchMyPreviousFlights() : Promise.resolve([] as Contestant[]),
                 api.fetchOngoingNavigation(),
                 api.fetchContestResults(Number(contestId)),
-                api.fetchMyContestTeams(),
+                document.configuration.isAuthenticated ? api.fetchMyContestTeams() : Promise.resolve([] as MyContestTeam[]),
             ]).then(([contestData, myFutureFlightsData, myPreviousFlightsData, ongoingData, resultsData, myContestTeamsData]) => {
                 setContest(contestData);
                 setMyFutureFlights(myFutureFlightsData);
@@ -125,7 +126,10 @@ const ContestDashboard = () => {
     if (!contest) return <div className="alert alert-warning">Contest not found.</div>;
 
     const userContestTeam = myContestTeams.find(team => team.contest === contest?.id);
-    const canSchedule = !userContestTeam || !!userContestTeam?.is_user_pilot;
+    const canSchedule = document.configuration.isAuthenticated && (!userContestTeam || !!userContestTeam?.is_user_pilot);
+
+    const tasksForThisContest = new Set(contest.navigationtask_set.map(t => t.pk));
+    const upcomingFlightsForThisContest = myFutureFlights.filter(f => tasksForThisContest.has(f.navigation_task));
 
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
@@ -212,7 +216,7 @@ const ContestDashboard = () => {
                                 return (
                                     <button className="btn btn-info" disabled>Registered</button>
                                 );
-                            } else {
+                            } else if (document.configuration.isAuthenticated) {
                                 return (
                                     <button className="btn btn-success" onClick={() => setShowRegistrationForm(true)}>Register</button>
                                 );
@@ -234,6 +238,12 @@ const ContestDashboard = () => {
 
                 {/* Task Suite */}
                 <div>
+                    {upcomingFlightsForThisContest.length > 0 && (
+                        <div className="mb-8">
+                            <h2 className="text-2xl font-bold mb-4">My Upcoming Flights</h2>
+                            <UpcomingFlights myFutureFlights={upcomingFlightsForThisContest} contests={contest ? [contest] : []} onCancel={handleCancelFlight} />
+                        </div>
+                    )}
                     <h2 className="text-2xl font-bold mb-4">Task Suite</h2>
                     <div className="space-y-4">
                         {contest.navigationtask_set.map(task => {

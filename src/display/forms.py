@@ -58,6 +58,11 @@ class ShareForm(forms.Form):
     )
     publicity = forms.ChoiceField(widget=forms.RadioSelect, choices=PUBLICITY)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+
 
 class MapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)

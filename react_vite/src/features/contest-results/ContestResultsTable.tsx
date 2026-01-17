@@ -27,12 +27,11 @@ const teamRankingTable = (team: any) => {
 };
 
 interface ContestResultsTableProps {
-  navigationTaskId?: number; // Used for highlighting tasks
 }
 
 const columnHelper = createColumnHelper<ContestSummary & { [key: string]: any }>(); // Extend ContestSummary for dynamic task scores
 
-export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ navigationTaskId }) => {
+export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   const params = useParams<{ contestId: string }>();
   const contestId = params.contestId ? parseInt(params.contestId, 10) : undefined;
 

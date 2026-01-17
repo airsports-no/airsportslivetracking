@@ -7,7 +7,11 @@
         ...document.configuration,
         is_superuser: {{ user.is_superuser | lower }},
         isAuthenticated: {{ user.is_authenticated | lower }},
-
+        {% if perms.display.add_contest %}
+        isOrganizer: true,
+        {% else %}
+        isOrganizer: false,
+        {% endif %}
         createRouteUrl: "{% fe_url 'ROUTE_EDITOR_CREATE' %}",
 
         }
