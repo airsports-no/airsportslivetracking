@@ -1,6 +1,7 @@
 import React from 'react';
 import { Contest } from '../types';
 import { Link } from 'react-router-dom';
+import PublicityIcon from './PublicityIcon';
 
 interface ContestCardProps {
     contest: Contest;
@@ -19,7 +20,8 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                 <figure><img src={contest.header_image} alt={contest.name} /></figure>
             )}
             <div className="card-body">
-                <h2 className="card-title">
+                <h2 className="card-title flex items-center gap-2">
+                    <PublicityIcon isPublic={contest.is_public} isFeatured={contest.is_featured} />
                     {contest.name}
                     {contest.country_flag_url && (
                         <img src={contest.country_flag_url} alt={`${contest.country} flag`} className="ml-2 w-6 h-4 inline-block" />

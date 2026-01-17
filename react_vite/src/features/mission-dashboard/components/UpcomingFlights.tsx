@@ -41,6 +41,8 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myFutureFlights, cont
                         tracking_link={navTask.tracking_link}
                         onViewScoresClick={() => {}}
                         canSchedule={false}
+                        is_public={navTask.is_public}
+                        is_featured={navTask.is_featured}
                     />
                 );
             })}

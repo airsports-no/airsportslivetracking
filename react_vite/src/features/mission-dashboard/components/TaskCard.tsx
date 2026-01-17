@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Globe } from 'lucide-react'; // Added Globe import
+import { MapPin } from 'lucide-react'; // Changed from Globe to MapPin
 import { Contestant } from '../../competition-map/types';
+import PublicityIcon from './PublicityIcon';
 
 interface TaskCardProps {
     name: string;
@@ -15,17 +16,22 @@ interface TaskCardProps {
     onViewScoresClick: () => void;
     contestName?: string;
     canSchedule?: boolean;
+    is_public: boolean;
+    is_featured: boolean;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, onScheduleClick, onCancelClick, futureContestant, tracking_link, onViewScoresClick, contestName, canSchedule }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, onScheduleClick, onCancelClick, futureContestant, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured }) => {
     return (
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
-                <h3 className="card-title">
+                <h3 className="card-title flex items-center gap-2">
                     {name}
-                    <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="ml-2">
-                        <Globe size={20} />
-                    </a>
+                    <PublicityIcon isPublic={is_public} isFeatured={is_featured} />
+                    <div className="tooltip inline-flex" data-tip="View Live Tracking Map">
+                        <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="ml-2">
+                            <MapPin size={20} />
+                        </a>
+                    </div>
                 </h3>
                 {contestName && <p>{contestName}</p>}
                 {status === 'Open' && canSchedule && <div className="card-actions justify-end"><button onClick={onScheduleClick} className="btn btn-primary">Register Flight Plan</button></div>}

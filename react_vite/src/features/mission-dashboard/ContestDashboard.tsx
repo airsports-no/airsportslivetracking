@@ -12,6 +12,7 @@ import ContestRegistrationForm from './components/ContestRegistrationForm';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
 import TaskScoreDisplay from './components/TaskScoreDisplay';
 import UpcomingFlights from './components/UpcomingFlights';
+import PublicityIcon from './components/PublicityIcon';
 import { reverse, generatePath } from '../../urls';
 
 const ContestDashboard = () => {
@@ -192,7 +193,10 @@ const ContestDashboard = () => {
                             <img src={contest.logo} alt={`${contest.name} logo`} className="h-24 w-24 mr-4" />
                         )}
                         <div>
-                            <h1 className="text-4xl font-bold">{contest.name}</h1>
+                            <h1 className="text-4xl font-bold flex items-center gap-2">
+                                {contest.name}
+                                <PublicityIcon isPublic={contest.is_public} isFeatured={contest.is_featured} size={24} />
+                            </h1>
                             <p>{contest.location}</p>
                             {contest.contest_website && (
                                 <a href={contest.contest_website} target="_blank" rel="noopener noreferrer" className="link link-primary">
@@ -271,6 +275,8 @@ const ContestDashboard = () => {
                                         onCancelClick={canCancelThisFlight ? () => futureContestant && handleCancelFlight(contest.id, task.pk, futureContestant.id) : undefined}
                                         onViewScoresClick={() => handleViewScoresClick(task)}
                                         canSchedule={canSchedule}
+                                        is_public={task.is_public}
+                                        is_featured={task.is_featured}
                                     />
                                 );
                             })}

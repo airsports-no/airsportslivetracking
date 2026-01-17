@@ -3,6 +3,7 @@
 {% load guardian_tags %}
 {% load static %}
 {% load frontend_urls %}
+{% load publicity_icons %}
 
 {% block content %}
 <div class="container mx-auto p-4 md:p-8">
@@ -11,7 +12,10 @@
             <div class="flex justify-between items-start">
                 <div>
                     <h2 class="card-title text-2xl font-bold">{{ object.scorecard.get_calculator_display }} '{{ object.name }}' in contest {{ object.contest.name }}</h2>
-                    <p>{{ object.start_time|date:"Y-m-d H:i:s e" }} - {{ object.finish_time|date:"Y-m-d H:i:s e" }} ({{ object.share_string }})</p>
+                    <p class="flex items-center gap-1">{{ object.start_time|date:"Y-m-d H:i:s e" }} - {{ object.finish_time|date:"Y-m-d H:i:s e" }} 
+                        {% render_publicity_icon object.is_public object.is_featured class_name="inline-block ml-1" %}
+                        ({{ object.share_string }})
+                    </p>
                     <p class="mt-2">Rules: {{ object.original_scorecard.name }}</p>
                 </div>
 

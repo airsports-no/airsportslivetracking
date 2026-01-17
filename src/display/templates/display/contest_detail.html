@@ -2,6 +2,7 @@
 {% load guardian_tags %}
 {% load frontend_urls %}
 {% load tz %}
+{% load publicity_icons %}
 
 {% block content %}
 <div class="container mx-auto p-4 md:p-8">
@@ -9,7 +10,11 @@
         <div class="card-body">
             <div class="flex justify-between items-start">
                 <div>
-                    <h1 class="card-title text-2xl font-bold">{{ object.name }} ({{ object.share_string }})</h1>
+                    <h1 class="card-title text-2xl font-bold flex items-center gap-2">
+                        {{ object.name }}
+                        {% render_publicity_icon object.is_public object.is_featured size=24 class_name="inline-block ml-2" %}
+                        ({{ object.share_string }})
+                    </h1>
                     <p>{{ object.start_time|date:"Y-m-d" }} - {{ object.finish_time|date:"Y-m-d" }} {{ object.start_time|date:"e" }}</p>
                 </div>
                 {% get_obj_perms request.user for contest as "contest_permissions" %}
@@ -65,6 +70,7 @@
                                 {% else %}
                                     {{ navigation_task.name }}
                                 {% endif %}
+                                {% render_publicity_icon navigation_task.is_public navigation_task.is_featured class_name="inline-block ml-1" %}
                                 ({{ navigation_task.share_string }})
                             </td>
                             <td>{{ navigation_task.start_time|date:"Y-m-d H:i:s e" }}</td>
