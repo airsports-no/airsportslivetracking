@@ -1771,7 +1771,7 @@ class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
 
 class FrontEndView(TemplateView):
     """
-    Render the react view to list editable routes
+    Render the react view
     """
 
     template_name = "display/frontend.html"

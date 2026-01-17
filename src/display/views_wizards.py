@@ -326,7 +326,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
                 self.request.user,
                 "display.change_contest",
                 accept_global_perms=False,
-            )
+            ).order_by("name")
         return context
 
     # def get_form(self, step=None, data=None, files=None):
