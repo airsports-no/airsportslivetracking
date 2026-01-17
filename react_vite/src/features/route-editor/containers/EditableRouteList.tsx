@@ -125,12 +125,14 @@ export const EditableRouteList = () => {
                         </div>
                     )}
                 </div>
-                <a href={document.configuration.createRouteUrl} className="btn btn-primary btn-sm">
-                    Create new route
-                </a>
-                <a href={reverse('editableroute_import')} className="btn btn-secondary btn-sm ml-2">
-                    Import route
-                </a>
+                <div className="flex gap-2">
+                    <a href={reverse('editableroute_create')} className="btn btn-primary btn-sm">
+                        Create new route
+                    </a>
+                    <a href={reverse('editableroute_import')} className="btn btn-secondary btn-sm">
+                        Import route
+                    </a>
+                </div>
             </div>
             <div className="relative w-full max-w-5xl shadow-xl rounded-box border border-base-300 bg-base-100 min-h-[200px]">
                 <div className="overflow-x-auto rounded-box">

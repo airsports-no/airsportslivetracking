@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Globe } from 'lucide-react'; // Added Globe import
 import { Contestant } from '../../competition-map/types';
 
 interface TaskCardProps {
@@ -23,9 +24,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, on
                 <h3 className="card-title">
                     {name}
                     <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="ml-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
+                        <Globe size={20} />
                     </a>
                 </h3>
                 {contestName && <p>{contestName}</p>}

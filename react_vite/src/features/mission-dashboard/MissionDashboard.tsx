@@ -229,7 +229,7 @@ const MissionDashboard = () => {
                                     <p>{live.name}</p>
                                     <p>{live.active_contestants.length} active contestants</p>
                                     <div className="card-actions justify-end">
-                                        <Link to={live.tracking_link} className="btn btn-primary">Watch Tracking</Link>
+                                        <a href={live.tracking_link} className="btn btn-primary">Watch Tracking</a>
                                     </div>
                                 </div>
                             </div>

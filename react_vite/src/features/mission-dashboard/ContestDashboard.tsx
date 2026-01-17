@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Contest, NavigationTask, ContestResults, MyContestTeam } from './types';
 import { Contestant } from '../competition-map/types';
-import { fetchContest, fetchMyFutureFlights, fetchOngoingNavigation, withdraw, cancelFlight, fetchContestResults, fetchMyContestTeams } from './api';
+import * as api from './api';
 import { fetchNavigationTask } from '../competition-map/api';
 import { Loading } from '../route-editor/components/basicComponents';
 import TaskCard from './components/TaskCard';
 import Leaderboard from './components/Leaderboard';
 import { OngoingNavigation } from './types';
-import { fetchOngoingNavigation as fetchOngoingNav } from './api';
 import ContestRegistrationForm from './components/ContestRegistrationForm';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
 import TaskScoreDisplay from './components/TaskScoreDisplay';
@@ -19,6 +18,7 @@ const ContestDashboard = () => {
     const [contest, setContest] = useState<Contest | null>(null);
     const [results, setResults] = useState<ContestResults | null>(null);
     const [myFutureFlights, setMyFutureFlights] = useState<Contestant[]>([]);
+    const [myPreviousFlights, setMyPreviousFlights] = useState<Contestant[]>([]); // New state
     const [myContestTeams, setMyContestTeams] = useState<MyContestTeam[]>([]);
     const [ongoingNavigations, setOngoingNavigations] = useState<OngoingNavigation[]>([]);
     const [loading, setLoading] = useState(true);
@@ -30,21 +30,30 @@ const ContestDashboard = () => {
     const [loadingTaskScores, setLoadingTaskScores] = useState(false);
 
 
-    const currentUserEmail = document.configuration.currentUserEmail;
     const canManageThisContest = contest?.is_editor || document.configuration.is_superuser;
+
+    const myContestantIds = useMemo(() => {
+        const allMyContestantIds = [
+            ...myFutureFlights.map(f => f.id),
+            ...myPreviousFlights.map(f => f.id)
+        ];
+        return new Set(allMyContestantIds);
+    }, [myFutureFlights, myPreviousFlights]); // Updated dependency array
 
     const refreshData = () => {
         if (contestId) {
             setLoading(true);
             Promise.all([
-                fetchContest(Number(contestId)),
-                fetchMyFutureFlights(),
-                fetchOngoingNav(),
-                fetchContestResults(Number(contestId)),
-                fetchMyContestTeams(),
-            ]).then(([contestData, myFutureFlightsData, ongoingData, resultsData, myContestTeamsData]) => {
+                api.fetchContest(Number(contestId)),
+                api.fetchMyFutureFlights(),
+                api.fetchMyPreviousFlights(),
+                api.fetchOngoingNavigation(),
+                api.fetchContestResults(Number(contestId)),
+                api.fetchMyContestTeams(),
+            ]).then(([contestData, myFutureFlightsData, myPreviousFlightsData, ongoingData, resultsData, myContestTeamsData]) => {
                 setContest(contestData);
                 setMyFutureFlights(myFutureFlightsData);
+                setMyPreviousFlights(myPreviousFlightsData); // Set new state
                 setOngoingNavigations(ongoingData);
                 setResults(resultsData);
                 setMyContestTeams(myContestTeamsData);
@@ -62,7 +71,7 @@ const ContestDashboard = () => {
     
     const handleWithdrawClick = async (contestId: number) => {
         try {
-            await withdraw(contestId);
+            await api.withdraw(contestId);
             refreshData();
         } catch (error) {
             setError((error as Error).message);
@@ -72,7 +81,7 @@ const ContestDashboard = () => {
 
     const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number) => {
         try {
-            await cancelFlight(contestId, navigationTaskId, futureContestantId);
+            await api.cancelFlight(contestId, navigationTaskId, futureContestantId);
             refreshData();
         } catch (error) {
             setError((error as Error).message);
@@ -154,7 +163,7 @@ const ContestDashboard = () => {
                             {loadingTaskScores ? (
                                 <Loading />
                             ) : (
-                                <TaskScoreDisplay task={viewingScoresForTask} currentUserEmail={currentUserEmail} />
+                                <TaskScoreDisplay task={viewingScoresForTask} myContestantIds={myContestantIds} />
                             )}
                             <div className="card-actions justify-end">
                                 <button onClick={() => setViewingScoresForTask(null)} className="btn">Close</button>
@@ -186,14 +195,14 @@ const ContestDashboard = () => {
                                     Contest Website
                                 </a>
                             )}
-                            {canManageThisContest && (
-                                <Link to={generatePath('CONTEST_MANAGEMENT', { contestId: contestId })} className="btn btn-primary btn-sm mt-2">
-                                    Manage Contest
-                                </Link>
-                            )}
                         </div>
                     </div>
                      <div className="flex flex-col items-stretch gap-2">
+                        {canManageThisContest && (
+                            <Link to={generatePath('CONTEST_MANAGEMENT', { contestId: contestId })} className="btn btn-primary btn-sm">
+                                Manage Contest
+                            </Link>
+                        )}
                         {(() => {
                             if (userContestTeam?.is_user_pilot) {
                                 return (
