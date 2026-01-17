@@ -380,7 +380,14 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = ({ naviga
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col items-center mb-4">
+        {results.header_image_url && (
+          <img
+            src={results.header_image_url}
+            alt={`${results.name} Header`}
+            className="max-h-32 w-full object-contain mb-4"
+          />
+        )}
         <h2 className="text-2xl font-bold">{results.name}</h2>
       </div>
       <DataTable
