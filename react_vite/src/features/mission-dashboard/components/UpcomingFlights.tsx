@@ -19,6 +19,7 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myFutureFlights, cont
 
     return (
         <div className="space-y-4">
+            <p className="text-sm text-gray-500">All times are in the respective contest's time zone.</p>
             {upcomingFlights.map(flight => {
                 const contest = contests.find(c => c.id === flight.contest_id);
                 const navTask = contest?.navigationtask_set.find(t => t.pk === flight.navigation_task);
@@ -43,6 +44,7 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myFutureFlights, cont
                         canSchedule={false}
                         is_public={navTask.is_public}
                         is_featured={navTask.is_featured}
+                        timeZone={contest.time_zone}
                     />
                 );
             })}

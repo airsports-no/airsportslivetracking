@@ -18,9 +18,10 @@ interface TaskCardProps {
     canSchedule?: boolean;
     is_public: boolean;
     is_featured: boolean;
+    timeZone?: string;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, onScheduleClick, onCancelClick, futureContestant, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, onScheduleClick, onCancelClick, futureContestant, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone }) => {
     return (
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
@@ -37,7 +38,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, on
                 {status === 'Open' && canSchedule && <div className="card-actions justify-end"><button onClick={onScheduleClick} className="btn btn-primary">Register Flight Plan</button></div>}
                 {status === 'Scheduled' && futureContestant && (
                     <>
-                        <p>Take-off: {new Date(futureContestant.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</p>
+                        <p>Take-off: {new Date(futureContestant.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timeZone })}</p>
                         <div className="card-actions justify-end">
                             {onCancelClick && (
                                 <button onClick={onCancelClick} className="btn btn-error btn-sm">Cancel</button>

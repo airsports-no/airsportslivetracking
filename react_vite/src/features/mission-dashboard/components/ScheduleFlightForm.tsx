@@ -209,7 +209,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     
                     <div className="divider">Flight Details</div>
                     <label className="form-control w-full">
-                        <div className="label"><span className="label-text">Start Time</span></div>
+                        <div className="label"><span className="label-text">Starting Point Time</span></div>
                         <input type="datetime-local" required value={startTime} onChange={e => setStartTime(e.target.value)} className="input input-bordered w-full" />
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

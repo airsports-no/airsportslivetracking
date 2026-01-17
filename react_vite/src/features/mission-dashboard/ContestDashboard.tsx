@@ -198,6 +198,7 @@ const ContestDashboard = () => {
                                 <PublicityIcon isPublic={contest.is_public} isFeatured={contest.is_featured} size={24} />
                             </h1>
                             <p>{contest.location}</p>
+                            {contest.time_zone && <p className="text-sm text-gray-500">Time Zone: {contest.time_zone}</p>}
                             {contest.contest_website && (
                                 <a href={contest.contest_website} target="_blank" rel="noopener noreferrer" className="link link-primary">
                                     Contest Website
@@ -242,6 +243,7 @@ const ContestDashboard = () => {
 
                 {/* Task Suite */}
                 <div>
+                    <p className="text-sm text-gray-500 mb-4">All times are in contest time zone: {contest.time_zone}</p>
                     {upcomingFlightsForThisContest.length > 0 && (
                         <div className="mb-8">
                             <h2 className="text-2xl font-bold mb-4">My Upcoming Flights</h2>
@@ -252,10 +254,10 @@ const ContestDashboard = () => {
                     <div className="space-y-4">
                         {contest.navigationtask_set
                             .filter(task => {
-                                if (contest.is_editor) {
-                                    return true;
+                                if (contest.is_editor || document.configuration.is_superuser) {
+                                    return true; // Editor OR Superuser sees all tasks
                                 } else {
-                                    return task.is_featured && task.is_public;
+                                    return task.is_featured && task.is_public; // Non-editor/non-superuser sees only public and featured tasks
                                 }
                             })
                             .map(task => {
@@ -277,6 +279,7 @@ const ContestDashboard = () => {
                                         canSchedule={canSchedule}
                                         is_public={task.is_public}
                                         is_featured={task.is_featured}
+                                        timeZone={contest.time_zone}
                                     />
                                 );
                             })}

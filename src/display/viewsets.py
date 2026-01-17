@@ -376,23 +376,30 @@ class ContestViewSet(ModelViewSet):
         if is_editor_filter_param:
             if not user.is_authenticated:
                 return queryset.none()
-            return get_objects_for_user(
-                user,
-                "display.change_contest",
-                with_superuser=False,
-                klass=Contest,
-                accept_global_perms=False,
-            ).prefetch_related("navigationtask_set", "contest_teams").order_by("-start_time")
+            return (
+                get_objects_for_user(
+                    user,
+                    "display.change_contest",
+                    with_superuser=False,
+                    klass=Contest,
+                    accept_global_perms=False,
+                )
+                .prefetch_related("navigationtask_set", "contest_teams")
+                .order_by("-start_time")
+            )
 
         # Default behavior for non-editors
         if user.is_authenticated:
-            return (get_objects_for_user(
-                user,
-                "display.view_contest",
-                klass=Contest,
-                accept_global_perms=False,
-            ) | queryset.filter(is_public=True, is_featured=True)).distinct()
-        else: # unauthenticated
+            return (
+                get_objects_for_user(
+                    user,
+                    "display.view_contest",
+                    klass=Contest,
+                    accept_global_perms=False,
+                )
+                | queryset.filter(is_public=True, is_featured=True)
+            ).distinct()
+        else:  # unauthenticated
             return queryset.filter(is_public=True, is_featured=True)
 
     @action(detail=True, methods=["get"], url_path=r"contest_team_for_team/(?P<team_id>\d+)")
@@ -699,9 +706,11 @@ class NavigationTaskViewSet(ModelViewSet):
             contest_team = serialiser.validated_data["contest_team"]
             if contest_team.team.crew.member1.email != request.user.email:
                 raise drf_exceptions.ValidationError("You cannot add a team where you are not the pilot")
-            starting_point_time = serialiser.validated_data["starting_point_time"].astimezone(
-                navigation_task.contest.time_zone
-            )  # type: datetime
+            # Pretend that the submitted time is in the contest time zone
+            starting_point_time = serialiser.validated_data["starting_point_time"].replace(
+                tzinfo=navigation_task.contest.time_zone
+            )
+            print(f"Starting point time is {starting_point_time}")
             takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
             existing_contestants = navigation_task.contestant_set.all()
             if existing_contestants.exists():
