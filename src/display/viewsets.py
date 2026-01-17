@@ -73,7 +73,6 @@ from display.serialisers import (
     ContestTeamManagementSerialiser,
     PersonSerialiser,
     EditableRouteSerialiser,
-    ContestFrontEndSerialiser,
     ContestTeamNestedSerialiser,
     ContestSummaryWithoutReferenceSerialiser,
     TaskSummaryWithoutReferenceSerialiser,
@@ -337,30 +336,6 @@ class ContestPagination(MyCursorPagination):
     page_size = 50
     ordering = ["-start_time", "-finish_time", "id"]
     max_page_size = 200
-
-
-class ContestFrontEndViewSet(mixins.ListModelMixin, GenericViewSet):
-    """
-    Internal endpoint to drive the contest list front end
-    """
-
-    queryset = Contest.objects.all()
-    serializer_class = ContestFrontEndSerialiser
-    pagination_class = ContestPagination
-
-    permission_classes = [permissions.IsAuthenticated & ContestPermissions]
-
-    def get_queryset(self):
-        return (
-            get_objects_for_user(
-                self.request.user,
-                "display.view_contest",
-                klass=self.queryset,
-                accept_global_perms=False,
-            )
-            .annotate(Count("navigationtask", distinct=True))
-            .order_by("-start_time")
-        )
 
 
 class ContestViewSet(ModelViewSet):

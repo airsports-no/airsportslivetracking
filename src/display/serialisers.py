@@ -305,23 +305,6 @@ class NavigationTasksSummaryParticipationSerialiser(serializers.ModelSerializer)
         return serialiser.data
 
 
-class ContestFrontEndSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, serializers.ModelSerializer):
-    editors = UserSerialiser(many=True)
-    number_of_tasks = serializers.SerializerMethodField("get_number_of_tasks")
-    share_string = serializers.CharField(read_only=True)
-    is_editor = serializers.SerializerMethodField("get_is_editor")
-
-    class Meta:
-        model = Contest
-        fields = ("id", "name", "editors", "start_time", "finish_time", "number_of_tasks", "share_string", "is_editor")
-
-    def get_number_of_tasks(self, contest):
-        return contest.navigationtask__count
-
-    def get_is_editor(self, contest):
-        return "change_contest" in get_user_perms(self.context["request"].user, contest)
-
-
 class ContestTeamSerialiser(serializers.ModelSerializer):
     is_user_pilot = serializers.SerializerMethodField("get_is_user_pilot")
 
