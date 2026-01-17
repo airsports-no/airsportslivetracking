@@ -160,7 +160,7 @@ const PastFlights = () => {
                     </div>
                 ))}
             </div>
-            {loading && <div className="loading loading-lg"></div>}
+            {loading && <Loading />}
             {!loading && filteredAndSortedContests.length === 0 && (
                 <p className="text-center mt-2 sm:mt-4">No past flights found.</p>
             )}
