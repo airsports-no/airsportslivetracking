@@ -14,17 +14,19 @@
                 </div>
                 {% get_obj_perms request.user for contest as "contest_permissions" %}
                 {% if "change_contest" in contest_permissions %}
-                <a href="{% fe_url 'MISSION_DASHBOARD_DETAIL' contestId=object.pk %}" class="btn btn-secondary mr-2">Contest Dashboard</a>
-                <div class="dropdown dropdown-end">
-                    <label tabindex="0" class="btn btn-primary">Management</label>
-                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">
-                        <li><a href="{% url 'navigationtaskwizard' object.pk %}">New navigation task</a></li>
-                        <li><a href="{% url 'contest_permissions_list' object.pk %}">Permissions</a></li>
-                        <li><a href="{% url 'contest_update' object.pk %}">Update</a></li>
-                        {% if "delete_contest" in contest_permissions %}
-                            <li><a href="{% url 'contest_delete' object.pk %}">Delete</a></li>
-                        {% endif %}
-                    </ul>
+                <div class="flex items-center">
+                    <div class="dropdown dropdown-end mr-2">
+                        <label tabindex="0" class="btn btn-primary">Management</label>
+                        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">
+                            <li><a href="{% url 'navigationtaskwizard' object.pk %}">New navigation task</a></li>
+                            <li><a href="{% url 'contest_permissions_list' object.pk %}">Permissions</a></li>
+                            <li><a href="{% url 'contest_update' object.pk %}">Update</a></li>
+                            {% if "delete_contest" in contest_permissions %}
+                                <li><a href="{% url 'contest_delete' object.pk %}">Delete</a></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    <a href="{% fe_url 'MISSION_DASHBOARD_DETAIL' contestId=object.pk %}" class="btn btn-secondary">Contest Dashboard</a>
                 </div>
                 {% endif %}
             </div>
