@@ -78,3 +78,4 @@ gunicorn
 eval7==0.1.10
 setuptools
 django-js-reverse==0.10.2
+crispy-daisyui @ git+https://github.com/kolaf/crispy-daisyui.git

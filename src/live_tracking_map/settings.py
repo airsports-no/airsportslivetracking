@@ -105,6 +105,7 @@ INSTALLED_APPS = [
     "qr_code",
     "crispy_forms",
     "crispy_tailwind",
+    "crispy_daisyui",
     "channels",
     "display.apps.DisplayConfig",
     "firebase.apps.FirebaseConfig",
@@ -123,8 +124,8 @@ PRODUCTION = os.environ.get("MODE") != "dev"
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
-CRISPY_ALLOWED_TEMPLATE_PACKS = ("tailwind",)
-CRISPY_TEMPLATE_PACK = "tailwind"
+CRISPY_ALLOWED_TEMPLATE_PACKS = ("tailwind", "daisyui")
+CRISPY_TEMPLATE_PACK = "daisyui"
 GUARDIAN_MONKEY_PATCH = False
 AUTH_USER_MODEL = "display.MyUser"
 

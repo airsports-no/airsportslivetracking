@@ -355,7 +355,7 @@ class ContestForm(forms.ModelForm):
         try:
             lat, lon = [float(x) for x in location.split(",")]
             country_code = get_country_code_from_location(lat, lon)
-            cleaned_data['country_code'] = country_code
+            cleaned_data["country_code"] = country_code
         except (ValueError, TypeError):
             raise ValidationError("Invalid location format. Expected 'latitude,longitude'.", code="invalid")
         except CountryNotFoundException:
