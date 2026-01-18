@@ -33,9 +33,11 @@ const MissionDashboard = () => {
         myFutureFlights,
         myContestTeams,
         myEditorContests,
+        myPreviousFlights,
         fetchContests: fetchContestsFromStore,
         fetchOngoingNavigation: fetchOngoingNavigationFromStore,
         fetchMyFutureFlights: fetchMyFutureFlightsFromStore,
+        fetchMyPreviousFlights: fetchMyPreviousFlightsFromStore,
         fetchMyContestTeams: fetchMyContestTeamsFromStore,
         fetchMyEditorContests: fetchMyEditorContestsFromStore,
         cancelFlight: cancelFlightFromStore,
@@ -104,6 +106,7 @@ const MissionDashboard = () => {
             fetchPromises.push(fetchOngoingNavigationFromStore());
             if (document.configuration.isAuthenticated) {
                 fetchPromises.push(fetchMyFutureFlightsFromStore());
+                fetchPromises.push(fetchMyPreviousFlightsFromStore());
                 fetchPromises.push(fetchMyContestTeamsFromStore());
                 fetchPromises.push(fetchMyEditorContestsFromStore());
             }

@@ -33,6 +33,14 @@ const UpcomingFlightCard: React.FC<UpcomingFlightCardProps> = ({ flight, contest
 
                 <>
                     <p>Take-off: {new Date(flight.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: contest.time_zone })}</p>
+                    {flight.latest_emaillink && (
+                        <div className="text-sm mt-2">
+                            <p className="font-semibold">Latest Flight Order:</p>
+                            <a href={flight.latest_emaillink.url} className="link link-primary" target="_blank" rel="noopener noreferrer">
+                                View Order (Generated: {new Date(flight.latest_emaillink.created_at).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })})
+                            </a>
+                        </div>
+                    )}
                     <div className="grid grid-cols-3 gap-2 text-xs mt-2">
                         <div>
                             <p className="font-semibold">Planned Airspeed</p>

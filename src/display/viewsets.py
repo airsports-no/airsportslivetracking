@@ -105,6 +105,7 @@ from display.serialisers import (
     TaskSerialiser,
     TaskTestSerialiser,
     ContestantNestedTeamSerialiser,
+    FutureContestantNestedTeamSerialiser,
 )
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
@@ -185,8 +186,9 @@ class UserPersonViewSet(GenericViewSet):
             )
             .order_by("takeoff_time")
             .distinct()
+            .prefetch_related("emailmaplink_set")
         )
-        return Response(ContestantNestedTeamSerialiser(contestants, many=True, context={"request": request}).data)
+        return Response(FutureContestantNestedTeamSerialiser(contestants, many=True, context={"request": request}).data)
 
     @action(detail=False, methods=["get"])
     def my_previous_flights(self, request, *args, **kwargs):

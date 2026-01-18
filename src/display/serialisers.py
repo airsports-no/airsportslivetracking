@@ -972,6 +972,7 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
         list_serializer_class = FilteredContestantNestedTeamSerialiser
         exclude = ("predefined_gate_times",)
 
+
     def create(self, validated_data):
         team_data = validated_data.pop("team")
         team_serialiser = TeamNestedSerialiser(data=team_data)
@@ -996,6 +997,17 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
 
 class ContestantNestedTeamSerialiserWithContestantTrack(ContestantNestedTeamSerialiser):
     contestanttrack = ContestantTrackSerialiser(read_only=True)
+
+
+class FutureContestantNestedTeamSerialiser(ContestantNestedTeamSerialiser):
+    latest_emaillink = serializers.SerializerMethodField()
+
+    def get_latest_emaillink(self, obj: Contestant) -> Optional[dict]:
+        latest_link = obj.emailmaplink_set.order_by("-created_at").first()
+        if latest_link:
+            return {"url": latest_link.get_absolute_url(), "created_at": latest_link.created_at}
+        return None
+
 
 
 class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):

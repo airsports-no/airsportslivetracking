@@ -84,6 +84,9 @@ ____________________________________________________________
     def __str__(self):
         return str(self.contestant) + " " + str(self.contestant.navigation_task)
 
+    def get_absolute_url(self):
+        return "https://airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
+
     def send_email(self, email_address: str, first_name: str):
         """
         Sends an e-mail to a contestant with a link to the flight order.
