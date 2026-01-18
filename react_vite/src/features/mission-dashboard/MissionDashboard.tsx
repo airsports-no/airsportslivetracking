@@ -82,7 +82,7 @@ const MissionDashboard = () => {
         // This effect sets up local UI state that doesn't depend on fetched data
         const today = new Date();
         const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
-        const sliderMinDate = new Date(2020, 0, 1);
+        const sliderMinDate = new Date(2021, 1, 15);
 
         setOldestContestDate(oneYearAgo);
         setDateRange([oneYearAgo.getTime(), today.getTime()]);
