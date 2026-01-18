@@ -119,6 +119,30 @@ const MissionDashboard = () => {
 
             try {
                 await Promise.allSettled(fetchPromises);
+
+                // Check for missing contests referenced by user data
+                if (document.configuration.isAuthenticated) {
+                    const updatedState = useMissionDashboardStore.getState();
+                    const loadedContestIds = new Set(updatedState.contests.map(c => c.id));
+                    const requiredContestIds = new Set<number>();
+
+                    updatedState.myFutureFlights.forEach((f: any) => {
+                        if (f.contest_id) requiredContestIds.add(f.contest_id);
+                    });
+                    updatedState.myContestTeams.forEach((t: any) => {
+                        if (t.contest) requiredContestIds.add(t.contest);
+                    });
+                    updatedState.myPreviousFlights.forEach((f: any) => {
+                        if (f.contest_id) requiredContestIds.add(f.contest_id);
+                        else if (f.contest && typeof f.contest === 'number') requiredContestIds.add(f.contest);
+                    });
+
+                    const missingContestIds = Array.from(requiredContestIds).filter(id => !loadedContestIds.has(id));
+
+                    if (missingContestIds.length > 0) {
+                        await fetchContestsFromStore({ pks: missingContestIds });
+                    }
+                }
             } catch (err) {
                 setError((err as Error).message);
             } finally {
@@ -129,7 +153,7 @@ const MissionDashboard = () => {
         fetchDashboardData();
     // The dependency array includes the fetch actions to adhere to linting rules,
     // but since they are stable from Zustand, this effect will run only once.
-    }, [fetchContestsFromStore, fetchOngoingNavigationFromStore, fetchMyFutureFlightsFromStore, fetchMyContestTeamsFromStore, fetchMyEditorContestsFromStore]);
+    }, [fetchContestsFromStore, fetchOngoingNavigationFromStore, fetchMyFutureFlightsFromStore, fetchMyContestTeamsFromStore, fetchMyEditorContestsFromStore, fetchMyPreviousFlightsFromStore]);
 
     const handleSliderChange = (newRange: [number, number]) => {
         setDateRange(newRange);
