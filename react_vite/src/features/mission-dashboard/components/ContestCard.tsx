@@ -17,9 +17,9 @@ interface ContestCardProps {
 
 const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight, isEditorContest, hasOpenTasksForScheduling, viewLink, manageLink }) => {
     return (
-        <div className="card bg-base-200 shadow-xl image-full h-[280px] overflow-hidden">
+        <div className={`card bg-base-300 shadow-xl ${contest.header_image ? 'image-full' : ''} h-[280px] overflow-hidden`}>
             {contest.header_image && (
-                <figure><img src={contest.header_image} alt={contest.name} /></figure>
+                <figure><img src={contest.header_image} alt={contest.name} className="w-full h-full object-cover" /></figure>
             )}
             <div className="card-body">
                 <h2 className="card-title flex items-center gap-2">
@@ -29,9 +29,9 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                         <img src={contest.country_flag_url} alt={`${contest.country} flag`} className="ml-2 w-6 h-4 inline-block" />
                     )}
                 </h2>
-                <p className="text-sm text-gray-300">{formatDateInterval(contest.start_time, contest.finish_time)}</p>
+                <p className={`text-sm ${contest.header_image ? 'text-white' : 'text-base-content'}`}>{formatDateInterval(contest.start_time, contest.finish_time)}</p>
                 {contest.navigationtask_set && contest.navigationtask_set.length > 0 && (
-                    <p className="text-sm text-gray-400">{contest.navigationtask_set.length} tasks</p>
+                    <p className={`text-sm ${contest.header_image ? 'text-white' : 'text-base-content'}`}>{contest.navigationtask_set.length} tasks</p>
                 )}
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-4 flex justify-between items-end">
