@@ -1,13 +1,6 @@
 {% extends "base_tailwind.html" %}
 {% load static %}
 {% load frontend_urls %}
-{% load vite %}
-
-{% block head %}
-    {{ block.super }}
-    {% vite_css 'src/FrontendApp.tsx' %}
-{% endblock %}
-
 {% block document_configuration %}
 <script>
     document.configuration = {
@@ -29,5 +22,5 @@
     <div id="root">
         <img class="centered" src="{% static 'img/loading_airplane.gif' %}" alt="loading..." />
     </div>
-{% vite_js 'src/FrontendApp.tsx' %}
+<script type="module" src="{% static 'js/FrontendApp-bundle.js' %}"></script>
 {% endblock %}

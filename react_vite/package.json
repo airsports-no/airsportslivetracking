@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@tailwindcss/cli": "^4.1.18",
-    "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-table": "^8.21.3",
     "django-js-reverse": "^0.10.1-a.0",
