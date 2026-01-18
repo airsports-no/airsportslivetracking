@@ -386,23 +386,36 @@ class ContestViewSet(ModelViewSet):
                     klass=Contest,
                     accept_global_perms=False,
                 )
-                .prefetch_related("navigationtask_set", "contest_teams")
+                .prefetch_related(
+                    "navigationtask_set__route__prohibited_set",
+                    "contestteam_set__team__crew__member1",
+                )
                 .order_by("-start_time")
             )
 
         # Default behavior for non-editors
         if user.is_authenticated:
             return (
-                get_objects_for_user(
-                    user,
-                    "display.view_contest",
-                    klass=Contest,
-                    accept_global_perms=False,
+                (
+                    get_objects_for_user(
+                        user,
+                        "display.view_contest",
+                        klass=Contest,
+                        accept_global_perms=False,
+                    )
+                    | queryset.filter(is_public=True, is_featured=True)
                 )
-                | queryset.filter(is_public=True, is_featured=True)
-            ).distinct()
+                .distinct()
+                .prefetch_related(
+                    "navigationtask_set__route__prohibited_set",
+                    "contestteam_set__team__crew__member1",
+                )
+            )
         else:  # unauthenticated
-            return queryset.filter(is_public=True, is_featured=True)
+            return queryset.filter(is_public=True, is_featured=True).prefetch_related(
+                "navigationtask_set__route__prohibited_set",
+                "contestteam_set__team__crew__member1",
+            )
 
     @action(detail=True, methods=["get"], url_path=r"contest_team_for_team/(?P<team_id>\d+)")
     def contest_team_for_team(self, request, team_id, **kwargs):
