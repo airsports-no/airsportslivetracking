@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useLayoutEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Contest, NavigationTask, ContestResults, MyContestTeam } from './types';
 import { Contestant } from '../competition-map/types';
@@ -86,6 +86,10 @@ const ContestDashboard = () => {
             .finally(() => setLoading(false));
         }
     }
+
+    useLayoutEffect(() => {
+        document.querySelector('main')?.scrollTo(0, 0);
+    }, [contestId, loading]);
 
     useEffect(() => {
         refreshData();

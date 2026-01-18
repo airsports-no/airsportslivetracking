@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useLayoutEffect } from 'react';
 import Select from 'react-select';
 import { LatLngBounds } from 'leaflet';
 import Slider from 'rc-slider';
@@ -90,6 +90,10 @@ const MissionDashboard = () => {
         setDateRange([oneYearAgo.getTime(), today.getTime()]);
         setSliderRange([sliderMinDate.getTime(), today.getTime()]);
     }, []); // Empty dependency array ensures this runs only once on mount
+
+    useLayoutEffect(() => {
+        document.querySelector('main')?.scrollTo(0, 0);
+    }, [loading, activeTab]);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
