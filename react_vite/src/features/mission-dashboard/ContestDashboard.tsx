@@ -305,8 +305,6 @@ const ContestDashboard = () => {
                                         finish_time={task.finish_time}
                                         tracking_link={task.tracking_link}
                                         onScheduleClick={() => setShowScheduleForm(task)}
-                                        futureContestant={futureContestant}
-                                        onCancelClick={canCancelThisFlight ? () => futureContestant && handleCancelFlight(contest.id, task.pk, futureContestant.id) : undefined}
                                         onViewScoresClick={() => handleViewScoresClick(task)}
                                         canSchedule={canSchedule}
                                         is_public={task.is_public}

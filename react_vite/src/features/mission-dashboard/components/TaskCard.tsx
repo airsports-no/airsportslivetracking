@@ -15,8 +15,6 @@ interface TaskCardProps {
     start_time: string;
     finish_time: string;
     onScheduleClick: () => void;
-    onCancelClick?: () => void;
-    futureContestant?: Contestant;
     tracking_link: string;
     onViewScoresClick: () => void;
     contestName?: string;
@@ -28,7 +26,7 @@ interface TaskCardProps {
     flown_contestants_count: number;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, onCancelClick, futureContestant, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count }) => {
     return (
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
@@ -47,29 +45,10 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
 
                 {contestName && <p>{contestName}</p>}
                 {status === 'Open' && canSchedule && <div className="card-actions justify-end"><button onClick={onScheduleClick} className="btn btn-primary">Register Flight Plan</button></div>}
-                {status === 'Scheduled' && futureContestant && (
-                    <>
-                        <p>Take-off: {new Date(futureContestant.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timeZone })}</p>
-                        <div className="grid grid-cols-3 gap-2 text-xs mt-2">
-                            <div>
-                                <p className="font-semibold">Planned Airspeed</p>
-                                <p>{futureContestant.air_speed} knots</p>
-                            </div>
-                            <div>
-                                <p className="font-semibold">Wind Speed</p>
-                                <p>{futureContestant.wind_speed} knots</p>
-                            </div>
-                            <div>
-                                <p className="font-semibold">Wind Direction</p>
-                                <p>{futureContestant.wind_direction}°</p>
-                            </div>
-                        </div>
-                        <div className="card-actions justify-end">
-                            {onCancelClick && (
-                                <button onClick={onCancelClick} className="btn btn-error btn-sm">Cancel</button>
-                            )}
-                        </div>
-                    </>
+                {status === 'Scheduled' && (
+                    <div className="card-actions justify-end">
+                        <div className="badge badge-info">Scheduled</div>
+                    </div>
                 )}
                 {status === 'Live' && (
                     <div className="card-actions justify-between items-center">

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Contestant } from '../../competition-map/types';
 import { Contest } from '../types';
-import TaskCard from './TaskCard';
+import UpcomingFlightCard from './UpcomingFlightCard';
 
 interface UpcomingFlightsProps {
     myFutureFlights: Contestant[];
@@ -29,24 +29,12 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myFutureFlights, cont
                 }
 
                 return (
-                   <TaskCard
+                   <UpcomingFlightCard
                         key={flight.id}
-                        name={navTask.name}
-                        status={'Scheduled'}
-                        contestId={contest.id}
-                        contestName={contest.name}
-                        taskId={navTask.pk}
-                        onScheduleClick={() => {}}
-                        futureContestant={flight}
+                        flight={flight}
+                        contest={contest}
+                        navTask={navTask}
                         onCancelClick={() => onCancel(flight.contest_id, flight.navigation_task, flight.id)}
-                        tracking_link={navTask.tracking_link}
-                        onViewScoresClick={() => {}}
-                        canSchedule={false}
-                        is_public={navTask.is_public}
-                        is_featured={navTask.is_featured}
-                        timeZone={contest.time_zone}
-                        route={navTask.route}
-                        flown_contestants_count={navTask.flown_contestants_count}
                     />
                 );
             })}

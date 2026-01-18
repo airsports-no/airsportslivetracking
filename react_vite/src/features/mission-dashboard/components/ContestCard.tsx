@@ -35,7 +35,7 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                 )}
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-4 flex justify-between items-end">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-1">
                     {status === 'live' && <div className="badge badge-error">LIVE</div>}
                     {hasScheduledFlight && <div className="badge badge-info">Scheduled</div>}
                     {isRegistered && <div className="badge badge-success">Registered</div>}
