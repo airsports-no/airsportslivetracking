@@ -1,6 +1,22 @@
 import type { NavigationTask, PaginatedTrackResponse, ContestantScoreData } from './types';
 import { reverse } from '../../urls';
 
+type ErrorMessage = string | string[];
+
+async function getErrorMessages(response: Response): Promise<ErrorMessage> {
+  try {
+    const errorData = await response.json();
+    if (Array.isArray(errorData) && errorData.every(item => typeof item === 'string')) {
+      return errorData;
+    } else if (typeof errorData === 'object' && errorData !== null && 'detail' in errorData) {
+      return errorData.detail;
+    }
+    return JSON.stringify(errorData); // Fallback to stringifying the whole object
+  } catch {
+    return response.statusText; // Fallback to status text if JSON parsing fails
+  }
+}
+
 export interface NavigationTaskFilters {
   pks?: number[];
   startTimeGte?: string;
@@ -18,7 +34,10 @@ export async function fetchNavigationTask(contestId: number, navigationTaskId: n
   const res = await fetch(url.toString(), {
     headers: { 'Accept': 'application/json' }
   });
-  if (!res.ok) throw new Error(`Failed to fetch navigation task ${navigationTaskId}`);
+  if (!res.ok) {
+    const errorMessages = await getErrorMessages(res);
+    throw new Error(`Failed to fetch navigation task ${navigationTaskId}: ${errorMessages}`);
+  }
   return res.json();
 }
 
@@ -37,7 +56,10 @@ export async function fetchNavigationTasks(contestId: number, filters?: Navigati
   const res = await fetch(url.toString(), {
     headers: { 'Accept': 'application/json' }
   });
-  if (!res.ok) throw new Error(`Failed to fetch navigation tasks for contest ${contestId}`);
+  if (!res.ok) {
+    const errorMessages = await getErrorMessages(res);
+    throw new Error(`Failed to fetch navigation tasks for contest ${contestId}: ${errorMessages}`);
+  }
   return res.json();
 }
 
@@ -45,7 +67,10 @@ export async function fetchContestantPaginatedTrack(contestId: number, navigatio
   const url = new URL(reverse('contestants-paginated-track-data', contestId, navigationTaskId, contestantId), window.location.origin);
   if (cursor) url.searchParams.set('cursor', cursor);
   const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
-  if (!res.ok) throw new Error(`Failed to fetch track for contestant ${contestantId}`);
+  if (!res.ok) {
+    const errorMessages = await getErrorMessages(res);
+    throw new Error(`Failed to fetch track for contestant ${contestantId}: ${errorMessages}`);
+  }
   return res.json();
 }
 
@@ -54,7 +79,10 @@ export async function fetchContestantScoreData(contestId: number, navigationTask
   const res = await fetch(url, {
     headers: { 'Accept': 'application/json' }
   });
-  if (!res.ok) throw new Error(`Failed to fetch score data for contestant ${contestantId}`);
+  if (!res.ok) {
+    const errorMessages = await getErrorMessages(res);
+    throw new Error(`Failed to fetch score data for contestant ${contestantId}: ${errorMessages}`);
+  }
   return res.json();
 }
 
@@ -69,7 +97,8 @@ export async function fetchContestDetails(contestId: number): Promise<any> {
     const url = reverse("contests-detail", contestId);
     const res = await fetch(url);
     if (!res.ok) {
-        throw new Error(`Failed to fetch contest details: ${res.statusText}`);
+        const errorMessages = await getErrorMessages(res);
+        throw new Error(`Failed to fetch contest details: ${errorMessages}`);
     }
     return await res.json();
 }
@@ -83,7 +112,8 @@ export async function fetchDisclaimerHtml(): Promise<string> {
 
     const res = await fetch(disclaimerUrl);
     if (!res.ok) {
-        throw new Error(`Failed to fetch disclaimer: ${res.statusText}`);
+        const errorMessages = await getErrorMessages(res);
+        throw new Error(`Failed to fetch disclaimer: ${errorMessages}`);
     }
     const html = await res.text();
     

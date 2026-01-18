@@ -3,6 +3,22 @@ import { RouteData, SavePayload } from './types';
 import { Route } from '../../types'; // Add this import
 import { reverse } from '../../urls';
 
+type ErrorMessage = string | string[];
+
+async function getErrorMessages(response: Response): Promise<ErrorMessage> {
+  try {
+    const errorData = await response.json();
+    if (Array.isArray(errorData) && errorData.every(item => typeof item === 'string')) {
+      return errorData;
+    } else if (typeof errorData === 'object' && errorData !== null && 'detail' in errorData) {
+      return errorData.detail;
+    }
+    return JSON.stringify(errorData); // Fallback to stringifying the whole object
+  } catch {
+    return response.statusText; // Fallback to status text if JSON parsing fails
+  }
+}
+
 const getAuthHeaders = () => {
     return {
         'Content-Type': 'application/json',
@@ -14,7 +30,8 @@ export const fetchRoute = async (routeId: number): Promise<RouteData> => {
     const url = reverse('editableroutes-detail', routeId);
     const response = await fetch(url);
     if (!response.ok) {
-        throw new Error(`Failed to load route: ${response.statusText}`);
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to load route: ${errorMessages}`);
     }
     const data = await response.json();
     return data;
@@ -39,7 +56,8 @@ export const saveRoute = async (routeId: string | null, payload: SavePayload): P
         const result = await response.json();
         return result;
     } else {
-        throw new Error(`Error saving route: ${response.statusText}`);
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Error saving route: ${errorMessages}`);
     }
 };
 
@@ -47,7 +65,8 @@ export const fetchEditableRoutes = async (): Promise<Route[]> => {
     const url = reverse('editableroutes-list');
     const response = await fetch(url);
     if (!response.ok) {
-        throw new Error(`Failed to fetch editable routes: ${response.statusText}`);
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to fetch editable routes: ${errorMessages}`);
     }
     const data = await response.json();
     return data;

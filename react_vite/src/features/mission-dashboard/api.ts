@@ -3,12 +3,28 @@ import { Contestant } from '../competition-map/types';
 import { getCookie } from '../../utils/csrf';
 import { reverse } from '../../urls';
 
+type ErrorMessage = string | string[];
+
+async function getErrorMessages(response: Response): Promise<ErrorMessage> {
+  try {
+    const errorData = await response.json();
+    if (Array.isArray(errorData) && errorData.every(item => typeof item === 'string')) {
+      return errorData;
+    } else if (typeof errorData === 'object' && errorData !== null && 'detail' in errorData) {
+      return errorData.detail;
+    }
+    return JSON.stringify(errorData); // Fallback to stringifying the whole object
+  } catch {
+    return response.statusText; // Fallback to status text if JSON parsing fails
+  }
+}
 
 export const fetchMyContestTeams = async (): Promise<MyContestTeam[]> => {
     const url = reverse('userprofile-my-contest-teams');
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        const error = new Error('Failed to fetch my contest teams') as any;
+        const errorMessages = await getErrorMessages(response);
+        const error = new Error(`Failed to fetch my contest teams: ${errorMessages}`) as any;
         error.status = response.status;
         throw error;
     }
@@ -21,7 +37,8 @@ export const fetchOngoingNavigation = async (): Promise<OngoingNavigation[]> => 
     const url = '/api/v1/contests/ongoing_navigation/';
     const response = await fetch(url);
     if (!response.ok) {
-        throw new Error('Failed to fetch ongoing navigation tasks');
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to fetch ongoing navigation tasks: ${errorMessages}`);
     }
     return response.json();
 };
@@ -66,7 +83,8 @@ const _fetchContestsPage = async (cursor?: string | null, filters?: ContestFilte
 
     const response = await fetch(url.toString(), { headers: getAuthHeaders() });
     if (!response.ok) {
-        throw new Error('Failed to fetch contests');
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to fetch contests: ${errorMessages}`);
     }
     return response.json();
 };
@@ -105,7 +123,8 @@ export const fetchContestResults = async (contestId: number): Promise<ContestRes
     const url = reverse('contests-results-details', contestId);
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        const error = new Error(`Failed to fetch contest results for ${contestId}`) as any;
+        const errorMessages = await getErrorMessages(response);
+        const error = new Error(`Failed to fetch contest results for ${contestId}: ${errorMessages}`) as any;
         error.status = response.status;
         throw error;
     }
@@ -117,7 +136,8 @@ export const fetchMyFutureFlights = async (): Promise<Contestant[]> => {
     const url = reverse('userprofile-my-future-flights');
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        const error = new Error('Failed to fetch future flights') as any;
+        const errorMessages = await getErrorMessages(response);
+        const error = new Error(`Failed to fetch future flights: ${errorMessages}`) as any;
         error.status = response.status;
         throw error;
     }
@@ -128,7 +148,8 @@ export const fetchMyPreviousFlights = async (): Promise<Contestant[]> => {
     const url = reverse('userprofile-my-previous-flights');
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        const error = new Error('Failed to fetch previous flights') as any;
+        const errorMessages = await getErrorMessages(response);
+        const error = new Error(`Failed to fetch previous flights: ${errorMessages}`) as any;
         error.status = response.status;
         throw error;
     }
@@ -139,7 +160,8 @@ export const fetchClubs = async (): Promise<Club[]> => {
     const url = reverse('clubs-list');
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        throw new Error('Failed to fetch clubs');
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to fetch clubs: ${errorMessages}`);
     }
     return response.json();
 };
@@ -148,7 +170,8 @@ export const fetchAircrafts = async (): Promise<Aircraft[]> => {
     const url = reverse('aircraft-list');
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        throw new Error('Failed to fetch aircrafts');
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to fetch aircrafts: ${errorMessages}`);
     }
     return response.json();
 };
@@ -157,7 +180,8 @@ export const fetchPilots = async (): Promise<Copilot[]> => {
     const url = reverse('get_persons_for_signup');
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        throw new Error('Failed to fetch pilots');
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to fetch pilots: ${errorMessages}`);
     }
     return response.json();
 };
@@ -166,7 +190,8 @@ export const fetchTeam = async (teamId: number): Promise<Team> => {
     const url = reverse('teams-detail', teamId);
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        const error = new Error(`Failed to fetch team ${teamId}`) as any;
+        const errorMessages = await getErrorMessages(response);
+        const error = new Error(`Failed to fetch team ${teamId}: ${errorMessages}`) as any;
         error.status = response.status;
         throw error;
     }
@@ -182,7 +207,8 @@ export const registerForContest = async (payload: RegisterTeamPayload): Promise<
         body: JSON.stringify(apiPayload),
     });
     if (!response.ok) {
-        throw new Error('Failed to register for contest');
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to register for contest: ${errorMessages}`);
     }
     return response.json();
 };
@@ -192,7 +218,8 @@ export const fetchContest = async (contestId: number): Promise<Contest> => {
     const url = reverse('contests-detail', contestId);
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
-        const error = new Error(`Failed to fetch contest ${contestId}`) as any;
+        const errorMessages = await getErrorMessages(response);
+        const error = new Error(`Failed to fetch contest ${contestId}: ${errorMessages}`) as any;
         error.status = response.status;
         throw error;
     }
@@ -209,7 +236,8 @@ export const scheduleFlight = async (contestId: number, navigationTaskId: number
         }
     );
     if (!response.ok) {
-        throw new Error('Failed to schedule flight');
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to schedule flight: ${errorMessages}`);
     }
     if (response.status === 201 || response.status === 204) {
         return; // Resolve with undefined, as there's no JSON body
@@ -226,7 +254,8 @@ export const cancelFlight = async (contestId: number, navigationTaskId: number, 
         }
     );
     if (!response.ok) {
-        throw new Error('Failed to cancel flight');
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to cancel flight: ${errorMessages}`);
     }
 };
 
@@ -237,7 +266,8 @@ export const withdraw = async (contestId: number): Promise<void> => {
         headers: getAuthHeaders(),
     });
     if (!response.ok) {
-        throw new Error('Failed to withdraw from contest');
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to withdraw from contest: ${errorMessages}`);
     }
     if (response.status === 204) {
         return; // No content expected for a successful DELETE
