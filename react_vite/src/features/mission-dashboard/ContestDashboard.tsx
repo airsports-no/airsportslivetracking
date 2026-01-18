@@ -257,6 +257,12 @@ const ContestDashboard = () => {
                                 return (
                                     <button className="btn btn-success" onClick={() => setShowRegistrationForm(true)}>Register</button>
                                 );
+                            } else {
+                                return (
+                                    <div className="text-sm text-gray-500 p-2 border border-gray-300 rounded-md">
+                                        Please <a href={`${reverse('login')}?next=/`} className="link link-primary">log in</a> to participate in the contest.
+                                    </div>
+                                );
                             }
                         })()}
                     </div>
