@@ -33,28 +33,32 @@ export default function TimelineControls({
     };
 
     return (
-        <div className="absolute bottom-0 left-0 right-0 z-[1000] p-4 bg-base-200/80 backdrop-blur-sm">
-            <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                    <button onClick={onJumpToStart} className="btn btn-sm btn-ghost">
+        <div className="absolute bottom-0 left-0 right-0 z-[1000] p-2 sm:p-4 bg-base-200/80 backdrop-blur-sm">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                <div className="flex items-center gap-1 sm:gap-2 order-1">
+                    <button onClick={onJumpToStart} className="btn btn-xs sm:btn-sm btn-ghost">
                         <Rewind size={16} />
                     </button>
-                    <button onClick={onPlayPause} className="btn btn-sm btn-ghost">
+                    <button onClick={onPlayPause} className="btn btn-xs sm:btn-sm btn-ghost">
                         {isPlaying ? <Pause size={16} /> : <Play size={16} />}
                     </button>
                 </div>
-                <span className="text-sm font-mono whitespace-nowrap">{startTime.toLocaleTimeString()}</span>
-                <input
-                    type="range"
-                    min={min}
-                    max={max}
-                    value={current}
-                    onChange={handleSliderChange}
-                    className="range range-primary"
-                />
-                <span className="text-sm font-mono whitespace-nowrap">{endTime.toLocaleTimeString()}</span>
-                <div className="flex items-center gap-2">
-                    <span className="label-text text-sm">Speed</span>
+                
+                <div className="flex-1 flex items-center gap-2 order-3 sm:order-2 min-w-full sm:min-w-0">
+                    <span className="text-xs sm:text-sm font-mono whitespace-nowrap">{startTime.toLocaleTimeString()}</span>
+                    <input
+                        type="range"
+                        min={min}
+                        max={max}
+                        value={current}
+                        onChange={handleSliderChange}
+                        className="range range-primary range-xs sm:range-sm flex-1"
+                    />
+                    <span className="text-xs sm:text-sm font-mono whitespace-nowrap">{endTime.toLocaleTimeString()}</span>
+                </div>
+
+                <div className="flex items-center gap-2 order-2 sm:order-3 ml-auto sm:ml-0">
+                    <span className="label-text text-xs sm:text-sm">Speed</span>
                     <input 
                         type="range" 
                         min={1} 
@@ -62,11 +66,11 @@ export default function TimelineControls({
                         step={1} 
                         value={playbackSpeed} 
                         onChange={e => onSpeedChange(Number(e.target.value))} 
-                        className="range range-xs w-32" />
-                    <span className="badge badge-sm">{playbackSpeed}x</span>
+                        className="range range-xs w-24 sm:w-32" />
+                    <span className="badge badge-xs sm:badge-sm">{playbackSpeed}x</span>
                 </div>
             </div>
-            <div className="text-center text-sm font-mono mt-1">
+            <div className="text-center text-[10px] sm:text-sm font-mono mt-1">
                 {currentTime.toLocaleString()}
             </div>
         </div>

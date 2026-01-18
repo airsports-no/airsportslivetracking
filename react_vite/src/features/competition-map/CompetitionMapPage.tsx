@@ -88,7 +88,8 @@ export default function CompetitionMapPage() {
         const width = entries[0].contentRect.width;
         // This is the ideal width of the TeamPresentation component at scale=1.
         // It's used as a baseline to calculate the scale factor.
-        const designWidth = 800;
+        // Increased from 800 to 1100 to account for GateScoreArrow + Crew Info + Thermometer.
+        const designWidth = 1100;
         if (width > 0) {
           setTeamPresentationScale(width / designWidth);
         }
@@ -331,7 +332,7 @@ export default function CompetitionMapPage() {
   }, [selectedContestantId, scoreLogByContestant, mode, currentTime]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-66px)]">
+    <div className="flex flex-col h-full overflow-hidden">
       <TaskInfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
       <ToastContainer toasts={toasts} removeToast={removeToast} /> {/* Render ToastContainer */}
       <div className="flex-1 relative">
@@ -350,12 +351,12 @@ export default function CompetitionMapPage() {
           onMapFit={setHasMapBeenFitted}
         />
 
-        <div className="absolute top-4 right-4 z-[1000]">
+        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1000]">
           <ClockDisplay time={currentTime} timeZone={staticNavTaskData?.time_zone} />
         </div>
         
         {mode === 'realtime' && wsStatus === 'disconnected' && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-error text-error-content p-2 rounded-lg shadow-md text-center max-w-sm">
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] bg-error text-error-content p-2 rounded-lg shadow-md text-center max-w-xs">
                 <h3 className="font-bold text-base">Offline</h3>
                 <p className="text-sm">Connection lost. Attempting to reconnect...</p>
             </div>
@@ -364,7 +365,7 @@ export default function CompetitionMapPage() {
         {/* The toast display will now be placed relative to this flex-1 relative container */}
 
 
-        <div className="absolute top-4 left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-96 max-w-[calc(100vw-2rem)]">
+        <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)]">
           <div className="p-2 border-b border-base-300">
             <div className="flex justify-between items-center">
               <h2 className="font-bold text-lg truncate" title={staticNavTaskData?.name}>{staticNavTaskData?.name ?? 'Loading...'}</h2>
@@ -374,7 +375,7 @@ export default function CompetitionMapPage() {
             </div>
 
 
-            <div className="flex justify-between items-center mt-2 flex-wrap gap-2">
+            <div className="flex justify-start items-center mt-2 flex-wrap gap-2">
               <div className="join">
                 <button className={`btn btn-xs join-item ${mode === 'realtime' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}>Realtime</button>
                 <button className={`btn btn-xs join-item ${mode === 'playback' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'playback') { setMode('playback'); setSelectedContestantId(null); } }}>Playback</button>
@@ -387,14 +388,14 @@ export default function CompetitionMapPage() {
 
               <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline">Task Info</button>
               {staticNavTaskData?.user_has_change_permission && (
-                <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline ml-2">Manage Task</a>
+                <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline">Manage</a>
               )}
               {staticNavTaskData?.allow_self_management && (
-                <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline ml-2">Schedule Flight</Link>
+                <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline">Schedule</Link>
               )}
               {/* Settings Dropdown */}
               <div className="dropdown dropdown-end">
-                <div tabIndex={0} role="button" className="btn btn-xs btn-outline ml-2">Settings</div>
+                <div tabIndex={0} role="button" className="btn btn-xs btn-outline">Settings</div>
                 <ul tabIndex={0} className="dropdown-content z-[11] menu p-2 shadow bg-base-100 rounded-box w-52">
                   <li>
                     <label className="label cursor-pointer">
@@ -489,7 +490,7 @@ export default function CompetitionMapPage() {
 
         {selectedContestant ? (
           // Container for TeamPresentation and GateScoreArrowV2
-          <div ref={teamPresentationContainerRef} className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-12' : 'bottom-2'} w-11/12 md:w-3/4 lg:w-1/2 max-w-screen-md`}> {/* Responsive container */}
+          <div ref={teamPresentationContainerRef} className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24 sm:bottom-20' : 'bottom-2'} w-11/12 md:w-3/4 lg:w-1/2 max-w-screen-md`}> {/* Responsive container */}
             <div className="flex items-end gap-4 justify-end">
               <TeamPresentation
                 key={selectedContestant.id}
@@ -504,7 +505,7 @@ export default function CompetitionMapPage() {
           </div>
         ) : (
           contestDetails?.logo && (
-            <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-12' : 'bottom-2'}`}>
+            <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24 sm:bottom-20' : 'bottom-2'}`}>
                 <div className="bg-base-100/80 backdrop-blur-sm p-2 rounded-lg shadow-lg">
                     <img src={contestDetails.logo} alt={`${contestDetails.name} logo`} className="max-h-32 max-w-xs" />
                 </div>

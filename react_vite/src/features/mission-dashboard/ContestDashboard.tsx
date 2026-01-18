@@ -210,10 +210,10 @@ const ContestDashboard = () => {
                         className="w-full h-64 object-cover rounded-lg mb-4"
                     />
                 )}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center">
                         {contest.logo && (
-                            <img src={contest.logo} alt={`${contest.name} logo`} className="h-24 w-24 mr-4" />
+                            <img src={contest.logo} alt={`${contest.name} logo`} className="hidden md:block h-24 w-24 mr-4" />
                         )}
                         <div>
                             <h1 className="text-4xl font-bold flex items-center gap-2">
@@ -235,7 +235,7 @@ const ContestDashboard = () => {
                             )}
                         </div>
                     </div>
-                     <div className="flex flex-col items-stretch gap-2">
+                     <div className="flex flex-col items-stretch gap-2 w-full md:w-auto">
                         {canManageThisContest && (
                             <a href={reverse('contest_details', contest.id)} className="btn btn-primary btn-sm">
                                 Manage Contest

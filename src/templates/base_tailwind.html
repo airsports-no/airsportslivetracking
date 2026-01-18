@@ -7,7 +7,7 @@
     <!-- Tell IE to use the latest, best version. -->
     <meta http-equiv="X-UA-Compatible" content="IE=Edge">
     <!-- Make the app on mobile take up the full browser screen and disable user scaling. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, maximum-scale=1">
     <meta property="og:title" content="Air Sports Live Tracking" data-rh="true">
     <meta property="og:description" content="Flying competition tracking and social platform" data-rh="true">
     <meta property="og:image" content="{% static 'img/manifest.png' %}" data-rh="true">
@@ -71,10 +71,10 @@
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', setSystemTheme);
     </script>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body class="flex flex-col h-screen overflow-x-hidden">
 <header class="flex-none relative" style="z-index: 1000;">
     {% if not skip_nav %}
-        <div class="navbar bg-neutral text-neutral-content">
+        <div class="navbar bg-neutral text-neutral-content min-h-[64px]">
             <div class="navbar-start">
                 <a class="btn btn-ghost text-xl" href="/">
                     <img class="h-8" src="{% static 'img/airsports_live_tracking_white.png' %}" alt="AirSports">
@@ -138,13 +138,15 @@
         </div>
     {% endif %}
 </header>
-<main role="main" class="flex-1 overflow-y-auto flex flex-col">
+<main role="main" class="flex-1 flex flex-col min-h-0 overflow-hidden">
         {% block contentfull %}
         {% endblock %}
+    {% if messages %}
+        <div class="fixed top-20 left-1/2 -translate-x-1/2 z-[2000] w-full max-w-sm px-4">
+            {% include 'messages.html' %}
+        </div>
+    {% endif %}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {% if messages %}
-            <div class="flex flex-wrap" style="padding-left: 18%;z-index: 1100;position: fixed">{% include 'messages.html' %}</div>
-        {% endif %}
         {% block content %}
         {% endblock %}
     </div>
