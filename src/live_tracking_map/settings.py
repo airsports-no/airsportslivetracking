@@ -96,7 +96,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "timezone_field",
-    "drf_yasg",
+    "drf_spectacular",
     "solo",
     "guardian",
     "django_countries",
@@ -193,6 +193,14 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ],
     "EXCEPTION_HANDLER": "live_tracking_map.django_exception_handler.exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Airsports tracking API",
+    "DESCRIPTION": "Full API for Airsports tracker",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 if os.environ.get("MODE") != "dev":
     REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(

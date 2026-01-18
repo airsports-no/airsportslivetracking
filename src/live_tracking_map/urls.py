@@ -6,9 +6,7 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.decorators.cache import cache_page
 from django.views.generic import RedirectView, TemplateView
-from drf_yasg import openapi
-from drf_yasg.generators import OpenAPISchemaGenerator
-from drf_yasg.views import get_schema_view
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from rest_framework import permissions
 from django_js_reverse.views import urls_json
 
@@ -18,24 +16,6 @@ from display.views import (
     firebase_token_login,
 )
 from . import api
-
-
-class BothHttpAndHttpsSchemaGenerator(OpenAPISchemaGenerator):
-    def get_schema(self, request=None, public=False):
-        schema = super().get_schema(request, public)
-        schema.schemes = ["http", "https"]
-        return schema
-
-
-docs = get_schema_view(
-    openapi.Info(
-        title="Airsports tracking API",
-        default_version="v1",
-        description="Full API for Airsports tracker",
-    ),
-    generator_class=BothHttpAndHttpsSchemaGenerator,
-    permission_classes=(permissions.IsAuthenticated,),
-)
 
 urlpatterns = [
     path(
@@ -51,7 +31,9 @@ urlpatterns = [
     path("accounts/password_change/done/", RedirectView.as_view(url="/", permanent=False)),
     path("accounts/", include("django.contrib.auth.urls")),
     path("firebase_login/", firebase_token_login),  # Required, used by app
-    path("docs/", docs.with_ui()),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+    path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("api/v1/reverse-urls/", cache_page(3600)(urls_json), name="js_reverse"),
     path("api/v1/", include(api.urlpatters)),
     re_path(r"^.?", FrontEndView.as_view(), name="frontend"),

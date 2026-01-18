@@ -1,4 +1,3 @@
-from drf_yasg.inspectors import RelatedFieldInspector
 from rest_framework.metadata import SimpleMetadata
 from rest_framework.relations import ManyRelatedField, RelatedField, SlugRelatedField
 
@@ -26,16 +25,3 @@ class ShowChoicesMixin:
 
 class ChoicesSlugRelatedField(ShowChoicesMixin, SlugRelatedField):
     pass
-
-
-class ShowChoicesFieldInspector(RelatedFieldInspector):
-    def field_to_swagger_object(self, field, swagger_object_type, use_references, **kwargs):
-        dataobj = super().field_to_swagger_object(field, swagger_object_type, use_references, **kwargs)
-        if (
-            isinstance(field, ChoicesSlugRelatedField)
-            and hasattr(field, "choices")
-            and getattr(field, "show_choices", False)
-            and "enum" not in dataobj
-        ):
-            dataobj["enum"] = [k for k, v in field.choices.items()]
-        return dataobj

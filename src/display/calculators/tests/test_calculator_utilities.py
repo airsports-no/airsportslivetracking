@@ -35,7 +35,7 @@ class TestProjectPosition(TestCase):
 class TestPolygonHelper(TestCase):
     def test_time_to_intersection(self):
         helper = PolygonHelper(60, 11)
-        polygon = helper.build_polygon([(60, 11), (60, 12), (61, 12), (61, 11)])
+        polygon = helper.build_polygon([(11, 60), (12, 60), (12, 61), (11, 61)])
         intersection_times = helper.time_to_intersection([("test", polygon)], 59.999, 11.5, 0, 6, 0, 600)
         print(intersection_times)
-        self.assertEqual({'test': 72}, intersection_times)
+        self.assertEqual({"test": 72}, intersection_times)

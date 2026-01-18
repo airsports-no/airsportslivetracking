@@ -676,7 +676,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             longitude=float(position_data["longitude"]),
             altitude=float(position_data["altitude"]),
             speed=float(position_data["speed"]),
-            course=float(position_data["attributes"]["course"]),
+            course=float(position_data["attributes"].get("course", 0)),
             battery_level=float(position_data["attributes"].get("batteryLevel", -1.0)),
             position_id=position_data["id"],
             device_id=position_data["deviceId"],

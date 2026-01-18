@@ -13,7 +13,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
     def setUp(self):
         self.route = Route.objects.create(name="test")
         Prohibited.objects.create(
-            name="test", path=[(60, 11), (60, 12), (61, 12), (61, 11)], route=self.route, type="penalty"
+            name="test", path=[(11, 60), (12, 60), (12, 61), (11, 61)], route=self.route, type="penalty"
         )
         from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 
