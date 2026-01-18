@@ -38,15 +38,15 @@ export default defineConfig(({ mode }) => ({
       ),
       output: {
         // Output JS bundles to js/ directory with -bundle suffix
-        entryFileNames: `js/[name]-bundle.js`,
-        chunkFileNames: `js/[name]-chunk.js`,
+        entryFileNames: `js/[name]-[hash].js`,
+        chunkFileNames: `js/[name]-[hash].js`,
         assetFileNames: (assetInfo) => {
           // Keep CSS in css/ folder
           if (assetInfo.name && assetInfo.name.endsWith('.css')) {
-            return 'css/[name].css';
+            return 'css/[name]-[hash].css';
           }
           // Put other assets (images, fonts) in an assets/ folder
-          return 'assets/[name][extname]';
+          return 'assets/[name]-[hash][extname]';
         },
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
