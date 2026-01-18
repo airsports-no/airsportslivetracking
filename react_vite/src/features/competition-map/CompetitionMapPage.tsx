@@ -165,6 +165,21 @@ export default function CompetitionMapPage() {
 
   const currentTime = mode === 'playback' ? playbackTime : realtimeTime;
 
+  // Default to full trails if task is over or no one is running
+  useEffect(() => {
+    if (!staticNavTaskData) return;
+
+    const isAfterFinishTime = currentTime > new Date(staticNavTaskData.finish_time);
+    const contestants = Object.values(contestantsById);
+    const anyRunning = contestants.some(c => 
+      c.contestanttrack?.calculator_started && !c.contestanttrack?.calculator_finished
+    );
+
+    if (isAfterFinishTime || (contestants.length > 0 && !anyRunning)) {
+      setShowFullTrails(true);
+    }
+  }, [staticNavTaskData, contestantsById, currentTime]);
+
   const [currentPositions, setCurrentPositions] = useState<Record<number, any[]>>({});
   const [currentScores, setCurrentScores] = useState<Record<number, number>>({});
 
