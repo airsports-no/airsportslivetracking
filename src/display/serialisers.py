@@ -476,7 +476,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     contestteam_set = ContestTeamSerialiser(read_only=True, many=True)
 
     def get_is_editor(self, contest):
-        return "change_contest" in get_user_perms(self.context["request"].user, contest)
+        return contest.id in self.context.get("editable_contest_ids", set())
 
     def validate(self, validated_data):
         try:
@@ -503,23 +503,20 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     def get_visiblenavigationtasks(self, contest):
         user = self.context["request"].user
         viewable_contest = user.has_perm("display.view_contest", contest)
-        items = filter(
-            lambda task: viewable_contest or (task.is_public and contest.is_public and task.is_featured),
-            contest.navigationtask_set.all(),
-        )
-        serialiser = NavigationTasksSummarySerialiser(items, many=True, read_only=True)
+
+        if viewable_contest:
+            tasks_queryset = contest.navigationtask_set.all()
+        else:
+            # Filter at the database level for non-viewable contests
+            tasks_queryset = contest.navigationtask_set.filter(
+                is_public=True, contest__is_public=True, is_featured=True
+            )
+        
+        serialiser = NavigationTasksSummarySerialiser(tasks_queryset, many=True, read_only=True)
         return serialiser.data
 
     def get_registered(self, contest):
-        user = self.context["request"].user
-        if not hasattr(user, "email"):
-            return False
-        return (
-            user
-            and contest.contest_teams.filter(
-                Q(crew__member1__email=user.email) | Q(crew__member2__email=user.email)
-            ).exists()
-        )
+        return contest.id in self.context.get("registered_contest_ids", set())
 
     def create(self, validated_data):
         instance: Contest = super().create(validated_data)
