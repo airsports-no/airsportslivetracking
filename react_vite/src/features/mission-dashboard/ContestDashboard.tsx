@@ -49,6 +49,15 @@ const ContestDashboard = () => {
 
     const canManageThisContest = contest?.is_editor || document.configuration.is_superuser;
 
+    const hasFutureFlightsScheduled = useMemo(() => {
+        if (!contest || !myFutureFlights) return false;
+        const now = new Date();
+        return contest.navigationtask_set.some(task => {
+            const isTaskScheduledForMe = myFutureFlights.some(flight => flight.navigation_task === task.pk);
+            return isTaskScheduledForMe && new Date(task.finish_time) > now;
+        });
+    }, [contest, myFutureFlights]);
+
     const myContestantIds = useMemo(() => {
         const allMyContestantIds = [
             ...myFutureFlights.map(f => f.id),
@@ -230,7 +239,15 @@ const ContestDashboard = () => {
                         {(() => {
                             if (userContestTeam?.is_user_pilot) {
                                 return (
-                                    <button className="btn btn-warning" onClick={() => handleWithdrawClick(contest.id)}>Withdraw</button>
+                                    <div className="tooltip tooltip-bottom" data-tip={hasFutureFlightsScheduled ? "Cannot withdraw, you have scheduled flights in the future." : ""}>
+                                        <button
+                                            className="btn btn-warning"
+                                            onClick={() => handleWithdrawClick(contest.id)}
+                                            disabled={hasFutureFlightsScheduled}
+                                        >
+                                            Withdraw
+                                        </button>
+                                    </div>
                                 );
                             } else if (userContestTeam) {
                                 return (
