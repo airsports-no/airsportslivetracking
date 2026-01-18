@@ -2,6 +2,7 @@ import React from 'react';
 import { Contest } from '../types';
 import { Link } from 'react-router-dom';
 import PublicityIcon from './PublicityIcon';
+import { formatDateInterval } from '../../../utils';
 
 interface ContestCardProps {
     contest: Contest;
@@ -28,6 +29,7 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                         <img src={contest.country_flag_url} alt={`${contest.country} flag`} className="ml-2 w-6 h-4 inline-block" />
                     )}
                 </h2>
+                <p className="text-sm text-gray-300">{formatDateInterval(contest.start_time, contest.finish_time)}</p>
                 {contest.navigationtask_set && contest.navigationtask_set.length > 0 && (
                     <p className="text-sm text-gray-400">{contest.navigationtask_set.length} tasks</p>
                 )}

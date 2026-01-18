@@ -15,6 +15,7 @@ import { HelpCircle } from 'lucide-react'; // Import HelpCircle
 import { reverse, generatePath } from '../../urls';
 import { useMissionDashboardStore } from './store';
 import { fetchNavigationTask } from '../competition-map/api';
+import { formatDateInterval } from '../../utils';
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
     const {
@@ -205,6 +206,7 @@ const ContestDashboard = () => {
                                 {contest.name}
                                 <PublicityIcon isPublic={contest.is_public} isFeatured={contest.is_featured} size={24} />
                             </h1>
+                            <p className="text-lg text-gray-400">{formatDateInterval(contest.start_time, contest.finish_time)}</p>
                             <p className="flex items-center gap-2">
                                 {contest.latitude?.toFixed(2)}, {contest.longitude?.toFixed(2)}
                                 {contest.country_flag_url && (
@@ -299,6 +301,8 @@ const ContestDashboard = () => {
                                         status={getTaskStatus(task)}
                                         contestId={contest.id}
                                         taskId={task.pk}
+                                        start_time={task.start_time}
+                                        finish_time={task.finish_time}
                                         tracking_link={task.tracking_link}
                                         onScheduleClick={() => setShowScheduleForm(task)}
                                         futureContestant={futureContestant}
