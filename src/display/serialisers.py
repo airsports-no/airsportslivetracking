@@ -340,10 +340,23 @@ class RouteSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Route
         fields = [
-            "id", "name", "use_procedure_turns", "rounded_corners", "corridor_width", "waypoints",
-            "takeoff_gates", "landing_gates", "corridor_polygon", "prohibited_set",
-            "number_of_wayoints", "route_length_nm", "number_of_prohibited_zones",
-            "number_of_penalty_zones", "has_landing_gate", "has_takeoff_gate", "number_of_photos"
+            "id",
+            "name",
+            "use_procedure_turns",
+            "rounded_corners",
+            "corridor_width",
+            "waypoints",
+            "takeoff_gates",
+            "landing_gates",
+            "corridor_polygon",
+            "prohibited_set",
+            "number_of_wayoints",
+            "route_length_nm",
+            "number_of_prohibited_zones",
+            "number_of_penalty_zones",
+            "has_landing_gate",
+            "has_takeoff_gate",
+            "number_of_photos",
         ]
 
     @staticmethod
@@ -511,7 +524,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             tasks_queryset = contest.navigationtask_set.filter(
                 is_public=True, contest__is_public=True, is_featured=True
             )
-        
+
         serialiser = NavigationTasksSummarySerialiser(tasks_queryset, many=True, read_only=True)
         return serialiser.data
 
@@ -827,6 +840,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
     default_map_url = SerializerMethodField("get_default_map_url", read_only=True)
     has_crossed_starting_line = serializers.BooleanField(read_only=True)
     contest_id = SerializerMethodField("get_contest_id", read_only=True)
+    navigation_task = serializers.PrimaryKeyRelatedField(read_only=True)
 
     def get_contest_id(self, contestant):
         return contestant.navigation_task.contest.pk
@@ -969,7 +983,6 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
         list_serializer_class = FilteredContestantNestedTeamSerialiser
         exclude = ("predefined_gate_times",)
 
-
     def create(self, validated_data):
         team_data = validated_data.pop("team")
         team_serialiser = TeamNestedSerialiser(data=team_data)
@@ -1004,7 +1017,6 @@ class FutureContestantNestedTeamSerialiser(ContestantNestedTeamSerialiser):
         if latest_link:
             return {"url": latest_link.get_absolute_url(), "created_at": latest_link.created_at}
         return None
-
 
 
 class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):

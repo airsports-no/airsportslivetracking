@@ -239,8 +239,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 4500.0,
             "inside_distance": 4000.0,
-
-
         },
         {
             "name": "SC1",
@@ -261,8 +259,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "TP1",
@@ -283,8 +279,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 2866.269857386126,
             "inside_distance": 2366.269857386126,
-
-
         },
         {
             "name": "SC2",
@@ -305,8 +299,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "SC3",
@@ -327,8 +319,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "TP2",
@@ -349,8 +339,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 4500.0,
             "inside_distance": 4000.0,
-
-
         },
         {
             "name": "SC4",
@@ -371,8 +359,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "SC5",
@@ -393,8 +379,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "SC6",
@@ -415,8 +399,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "TP3",
@@ -469,8 +451,6 @@ expected_route = {
             "is_procedure_turn": True,
             "outside_distance": 4500.0,
             "inside_distance": 4000.0,
-
-
         },
         {
             "name": "SC7",
@@ -491,8 +471,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "SC8",
@@ -513,8 +491,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "TP4",
@@ -535,8 +511,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 4500.0,
             "inside_distance": 4000.0,
-
-
         },
         {
             "name": "SC9",
@@ -557,8 +531,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "SC10",
@@ -579,8 +551,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "TP5",
@@ -633,8 +603,6 @@ expected_route = {
             "is_procedure_turn": True,
             "outside_distance": 4500.0,
             "inside_distance": 4000.0,
-
-
         },
         {
             "name": "SC11",
@@ -655,8 +623,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "TP6",
@@ -710,8 +676,6 @@ expected_route = {
             "is_procedure_turn": True,
             "outside_distance": 4500.0,
             "inside_distance": 4000.0,
-
-
         },
         {
             "name": "SC12",
@@ -732,8 +696,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "SC13",
@@ -754,8 +716,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "TP7",
@@ -776,8 +736,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 4500.0,
             "inside_distance": 4000.0,
-
-
         },
         {
             "name": "SC14",
@@ -798,8 +756,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 0.0,
             "inside_distance": 0.0,
-
-
         },
         {
             "name": "FP",
@@ -820,8 +776,6 @@ expected_route = {
             "is_procedure_turn": False,
             "outside_distance": 2866.269857386126,
             "inside_distance": 2366.269857386126,
-
-
         },
     ],
 }
