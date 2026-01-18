@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
 import { LatLngBounds } from 'leaflet';
+import Slider from 'rc-slider';
+import 'rc-slider/assets/index.css';
 import { fetchContests, fetchOngoingNavigation, fetchMyFutureFlights, cancelFlight, fetchMyContestTeams } from './api';
 import { Contest, OngoingNavigation, MyContestTeam } from './types';
 import { Contestant } from '../competition-map/types';
@@ -40,6 +42,8 @@ const MissionDashboard = () => {
     const [loadingMore, setLoadingMore] = useState(false);
     const [myEditorContests, setMyEditorContests] = useState<Contest[]>([]); // New state
     const [showOnlyWithOpenTasks, setShowOnlyWithOpenTasks] = useState(false); // New state for filtering
+    const [dateRange, setDateRange] = useState<[number, number] | null>(null);
+    const [sliderRange, setSliderRange] = useState<[number, number] | null>(null);
     const location = useLocation();
 
     useEffect(() => {
@@ -68,26 +72,19 @@ const MissionDashboard = () => {
     useEffect(() => {
         const loadInitialData = async () => {
             setLoading(true);
+            const today = new Date();
+            const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+            const sliderMinDate = new Date(2020, 0, 1);
 
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            setOldestContestDate(oneYearAgo);
+            setDateRange([oneYearAgo.getTime(), today.getTime()]);
+            setSliderRange([sliderMinDate.getTime(), today.getTime()]);
 
             const fetchPromises = [];
-
-            // Fetch All Contests incrementally
             const allContestsFetchPromise = fetchContests(
                 { startTimeGte: oneYearAgo.toISOString().split('T')[0] },
-                (pageResults, nextCursor) => {
-                    // This callback is called for each page fetched
-                    setContests(prevContests => {
-                        const newContests = [...prevContests, ...pageResults];
-                        // Ensure oldestContestDate is updated if new contests are older
-                        if (newContests.length > 0) {
-                            const oldest = new Date(newContests.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0].start_time);
-                            setOldestContestDate(oldest);
-                        }
-                        return newContests;
-                    });
+                (pageResults) => {
+                    setContests(prev => [...prev, ...pageResults]);
                 }
             ).catch(err => {
                 setError((err as Error).message);
@@ -95,48 +92,62 @@ const MissionDashboard = () => {
             });
             fetchPromises.push(allContestsFetchPromise);
 
-            // Other fetches (these are not paginated, so they can still use .then directly)
             const ongoingNavPromise = fetchOngoingNavigation()
                 .then(ongoingData => setOngoingNavigations(ongoingData))
-                .catch(err => {
-                    setError((err as Error).message);
-                    console.error("Failed to fetch ongoing navigations:", err);
-                });
+                .catch(err => console.error("Failed to fetch ongoing navigations:", err));
             fetchPromises.push(ongoingNavPromise);
 
             if (document.configuration.isAuthenticated) {
                 const myFutureFlightsPromise = fetchMyFutureFlights()
                     .then(myFutureFlightsData => setMyFutureFlights(myFutureFlightsData))
-                    .catch(err => {
-                        setError((err as Error).message);
-                        console.error("Failed to fetch my future flights:", err);
-                    });
+                    .catch(err => console.error("Failed to fetch my future flights:", err));
                 fetchPromises.push(myFutureFlightsPromise);
 
                 const myContestTeamsPromise = fetchMyContestTeams()
                     .then(myContestTeamsData => setMyContestTeams(myContestTeamsData))
-                    .catch(err => {
-                        setError((err as Error).message);
-                        console.error("Failed to fetch my contest teams:", err);
-                    });
+                    .catch(err => console.error("Failed to fetch my contest teams:", err));
                 fetchPromises.push(myContestTeamsPromise);
 
                 const myEditorContestsPromise = fetchContests({ isEditor: true })
                     .then(myEditorContestsData => setMyEditorContests(myEditorContestsData))
-                    .catch(err => {
-                        setError((err as Error).message);
-                        console.error("Failed to fetch my editor contests:", err);
-                    });
+                    .catch(err => console.error("Failed to fetch my editor contests:", err));
                 fetchPromises.push(myEditorContestsPromise);
             }
 
-            // Wait for all promises to settle (resolve or reject) before setting loading to false
             await Promise.allSettled(fetchPromises);
-            setLoading(false); // All fetches have finished (successfully or with errors)
+            setLoading(false);
         };
         loadInitialData();
     }, []);
 
+    const handleSliderChange = (newRange: [number, number]) => {
+        setDateRange(newRange);
+    };
+
+    const handleSliderAfterChange = async (newRange: [number, number]) => {
+        const newStartDate = new Date(newRange[0]);
+        if (oldestContestDate && newStartDate < oldestContestDate) {
+            setLoadingMore(true);
+            try {
+                const moreContests = await fetchContests({
+                    startTimeGte: newStartDate.toISOString().split('T')[0],
+                    finishTimeLte: oldestContestDate.toISOString().split('T')[0]
+                });
+
+                const existingContestIds = new Set(contests.map(c => c.id));
+                const newUniqueContests = moreContests.filter(c => !existingContestIds.has(c.id));
+
+                setContests(prev => [...prev, ...newUniqueContests]);
+                setOldestContestDate(newStartDate);
+            } catch (err) {
+                setError((err as Error).message);
+                console.error(err);
+            } finally {
+                setLoadingMore(false);
+            }
+        }
+    };
+			
     useEffect(() => {
         const interval = setInterval(() => {
             fetchOngoingNavigation()
@@ -148,32 +159,6 @@ const MissionDashboard = () => {
 
         return () => clearInterval(interval); // Cleanup on unmount
     }, []);
-
-    const handleFetchMore = async () => {
-        if (!oldestContestDate) return;
-        setLoadingMore(true);
-    
-        const oneYearBeforeOldest = new Date(oldestContestDate);
-        oneYearBeforeOldest.setFullYear(oneYearBeforeOldest.getFullYear() - 1);
-    
-        try {
-            const moreContests = await fetchContests({
-                startTimeGte: oneYearBeforeOldest.toISOString().split('T')[0],
-                finishTimeLte: oldestContestDate.toISOString().split('T')[0]
-            });
-    
-            const existingContestIds = new Set(contests.map(c => c.id));
-            const newContests = moreContests.filter(c => !existingContestIds.has(c.id));
-    
-            setContests([...contests, ...newContests]);
-            setOldestContestDate(oneYearBeforeOldest);
-        } catch (err) {
-            setError((err as Error).message);
-            console.error(err);
-        } finally {
-            setLoadingMore(false);
-        }
-    };
 
     const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number) => {
         try {
@@ -230,6 +215,9 @@ const MissionDashboard = () => {
             .filter(contest => {
                 const nameMatch = nameFilter === '' || contest.name.toLowerCase().includes(nameFilter.toLowerCase());
                 const countryMatch = selectedCountries.length === 0 || (contest.country && selectedCountries.includes(contest.country));
+
+                const contestDate = new Date(contest.start_time).getTime();
+                const dateMatch = !dateRange || (contestDate >= dateRange[0] && contestDate <= dateRange[1]);
                 
                 // Determine if contest has any navigation tasks open for scheduling
                 const hasOpenTasks = contest.navigationtask_set?.some((task: NavigationTask) => 
@@ -242,9 +230,9 @@ const MissionDashboard = () => {
 
                 const openTasksFilterMatch = !showOnlyWithOpenTasks || hasOpenTasks;
 
-                return nameMatch && countryMatch && openTasksFilterMatch;
+                return nameMatch && countryMatch && dateMatch && openTasksFilterMatch;
             });
-    }, [contests, nameFilter, selectedCountries, showOnlyWithOpenTasks]);
+    }, [contests, nameFilter, selectedCountries, showOnlyWithOpenTasks, dateRange]);
 
     const listFilteredContests = useMemo(() => {
         if (!textFilteredContests) return [];
@@ -323,7 +311,6 @@ const MissionDashboard = () => {
                         All Contests
                         <span className="ml-2 text-gray-500 text-lg">
                             ({listFilteredContests.length})
-                            {oldestContestDate && ` since ${oldestContestDate?.toLocaleDateString()}`}
                         </span>
                     </h2>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
@@ -354,10 +341,25 @@ const MissionDashboard = () => {
                                 />
                             </label>
                         </div>
-                        <button onClick={handleFetchMore} className="btn btn-secondary" disabled={loadingMore}>
-                            {loadingMore ? 'Loading...' : 'Fetch More'}
-                        </button>
                     </div>
+                    {sliderRange && dateRange && (
+                        <div className="flex flex-col gap-2 sm:gap-4 mb-2 sm:mb-4">
+                            <div className="flex items-center gap-4">
+                                <span>{new Date(dateRange[0]).toLocaleDateString()}</span>
+                                <Slider
+                                    range
+                                    min={sliderRange[0]}
+                                    max={sliderRange[1]}
+                                    value={dateRange}
+                                    onChange={(value) => handleSliderChange(value as [number, number])}
+                                    onAfterChange={(value) => handleSliderAfterChange(value as [number, number])}
+                                    className="w-full"
+                                />
+                                <span>{new Date(dateRange[1]).toLocaleDateString()}</span>
+                                {loadingMore && <Loading />}
+                            </div>
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {listFilteredContests.map(contest => {
                             const canManageThisContest = contest.is_editor || document.configuration.is_superuser;
