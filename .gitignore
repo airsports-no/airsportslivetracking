@@ -42,3 +42,4 @@ manifest.json
 .env.*
 src/static/output.css
 firebase-admin
+manifest.json*
