@@ -12,6 +12,18 @@ import { Loading } from '../route-editor/components/basicComponents';
 import { Link, useLocation } from 'react-router-dom';
 import { reverse } from '../../urls';
 
+// Define NavigationTask interface based on likely API response structure
+// This is a minimal definition for the current task's needs.
+interface NavigationTask {
+    pk: number;
+    name: string;
+    status: 'Open' | 'Scheduled' | 'Live' | 'Finalized';
+    start_time: string; // ISO string
+    finish_time: string; // ISO string
+    allow_self_management: boolean;
+    // Add other fields from API if available and relevant for other tasks
+}
+
 const MissionDashboard = () => {
     const [contests, setContests] = useState<Contest[]>([]);
     const [ongoingNavigations, setOngoingNavigations] = useState<OngoingNavigation[]>([]);
@@ -27,6 +39,7 @@ const MissionDashboard = () => {
     const [oldestContestDate, setOldestContestDate] = useState<Date | null>(null);
     const [loadingMore, setLoadingMore] = useState(false);
     const [myEditorContests, setMyEditorContests] = useState<Contest[]>([]); // New state
+    const [showOnlyWithOpenTasks, setShowOnlyWithOpenTasks] = useState(false); // New state for filtering
     const location = useLocation();
 
     useEffect(() => {
@@ -211,13 +224,27 @@ const MissionDashboard = () => {
 
     const textFilteredContests = useMemo(() => {
         if (!contests) return [];
+        const now = new Date();
+
         return contests
             .filter(contest => {
                 const nameMatch = nameFilter === '' || contest.name.toLowerCase().includes(nameFilter.toLowerCase());
                 const countryMatch = selectedCountries.length === 0 || (contest.country && selectedCountries.includes(contest.country));
-                return nameMatch && countryMatch;
+                
+                // Determine if contest has any navigation tasks open for scheduling
+                const hasOpenTasks = contest.navigationtask_set?.some((task: NavigationTask) => 
+                    task.allow_self_management === true &&
+                    new Date(task.start_time) <= now &&
+                    new Date(task.finish_time) >= now
+                );
+                // Temporarily attach this property to the contest object for filtering and passing to ContestCard
+                (contest as any).hasOpenTasksForScheduling = hasOpenTasks; 
+
+                const openTasksFilterMatch = !showOnlyWithOpenTasks || hasOpenTasks;
+
+                return nameMatch && countryMatch && openTasksFilterMatch;
             });
-    }, [contests, nameFilter, selectedCountries]);
+    }, [contests, nameFilter, selectedCountries, showOnlyWithOpenTasks]);
 
     const listFilteredContests = useMemo(() => {
         if (!textFilteredContests) return [];
@@ -316,6 +343,17 @@ const MissionDashboard = () => {
                             placeholder="Filter by country"
                             classNamePrefix="my-react-select"
                         />
+                        <div className="form-control">
+                            <label className="label cursor-pointer flex gap-2">
+                                <span className="label-text">Tasks open for scheduling</span>
+                                <input
+                                    type="checkbox"
+                                    className="checkbox"
+                                    checked={showOnlyWithOpenTasks}
+                                    onChange={(e) => setShowOnlyWithOpenTasks(e.target.checked)}
+                                />
+                            </label>
+                        </div>
                         <button onClick={handleFetchMore} className="btn btn-secondary" disabled={loadingMore}>
                             {loadingMore ? 'Loading...' : 'Fetch More'}
                         </button>
@@ -334,6 +372,7 @@ const MissionDashboard = () => {
                                     isRegistered={registeredContestIds.has(contest.id)}
                                     hasScheduledFlight={scheduledFlightContestIds.has(contest.id)}
                                     isEditorContest={canManageThisContest}
+                                    hasOpenTasksForScheduling={(contest as any).hasOpenTasksForScheduling} // Pass new prop
                                     viewLink={viewLink}
                                     manageLink={manageLink}
                                 />

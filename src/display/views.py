@@ -1801,6 +1801,7 @@ def copy_editable_route(request, pk):
     editable_route.id = None
     editable_route.name += "_copy"
     editable_route.save()
+    messages.success(request, "Editable route copied successfully. Remember to give it a new name.")
     assign_perm("display.change_editableroute", request.user, editable_route)
     assign_perm("display.delete_editableroute", request.user, editable_route)
     assign_perm("display.view_editableroute", request.user, editable_route)

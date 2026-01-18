@@ -9,11 +9,12 @@ interface ContestCardProps {
     isRegistered?: boolean;
     hasScheduledFlight?: boolean;
     isEditorContest?: boolean;
+    hasOpenTasksForScheduling?: boolean; // New prop
     viewLink: string;
     manageLink?: string;
 }
 
-const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight, isEditorContest, viewLink, manageLink }) => {
+const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight, isEditorContest, hasOpenTasksForScheduling, viewLink, manageLink }) => {
     return (
         <div className="card bg-base-200 shadow-xl image-full h-[280px] overflow-hidden">
             {contest.header_image && (
@@ -36,6 +37,7 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                     {status === 'live' && <div className="badge badge-error">LIVE</div>}
                     {hasScheduledFlight && <div className="badge badge-info">Scheduled</div>}
                     {isRegistered && <div className="badge badge-success">Registered</div>}
+                    {hasOpenTasksForScheduling && <div className="badge badge-accent">Tasks Open</div>}
                 </div>
                 <div className="flex gap-2">
                     <Link to={viewLink} className="btn btn-primary">View</Link>
