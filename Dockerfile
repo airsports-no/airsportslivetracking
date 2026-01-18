@@ -28,6 +28,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get -y install --no-install-recommends \
     build-essential \
     cmake \
+    git \
     # libproj-dev \
     proj-data proj-bin \
     # libgdal-dev \
