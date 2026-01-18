@@ -462,7 +462,8 @@ class EditableRoute(models.Model):
             try:
                 zone_type, zone_name = name.split("_", 1)
                 if creator := zone_creators.get(zone_type):
-                    zone_points = [(item[1], item[0]) for item in features[name]]
+                    # Should be lon, lat now.
+                    zone_points = [(item[0], item[1]) for item in features[name]]
                     feature_list.append(creator(zone_points, zone_name))
                     messages.append(f"Found {zone_type} polygon {zone_name}")
             except ValueError:
