@@ -30,14 +30,13 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
     return (
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
-                <h3 className="card-title flex items-center gap-2">
-                    {name}
+                <h3 className="card-title flex flex-wrap items-center gap-2">
+                    <span className="flex-1">{name}</span>
                     <PublicityIcon isPublic={is_public} isFeatured={is_featured} />
-                    <div className="tooltip inline-flex" data-tip="View Live Tracking Map">
-                        <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="ml-2">
-                            <MapPin size={20} />
-                        </a>
-                    </div>
+                    <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="btn btn-xs btn-outline btn-info gap-1">
+                        <MapPin size={14} />
+                        Live Map
+                    </a>
                 </h3>
                 
                 <TaskStatistics route={route} flown_contestants_count={flown_contestants_count} />
