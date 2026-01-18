@@ -173,6 +173,7 @@ const ContestDashboard = () => {
                         myContestTeams={myContestTeams}
                         onClose={async () => {
                             setShowScheduleForm(null);
+                            await fetchMyContestTeams(true);
                             await fetchMyFutureFlights(true);
                             await fetchContest(contest.id, true);
                         }}

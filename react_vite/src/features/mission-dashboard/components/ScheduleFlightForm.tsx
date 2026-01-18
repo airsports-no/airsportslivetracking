@@ -124,7 +124,30 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
         setError(null);
 
         try {
-            let contestTeamId: number | undefined = prefillRegistration?.id;
+            let currentPrefill = prefillRegistration;
+
+            // If we don't have prefill data, check if we're actually already registered 
+            // (could happen if a previous attempt partially succeeded)
+            if (!currentPrefill) {
+                const teams = await api.fetchMyContestTeams();
+                const existing = teams.find(mct => mct.contest === contest.id);
+                if (existing) {
+                    const teamData = await api.fetchTeam(existing.team);
+                    currentPrefill = {
+                        id: existing.id,
+                        air_speed: existing.air_speed,
+                        tracking_service: existing.tracking_service,
+                        tracking_device: existing.tracking_device,
+                        tracker_device_id: existing.tracker_device_id,
+                        contest: contest,
+                        team: teamData,
+                        can_edit: true,
+                    };
+                    setPrefillRegistration(currentPrefill);
+                }
+            }
+
+            let contestTeamId: number | undefined = currentPrefill?.id;
 
             const currentRegistrationDetails = {
                 club_name: club,
@@ -134,17 +157,17 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
             };
 
             let registrationDetailsChanged = false;
-            if (prefillRegistration) {
+            if (currentPrefill) {
                 const existingRegistrationDetails = {
-                    club_name: prefillRegistration.team.club?.name || '',
-                    aircraft_registration: prefillRegistration.team.aeroplane.registration || '',
-                    airspeed: prefillRegistration.air_speed,
-                    copilot_id: prefillRegistration.team.crew.member2?.id || null,
+                    club_name: currentPrefill.team.club?.name || '',
+                    aircraft_registration: currentPrefill.team.aeroplane.registration || '',
+                    airspeed: currentPrefill.air_speed,
+                    copilot_id: currentPrefill.team.crew.member2?.id || null,
                 };
                 registrationDetailsChanged = JSON.stringify(currentRegistrationDetails) !== JSON.stringify(existingRegistrationDetails);
             }
             
-            if (prefillRegistration && registrationDetailsChanged) {
+            if (currentPrefill && registrationDetailsChanged) {
                 await withdraw(contest.id);
                 const registrationPayload: RegisterTeamPayload = {
                     contestId: contest.id,
@@ -152,13 +175,29 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                 };
                 const registrationResponse = await api.registerForContest(registrationPayload);
                 contestTeamId = registrationResponse.id;
-            } else if (!prefillRegistration) {
+                
+                const teamData = await api.fetchTeam(registrationResponse.team);
+                setPrefillRegistration({
+                    ...registrationResponse,
+                    contest: contest,
+                    team: teamData,
+                    can_edit: true,
+                });
+            } else if (!currentPrefill) {
                 const registrationPayload: RegisterTeamPayload = {
                     contestId: contest.id,
                     ...currentRegistrationDetails,
                 };
                 const registrationResponse = await api.registerForContest(registrationPayload);
                 contestTeamId = registrationResponse.id;
+
+                const teamData = await api.fetchTeam(registrationResponse.team);
+                setPrefillRegistration({
+                    ...registrationResponse,
+                    contest: contest,
+                    team: teamData,
+                    can_edit: true,
+                });
             }
 
             if(contestTeamId) {
