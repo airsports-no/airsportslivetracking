@@ -4,6 +4,34 @@ import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamP
 import * as api from '../api';
 import { useMissionDashboardStore } from '../store';
 
+const formatInTimeZone = (date: Date, timeZone: string) => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timeZone || 'UTC',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false
+    }).formatToParts(date);
+    const p = (type: string) => parts.find(it => it.type === type)?.value;
+    return `${p('year')}-${p('month')}-${p('day')}T${p('hour')}:${p('minute')}`;
+};
+
+const getContestTimeWithOffset = (dateStr: string, timeZone: string): string => {
+    const d = new Date(dateStr + ':00Z');
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timeZone || 'UTC',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    }).formatToParts(d);
+    const p = (type: string) => parseInt(parts.find(it => it.type === type)!.value);
+    const localInTZ = Date.UTC(p('year'), p('month') - 1, p('day'), p('hour'), p('minute'), p('second'));
+    const diffMinutes = (localInTZ - d.getTime()) / 60000;
+    const absDiff = Math.abs(diffMinutes);
+    const hours = Math.floor(absDiff / 60);
+    const minutes = absDiff % 60;
+    const sign = diffMinutes >= 0 ? '+' : '-';
+    const offset = `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    return `${dateStr}:00${offset}`;
+};
+
 interface ScheduleFlightFormProps {
     contest: Contest;
     navigationTaskId: number;
@@ -22,7 +50,10 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
     const [airspeed, setAirspeed] = useState<number>(65);
     const [club, setClub] = useState<string>('');
     
-    const [startTime, setStartTime] = useState<string>(new Date().toISOString().slice(0, 16));
+    const [startTime, setStartTime] = useState<string>(() => {
+        const future = new Date(new Date().getTime() + 60 * 60 * 1000);
+        return formatInTimeZone(future, contest.time_zone);
+    });
     const [windSpeed, setWindSpeed] = useState<number>(0);
     const [windDirection, setWindDirection] = useState<number>(0);
     const [adaptiveStart, setAdaptiveStart] = useState<boolean>(false);
@@ -133,7 +164,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
             if(contestTeamId) {
                 const schedulePayload: ScheduleFlightPayload = {
                     contest_team: contestTeamId,
-                    starting_point_time: new Date(startTime + ':00Z').toISOString(),
+                    starting_point_time: getContestTimeWithOffset(startTime, contest.time_zone),
                     adaptive_start: adaptiveStart,
                     wind_speed: windSpeed,
                     wind_direction: windDirection,

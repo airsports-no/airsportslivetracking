@@ -44,7 +44,7 @@ class TestContestantGatesCalculation(APITestCase):
             time_zone="Europe/Oslo",
             start_time=datetime.datetime.now(datetime.timezone.utc),
             finish_time=datetime.datetime.now(datetime.timezone.utc),
-            location="60, 11"
+            location="60, 11",
         )
         self.navigation_task = NavigationTask.create(
             name="NM navigation test",
@@ -79,7 +79,7 @@ class TestContestantGatesCalculation(APITestCase):
     def test_self_management_signup(self, *args):
         self.client.force_login(user=self.user_owner)
         data = {
-            "starting_point_time": "2021-05-13T09:00:00Z",
+            "starting_point_time": "2021-05-13T09:00:00+01:00",
             "contest_team": self.contest_team.pk,
             "adaptive_start": True,
             "wind_speed": 5,
@@ -98,9 +98,9 @@ class TestContestantGatesCalculation(APITestCase):
         self.assertEqual(1, Contestant.objects.all().count())
         contestant = Contestant.objects.first()
         self.assertTrue(contestant.adaptive_start)
-        self.assertEqual(datetime.datetime(2021, 5, 13, 8, 0, tzinfo=datetime.timezone.utc), contestant.takeoff_time)
+        self.assertEqual(datetime.datetime(2021, 5, 13, 7, 0, tzinfo=datetime.timezone.utc), contestant.takeoff_time)
         self.assertEqual(
-            datetime.datetime(2021, 5, 13, 11, 19, 52, tzinfo=datetime.timezone.utc), contestant.finished_by_time
+            datetime.datetime(2021, 5, 13, 10, 19, 52, tzinfo=datetime.timezone.utc), contestant.finished_by_time
         )
 
     def test_self_management_signup_without_permissions(self, *args):
@@ -233,14 +233,14 @@ class TestContestantGatesCalculation(APITestCase):
         result = self.client.put(url, data=data, format="json")
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
 
-        response = self.client.get("/api/v1/userprofile/my_participating_contests/")
+        response = self.client.get("/api/v1/userprofile/my_future_flights/")
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
-        data = response.json()[0]
+        data = response.json()
         pprint(data)
-        self.assertEqual(1, len(data["contest"]["navigationtask_set"]))
-        self.assertEqual("NM navigation test", data["contest"]["navigationtask_set"][0]["name"])
-        self.assertEqual(1, len(data["contest"]["navigationtask_set"][0]["future_contestants"]))
+        self.assertEqual(1, len(data))
+        data = data[0]
+        self.assertEqual(self.contest.pk, data["contest_id"])
         self.assertEqual(
             (start_time - datetime.timedelta(minutes=self.navigation_task.minutes_to_starting_point)),
-            dateutil.parser.parse(data["contest"]["navigationtask_set"][0]["future_contestants"][0]["takeoff_time"]),
+            dateutil.parser.parse(data["takeoff_time"]),
         )

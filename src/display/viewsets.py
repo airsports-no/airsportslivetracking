@@ -722,10 +722,7 @@ class NavigationTaskViewSet(ModelViewSet):
             if contest_team.team.crew.member1.email != request.user.email:
                 raise drf_exceptions.ValidationError("You cannot add a team where you are not the pilot")
             # Pretend that the submitted time is in the contest time zone
-            starting_point_time = serialiser.validated_data["starting_point_time"].replace(
-                tzinfo=navigation_task.contest.time_zone
-            )
-            print(f"Starting point time is {starting_point_time}")
+            starting_point_time = serialiser.validated_data["starting_point_time"]
             takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
             existing_contestants = navigation_task.contestant_set.all()
             if existing_contestants.exists():
@@ -737,6 +734,7 @@ class NavigationTaskViewSet(ModelViewSet):
             if adaptive_start:
                 tracker_start_time = starting_point_time - datetime.timedelta(hours=1)
                 takeoff_time = tracker_start_time
+
             contestant = Contestant(
                 team=contest_team.team,
                 takeoff_time=takeoff_time,

@@ -32,7 +32,17 @@ const UpcomingFlightCard: React.FC<UpcomingFlightCardProps> = ({ flight, contest
                 <p className="text-sm text-gray-500">{formatDateInterval(navTask.start_time, navTask.finish_time)}</p>
 
                 <>
-                    <p>Take-off: {new Date(flight.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: contest.time_zone })}</p>
+                    {flight.adaptive_start ? (
+                        <div className="bg-info/10 border border-info/20 rounded-lg p-3 text-sm mb-2">
+                            <p className="font-bold text-info mb-1 uppercase text-xs tracking-wider">Adaptive start</p>
+                            <p>You must start and complete your flight within the following interval (contest time):</p>
+                            <p className="font-mono mt-1">
+                                {new Date(flight.tracker_start_time).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: contest.time_zone })} - {new Date(flight.finished_by_time).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: contest.time_zone })}
+                            </p>
+                        </div>
+                    ) : (
+                        <p>Take-off: {new Date(flight.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: contest.time_zone })}</p>
+                    )}
                     {flight.latest_emaillink && (
                         <div className="text-sm mt-2">
                             <p className="font-semibold">Latest Flight Order:</p>
