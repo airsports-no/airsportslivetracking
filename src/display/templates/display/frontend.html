@@ -26,7 +26,7 @@
 
 {% endblock %}
 {% block contentfull %}
-    <div id="root">
+    <div id="root" class="flex-1 flex flex-col min-h-0">
         <img class="centered" src="{% static 'img/loading_airplane.gif' %}" alt="loading..." />
     </div>
 {% vite_js 'src/FrontendApp.tsx' %}
