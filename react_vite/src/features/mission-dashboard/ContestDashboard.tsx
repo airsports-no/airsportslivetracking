@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Contest, NavigationTask, ContestResults, MyContestTeam } from './types';
 import { Contestant } from '../competition-map/types';
-import * as api from './api';
-import { fetchNavigationTask } from '../competition-map/api';
 import { Loading } from '../route-editor/components/basicComponents';
 import TaskCard from './components/TaskCard';
 import Leaderboard from './components/Leaderboard';
@@ -15,15 +13,30 @@ import UpcomingFlights from './components/UpcomingFlights';
 import PublicityIcon from './components/PublicityIcon';
 import { HelpCircle } from 'lucide-react'; // Import HelpCircle
 import { reverse, generatePath } from '../../urls';
-
+import { useMissionDashboardStore } from './store';
+import { fetchNavigationTask } from '../competition-map/api';
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
-    const [contest, setContest] = useState<Contest | null>(null);
-    const [results, setResults] = useState<ContestResults | null>(null);
-    const [myFutureFlights, setMyFutureFlights] = useState<Contestant[]>([]);
-    const [myPreviousFlights, setMyPreviousFlights] = useState<Contestant[]>([]); // New state
-    const [myContestTeams, setMyContestTeams] = useState<MyContestTeam[]>([]);
-    const [ongoingNavigations, setOngoingNavigations] = useState<OngoingNavigation[]>([]);
+    const {
+        contestsById,
+        myFutureFlights,
+        myPreviousFlights,
+        myContestTeams,
+        ongoingNavigations,
+        results,
+        fetchContest,
+        fetchMyFutureFlights,
+        fetchMyPreviousFlights,
+        fetchOngoingNavigation,
+        fetchContestResults,
+        fetchMyContestTeams,
+        withdraw,
+        cancelFlight,
+    } = useMissionDashboardStore();
+
+    const contest = contestsById[Number(contestId)];
+    const contestResults = results[Number(contestId)];
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -46,23 +59,19 @@ const ContestDashboard = () => {
     const refreshData = () => {
         if (contestId) {
             setLoading(true);
-            Promise.all([
-                api.fetchContest(Number(contestId)),
-                document.configuration.isAuthenticated ? api.fetchMyFutureFlights() : Promise.resolve([] as Contestant[]),
-                document.configuration.isAuthenticated ? api.fetchMyPreviousFlights() : Promise.resolve([] as Contestant[]),
-                api.fetchOngoingNavigation(),
-                api.fetchContestResults(Number(contestId)),
-                document.configuration.isAuthenticated ? api.fetchMyContestTeams() : Promise.resolve([] as MyContestTeam[]),
-            ]).then(([contestData, myFutureFlightsData, myPreviousFlightsData, ongoingData, resultsData, myContestTeamsData]) => {
-                setContest(contestData);
-                setMyFutureFlights(myFutureFlightsData);
-                setMyPreviousFlights(myPreviousFlightsData); // Set new state
-                setOngoingNavigations(ongoingData);
-                setResults(resultsData);
-                setMyContestTeams(myContestTeamsData);
-            }).catch(err => {
+            const promises = [
+                fetchContest(Number(contestId)),
+                fetchOngoingNavigation(),
+                fetchContestResults(Number(contestId)),
+            ];
+            if (document.configuration.isAuthenticated) {
+                promises.push(fetchMyFutureFlights());
+                promises.push(fetchMyPreviousFlights());
+                promises.push(fetchMyContestTeams());
+            }
+
+            Promise.all(promises).catch(err => {
                 setError((err as Error).message)
-                console.error(err);
             })
             .finally(() => setLoading(false));
         }
@@ -74,21 +83,18 @@ const ContestDashboard = () => {
     
     const handleWithdrawClick = async (contestId: number) => {
         try {
-            await api.withdraw(contestId);
-            refreshData();
+            await withdraw(contestId);
+            await fetchContest(contestId, true);
         } catch (error) {
             setError((error as Error).message);
-                       console.error(error);
         }
     };
 
-    const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number) => {
+    const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContantId: number) => {
         try {
-            await api.cancelFlight(contestId, navigationTaskId, futureContestantId);
-            refreshData();
+            await cancelFlight(contestId, navigationTaskId, futureContantId);
         } catch (error) {
             setError((error as Error).message);
-            console.error(error);
         }
     };
 
@@ -100,7 +106,6 @@ const ContestDashboard = () => {
             setViewingScoresForTask(fullTaskData);
         } catch (err) {
             setError('Failed to load task scores.');
-            console.error(err);
             setViewingScoresForTask(null);
         } finally {
             setLoadingTaskScores(false);
@@ -142,9 +147,10 @@ const ContestDashboard = () => {
                         contest={contest}
                         myFutureParticipations={myFutureFlights}
                         myContestTeams={myContestTeams}
-                        onClose={() => {
+                        onClose={async () => {
                             setShowRegistrationForm(false);
-                            refreshData();
+                            await fetchMyContestTeams(true);
+                            await fetchContest(contest.id, true);
                         }}
                     />
                 </div>
@@ -155,9 +161,10 @@ const ContestDashboard = () => {
                         contest={contest}
                         navigationTaskId={showScheduleForm.pk}
                         myContestTeams={myContestTeams}
-                        onClose={() => {
+                        onClose={async () => {
                             setShowScheduleForm(null);
-                            refreshData();
+                            await fetchMyFutureFlights(true);
+                            await fetchContest(contest.id, true);
                         }}
                     />
                 </div>
@@ -244,7 +251,7 @@ const ContestDashboard = () => {
                         <h2 className="text-2xl font-bold mb-4">Leaderboard</h2>
                         <Link to={generatePath('CONTEST_RESULTS_TABLE', { contestId: contestId })} className="btn btn-primary">View Full Results</Link>
                     </div>
-                    <Leaderboard results={results} />
+                    <Leaderboard results={contestResults || null} />
                 </div>
 
                 {/* Task Suite */}

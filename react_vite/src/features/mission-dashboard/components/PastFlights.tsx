@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Contest, NavigationTask } from '../types';
-import * as api from '../api';
+import { useMissionDashboardStore } from '../store';
 import { fetchNavigationTask } from '../../competition-map/api';
 import Select from 'react-select';
 import { reverse } from '../../../urls';
@@ -10,8 +10,7 @@ import ContestCard from '../components/ContestCard';
 import TaskScoreDisplay from '../components/TaskScoreDisplay';
 
 const PastFlights = () => {
-    const [myPreviousFlights, setMyPreviousFlights] = useState<Contestant[]>([]);
-    const [contests, setContests] = useState<Contest[]>([]);
+    const { myPreviousFlights, contests, fetchMyPreviousFlights, fetchContests } = useMissionDashboardStore();
     const [myContestantIds, setMyContestantIds] = useState<Set<number>>(new Set());
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -25,23 +24,19 @@ const PastFlights = () => {
 
     useEffect(() => {
         setLoading(true);
-        api.fetchMyPreviousFlights()
-            .then(async (myContestants: Contestant[]) => {
+        fetchMyPreviousFlights()
+            .then(async () => {
+                const myContestants = useMissionDashboardStore.getState().myPreviousFlights;
                 if (myContestants.length === 0) {
-                    setContests([]);
                     setLoading(false);
                     return;
                 }
-                setMyPreviousFlights(myContestants);
                 setMyContestantIds(new Set(myContestants.map(c => c.id)));
 
                 const contestIds = [...new Set(myContestants.map(c => c.contest_id).filter(id => id != null))];
-                const fetchedContests = contestIds.length > 0 ? await api.fetchContests({ pks: contestIds }) : [];
-                
-                const pastContests = fetchedContests
-                    .sort((a, b) => new Date(b.finish_time).getTime() - new Date(a.finish_time).getTime());
-
-                setContests(pastContests);
+                if (contestIds.length > 0) {
+                    await fetchContests({ pks: contestIds });
+                }
             })
             .catch(err => {
                 if (err.status === 401) {
@@ -56,7 +51,14 @@ const PastFlights = () => {
                 }
             })
             .finally(() => setLoading(false));
-    }, []);
+    }, [fetchMyPreviousFlights, fetchContests]);
+    
+    const pastContests = useMemo(() => {
+        const contestIds = new Set(myPreviousFlights.map(c => c.contest_id));
+        return contests
+            .filter(c => contestIds.has(c.id))
+            .sort((a, b) => new Date(b.finish_time).getTime() - new Date(a.finish_time).getTime());
+    }, [contests, myPreviousFlights]);
 
     useEffect(() => {
         if (!selectedContest) {
@@ -88,19 +90,19 @@ const PastFlights = () => {
     }, [selectedContest, myPreviousFlights]);
 
     const filteredAndSortedContests = useMemo(() => {
-        return contests
+        return pastContests
             .filter(contest => {
                 const nameMatch = nameFilter === '' || contest.name.toLowerCase().includes(nameFilter.toLowerCase());
                 const countryMatch = selectedCountries.length === 0 || (contest.country && selectedCountries.includes(contest.country));
                 return nameMatch && countryMatch;
             });
-    }, [contests, nameFilter, selectedCountries]);
+    }, [pastContests, nameFilter, selectedCountries]);
 
     const countryOptions = useMemo(() => {
-        if (!contests) return [];
-        const uniqueCountries = Array.from(new Set(contests.map(c => c.country).filter(Boolean))).sort();
+        if (!pastContests) return [];
+        const uniqueCountries = Array.from(new Set(pastContests.map(c => c.country).filter(Boolean))).sort();
         return uniqueCountries.map(country => ({ value: country!, label: country! }));
-    }, [contests]);
+    }, [pastContests]);
 
     return (
         <div>

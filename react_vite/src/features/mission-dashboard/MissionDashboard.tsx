@@ -3,7 +3,7 @@ import Select from 'react-select';
 import { LatLngBounds } from 'leaflet';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
-import { fetchContests, fetchOngoingNavigation, fetchMyFutureFlights, cancelFlight, fetchMyContestTeams } from './api';
+import { useMissionDashboardStore } from './store';
 import { Contest, OngoingNavigation, MyContestTeam } from './types';
 import { Contestant } from '../competition-map/types';
 import ContestCard from './components/ContestCard';
@@ -27,10 +27,20 @@ interface NavigationTask {
 }
 
 const MissionDashboard = () => {
-    const [contests, setContests] = useState<Contest[]>([]);
-    const [ongoingNavigations, setOngoingNavigations] = useState<OngoingNavigation[]>([]);
-    const [myFutureFlights, setMyFutureFlights] = useState<Contestant[]>([]);
-    const [myContestTeams, setMyContestTeams] = useState<MyContestTeam[]>([]);
+    const {
+        contests,
+        ongoingNavigations,
+        myFutureFlights,
+        myContestTeams,
+        myEditorContests,
+        fetchContests: fetchContestsFromStore,
+        fetchOngoingNavigation: fetchOngoingNavigationFromStore,
+        fetchMyFutureFlights: fetchMyFutureFlightsFromStore,
+        fetchMyContestTeams: fetchMyContestTeamsFromStore,
+        fetchMyEditorContests: fetchMyEditorContestsFromStore,
+        cancelFlight: cancelFlightFromStore,
+    } = useMissionDashboardStore();
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState('allContests');
@@ -40,7 +50,6 @@ const MissionDashboard = () => {
     const [hasUserInteractedWithMap, setHasUserInteractedWithMap] = useState(false);
     const [oldestContestDate, setOldestContestDate] = useState<Date | null>(null);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [myEditorContests, setMyEditorContests] = useState<Contest[]>([]); // New state
     const [showOnlyWithOpenTasks, setShowOnlyWithOpenTasks] = useState(false); // New state for filtering
     const [dateRange, setDateRange] = useState<[number, number] | null>(null);
     const [sliderRange, setSliderRange] = useState<[number, number] | null>(null);
@@ -70,55 +79,54 @@ const MissionDashboard = () => {
     }, [location.search]);
 
     useEffect(() => {
-        const loadInitialData = async () => {
-            setLoading(true);
-            const today = new Date();
-            const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
-            const sliderMinDate = new Date(2020, 0, 1);
+        // This effect sets up local UI state that doesn't depend on fetched data
+        const today = new Date();
+        const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+        const sliderMinDate = new Date(2020, 0, 1);
 
-            setOldestContestDate(oneYearAgo);
-            setDateRange([oneYearAgo.getTime(), today.getTime()]);
-            setSliderRange([sliderMinDate.getTime(), today.getTime()]);
+        setOldestContestDate(oneYearAgo);
+        setDateRange([oneYearAgo.getTime(), today.getTime()]);
+        setSliderRange([sliderMinDate.getTime(), today.getTime()]);
+    }, []); // Empty dependency array ensures this runs only once on mount
 
-            const fetchPromises = [];
-            const allContestsFetchPromise = fetchContests(
-                { startTimeGte: oneYearAgo.toISOString().split('T')[0] },
-                (pageResults) => {
-                    setContests(prev => [...prev, ...pageResults]);
-                }
-            ).catch(err => {
-                setError((err as Error).message);
-                console.error("Failed to fetch all contests:", err);
-            });
-            fetchPromises.push(allContestsFetchPromise);
-
-            const ongoingNavPromise = fetchOngoingNavigation()
-                .then(ongoingData => setOngoingNavigations(ongoingData))
-                .catch(err => console.error("Failed to fetch ongoing navigations:", err));
-            fetchPromises.push(ongoingNavPromise);
-
-            if (document.configuration.isAuthenticated) {
-                const myFutureFlightsPromise = fetchMyFutureFlights()
-                    .then(myFutureFlightsData => setMyFutureFlights(myFutureFlightsData))
-                    .catch(err => console.error("Failed to fetch my future flights:", err));
-                fetchPromises.push(myFutureFlightsPromise);
-
-                const myContestTeamsPromise = fetchMyContestTeams()
-                    .then(myContestTeamsData => setMyContestTeams(myContestTeamsData))
-                    .catch(err => console.error("Failed to fetch my contest teams:", err));
-                fetchPromises.push(myContestTeamsPromise);
-
-                const myEditorContestsPromise = fetchContests({ isEditor: true })
-                    .then(myEditorContestsData => setMyEditorContests(myEditorContestsData))
-                    .catch(err => console.error("Failed to fetch my editor contests:", err));
-                fetchPromises.push(myEditorContestsPromise);
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            const state = useMissionDashboardStore.getState();
+            // Only show the main page loader if the main contest list is not yet loaded.
+            if (state.contests.length === 0) {
+                setLoading(true);
             }
 
-            await Promise.allSettled(fetchPromises);
-            setLoading(false);
+            const fetchPromises = [];
+
+            // These actions are now cached in the store, so it's safe to call them.
+            // They will only fetch if the data is not already present.
+            fetchPromises.push(fetchOngoingNavigationFromStore());
+            if (document.configuration.isAuthenticated) {
+                fetchPromises.push(fetchMyFutureFlightsFromStore());
+                fetchPromises.push(fetchMyContestTeamsFromStore());
+                fetchPromises.push(fetchMyEditorContestsFromStore());
+            }
+
+            // Conditionally fetch the main contest list only if it's empty.
+            if (state.contests.length === 0) {
+                const oneYearAgo = new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
+                fetchPromises.push(fetchContestsFromStore({ startTimeGte: oneYearAgo.toISOString().split('T')[0] }));
+            }
+
+            try {
+                await Promise.allSettled(fetchPromises);
+            } catch (err) {
+                setError((err as Error).message);
+            } finally {
+                setLoading(false);
+            }
         };
-        loadInitialData();
-    }, []);
+
+        fetchDashboardData();
+    // The dependency array includes the fetch actions to adhere to linting rules,
+    // but since they are stable from Zustand, this effect will run only once.
+    }, [fetchContestsFromStore, fetchOngoingNavigationFromStore, fetchMyFutureFlightsFromStore, fetchMyContestTeamsFromStore, fetchMyEditorContestsFromStore]);
 
     const handleSliderChange = (newRange: [number, number]) => {
         setDateRange(newRange);
@@ -129,19 +137,13 @@ const MissionDashboard = () => {
         if (oldestContestDate && newStartDate < oldestContestDate) {
             setLoadingMore(true);
             try {
-                const moreContests = await fetchContests({
+                await fetchContestsFromStore({
                     startTimeGte: newStartDate.toISOString().split('T')[0],
                     finishTimeLte: oldestContestDate.toISOString().split('T')[0]
                 });
-
-                const existingContestIds = new Set(contests.map(c => c.id));
-                const newUniqueContests = moreContests.filter(c => !existingContestIds.has(c.id));
-
-                setContests(prev => [...prev, ...newUniqueContests]);
                 setOldestContestDate(newStartDate);
             } catch (err) {
                 setError((err as Error).message);
-                console.error(err);
             } finally {
                 setLoadingMore(false);
             }
@@ -150,25 +152,17 @@ const MissionDashboard = () => {
 			
     useEffect(() => {
         const interval = setInterval(() => {
-            fetchOngoingNavigation()
-                .then(ongoingData => setOngoingNavigations(ongoingData))
-                .catch(err => {
-                    console.error("Failed to refresh ongoing navigations:", err);
-                });
+            fetchOngoingNavigationFromStore();
         }, 2 * 60 * 1000); // Every 2 minutes
 
         return () => clearInterval(interval); // Cleanup on unmount
-    }, []);
+    }, [fetchOngoingNavigationFromStore]);
 
     const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number) => {
         try {
-            await cancelFlight(contestId, navigationTaskId, futureContestantId);
-            // Re-fetch future flights after cancellation
-            const myFutureFlightsData = await fetchMyFutureFlights();
-            setMyFutureFlights(myFutureFlightsData);
+            await cancelFlightFromStore(contestId, navigationTaskId, futureContestantId);
         } catch (error) {
             setError((error as Error).message);
-            console.error(error);
         }
     };
 

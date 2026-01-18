@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamPayload, ScheduleFlightPayload, MyContestTeam, Team } from '../types';
 import * as api from '../api';
+import { useMissionDashboardStore } from '../store';
 
 interface ScheduleFlightFormProps {
     contest: Contest;
@@ -11,6 +12,7 @@ interface ScheduleFlightFormProps {
 }
 
 const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, navigationTaskId, myContestTeams, onClose }) => {
+    const { clubs, aircrafts, pilots, fetchClubs, fetchAircrafts, fetchPilots, withdraw } = useMissionDashboardStore();
     const [prefillRegistration, setPrefillRegistration] = useState<MyParticipatingContest | null>(null);
     const [loadingPrefillData, setLoadingPrefillData] = useState<boolean>(false);
 
@@ -24,11 +26,6 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
     const [windSpeed, setWindSpeed] = useState<number>(0);
     const [windDirection, setWindDirection] = useState<number>(0);
     const [adaptiveStart, setAdaptiveStart] = useState<boolean>(false);
-
-    // Autocomplete state
-    const [clubs, setClubs] = useState<Club[]>([]);
-    const [aircrafts, setAircrafts] = useState<Aircraft[]>([]);
-    const [pilots, setPilots] = useState<Copilot[]>([]);
 
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -79,19 +76,16 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
     }, [prefillRegistration]);
 
     useEffect(() => {
-        Promise.all([
-            api.fetchClubs(),
-            api.fetchAircrafts(),
-            api.fetchPilots()
-        ]).then(([clubsData, aircraftsData, pilotsData]) => {
-            setClubs(clubsData);
-            setAircrafts(aircraftsData);
-            setPilots(pilotsData);
-        }).catch(err => {
+        const promise = Promise.all([
+            fetchClubs(),
+            fetchAircrafts(),
+            fetchPilots()
+        ]);
+        promise.catch(err => {
             setError(err.message);
             console.error("Fetching autocomplete data:", err);
         });
-    }, []);
+    }, [fetchClubs, fetchAircrafts, fetchPilots]);
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -120,7 +114,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
             }
             
             if (prefillRegistration && registrationDetailsChanged) {
-                await api.withdraw(contest.id);
+                await withdraw(contest.id);
                 const registrationPayload: RegisterTeamPayload = {
                     contestId: contest.id,
                     ...currentRegistrationDetails,
