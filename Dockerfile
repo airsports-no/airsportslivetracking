@@ -77,7 +77,7 @@ RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh
 # Copy built assets and source code from builder stage
 COPY --chown=django:django src /src
 COPY --chown=django:django --from=frontend_builder /app/assets_vite /assets_vite
-COPY --chown=django:django react_vite/src/routes.json /app/react_vite/src/
+COPY --chown=django:django react_vite/src/routes.json /react_vite/src/
 COPY --chown=django:django --from=frontend_builder /app/src/static/css/output.css /src/static/css
 
 # Required for tests
