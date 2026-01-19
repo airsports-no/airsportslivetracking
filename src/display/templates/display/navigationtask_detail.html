@@ -6,177 +6,310 @@
 {% load publicity_icons %}
 
 {% block content %}
-<div class="container mx-auto p-4 md:p-8">
+<div class="py-2 md:py-6">
     <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h2 class="card-title text-2xl font-bold">{{ object.scorecard.get_calculator_display }} '{{ object.name }}' in contest {{ object.contest.name }}</h2>
-                    <p class="flex items-center gap-1">{{ object.start_time|date:"Y-m-d H:i:s e" }} - {{ object.finish_time|date:"Y-m-d H:i:s e" }} ({{ object.contest.time_zone }})
+        <div class="card-body p-4 md:p-8">
+            <!-- Header Section -->
+            <div class="flex flex-col md:flex-row justify-between items-start gap-4">
+                <div class="w-full md:w-auto">
+                    <h2 class="card-title text-xl md:text-2xl font-bold break-words">
+                        {{ object.scorecard.get_calculator_display }} '{{ object.name }}' in contest {{ object.contest.name }}
+                    </h2>
+                    <p class="text-sm md:text-base flex flex-wrap items-center gap-1 mt-1 text-base-content/70">
+                        {{ object.start_time|date:"Y-m-d H:i:s e" }} - {{ object.finish_time|date:"Y-m-d H:i:s e" }} ({{ object.contest.time_zone }})
                         {% render_publicity_icon object.is_public object.is_featured class_name="inline-block ml-1" %}
-                        ({{ object.share_string }})
+                        <span class="badge badge-ghost badge-sm">{{ object.share_string }}</span>
                     </p>
-                    <p class="mt-2">Rules: {{ object.original_scorecard.name }}</p>
+                    <p class="mt-2 text-sm">Rules: <span class="font-semibold">{{ object.original_scorecard.name }}</span></p>
                 </div>
-
-                {% get_obj_perms request.user for object.contest as "contest_permissions" %}
-                {% if "change_contest" in contest_permissions %}
-                <div class="dropdown dropdown-end">
-                    <label tabindex="0" class="btn btn-primary">Management</label>
-                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">
-                        <li><a href="{% url 'navigationtask_addcontestants' object.pk %}" class="tooltip tooltip-left" data-tip="Schedule contestants based on registered teams">Schedule contestants</a></li>
-                        <li><a href="{% url 'navigationtask_removecontestants' object.pk %}" class="text-error tooltip tooltip-left" data-tip="Remove all scheduled contestants">Remove contestants</a></li>
-                        {% if object.editable_route %}
-                            <li><a href="{% fe_url 'ROUTE_EDITOR_EDIT' routeId=object.editable_route.id %}" class="tooltip tooltip-left" data-tip="If the task is generated from a route built in the route editor, click this link to jump to the edit view of that route.">Edit route</a></li>
-                            <li><a href="{% url 'navigationtask_refresheditableroute' object.pk %}" class="tooltip tooltip-left" data-tip="If the task is generated from a route built in the route editor, click this link to refresh the task if changes have been made to the route.">Reload route</a></li>
-                        {% endif %}
-                        <li><hr class="my-2 border-base-200"></li> {# Divider alternative #}
-                        <li><a href="{% url 'navigationtask_flightorderconfiguration' object.pk %}" class="tooltip tooltip-left" data-tip="Update scoring parameters">Flight order configuration</a></li>
-                        <li><a href="{% url 'navigationtask_flightordersprogress' object.pk %}" class="tooltip tooltip-left" data-tip="Regenerate flight orders for all future contestants. Warning: it takes a couple of minutes to generate each flight order so this will take some time.">Generate flight orders</a></li>
-                        <li><hr class="my-2 border-base-200"></li>
-                        <li><a href="{% url 'navigationtask_update' object.pk %}">Update</a></li>
-                        <li><a href="{% url 'navigationtask_delete' object.pk %}" class="text-error">Delete</a></li>
-                    </ul>
-                </div>
-                {% endif %}
             </div>
 
-            <div class="mt-4 flex flex-wrap gap-2">
-                <a href="{% url 'contest_details' object.contest.pk %}" class="link">Back to contest</a>
-                <span class="text-gray-400">|</span>
-                <a href="{% url 'navigationtask_share' object.pk %}" class="link" title="Toggle the visibility of the navigation task">Share</a>
-                <span class="text-gray-400">|</span>
-                <a href="{% fe_url 'COMPETITION_MAP_DETAIL' contestId=object.contest.pk navigationTaskId=object.pk %}" class="link" title="Link to the online tracking map">Tracking map</a>
-                <span class="text-gray-400">|</span>
-                <a href="{% url 'navigationtask_scoredetails' object.pk %}" class="link">Scorecard</a>
-                <span class="text-gray-400">|</span>
-               <a href="{% fe_url 'CONTEST_RESULTS_TABLE' contestId=object.contest.pk %}" class="link">Contest results</a>
+            <!-- Unified Toolbar -->
+            <div class="flex flex-wrap items-center bg-base-200 rounded-lg mt-6 p-1 gap-1 md:gap-2 md:flex-nowrap">
+                <div class="flex-1 flex items-center gap-1">
+                    <a href="{% url 'contest_details' object.contest.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Back to contest">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg>
+                        <span class="hidden sm:inline">Back</span>
+                    </a>
+                    <a href="{% fe_url 'COMPETITION_MAP_DETAIL' contestId=object.contest.pk navigationTaskId=object.pk %}" class="btn btn-sm btn-primary gap-1 px-2 md:px-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M20 10c0 4.993-5.539 10.163-7.39 11.728a1.1 1.1 0 0 1-1.22 0C9.539 20.163 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+                        <span class="text-xs md:text-sm">Live Map</span>
+                    </a>
+                </div>
 
-                <span class="text-gray-400">|</span>
-                <a href="{% url 'navigationtask_contestantstimeline' object.pk %}" class="link" title="A graphical representation of the starting times">Timeline</a>
-                <span class="text-gray-400">|</span>
-                <a href="{% url 'navigationtask_qr' object.pk %}" class="link" title="A page with a QR code to share the navigation task link. Can be printed and posted at the venue, for instance.">QR</a>
-                <span class="text-gray-400">|</span>
-                <a href="{% url 'navigationtask_map' object.pk %}" class="link" title="Generate navigation map">Navigation map</a>
+                <div class="flex-none flex items-center gap-1">
+                    <a href="{% url 'navigationtask_scoredetails' object.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Scorecard">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-list"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+                        <span class="hidden sm:inline">Scorecard</span>
+                    </a>
+                    
+                    <a href="{% fe_url 'CONTEST_RESULTS_TABLE' contestId=object.contest.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Contest Results">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trophy"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2h-6c-2.76 0-5 2.24-5 5v7c0 2.21 1.79 4 4 4h4c2.21 0 4-1.79 4-4V7c0-2.76-2.24-5-5-5z"/></svg>
+                        <span class="hidden sm:inline">Results</span>
+                    </a>
+
+                    <!-- Tools Dropdown -->
+                    <div class="dropdown dropdown-end">
+                        <label tabindex="0" class="btn btn-sm btn-square btn-ghost" title="More Tools">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-more-horizontal"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                        </label>
+                        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a href="{% url 'navigationtask_share' object.pk %}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-share-2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg> Share Task</a></li>
+                            <li><a href="{% url 'navigationtask_contestantstimeline' object.pk %}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Timeline</a></li>
+                            <li><a href="{% url 'navigationtask_qr' object.pk %}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-qr-code"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="14" y="3" rx="1"/><rect width="5" height="5" x="3" y="14" rx="1"/><path d="M21 16h-1.5"/><path d="M21 21v.5"/><path d="M16 21v-1.5"/><path d="M16 16h1.5"/><path d="M21 16v.5"/><path d="M16 21h1.5"/></svg> QR Code</a></li>
+                            <li><a href="{% url 'navigationtask_map' object.pk %}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg> Navigation Map</a></li>
+                        </ul>
+                    </div>
+
+                    {% get_obj_perms request.user for object.contest as "contest_permissions" %}
+                    {% if "change_contest" in contest_permissions %}
+                    <!-- Management Dropdown -->
+                    <div class="dropdown dropdown-end">
+                        <label tabindex="0" class="btn btn-sm btn-square btn-ghost" title="Management">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </label>
+                        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-64">
+                            <li><a href="{% url 'navigationtask_addcontestants' object.pk %}">Schedule contestants</a></li>
+                            <li><a href="{% url 'navigationtask_removecontestants' object.pk %}" class="text-error">Remove contestants</a></li>
+                            {% if object.editable_route %}
+                                <li><hr class="my-1 border-base-200"></li>
+                                <li><a href="{% fe_url 'ROUTE_EDITOR_EDIT' routeId=object.editable_route.id %}">Edit route</a></li>
+                                <li><a href="{% url 'navigationtask_refresheditableroute' object.pk %}">Reload route</a></li>
+                            {% endif %}
+                            <li><hr class="my-1 border-base-200"></li>
+                            <li><a href="{% url 'navigationtask_flightorderconfiguration' object.pk %}">Flight order configuration</a></li>
+                            <li><a href="{% url 'navigationtask_flightordersprogress' object.pk %}">Generate flight orders</a></li>
+                            <li><hr class="my-1 border-base-200"></li>
+                            <li><a href="{% url 'navigationtask_update' object.pk %}">Update</a></li>
+                            <li><a href="{% url 'navigationtask_delete' object.pk %}" class="text-error">Delete</a></li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
 
-            <div class="mt-6">
-                <table class="table table-sm w-full">
-                    <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Team</th>
-                        <th>Live</th>
-                        <th colspan="2">Tracking</th>
-                        <th>Timing</th>
-                        <th>AS</th>
-                        <th>Wind</th>
-                        <th>State</th>
-                        <th>Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody>
+            <!-- Contestants List -->
+            <div class="mt-8">
+                <!-- Mobile Card View (Visible on small screens, hidden on md+) -->
+                <div class="block md:hidden space-y-4">
                     {% for contestant in object.contestant_set.all %}
-                        <tr>
-                            <td>{{ contestant.contestant_number }}</td>
-                            <td class="whitespace-nowrap"><a href="{% url 'contestant_update' contestant.pk %}" class="link">{{ contestant.team.table_display|safe }}</a></td>
-                            <td>
-                                <div id="contestant_live_running_{{ contestant.pk }}" style="display: none">
-                                    <a class="tooltip tooltip-bottom" data-tip="Calculator is running. We have received positions from the tracker." href="{% url 'contestant_stop_calculator' contestant.pk %}" onclick="return confirm('Are you sure you want to stop the calculator? Do not do this unless you know what you are doing.')">
-                                        <img src="{% static "img/green_light.png" %}" alt="Calculator is running" class="w-4 h-4"/>
-                                    </a>
-                                </div>
-                                <div id="contestant_live_not_running_{{ contestant.pk }}" style="display: none">
-                                    {% if contestant.contestanttrack.calculator_finished %}
-                                        <a class="tooltip tooltip-bottom" data-tip="Restart the live scoring process from the beginning. Can be used if it was inadvertently stopped." href="{% url 'contestant_restart_calculator' contestant.pk %}" onclick="return confirm('Are you sure you want to restart the calculator? Do not do this unless you know what you are doing.')">
-                                            <img src="{% static "img/red_light.png" %}" alt="Calculator is not running (finished)" class="w-4 h-4"/>
+                    <div class="card bg-base-200/50 shadow-sm border border-base-300">
+                        <div class="card-body p-4">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span class="badge badge-neutral font-mono font-bold shrink-0">#{{ contestant.contestant_number }}</span>
+                                        <a href="{% url 'contestant_update' contestant.pk %}" class="font-bold text-lg link link-hover break-words block leading-tight">
+                                            {{ contestant.team.table_display|safe }}
                                         </a>
-                                    {% else %}
-                                        <div class="tooltip tooltip-bottom" data-tip="Calculator is not running, probably because it has not started yet.">
-                                            <img src="{% static "img/red_light.png" %}" alt="Calculator is not running (not started)" class="w-4 h-4"/>
+                                    </div>
+                                    
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <!-- Mobile Status Indicators -->
+                                        <div class="contestant_live_running_{{ contestant.pk }}" style="display: none">
+                                            <div class="badge badge-success badge-sm p-1 animate-pulse" title="Live">
+                                                <div class="w-2 h-2 rounded-full bg-white"></div>
+                                            </div>
                                         </div>
-                                    {% endif %}
+                                        <div class="contestant_live_not_running_{{ contestant.pk }}" style="display: none">
+                                            <div class="badge badge-ghost badge-sm p-1 opacity-50" title="Offline">
+                                                <div class="w-2 h-2 rounded-full bg-error"></div>
+                                            </div>
+                                        </div>
+
+                                        <span class="badge badge-outline badge-sm">{{ contestant.contestanttrack.current_state }}</span>
+                                    </div>
                                 </div>
-                            </td>
-                            <td class="pr-0">
-                                {% for tracker in contestant.tracker_id_display %}
-                                    {% if tracker.is_active %}
-                                        <img src="{% static "img/green_checkmark.png" %}" alt="Tracking connection is verified" class="w-3 h-3"/>
-                                    {% endif %}
-                                    <br/>
-                                {% endfor %}
-                            </td>
-                            <td class="pl-0">
-                                {% for tracker in contestant.tracker_id_display %}
-                                    {{ tracker.tracker }}{% if not tracker.has_user %}<span class="tooltip tooltip-bottom" data-tip="The user for the tracker is not registered. This probably means that the user has not downloaded and logged into the app.">*</span>
-                                    {% endif %}
-                                    <br/>
-                                {% endfor %}
-                            </td>
-                            <td>
-                                <table class="table table-xs borderless">
-                                    <tbody>
-                                    <tr>
-                                        <td class="whitespace-nowrap pr-1">Tracking</td>
-                                        <td class="whitespace-nowrap"> {{ contestant.tracker_start_time|date:"Y-m-d H:i:s" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Takeoff</td>
-                                        <td class="whitespace-nowrap">
-                                            {% if contestant.adaptive_start %}
-                                                Adaptive
-                                            {% else %}
-                                                {{ contestant.takeoff_time|date:"Y-m-d H:i:s" }}
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td class="whitespace-nowrap">Finished</td>
-                                        <td class="whitespace-nowrap">{{ contestant.finished_by_time|date:"Y-m-d H:i:s" }}</td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            <td>{{ contestant.air_speed|stringformat:"d" }}</td>
-                            <td>
-                                <a href="{% url 'contestant_gate_times' contestant.pk %}" class="link">
-                                    {{ contestant.wind_direction|stringformat:"03d" }}/{{ contestant.wind_speed }}</a>
-                            </td>
-                            <td>{{ contestant.contestanttrack.current_state }}</td>
-                            <td>
+
+                                <!-- Mobile Actions -->
                                 <div class="dropdown dropdown-end">
-                                    <label tabindex="0" class="btn btn-ghost btn-xs">Actions</label>
-                                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">
+                                    <label tabindex="0" class="btn btn-square btn-ghost btn-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
+                                    </label>
+                                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-20">
                                         <li><a href="{% url 'contestant_map' contestant.pk %}">Map</a></li>
                                         {% if "change_contest" in contest_permissions %}
-                                            <li><hr class="my-2 border-base-200"></li>
-                                            <li><a href="{% url 'navigationtask_flightordersprogress' object.pk %}?contestant_pk={{ contestant.pk }}">Generate new flight order</a></li>
+                                            {% if contestant.contestanttrack.calculator_finished %}
+                                                <li><a href="{% url 'contestant_restart_calculator' contestant.pk %}" onclick="return confirm('Restart?')">Restart Calculator</a></li>
+                                            {% else %}
+                                                 <li><a href="{% url 'contestant_stop_calculator' contestant.pk %}" onclick="return confirm('Stop?')">Stop Calculator</a></li>
+                                            {% endif %}
+                                            <li><hr class="my-1 border-base-200"></li>
+                                            <li><a href="{% url 'navigationtask_flightordersprogress' object.pk %}?contestant_pk={{ contestant.pk }}">New Flight Order</a></li>
                                             {% if contestant.has_flight_order_link %}
-                                                <li><a href="{% url 'email_map_link' contestant.newest_flight_order_link_uid %}">Download flight order</a></li>
+                                                <li><a href="{% url 'email_map_link' contestant.newest_flight_order_link_uid %}">Download Flight Order</a></li>
                                             {% endif %}
-                                            <li><a href="{% url 'contestant_uploadgpxtrack' contestant.pk %}">Upload gpx</a></li>
-                                            <li><a href="{% url 'contestant_downloadgpxtrack' contestant.pk %}">Download gpx</a></li>
-                                            <li><a href="{% url 'contestant_recalculatelivetrack' contestant.pk %}">Recalculate live track</a></li>
-                                            <li><a href="{% url 'processingstatistics' contestant.pk %}">Processing statistics</a></li>
+                                            <li><a href="{% url 'contestant_uploadgpxtrack' contestant.pk %}">Upload GPX</a></li>
+                                            <li><a href="{% url 'contestant_recalculatelivetrack' contestant.pk %}">Recalculate Track</a></li>
                                             {% if object.is_poker_run %}
-                                                <li><a href="{% url 'contestant_cards_list' contestant.pk %}">Playing cards</a></li>
+                                                <li><a href="{% url 'contestant_cards_list' contestant.pk %}">Playing Cards</a></li>
                                             {% endif %}
-                                            <li><hr class="my-2 border-base-200"></li>
+                                            <li><hr class="my-1 border-base-200"></li>
                                             <li><a href="{% url 'contestant_delete' contestant.pk %}" class="text-error">Delete</a></li>
                                         {% endif %}
                                     </ul>
                                 </div>
-                            </td>
-                        </tr>
+                            </div>
+
+                            <!-- Mobile Tracker Info -->
+                            {% if contestant.tracker_id_display %}
+                            <div class="mt-3 text-xs bg-base-100 rounded p-2">
+                                <div class="font-semibold mb-1 opacity-70">Trackers:</div>
+                                {% for tracker in contestant.tracker_id_display %}
+                                    <div class="flex items-center gap-2 mb-1 last:mb-0 min-w-0">
+                                        {% if tracker.is_active %}
+                                            <svg class="w-3 h-3 text-success shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        {% else %}
+                                            <div class="w-3 h-3 shrink-0"></div>
+                                        {% endif %}
+                                        <span class="truncate">{{ tracker.tracker }}</span>
+                                        {% if not tracker.has_user %}<span class="text-error">*</span>{% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Mobile Timing Grid -->
+                            <div class="grid grid-cols-2 gap-2 mt-3 text-xs">
+                                <div class="bg-base-100 p-2 rounded">
+                                    <div class="opacity-70 mb-0.5">Tracking Start</div>
+                                    <div class="font-mono">{{ contestant.tracker_start_time|date:"H:i:s"|default:"-" }}</div>
+                                </div>
+                                <div class="bg-base-100 p-2 rounded">
+                                    <div class="opacity-70 mb-0.5">Takeoff</div>
+                                    <div class="font-mono">{% if contestant.adaptive_start %}Adaptive{% else %}{{ contestant.takeoff_time|date:"H:i:s"|default:"-" }}{% endif %}</div>
+                                </div>
+                                <div class="bg-base-100 p-2 rounded">
+                                    <div class="opacity-70 mb-0.5">Finished</div>
+                                    <div class="font-mono">{{ contestant.finished_by_time|date:"H:i:s"|default:"-" }}</div>
+                                </div>
+                                <div class="bg-base-100 p-2 rounded">
+                                    <div class="opacity-70 mb-0.5">Wind</div>
+                                    <div class="font-mono">
+                                        {{ contestant.wind_direction|stringformat:"03d" }}/{{ contestant.wind_speed }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mobile Gate Times Link -->
+                            <a href="{% url 'contestant_gate_times' contestant.pk %}" class="btn btn-sm btn-outline btn-block mt-3">
+                                View Gate Times
+                            </a>
+                        </div>
+                    </div>
                     {% endfor %}
-                    </tbody>
-                </table>
+                </div>
+
+                <!-- Desktop Table View (Hidden on small screens, block on md+) -->
+                <div class="hidden md:block overflow-x-auto">
+                    <table class="table table-zebra table-xs w-full">
+                        <thead>
+                        <tr>
+                            <th class="w-8">#</th>
+                            <th>Team</th>
+                            <th class="w-8">Live</th>
+                            <th>Tracking</th>
+                            <th>Timing</th>
+                            <th class="w-8">AS</th>
+                            <th class="w-8">Wind</th>
+                            <th class="w-8 text-center">Gates</th>
+                            <th>State</th>
+                            <th class="w-16">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for contestant in object.contestant_set.all %}
+                            <tr class="hover">
+                                <td class="font-bold text-base-content/70">{{ contestant.contestant_number }}</td>
+                                <td class="whitespace-nowrap font-medium">
+                                    <a href="{% url 'contestant_update' contestant.pk %}" class="link link-hover">{{ contestant.team.table_display|safe }}</a>
+                                </td>
+                                <td>
+                                    <!-- Live Status Indicators -->
+                                    <div class="contestant_live_running_{{ contestant.pk }}" style="display: none">
+                                        <a class="tooltip tooltip-right" data-tip="Calculator is running." href="{% url 'contestant_stop_calculator' contestant.pk %}" onclick="return confirm('Stop calculator?')">
+                                            <div class="w-3 h-3 rounded-full bg-success animate-pulse"></div>
+                                        </a>
+                                    </div>
+                                    <div class="contestant_live_not_running_{{ contestant.pk }}" style="display: none">
+                                        {% if contestant.contestanttrack.calculator_finished %}
+                                            <a class="tooltip tooltip-right" data-tip="Restart calculator." href="{% url 'contestant_restart_calculator' contestant.pk %}" onclick="return confirm('Restart calculator?')">
+                                                <div class="w-3 h-3 rounded-full bg-error/50"></div>
+                                            </a>
+                                        {% else %}
+                                            <div class="tooltip tooltip-right" data-tip="Not running.">
+                                                <div class="w-3 h-3 rounded-full bg-error"></div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% for tracker in contestant.tracker_id_display %}
+                                        <div class="flex items-center gap-1 whitespace-nowrap overflow-hidden text-[10px] opacity-80" title="{{ tracker.tracker }}">
+                                            {% if tracker.is_active %}
+                                                <svg class="w-3 h-3 text-success shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                            {% else %}
+                                                <div class="w-3 h-3 shrink-0"></div>
+                                            {% endif %}
+                                            <span class="truncate max-w-[120px]">{{ tracker.tracker }}</span>
+                                            {% if not tracker.has_user %}<span class="text-error font-bold" title="User not registered">*</span>{% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    <div class="text-[10px] leading-tight space-y-0.5 whitespace-nowrap">
+                                        <div><span class="opacity-50">Trk:</span> {{ contestant.tracker_start_time|date:"H:i:s" }}</div>
+                                        <div><span class="opacity-50">T/O:</span> {% if contestant.adaptive_start %}Adap.{% else %}{{ contestant.takeoff_time|date:"H:i:s" }}{% endif %}</div>
+                                        <div><span class="opacity-50">Fin:</span> {{ contestant.finished_by_time|date:"H:i:s" }}</div>
+                                    </div>
+                                </td>
+                                <td class="font-mono">{{ contestant.air_speed|stringformat:"d" }}</td>
+                                <td>
+                                    <div class="font-mono text-[10px]">
+                                        {{ contestant.wind_direction|stringformat:"03d" }}/{{ contestant.wind_speed }}
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{% url 'contestant_gate_times' contestant.pk %}" class="btn btn-ghost btn-xs text-primary px-1">View</a>
+                                </td>
+                                <td><span class="badge badge-outline badge-xs whitespace-nowrap">{{ contestant.contestanttrack.current_state }}</span></td>
+                                <td>
+                                    <div class="dropdown dropdown-end dropdown-left">
+                                        <label tabindex="0" class="btn btn-ghost btn-xs px-1">Actions</label>
+                                        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">
+                                            <li><a href="{% url 'contestant_map' contestant.pk %}">Map</a></li>
+                                            {% if "change_contest" in contest_permissions %}
+                                                <li><hr class="my-1 border-base-200"></li>
+                                                <li><a href="{% url 'navigationtask_flightordersprogress' object.pk %}?contestant_pk={{ contestant.pk }}">Generate flight order</a></li>
+                                                {% if contestant.has_flight_order_link %}
+                                                    <li><a href="{% url 'email_map_link' contestant.newest_flight_order_link_uid %}">Download flight order</a></li>
+                                                {% endif %}
+                                                <li><a href="{% url 'contestant_uploadgpxtrack' contestant.pk %}">Upload gpx</a></li>
+                                                <li><a href="{% url 'contestant_downloadgpxtrack' contestant.pk %}">Download gpx</a></li>
+                                                <li><a href="{% url 'contestant_recalculatelivetrack' contestant.pk %}">Recalculate live track</a></li>
+                                                <li><a href="{% url 'processingstatistics' contestant.pk %}">Processing statistics</a></li>
+                                                {% if object.is_poker_run %}
+                                                    <li><a href="{% url 'contestant_cards_list' contestant.pk %}">Playing cards</a></li>
+                                                {% endif %}
+                                                <li><hr class="my-1 border-base-200"></li>
+                                                <li><a href="{% url 'contestant_delete' contestant.pk %}" class="text-error">Delete</a></li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            <div class="mt-6 text-sm text-base-content/70">
-                <p>To verify that tracking will work, switch on the Air Sports Live Tracking App for the contestants and reload this page. If there is a green checkmark next to the tracking email, then tracking is set up correctly. If there is an * next to the email, then this user has not set up the APP correctly (for instance using a different email address). The email address listed in the tracking column must exactly match the email address used to log into the Air Sports Live Tracking App. When the lights under "Live" is red it means that the calculator is not running. This is either because the contestant has finished, or because it has not started yet. If the light is green, the calculator is running and we have received position data from the tracker.</p>
+            <!-- Footer Info -->
+            <div class="mt-8 text-sm text-base-content/70 bg-base-200/50 p-4 rounded-lg">
+                <p>To verify that tracking will work, switch on the Air Sports Live Tracking App for the contestants and reload this page. If there is a green checkmark next to the tracking email, then tracking is set up correctly. If there is an * next to the email, then this user has not set up the APP correctly (for instance using a different email address). The email address listed in the tracking column must exactly match the email address used to log into the Air Sports Live Tracking App. When the indicator under "Live" is red it means that the calculator is not running (finished or not started). If green, the calculator is running and receiving data.</p>
             </div>
-            <hr class="my-4 border-base-200" />
-            <div class="card-actions justify-start">
+            
+            <div class="modal-action justify-start mt-6">
                 <a href="{% url 'contestant_create' object.pk %}" class="btn btn-primary">New contestant</a>
             </div>
         </div>
@@ -187,18 +320,12 @@
     function updateRunningStatus(statuses) {
         statuses.forEach(status => {
             const [contestantPk, isRunning] = status;
-            const runningDiv = document.getElementById("contestant_live_running_" + contestantPk);
-            const notRunningDiv = document.getElementById("contestant_live_not_running_" + contestantPk);
+            // Select all elements (both desktop and mobile)
+            const runningElements = document.querySelectorAll(".contestant_live_running_" + contestantPk);
+            const notRunningElements = document.querySelectorAll(".contestant_live_not_running_" + contestantPk);
 
-            if (runningDiv && notRunningDiv) {
-                if (isRunning) {
-                    runningDiv.style.display = 'block';
-                    notRunningDiv.style.display = 'none';
-                } else {
-                    runningDiv.style.display = 'none';
-                    notRunningDiv.style.display = 'block';
-                }
-            }
+            runningElements.forEach(el => el.style.display = isRunning ? 'block' : 'none');
+            notRunningElements.forEach(el => el.style.display = isRunning ? 'none' : 'block');
         });
     }
 
@@ -217,4 +344,7 @@
         setInterval(checkCalculatorRunning, 5000);
     });
 </script>
+{% endblock %}
+
+{% block contentfull %}
 {% endblock %}

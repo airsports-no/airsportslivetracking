@@ -1,0 +1,49 @@
+<div class="card bg-base-200/50 shadow-sm border border-base-300">
+    <div class="card-body p-4">
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="font-bold text-lg">{{ gate.name }}</h3>
+            {% if gate.distance_previous %}
+                <span class="badge badge-sm font-mono">{{ gate.distance_previous|stringformat:".0f" }} m</span>
+            {% endif %}
+        </div>
+        
+        <div class="grid grid-cols-2 gap-2 text-sm">
+            <div class="bg-base-100 p-2 rounded">
+                <div class="opacity-70 text-xs mb-0.5">Planned</div>
+                <div class="font-mono">{{ gate_times|dict_key:gate.name|date:"H:i:s.u" }}</div>
+            </div>
+            <div class="bg-base-100 p-2 rounded">
+                <div class="opacity-70 text-xs mb-0.5">Actual</div>
+                <div class="font-mono">
+                    {% if actual_times|dict_key:gate.name %}
+                        {{ actual_times|dict_key:gate.name|date:"H:i:s.u" }}
+                    {% else %}
+                        <span class="opacity-30">--</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-2 flex justify-between items-center bg-base-100 p-2 rounded">
+            <span class="text-xs opacity-70">Offset</span>
+            <span class="font-mono font-bold">{{ object|gate_time_offset:gate.name }}s</span>
+        </div>
+
+        {% with gate_log=log|dict_key:gate.name %}
+            {% if gate_log %}
+                <div class="mt-2 pt-2 border-t border-base-content/10">
+                    {% for item in gate_log %}
+                        <div class="text-xs mb-1 flex justify-between items-start gap-2">
+                            <span>{{ item.text }}</span>
+                            {% if "change_contest" in contest_permissions %}
+                                <a href="{% url 'contestant_remove_score_item' item.pk %}"
+                                   onclick="return confirm('Remove penalty?')" 
+                                   class="btn btn-ghost btn-xs text-error h-auto min-h-0 p-0">Remove</a>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+    </div>
+</div>

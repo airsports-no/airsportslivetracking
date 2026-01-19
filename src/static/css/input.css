@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@source "../../../src/display/templates/**/*.html";
+@source "../../../src/templates/**/*.html";
+@source "../../../react_vite/index.html";
+@source "../../../react_vite/src/**/*.{js,jsx,ts,tsx}";
+
 @source not "./tailwindcss";
 @source not "./daisyui{,*}.mjs";
 
