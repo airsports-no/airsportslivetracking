@@ -20,22 +20,22 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
     const isPoker = navigationTask?.scorecard.task_type.includes("poker");
 
     return (
-        <div className="flex flex-col sm:flex-row items-end gap-2 sm:gap-4" style={{ transform: `scale(${scale})`, transformOrigin: 'bottom right' }}>
-            <div className="flex-shrink-0" style={{ width: isPoker ? 'auto' : '512px' }}>
-                {isPoker ? (
-                    contestant.playing_cards && contestant.playing_cards.length > 0 && (
-                        <div className="mb-20 sm:mb-8">
-                            <PlayingCards playingCards={contestant.playing_cards} />
-                        </div>
-                    )
-                ) : (
+        <div className={`flex ${isPoker ? 'flex-col' : 'flex-col sm:flex-row'} items-end gap-2 sm:gap-4`} style={{ transform: `scale(${scale})`, transformOrigin: 'bottom right' }}>
+            {isPoker ? (
+                contestant.playing_cards && contestant.playing_cards.length > 0 && (
+                    <div className="mb-4 self-center sm:self-center">
+                        <PlayingCards playingCards={contestant.playing_cards} />
+                    </div>
+                )
+            ) : (
+                <div className="flex-shrink-0" style={{ width: '512px' }}>
                     <GateScoreArrowV2
                         contestant={contestant}
                         navigationTask={navigationTask}
                         gateArrowData={gateArrowData}
                     />
-                )}
-            </div>
+                </div>
+            )}
             <div className="flex items-end gap-2 sm:gap-4 relative z-20">
                 {/* Main Content Box: Score and Crew Info */}
                 <div className="bg-base-100/80 backdrop-blur-md shadow-lg rounded-lg p-2 sm:p-3 w-auto"> 
