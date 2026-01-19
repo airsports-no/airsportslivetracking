@@ -318,6 +318,13 @@ export default function CompetitionMapPage() {
 
   const firstWaitingIndex = standings.findIndex(s => s.state === 'Waiting...');
 
+  // Collapse ranking on mobile when a contestant is selected to show the map/details
+  useEffect(() => {
+    if (selectedContestantId !== null && window.innerWidth < 640) {
+      setIsRankingCollapsed(true);
+    }
+  }, [selectedContestantId]);
+
   const filteredScoreLog = useMemo(() => {
     if (!selectedContestantId || !scoreLogByContestant[selectedContestantId]) return [];
     if (mode === 'realtime') {
