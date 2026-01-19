@@ -317,6 +317,8 @@ class ContestForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['start_time'].widget = forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d')
+        self.fields['finish_time'].widget = forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d')
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(
@@ -342,9 +344,13 @@ class ContestForm(forms.ModelForm):
             ButtonHolder(Submit("submit", "Submit")),
         )
 
+    def clean_start_time(self):
+        start_time = self.cleaned_data["start_time"]
+        return start_time.replace(hour=0, minute=0, second=0, microsecond=0)
+
     def clean_finish_time(self):
         finish_time = self.cleaned_data["finish_time"]
-        return finish_time + datetime.timedelta(hours=23, minutes=59)
+        return finish_time.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(hours=23, minutes=59)
 
     def clean(self):
         cleaned_data = super().clean()
