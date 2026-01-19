@@ -11,7 +11,7 @@ import UpcomingFlights from './components/UpcomingFlights';
 import PastFlights from './components/PastFlights';
 import ContestMap from './components/ContestMap';
 import { Loading } from '../route-editor/components/basicComponents';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { reverse } from '../../urls';
 
 // Define NavigationTask interface based on likely API response structure
@@ -56,9 +56,44 @@ const MissionDashboard = () => {
     const [dateRange, setDateRange] = useState<[number, number] | null>(null);
     const [sliderRange, setSliderRange] = useState<[number, number] | null>(null);
     const location = useLocation();
+    const navigate = useNavigate();
+
+    const updateURL = (updates: Record<string, string | string[] | boolean | null>) => {
+        const params = new URLSearchParams(location.search);
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value === null || value === '' || value === false || (Array.isArray(value) && value.length === 0)) {
+                params.delete(key);
+            } else {
+                params.set(key, Array.isArray(value) ? value.join(',') : String(value));
+            }
+        });
+        navigate({ search: params.toString() }, { replace: false });
+    };
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
+        
+        const name = params.get('name');
+        if (name !== null && name !== nameFilter) setNameFilter(name);
+
+        const countries = params.get('countries');
+        if (countries !== null) {
+            const countryList = countries.split(',');
+            if (JSON.stringify(countryList) !== JSON.stringify(selectedCountries)) {
+                setSelectedCountries(countryList);
+            }
+        } else if (selectedCountries.length > 0) {
+            setSelectedCountries([]);
+        }
+
+        const openTasks = params.get('openTasks');
+        if (openTasks !== null) {
+            const isOpen = openTasks === 'true';
+            if (isOpen !== showOnlyWithOpenTasks) setShowOnlyWithOpenTasks(isOpen);
+        } else if (showOnlyWithOpenTasks) {
+            setShowOnlyWithOpenTasks(false);
+        }
+
         const tab = params.get('tab');
         if (tab && ['allContests', 'upcoming', 'past', 'editorContests'].includes(tab)) {
             let shouldSetActiveTab = true;
@@ -73,9 +108,9 @@ const MissionDashboard = () => {
             }
 
             if (shouldSetActiveTab) {
-                setActiveTab(tab);
+                if (tab !== activeTab) setActiveTab(tab);
             } else {
-                setActiveTab('allContests');
+                if (activeTab !== 'allContests') setActiveTab('allContests');
             }
         }
     }, [location.search]);
@@ -317,12 +352,12 @@ const MissionDashboard = () => {
 
             {document.configuration.isAuthenticated && (
                 <div className="tabs tabs-boxed mb-4">
-                    <a className={`tab ${activeTab === 'allContests' ? 'tab-active' : ''}`} onClick={() => setActiveTab('allContests')}>All Contests</a> 
+                    <a className={`tab ${activeTab === 'allContests' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'allContests' })}>All Contests</a> 
                     <>
-                        <a className={`tab ${activeTab === 'upcoming' ? 'tab-active' : ''}`} onClick={() => setActiveTab('upcoming')}>My Upcoming Flights</a>
-                        <a className={`tab ${activeTab === 'past' ? 'tab-active' : ''}`} onClick={() => setActiveTab('past')}>My Past Flights</a>
+                        <a className={`tab ${activeTab === 'upcoming' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'upcoming' })}>My Upcoming Flights</a>
+                        <a className={`tab ${activeTab === 'past' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'past' })}>My Past Flights</a>
                         {document.configuration.isOrganizer && (
-                            <a className={`tab ${activeTab === 'editorContests' ? 'tab-active' : ''}`} onClick={() => setActiveTab('editorContests')}>My Contests</a>
+                            <a className={`tab ${activeTab === 'editorContests' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'editorContests' })}>My Contests</a>
                         )}
                     </>
                 </div>
@@ -345,12 +380,17 @@ const MissionDashboard = () => {
                             className="input input-bordered w-full max-w-xs"
                             value={nameFilter}
                             onChange={(e) => setNameFilter(e.target.value)}
+                            onBlur={() => updateURL({ name: nameFilter })}
                         />
                         <Select
                             isMulti
                             options={countryOptions}
                             value={countryOptions.filter(option => selectedCountries.includes(option.value))}
-                            onChange={(selectedOptions) => setSelectedCountries(selectedOptions ? selectedOptions.map(option => option.value) : [])}
+                            onChange={(selectedOptions) => {
+                                const countries = selectedOptions ? selectedOptions.map(option => option.value) : [];
+                                setSelectedCountries(countries);
+                                updateURL({ countries });
+                            }}
                             className="w-full max-w-xs dark:bg-black"
                             placeholder="Filter by country"
                             classNamePrefix="my-react-select"
@@ -362,7 +402,11 @@ const MissionDashboard = () => {
                                     type="checkbox"
                                     className="checkbox"
                                     checked={showOnlyWithOpenTasks}
-                                    onChange={(e) => setShowOnlyWithOpenTasks(e.target.checked)}
+                                    onChange={(e) => {
+                                        const openTasks = e.target.checked;
+                                        setShowOnlyWithOpenTasks(openTasks);
+                                        updateURL({ openTasks });
+                                    }}
                                 />
                             </label>
                         </div>
@@ -444,6 +488,7 @@ const MissionDashboard = () => {
                             className="input input-bordered w-full max-w-xs"
                             value={nameFilter}
                             onChange={(e) => setNameFilter(e.target.value)}
+                            onBlur={() => updateURL({ name: nameFilter })}
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
