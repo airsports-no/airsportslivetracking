@@ -90,7 +90,7 @@ export interface Contestant {
   takeoff_time: string;
   finished_by_time: string;
 }
-...
+
 export interface NavigationTask {
   id: number;
   route: RouteData;

@@ -2,6 +2,8 @@ declare global {
   interface Document {
     configuration: {
       is_superuser: boolean;
+      isAuthenticated: boolean;
+      isOrganizer: boolean;
       STATIC_FILE_LOCATION: string;
     };
   }

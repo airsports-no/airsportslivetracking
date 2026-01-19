@@ -134,11 +134,11 @@ const PastFlights = () => {
                 </div>
             )}
 
-            <div className="flex space-x-2 sm:space-x-4 mb-2 sm:mb-4">
+            <div className="flex space-x-2 sm:space-x-4 mb-4">
                 <input
                     type="text"
                     placeholder="Filter by name"
-                    className="input input-bordered w-full max-w-xs"
+                    className="input input-bordered input-sm w-full max-w-[180px]"
                     value={nameFilter}
                     onChange={(e) => setNameFilter(e.target.value)}
                 />
@@ -147,8 +147,8 @@ const PastFlights = () => {
                     options={countryOptions}
                     value={countryOptions.filter(option => selectedCountries.includes(option.value))}
                     onChange={(selectedOptions) => setSelectedCountries(selectedOptions ? selectedOptions.map(option => option.value) : [])}
-                    className="w-full max-w-xs dark:bg-black"
-                    placeholder="Filter by country"
+                    className="w-full max-w-[120px] dark:bg-black text-sm"
+                    placeholder="Country..."
                     classNamePrefix="my-react-select"
                 />
             </div>
