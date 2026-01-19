@@ -2,103 +2,43 @@
 {% load guardian_tags %}
 
 {% block content %}
-<div class="container mx-auto p-4 md:p-8">
+<div class="py-2 md:py-6">
     <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1 class="card-title text-2xl font-bold">Gate times for {{ object }}</h1>
-                    <h2 class="text-xl">Total score: {{ object.contestanttrack.score }}</h2>
+        <div class="card-body p-4 md:p-8">
+            <!-- Header Section -->
+            <div class="flex flex-col md:flex-row justify-between items-start gap-4">
+                <div class="w-full">
+                    <h1 class="card-title text-xl md:text-2xl font-bold break-words">Gate times for {{ object }}</h1>
+                    <h2 class="text-lg md:text-xl opacity-80">Total score: <span class="font-mono font-bold">{{ object.contestanttrack.score }}</span></h2>
                 </div>
-                <a href="{% url 'navigationtask_detail' object.navigation_task.pk %}" class="btn btn-secondary">Back to {{ object.navigation_task }}</a>
+                <a href="{% url 'navigationtask_detail' object.navigation_task.pk %}" class="btn btn-secondary btn-sm md:btn-md self-end md:self-auto">Back to task</a>
             </div>
 
-            <div class="overflow-x-auto mt-6">
-                <table class="table table-sm w-full">
-                    <thead>
-                    <tr>
-                        <th>Gate</th>
-                        <th>Distance</th>
-                        <th>Planned time</th>
-                        <th>Actual time</th>
-                        <th>Offset (s)</th>
-                        <th>Log</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% get_obj_perms request.user for object.navigation_task.contest as "contest_permissions" %}
-                    {% with gate_times=object.gate_times %}
-                        {% for takeoff_gate in object.navigation_task.route.takeoff_gates %}
-                            <tr>
-                                <td>{{ takeoff_gate.name }}</td>
-                                <td></td>
-                                <td>{{ gate_times|dict_key:takeoff_gate.name|date:"H:i:s.u e" }}</td>
-                                <td>
-                                    {% if actual_times|dict_key:takeoff_gate.name %}
-                                        {{ actual_times|dict_key:takeoff_gate.name|date:"H:i:s.u e" }}{% else %}
-                                        --{% endif %}</td>
-                                <td>{{ object|gate_time_offset:takeoff_gate.name }}</td>
-                                <td>
-                                    {% with gate_log=log|dict_key:takeoff_gate.name %}
-                                        {% for item in gate_log %}
-                                            {{ item.text }} {% if "change_contest" in contest_permissions %}
-                                            <a href="{% url 'contestant_remove_score_item' item.pk %}"
-                                               onclick="return confirm('Are you sure you want to remove the penalty?')" class="link link-error">Remove
-                                                penalty</a>{% endif %}<br/>
-                                        {% endfor %}
-                                    {% endwith %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                        {% for gate in object.navigation_task.route.waypoints %}
-                            <tr>
-                                <td>{{ gate.name }}</td>
-                                <td>{{ gate.distance_previous|stringformat:".2f" }} m</td>
-                                <td>{{ gate_times|dict_key:gate.name|date:"H:i:s.u e" }}</td>
-                                <td>{% if actual_times|dict_key:gate.name %}
-                                    {{ actual_times|dict_key:gate.name|date:"H:i:s.u e" }}{% else %}
-                                    --{% endif %}</td>
-                                <td>{{ object|gate_time_offset:gate.name }}</td>
-                                <td>
-                                    {% with gate_log=log|dict_key:gate.name %}
-                                        {% for item in gate_log %}
-                                            {{ item.text }} {% if "change_contest" in contest_permissions %}
-                                            <a href="{% url 'contestant_remove_score_item' item.pk %}"
-                                               onclick="return confirm('Are you sure you want to remove the penalty?')" class="link link-error">Remove
-                                                penalty</a>{% endif %}<br/>
-                                        {% endfor %}
-                                    {% endwith %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                        {% for landing_gate in object.navigation_task.route.landing_gates %}
-                            <tr>
-                                <td>{{ landing_gate.name }}</td>
-                                <td></td>
-                                <td>{{ gate_times|dict_key:landing_gate.name|date:"H:i:s.u e" }}</td>
-                                <td>
-                                    {% if actual_times|dict_key:landing_gate.name %}
-                                        {{ actual_times|dict_key:landing_gate.name|date:"H:i:s.u e" }}{% else %}
-                                        --{% endif %}</td>
-                                <td>{{ object|gate_time_offset:landing_gate.name }}</td>
-                                <td>
-                                    {% with gate_log=log|dict_key:landing_gate.name %}
-                                        {% for item in gate_log %}
-                                            {{ item.text }} {% if "change_contest" in contest_permissions %}
-                                            <a href="{% url 'contestant_remove_score_item' item.pk %}"
-                                               onclick="return confirm('Are you sure you want to remove the penalty?')" class="link link-error">Remove
-                                                penalty</a>{% endif %}<br/>
-                                        {% endfor %}
-                                    {% endwith %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                        </tbody>
-                        <tfoot>
-                            <tr><td></td><td>{{ total_distance|stringformat:".f" }} m</td><td></td><td></td><td></td><td></td></tr>
-                        </tfoot>
-                    {% endwith %}
-                </table>
+            <div class="mt-6 space-y-4 max-w-4xl mx-auto">
+                {% get_obj_perms request.user for object.navigation_task.contest as "contest_permissions" %}
+                {% with gate_times=object.gate_times %}
+                    <!-- Takeoff Gates -->
+                    {% for gate in object.navigation_task.route.takeoff_gates %}
+                        {% include "display/contestant_gate_times_mobile_card.html" with gate=gate gate_times=gate_times actual_times=actual_times object=object log=log contest_permissions=contest_permissions %}
+                    {% endfor %}
+                    
+                    <!-- Route Waypoints -->
+                    {% for gate in object.navigation_task.route.waypoints %}
+                        {% include "display/contestant_gate_times_mobile_card.html" with gate=gate gate_times=gate_times actual_times=actual_times object=object log=log contest_permissions=contest_permissions %}
+                    {% endfor %}
+
+                    <!-- Landing Gates -->
+                    {% for gate in object.navigation_task.route.landing_gates %}
+                        {% include "display/contestant_gate_times_mobile_card.html" with gate=gate gate_times=gate_times actual_times=actual_times object=object log=log contest_permissions=contest_permissions %}
+                    {% endfor %}
+                {% endwith %}
+                
+                <div class="card bg-neutral text-neutral-content shadow-lg">
+                    <div class="card-body p-4 flex-row justify-between items-center">
+                        <span class="font-bold uppercase tracking-widest text-sm opacity-70">Total Course Distance</span>
+                        <span class="font-mono font-bold text-xl">{{ total_distance|stringformat:".f" }} m</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
