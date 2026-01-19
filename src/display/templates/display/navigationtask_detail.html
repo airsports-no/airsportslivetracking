@@ -82,13 +82,13 @@
                             <td class="whitespace-nowrap"><a href="{% url 'contestant_update' contestant.pk %}" class="link">{{ contestant.team.table_display|safe }}</a></td>
                             <td>
                                 <div id="contestant_live_running_{{ contestant.pk }}" style="display: none">
-                                    <a class="btn btn-ghost btn-xs tooltip tooltip-bottom" data-tip="Calculator is running. We have received positions from the tracker." href="{% url 'contestant_stop_calculator' contestant.pk %}" onclick="return confirm('Are you sure you want to stop the calculator? Do not do this unless you know what you are doing.')">
+                                    <a class="tooltip tooltip-bottom" data-tip="Calculator is running. We have received positions from the tracker." href="{% url 'contestant_stop_calculator' contestant.pk %}" onclick="return confirm('Are you sure you want to stop the calculator? Do not do this unless you know what you are doing.')">
                                         <img src="{% static "img/green_light.png" %}" alt="Calculator is running" class="w-4 h-4"/>
                                     </a>
                                 </div>
                                 <div id="contestant_live_not_running_{{ contestant.pk }}" style="display: none">
                                     {% if contestant.contestanttrack.calculator_finished %}
-                                        <a class="btn btn-ghost btn-xs tooltip tooltip-bottom" data-tip="Restart the live scoring process from the beginning. Can be used if it was inadvertently stopped." href="{% url 'contestant_restart_calculator' contestant.pk %}" onclick="return confirm('Are you sure you want to restart the calculator? Do not do this unless you know what you are doing.')">
+                                        <a class="tooltip tooltip-bottom" data-tip="Restart the live scoring process from the beginning. Can be used if it was inadvertently stopped." href="{% url 'contestant_restart_calculator' contestant.pk %}" onclick="return confirm('Are you sure you want to restart the calculator? Do not do this unless you know what you are doing.')">
                                             <img src="{% static "img/red_light.png" %}" alt="Calculator is not running (finished)" class="w-4 h-4"/>
                                         </a>
                                     {% else %}
