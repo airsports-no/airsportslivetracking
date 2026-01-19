@@ -34,6 +34,18 @@
         if (location) {
             location.readOnly = true;
         }
+        
+        const timezoneField = document.getElementById('id_time_zone');
+        if (timezoneField && !timezoneField.value) {
+            try {
+                const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                if (tz) {
+                    timezoneField.value = tz;
+                }
+            } catch (e) {
+                console.error("Could not determine browser timezone", e);
+            }
+        }
     });
 </script>
 {% endblock %}
