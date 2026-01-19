@@ -217,8 +217,13 @@ export default function CompetitionMapPage() {
   }, [mode, currentTime, positionsByContestant, scoreLogByContestant, staticNavTaskData, contestantsById]);
 
   const handleContestantSelect = (id: number | null, showLog: boolean) => {
-    setSelectedContestantId(id);
-    setShowScoreLog(showLog);
+    if (selectedContestantId === id && id !== null) {
+        setSelectedContestantId(null);
+        setShowScoreLog(false);
+    } else {
+        setSelectedContestantId(id);
+        setShowScoreLog(showLog);
+    }
   };
 
   useMapLayers({
@@ -237,19 +242,7 @@ export default function CompetitionMapPage() {
     permanentAnnotations,
   });
 
-  // Deselection handler
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const handler = () => {
-      setSelectedContestantId(null);
-      setShowScoreLog(false);
-    };
-    map.on('click', handler);
-    return () => {
-      map.off('click', handler);
-    }
-  }, [mapRef]);
+
 
   const standings = useMemo(() => {
     if (!staticNavTaskData) return [] as any[];
@@ -482,7 +475,11 @@ export default function CompetitionMapPage() {
                   rows={standings}
                   dividerIndex={firstWaitingIndex}
                   onRowClick={(id) => {
-                    setSelectedContestantId(id);
+                    if (selectedContestantId === id) {
+                        setSelectedContestantId(null);
+                    } else {
+                        setSelectedContestantId(id);
+                    }
                     setShowScoreLog(false);
                   }}
                 />
