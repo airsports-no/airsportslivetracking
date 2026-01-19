@@ -42,6 +42,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ results }) => {
         {
             header: 'Name',
             accessorKey: 'name',
+            cell: ({ getValue }) => (
+                <div className="whitespace-normal break-words min-w-[120px]">
+                    {getValue() as string}
+                </div>
+            ),
         },
         {
             header: 'Score',
