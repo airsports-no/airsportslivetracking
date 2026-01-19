@@ -19,10 +19,11 @@ import { reverse } from '../../urls';
 interface NavigationTask {
     pk: number;
     name: string;
-    status: 'Open' | 'Scheduled' | 'Live' | 'Finalized';
+    status?: 'Open' | 'Scheduled' | 'Live' | 'Finalized';
     start_time: string; // ISO string
     finish_time: string; // ISO string
     allow_self_management: boolean;
+    flown_contestants_count: number;
     // Add other fields from API if available and relevant for other tasks
 }
 
@@ -53,6 +54,7 @@ const MissionDashboard = () => {
     const [oldestContestDate, setOldestContestDate] = useState<Date | null>(null);
     const [loadingMore, setLoadingMore] = useState(false);
     const [showOnlyWithOpenTasks, setShowOnlyWithOpenTasks] = useState(false); // New state for filtering
+    const [showOnlyWithFlownContestants, setShowOnlyWithFlownContestants] = useState(false);
     const [dateRange, setDateRange] = useState<[number, number] | null>(null);
     const [sliderRange, setSliderRange] = useState<[number, number] | null>(null);
     const location = useLocation();
@@ -92,6 +94,14 @@ const MissionDashboard = () => {
             if (isOpen !== showOnlyWithOpenTasks) setShowOnlyWithOpenTasks(isOpen);
         } else if (showOnlyWithOpenTasks) {
             setShowOnlyWithOpenTasks(false);
+        }
+
+        const withFlown = params.get('withFlown');
+        if (withFlown !== null) {
+            const isWithFlown = withFlown === 'true';
+            if (isWithFlown !== showOnlyWithFlownContestants) setShowOnlyWithFlownContestants(isWithFlown);
+        } else if (showOnlyWithFlownContestants) {
+            setShowOnlyWithFlownContestants(false);
         }
 
         const tab = params.get('tab');
@@ -290,9 +300,14 @@ const MissionDashboard = () => {
 
                 const openTasksFilterMatch = !showOnlyWithOpenTasks || hasOpenTasks;
 
-                return nameMatch && countryMatch && dateMatch && openTasksFilterMatch;
+                const hasFlownContestants = contest.navigationtask_set?.some((task: NavigationTask) => 
+                    task.flown_contestants_count > 0
+                );
+                const flownContestantsFilterMatch = !showOnlyWithFlownContestants || hasFlownContestants;
+
+                return nameMatch && countryMatch && dateMatch && openTasksFilterMatch && flownContestantsFilterMatch;
             });
-    }, [contests, nameFilter, selectedCountries, showOnlyWithOpenTasks, dateRange]);
+    }, [contests, nameFilter, selectedCountries, showOnlyWithOpenTasks, showOnlyWithFlownContestants, dateRange]);
 
     const listFilteredContests = useMemo(() => {
         if (!textFilteredContests) return [];
@@ -373,11 +388,11 @@ const MissionDashboard = () => {
                             ({listFilteredContests.length})
                         </span>
                     </h2>
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">
                         <input
                             type="text"
                             placeholder="Filter by name"
-                            className="input input-bordered w-full max-w-xs"
+                            className="input input-bordered input-sm w-full max-w-[180px]"
                             value={nameFilter}
                             onChange={(e) => setNameFilter(e.target.value)}
                             onBlur={() => updateURL({ name: nameFilter })}
@@ -391,21 +406,36 @@ const MissionDashboard = () => {
                                 setSelectedCountries(countries);
                                 updateURL({ countries });
                             }}
-                            className="w-full max-w-xs dark:bg-black"
-                            placeholder="Filter by country"
+                            className="w-full max-w-[120px] dark:bg-black text-sm"
+                            placeholder="Country..."
                             classNamePrefix="my-react-select"
                         />
                         <div className="form-control">
-                            <label className="label cursor-pointer flex gap-2">
-                                <span className="label-text">Tasks open for scheduling</span>
+                            <label className="label cursor-pointer flex gap-2 py-0">
+                                <span className="label-text text-sm">Open tasks</span>
                                 <input
                                     type="checkbox"
-                                    className="checkbox"
+                                    className="checkbox checkbox-sm"
                                     checked={showOnlyWithOpenTasks}
                                     onChange={(e) => {
                                         const openTasks = e.target.checked;
                                         setShowOnlyWithOpenTasks(openTasks);
                                         updateURL({ openTasks });
+                                    }}
+                                />
+                            </label>
+                        </div>
+                        <div className="form-control">
+                            <label className="label cursor-pointer flex gap-2 py-0">
+                                <span className="label-text text-sm">Flown</span>
+                                <input
+                                    type="checkbox"
+                                    className="checkbox checkbox-sm"
+                                    checked={showOnlyWithFlownContestants}
+                                    onChange={(e) => {
+                                        const withFlown = e.target.checked;
+                                        setShowOnlyWithFlownContestants(withFlown);
+                                        updateURL({ withFlown });
                                     }}
                                 />
                             </label>
@@ -481,11 +511,11 @@ const MissionDashboard = () => {
                         <span className="ml-2 text-gray-500 text-lg">({filteredMyEditorContests.length})</span>
                         <a href={reverse("contest_create")} className="btn btn-primary btn-sm ml-4">Create New Contest</a>
                     </h2>
-                    <div className="flex space-x-2 sm:space-x-4 mb-2 sm:mb-4">
+                    <div className="flex space-x-2 sm:space-x-4 mb-4">
                         <input
                             type="text"
                             placeholder="Filter by name"
-                            className="input input-bordered w-full max-w-xs"
+                            className="input input-bordered input-sm w-full max-w-[180px]"
                             value={nameFilter}
                             onChange={(e) => setNameFilter(e.target.value)}
                             onBlur={() => updateURL({ name: nameFilter })}
