@@ -78,8 +78,7 @@
 
             <!-- Tasks List -->
             <div class="mt-8">
-                <!-- Mobile Card View (Visible on small screens, hidden on md+) -->
-                <div class="block md:hidden space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {% for navigation_task in object.navigationtask_set.all %}
                     <div class="card bg-base-200/50 shadow-sm border border-base-300">
                         <div class="card-body p-4">
@@ -122,47 +121,6 @@
                         </div>
                     </div>
                     {% endfor %}
-                </div>
-
-                <!-- Desktop Table View (Hidden on small screens, block on md+) -->
-                <div class="hidden md:block overflow-x-auto">
-                    <table class="table table-zebra w-full">
-                        <thead>
-                        <tr>
-                            <th>Task</th>
-                            <th>Start time</th>
-                            <th>Finish time</th>
-                            <th>Scorecard</th>
-                            <th class="w-32 text-center">Map</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {% for navigation_task in object.navigationtask_set.all %}
-                            <tr class="hover">
-                                <td>
-                                    <div class="flex items-center gap-2">
-                                        {% if "view_contest" in contest_permissions %}
-                                            <a href="{% url 'navigationtask_detail' navigation_task.id %}" class="link link-hover font-bold">{{ navigation_task.name }}</a>
-                                        {% else %}
-                                            <span class="font-bold">{{ navigation_task.name }}</span>
-                                        {% endif %}
-                                        {% render_publicity_icon navigation_task.is_public navigation_task.is_featured class_name="inline-block" %}
-                                        <span class="text-xs opacity-70">({{ navigation_task.share_string }})</span>
-                                    </div>
-                                </td>
-                                <td>{{ navigation_task.start_time|date:"Y-m-d H:i:s e" }}</td>
-                                <td>{{ navigation_task.finish_time|date:"Y-m-d H:i:s e" }}</td>
-                                <td>{{ navigation_task.original_scorecard }}</td>
-                                <td class="text-center">
-                                    <a href="{% fe_url 'COMPETITION_MAP_DETAIL' contestId=object.pk navigationTaskId=navigation_task.pk %}" class="btn btn-xs btn-outline btn-info gap-1 whitespace-nowrap">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M20 10c0 4.993-5.539 10.163-7.39 11.728a1.1 1.1 0 0 1-1.22 0C9.539 20.163 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
-                                        Live Map
-                                    </a>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </div>
