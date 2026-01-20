@@ -190,7 +190,7 @@ const ContestantScheduling = () => {
                     <div>
                         <h3 className="font-bold">Scheduling Logic</h3>
                         <ul className="list-disc list-inside">
-                            <li>The scheduler manages all flights starting from the <strong>First Takeoff Time</strong>. Flights before this time are untouched.</li>
+                            <li>The scheduler manages all flights ending after the <strong>First Takeoff Time</strong>. Flights before this time are untouched.</li>
                             <li><strong>Locked Flights (🔒):</strong> Double-click a flight in the timeline to lock/unlock. Locked flights are never moved or deleted by the scheduler but act as fixed constraints for resources.</li>
                             <li><strong>Unlocked Flights:</strong> Flights in the scheduling window will be overwritten. If a team is not selected, their unlocked future flight will be removed.</li>
                         </ul>

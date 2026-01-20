@@ -9,9 +9,10 @@ interface TimelineProps {
     firstTakeoffTime: string;
     onUpdate: (contestantId: number, data: any) => void;
     onToggleLock?: (contestantId: number, currentLockState: boolean) => void;
+    onDelete?: (contestantId: number) => void;
 }
 
-const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, onUpdate, onToggleLock }) => {
+const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, onUpdate, onToggleLock, onDelete }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const timelineRef = useRef<VisTimeline | null>(null);
     const itemsRef = useRef<DataSet<DataItem> | null>(null); // DataSet
@@ -119,7 +120,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             stack: false,
             editable: {
                 add: false,
-                remove: false,
+                remove: true, // Enable removal
                 updateGroup: false,
                 updateTime: true,
                 overrideItems: false
@@ -164,6 +165,14 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                 });
 
                 callback(item); // Optimistically update UI
+            },
+            onRemove: (item: any, callback: (item: any) => void) => {
+                if (onDelete) {
+                    onDelete(Number(item.id));
+                    callback(item);
+                } else {
+                    callback(null); // Cancel deletion if no handler
+                }
             }
         };
 
