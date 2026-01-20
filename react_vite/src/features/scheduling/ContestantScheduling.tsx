@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchContestTeams, fetchNavigationTask, scheduleContestants, updateContestant, fetchTeam, fetchContestant } from './api';
+import { fetchContestTeams, fetchNavigationTask, scheduleContestants, updateContestant, fetchTeam, fetchContestant, deleteContestant } from './api';
 import SchedulingForm from './SchedulingForm';
 import Timeline from './Timeline';
 import ContestantTimetable from './ContestantTimetable';
@@ -12,6 +12,7 @@ const ContestantScheduling = () => {
     const [contestTeams, setContestTeams] = useState([]);
     const [navigationTask, setNavigationTask] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [firstTakeoffTime, setFirstTakeoffTime] = useState('');
     const { showToast, ToastContainer, toasts, removeToast } = useToast();
 
     const loadData = async () => {
@@ -37,6 +38,25 @@ const ContestantScheduling = () => {
                 const task = await fetchNavigationTask(Number(contestId), Number(navigationTaskId));
                 setContestTeams(teamsWithDetails as any);
                 setNavigationTask(task);
+
+                // Initialize firstTakeoffTime if not set
+                if (task?.start_time) {
+                    const startTime = new Date(task.start_time);
+                    const defaultTime = new Date(startTime.getTime() + 30 * 60000);
+                    const timeZone = task.time_zone || 'UTC';
+                    
+                    const formatInTimeZone = (date: Date, tz: string) => {
+                        const parts = new Intl.DateTimeFormat('en-US', {
+                            timeZone: tz,
+                            year: 'numeric', month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit', hour12: false
+                        }).formatToParts(date);
+                        const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+                        return `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}`;
+                    };
+                    
+                    setFirstTakeoffTime(formatInTimeZone(defaultTime, timeZone));
+                }
             }
         } catch (error: any) {
             showToast(error.message, 'error');
@@ -114,6 +134,29 @@ const ContestantScheduling = () => {
         }
     }
 
+    const handleContestantDelete = async (contestantId: number) => {
+        try {
+            if (contestId && navigationTaskId) {
+                await deleteContestant(Number(contestId), Number(navigationTaskId), contestantId);
+                setNavigationTask((prev: any) => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        contestant_set: prev.contestant_set.filter((c: any) => c.id !== contestantId)
+                    };
+                });
+                showToast('Contestant deleted', 'success');
+            }
+        } catch (error: any) {
+            showToast(error.message, 'error');
+            loadData(); // Reload to restore state if delete failed
+        }
+    };
+
+    const handleToggleLock = async (contestantId: number, currentLockState: boolean) => {
+        await handleContestantUpdate(contestantId, { schedule_locked: !currentLockState });
+    };
+
     if (loading) return <Loading />;
 
     const timeZone = navigationTask?.time_zone || 'UTC';
@@ -140,6 +183,20 @@ const ContestantScheduling = () => {
                     Back to Map
                 </Link>
             </div>
+
+            <div className="alert alert-info shadow-sm mb-6 text-sm">
+                <div>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current flex-shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div>
+                        <h3 className="font-bold">Scheduling Logic</h3>
+                        <ul className="list-disc list-inside">
+                            <li>The scheduler manages all flights starting from the <strong>First Takeoff Time</strong>. Flights before this time are untouched.</li>
+                            <li><strong>Locked Flights (🔒):</strong> Double-click a flight in the timeline to lock/unlock. Locked flights are never moved or deleted by the scheduler but act as fixed constraints for resources.</li>
+                            <li><strong>Unlocked Flights:</strong> Flights in the scheduling window will be overwritten. If a team is not selected, their unlocked future flight will be removed.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-1">
@@ -149,6 +206,8 @@ const ContestantScheduling = () => {
                             <SchedulingForm 
                                 contestTeams={contestTeams} 
                                 navigationTask={navigationTask} 
+                                firstTakeoffTime={firstTakeoffTime}
+                                setFirstTakeoffTime={setFirstTakeoffTime}
                                 onSubmit={handleSchedule} 
                             />
                         </div>
@@ -158,10 +217,13 @@ const ContestantScheduling = () => {
                      <div className="card bg-base-100 shadow-xl">
                         <div className="card-body">
                             <h2 className="card-title">Timeline</h2>
-                            <p className="text-sm text-gray-500 mb-2">Drag bars to reschedule. Locked if tracking started.</p>
+                            <p className="text-sm text-gray-500 mb-2">Drag bars to reschedule. Locked if tracking started. Select and delete key to remove.</p>
                             <Timeline 
                                 navigationTask={navigationTask} 
+                                firstTakeoffTime={firstTakeoffTime}
                                 onUpdate={handleContestantUpdate}
+                                onToggleLock={handleToggleLock}
+                                onDelete={handleContestantDelete}
                             />
                         </div>
                     </div>

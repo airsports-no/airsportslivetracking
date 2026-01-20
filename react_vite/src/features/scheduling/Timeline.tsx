@@ -6,10 +6,12 @@ import { v4 as uuidv4 } from 'uuid';
 
 interface TimelineProps {
     navigationTask: any;
+    firstTakeoffTime: string;
     onUpdate: (contestantId: number, data: any) => void;
+    onToggleLock?: (contestantId: number, currentLockState: boolean) => void;
 }
 
-const Timeline: React.FC<TimelineProps> = ({ navigationTask, onUpdate }) => {
+const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, onUpdate, onToggleLock }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const timelineRef = useRef<VisTimeline | null>(null);
     const itemsRef = useRef<DataSet<DataItem> | null>(null); // DataSet
@@ -56,6 +58,8 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, onUpdate }) => {
     }, [contestants]);
 
     const timelineItems = useMemo(() => {
+        const formatTimeLocal = (date: string | number) => new Date(date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
         return contestants.map(contestant => {
             const isAdaptive = contestant.adaptive_start;
             const trackerStart = new Date(contestant.tracker_start_time).getTime();
@@ -67,24 +71,32 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, onUpdate }) => {
 
             const blockStartTime = isAdaptive ? trackerStart : takeoff;
             const blockEndTime = isAdaptive ? finish : landing;
-            const isLocked = contestant.contestanttrack?.calculator_started;
+            const isCalculatorLocked = contestant.contestanttrack?.calculator_started;
+            const isScheduleLocked = contestant.schedule_locked;
+            const isLocked = isCalculatorLocked || isScheduleLocked;
+
+            const lockIcon = isScheduleLocked ? '🔒 ' : '';
+            const content = `${lockIcon}<b>#${contestant.contestant_number}</b> ${contestant.team.crew.member1.last_name}`;
+
+            const takeoffText = isAdaptive ? 'Adaptive' : formatTimeLocal(takeoff);
 
             return {
                 id: contestant.id,
                 group: contestant.team.aeroplane.registration || "Unknown",
                 start: blockStartTime,
                 end: blockEndTime,
-                content: `<b>#${contestant.contestant_number}</b> ${contestant.team.crew.member1.last_name}`,
+                content: content,
                 editable: !isLocked,
                 className: isLocked ? 'vis-item-locked' : 'vis-item-normal',
-                title: `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} (${contestant.team.aeroplane.registration})`,
+                title: `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} (${contestant.team.aeroplane.registration})\nTake-off: ${takeoffText}`,
                 // Custom data to help with updates
                 data: {
                     trackerStart,
                     takeoff,
                     finish,
                     landing,
-                    isAdaptive
+                    isAdaptive,
+                    scheduleLocked: isScheduleLocked
                 }
             };
         });
@@ -102,6 +114,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, onUpdate }) => {
 
         const options: TimelineOptions = {
             min: navigationTask?.start_time ? new Date(navigationTask.start_time).getTime() : undefined,
+            moveable: false,
             groupHeightMode: 'fixed',
             stack: false,
             editable: {
@@ -157,6 +170,18 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, onUpdate }) => {
         const timeline = new VisTimeline(containerRef.current, items, groups, options);
         timelineRef.current = timeline;
 
+        timeline.on('doubleClick', (properties) => {
+            if (properties.item && onToggleLock) {
+                const item = itemsRef.current?.get(properties.item);
+                if (item) {
+                    const originalItem = timelineItems.find(i => i.id === item.id);
+                    if (originalItem) {
+                        onToggleLock(Number(item.id), originalItem.data.scheduleLocked);
+                    }
+                }
+            }
+        });
+
         // Fit once on init
         if (timelineItems.length > 0) {
             timeline.fit();
@@ -185,6 +210,20 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, onUpdate }) => {
         items.update(timelineItems);
         
     }, [timelineItems, aircraftGroups]);
+
+    // Update timeline window when first takeoff time changes
+    useEffect(() => {
+        if (timelineRef.current && firstTakeoffTime) {
+            const start = new Date(firstTakeoffTime).getTime();
+            const currentWindow = timelineRef.current.getWindow();
+            const duration = currentWindow.end.getTime() - currentWindow.start.getTime();
+            
+            // If the start time shifted, we might want to shift the window too
+            if (Math.abs(start - currentWindow.start.getTime()) > 1000) {
+                timelineRef.current.setWindow(start, start + duration);
+            }
+        }
+    }, [firstTakeoffTime]);
 
     return (
         <div className="w-full">

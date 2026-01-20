@@ -141,6 +141,10 @@ class Contestant(models.Model):
         default=False,
         help_text="Is true if any positions for the contestant has been received from the simulator tracking ID",
     )
+    schedule_locked = models.BooleanField(
+        default=False,
+        help_text="If true, the contestant's timing should not be modified by the scheduling algorithm.",
+    )
 
     class Meta:
         unique_together = ("navigation_task", "contestant_number")
@@ -585,6 +589,14 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     @gate_times.setter
     def gate_times(self, value):
         self.predefined_gate_times = round_gate_times(self.calculate_missing_gate_times(value))
+
+    def reset_gate_times(self):
+        """
+        Clears any predefined gate times so that they are recalculated on next access.
+        """
+        self.predefined_gate_times = None
+        if self.pk is not None:
+            Contestant.objects.filter(pk=self.pk).update(predefined_gate_times=None)
 
     def get_gate_time_offset(self, gate_name):
         planned = self.gate_times.get(gate_name)

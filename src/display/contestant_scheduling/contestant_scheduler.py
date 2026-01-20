@@ -133,10 +133,30 @@ class Solver:
         self.start_slot_numbers = pulp.LpVariable.dicts(
             "start_slot_numbers",
             [f"{team.pk}" for team in self.teams],
-            lowBound=0,
-            upBound=self.contest_duration - min([team.flight_time for team in self.teams]),
+            lowBound=None,
+            upBound=None,
             cat=pulp.LpInteger,
         )
+        
+        # Apply specific bounds
+        max_duration = self.contest_duration - min([team.flight_time for team in self.teams])
+        
+        for team in self.teams:
+            var = self.start_slot_numbers[f"{team.pk}"]
+            if team.frozen:
+                if team.start_time is None:
+                    # Should not happen for frozen teams, but fallback
+                    var.lowBound = 0
+                    var.upBound = max_duration
+                else:
+                    slot = self.time_to_slot(team.start_time)
+                    # Fix the variable
+                    var.lowBound = slot
+                    var.upBound = slot
+            else:
+                var.lowBound = 0
+                var.upBound = max_duration
+
         self.aircraft_team_variables = {}
         self.tracker_team_variables = {}
         self.crew_team_variables = {}

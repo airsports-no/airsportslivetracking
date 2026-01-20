@@ -3,12 +3,19 @@ import React, { useState } from 'react';
 interface SchedulingFormProps {
     contestTeams: any[];
     navigationTask: any;
+    firstTakeoffTime: string;
+    setFirstTakeoffTime: (time: string) => void;
     onSubmit: (data: any) => void;
 }
 
-const SchedulingForm: React.FC<SchedulingFormProps> = ({ contestTeams, navigationTask, onSubmit }) => {
+const SchedulingForm: React.FC<SchedulingFormProps> = ({ 
+    contestTeams, 
+    navigationTask, 
+    firstTakeoffTime, 
+    setFirstTakeoffTime, 
+    onSubmit 
+}) => {
     const [selectedTeamIds, setSelectedTeamIds] = React.useState<number[]>([]);
-    const [firstTakeoffTime, setFirstTakeoffTime] = React.useState(navigationTask?.start_time ? new Date(navigationTask.start_time).toISOString().slice(0, 16) : '');
     const [startInterval, setStartInterval] = React.useState(5);
     const [finishInterval, setFinishInterval] = React.useState(2);
     const [aircraftSwitchTime, setAircraftSwitchTime] = React.useState(30);
@@ -37,27 +44,6 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({ contestTeams, navigatio
             setSelectedTeamIds(initialSelectedIds);
         }
     }, [navigationTask?.contestant_set, contestTeams]);
-
-    // Helper to format date for datetime-local input in specific timezone
-    const formatInTimeZone = (date: Date, tz: string) => {
-        const parts = new Intl.DateTimeFormat('en-US', {
-            timeZone: tz,
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit', hour12: false
-        }).formatToParts(date);
-        
-        const getPart = (type: string) => parts.find(p => p.type === type)?.value;
-        return `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}`;
-    };
-
-    React.useEffect(() => {
-        if (navigationTask?.start_time) {
-            // Default: Task Start Time + 30 minutes
-            const startTime = new Date(navigationTask.start_time);
-            const defaultTime = new Date(startTime.getTime() + 30 * 60000);
-            setFirstTakeoffTime(formatInTimeZone(defaultTime, timeZone));
-        }
-    }, [navigationTask]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();

@@ -842,6 +842,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
     contest_id = SerializerMethodField("get_contest_id", read_only=True)
     navigation_task = serializers.PrimaryKeyRelatedField(read_only=True)
     landing_time_after_final_gate = serializers.DateTimeField(read_only=True)
+    schedule_locked = serializers.BooleanField(required=False)
 
     def get_contest_id(self, contestant):
         return contestant.navigation_task.contest.pk
