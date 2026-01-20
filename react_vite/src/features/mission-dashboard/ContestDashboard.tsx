@@ -28,7 +28,6 @@ const ContestDashboard = () => {
         fetchContest,
         fetchMyFutureFlights,
         fetchMyPreviousFlights,
-        fetchOngoingNavigation,
         fetchContestResults,
         fetchMyContestTeams,
         withdraw,
@@ -71,7 +70,6 @@ const ContestDashboard = () => {
             setLoading(true);
             const promises = [
                 fetchContest(Number(contestId)),
-                fetchOngoingNavigation(),
                 fetchContestResults(Number(contestId)),
             ];
             if (document.configuration.isAuthenticated) {
