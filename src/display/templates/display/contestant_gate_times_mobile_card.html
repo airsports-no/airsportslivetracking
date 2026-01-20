@@ -3,7 +3,7 @@
         <div class="flex justify-between items-center mb-2">
             <h3 class="font-bold text-lg">{{ gate.name }}</h3>
             {% if gate.distance_previous %}
-                <span class="badge badge-sm font-mono">{{ gate.distance_previous|stringformat:".0f" }} m</span>
+                <span class="badge badge-sm font-mono">{% widthratio gate.distance_previous 1852 1 %} NM</span>
             {% endif %}
         </div>
         
