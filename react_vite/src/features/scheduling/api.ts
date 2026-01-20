@@ -51,6 +51,15 @@ export const fetchNavigationTask = async (contestPk: number, navigationTaskPk: n
     return response.json();
 };
 
+export const fetchContestant = async (contestId: number, navigationTaskId: number, contestantId: number) => {
+    const url = reverse("contestants-detail", contestId, navigationTaskId, contestantId);
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch contestant ${contestantId}`);
+    }
+    return response.json();
+};
+
 export const updateContestant = async (contestId: number, navigationTaskId: number, contestantId: number, payload: any) => {
     const url = reverse("contestants-detail", contestId, navigationTaskId, contestantId);
     const response = await fetch(url, {

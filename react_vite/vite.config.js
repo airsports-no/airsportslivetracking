@@ -50,6 +50,15 @@ export default defineConfig(({ mode }) => ({
         },
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
+            if (id.includes('vis-timeline') || id.includes('vis-data')) {
+              return 'vis';
+            }
+            if (id.includes('moment')) {
+              return 'moment';
+            }
+            if (id.includes('leaflet')) {
+              return 'leaflet';
+            }
             return 'vendor';
           }
         },

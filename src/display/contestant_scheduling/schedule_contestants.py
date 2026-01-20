@@ -173,16 +173,16 @@ def schedule_and_create_contestants_navigation_tasks(
         contest_team = ContestTeam.objects.get(pk=team_definition.pk)
         tracking_start_time = (
             team_definition.start_time - datetime.timedelta(minutes=tracker_leadtime_minutes)
-        ).replace(microsecond=0, tzinfo=datetime.timezone.utc)
+        ).replace(microsecond=0).astimezone(datetime.timezone.utc)
         tracking_finish_time = (
             team_definition.start_time
             + datetime.timedelta(minutes=team_definition.flight_time + tracker_switch_time - tracker_leadtime_minutes)
-        ).replace(microsecond=0, tzinfo=datetime.timezone.utc)
+        ).replace(microsecond=0).astimezone(datetime.timezone.utc)
         earliest_tracking_start = min(earliest_tracking_start, tracking_start_time)
         latest_tracking_finish = max(latest_tracking_finish, tracking_finish_time)
         contestants.append(
             Contestant(
-                takeoff_time=team_definition.start_time.replace(microsecond=0, tzinfo=datetime.timezone.utc),
+                takeoff_time=team_definition.start_time.replace(microsecond=0).astimezone(datetime.timezone.utc),
                 finished_by_time=tracking_finish_time,
                 air_speed=contest_team.air_speed,
                 wind_speed=navigation_task.wind_speed,

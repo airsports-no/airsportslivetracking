@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchContestTeams, fetchNavigationTask, scheduleContestants, updateContestant, fetchTeam } from './api';
+import { fetchContestTeams, fetchNavigationTask, scheduleContestants, updateContestant, fetchTeam, fetchContestant } from './api';
 import SchedulingForm from './SchedulingForm';
 import Timeline from './Timeline';
 import ContestantTimetable from './ContestantTimetable';
@@ -69,11 +69,48 @@ const ContestantScheduling = () => {
     const handleContestantUpdate = async (contestantId: number, updates: any) => {
         try {
             if (contestId && navigationTaskId) {
-                await updateContestant(Number(contestId), Number(navigationTaskId), contestantId, updates);
-                loadData(); 
+                const updatedContestant = await updateContestant(Number(contestId), Number(navigationTaskId), contestantId, updates);
+                
+                setNavigationTask((prev: any) => {
+                    if (!prev) return prev;
+                    const newContestantSet = prev.contestant_set.map((c: any) => {
+                        if (c.id === updatedContestant.id) {
+                            // Preserve the nested team object if the response only returns an ID
+                            const team = (typeof updatedContestant.team === 'object' && updatedContestant.team !== null) 
+                                ? updatedContestant.team 
+                                : c.team;
+                            return { ...updatedContestant, team };
+                        }
+                        return c;
+                    });
+                    return { ...prev, contestant_set: newContestantSet };
+                });
             }
         } catch (error: any) {
             showToast(error.message, 'error');
+            // Revert to server data for this contestant only
+            if (contestId && navigationTaskId) {
+                try {
+                    const serverContestant = await fetchContestant(Number(contestId), Number(navigationTaskId), contestantId);
+                    setNavigationTask((prev: any) => {
+                        if (!prev) return prev;
+                        const newContestantSet = prev.contestant_set.map((c: any) => {
+                            if (c.id === serverContestant.id) {
+                                // Preserve the nested team object if the response only returns an ID
+                                const team = (typeof serverContestant.team === 'object' && serverContestant.team !== null) 
+                                    ? serverContestant.team 
+                                    : c.team;
+                                return { ...serverContestant, team };
+                            }
+                            return c;
+                        });
+                        return { ...prev, contestant_set: newContestantSet };
+                    });
+                } catch (fetchError: any) {
+                    console.error("Failed to revert contestant data:", fetchError);
+                    loadData(); // Fallback to full reload if single fetch fails
+                }
+            }
         }
     }
 

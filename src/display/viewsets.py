@@ -716,23 +716,25 @@ class NavigationTaskViewSet(ModelViewSet):
         data = request.data
 
         try:
-            contest_teams_pks = data.get('contest_teams', [])
+            contest_teams_pks = data.get("contest_teams", [])
             if not contest_teams_pks:
                 return Response({"error": "No contest teams provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-            first_takeoff_time = dateutil.parser.parse(data.get('first_takeoff_time'))
+            first_takeoff_time = dateutil.parser.parse(data.get("first_takeoff_time"))
+            if first_takeoff_time.tzinfo is None:
+                first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
 
             success, messages = schedule_and_create_contestants(
                 navigation_task=navigation_task,
                 contest_teams_pks=contest_teams_pks,
                 first_takeoff_time=first_takeoff_time,
-                tracker_leadtime_minutes=int(data.get('tracker_lead_time_minutes', 15)),
-                aircraft_switch_time_minutes=int(data.get('minutes_for_aircraft_switch', 30)),
-                tracker_switch_time=int(data.get('minutes_for_tracker_switch', 15)),
-                minimum_start_interval=int(data.get('minutes_between_contestants_at_start', 5)),
-                minimum_finish_interval=int(data.get('minutes_between_contestants_at_finish', 2)),
-                crew_switch_time=int(data.get('minutes_for_crew_switch', 15)),
-                optimise=data.get('optimise', False)
+                tracker_leadtime_minutes=int(data.get("tracker_lead_time_minutes", 15)),
+                aircraft_switch_time_minutes=int(data.get("minutes_for_aircraft_switch", 30)),
+                tracker_switch_time=int(data.get("minutes_for_tracker_switch", 15)),
+                minimum_start_interval=int(data.get("minutes_between_contestants_at_start", 5)),
+                minimum_finish_interval=int(data.get("minutes_between_contestants_at_finish", 2)),
+                crew_switch_time=int(data.get("minutes_for_crew_switch", 15)),
+                optimise=data.get("optimise", False),
             )
 
             if success:

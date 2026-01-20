@@ -7,17 +7,36 @@ interface SchedulingFormProps {
 }
 
 const SchedulingForm: React.FC<SchedulingFormProps> = ({ contestTeams, navigationTask, onSubmit }) => {
-    const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([]);
-    const [firstTakeoffTime, setFirstTakeoffTime] = useState(navigationTask?.start_time ? new Date(navigationTask.start_time).toISOString().slice(0, 16) : '');
-    const [startInterval, setStartInterval] = useState(5);
-    const [finishInterval, setFinishInterval] = useState(2);
-    const [aircraftSwitchTime, setAircraftSwitchTime] = useState(30);
-    const [trackerSwitchTime, setTrackerSwitchTime] = useState(15);
-    const [crewSwitchTime, setCrewSwitchTime] = useState(15);
-    const [trackerLeadTime, setTrackerLeadTime] = useState(15);
-    const [optimise, setOptimise] = useState(true);
+    const [selectedTeamIds, setSelectedTeamIds] = React.useState<number[]>([]);
+    const [firstTakeoffTime, setFirstTakeoffTime] = React.useState(navigationTask?.start_time ? new Date(navigationTask.start_time).toISOString().slice(0, 16) : '');
+    const [startInterval, setStartInterval] = React.useState(5);
+    const [finishInterval, setFinishInterval] = React.useState(2);
+    const [aircraftSwitchTime, setAircraftSwitchTime] = React.useState(30);
+    const [trackerSwitchTime, setTrackerSwitchTime] = React.useState(15);
+    const [crewSwitchTime, setCrewSwitchTime] = React.useState(15);
+    const [trackerLeadTime, setTrackerLeadTime] = React.useState(15);
+    const [optimise, setOptimise] = React.useState(true);
 
     const timeZone = navigationTask?.time_zone || 'UTC';
+
+    const sortedContestTeams = React.useMemo(() => {
+        return [...contestTeams].sort((a, b) => {
+            const nameA = `${a.team?.crew?.member1?.first_name || ''} ${a.team?.crew?.member1?.last_name || ''}`.toLowerCase();
+            const nameB = `${b.team?.crew?.member1?.first_name || ''} ${b.team?.crew?.member1?.last_name || ''}`.toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+    }, [contestTeams]);
+
+    // Pre-check teams that already have a contestant in this task
+    React.useEffect(() => {
+        if (navigationTask?.contestant_set && contestTeams.length > 0) {
+            const existingTeamIds = navigationTask.contestant_set.map((c: any) => c.team?.id).filter(Boolean);
+            const initialSelectedIds = contestTeams
+                .filter(ct => existingTeamIds.includes(ct.team?.id))
+                .map(ct => ct.id);
+            setSelectedTeamIds(initialSelectedIds);
+        }
+    }, [navigationTask?.contestant_set, contestTeams]);
 
     // Helper to format date for datetime-local input in specific timezone
     const formatInTimeZone = (date: Date, tz: string) => {
@@ -117,7 +136,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({ contestTeams, navigatio
                     </span>
                 </label>
                 <div className="h-64 overflow-y-auto overflow-x-hidden border border-base-300 rounded-lg p-2 bg-base-100">
-                    {contestTeams.map(ct => {
+                    {sortedContestTeams.map(ct => {
                         const label = !ct.team?.crew?.member1 
                             ? `Team ${ct.id} (Loading...)`
                             : `${ct.team.crew.member1.first_name} ${ct.team.crew.member1.last_name} (${ct.team.aeroplane?.registration})`;
@@ -134,7 +153,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({ contestTeams, navigatio
                             </label>
                         );
                     })}
-                    {contestTeams.length === 0 && <div className="text-center text-gray-500 py-4">No teams found.</div>}
+                    {sortedContestTeams.length === 0 && <div className="text-center text-gray-500 py-4">No teams found.</div>}
                 </div>
             </div>
 
