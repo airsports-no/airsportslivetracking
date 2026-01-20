@@ -48,7 +48,6 @@ from display.views import (
     revert_uploaded_gpx_track_for_contestant,
     copy_editable_route,
     download_gpx_track_contestant,
-    view_contest_team_images,
     clear_profile_image_background,
     upload_profile_picture,
     get_contestant_processing_statistics,
@@ -119,7 +118,6 @@ urlpatterns = [
     path("users/contestexample/", ContestCreationEmailExample.as_view(), name="contestcreation_example"),
     path("contest/create/", ContestCreateView.as_view(), name="contest_create"),
     path("contest/<int:pk>/", ContestDetailView.as_view(), name="contest_details"),
-    path("contest/<int:pk>/contest_team_images/", view_contest_team_images, name="contest_team_images"),
     path(
         "contest/<int:contest_pk>/remove_image_background/<int:pk>/",
         clear_profile_image_background,

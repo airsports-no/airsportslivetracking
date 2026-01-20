@@ -444,27 +444,6 @@ def refresh_editable_route_navigation_task(request, pk):
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
-@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
-def view_contest_team_images(request, pk):
-    """
-    View a list of all profile images used by team members associated with the contest.This view can be used to review
-    the images and click a link to remove the background using the remove.bg service.
-    """
-    contest = get_object_or_404(Contest, pk=pk)
-    return render(
-        request,
-        "display/contest_team_images.html",
-        {
-            "contest": contest,
-            "object_list": Person.objects.filter(
-                Q(crewmember_two__team__contest=contest) | Q(crewmember_one__team__contest=contest)
-            )
-            .distinct()
-            .order_by("last_name", "first_name"),
-        },
-    )
-
-
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
 def clear_profile_image_background(request, contest_pk, pk):
     """
