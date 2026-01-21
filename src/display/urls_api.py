@@ -45,11 +45,6 @@ urlpatterns = [
         get_broadcast_navigation_task_orders_status,
         name="navigationtask_getflightordersstatus",
     ),
-    path(
-        "navigationtask/<int:pk>/contestants_timeline_data/",
-        get_contestant_schedule,
-        name="navigationtask_contestantstimelinedata",
-    ),
     path("getcountrycode/", get_country_from_location, name="getcountrycode"),
     path("contestant/autocomplete/id/", auto_complete_person_id, name="autocomplete_id"),
     path("contestant/autocomplete/phone/", auto_complete_person_phone, name="autocomplete_phone"),

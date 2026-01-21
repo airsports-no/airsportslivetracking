@@ -16,6 +16,7 @@ const ContestantScheduling = () => {
     const [loading, setLoading] = useState(true);
     const [scheduling, setScheduling] = useState(false);
     const [firstTakeoffTime, setFirstTakeoffTime] = useState<any>(null);
+    const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
     const { showToast, ToastContainer, toasts, removeToast } = useToast();
 
     const loadData = async () => {
@@ -52,6 +53,17 @@ const ContestantScheduling = () => {
     useEffect(() => {
         loadData();
     }, [contestId, navigationTaskId]);
+
+    useEffect(() => {
+        const visitCountStr = localStorage.getItem('scheduling_info_visits');
+        let visitCount = visitCountStr ? parseInt(visitCountStr, 10) : 0;
+        visitCount++;
+        localStorage.setItem('scheduling_info_visits', visitCount.toString());
+        
+        if (visitCount > 3) {
+            setIsInfoCollapsed(true);
+        }
+    }, []);
 
     const handleSchedule = async (formData: any) => {
         setScheduling(true);
@@ -183,29 +195,40 @@ const ContestantScheduling = () => {
             </div>
 
             <div className="alert alert-info shadow-sm mb-6 text-sm">
-                <div>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current flex-shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <div>
-                        <h3 className="font-bold">Scheduling flights</h3>
-                        <ul className="list-disc list-inside space-y-1">
-                            <li>The scheduler manages all flights ending after the <strong>First Takeoff Time</strong>. Flights before this time are untouched.</li>
-                            <li><strong>Locked Flights (🔒 / 📡):</strong> 
-                                <ul className="list-disc list-inside ml-4 mt-1">
-                                    <li><strong>Manual Lock (🔒):</strong> Double-click a flight in the timeline to lock/unlock. These are never moved or deleted by the scheduler.</li>
-                                    <li><strong>Tracking Started (📡):</strong> Flights where the calculator has started are automatically locked. They cannot be moved, but they can be deleted if necessary.</li>
+                <div className="w-full">
+                    <div className="flex items-start gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current flex-shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <div className="w-full">
+                            <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsInfoCollapsed(!isInfoCollapsed)}>
+                                <h3 className="font-bold">Scheduling flights</h3>
+                                <button className="btn btn-ghost btn-xs btn-circle">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transition-transform ${isInfoCollapsed ? 'rotate-180' : ''}`}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                                    </svg>
+                                </button>
+                            </div>
+                            {!isInfoCollapsed && (
+                                <ul className="list-disc list-inside space-y-1 mt-2">
+                                    <li>The scheduler manages all flights ending after the <strong>First Takeoff Time</strong>. Flights before this time are untouched.</li>
+                                    <li><strong>Locked Flights (🔒 / 📡):</strong> 
+                                        <ul className="list-disc list-inside ml-4 mt-1">
+                                            <li><strong>Manual Lock (🔒):</strong> Double-click a flight in the timeline to lock/unlock. These are never moved or deleted by the scheduler.</li>
+                                            <li><strong>Tracking Started (📡):</strong> Flights where the calculator has started are automatically locked. They cannot be moved, but they can be deleted if necessary.</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Unlocked Flights:</strong> Flights in the scheduling window will be overwritten. If a team is not selected, their unlocked future flight will be removed.</li>
+                                    <li><strong>Initial Scheduling:</strong> Determine the first takeoff time, select all teams that will be flying, and press "Run Scheduler". This will populate all contestants.</li>
+                                    <li><strong>Updates During Competition:</strong> If changes are needed (e.g. delays or roster changes):
+                                        <ul className="list-disc list-inside ml-4 mt-1">
+                                            <li>Lock all contestants that have already flown or whose time should not change.</li>
+                                            <li>Update the <strong>Next Takeoff Time</strong> to the desired time for the first <em>new</em> flight to be scheduled.</li>
+                                            <li>Select/deselect any teams as required for the remaining flights.</li>
+                                            <li>Run scheduler again.</li>
+                                        </ul>
+                                    </li>
                                 </ul>
-                            </li>
-                            <li><strong>Unlocked Flights:</strong> Flights in the scheduling window will be overwritten. If a team is not selected, their unlocked future flight will be removed.</li>
-                            <li><strong>Initial Scheduling:</strong> Determine the first takeoff time, select all teams that will be flying, and press "Run Scheduler". This will populate all contestants.</li>
-                            <li><strong>Updates During Competition:</strong> If changes are needed (e.g. delays or roster changes):
-                                <ul className="list-disc list-inside ml-4 mt-1">
-                                    <li>Lock all contestants that have already flown or whose time should not change.</li>
-                                    <li>Update the <strong>Next Takeoff Time</strong> to the desired time for the first <em>new</em> flight to be scheduled.</li>
-                                    <li>Select/deselect any teams as required for the remaining flights.</li>
-                                    <li>Run scheduler again.</li>
-                                </ul>
-                            </li>
-                        </ul>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
