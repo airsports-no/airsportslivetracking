@@ -415,6 +415,7 @@ class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
             "pk",
             "name",
             "start_time",
+            "schedule_start_time",
             "finish_time",
             "tracking_link",
             "allow_self_management",

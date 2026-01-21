@@ -6,13 +6,14 @@ import Timeline from './Timeline';
 import ContestantTimetable from './ContestantTimetable';
 import { Loading } from '../route-editor/components/basicComponents';
 import { useToast } from '../competition-map/hooks/useToast';
+import { reverse } from '../../urls';
 
 const ContestantScheduling = () => {
     const { contestId, navigationTaskId } = useParams();
     const [contestTeams, setContestTeams] = useState([]);
     const [navigationTask, setNavigationTask] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [firstTakeoffTime, setFirstTakeoffTime] = useState('');
+    const [firstTakeoffTime, setFirstTakeoffTime] = useState<any>(null);
     const { showToast, ToastContainer, toasts, removeToast } = useToast();
 
     const loadData = async () => {
@@ -38,25 +39,6 @@ const ContestantScheduling = () => {
                 const task = await fetchNavigationTask(Number(contestId), Number(navigationTaskId));
                 setContestTeams(teamsWithDetails as any);
                 setNavigationTask(task);
-
-                // Initialize firstTakeoffTime if not set
-                if (task?.start_time) {
-                    const startTime = new Date(task.start_time);
-                    const defaultTime = new Date(startTime.getTime() + 30 * 60000);
-                    const timeZone = task.time_zone || 'UTC';
-                    
-                    const formatInTimeZone = (date: Date, tz: string) => {
-                        const parts = new Intl.DateTimeFormat('en-US', {
-                            timeZone: tz,
-                            year: 'numeric', month: '2-digit', day: '2-digit',
-                            hour: '2-digit', minute: '2-digit', hour12: false
-                        }).formatToParts(date);
-                        const getPart = (type: string) => parts.find(p => p.type === type)?.value;
-                        return `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}`;
-                    };
-                    
-                    setFirstTakeoffTime(formatInTimeZone(defaultTime, timeZone));
-                }
             }
         } catch (error: any) {
             showToast(error.message, 'error');
@@ -179,9 +161,9 @@ const ContestantScheduling = () => {
                         Window: {formatTime(navigationTask?.start_time)} - {formatTime(navigationTask?.finish_time)} ({timeZone})
                     </p>
                 </div>
-                <Link to={`/competition-map/${contestId}/${navigationTaskId}`} className="btn btn-secondary btn-sm">
-                    Back to Map
-                </Link>
+                <a href={reverse('navigationtask_detail', navigationTaskId )} className="btn btn-secondary btn-sm">
+                    Back to navigation task
+                </a>
             </div>
 
             <div className="alert alert-info shadow-sm mb-6 text-sm">

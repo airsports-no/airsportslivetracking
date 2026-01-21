@@ -24,6 +24,8 @@ def schedule_and_create_contestants(
     crew_switch_time: int,
     optimise: bool = False,
 ) -> Tuple[bool, List[str]]:
+    navigation_task.schedule_start_time = first_takeoff_time
+    navigation_task.save(update_fields=["schedule_start_time"])
     if LANDING in navigation_task.scorecard.task_type:
         return schedule_and_create_contestants_landing_task(
             navigation_task,

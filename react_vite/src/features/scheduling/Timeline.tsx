@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 interface TimelineProps {
     navigationTask: any;
-    firstTakeoffTime: string;
+    firstTakeoffTime: Date;
     onUpdate: (contestantId: number, data: any) => void;
     onToggleLock?: (contestantId: number, currentLockState: boolean) => void;
     onDelete?: (contestantId: number) => void;
@@ -114,10 +114,11 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
         groupsRef.current = groups;
 
         const options: TimelineOptions = {
-            min: navigationTask?.start_time ? new Date(navigationTask.start_time).getTime() : undefined,
+            // min: navigationTask?.start_time ? new Date(navigationTask.start_time).getTime() : undefined,
             moveable: false,
             groupHeightMode: 'fixed',
             stack: false,
+            showCurrentTime: true,
             editable: {
                 add: false,
                 remove: true, // Enable removal
@@ -223,14 +224,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
     // Update timeline window when first takeoff time changes
     useEffect(() => {
         if (timelineRef.current && firstTakeoffTime) {
-            const start = new Date(firstTakeoffTime).getTime();
-            const currentWindow = timelineRef.current.getWindow();
-            const duration = currentWindow.end.getTime() - currentWindow.start.getTime();
-            
-            // If the start time shifted, we might want to shift the window too
-            if (Math.abs(start - currentWindow.start.getTime()) > 1000) {
-                timelineRef.current.setWindow(start, start + duration);
-            }
+            timelineRef.current.setWindow(firstTakeoffTime, null);
         }
     }, [firstTakeoffTime]);
 

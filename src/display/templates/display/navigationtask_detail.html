@@ -6,6 +6,7 @@
 {% load publicity_icons %}
 
 {% block content %}
+{% get_obj_perms request.user for object.contest as "contest_permissions" %}
 <div class="py-2 md:py-6">
     <div class="card bg-base-100 shadow-xl">
         <div class="card-body p-4 md:p-8">
@@ -47,21 +48,25 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trophy"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2h-6c-2.76 0-5 2.24-5 5v7c0 2.21 1.79 4 4 4h4c2.21 0 4-1.79 4-4V7c0-2.76-2.24-5-5-5z"/></svg>
                         <span class="hidden sm:inline">Results</span>
                     </a>
-
+                    {% if "change_contest" in contest_permissions %}
+                    <a href="{% url 'contestant_quick_create' object.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Quick Add Contestant">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                        <span class="hidden sm:inline">Quick Add</span>
+                    </a>
+                    {% endif %}
                     <!-- Tools Dropdown -->
                     <div class="dropdown dropdown-end">
                         <label tabindex="0" class="btn btn-sm btn-square btn-ghost" title="More Tools">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-more-horizontal"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
                         </label>
                         <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a href="{% fe_url 'CONTESTANT_SCHEDULING' contestId=object.contest.pk navigationTaskId=object.pk %}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar-clock"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><circle cx="16.5" cy="16.5" r="2.5"/><path d="M16.5 14.5v2l1 1"/></svg>Scheduling assistant</a></li>
                             <li><a href="{% url 'navigationtask_share' object.pk %}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-share-2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg> Share Task</a></li>
                             <li><a href="{% url 'navigationtask_contestantstimeline' object.pk %}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Timeline</a></li>
                             <li><a href="{% url 'navigationtask_qr' object.pk %}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-qr-code"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="14" y="3" rx="1"/><rect width="5" height="5" x="3" y="14" rx="1"/><path d="M21 16h-1.5"/><path d="M21 21v.5"/><path d="M16 21v-1.5"/><path d="M16 16h1.5"/><path d="M21 16v.5"/><path d="M16 21h1.5"/></svg> QR Code</a></li>
                             <li><a href="{% url 'navigationtask_map' object.pk %}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg> Navigation Map</a></li>
                         </ul>
                     </div>
-
-                    {% get_obj_perms request.user for object.contest as "contest_permissions" %}
                     {% if "change_contest" in contest_permissions %}
                     <!-- Management Dropdown -->
                     <div class="dropdown dropdown-end">
@@ -307,10 +312,6 @@
             <!-- Footer Info -->
             <div class="mt-8 text-sm text-base-content/70 bg-base-200/50 p-4 rounded-lg">
                 <p>To verify that tracking will work, switch on the Air Sports Live Tracking App for the contestants and reload this page. If there is a green checkmark next to the tracking email, then tracking is set up correctly. If there is an * next to the email, then this user has not set up the APP correctly (for instance using a different email address). The email address listed in the tracking column must exactly match the email address used to log into the Air Sports Live Tracking App. When the indicator under "Live" is red it means that the calculator is not running (finished or not started). If green, the calculator is running and receiving data.</p>
-            </div>
-            
-            <div class="modal-action justify-start mt-6">
-                <a href="{% url 'contestant_create' object.pk %}" class="btn btn-primary">New contestant</a>
             </div>
         </div>
     </div>

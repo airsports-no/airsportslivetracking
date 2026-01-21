@@ -7,6 +7,7 @@ from display.views import (
     NavigationTaskDetailView,
     ContestantUpdateView,
     ContestantCreateView,
+    ContestantQuickAddView,
     ContestantGateTimesView,
     ContestCreateView,
     ContestUpdateView,
@@ -201,6 +202,11 @@ urlpatterns = [
     path("maplink/<uuid:key>/", get_contestant_email_flight_orders_link, name="email_map_link"),
     path("mapreport/<int:pk>/", get_contestant_email_flying_orders_link, name="email_report_link"),
     path("contestant/<int:navigationtask_pk>/create/", ContestantCreateView.as_view(), name="contestant_create"),
+    path(
+        "contestant/<int:navigationtask_pk>/quickcreate/",
+        ContestantQuickAddView.as_view(),
+        name="contestant_quick_create",
+    ),
     path(
         "contestant/<int:pk>/processingstatistics/", get_contestant_processing_statistics, name="processingstatistics"
     ),

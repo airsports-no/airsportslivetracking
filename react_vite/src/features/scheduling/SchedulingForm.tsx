@@ -3,10 +3,19 @@ import React, { useState } from 'react';
 interface SchedulingFormProps {
     contestTeams: any[];
     navigationTask: any;
-    firstTakeoffTime: string;
-    setFirstTakeoffTime: (time: string) => void;
+    firstTakeoffTime: Date;
+    setFirstTakeoffTime: (time: Date) => void;
     onSubmit: (data: any) => void;
 }
+            const formatInTimeZone = (date: Date, tz: string) => {
+                const parts = new Intl.DateTimeFormat('en-US', {
+                    timeZone: tz,
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', hour12: false
+                }).formatToParts(date);
+                const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+                return `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}`;
+            };
 
 const SchedulingForm: React.FC<SchedulingFormProps> = ({ 
     contestTeams, 
@@ -33,6 +42,18 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
             return nameA.localeCompare(nameB);
         });
     }, [contestTeams]);
+
+    // Initialize firstTakeoffTime if not set
+    React.useEffect(() => {
+        if (!firstTakeoffTime && navigationTask?.start_time) {
+            const startTime = new Date(navigationTask.start_time);
+            const scheduleStartTime = navigationTask.schedule_start_time ? new Date(navigationTask.schedule_start_time) : null;
+            const defaultTime = scheduleStartTime || new Date(startTime.getTime() + 30 * 60000);
+            
+            
+            setFirstTakeoffTime(defaultTime);
+        }
+    }, [navigationTask, firstTakeoffTime, setFirstTakeoffTime, timeZone]);
 
     // Pre-check teams that already have a contestant in this task
     React.useEffect(() => {
@@ -151,8 +172,8 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
                 <input 
                     type="datetime-local" 
                     className="input input-bordered w-full" 
-                    value={firstTakeoffTime}
-                    onChange={e => setFirstTakeoffTime(e.target.value)}
+                    value={formatInTimeZone(firstTakeoffTime, navigationTask.time_zone)}
+                    onChange={e => setFirstTakeoffTime(new Date(e.target.value))}
                     required
                 />
             </div>
