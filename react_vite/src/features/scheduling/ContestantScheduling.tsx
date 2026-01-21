@@ -14,6 +14,7 @@ const ContestantScheduling = () => {
     const [contestTeams, setContestTeams] = useState([]);
     const [navigationTask, setNavigationTask] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [scheduling, setScheduling] = useState(false);
     const [firstTakeoffTime, setFirstTakeoffTime] = useState<any>(null);
     const { showToast, ToastContainer, toasts, removeToast } = useToast();
 
@@ -53,6 +54,7 @@ const ContestantScheduling = () => {
     }, [contestId, navigationTaskId]);
 
     const handleSchedule = async (formData: any) => {
+        setScheduling(true);
         try {
             if (contestId && navigationTaskId) {
                 const result = await scheduleContestants(Number(contestId), Number(navigationTaskId), formData);
@@ -66,6 +68,8 @@ const ContestantScheduling = () => {
             }
         } catch (error: any) {
             showToast(error.message, 'error');
+        } finally {
+            setScheduling(false);
         }
     };
 
@@ -216,7 +220,8 @@ const ContestantScheduling = () => {
                                 navigationTask={navigationTask} 
                                 firstTakeoffTime={firstTakeoffTime}
                                 setFirstTakeoffTime={setFirstTakeoffTime}
-                                onSubmit={handleSchedule} 
+                                onSubmit={handleSchedule}
+                                isLoading={scheduling}
                             />
                         </div>
                     </div>

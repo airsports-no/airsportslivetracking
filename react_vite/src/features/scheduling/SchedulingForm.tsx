@@ -6,6 +6,7 @@ interface SchedulingFormProps {
     firstTakeoffTime: Date;
     setFirstTakeoffTime: (time: Date) => void;
     onSubmit: (data: any) => void;
+    isLoading?: boolean;
 }
 
 const HelpIcon: React.FC<{ text: string }> = ({ text }) => (
@@ -19,7 +20,8 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
     navigationTask, 
     firstTakeoffTime, 
     setFirstTakeoffTime, 
-    onSubmit 
+    onSubmit,
+    isLoading = false
 }) => {
     const [selectedTeamIds, setSelectedTeamIds] = React.useState<number[]>([]);
     const [startInterval, setStartInterval] = React.useState(5);
@@ -250,7 +252,9 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
                 </label>
             </div>
 
-            <button type="submit" className="btn btn-primary w-full">Run Scheduler</button>
+            <button type="submit" className="btn btn-primary w-full" disabled={isLoading}>
+                {isLoading ? <span className="loading loading-spinner"></span> : 'Run Scheduler'}
+            </button>
         </form>
     );
 };
