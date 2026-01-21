@@ -212,9 +212,12 @@ class Contestant(models.Model):
 
     @property
     def landing_time_after_final_gate(self) -> datetime.datetime:
-        return self.gate_times[self.navigation_task.route.waypoints[-1].name] + datetime.timedelta(
-            minutes=self.navigation_task.minutes_to_landing
-        )
+        try:
+            return self.gate_times[self.navigation_task.route.waypoints[-1].name] + datetime.timedelta(
+                minutes=self.navigation_task.minutes_to_landing
+            )
+        except (KeyError, IndexError):
+            return self.navigation_task.finish_time
 
     @property
     def landing_time_after_final_gate_local(self) -> datetime.datetime:

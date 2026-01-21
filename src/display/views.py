@@ -1537,20 +1537,6 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
 
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
-def render_contestants_timeline(request, pk):
-    """
-    Renders a vis.js timeline of the contestants start and finish times.
-    """
-    navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    timezone.activate(navigation_task.contest.time_zone)
-    return render(
-        request,
-        "display/contestant_timeline.html",
-        context={"navigation_task": navigation_task},
-    )
-
-
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def clear_contestants(request, pk):
     """
     Deletes all contestants from the navigation task and redirects to the navigation task detail page.
@@ -1561,65 +1547,6 @@ def clear_contestants(request, pk):
     messages.success(request, f"{candidates.count()} contestants have been deleted")
     candidates.delete()
     return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
-
-
-@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
-def add_contest_teams_to_navigation_task(request, pk):
-    """
-    Add all teams registered for a contest to a task. If the team is already assigned as a contestant, ignore it.
-
-    Apply basic deconflicting of speed, aircraft, and trackers
-    """
-    TIME_LOCK_MINUTES = 30
-    navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    timezone.activate(navigation_task.contest.time_zone)
-    form = ContestTeamOptimisationForm()
-    if request.method == "POST":
-        form = ContestTeamOptimisationForm(request.POST)
-        form.fields["contest_teams"].choices = [
-            (str(item.pk), str(item)) for item in navigation_task.contest.contestteam_set.all()
-        ]
-        if form.is_valid():
-            try:
-                success, returned_messages = schedule_and_create_contestants(
-                    navigation_task,
-                    [int(item) for item in form.cleaned_data["contest_teams"]],
-                    form.cleaned_data["first_takeoff_time"],
-                    form.cleaned_data["tracker_lead_time_minutes"],
-                    form.cleaned_data["minutes_for_aircraft_switch"],
-                    form.cleaned_data["minutes_for_tracker_switch"],
-                    form.cleaned_data["minutes_between_contestants_at_start"],
-                    form.cleaned_data["minutes_between_contestants_at_finish"],
-                    form.cleaned_data["minutes_for_crew_switch"],
-                    optimise=form.cleaned_data.get("optimise", False),
-                )
-                if not success:
-                    messages.error(request, "Optimisation failed")
-                else:
-                    messages.success(request, "Optimisation successful")
-                for item in returned_messages:
-                    messages.warning(request, item)
-            except ValidationError as v:
-                messages.error(request, f"Failed validating created contestant: {v}")
-            return redirect(
-                reverse(
-                    "navigationtask_contestantstimeline",
-                    kwargs={"pk": navigation_task.pk},
-                )
-            )
-    form.fields["first_takeoff_time"].initial = (
-        navigation_task.schedule_start_time
-        if navigation_task.schedule_start_time
-        else navigation_task.start_time + datetime.timedelta(minutes=navigation_task.planning_time)
-    )
-    form.fields["contest_teams"].choices = [
-        (str(item.pk), str(item)) for item in navigation_task.contest.contestteam_set.all()
-    ]
-    return render(
-        request,
-        "display/contestteam_optimisation_form.html",
-        {"form": form, "navigation_task": navigation_task},
-    )
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
