@@ -217,6 +217,7 @@ const ContestantScheduling = () => {
                                         </ul>
                                     </li>
                                     <li><strong>Unlocked Flights:</strong> Flights in the scheduling window will be overwritten. If a team is not selected, their unlocked future flight will be removed.</li>
+                                    <li><strong>Manual Adjustment:</strong> After the automatic scheduling process, you can click and drag a contestant along the timeline to change its scheduling manually.</li>
                                     <li><strong>Initial Scheduling:</strong> Determine the first takeoff time, select all teams that will be flying, and press "Run Scheduler". This will populate all contestants.</li>
                                     <li><strong>Updates During Competition:</strong> If changes are needed (e.g. delays or roster changes):
                                         <ul className="list-disc list-inside ml-4 mt-1">
