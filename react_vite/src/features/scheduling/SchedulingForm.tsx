@@ -7,15 +7,12 @@ interface SchedulingFormProps {
     setFirstTakeoffTime: (time: Date) => void;
     onSubmit: (data: any) => void;
 }
-            const formatInTimeZone = (date: Date, tz: string) => {
-                const parts = new Intl.DateTimeFormat('en-US', {
-                    timeZone: tz,
-                    year: 'numeric', month: '2-digit', day: '2-digit',
-                    hour: '2-digit', minute: '2-digit', hour12: false
-                }).formatToParts(date);
-                const getPart = (type: string) => parts.find(p => p.type === type)?.value;
-                return `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}`;
-            };
+
+const HelpIcon: React.FC<{ text: string }> = ({ text }) => (
+    <div className="tooltip tooltip-right ml-1 cursor-help z-50" data-tip={text}>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current text-info shrink-0 w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    </div>
+);
 
 const SchedulingForm: React.FC<SchedulingFormProps> = ({ 
     contestTeams, 
@@ -35,6 +32,17 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
 
     const timeZone = navigationTask?.time_zone || 'UTC';
 
+    const formatInTimeZone = (date: Date, tz: string) => {
+        if (!date) return '';
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: tz,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hour12: false
+        }).formatToParts(date);
+        const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+        return `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}`;
+    };
+
     const sortedContestTeams = React.useMemo(() => {
         return [...contestTeams].sort((a, b) => {
             const nameA = `${a.team?.crew?.member1?.first_name || ''} ${a.team?.crew?.member1?.last_name || ''}`.toLowerCase();
@@ -50,10 +58,9 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
             const scheduleStartTime = navigationTask.schedule_start_time ? new Date(navigationTask.schedule_start_time) : null;
             const defaultTime = scheduleStartTime || new Date(startTime.getTime() + 30 * 60000);
             
-            
             setFirstTakeoffTime(defaultTime);
         }
-    }, [navigationTask, firstTakeoffTime, setFirstTakeoffTime, timeZone]);
+    }, [navigationTask, firstTakeoffTime, setFirstTakeoffTime]);
 
     // Pre-check teams that already have a contestant in this task
     React.useEffect(() => {
@@ -68,39 +75,6 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
-        // When sending back, we assume the backend handles the timezone conversion if we send iso string or
-        // if we send it as is, the backend might treat it as local to the task.
-        // However, datetime-local value is "YYYY-MM-DDTHH:mm".
-        // To be safe, we should convert it back to ISO string with the correct offset.
-        
-        // Simple hack: construct a date object by appending the timezone offset of the target timezone?
-        // Or cleaner: Use the same parts logic to construct a UTC date that represents that local time?
-        // Actually, easiest is to just let the backend handle "local time" if the API expects a timezone-aware string.
-        // But the previous implementation just sent the string. Let's see what `schedule_contestants` expects.
-        // It expects `first_takeoff_time: datetime.datetime`.
-        
-        // If we send "2023-10-27T10:30", DRF usually interprets this as local time of the server or UTC if no TZ info.
-        // But here "local" means "local to the contest".
-        
-        // Let's manually construct the ISO string with offset for the given timezone.
-        // Since we don't have a heavy library like moment-timezone, we can try to rely on the backend interpreting a naive string 
-        // as being in the contest's timezone if that's how it's set up, OR we try to determine the offset.
-        
-        // Given the complexity of client-side TZ without libraries, sending the naive string (from datetime-local)
-        // is risky if the server assumes UTC. 
-        // But `dateutil.parser.parse` in python handles naive dates.
-        // The `schedule_and_create_contestants` function receives `first_takeoff_time`.
-        // Let's assume the user picks a time in the "Contest Timezone".
-        
-        // Let's try to append the timezone name if possible? No, standard is offset.
-        
-        // For now, let's keep sending the string from the input. 
-        // Ideally we'd convert `firstTakeoffTime` (which is "Local Contest Time") back to a UTC ISO string.
-        
-        // Let's stick to the previous behavior but just defaulted correctly.
-        // The previous behavior was just sending `firstTakeoffTime` directly.
-        
         onSubmit({
             contest_teams: selectedTeamIds,
             first_takeoff_time: firstTakeoffTime,
@@ -136,7 +110,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="form-control w-full">
                 <label className="label">
-                    <span className="label-text">Contest Teams</span>
+                    <span className="label-text font-bold">Contest Teams</span>
                     <span className="label-text-alt">
                         <button type="button" className="btn btn-xs btn-ghost" onClick={handleSelectAll}>Select All</button>
                         <button type="button" className="btn btn-xs btn-ghost" onClick={handleDeselectAll}>None</button>
@@ -165,56 +139,81 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
             </div>
 
             <div className="form-control w-full">
-                <label className="label">
+                <label className="label justify-start gap-1 flex-wrap">
                     <span className="label-text">First Takeoff Time</span>
-                    <span className="label-text-alt">{timeZone}</span>
+                    <HelpIcon text="Defines the start of the scheduling." />
+                    <span className="label-text-alt ml-auto">{timeZone}</span>
                 </label>
                 <input 
                     type="datetime-local" 
                     className="input input-bordered w-full" 
-                    value={formatInTimeZone(firstTakeoffTime, navigationTask.time_zone)}
-                    onChange={e => setFirstTakeoffTime(new Date(e.target.value))}
+                    value={formatInTimeZone(firstTakeoffTime, navigationTask?.time_zone)}
+                    onChange={e => {
+                        const val = e.target.value;
+                        if (val) {
+                            setFirstTakeoffTime(new Date(val));
+                        }
+                    }}
                     required
                 />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="form-control w-full">
-                    <label className="label"><span className="label-text">Start Interval (min)</span></label>
+                    <label className="label justify-start gap-1 flex-wrap">
+                        <span className="label-text">Start Interval (min)</span>
+                        <HelpIcon text="The minimum time between takeoffs." />
+                    </label>
                     <input type="number" className="input input-bordered w-full" value={startInterval} onChange={e => setStartInterval(Number(e.target.value))} />
                 </div>
                 <div className="form-control w-full">
-                    <label className="label"><span className="label-text">Finish Interval (min)</span></label>
+                    <label className="label justify-start gap-1 flex-wrap">
+                        <span className="label-text">Finish Interval (min)</span>
+                        <HelpIcon text="It is the minimum time between arriving aircraft." />
+                    </label>
                     <input type="number" className="input input-bordered w-full" value={finishInterval} onChange={e => setFinishInterval(Number(e.target.value))} />
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="form-control w-full">
-                    <label className="label"><span className="label-text">Aircraft Switch (min)</span></label>
+                    <label className="label justify-start gap-1 flex-wrap">
+                        <span className="label-text">Aircraft Switch (min)</span>
+                        <HelpIcon text="The time required to switch from one crew to another for a single aircraft." />
+                    </label>
                     <input type="number" className="input input-bordered w-full" value={aircraftSwitchTime} onChange={e => setAircraftSwitchTime(Number(e.target.value))} />
                 </div>
                 <div className="form-control w-full">
-                    <label className="label"><span className="label-text">Tracker Switch (min)</span></label>
+                    <label className="label justify-start gap-1 flex-wrap">
+                        <span className="label-text">Tracker Switch (min)</span>
+                        <HelpIcon text="The time required to move a physical tracker from one crew to another, this is not relevant where using app tracking." />
+                    </label>
                     <input type="number" className="input input-bordered w-full" value={trackerSwitchTime} onChange={e => setTrackerSwitchTime(Number(e.target.value))} />
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="form-control w-full">
-                    <label className="label"><span className="label-text">Crew Switch (min)</span></label>
+                    <label className="label justify-start gap-1 flex-wrap">
+                        <span className="label-text">Crew Switch (min)</span>
+                        <HelpIcon text="The time required for a single crew member to switch to another crew." />
+                    </label>
                     <input type="number" className="input input-bordered w-full" value={crewSwitchTime} onChange={e => setCrewSwitchTime(Number(e.target.value))} />
                 </div>
                 <div className="form-control w-full">
-                    <label className="label"><span className="label-text">Tracker Lead Time (min)</span></label>
+                    <label className="label justify-start gap-1 flex-wrap">
+                        <span className="label-text">Tracker Lead Time (min)</span>
+                        <HelpIcon text="How many minutes before take off time that we start tracking the crew." />
+                    </label>
                     <input type="number" className="input input-bordered w-full" value={trackerLeadTime} onChange={e => setTrackerLeadTime(Number(e.target.value))} />
                 </div>
             </div>
 
             <div className="form-control">
-                <label className="label cursor-pointer">
+                <label className="label cursor-pointer justify-start gap-2 flex-wrap">
                     <span className="label-text">Optimise Schedule</span>
-                    <input type="checkbox" className="checkbox" checked={optimise} onChange={e => setOptimise(e.target.checked)} />
+                    <HelpIcon text="Runs an additional linear programming optimizer on top of the algorithmic optimization." />
+                    <input type="checkbox" className="checkbox ml-auto" checked={optimise} onChange={e => setOptimise(e.target.checked)} />
                 </label>
             </div>
 

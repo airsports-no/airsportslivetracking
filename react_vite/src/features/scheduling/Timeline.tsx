@@ -114,7 +114,6 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
         groupsRef.current = groups;
 
         const options: TimelineOptions = {
-            // min: navigationTask?.start_time ? new Date(navigationTask.start_time).getTime() : undefined,
             moveable: false,
             groupHeightMode: 'fixed',
             stack: false,
