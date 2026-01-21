@@ -3,6 +3,7 @@ import logging
 from typing import List, Tuple
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db.models import Q
 
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.contestant_scheduling.contestant_scheduler import TeamDefinition, Solver
@@ -115,7 +116,7 @@ def schedule_and_create_contestants_navigation_tasks(
 
     # 1. Identify Existing Locked Contestants (Immutable)
     locked_contestants = navigation_task.contestant_set.filter(
-        finished_by_time__gte=first_takeoff_time, schedule_locked=True, contestanttrack__calculator_started=True
+        Q(schedule_locked=True) | Q(contestanttrack__calculator_started=True), finished_by_time__gte=first_takeoff_time
     )
 
     # 2. Clean up Unlocked Contestants (Mutable)
@@ -124,7 +125,9 @@ def schedule_and_create_contestants_navigation_tasks(
     # We also need to remove contestants whose teams are no longer in the selected list, unless they are locked.
 
     mutable_contestants = list(
-        navigation_task.contestant_set.filter(finished_by_time__gte=first_takeoff_time, schedule_locked=False)
+        navigation_task.contestant_set.filter(
+            finished_by_time__gte=first_takeoff_time, schedule_locked=False, contestanttrack__calculator_started=False
+        )
     )
 
     # Also delete contestants for unselected teams if they are not locked, regardless of time?
