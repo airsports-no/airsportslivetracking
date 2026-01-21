@@ -66,8 +66,8 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             const trackerStart = new Date(contestant.tracker_start_time).getTime();
             const takeoff = new Date(contestant.takeoff_time).getTime();
             const finish = new Date(contestant.finished_by_time).getTime();
-            const landing = contestant.landing_time_after_final_gate 
-                ? new Date(contestant.landing_time_after_final_gate).getTime() 
+            const landing = contestant.landing_time 
+                ? new Date(contestant.landing_time).getTime() 
                 : finish;
 
             const blockStartTime = isAdaptive ? trackerStart : takeoff;
@@ -126,6 +126,12 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
         });
     }, [contestants]);
 
+    const timelineItemsRef = useRef(timelineItems);
+
+    useEffect(() => {
+        timelineItemsRef.current = timelineItems;
+    }, [timelineItems]);
+
     useEffect(() => {
         if (!containerRef.current) return;
 
@@ -159,7 +165,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             snap: null, // Fluid movement
             onMove: (item: any, callback: (item: any) => void) => {
                 // Find the *original* item from our prop-derived list, not the mutated 'item' passed by vis
-                const oldItem = timelineItems.find(i => i.id === item.id);
+                const oldItem = timelineItemsRef.current.find(i => i.id === item.id);
                 if (!oldItem) {
                     callback(null);
                     return;
@@ -206,7 +212,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             if (properties.item && onToggleLock) {
                 const item = itemsRef.current?.get(properties.item);
                 if (item) {
-                    const originalItem = timelineItems.find(i => i.id === item.id);
+                    const originalItem = timelineItemsRef.current.find(i => i.id === item.id);
                     if (originalItem) {
                         onToggleLock(Number(item.id), originalItem.data.scheduleLocked);
                     }

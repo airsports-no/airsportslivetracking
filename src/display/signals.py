@@ -419,6 +419,17 @@ def delete_personal_tracker(sender, instance: Person, **kwargs):
             traccar.delete_device(original_device["id"])
 
 
+# Source - https://stackoverflow.com/a
+# Posted by Dong
+# Retrieved 2026-01-21, License - CC BY-SA 4.0
+
+import secrets
+
+
+def make_random_password(length=10, allowed_chars="abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"):
+    return "".join(secrets.choice(allowed_chars) for i in range(length))
+
+
 @receiver(post_save, sender=MyUser)
 def create_random_password_for_user(sender, instance: MyUser, created: bool, **kwargs):
     if created:
@@ -427,7 +438,7 @@ def create_random_password_for_user(sender, instance: MyUser, created: bool, **k
             # This is a new user object for an already existing valid person. Send the welcome email.
             instance.send_welcome_email(person)
     if not instance.has_usable_password():
-        instance.set_password(MyUser.objects.make_random_password(length=20))
+        instance.set_password(make_random_password(length=20))
         instance.save()
 
 

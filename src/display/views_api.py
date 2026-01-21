@@ -262,11 +262,7 @@ def get_contestant_schedule(request, pk):
                     {"v": contestant.team.aeroplane.registration},
                     {"v": f"{contestant}{' (Adaptive)' if contestant.adaptive_start else ''}"},
                     {"v": contestant.takeoff_time if not contestant.adaptive_start else contestant.tracker_start_time},
-                    {
-                        "v": contestant.landing_time_after_final_gate
-                        if not contestant.adaptive_start
-                        else contestant.finished_by_time
-                    },
+                    {"v": contestant.landing_time if not contestant.adaptive_start else contestant.finished_by_time},
                 ]
             }
         )

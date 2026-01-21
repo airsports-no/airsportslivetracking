@@ -104,6 +104,7 @@ const ContestantScheduling = () => {
                     });
                     return { ...prev, contestant_set: newContestantSet };
                 });
+                showToast('Contestant updated', 'success');
             }
         } catch (error: any) {
             showToast(error.message, 'error');

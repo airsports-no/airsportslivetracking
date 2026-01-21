@@ -63,7 +63,7 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
                         <tbody>
                             {sortedContestants.map((c, index) => {
                                 const startTime = getStartTime(c);
-                                const landingTime = c.landing_time_after_final_gate || c.finished_by_time;
+                                const landingTime = c.landing_time || c.finished_by_time;
                                 
                                 const planningMinutes = navigationTask.planning_time ?? 45;
                                 const planningTime = new Date(new Date(c.takeoff_time).getTime() - planningMinutes * 60000).toISOString();
