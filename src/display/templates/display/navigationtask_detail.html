@@ -93,6 +93,19 @@
                 </div>
             </div>
 
+            {% if "change_contest" in contest_permissions %}
+            <div class="alert alert-info shadow-sm mt-6 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div>
+                    <h3 class="font-bold">Adding Contestants</h3>
+                    <div class="text-xs">
+                        <p>For single contestants these can be added using the <strong>Quick add</strong> button for the contestant to be created with useful default values from the team registration. Edit the contestant by clicking its name after creation to change any of the default settings.</p>
+                        <p class="mt-2">For a competition with more than a few contestants we recommend using the <strong>Scheduling assistant</strong> (under More Tools) to create a conflict free time schedule.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Contestants List -->
             <div class="mt-8">
                 <!-- Mobile Card View (Visible on small screens, hidden on md+) -->

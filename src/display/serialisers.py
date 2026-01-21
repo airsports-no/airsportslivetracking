@@ -423,6 +423,7 @@ class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
             "flown_contestants_count",
             "is_public",
             "is_featured",
+            "planning_time",
         )
 
     def get_flown_contestants_count(self, obj):

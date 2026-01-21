@@ -1610,7 +1610,7 @@ def add_contest_teams_to_navigation_task(request, pk):
     form.fields["first_takeoff_time"].initial = (
         navigation_task.schedule_start_time
         if navigation_task.schedule_start_time
-        else navigation_task.start_time + datetime.timedelta(minutes=30)
+        else navigation_task.start_time + datetime.timedelta(minutes=navigation_task.planning_time)
     )
     form.fields["contest_teams"].choices = [
         (str(item.pk), str(item)) for item in navigation_task.contest.contestteam_set.all()

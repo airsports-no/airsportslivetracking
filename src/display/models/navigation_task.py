@@ -94,7 +94,7 @@ class NavigationTask(models.Model):
         help_text="The number of minutes from the finish point to the contestant should have landed",
     )
     planning_time = models.IntegerField(
-        default=30,
+        default=45,
         help_text="The number of minutes each team has for planning the navigation task. This is only used for populating the planning time: in the starting table timeline.",
     )
     display_background_map = models.BooleanField(

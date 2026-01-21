@@ -76,10 +76,33 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             const isScheduleLocked = contestant.schedule_locked;
             const isLocked = isCalculatorLocked || isScheduleLocked;
 
-            const lockIcon = isScheduleLocked ? '🔒 ' : '';
+            let lockIcon = '';
+            let lockTooltip = '';
+
+            if (isCalculatorLocked) {
+                lockIcon = '📡 ';
+                lockTooltip = '\nTracking started. Cannot move, but can delete.';
+            } else if (isScheduleLocked) {
+                lockIcon = '🔒 ';
+                lockTooltip = '\nSchedule locked.';
+            }
+
             const content = `${lockIcon}<b>#${contestant.contestant_number}</b> ${contestant.team.crew.member1.last_name}`;
 
             const takeoffText = isAdaptive ? 'Adaptive' : formatTimeLocal(takeoff);
+            
+            // Editable logic:
+            // Calculator locked: No moving (updateTime: false), but allow remove.
+            // Schedule locked: Fully locked (editable: false) - consistent with "Lock".
+            // Unlocked: Fully editable.
+            
+            let itemEditable: boolean | { remove?: boolean; updateGroup?: boolean; updateTime?: boolean } = true;
+            
+            if (isCalculatorLocked) {
+                itemEditable = { updateTime: false, remove: true };
+            } else if (isScheduleLocked) {
+                itemEditable = false;
+            }
 
             return {
                 id: contestant.id,
@@ -87,9 +110,9 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                 start: blockStartTime,
                 end: blockEndTime,
                 content: content,
-                editable: !isLocked,
+                editable: itemEditable,
                 className: isLocked ? 'vis-item-locked' : 'vis-item-normal',
-                title: `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} (${contestant.team.aeroplane.registration})\nTake-off: ${takeoffText}`,
+                title: `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} (${contestant.team.aeroplane.registration})\nTake-off: ${takeoffText}${lockTooltip}`,
                 // Custom data to help with updates
                 data: {
                     trackerStart,

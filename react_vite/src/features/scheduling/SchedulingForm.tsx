@@ -29,10 +29,11 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
     const [crewSwitchTime, setCrewSwitchTime] = React.useState(15);
     const [trackerLeadTime, setTrackerLeadTime] = React.useState(15);
     const [optimise, setOptimise] = React.useState(true);
+    const [nextTakeoffTime, setNextTakeoffTime] = useState<Date | null>(null);
 
     const timeZone = navigationTask?.time_zone || 'UTC';
 
-    const formatInTimeZone = (date: Date, tz: string) => {
+    const formatInTimeZone = (date: Date | null, tz: string) => {
         if (!date) return '';
         const parts = new Intl.DateTimeFormat('en-US', {
             timeZone: tz,
@@ -56,11 +57,22 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
         if (!firstTakeoffTime && navigationTask?.start_time) {
             const startTime = new Date(navigationTask.start_time);
             const scheduleStartTime = navigationTask.schedule_start_time ? new Date(navigationTask.schedule_start_time) : null;
-            const defaultTime = scheduleStartTime || new Date(startTime.getTime() + 30 * 60000);
+            const planningTime = navigationTask.planning_time || 45;
+            const defaultTime = scheduleStartTime || new Date(startTime.getTime() + planningTime * 60000);
             
             setFirstTakeoffTime(defaultTime);
         }
     }, [navigationTask, firstTakeoffTime, setFirstTakeoffTime]);
+
+    // Initialize nextTakeoffTime when firstTakeoffTime is set
+    React.useEffect(() => {
+        if (firstTakeoffTime && !nextTakeoffTime && navigationTask) {
+            const planningTime = navigationTask.planning_time || 45;
+            const nowPlusPlanning = new Date(Date.now() + planningTime * 60000);
+            const next = new Date(Math.max(firstTakeoffTime.getTime(), nowPlusPlanning.getTime()));
+            setNextTakeoffTime(next);
+        }
+    }, [firstTakeoffTime, nextTakeoffTime, navigationTask]);
 
     // Pre-check teams that already have a contestant in this task
     React.useEffect(() => {
@@ -78,6 +90,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
         onSubmit({
             contest_teams: selectedTeamIds,
             first_takeoff_time: firstTakeoffTime,
+            next_takeoff_time: nextTakeoffTime,
             minutes_between_contestants_at_start: startInterval,
             minutes_between_contestants_at_finish: finishInterval,
             minutes_for_aircraft_switch: aircraftSwitchTime,
@@ -141,7 +154,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
             <div className="form-control w-full">
                 <label className="label justify-start gap-1 flex-wrap">
                     <span className="label-text">First Takeoff Time</span>
-                    <HelpIcon text="Defines the start of the scheduling." />
+                    <HelpIcon text="Defines the start of the scheduling window. Flights before this time are preserved." />
                     <span className="label-text-alt ml-auto">{timeZone}</span>
                 </label>
                 <input 
@@ -152,6 +165,26 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
                         const val = e.target.value;
                         if (val) {
                             setFirstTakeoffTime(new Date(val));
+                        }
+                    }}
+                    required
+                />
+            </div>
+
+            <div className="form-control w-full">
+                <label className="label justify-start gap-1 flex-wrap">
+                    <span className="label-text">Next Takeoff Time</span>
+                    <HelpIcon text="The scheduled start time for the first new contestant." />
+                    <span className="label-text-alt ml-auto">{timeZone}</span>
+                </label>
+                <input 
+                    type="datetime-local" 
+                    className="input input-bordered w-full" 
+                    value={formatInTimeZone(nextTakeoffTime, navigationTask?.time_zone)}
+                    onChange={e => {
+                        const val = e.target.value;
+                        if (val) {
+                            setNextTakeoffTime(new Date(val));
                         }
                     }}
                     required

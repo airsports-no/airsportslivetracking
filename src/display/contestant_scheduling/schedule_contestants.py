@@ -23,7 +23,10 @@ def schedule_and_create_contestants(
     minimum_finish_interval: int,
     crew_switch_time: int,
     optimise: bool = False,
+    next_takeoff_time: datetime.datetime = None,
 ) -> Tuple[bool, List[str]]:
+    if next_takeoff_time is None:
+        next_takeoff_time = first_takeoff_time
     navigation_task.schedule_start_time = first_takeoff_time
     navigation_task.save(update_fields=["schedule_start_time"])
     if LANDING in navigation_task.scorecard.task_type:
@@ -37,6 +40,7 @@ def schedule_and_create_contestants(
             minimum_start_interval,
             crew_switch_time,
             optimise,
+            next_takeoff_time,
         )
     else:
         return schedule_and_create_contestants_navigation_tasks(
@@ -50,6 +54,7 @@ def schedule_and_create_contestants(
             minimum_finish_interval,
             crew_switch_time,
             optimise,
+            next_takeoff_time,
         )
 
 
@@ -63,19 +68,20 @@ def schedule_and_create_contestants_landing_task(
     minimum_start_interval: int,
     crew_switch_time: int,
     optimise: bool = False,
+    next_takeoff_time: datetime.datetime = None,
 ) -> Tuple[bool, List[str]]:
     selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks)
 
     for index, contest_team in enumerate(selected_contest_teams):
         try:
             contestant = navigation_task.contestant_set.get(team=contest_team.team)
-            contestant.takeoff_time = first_takeoff_time
+            contestant.takeoff_time = next_takeoff_time
             contestant.finished_by_time = navigation_task.finish_time
             contestant.tracker_start_time = navigation_task.start_time
             contestant.save()
         except ObjectDoesNotExist:
             Contestant.objects.create(
-                takeoff_time=navigation_task.start_time,
+                takeoff_time=next_takeoff_time,
                 finished_by_time=navigation_task.finish_time,
                 air_speed=contest_team.air_speed,
                 wind_speed=navigation_task.wind_speed,
@@ -103,12 +109,13 @@ def schedule_and_create_contestants_navigation_tasks(
     minimum_finish_interval: int,
     crew_switch_time: int,
     optimise: bool = False,
+    next_takeoff_time: datetime.datetime = None,
 ) -> Tuple[bool, List[str]]:
     optimisation_messages = []
 
     # 1. Identify Existing Locked Contestants (Immutable)
     locked_contestants = navigation_task.contestant_set.filter(
-        finished_by_time__gte=first_takeoff_time, schedule_locked=True
+        finished_by_time__gte=first_takeoff_time, schedule_locked=True, calculator_started=True
     )
 
     # 2. Clean up Unlocked Contestants (Mutable)
@@ -222,7 +229,7 @@ def schedule_and_create_contestants_navigation_tasks(
 
     print("Initiating solver")
     solver = Solver(
-        first_takeoff_time,
+        next_takeoff_time,
         int((navigation_task.finish_time - navigation_task.start_time).total_seconds() / 60),
         team_definitions,
         minimum_start_interval=minimum_start_interval,
