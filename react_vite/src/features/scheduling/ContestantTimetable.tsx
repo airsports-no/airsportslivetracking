@@ -42,7 +42,10 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
     return (
         <div className="card bg-base-100 shadow-xl mt-8">
             <div className="card-body">
-                <h2 className="card-title">Timetable</h2>
+                <h2 className="card-title flex justify-between items-center">
+                    <span>Timetable</span>
+                    <span className="hidden print:block text-xl font-bold">{navigationTask.name}</span>
+                </h2>
                 <div className="overflow-x-auto w-full">
                     <table className="table table-sm w-full table-zebra">
                         <thead>
@@ -50,6 +53,7 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
                                 <th>#</th>
                                 <th>Contestant</th>
                                 <th>Aircraft</th>
+                                <th>Planning</th>
                                 <th>Take-off</th>
                                 <th>Start Point</th>
                                 <th>Landing</th>
@@ -61,6 +65,9 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
                                 const startTime = getStartTime(c);
                                 const landingTime = c.landing_time_after_final_gate || c.finished_by_time;
                                 
+                                const planningMinutes = navigationTask.planning_time ?? 45;
+                                const planningTime = new Date(new Date(c.takeoff_time).getTime() - planningMinutes * 60000).toISOString();
+
                                 return (
                                     <tr key={c.id}>
                                         <td>{c.contestant_number}</td>
@@ -68,6 +75,7 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
                                             {c.team.crew.member1.first_name} {c.team.crew.member1.last_name}
                                         </td>
                                         <td>{c.team.aeroplane.registration}</td>
+                                        <td className="font-mono">{c.adaptive_start ? 'Adaptive' : formatTime(planningTime)}</td>
                                         <td className="font-mono">{c.adaptive_start ? 'Adaptive' : formatTime(c.takeoff_time)}</td>
                                         <td className="font-mono">{c.adaptive_start ? 'Adaptive' : formatTime(startTime)}</td>
                                         <td className="font-mono">{c.adaptive_start ? 'Adaptive' : formatTime(landingTime)}</td>

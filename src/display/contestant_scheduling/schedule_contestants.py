@@ -115,7 +115,7 @@ def schedule_and_create_contestants_navigation_tasks(
 
     # 1. Identify Existing Locked Contestants (Immutable)
     locked_contestants = navigation_task.contestant_set.filter(
-        finished_by_time__gte=first_takeoff_time, schedule_locked=True, calculator_started=True
+        finished_by_time__gte=first_takeoff_time, schedule_locked=True, contestanttrack__calculator_started=True
     )
 
     # 2. Clean up Unlocked Contestants (Mutable)

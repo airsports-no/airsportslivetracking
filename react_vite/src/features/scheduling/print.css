@@ -1,0 +1,134 @@
+@media print {
+    /* 0. Page Settings */
+    @page {
+        margin: 1cm;
+        /* size: landscape; */
+    }
+
+    /* 1. Global Resets */
+    html, body, #root, .drawer, .drawer-content, #root > div {
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        background-color: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Aggressively hide scrollbars */
+    * {
+        scrollbar-width: none !important; /* Firefox */
+        -ms-overflow-style: none !important;  /* IE and Edge */
+    }
+    
+    *::-webkit-scrollbar {
+        display: none !important; /* Chrome, Safari and Opera */
+    }
+
+    /* 2. Hide App Shell & Controls */
+    .navbar, .drawer-side, footer, .btn, .alert, input, label, .card-title, .breadcrumbs, .print\:hidden {
+        display: none !important;
+    }
+    
+    .lg\:col-span-1, p.text-sm.text-gray-500 {
+        display: none !important;
+    }
+
+    /* 3. Layout Adjustments - Centering */
+    .container {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+        overflow: visible !important;
+    }
+
+    .grid {
+        display: block !important;
+        width: 100% !important;
+        overflow: visible !important;
+    }
+
+    .lg\:col-span-2 {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    /* 4. Timeline (Page 1) */
+    #timeline-container {
+        display: block !important;
+        width: 95% !important;
+        margin: 0 auto 1cm auto !important;
+        height: auto !important;
+        overflow: visible !important;
+        page-break-after: always;
+        break-after: page;
+    }
+
+    /* Timeline Wrapper */
+    #timeline-container .card-body > div > div {
+        height: 600px !important;
+        width: 100% !important;
+        border: none !important;
+        overflow: hidden !important; /* Keep hidden here to clip, but global rule should hide scrollbar */
+    }
+
+    /* Vis.js specific overrides for print */
+    .vis-timeline {
+        border: 1px solid #999 !important;
+        width: 100% !important;
+        height: 100% !important;
+        visibility: visible !important;
+        overflow: visible !important;
+    }
+    
+    /* 5. Timetable (Page 2) */
+    #timetable-container {
+        display: block !important;
+        width: 95% !important;
+        margin: 0 auto !important;
+        overflow: visible !important;
+        page-break-before: always;
+        break-before: page;
+    }
+
+    /* Force show the timetable header (Task name) which is otherwise hidden by .card-title global rule */
+    #timetable-container .card-title {
+        display: flex !important;
+    }
+
+    /* Increase font size for Timetable */
+    #timetable-container table {
+        width: 100% !important;
+    }
+    
+    #timetable-container table td, 
+    #timetable-container table th {
+        font-size: 20pt !important;
+        padding: 8px !important;
+    }
+    
+    #timetable-container .badge {
+        font-size: 14pt !important;
+        height: auto !important;
+        padding: 4px 8px !important;
+    }
+
+    /* 6. General Component Cleanup */
+    .card {
+        box-shadow: none !important;
+        border: none !important;
+        background: transparent !important;
+        width: 100% !important;
+        overflow: visible !important;
+    }
+    
+    .card-body {
+        padding: 0 !important;
+        width: 100% !important;
+        overflow: visible !important;
+    }
+}
