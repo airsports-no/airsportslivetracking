@@ -60,6 +60,9 @@ class NavigationTask(models.Model):
     start_time = models.DateTimeField(
         help_text="The start time of the navigation test. Not really important, but nice to have"
     )
+    schedule_start_time = models.DateTimeField(
+        null=True, blank=True, help_text="The first takeoff time when the contestant scheduler was last run"
+    )
     finish_time = models.DateTimeField(
         help_text="The finish time of the navigation test. Not really important, but nice to have"
     )
@@ -91,7 +94,7 @@ class NavigationTask(models.Model):
         help_text="The number of minutes from the finish point to the contestant should have landed",
     )
     planning_time = models.IntegerField(
-        default=30,
+        default=45,
         help_text="The number of minutes each team has for planning the navigation task. This is only used for populating the planning time: in the starting table timeline.",
     )
     display_background_map = models.BooleanField(

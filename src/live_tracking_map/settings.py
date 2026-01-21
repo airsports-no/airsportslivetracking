@@ -24,8 +24,6 @@ import django
 from django.utils.encoding import smart_str
 from log_configuration import LOG_CONFIGURATION
 
-django.utils.encoding.smart_text = smart_str
-
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 
 with open(BASE_DIR.parent / "react_vite/src/routes.json") as f:
@@ -104,7 +102,6 @@ INSTALLED_APPS = [
     "phonenumber_field",
     "qr_code",
     "crispy_forms",
-    "crispy_tailwind",
     "crispy_daisyui",
     "channels",
     "display.apps.DisplayConfig",
@@ -126,7 +123,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = ("tailwind", "daisyui")
 CRISPY_TEMPLATE_PACK = "daisyui"
-GUARDIAN_MONKEY_PATCH = False
+GUARDIAN_MONKEY_PATCH_USER = False
 AUTH_USER_MODEL = "display.MyUser"
 
 EMAIL_FROM = os.environ.get("AUTHEMAIL_DEFAULT_EMAIL_FROM") or "support@airsports.no"

@@ -48,7 +48,6 @@ print_view_url("get_persons_for_signup", [])
 print_view_url("autocomplete_aeroplane", [])
 print_view_url("autocomplete_club", [])
 
-print_view_url("navigationtask_contestantstimelinedata", [1])
 print_view_url("navigationtask_generateflightorders", [1])
 print_view_url("navigationtask_broadcastflightorders", [1])
 print_view_url("navigationtask_downloadflightorders", [1])

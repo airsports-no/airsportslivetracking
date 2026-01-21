@@ -27,6 +27,8 @@ from display.tasks import (
     import_gpx_track,
     generate_and_maybe_notify_flight_order,
 )
+from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
+import dateutil.parser
 
 from display.models import (
     Person,
@@ -703,6 +705,46 @@ class NavigationTaskViewSet(ModelViewSet):
         else:
             serialiser = self.get_serializer(instance=navigation_task.scorecard)
             return Response(serialiser.data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[permissions.IsAuthenticated & NavigationTaskContestPermissions],
+    )
+    def schedule_contestants(self, request, pk=None, **kwargs):
+        navigation_task = self.get_object()
+        data = request.data
+
+        try:
+            contest_teams_pks = data.get("contest_teams", [])
+            if not contest_teams_pks:
+                return Response({"error": "No contest teams provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+            first_takeoff_time = dateutil.parser.parse(data.get("first_takeoff_time"))
+            if first_takeoff_time.tzinfo is None:
+                first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
+
+            success, messages = schedule_and_create_contestants(
+                navigation_task=navigation_task,
+                contest_teams_pks=contest_teams_pks,
+                first_takeoff_time=first_takeoff_time,
+                tracker_leadtime_minutes=int(data.get("tracker_lead_time_minutes", 15)),
+                aircraft_switch_time_minutes=int(data.get("minutes_for_aircraft_switch", 30)),
+                tracker_switch_time=int(data.get("minutes_for_tracker_switch", 15)),
+                minimum_start_interval=int(data.get("minutes_between_contestants_at_start", 5)),
+                minimum_finish_interval=int(data.get("minutes_between_contestants_at_finish", 2)),
+                crew_switch_time=int(data.get("minutes_for_crew_switch", 15)),
+                optimise=data.get("optimise", False),
+            )
+
+            if success:
+                return Response({"status": "success", "messages": messages})
+            else:
+                return Response({"status": "error", "messages": messages}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            logger.exception("Scheduling failed")
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(
         detail=True,

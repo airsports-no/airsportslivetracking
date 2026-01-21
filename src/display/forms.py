@@ -531,6 +531,32 @@ class ContestantForm(forms.ModelForm):
         )
 
 
+class ContestantQuickAddForm(forms.Form):
+    contest_team = forms.ModelChoiceField(queryset=ContestTeam.objects.none(), label="Team")
+    starting_point_time = forms.DateTimeField(
+        label="Time at starting point",
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
+        help_text="The time the contestant is expected to cross the starting point",
+    )
+    adaptive_start = forms.BooleanField(required=False, initial=False, label="Adaptive start")
+
+    def __init__(self, *args, **kwargs):
+        self.navigation_task = kwargs.pop("navigation_task")
+        super().__init__(*args, **kwargs)
+        self.fields["contest_team"].queryset = self.navigation_task.contest.contestteam_set.all()
+        self.fields["starting_point_time"].initial = self.navigation_task.start_time
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                "Quick Add Contestant",
+                "contest_team",
+                "starting_point_time",
+                "adaptive_start",
+            ),
+            ButtonHolder(Submit("submit", "Create")),
+        )
+
+
 class ContestTeamOptimisationForm(forms.Form):
     contest_teams = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple())
     first_takeoff_time = forms.DateTimeField()

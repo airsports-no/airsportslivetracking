@@ -415,6 +415,7 @@ class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
             "pk",
             "name",
             "start_time",
+            "schedule_start_time",
             "finish_time",
             "tracking_link",
             "allow_self_management",
@@ -422,6 +423,7 @@ class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
             "flown_contestants_count",
             "is_public",
             "is_featured",
+            "planning_time",
         )
 
     def get_flown_contestants_count(self, obj):
@@ -841,12 +843,72 @@ class ContestantSerialiser(serializers.ModelSerializer):
     has_crossed_starting_line = serializers.BooleanField(read_only=True)
     contest_id = SerializerMethodField("get_contest_id", read_only=True)
     navigation_task = serializers.PrimaryKeyRelatedField(read_only=True)
+    landing_time_after_final_gate = serializers.DateTimeField(read_only=True)
+    schedule_locked = serializers.BooleanField(required=False)
 
     def get_contest_id(self, contestant):
         return contestant.navigation_task.contest.pk
 
     def get_default_map_url(self, contestant):
         return reverse("contestant_default_map", kwargs={"pk": contestant.pk})
+
+    def validate(self, attrs):
+        # Retrieve necessary data from attrs or instance
+        navigation_task = attrs.get('navigation_task') or (self.instance.navigation_task if self.instance else None)
+        team = attrs.get('team') or (self.instance.team if self.instance else None)
+        tracker_start_time = attrs.get('tracker_start_time') or (self.instance.tracker_start_time if self.instance else None)
+        finished_by_time = attrs.get('finished_by_time') or (self.instance.finished_by_time if self.instance else None)
+
+        # Basic check to ensure we have enough data to validate (e.g. during creation)
+        if not (team and tracker_start_time and finished_by_time):
+            return attrs
+
+        # Define the overlap query filter
+        # We check for overlap if (start1 < end2) and (start2 < end1)
+        overlap_filter = Q(
+            tracker_start_time__lt=finished_by_time,
+            finished_by_time__gt=tracker_start_time
+        )
+
+        # Exclude self if updating
+        exclude_self = Q()
+        if self.instance:
+            exclude_self = ~Q(pk=self.instance.pk)
+
+        # Check for overlapping aircraft
+        overlapping_aircraft = Contestant.objects.filter(
+            overlap_filter,
+            exclude_self,
+            team__aeroplane=team.aeroplane
+        )
+
+        if overlapping_aircraft.exists():
+            raise serializers.ValidationError(f"The aircraft {team.aeroplane} is already in use by another contestant during this time period.")
+
+        # Check for overlapping crew (Member 1)
+        overlapping_member1 = Contestant.objects.filter(
+            overlap_filter,
+            exclude_self
+        ).filter(
+            Q(team__crew__member1=team.crew.member1) | Q(team__crew__member2=team.crew.member1)
+        )
+
+        if overlapping_member1.exists():
+            raise serializers.ValidationError(f"Crew member {team.crew.member1} is already participating in another contest during this time period.")
+
+        # Check for overlapping crew (Member 2) if it exists
+        if team.crew.member2:
+            overlapping_member2 = Contestant.objects.filter(
+                overlap_filter,
+                exclude_self
+            ).filter(
+                Q(team__crew__member1=team.crew.member2) | Q(team__crew__member2=team.crew.member2)
+            )
+
+            if overlapping_member2.exists():
+                raise serializers.ValidationError(f"Crew member {team.crew.member2} is already participating in another contest during this time period.")
+
+        return attrs
 
     def create(self, validated_data):
         try:

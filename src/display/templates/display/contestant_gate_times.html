@@ -14,29 +14,33 @@
                 <a href="{% url 'navigationtask_detail' object.navigation_task.pk %}" class="btn btn-secondary btn-sm md:btn-md self-end md:self-auto">Back to task</a>
             </div>
 
-            <div class="mt-6 space-y-4 max-w-4xl mx-auto">
+            <div class="mt-6">
                 {% get_obj_perms request.user for object.navigation_task.contest as "contest_permissions" %}
-                {% with gate_times=object.gate_times %}
-                    <!-- Takeoff Gates -->
-                    {% for gate in object.navigation_task.route.takeoff_gates %}
-                        {% include "display/contestant_gate_times_mobile_card.html" with gate=gate gate_times=gate_times actual_times=actual_times object=object log=log contest_permissions=contest_permissions %}
-                    {% endfor %}
-                    
-                    <!-- Route Waypoints -->
-                    {% for gate in object.navigation_task.route.waypoints %}
-                        {% include "display/contestant_gate_times_mobile_card.html" with gate=gate gate_times=gate_times actual_times=actual_times object=object log=log contest_permissions=contest_permissions %}
-                    {% endfor %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {% with gate_times=object.gate_times %}
+                        <!-- Takeoff Gates -->
+                        {% for gate in object.navigation_task.route.takeoff_gates %}
+                            {% include "display/contestant_gate_times_mobile_card.html" with gate=gate gate_times=gate_times actual_times=actual_times object=object log=log contest_permissions=contest_permissions %}
+                        {% endfor %}
+                        
+                        <!-- Route Waypoints -->
+                        {% for gate in object.navigation_task.route.waypoints %}
+                            {% include "display/contestant_gate_times_mobile_card.html" with gate=gate gate_times=gate_times actual_times=actual_times object=object log=log contest_permissions=contest_permissions %}
+                        {% endfor %}
 
-                    <!-- Landing Gates -->
-                    {% for gate in object.navigation_task.route.landing_gates %}
-                        {% include "display/contestant_gate_times_mobile_card.html" with gate=gate gate_times=gate_times actual_times=actual_times object=object log=log contest_permissions=contest_permissions %}
-                    {% endfor %}
-                {% endwith %}
-                
-                <div class="card bg-neutral text-neutral-content shadow-lg">
-                    <div class="card-body p-4 flex-row justify-between items-center">
-                        <span class="font-bold uppercase tracking-widest text-sm opacity-70">Total Course Distance</span>
-                        <span class="font-mono font-bold text-xl">{{ total_distance|stringformat:".f" }} m</span>
+                        <!-- Landing Gates -->
+                        {% for gate in object.navigation_task.route.landing_gates %}
+                            {% include "display/contestant_gate_times_mobile_card.html" with gate=gate gate_times=gate_times actual_times=actual_times object=object log=log contest_permissions=contest_permissions %}
+                        {% endfor %}
+                    {% endwith %}
+                    
+                    <div class="card bg-neutral text-neutral-content shadow-lg">
+                        <div class="card-body p-4 flex flex-col justify-center items-center text-center">
+                            <span class="font-bold uppercase tracking-widest text-sm opacity-70 mb-1">Total Course Distance</span>
+                            <div class="flex flex-col">
+                                <span class="font-mono font-bold text-xl">{% widthratio total_distance 1852 1 %} NM</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

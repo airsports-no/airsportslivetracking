@@ -45,6 +45,7 @@ from django.views.generic import (
     CreateView,
     DeleteView,
     TemplateView,
+    FormView,
 )
 import logging
 
@@ -61,11 +62,13 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 
 from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_zoom_levels
+from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.forms import (
     ImportContestTeamForm,
     NavigationTaskForm,
     ContestantForm,
+    ContestantQuickAddForm,
     ContestForm,
     ContestantMapForm,
     LANDSCAPE,
@@ -442,27 +445,6 @@ def refresh_editable_route_navigation_task(request, pk):
     except ValidationError as e:
         messages.error(request, str(e))
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
-
-
-@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
-def view_contest_team_images(request, pk):
-    """
-    View a list of all profile images used by team members associated with the contest.This view can be used to review
-    the images and click a link to remove the background using the remove.bg service.
-    """
-    contest = get_object_or_404(Contest, pk=pk)
-    return render(
-        request,
-        "display/contest_team_images.html",
-        {
-            "contest": contest,
-            "object_list": Person.objects.filter(
-                Q(crewmember_two__team__contest=contest) | Q(crewmember_one__team__contest=contest)
-            )
-            .distinct()
-            .order_by("last_name", "first_name"),
-        },
-    )
 
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
@@ -1436,6 +1418,90 @@ class ContestantDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return self.get_object().navigation_task.contest
 
 
+class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
+    form_class = ContestantQuickAddForm
+    template_name = "display/contestant_quick_create.html"
+    permission_required = ("display.change_contest",)
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
+        timezone.activate(self.navigation_task.contest.time_zone)
+
+    def get_permission_object(self):
+        return self.navigation_task.contest
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["navigation_task"] = self.navigation_task
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["navigation_task"] = self.navigation_task
+        return context
+
+    def form_valid(self, form):
+        contest_team = form.cleaned_data["contest_team"]
+        starting_point_time = form.cleaned_data["starting_point_time"]
+        adaptive_start = form.cleaned_data["adaptive_start"]
+
+        existing_contestants = self.navigation_task.contestant_set.all()
+        contestant_number = (
+            (max([c.contestant_number for c in existing_contestants]) + 1) if existing_contestants.exists() else 1
+        )
+
+        takeoff_time = starting_point_time - datetime.timedelta(minutes=self.navigation_task.minutes_to_starting_point)
+
+        if adaptive_start:
+            tracker_start_time = starting_point_time - datetime.timedelta(hours=1)
+            takeoff_time = tracker_start_time
+        else:
+            tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
+
+        contestant = Contestant(
+            team=contest_team.team,
+            navigation_task=self.navigation_task,
+            contestant_number=contestant_number,
+            adaptive_start=adaptive_start,
+            takeoff_time=takeoff_time,
+            tracker_start_time=tracker_start_time,
+            finished_by_time=tracker_start_time + datetime.timedelta(hours=5),
+            minutes_to_starting_point=self.navigation_task.minutes_to_starting_point,
+            air_speed=contest_team.air_speed,
+            wind_speed=self.navigation_task.wind_speed,
+            wind_direction=self.navigation_task.wind_direction,
+            tracking_service=contest_team.tracking_service,
+            tracking_device=contest_team.tracking_device,
+            tracker_device_id=contest_team.tracker_device_id,
+        )
+
+        if adaptive_start:
+            final_gate_time = contestant.get_final_gate_time()
+            if final_gate_time:
+                duration_delta = datetime.timedelta(
+                    hours=final_gate_time.hour,
+                    minutes=final_gate_time.minute,
+                    seconds=final_gate_time.second,
+                )
+                final_time_abs = starting_point_time + datetime.timedelta(hours=1) + duration_delta
+            else:
+                final_time_abs = starting_point_time + datetime.timedelta(hours=1)
+
+            contestant.finished_by_time = final_time_abs + datetime.timedelta(
+                minutes=self.navigation_task.minutes_to_landing + 2
+            )
+        else:
+            contestant.finished_by_time = contestant.landing_time + datetime.timedelta(minutes=5)
+
+        contestant.save()
+        messages.success(self.request, "Contestant created successfully")
+        return HttpResponseRedirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse("navigationtask_detail", kwargs={"pk": self.navigation_task.pk})
+
+
 class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
     form_class = ContestantForm
     model = Contestant
@@ -1541,7 +1607,11 @@ def add_contest_teams_to_navigation_task(request, pk):
                     kwargs={"pk": navigation_task.pk},
                 )
             )
-    form.fields["first_takeoff_time"].initial = navigation_task.start_time
+    form.fields["first_takeoff_time"].initial = (
+        navigation_task.schedule_start_time
+        if navigation_task.schedule_start_time
+        else navigation_task.start_time + datetime.timedelta(minutes=navigation_task.planning_time)
+    )
     form.fields["contest_teams"].choices = [
         (str(item.pk), str(item)) for item in navigation_task.contest.contestteam_set.all()
     ]

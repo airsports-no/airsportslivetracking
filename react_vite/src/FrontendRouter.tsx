@@ -9,6 +9,7 @@ const MissionDashboard = lazy(() => import("./features/mission-dashboard/Mission
 const ContestDashboard = lazy(() => import("./features/mission-dashboard/ContestDashboard"));
 const CompetitionMapPage = lazy(() => import("./features/competition-map/CompetitionMapPage"));
 const ContestResultsTable = lazy(() => import("./features/contest-results/ContestResultsTable").then(module => ({ default: module.ContestResultsTable })));
+const ContestantScheduling = lazy(() => import("./features/scheduling/ContestantScheduling"));
 
 export const FrontendRouter = () => {
     return (
@@ -23,6 +24,7 @@ export const FrontendRouter = () => {
                     <Route path={routes.COMPETITION_MAP} element={<CompetitionMapPage />} />
                     <Route path={routes.COMPETITION_MAP_DETAIL} element={<CompetitionMapPage />} />
                     <Route path={routes.CONTEST_RESULTS_TABLE} element={<ContestResultsTable />} />
+                    <Route path={routes.CONTESTANT_SCHEDULING} element={<ContestantScheduling />} />
                     <Route path={routes.NOT_FOUND} element={
                         <div className="hero min-h-screen bg-base-200">
                             <div className="hero-content text-center">

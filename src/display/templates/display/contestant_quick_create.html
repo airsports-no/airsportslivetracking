@@ -1,0 +1,16 @@
+{% extends "base_tailwind.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="py-2 md:py-6">
+    <div class="card bg-base-100 shadow-xl max-w-2xl mx-auto">
+        <div class="card-body">
+            <h2 class="card-title">Quick Add Contestant</h2>
+            <p>Add a contestant to {{ navigation_task.name }}</p>
+            
+            {% crispy form %}
+            
+        </div>
+    </div>
+</div>
+{% endblock %}
