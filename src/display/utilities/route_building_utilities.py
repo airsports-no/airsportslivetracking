@@ -107,9 +107,9 @@ def parse_placemarks(document) -> List[Placemark]:
             place_marks.append((feature.name, parse_geometries(feature)))
     for feature in document:
         if isinstance(feature, kml.Folder):
-            place_marks.extend(parse_placemarks(list(feature.features)))
+            place_marks.extend(parse_placemarks(list(feature.features())))
         if isinstance(feature, kml.Document):
-            place_marks.extend(parse_placemarks(list(feature.features)))
+            place_marks.extend(parse_placemarks(list(feature.features())))
     return place_marks
 
 
@@ -176,7 +176,7 @@ def load_features_from_kml(input_kml) -> Dict:
     print(document)
     kml_document = kml.KML()
     kml_document.from_string(document)
-    features = list(kml_document.features)
+    features = list(kml_document.features())
     place_marks = parse_placemarks(features)
     lines = {}
     for name, mark in place_marks:
