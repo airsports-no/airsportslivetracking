@@ -66,15 +66,39 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
         }
     }, [navigationTask, firstTakeoffTime, setFirstTakeoffTime]);
 
-    // Initialize nextTakeoffTime when firstTakeoffTime is set
+    // Update nextTakeoffTime when firstTakeoffTime changes or if unset
     React.useEffect(() => {
-        if (firstTakeoffTime && !nextTakeoffTime && navigationTask) {
+        if (firstTakeoffTime && navigationTask) {
             const planningTime = navigationTask.planning_time || 45;
-            const nowPlusPlanning = new Date(Date.now() + planningTime * 60000);
-            const next = new Date(Math.max(firstTakeoffTime.getTime(), nowPlusPlanning.getTime()));
-            setNextTakeoffTime(next);
+            // Calculate minimum allowed next time: First Takeoff + Planning Time
+            // Wait, the prompt says "update it to first take off time plus planning time".
+            // The previous logic was "max(firstTakeoffTime, now + planningTime)".
+            // The prompt says: "if next takeoff time is earlier than this [firstTakeoffTime], update it to first take off time plus planning time"
+            // Wait, usually next takeoff should be >= first takeoff.
+            // If firstTakeoffTime moves LATER, nextTakeoffTime might need to move too.
+            
+            // Let's interpret: ensure nextTakeoffTime >= firstTakeoffTime + planningTime (or just >= firstTakeoffTime?)
+            // "update it to first take off time plus planning time" suggests a specific offset.
+            
+            // Actually, let's look at the previous logic which was `Math.max(firstTakeoffTime.getTime(), nowPlusPlanning.getTime())`.
+            // The new requirement: `if (nextTakeoffTime < firstTakeoffTime) setNextTakeoffTime(firstTakeoffTime + planningTime)` ?
+            // No, "if next takeoff time is earlier than this [first take off time]" -> set to "first take off time plus planning time".
+            
+            // Let's implement exactly that logic.
+            
+            const minNextTime = new Date(firstTakeoffTime.getTime()); 
+            // Note: prompt says "if next takeoff time is earlier than THIS [first take off time]".
+            // And then set it to "first take off time plus planning time".
+            
+            // Let's assume we maintain the constraint that next must be valid.
+            
+            const targetNext = new Date(firstTakeoffTime.getTime() + planningTime * 60000);
+            
+            if (!nextTakeoffTime || nextTakeoffTime < firstTakeoffTime) {
+                 setNextTakeoffTime(targetNext);
+            }
         }
-    }, [firstTakeoffTime, nextTakeoffTime, navigationTask]);
+    }, [firstTakeoffTime, navigationTask]);
 
     // Pre-check teams that already have a contestant in this task
     React.useEffect(() => {

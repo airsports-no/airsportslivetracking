@@ -39,6 +39,18 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
         return new Date(takeoff.getTime() + minutes * 60000).toISOString();
     };
 
+    let lastDate = '';
+
+    const formatDate = (dateStr: string) => {
+        return new Date(dateStr).toLocaleDateString([], {
+            timeZone,
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric'
+        });
+    };
+
     return (
         <div className="card bg-base-100 shadow-xl mt-8">
             <div className="card-body">
@@ -63,24 +75,48 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
                         <tbody>
                             {sortedContestants.map((c, index) => {
                                 const startTime = getStartTime(c);
-                                const landingTime = c.landing_time || c.finished_by_time;
+                                const landingTime = c.landing_time_after_final_gate || c.finished_by_time;
                                 
                                 const planningMinutes = navigationTask.planning_time ?? 45;
                                 const planningTime = new Date(new Date(c.takeoff_time).getTime() - planningMinutes * 60000).toISOString();
 
+                                const currentDate = formatDate(c.takeoff_time);
+                                const showDateHeader = currentDate !== lastDate;
+                                lastDate = currentDate;
+
                                 return (
-                                    <tr key={c.id}>
-                                        <td>{c.contestant_number}</td>
-                                        <td>
-                                            {c.team.crew.member1.first_name} {c.team.crew.member1.last_name}
-                                        </td>
-                                        <td>{c.team.aeroplane.registration}</td>
-                                        <td className="font-mono">{c.adaptive_start ? 'Adaptive' : formatTime(planningTime)}</td>
-                                        <td className="font-mono">{c.adaptive_start ? 'Adaptive' : formatTime(c.takeoff_time)}</td>
-                                        <td className="font-mono">{c.adaptive_start ? 'Adaptive' : formatTime(startTime)}</td>
-                                        <td className="font-mono">{c.adaptive_start ? 'Adaptive' : formatTime(landingTime)}</td>
-                                        <td>{c.air_speed} kt</td>
-                                    </tr>
+                                    <React.Fragment key={c.id}>
+                                        {showDateHeader && (
+                                            <tr className="bg-base-300 font-bold">
+                                                <td colSpan={8} className="text-center py-2">
+                                                    {currentDate}
+                                                </td>
+                                            </tr>
+                                        )}
+                                        <tr>
+                                            <td>{c.contestant_number}</td>
+                                            <td>
+                                                {c.team.crew.member1.first_name} {c.team.crew.member1.last_name}
+                                            </td>
+                                            <td>{c.team.aeroplane.registration}</td>
+                                            {c.adaptive_start ? (
+                                                <>
+                                                    <td className="text-center opacity-30">-</td>
+                                                    <td className="font-mono">{formatTime(c.tracker_start_time)}</td>
+                                                    <td className="font-bold text-primary italic">Adaptive</td>
+                                                    <td className="font-mono">{formatTime(c.finished_by_time)}</td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td className="font-mono">{formatTime(planningTime)}</td>
+                                                    <td className="font-mono">{formatTime(c.takeoff_time)}</td>
+                                                    <td className="font-mono">{formatTime(startTime)}</td>
+                                                    <td className="font-mono">{formatTime(landingTime)}</td>
+                                                </>
+                                            )}
+                                            <td>{c.air_speed} kt</td>
+                                        </tr>
+                                    </React.Fragment>
                                 );
                             })}
                         </tbody>

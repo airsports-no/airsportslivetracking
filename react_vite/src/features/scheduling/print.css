@@ -2,7 +2,7 @@
     /* 0. Page Settings */
     @page {
         margin: 1cm;
-        size: landscape;
+        size: a4 landscape;
     }
 
     /* 1. Global Resets */
@@ -76,7 +76,7 @@
         overflow: hidden !important; /* Keep hidden here to clip, but global rule should hide scrollbar */
     }
 
-    /* Visual tweaks for the Vis.js Timeline */
+    /* Vis.js specific overrides for print */
     .vis-timeline {
         border: 1px solid #999 !important;
         width: 100% !important;
@@ -94,7 +94,7 @@
         color: black !important;
     }
     
-    /* Ensure internal panels expand */
+    /* 5. Timetable (Page 2+) */
     #timetable-container {
         display: block !important;
         width: 95% !important;
@@ -102,11 +102,23 @@
         overflow: visible !important;
         page-break-before: always;
         break-before: page;
+        padding-bottom: 15cm !important; /* Big padding to prevent cutoff */
+    }
+
+    /* Fix potential clipping from the overflow wrapper in DaisyUI/Tailwind tables */
+    #timetable-container .overflow-x-auto {
+        overflow: visible !important;
     }
 
     /* Force show the timetable header (Task name) which is otherwise hidden by .card-title global rule */
     #timetable-container .card-title {
         display: flex !important;
+    }
+
+    /* Prevent row breaking */
+    tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
 
     /* Increase font size for Timetable */

@@ -220,10 +220,10 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             }
         });
 
-        // Fit once on init
-        if (timelineItems.length > 0) {
-            timeline.fit();
-        }
+        // // Fit once on init
+        // if (timelineItems.length > 0) {
+        //     timeline.fit();
+        // }
 
         // Cleanup
         return () => {
@@ -252,9 +252,15 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
     // Update timeline window when first takeoff time changes
     useEffect(() => {
         if (timelineRef.current && firstTakeoffTime) {
-            timelineRef.current.setWindow(firstTakeoffTime, null);
+            let maxFinishTime: Date | null = null;
+            if (contestants.length > 0) {
+                const times = contestants.map(c => new Date(c.finished_by_time).getTime());
+                const maxMillis = Math.max(...times);
+                maxFinishTime = new Date(maxMillis + 2 * 60 * 60 * 1000);
+            }
+            timelineRef.current.setWindow(firstTakeoffTime, maxFinishTime);
         }
-    }, [firstTakeoffTime]);
+    }, [firstTakeoffTime, contestants]);
 
     return (
         <div className="w-full">
