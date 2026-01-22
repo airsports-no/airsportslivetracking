@@ -56,7 +56,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
 
     // Initialize firstTakeoffTime if not set
     React.useEffect(() => {
-        if (!firstTakeoffTime && navigationTask?.start_time) {
+        if (navigationTask?.start_time) {
             const startTime = new Date(navigationTask.start_time);
             const scheduleStartTime = navigationTask.schedule_start_time ? new Date(navigationTask.schedule_start_time) : null;
             const planningTime = navigationTask.planning_time || 45;

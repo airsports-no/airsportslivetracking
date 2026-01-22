@@ -231,7 +231,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
         };
     }, []); // Run once on mount
 
-    // Effect to update data when props change
+    // Effect to update data and window when props change
     useEffect(() => {
         if (!timelineRef.current || !itemsRef.current || !groupsRef.current) return;
 
@@ -246,24 +246,26 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
         // But since we control the 'start'/'end' via props which come from the backend response 
         // to our update, this loop ensures eventual consistency.
         items.update(timelineItems);
-        
-    }, [timelineItems, aircraftGroups]);
 
-    // Update timeline window when first takeoff time changes
-    useEffect(() => {
-        if (timelineRef.current && firstTakeoffTime) {
+        // Update timeline window
+        if (firstTakeoffTime) {
             let maxFinishTime: Date | null = null;
             if (contestants.length > 0) {
                 const times = contestants.map(c => new Date(c.finished_by_time).getTime());
                 const maxMillis = Math.max(...times);
                 maxFinishTime = new Date(maxMillis + 2 * 60 * 60 * 1000);
+            } else {
+                // Default view if no contestants (e.g. 4 hours)
+                maxFinishTime = new Date(firstTakeoffTime.getTime() + 4 * 60 * 60 * 1000);
             }
-            timelineRef.current.setWindow(firstTakeoffTime, maxFinishTime);
+            
+            timelineRef.current.setWindow(firstTakeoffTime, maxFinishTime, { animation: false });
         }
-    }, [firstTakeoffTime, contestants]);
+        
+    }, [timelineItems, aircraftGroups, firstTakeoffTime, contestants]);
 
     return (
-        <div className="w-full">
+        <div className="w-full h-full">
             <style>{`
                 .vis-item-locked {
                     background-color: #9ca3af;
@@ -286,7 +288,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                     z-index: 2;
                 }
             `}</style>
-            <div ref={containerRef} className="w-full border border-base-300 rounded-lg bg-base-100 h-[600px]" />
+            <div ref={containerRef} className="w-full border border-base-300 rounded-lg bg-base-100 h-full" />
         </div>
     );
 };

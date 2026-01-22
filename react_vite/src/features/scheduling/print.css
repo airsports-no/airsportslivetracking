@@ -166,12 +166,12 @@
     
     #timetable-container table td, 
     #timetable-container table th {
-        font-size: 20pt !important;
+        font-size: 18pt !important;
         padding: 8px !important;
     }
     
     #timetable-container .badge {
-        font-size: 14pt !important;
+        font-size: 12pt !important;
         height: auto !important;
         padding: 4px 8px !important;
     }

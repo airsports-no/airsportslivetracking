@@ -253,17 +253,19 @@ const ContestantScheduling = () => {
                 </div>
                 <div className="lg:col-span-2">
                     <div id="timeline-container">
-                        <div className="card bg-base-100 shadow-xl">
-                            <div className="card-body">
+                        <div className="card bg-base-100 shadow-xl h-[700px]">
+                            <div className="card-body flex flex-col h-full">
                                 <h2 className="card-title">Timeline</h2>
                                 <p className="text-sm text-gray-500 mb-2">Drag bars to reschedule. Locked if tracking started. Select and delete key to remove.</p>
-                                <Timeline 
-                                    navigationTask={navigationTask} 
-                                    firstTakeoffTime={firstTakeoffTime}
-                                    onUpdate={handleContestantUpdate}
-                                    onToggleLock={handleToggleLock}
-                                    onDelete={handleContestantDelete}
-                                />
+                                <div className="flex-grow">
+                                    <Timeline 
+                                        navigationTask={navigationTask} 
+                                        firstTakeoffTime={firstTakeoffTime}
+                                        onUpdate={handleContestantUpdate}
+                                        onToggleLock={handleToggleLock}
+                                        onDelete={handleContestantDelete}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
