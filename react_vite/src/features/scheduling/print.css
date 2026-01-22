@@ -70,29 +70,67 @@
 
     /* Timeline Wrapper */
     #timeline-container .card-body > div > div {
-        height: 16cm !important; /* Increased to fill most of the landscape page */
+        height: 17cm !important; /* Increased slightly */
         width: 100% !important;
-        border: none !important;
-        overflow: hidden !important; /* Keep hidden here to clip, but global rule should hide scrollbar */
+        border-top: 2px solid #333 !important;
+        border-bottom: 2px solid #333 !important;
+        padding: 0.5cm 0 !important;
+        overflow: hidden !important;
     }
 
-    /* Vis.js specific overrides for print */
+    /* Visual tweaks for the Vis.js Timeline */
     .vis-timeline {
-        border: 1px solid #999 !important;
+        border: none !important;
         width: 100% !important;
         overflow: visible !important;
     }
 
-    /* Improve item readability on white paper */
-    .vis-item {
-        color: black !important;
-        background-color: #eee !important;
-        border: 1px solid #333 !important;
+    /* Force the internal content panels to stretch to the right edge */
+    .vis-panel.vis-center, 
+    .vis-panel.vis-top, 
+    .vis-panel.vis-bottom {
+        width: auto !important;
+        right: 0 !important;
     }
 
-    .vis-item-content, .vis-item b {
+    /* Improve item readability and aesthetics on white paper */
+    .vis-item {
         color: black !important;
+        background-color: #f3f4f6 !important; /* Soft gray */
+        border: 1px solid #9ca3af !important; /* Cool gray border */
+        border-radius: 4px !important;
+        box-shadow: none !important;
     }
+
+    .vis-item-content {
+        color: black !important;
+        font-weight: 600 !important;
+        font-size: 11pt !important;
+    }
+    
+    /* Make aircraft registration labels clear */
+    .vis-label {
+        color: #1f2937 !important; /* Dark gray/black */
+        font-weight: 700 !important;
+        font-size: 12pt !important;
+        border-bottom: 1px solid #e5e7eb !important;
+    }
+    
+    /* Time axis readability */
+    .vis-time-axis .vis-text {
+        color: #374151 !important;
+        font-weight: 600 !important;
+        font-size: 10pt !important;
+    }
+    
+    /* Softer grid lines */
+    .vis-grid.vis-vertical, .vis-grid.vis-minor {
+        border-color: #f3f4f6 !important;
+    }
+    .vis-grid.vis-major {
+        border-color: #d1d5db !important;
+    }
+
     
     /* 5. Timetable (Page 2+) */
     #timetable-container {
