@@ -107,9 +107,9 @@ def parse_placemarks(document) -> List[Placemark]:
             place_marks.append((feature.name, parse_geometries(feature)))
     for feature in document:
         if isinstance(feature, kml.Folder):
-            place_marks.extend(parse_placemarks(list(feature.features())))
+            place_marks.extend(parse_placemarks(list(feature.features)))
         if isinstance(feature, kml.Document):
-            place_marks.extend(parse_placemarks(list(feature.features())))
+            place_marks.extend(parse_placemarks(list(feature.features)))
     return place_marks
 
 
@@ -176,7 +176,7 @@ def load_features_from_kml(input_kml) -> Dict:
     print(document)
     kml_document = kml.KML()
     kml_document.from_string(document)
-    features = list(kml_document.features())
+    features = list(kml_document.features)
     place_marks = parse_placemarks(features)
     lines = {}
     for name, mark in place_marks:
@@ -272,7 +272,18 @@ def calculate_extended_gate(
     )
 
 
-def build_waypoint(name, latitude, longitude, type, width, time_check, gate_check, control_latitude=None, control_longitude=None, end_curved:bool=False) -> Waypoint:
+def build_waypoint(
+    name,
+    latitude,
+    longitude,
+    type,
+    width,
+    time_check,
+    gate_check,
+    control_latitude=None,
+    control_longitude=None,
+    end_curved: bool = False,
+) -> Waypoint:
     waypoint = Waypoint(name)
     waypoint.latitude = latitude
     waypoint.longitude = longitude
@@ -442,7 +453,11 @@ def create_perpendicular_line_at_end_gates(
 
 
 def create_anr_corridor_route_from_waypoint_list(
-    route_name, waypoint_list: list[Waypoint], rounded_corners: bool, scorecard: Scorecard, corridor_width: float|None = None
+    route_name,
+    waypoint_list: list[Waypoint],
+    rounded_corners: bool,
+    scorecard: Scorecard,
+    corridor_width: float | None = None,
 ) -> Route:
     """
 
@@ -462,13 +477,17 @@ def create_anr_corridor_route_from_waypoint_list(
     corridor_polygon, path_points = generate_corridor_polygon(waypoint_list, rounded_corners)
     logger.debug(f"Corridor polygon: {corridor_polygon}")
 
-    points=list(filter(lambda point: point.get('left_miter'), path_points))
+    points = list(filter(lambda point: point.get("left_miter"), path_points))
+
     def extract_gate_line(point):
-        return [[point["left_miter"]["lat"], point["left_miter"]["lng"]], [point["right_miter"]["lat"], point["right_miter"]["lng"]]]
+        return [
+            [point["left_miter"]["lat"], point["left_miter"]["lng"]],
+            [point["right_miter"]["lat"], point["right_miter"]["lng"]],
+        ]
 
     for index in range(0, len(waypoint_list)):
-        point=points[index]
-        waypoint_list[index].gate_line =    extract_gate_line(point)
+        point = points[index]
+        waypoint_list[index].gate_line = extract_gate_line(point)
 
     for waypoint in waypoint_list:
         waypoint.gate_line_extended = calculate_extended_gate(waypoint, scorecard)

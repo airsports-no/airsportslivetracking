@@ -856,6 +856,29 @@ class ContestantSerialiser(serializers.ModelSerializer):
         # Retrieve necessary data from attrs or instance
         navigation_task = attrs.get("navigation_task") or (self.instance.navigation_task if self.instance else None)
         team = attrs.get("team") or (self.instance.team if self.instance else None)
+
+        registration = None
+        member1_email = None
+        member2_email = None
+
+        if team:
+            if isinstance(team, int):
+                team = Team.objects.get(pk=team)
+
+            if isinstance(team, dict):
+                registration = team.get("aeroplane", {}).get("registration")
+                crew_data = team.get("crew", {})
+                member1_email = crew_data.get("member1", {}).get("email")
+                member2_email = crew_data.get("member2", {}).get("email") if crew_data.get("member2") else None
+            else:
+                if team.aeroplane:
+                    registration = team.aeroplane.registration
+                if team.crew:
+                    if team.crew.member1:
+                        member1_email = team.crew.member1.email
+                    if team.crew.member2:
+                        member2_email = team.crew.member2.email
+
         tracker_start_time = attrs.get("tracker_start_time") or (
             self.instance.tracker_start_time if self.instance else None
         )
@@ -875,32 +898,36 @@ class ContestantSerialiser(serializers.ModelSerializer):
             exclude_self = ~Q(pk=self.instance.pk)
 
         # Check for overlapping aircraft
-        overlapping_aircraft = Contestant.objects.filter(overlap_filter, exclude_self, team__aeroplane=team.aeroplane)
-
-        if overlapping_aircraft.exists():
-            raise serializers.ValidationError(
-                f"The aircraft {team.aeroplane} is already in use by another contestant during this time period."
+        if registration:
+            overlapping_aircraft = Contestant.objects.filter(
+                overlap_filter, exclude_self, team__aeroplane__registration=registration
             )
+
+            if overlapping_aircraft.exists():
+                raise serializers.ValidationError(
+                    f"The aircraft {registration} is already in use by another contestant during this time period."
+                )
 
         # Check for overlapping crew (Member 1)
-        overlapping_member1 = Contestant.objects.filter(overlap_filter, exclude_self).filter(
-            Q(team__crew__member1=team.crew.member1) | Q(team__crew__member2=team.crew.member1)
-        )
-
-        if overlapping_member1.exists():
-            raise serializers.ValidationError(
-                f"Crew member {team.crew.member1} is already participating in another contest during this time period."
+        if member1_email:
+            overlapping_member1 = Contestant.objects.filter(overlap_filter, exclude_self).filter(
+                Q(team__crew__member1__email=member1_email) | Q(team__crew__member2__email=member1_email)
             )
 
+            if overlapping_member1.exists():
+                raise serializers.ValidationError(
+                    f"Crew member {member1_email} is already participating in another contest during this time period."
+                )
+
         # Check for overlapping crew (Member 2) if it exists
-        if team.crew.member2:
+        if member2_email:
             overlapping_member2 = Contestant.objects.filter(overlap_filter, exclude_self).filter(
-                Q(team__crew__member1=team.crew.member2) | Q(team__crew__member2=team.crew.member2)
+                Q(team__crew__member1__email=member2_email) | Q(team__crew__member2__email=member2_email)
             )
 
             if overlapping_member2.exists():
                 raise serializers.ValidationError(
-                    f"Crew member {team.crew.member2} is already participating in another contest during this time period."
+                    f"Crew member {member2_email} is already participating in another contest during this time period."
                 )
 
         return attrs
