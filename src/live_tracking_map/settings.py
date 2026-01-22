@@ -24,6 +24,9 @@ import django
 from django.utils.encoding import smart_str
 from log_configuration import LOG_CONFIGURATION
 
+# drf_firebase_auth hack
+django.utils.encoding.smart_text = smart_str
+
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 
 with open(BASE_DIR.parent / "react_vite/src/routes.json") as f:
