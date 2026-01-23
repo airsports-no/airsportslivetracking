@@ -265,7 +265,7 @@
                 </div>
 
                 <!-- Desktop Table View (Hidden on small screens, block on md+) -->
-                <div class="hidden md:block overflow-x-auto">
+                <div class="hidden md:block overflow-visible">
                     <table class="table table-zebra table-xs w-full">
                         <thead>
                         <tr>
@@ -340,7 +340,7 @@
                                 <td>
                                     <div class="dropdown dropdown-end dropdown-left">
                                         <label tabindex="0" class="btn btn-ghost btn-xs px-1">Actions</label>
-                                        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">
+                                        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-50">
                                             <li><a href="{% url 'contestant_map' contestant.pk %}">Map</a></li>
                                             {% if "change_contest" in contest_permissions %}
                                                 <li><hr class="my-1 border-base-200"></li>
