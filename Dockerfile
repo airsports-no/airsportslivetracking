@@ -55,6 +55,7 @@ RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone &
     texlive-latex-recommended ca-certificates gnupg \
     && apt-get autoremove -y \
     && apt-get clean -y \
+    && rm -rf /usr/bin/python3* /usr/lib/python3.11 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --system django \
