@@ -28,6 +28,9 @@ The project is currently in the early stages of open source release, so some wor
 ### Structure
 Everything is built upon Django, React, and Python 3.12. Refer to [the wiki](../../wiki/Model-architecture) for a brief description of the most important models. Information about the scoring engine and how the live tracking works is found in [this wiki page](../../wiki/Scoring-engine)
 
+## Development quick start
+To quickly get started with development simply check out the repos story and build the dev container, preferably in vscode. This sets up the full development environment, starts watching builders for the front end resources, starts the development web server, the celery instance, and the position processor.  These are controlled by tasks.json.
+
 ### Building locally
 The project comes with a docker-compose.yml file that can be used to build and test locally. Simply execute
 ```
@@ -64,7 +67,7 @@ After optimizing the docker image the various front end systems must be compiled
 ##### Vite react
 
 ```bash
-cd vitejs/
+cd react_vite/
 npm ci
 npm run build
 ```
