@@ -150,7 +150,7 @@
                 document.getElementById("transmitting_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}" class="w-6 h-6"/>';
             }
         }
-        if (ongoing.size === 0 && wasGenerating) {
+        if (ongoing.size === 0 && (wasGenerating || document.getElementById("loading").style.display !== 'none')) {
             enableGenerate();
         }
     }
