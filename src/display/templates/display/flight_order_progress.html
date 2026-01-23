@@ -3,62 +3,109 @@
 {% block content %}
 <div class="container mx-auto p-4 md:p-8">
     <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-            <h3 class="card-title">Generating flight order for navigation task {{ navigation_task }}</h3>
-            <p class="text-sm text-base-content/70">
-                Generate, broadcast, or download flight orders for contestants in the navigation task. Check the checkbox next to the contestants and click the appropriate buttons. If the contestant already has an existing flight order (green checkmark in the Existing FO column) there is no need to regenerate the flight order unless you have changed any of the parameters (speed, wind, et cetera).
-            </p>
-            <p class="text-sm text-base-content/70">
-                Generation can take a few minutes per contestant, so please be patient. Progress and any failures will continuously be reported in the table below.
-            </p>
-            <div id="loading" style="display: none" class="text-center p-4">
-                <span class="loading loading-lg loading-spinner text-primary"></span>
+        <div class="card-body p-6 md:p-8">
+            <!-- Header -->
+            <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+                <div>
+                    <h2 class="card-title text-2xl font-bold flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 13v6"/><path d="M9 16h6"/></svg>
+                        Flight Order Management
+                    </h2>
+                    <p class="text-base-content/70 mt-1">
+                        Navigation Task: <span class="font-semibold text-base-content">{{ navigation_task }}</span>
+                    </p>
+                </div>
+                <a class="btn btn-sm btn-ghost gap-2" href="{% url 'navigationtask_detail' navigation_task.pk %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    Back to Task
+                </a>
             </div>
+
+            <!-- Instructions -->
+            <div class="alert alert-info shadow-sm mb-6 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div>
+                    <h3 class="font-bold">Instructions</h3>
+                    <p>Select contestants below to generate, broadcast, or download flight orders. Green checkmarks indicate existing/completed orders. Re-generation is only needed if task parameters (speed, wind) have changed.</p>
+                    <p class="mt-1 opacity-80">Note: Generation may take a few minutes per contestant.</p>
+                </div>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="loading" style="display: none" class="w-full bg-base-200 rounded-lg p-8 mb-6 text-center">
+                <div class="flex flex-col items-center justify-center gap-3">
+                    <span class="loading loading-lg loading-spinner text-primary"></span>
+                    <span class="text-sm font-medium animate-pulse">Processing request...</span>
+                </div>
+            </div>
+
+            <!-- Table -->
             <form>
-                <div class="overflow-x-auto mt-4">
-                    <table class="table table-sm w-full">
-                        <thead>
+                <div class="overflow-x-auto bg-base-100 rounded-lg border border-base-200">
+                    <table class="table table-zebra w-full">
+                        <thead class="bg-base-200 text-base-content/70">
                         <tr>
-                            <th><label><input type="checkbox" class="checkbox" onchange="toggleAll(this)" /></label></th>
+                            <th class="w-10"><label><input type="checkbox" class="checkbox checkbox-sm" onchange="toggleAll(this)" /></label></th>
                             <th>Contestant</th>
-                            <th>Takeoff time</th>
-                            <th>Existing FO</th>
-                            <th>Generating</th>
-                            <th>Sending</th>
+                            <th>Takeoff Time</th>
+                            <th class="text-center w-24">Existing</th>
+                            <th class="text-center w-24">Generating</th>
+                            <th class="text-center w-24">Sending</th>
                             <th>Errors</th>
                         </tr>
                         </thead>
                         <tbody>
                         {% for contestant in navigation_task.contestant_set.all %}
-                            <tr>
+                            <tr class="hover">
                                 <td><label>
-                                    <input id="contestant_{{ contestant.pk }}" type="checkbox" class="checkbox contestant-checkbox"
+                                    <input id="contestant_{{ contestant.pk }}" type="checkbox" class="checkbox checkbox-sm contestant-checkbox"
                                            {% if contestant in selected_contestants %}checked{% endif %}/>
                                 </label></td>
-                                <td>{{ contestant }}</td>
-                                <td>{{ contestant.takeoff_time_local | date:"Y-m-d H:i:s" }}</td>
-                                <td id="previously_generated_{{ contestant.pk }}">{% if contestant.has_flight_order_link %}
-                                    <img src="{% static 'img/green_checkmark.png' %}" class="w-6 h-6"/>{% endif %}</td>
-                                <td id="generating_{{ contestant.pk }}"></td>
-                                <td id="transmitting_{{ contestant.pk }}"></td>
-                                <td id="errors_{{ contestant.pk }}" class="text-error"></td>
+                                <td class="font-medium">{{ contestant }}</td>
+                                <td class="font-mono text-sm opacity-80">{{ contestant.takeoff_time_local | date:"Y-m-d H:i:s" }}</td>
+                                <td class="text-center" id="previously_generated_{{ contestant.pk }}">
+                                    {% if contestant.has_flight_order_link %}
+                                        <div class="inline-flex justify-center items-center w-8 h-8 rounded-full bg-success/10 text-success">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center" id="generating_{{ contestant.pk }}"></td>
+                                <td class="text-center" id="transmitting_{{ contestant.pk }}"></td>
+                                <td id="errors_{{ contestant.pk }}" class="text-error text-xs font-medium"></td>
                             </tr>
                         {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </form>
-            <div class="card-actions justify-start gap-2 mt-4">
-                <a class="btn btn-secondary" href="{% url 'navigationtask_detail' navigation_task.pk %}">Back</a>
-                <button class="btn btn-error" onclick="generateFlightOrders()" id="generate_button">Generate flight orders</button>
-                <button class="btn btn-primary" onclick="broadcastFlightOrders()">Broadcast</button>
-                <button class="btn btn-primary" onclick="downloadFlightOrders()">Download</button>
+
+            <!-- Actions -->
+            <div class="flex flex-wrap items-center gap-3 mt-8 pt-6 border-t border-base-200">
+                <button class="btn btn-primary gap-2" onclick="generateFlightOrders()" id="generate_button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/><path d="m12 16 4-4-4-4"/><path d="M16 12H3"/></svg>
+                    Generate Selected
+                </button>
+                <div class="divider divider-horizontal mx-0 hidden sm:flex"></div>
+                <button class="btn btn-outline gap-2" onclick="broadcastFlightOrders()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                    Broadcast
+                </button>
+                <button class="btn btn-outline gap-2" onclick="downloadFlightOrders()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    Download
+                </button>
             </div>
         </div>
     </div>
 </div>
 <script type="text/javascript">
     const contestantPks = {{ contestant_pk|safe }};
+
+    // Icons
+    const ICON_SUCCESS = `<div class="inline-flex justify-center items-center w-8 h-8 rounded-full bg-success/10 text-success"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>`;
+    const ICON_ERROR = `<div class="inline-flex justify-center items-center w-8 h-8 rounded-full bg-error/10 text-error"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg></div>`;
+    const ICON_LOADING = `<span class="loading loading-spinner loading-sm text-primary"></span>`;
 
     function toggleAll(source) {
         document.querySelectorAll('.contestant-checkbox').forEach(checkbox => {
@@ -93,30 +140,49 @@
     }
 
     async function generateFlightOrders() {
+        const selected = getSelectedContestants();
+        if (selected.length === 0) {
+            alert("Please select at least one contestant.");
+            return;
+        }
+
         disableGenerate();
         clearStatus();
         try {
-            const response = await fetch(`{% url 'navigationtask_generateflightorders' navigation_task.pk %}?contestant_pks=${getSelectedContestants().join(",")}`);
+            const response = await fetch(`{% url 'navigationtask_generateflightorders' navigation_task.pk %}?contestant_pks=${selected.join(",")}`);
             const data = await response.json();
             updateRunningStatus(data, true);
         } catch (e) {
             console.error(e);
             enableGenerate();
+            alert("Failed to start generation.");
         }
     }
 
     async function broadcastFlightOrders() {
+        const selected = getSelectedContestants();
+        if (selected.length === 0) {
+            alert("Please select at least one contestant.");
+            return;
+        }
+
         try {
-            const response = await fetch(`{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}?contestant_pks=${getSelectedContestants().join(",")}`);
+            const response = await fetch(`{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}?contestant_pks=${selected.join(",")}`);
             const data = await response.json();
             updateRunningStatus(data);
         } catch (e) {
             console.error(e);
+            alert("Failed to start broadcast.");
         }
     }
 
     function downloadFlightOrders() {
-        location.href = `{% url 'navigationtask_downloadflightorders' navigation_task.pk %}?contestant_pks=${getSelectedContestants().join(",")}`;
+        const selected = getSelectedContestants();
+        if (selected.length === 0) {
+            alert("Please select at least one contestant.");
+            return;
+        }
+        location.href = `{% url 'navigationtask_downloadflightorders' navigation_task.pk %}?contestant_pks=${selected.join(",")}`;
     }
 
     function updateRunningStatus(data, wasGenerating = false) {
@@ -125,29 +191,29 @@
             for (const [key, value] of Object.entries(data.completed_flight_orders_map)) {
                 if (!value) {
                     ongoing.add(key);
-                    document.getElementById("generating_" + key).innerHTML = '<span class="loading loading-xs loading-spinner"></span>';
+                    document.getElementById("generating_" + key).innerHTML = ICON_LOADING;
                 } else {
-                    document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/green_checkmark.png' %}" class="w-6 h-6"/>';
-                    document.getElementById("previously_generated_" + key).innerHTML = '<img src="{% static '/img/green_checkmark.png' %}" class="w-6 h-6"/>';
+                    document.getElementById("generating_" + key).innerHTML = ICON_SUCCESS;
+                    document.getElementById("previously_generated_" + key).innerHTML = ICON_SUCCESS;
                 }
             }
         }
         if (data.transmitted_flight_orders_map) {
             for (const [key, value] of Object.entries(data.transmitted_flight_orders_map)) {
-                document.getElementById("transmitting_" + key).innerHTML = value ? '<img src="{% static '/img/green_checkmark.png' %}" class="w-6 h-6"/>' : '<span class="loading loading-xs loading-spinner"></span>';
+                document.getElementById("transmitting_" + key).innerHTML = value ? ICON_SUCCESS : ICON_LOADING;
             }
         }
         if (data.generate_failed_flight_orders_map) {
             for (const [key, value] of Object.entries(data.generate_failed_flight_orders_map)) {
                 ongoing.delete(key);
                 document.getElementById("errors_" + key).innerHTML = value;
-                document.getElementById("generating_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}" class="w-6 h-6"/>';
+                document.getElementById("generating_" + key).innerHTML = ICON_ERROR;
             }
         }
         if (data.transmit_failed_flight_orders_map) {
             for (const [key, value] of Object.entries(data.transmit_failed_flight_orders_map)) {
                 document.getElementById("errors_" + key).innerHTML = value;
-                document.getElementById("transmitting_" + key).innerHTML = '<img src="{% static '/img/red_cross.png' %}" class="w-6 h-6"/>';
+                document.getElementById("transmitting_" + key).innerHTML = ICON_ERROR;
             }
         }
         if (ongoing.size === 0 && (wasGenerating || document.getElementById("loading").style.display !== 'none')) {
