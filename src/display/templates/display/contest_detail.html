@@ -3,6 +3,7 @@
 {% load frontend_urls %}
 {% load tz %}
 {% load publicity_icons %}
+{% load lucide %}
 
 {% block content %}
 {% get_obj_perms request.user for contest as "contest_permissions" %}
@@ -28,31 +29,31 @@
             <div class="flex flex-wrap items-center bg-base-200 rounded-lg mt-6 p-1 gap-1 md:gap-2 md:flex-nowrap">
                 <div class="flex-1 flex items-center gap-1">
                     <a href="{% fe_url 'MISSION_DASHBOARD_DETAIL' contestId=object.pk %}" class="btn btn-sm btn-primary gap-1 px-2 md:px-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                        {% lucide "layout-dashboard" size=16 class="lucide lucide-layout-dashboard" %}
                         <span class="text-xs md:text-sm">Dashboard</span>
                     </a>
                 </div>
                 
                 <div class="flex-none flex items-center gap-1">
                     <a href="{% fe_url 'CONTEST_RESULTS_TABLE' contestId=object.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Contest Results">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trophy"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2h-6c-2.76 0-5 2.24-5 5v7c0 2.21 1.79 4 4 4h4c2.21 0 4-1.79 4-4V7c0-2.76-2.24-5-5-5z"/></svg>
+                        {% lucide "trophy" size=16 class="lucide lucide-trophy" %}
                         <span class="hidden sm:inline">Results</span>
                     </a>
                     
                     <a href="{% url 'contest_team_list' object.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Team List">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        {% lucide "users" size=16 class="lucide lucide-users" %}
                         <span class="hidden sm:inline">Teams</span>
                     </a>
 
                     <a href="{% url 'contest_share' object.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Share Contest">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-share-2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>
+                        {% lucide "share-2" size=16 class="lucide lucide-share-2" %}
                         <span class="hidden sm:inline">Share</span>
                     </a>
 
                     {% if "change_contest" in contest_permissions %}
                     <div class="dropdown dropdown-end">
                         <label tabindex="0" class="btn btn-sm btn-square btn-ghost" title="Management">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                            {% lucide "settings" size=16 class="lucide lucide-settings" %}
                         </label>
                         <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
                             <li><a href="{% url 'navigationtaskwizard' object.pk %}">New navigation task</a></li>
@@ -69,7 +70,7 @@
 
             <!-- Warning Alert -->
             <div class="alert alert-warning mt-6 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                {% lucide "alert-triangle" class="stroke-current shrink-0 h-6 w-6" %}
                 <div class="text-sm">
                     <span class="font-bold">Service Notice:</span> Air Sports Live Tracking is currently running under a best effort SLA.
                     <a href="https://home.airsports.no/news/#cloudhosting" target="_blank" class="link link-hover font-bold">Read announcement</a>.
@@ -93,7 +94,7 @@
                                             {% endif %}
                                         </h3>
                                         <a href="{% fe_url 'COMPETITION_MAP_DETAIL' contestId=object.pk navigationTaskId=navigation_task.pk %}" class="btn btn-xs btn-outline btn-info gap-1 whitespace-nowrap">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M20 10c0 4.993-5.539 10.163-7.39 11.728a1.1 1.1 0 0 1-1.22 0C9.539 20.163 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+                                            {% lucide "map-pin" size=12 class="lucide lucide-map-pin" %}
                                             Live Map
                                         </a>
                                     </div>

@@ -106,6 +106,7 @@ INSTALLED_APPS = [
     "qr_code",
     "crispy_forms",
     "crispy_daisyui",
+    "lucide",
     "channels",
     "display.apps.DisplayConfig",
     "firebase.apps.FirebaseConfig",
