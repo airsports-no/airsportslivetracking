@@ -206,7 +206,7 @@ def create_contestants(
         )
         Contestant.objects.filter(pk=contestant_object.pk).update(
             predefined_gate_times=contestant_object.calculate_missing_gate_times(
-                {}, start_time + (current_contestant_index + 1) * start_interval
+                {}, start_time + current_contestant_index * start_interval
             )
         )
 

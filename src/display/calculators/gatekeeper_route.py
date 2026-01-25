@@ -249,6 +249,7 @@ class GatekeeperRoute(Gatekeeper):
                 if intersection_time and self.starting_line.is_passed_in_correct_direction_track(self.track):
                     logger.debug("Crossed the infinite starting line in the correct direction.")
                     crossed_infinite_starting_line = True
+                    self.contestant.terminate_concurrent_contestants(intersection_time)
                     self.last_gate = self.starting_line
 
                     # Miss the takeoff gate if it has not already been crossed

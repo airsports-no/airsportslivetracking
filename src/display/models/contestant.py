@@ -492,6 +492,36 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 )
         return warnings
 
+    def terminate_concurrent_contestants(self, termination_time: datetime.datetime):
+        """
+        Finds other contestants using the same tracking device/person that started earlier but are scheduled to finish later,
+        and sets their finished_by_time to the termination_time.
+        """
+        tracker_ids = self.get_tracker_ids()
+        # Filter out empty or None IDs just in case
+        tracker_ids = [tid for tid in tracker_ids if tid]
+        if not tracker_ids:
+            return
+
+        overlapping = Contestant.objects.filter(
+            Q(tracking_device=TRACKING_DEVICE, tracker_device_id__in=tracker_ids) |
+            Q(
+                tracking_device__in=(TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT),
+                team__crew__member1__app_tracking_id__in=tracker_ids
+            ) |
+            Q(
+                tracking_device__in=(TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT),
+                team__crew__member2__app_tracking_id__in=tracker_ids
+            ),
+            tracking_service=self.tracking_service,
+            tracker_start_time__lt=termination_time,
+            finished_by_time__gt=termination_time,
+        ).exclude(pk=self.pk)
+
+        if overlapping.exists():
+            logger.info(f"Terminating concurrent contestants for {self} (IDs: {tracker_ids}): {overlapping}")
+            overlapping.update(finished_by_time=termination_time)
+
     def clean(self):
         if not isinstance(self.tracker_start_time, datetime.datetime):
             raise ValidationError("Malformed tracker start time")
