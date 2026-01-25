@@ -58,7 +58,7 @@
                     <!-- Tools Dropdown -->
                     <div class="dropdown dropdown-end">
                         <label tabindex="0" class="btn btn-sm btn-square btn-ghost" title="More Tools">
-                            {% lucide "more-horizontal" size=16 class="lucide lucide-more-horizontal" %}
+                            {% lucide "ellipsis" size=16 class="lucide lucide-ellipsis" %}
                         </label>
                         <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
                             <li><a href="{% fe_url 'CONTESTANT_SCHEDULING' contestId=object.contest.pk navigationTaskId=object.pk %}">{% lucide "calendar-clock" size=14 class="lucide lucide-calendar-clock" %}Scheduling assistant</a></li>
@@ -189,7 +189,7 @@
                                 <!-- Mobile Actions -->
                                 <div class="dropdown dropdown-end">
                                     <label tabindex="0" class="btn btn-square btn-ghost btn-sm">
-                                        {% lucide "more-vertical" size=20 class="inline-block stroke-current" %}
+                                        {% lucide "ellipsis-vertical" size=20 class="inline-block stroke-current" %}
                                     </label>
                                     <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-20">
                                         <li><a href="{% url 'contestant_map' contestant.pk %}">Map</a></li>
