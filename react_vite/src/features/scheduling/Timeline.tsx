@@ -239,12 +239,17 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
         const groups = groupsRef.current;
 
         // Update groups
+        const existingGroupIds = groups.getIds();
+        const newGroupIds = aircraftGroups.map(g => g.id);
+        const groupsToRemove = existingGroupIds.filter(id => !newGroupIds.includes(String(id)));
+        groups.remove(groupsToRemove);
         groups.update(aircraftGroups);
 
         // Update items
-        // Note: items.update() merges data. If an item is being dragged, updating it might conflict.
-        // But since we control the 'start'/'end' via props which come from the backend response 
-        // to our update, this loop ensures eventual consistency.
+        const existingItemIds = items.getIds();
+        const newItemIds = timelineItems.map(i => i.id);
+        const itemsToRemove = existingItemIds.filter(id => !newItemIds.includes(id));
+        items.remove(itemsToRemove);
         items.update(timelineItems);
 
         // Update timeline window

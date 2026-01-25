@@ -19,8 +19,8 @@ const ContestantScheduling = () => {
     const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
     const { showToast, ToastContainer, toasts, removeToast } = useToast();
 
-    const loadData = async () => {
-        setLoading(true);
+    const loadData = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             if (contestId && navigationTaskId) {
                 const teams = await fetchContestTeams(Number(contestId));
@@ -46,12 +46,13 @@ const ContestantScheduling = () => {
         } catch (error: any) {
             showToast(error.message, 'error');
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadData();
+        setFirstTakeoffTime(null);
+        loadData(false);
     }, [contestId, navigationTaskId]);
 
     useEffect(() => {
@@ -72,7 +73,7 @@ const ContestantScheduling = () => {
                 const result = await scheduleContestants(Number(contestId), Number(navigationTaskId), formData);
                 if (result.status === 'success') {
                     showToast('Scheduling successful', 'success');
-                    loadData(); // Reload to get new contestants
+                    loadData(true); // Reload to get new contestants
                 }
                 if (result.messages && result.messages.length > 0) {
                     result.messages.forEach((msg: string) => showToast(msg, 'warning'));
@@ -90,6 +91,10 @@ const ContestantScheduling = () => {
             if (contestId && navigationTaskId) {
                 const updatedContestant = await updateContestant(Number(contestId), Number(navigationTaskId), contestantId, updates);
                 
+                if (updatedContestant.overlap_warnings && updatedContestant.overlap_warnings.length > 0) {
+                    updatedContestant.overlap_warnings.forEach((msg: string) => showToast(msg, 'warning'));
+                }
+
                 setNavigationTask((prev: any) => {
                     if (!prev) return prev;
                     const newContestantSet = prev.contestant_set.map((c: any) => {
@@ -104,7 +109,6 @@ const ContestantScheduling = () => {
                     });
                     return { ...prev, contestant_set: newContestantSet };
                 });
-                showToast('Contestant updated', 'success');
             }
         } catch (error: any) {
             showToast(error.message, 'error');
@@ -128,7 +132,7 @@ const ContestantScheduling = () => {
                     });
                 } catch (fetchError: any) {
                     console.error("Failed to revert contestant data:", fetchError);
-                    loadData(); // Fallback to full reload if single fetch fails
+                    loadData(true); // Fallback to full reload if single fetch fails
                 }
             }
         }
@@ -149,7 +153,7 @@ const ContestantScheduling = () => {
             }
         } catch (error: any) {
             showToast(error.message, 'error');
-            loadData(); // Reload to restore state if delete failed
+            loadData(true); // Reload to restore state if delete failed
         }
     };
 

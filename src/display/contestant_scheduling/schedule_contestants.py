@@ -124,10 +124,8 @@ def schedule_and_create_contestants_navigation_tasks(
     # The scheduling process owns everything after this point.
     # We also need to remove contestants whose teams are no longer in the selected list, unless they are locked.
 
-    mutable_contestants = list(
-        navigation_task.contestant_set.filter(
-            finished_by_time__gte=first_takeoff_time, schedule_locked=False, contestanttrack__calculator_started=False
-        )
+    mutable_contestants = navigation_task.contestant_set.filter(
+        finished_by_time__gte=first_takeoff_time, schedule_locked=False, contestanttrack__calculator_started=False
     )
 
     # Also delete contestants for unselected teams if they are not locked, regardless of time?
@@ -144,7 +142,11 @@ def schedule_and_create_contestants_navigation_tasks(
     # So we leave "past" contestants alone.
 
     selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks)
+    if not selected_contest_teams.exists():
+        mutable_contestants.delete()
+        return True, []
 
+    mutable_contestants = list(mutable_contestants)
     # Teams to be scheduled are the selected teams.
     # Some of these teams might already have a LOCKED contestant in the future window (though user shouldn't select them if they want new schedule, or maybe the system should handle it).
     # If a team has a locked contestant, we probably shouldn't schedule another one for it in the same window?
@@ -348,14 +350,17 @@ def schedule_and_create_contestants_navigation_tasks(
 
     # Identify locked numbers
     locked_numbers = set()
+    historical_contestant_numbers = []
     for c in all_contestants:
-        if c.schedule_locked:
+        if c.schedule_locked or c.finished_by_time < first_takeoff_time:
             locked_numbers.add(c.contestant_number)
+        if c.finished_by_time < first_takeoff_time:
+            historical_contestant_numbers.append(c.contestant_number)
 
     # Assign numbers
-    target_number = 1
+    target_number = max(historical_contestant_numbers) + 1 if historical_contestant_numbers else 1
     for c in all_contestants:
-        if c.schedule_locked:
+        if c.schedule_locked or c.finished_by_time < first_takeoff_time:
             # Locked: Update target to be at least this + 1, so subsequent unlocked are higher if possible
             if c.contestant_number >= target_number:
                 target_number = c.contestant_number + 1
