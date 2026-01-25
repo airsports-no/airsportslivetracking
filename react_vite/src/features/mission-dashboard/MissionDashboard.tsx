@@ -152,7 +152,7 @@ const MissionDashboard = () => {
 
             // These actions are now cached in the store, so it's safe to call them.
             // They will only fetch if the data is not already present.
-            fetchPromises.push(fetchOngoingNavigationFromStore());
+            fetchPromises.push(fetchOngoingNavigationFromStore(true));
             if (document.configuration.isAuthenticated) {
                 fetchPromises.push(fetchMyFutureFlightsFromStore());
                 fetchPromises.push(fetchMyPreviousFlightsFromStore());
@@ -235,7 +235,7 @@ const MissionDashboard = () => {
 			
     useEffect(() => {
         const interval = setInterval(() => {
-            fetchOngoingNavigationFromStore();
+            fetchOngoingNavigationFromStore(true);
         }, 2 * 60 * 1000); // Every 2 minutes
 
         return () => clearInterval(interval); // Cleanup on unmount

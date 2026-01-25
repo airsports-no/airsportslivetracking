@@ -30,6 +30,7 @@ const ContestDashboard = () => {
         fetchMyPreviousFlights,
         fetchContestResults,
         fetchMyContestTeams,
+        fetchOngoingNavigation,
         withdraw,
         cancelFlight,
     } = useMissionDashboardStore();
@@ -71,6 +72,7 @@ const ContestDashboard = () => {
             const promises = [
                 fetchContest(Number(contestId)),
                 fetchContestResults(Number(contestId)),
+                fetchOngoingNavigation(true),
             ];
             if (document.configuration.isAuthenticated) {
                 promises.push(fetchMyFutureFlights());
@@ -91,6 +93,16 @@ const ContestDashboard = () => {
 
     useEffect(() => {
         refreshData();
+        
+        const interval = setInterval(() => {
+            if (contestId) {
+                fetchContest(Number(contestId), true);
+                fetchContestResults(Number(contestId), true);
+                fetchOngoingNavigation(true);
+            }
+        }, 2 * 60 * 1000); // Refresh every 2 minutes
+
+        return () => clearInterval(interval);
     }, [contestId]);
     
     const handleWithdrawClick = async (contestId: number) => {

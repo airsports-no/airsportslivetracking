@@ -33,8 +33,7 @@ export const fetchMyContestTeams = async (): Promise<MyContestTeam[]> => {
 
 
 export const fetchOngoingNavigation = async (): Promise<OngoingNavigation[]> => {
-    // const url = reverse('ongoing_navigation');
-    const url = '/api/v1/contests/ongoing_navigation/';
+    const url = reverse('contests-ongoing-navigation');
     const response = await fetch(url);
     if (!response.ok) {
         const errorMessages = await getErrorMessages(response);
