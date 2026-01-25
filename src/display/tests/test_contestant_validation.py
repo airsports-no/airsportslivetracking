@@ -60,68 +60,52 @@ class TestContestantValidation(TransactionTestCase):
         )
 
     def test_overlapping_contestant_after(self, *args):
-        with self.assertRaisesMessage(
-            ValidationError,
-            "[\"The tracker 'tracker' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01>, '2020-01-01T11:00:00+00:00', '2020-01-01T12:00:00+00:00')]\"]",
-        ):
-            Contestant.objects.create(
-                team=self.team,
-                navigation_task=self.navigation_task,
-                tracking_device=TRACKING_DEVICE,
-                takeoff_time=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
-                contestant_number=2,
-                tracker_device_id=TRACKER_NAME,
-                tracker_start_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
-                finished_by_time=datetime.datetime(2020, 1, 1, 13, tzinfo=datetime.timezone.utc),
-            )
+        Contestant.objects.create(
+            team=self.team,
+            navigation_task=self.navigation_task,
+            tracking_device=TRACKING_DEVICE,
+            takeoff_time=datetime.datetime(2020, 1, 1, 12, tzinfo=datetime.timezone.utc),
+            contestant_number=2,
+            tracker_device_id=TRACKER_NAME,
+            tracker_start_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2020, 1, 1, 13, tzinfo=datetime.timezone.utc),
+        )
 
     def test_overlapping_contestant_before(self, *args):
-        with self.assertRaisesMessage(
-            ValidationError,
-            "[\"The tracker 'tracker' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01>, '2020-01-01T09:30:00+00:00', '2020-01-01T11:00:00+00:00')]\"]",
-        ):
-            Contestant.objects.create(
-                team=self.team,
-                navigation_task=self.navigation_task,
-                tracking_device=TRACKING_DEVICE,
-                takeoff_time=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
-                contestant_number=2,
-                tracker_device_id=TRACKER_NAME,
-                tracker_start_time=datetime.datetime(2020, 1, 1, 9, tzinfo=datetime.timezone.utc),
-                finished_by_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
-            )
+        Contestant.objects.create(
+            team=self.team,
+            navigation_task=self.navigation_task,
+            tracking_device=TRACKING_DEVICE,
+            takeoff_time=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
+            contestant_number=2,
+            tracker_device_id=TRACKER_NAME,
+            tracker_start_time=datetime.datetime(2020, 1, 1, 9, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
+        )
 
     def test_overlapping_contestant_inside(self, *args):
-        with self.assertRaisesMessage(
-            ValidationError,
-            "\"The tracker 'tracker' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01>, '2020-01-01T11:00:00+00:00', '2020-01-01T11:30:00+00:00')]\"",
-        ):
-            Contestant.objects.create(
-                team=self.team,
-                navigation_task=self.navigation_task,
-                tracking_device=TRACKING_DEVICE,
-                takeoff_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
-                contestant_number=2,
-                tracker_device_id=TRACKER_NAME,
-                tracker_start_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
-                finished_by_time=datetime.datetime(2020, 1, 1, 11, 30, tzinfo=datetime.timezone.utc),
-            )
+        Contestant.objects.create(
+            team=self.team,
+            navigation_task=self.navigation_task,
+            tracking_device=TRACKING_DEVICE,
+            takeoff_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
+            contestant_number=2,
+            tracker_device_id=TRACKER_NAME,
+            tracker_start_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2020, 1, 1, 11, 30, tzinfo=datetime.timezone.utc),
+        )
 
     def test_overlapping_contestant_outside(self, *args):
-        with self.assertRaisesMessage(
-            ValidationError,
-            "[\"The tracker 'tracker' is in use by other contestants for the intervals: [(<NavigationTask: NavigationTask: 2020-01-01>, '2020-01-01T09:30:00+00:00', '2020-01-01T12:00:00+00:00')]\"]",
-        ):
-            Contestant.objects.create(
-                team=self.team,
-                navigation_task=self.navigation_task,
-                tracking_device=TRACKING_DEVICE,
-                takeoff_time=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
-                contestant_number=2,
-                tracker_device_id=TRACKER_NAME,
-                tracker_start_time=datetime.datetime(2020, 1, 1, 9, tzinfo=datetime.timezone.utc),
-                finished_by_time=datetime.datetime(2020, 1, 1, 13, tzinfo=datetime.timezone.utc),
-            )
+        Contestant.objects.create(
+            team=self.team,
+            navigation_task=self.navigation_task,
+            tracking_device=TRACKING_DEVICE,
+            takeoff_time=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
+            contestant_number=2,
+            tracker_device_id=TRACKER_NAME,
+            tracker_start_time=datetime.datetime(2020, 1, 1, 9, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2020, 1, 1, 13, tzinfo=datetime.timezone.utc),
+        )
 
     def test_no_overlap(self, *args):
         try:
@@ -268,70 +252,70 @@ class TestGetContestantForDevice(TransactionTestCase):
         )
 
     def test_get_tracking_device(self):
-        contestant, simulator = Contestant.get_contestant_for_device_at_time(
+        contestants = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, TRACKER_NAME, datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc)
         )
-        self.assertEqual(self.contestant_tracking_device, contestant)
+        self.assertEqual([(self.contestant_tracking_device, False)], contestants)
 
     def test_get_no_pilot_device(self):
-        contestant, simulator = Contestant.get_contestant_for_device_at_time(
+        contestants = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR,
             self.team.crew.member1.app_tracking_id,
             datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
         )
-        self.assertEqual(None, contestant)
+        self.assertEqual([], contestants)
 
     def test_get_no_copilot_device(self):
-        contestant, simulator = Contestant.get_contestant_for_device_at_time(
+        contestants = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR,
             self.double_team.crew.member2.app_tracking_id,
             datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
         )
-        self.assertEqual(None, contestant)
+        self.assertEqual([], contestants)
 
     def test_get_tracking_pilot(self):
-        contestant, simulator = Contestant.get_contestant_for_device_at_time(
+        contestants = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR,
             self.team.crew.member1.app_tracking_id,
             datetime.datetime(2020, 1, 1, 12, 3, tzinfo=datetime.timezone.utc),
         )
-        self.assertEqual(self.contestant_pilot_device, contestant)
+        self.assertEqual([(self.contestant_pilot_device, False)], contestants)
 
     def test_get_pilot_no_tracking_device(self):
-        contestant, simulator = Contestant.get_contestant_for_device_at_time(
+        contestants = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, TRACKER_NAME, datetime.datetime(2020, 1, 1, 12, 3, tzinfo=datetime.timezone.utc)
         )
-        self.assertEqual(None, contestant)
+        self.assertEqual([], contestants)
 
     def test_get_pilot_no_copilot_device(self):
-        contestant, simulator = Contestant.get_contestant_for_device_at_time(
+        contestants = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR,
             self.double_team.crew.member2.app_tracking_id,
             datetime.datetime(2020, 1, 1, 12, 3, tzinfo=datetime.timezone.utc),
         )
-        self.assertEqual(None, contestant)
+        self.assertEqual([], contestants)
 
     def test_get_tracking_copilot(self):
-        contestant, simulator = Contestant.get_contestant_for_device_at_time(
+        contestants = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR,
             self.double_team.crew.member2.app_tracking_id,
             datetime.datetime(2020, 1, 1, 14, 5, tzinfo=datetime.timezone.utc),
         )
-        self.assertEqual(self.contestant_copilot_device, contestant)
+        self.assertEqual([(self.contestant_copilot_device, False)], contestants)
 
     def test_get_copilot_no_tracking_device(self):
-        contestant, simulator = Contestant.get_contestant_for_device_at_time(
+        contestants = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, TRACKER_NAME, datetime.datetime(2020, 1, 1, 14, 3, tzinfo=datetime.timezone.utc)
         )
-        self.assertEqual(None, contestant)
+        self.assertEqual([], contestants)
 
     def test_get_copilot_no_pilot_device(self):
-        contestant, simulator = Contestant.get_contestant_for_device_at_time(
+        contestants = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR,
             self.team.crew.member1.app_tracking_id,
             datetime.datetime(2020, 1, 1, 14, 3, tzinfo=datetime.timezone.utc),
         )
-        self.assertEqual(None, contestant)
+        self.assertEqual([], contestants)
 
     def test_create_device_contest_team_without_tracking_id(self):
         with self.assertRaises(ValidationError):

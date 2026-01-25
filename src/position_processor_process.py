@@ -65,37 +65,42 @@ def print_contestant_positions_debug():
         cache.set(LAST_DEBUG_KEY, last_debug, 10 * DEBUG_INTERVAL)
 
 
-def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> Tuple[Optional[Contestant], bool]:
+def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> List[Tuple[Contestant, bool]]:
     try:
-        contestant, is_simulator, valid_to = contestant_cache[device_name]
+        contestant_tuples, valid_to = contestant_cache[device_name]
         if valid_to < device_time:
             raise KeyError
     except KeyError:
-        contestant, is_simulator = Contestant.get_contestant_for_device_at_time(
+        contestant_tuples = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, device_name, device_time
         )
-        if contestant:
-            logger.info(f"Found contestant for incoming position {contestant}{' (simulator)' if is_simulator else ''}")
-            if is_simulator and not contestant.has_been_tracked_by_simulator:
-                contestant.has_been_tracked_by_simulator = True
-                contestant.save(update_fields=("has_been_tracked_by_simulator",))
+        if contestant_tuples:
+            logger.info(f"Found contestants for incoming position {contestant_tuples}")
+            for contestant, is_simulator in contestant_tuples:
+                if is_simulator and not contestant.has_been_tracked_by_simulator:
+                    contestant.has_been_tracked_by_simulator = True
+                    contestant.save(update_fields=("has_been_tracked_by_simulator",))
+
+        min_finish = (
+            min(c.finished_by_time for c, _ in contestant_tuples)
+            if contestant_tuples
+            else device_time + datetime.timedelta(seconds=CACHE_TTL)
+        )
 
         contestant_cache[device_name] = (
-            contestant,
-            is_simulator,
+            contestant_tuples,
             device_time
             + min(
                 datetime.timedelta(seconds=CACHE_TTL),
-                (
-                    contestant.finished_by_time - device_time
-                    if contestant is not None
-                    else datetime.timedelta(seconds=CACHE_TTL)
-                ),
+                min_finish - device_time,
             ),
         )
-    if contestant and contestant.is_currently_tracked_by_device(device_name):
-        return contestant, is_simulator
-    return None, is_simulator
+    active_tuples = []
+    if contestant_tuples:
+        for c, is_sim in contestant_tuples:
+            if c.is_currently_tracked_by_device(device_name):
+                active_tuples.append((c, is_sim))
+    return active_tuples
 
 
 def clean_db_positions():
@@ -305,28 +310,28 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_q
         cache.set(last_seen_key, device_time)
         # print(device_time)
         try:
-            contestant, is_simulator = cached_find_contestant(device_name, device_time)
+            contestant_tuples = cached_find_contestant(device_name, device_time)
         except OperationalError:
             logger.warning(
                 f"Error when fetchingFor person for app_tracking_id '{device_name}'. Attempting to reconnect"
             )
             connection.connect()
-            contestant = None
-            is_simulator = True
-        if contestant:
-            try:
-                received_tracks[contestant].append(position_data)
-            except KeyError:
-                received_tracks[contestant] = [position_data]
-            global_map_queue.put(
-                (
-                    CONTESTANT_TYPE,
-                    contestant.pk,
-                    position_data,
-                    device_time,
-                    is_simulator,
+            contestant_tuples = []
+        if contestant_tuples:
+            for contestant, is_simulator in contestant_tuples:
+                try:
+                    received_tracks[contestant].append(position_data)
+                except KeyError:
+                    received_tracks[contestant] = [position_data]
+                global_map_queue.put(
+                    (
+                        CONTESTANT_TYPE,
+                        contestant.pk,
+                        position_data,
+                        device_time,
+                        is_simulator,
+                    )
                 )
-            )
         else:
-            global_map_queue.put((PERSON_TYPE, device_name, position_data, device_time, is_simulator))
+            global_map_queue.put((PERSON_TYPE, device_name, position_data, device_time, False))
     return received_tracks

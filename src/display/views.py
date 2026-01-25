@@ -1404,6 +1404,8 @@ class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMi
         instance.predefined_gate_times = None
         instance.save()
         self.object = instance
+        for warning in self.object.get_overlap_warnings():
+            messages.warning(self.request, warning)
         return HttpResponseRedirect(self.get_success_url())
 
 
@@ -1446,7 +1448,6 @@ class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
         contest_team = form.cleaned_data["contest_team"]
         starting_point_time = form.cleaned_data["starting_point_time"]
         adaptive_start = form.cleaned_data["adaptive_start"]
-
         existing_contestants = self.navigation_task.contestant_set.all()
         contestant_number = (
             (max([c.contestant_number for c in existing_contestants]) + 1) if existing_contestants.exists() else 1
@@ -1497,6 +1498,8 @@ class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
 
         contestant.save()
         messages.success(self.request, "Contestant created successfully")
+        for warning in contestant.get_overlap_warnings():
+            messages.warning(self.request, warning)
         return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
@@ -1534,6 +1537,8 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
         object = form.save(commit=False)  # type: Contestant
         object.navigation_task = self.navigation_task
         object.save()
+        for warning in object.get_overlap_warnings():
+            messages.warning(self.request, warning)
         return HttpResponseRedirect(self.get_success_url())
 
 

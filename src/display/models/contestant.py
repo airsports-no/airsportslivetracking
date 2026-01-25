@@ -381,23 +381,8 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         """
         return calculate_ground_speed_combined(bearing, self.air_speed, self.wind_speed, self.wind_direction)
 
-    def clean(self):
-        if not isinstance(self.tracker_start_time, datetime.datetime):
-            raise ValidationError("Malformed tracker start time")
-        if not isinstance(self.takeoff_time, datetime.datetime):
-            raise ValidationError("Malformed takeoff time")
-        if not isinstance(self.finished_by_time, datetime.datetime):
-            raise ValidationError("Malformed finished by time")
-        if self.tracking_device == TRACKING_DEVICE and (
-            self.tracker_device_id is None or len(self.tracker_device_id) == 0
-        ):
-            raise ValidationError(
-                f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied"
-            )
-        if self.tracking_device == TRACKING_COPILOT and self.team.crew.member2 is None:
-            raise ValidationError(
-                f"Tracking device is set to {self.get_tracking_device_display()}, but there is no copilot"
-            )
+    def get_overlap_warnings(self) -> list[str]:
+        warnings = []
         # Validate single-use tracker
         overlapping_trackers = Contestant.objects.filter(
             tracking_service=self.tracking_service,
@@ -417,11 +402,30 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                         smallest_end.isoformat(),
                     )
                 )
-            raise ValidationError(
-                "The tracker '{}' is in use by other contestants for the intervals: {}".format(
-                    self.tracker_device_id, intervals
+            warnings.append(
+                "The tracker '{}' for contestant {} is in use by other contestants for the intervals: {}".format(
+                    self.tracker_device_id, self, intervals
                 )
             )
+
+        # Check for overlapping aircraft
+        if self.team and self.team.aeroplane:
+            overlapping_aircraft = []
+            possible_overlapping_aircraft = Contestant.objects.filter(
+                tracker_start_time__lte=self.finished_by_time,
+                finished_by_time__gte=self.tracker_start_time,
+                team__aeroplane=self.team.aeroplane,
+            ).exclude(pk=self.pk)
+
+            for contestant in possible_overlapping_aircraft:
+                if contestant.takeoff_time < self.landing_time and contestant.landing_time >= self.takeoff_time:
+                    overlapping_aircraft.append(contestant)
+
+            if overlapping_aircraft:
+                warnings.append(
+                    f"The aircraft {self.team.aeroplane.registration} for contestant {self} is already in use by another contestant during this time period."
+                )
+
         # Validate that persons are not part of other contestants for the same interval
         overlapping1 = Contestant.objects.filter(
             Q(team__crew__member1=self.team.crew.member1) | Q(team__crew__member2=self.team.crew.member1),
@@ -446,13 +450,13 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             start_time = min(item[1] for item in intervals)
             finish_time = max(item[2] for item in intervals)
             if hasattr(self, "navigation_task") and self.navigation_task:
-                raise ValidationError(
+                warnings.append(
                     mark_safe(
-                        f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
+                        f"The pilot '{self.team.crew.member1}' for contestant {self} is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
                     )
                 )
             else:
-                raise ValidationError(
+                warnings.append(
                     mark_safe(
                         f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)}"
                     )
@@ -481,11 +485,33 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": task.pk})}">{task}</a>')
                 start_time = min(item[1] for item in intervals)
                 finish_time = max(item[2] for item in intervals)
-                raise ValidationError(
+                warnings.append(
                     mark_safe(
                         f"The copilot '{self.team.crew.member2}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
                     )
                 )
+        return warnings
+
+    def clean(self):
+        if not isinstance(self.tracker_start_time, datetime.datetime):
+            raise ValidationError("Malformed tracker start time")
+        if not isinstance(self.takeoff_time, datetime.datetime):
+            raise ValidationError("Malformed takeoff time")
+        if not isinstance(self.finished_by_time, datetime.datetime):
+            raise ValidationError("Malformed finished by time")
+        if self.tracking_device == TRACKING_DEVICE and (
+            self.tracker_device_id is None or len(self.tracker_device_id) == 0
+        ):
+            raise ValidationError(
+                f"Tracking device is set to {self.get_tracking_device_display()}, but no tracker device ID is supplied"
+            )
+        if self.tracking_device == TRACKING_COPILOT and self.team.crew.member2 is None:
+            raise ValidationError(
+                f"Tracking device is set to {self.get_tracking_device_display()}, but there is no copilot"
+            )
+        for warning in self.get_overlap_warnings():
+            logger.warning(warning)
+
         # Validate maximum tracking time
         if self.finished_by_time - self.tracker_start_time > datetime.timedelta(hours=24):
             raise ValidationError(
@@ -706,90 +732,94 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     @classmethod
     def get_contestant_for_device_at_time(
         cls, tracking_service: TrackingService, device: str, stamp: datetime.datetime
-    ) -> tuple[Optional["Contestant"], bool]:
+    ) -> list[tuple["Contestant", bool]]:
         """
         Retrieves the contestant that owns the tracking device for the time stamp. Returns an extra flag "is_simulator"
         which is true if the contestant is running the simulator tracking ID.
         """
-        contestant, is_simulator = cls._try_to_get_tracker_tracking(tracking_service, device, stamp)
-        if contestant is None:
-            contestant, is_simulator = cls._try_to_get_pilot_tracking(device, stamp)
-            if contestant is None:
-                contestant, is_simulator = cls._try_to_get_copilot_tracking(device, stamp)
-        if contestant:
-            # Only allow contestants with validated team members compete
-            # if contestant.team.crew.member1 is None or contestant.team.crew.member1.validated:
-            #     if contestant.team.crew.member2 is None or contestant.team.crew.member2.validated:
-            #         return contestant, is_simulator
-            return contestant, is_simulator
-        return None, is_simulator
+        results = []
+        results.extend(cls._try_to_get_tracker_tracking(tracking_service, device, stamp))
+        results.extend(cls._try_to_get_pilot_tracking(device, stamp))
+        results.extend(cls._try_to_get_copilot_tracking(device, stamp))
+
+        # Deduplicate based on contestant pk
+        seen_pks = set()
+        unique_results = []
+        for contestant, is_simulator in results:
+            if contestant.pk not in seen_pks:
+                unique_results.append((contestant, is_simulator))
+                seen_pks.add(contestant.pk)
+        return unique_results
 
     @classmethod
     def _try_to_get_tracker_tracking(
         cls, tracking_service: TrackingService, device: str, stamp: datetime.datetime
-    ) -> tuple[Optional["Contestant"], bool]:
+    ) -> list[tuple["Contestant", bool]]:
         """
         Retrieve contestant that matches tracking device at time
         """
-        try:
-            # Device belongs to contestant from 30 minutes before takeoff
-            return (
-                cls.objects.get(
-                    tracker_device_id=device,
-                    tracker_start_time__lte=stamp,
-                    tracking_device=TRACKING_DEVICE,
-                    tracking_service=tracking_service,
-                    finished_by_time__gte=stamp,
-                    contestanttrack__calculator_finished=False,
-                ),
-                False,
+        # Device belongs to contestant from 30 minutes before takeoff
+        contestants = list(
+            cls.objects.filter(
+                tracker_device_id=device,
+                tracker_start_time__lte=stamp,
+                tracking_device=TRACKING_DEVICE,
+                tracking_service=tracking_service,
+                finished_by_time__gte=stamp,
+                contestanttrack__calculator_finished=False,
             )
-        except ObjectDoesNotExist:
-            return None, False
+        )
+        return [(c, False) for c in contestants]
 
     @classmethod
-    def _try_to_get_pilot_tracking(cls, device: str, stamp: datetime.datetime) -> tuple[Optional["Contestant"], bool]:
+    def _try_to_get_pilot_tracking(cls, device: str, stamp: datetime.datetime) -> list[tuple["Contestant", bool]]:
         """
         Retrieve contestant that matches pilot tracking app at time
         """
-        try:
-            contestant = cls.objects.get(
+        contestants = list(
+            cls.objects.filter(
                 Q(team__crew__member1__app_tracking_id=device) | Q(team__crew__member1__simulator_tracking_id=device),
                 tracker_start_time__lte=stamp,
                 finished_by_time__gte=stamp,
                 contestanttrack__calculator_finished=False,
                 tracking_device__in=(TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT),
             )
-            contestant.team.crew.member1.last_seen = stamp
-            contestant.team.crew.member1.save(update_fields=["last_seen"])
-            return (
-                contestant,
-                contestant.team.crew.member1.simulator_tracking_id == device,
-            )
-        except ObjectDoesNotExist:
-            return None, False
+        )
+        results = []
+        for contestant in contestants:
+            is_simulator = False
+            if contestant.team.crew.member1:
+                contestant.team.crew.member1.last_seen = stamp
+                contestant.team.crew.member1.save(update_fields=["last_seen"])
+                if contestant.team.crew.member1.simulator_tracking_id == device:
+                    is_simulator = True
+            results.append((contestant, is_simulator))
+        return results
 
     @classmethod
-    def _try_to_get_copilot_tracking(cls, device: str, stamp: datetime.datetime) -> tuple[Optional["Contestant"], bool]:
+    def _try_to_get_copilot_tracking(cls, device: str, stamp: datetime.datetime) -> list[tuple["Contestant", bool]]:
         """
         Retrieve contestant that matches copilot tracking app at time
         """
-        try:
-            contestant = cls.objects.get(
+        contestants = list(
+            cls.objects.filter(
                 Q(team__crew__member2__app_tracking_id=device) | Q(team__crew__member2__simulator_tracking_id=device),
                 tracker_start_time__lte=stamp,
                 finished_by_time__gte=stamp,
                 contestanttrack__calculator_finished=False,
                 tracking_device__in=(TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT),
             )
-            contestant.team.crew.member2.last_seen = stamp
-            contestant.team.crew.member2.save(update_fields=["last_seen"])
-            return (
-                contestant,
-                contestant.team.crew.member2.simulator_tracking_id == device,
-            )
-        except ObjectDoesNotExist:
-            return None, False
+        )
+        results = []
+        for contestant in contestants:
+            is_simulator = False
+            if contestant.team.crew.member2:
+                contestant.team.crew.member2.last_seen = stamp
+                contestant.team.crew.member2.save(update_fields=["last_seen"])
+                if contestant.team.crew.member2.simulator_tracking_id == device:
+                    is_simulator = True
+            results.append((contestant, is_simulator))
+        return results
 
     def is_currently_tracked_by_device(self, device_id: str) -> bool:
         """

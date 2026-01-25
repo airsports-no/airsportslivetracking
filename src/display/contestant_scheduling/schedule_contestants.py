@@ -315,12 +315,13 @@ def schedule_and_create_contestants_navigation_tasks(
                     )  # Temporary large numbercontestant
                     contestant.save()
                     contestant.reset_gate_times()
+                    optimisation_messages.extend(contestant.get_overlap_warnings())
 
                 except IndexError:
                     contestant = None
             if not contestant:
                 # Create new contestant
-                Contestant.objects.create(
+                contestant = Contestant.objects.create(
                     takeoff_time=takeoff_time,
                     finished_by_time=tracking_finish_time,
                     air_speed=contest_team.air_speed,
@@ -335,6 +336,7 @@ def schedule_and_create_contestants_navigation_tasks(
                     tracker_start_time=tracking_start_time,
                     contestant_number=10000 + new_contestants_created + 1,  # Temporary large number
                 )
+                optimisation_messages.extend(contestant.get_overlap_warnings())
             new_contestants_created += 1
 
     # Delete any remaining mutable contestants that were not reused (i.e. team was deselected or schedule reduced)

@@ -233,21 +233,23 @@ class UserPersonViewSet(GenericViewSet):
     @action(detail=False, methods=["get"])
     def get_current_sim_navigation_task(self, request, *args, **kwargs):
         person = self.get_object()
-        contestant, _ = Contestant.get_contestant_for_device_at_time(
+        contestants = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, person.simulator_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
-        if not contestant:
+        if not contestants:
             raise Http404
+        contestant, _ = contestants[0]
         return Response(NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data)
 
     @action(detail=False, methods=["get"])
     def get_current_app_navigation_task(self, request, *args, **kwargs):
         person = self.get_object()
-        contestant, _ = Contestant.get_contestant_for_device_at_time(
+        contestants = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, person.simulator_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
-        if not contestant:
+        if not contestants:
             raise Http404
+        contestant, _ = contestants[0]
         return Response(NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data)
 
     @action(detail=False, methods=["put", "patch"])
@@ -722,8 +724,6 @@ class NavigationTaskViewSet(ModelViewSet):
 
         try:
             contest_teams_pks = data.get("contest_teams", [])
-            if not contest_teams_pks:
-                return Response({"error": "No contest teams provided"}, status=status.HTTP_400_BAD_REQUEST)
 
             first_takeoff_time = dateutil.parser.parse(data.get("first_takeoff_time"))
             if first_takeoff_time.tzinfo is None:

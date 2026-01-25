@@ -19,10 +19,11 @@ def build_positions_from_flymaster(file_data: str) -> tuple["Contestant| None", 
             tracking_start, position_time, latitude, longitude, altitude, speed, heading = line.split(",")
             timestamp = datetime.datetime.fromtimestamp(float(position_time)).replace(tzinfo=datetime.timezone.utc)
             if contestant is None:
-                contestant, is_simulator = Contestant.get_contestant_for_device_at_time(
+                contestants = Contestant.get_contestant_for_device_at_time(
                     TrackingService.FLY_MASTER, identifier, timestamp
                 )
-                if contestant is not None:
+                if contestants:
+                    contestant, _ = contestants[0]
                     logger.info(
                         f"Found contestant {contestant} for fly master identifier {identifier} at timestamp {timestamp}"
                     )

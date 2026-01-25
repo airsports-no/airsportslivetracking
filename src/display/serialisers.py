@@ -914,6 +914,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
     navigation_task = serializers.PrimaryKeyRelatedField(read_only=True)
     landing_time = serializers.DateTimeField(read_only=True)
     schedule_locked = serializers.BooleanField(required=False)
+    overlap_warnings = SerializerMethodField("get_overlap_warnings", read_only=True)
+
+    def get_overlap_warnings(self, contestant):
+        return contestant.get_overlap_warnings()
 
     def get_contest_id(self, contestant):
         return contestant.navigation_task.contest.pk
@@ -956,48 +960,6 @@ class ContestantSerialiser(serializers.ModelSerializer):
         # Basic check to ensure we have enough data to validate (e.g. during creation)
         if not (team and tracker_start_time and finished_by_time):
             return attrs
-
-        # Define the overlap query filter
-        # We check for overlap if (start1 < end2) and (start2 < end1)
-        overlap_filter = Q(tracker_start_time__lt=finished_by_time, finished_by_time__gt=tracker_start_time)
-
-        # Exclude self if updating
-        exclude_self = Q()
-        if self.instance:
-            exclude_self = ~Q(pk=self.instance.pk)
-
-        # Check for overlapping aircraft
-        if registration:
-            overlapping_aircraft = Contestant.objects.filter(
-                overlap_filter, exclude_self, team__aeroplane__registration=registration
-            )
-
-            if overlapping_aircraft.exists():
-                raise serializers.ValidationError(
-                    f"The aircraft {registration} is already in use by another contestant during this time period."
-                )
-
-        # Check for overlapping crew (Member 1)
-        if member1_email:
-            overlapping_member1 = Contestant.objects.filter(overlap_filter, exclude_self).filter(
-                Q(team__crew__member1__email=member1_email) | Q(team__crew__member2__email=member1_email)
-            )
-
-            if overlapping_member1.exists():
-                raise serializers.ValidationError(
-                    f"Crew member {member1_email} is already participating in another contest during this time period."
-                )
-
-        # Check for overlapping crew (Member 2) if it exists
-        if member2_email:
-            overlapping_member2 = Contestant.objects.filter(overlap_filter, exclude_self).filter(
-                Q(team__crew__member1__email=member2_email) | Q(team__crew__member2__email=member2_email)
-            )
-
-            if overlapping_member2.exists():
-                raise serializers.ValidationError(
-                    f"Crew member {member2_email} is already participating in another contest during this time period."
-                )
 
         return attrs
 
