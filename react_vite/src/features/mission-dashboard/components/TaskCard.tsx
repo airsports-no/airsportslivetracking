@@ -43,15 +43,18 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                 <p className="text-sm text-gray-500">{formatDateInterval(start_time, finish_time)}</p>
 
                 {contestName && <p>{contestName}</p>}
-                {status === 'Open' && canSchedule && <div className="card-actions justify-end"><button onClick={onScheduleClick} className="btn btn-primary">Register Flight Plan</button></div>}
-                {status === 'Scheduled' && (
-                    <div className="card-actions justify-end">
-                        <div className="badge badge-info">Scheduled</div>
+                {(status === 'Open' || status === 'Scheduled') && canSchedule && (
+                    <div className="card-actions justify-end items-center gap-2">
+                        {status === 'Scheduled' && <div className="badge badge-info">Scheduled</div>}
+                        <button onClick={onScheduleClick} className="btn btn-primary">Register Flight Plan</button>
                     </div>
                 )}
                 {status === 'Live' && (
                     <div className="card-actions justify-between items-center">
-                        <p className="text-error">🔴 LIVE</p>
+                        <div className="flex flex-col gap-1">
+                            <p className="text-error">🔴 LIVE</p>
+                            {canSchedule && <button onClick={onScheduleClick} className="btn btn-ghost btn-xs px-0 justify-start">Register another flight plan</button>}
+                        </div>
                         <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Watch Tracking</a>
                     </div>
                 )}
