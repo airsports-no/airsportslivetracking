@@ -233,7 +233,7 @@ export const fetchContest = async (contestId: number): Promise<Contest> => {
     return response.json();
 };
 
-export const scheduleFlight = async (contestId: number, navigationTaskId: number, payload: ScheduleFlightPayload): Promise<any> => {
+export const scheduleFlight = async (contestId: number, navigationTaskId: number, payload: ScheduleFlightPayload): Promise<Contestant> => {
     const url = reverse('navigationtasks-contestant-self-registration', contestId, navigationTaskId);
     const response = await fetch(url,
         {
@@ -246,7 +246,7 @@ export const scheduleFlight = async (contestId: number, navigationTaskId: number
         const errorMessages = await getErrorMessages(response);
         throw new Error(`Failed to schedule flight: ${errorMessages}`);
     }
-    if (response.status === 201 || response.status === 204) {
+    if (response.status === 204) {
         return; // Resolve with undefined, as there's no JSON body
     }
     return response.json();

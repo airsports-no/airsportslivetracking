@@ -89,6 +89,7 @@ export interface Contestant {
   navigation_task: NavigationTask;
   takeoff_time: string;
   finished_by_time: string;
+  overlap_warnings?: string[];
 }
 
 export interface NavigationTask {

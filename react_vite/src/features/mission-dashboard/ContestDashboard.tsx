@@ -41,6 +41,15 @@ const ContestDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const [toastMessage, setToastMessage] = useState<string[] | null>(null);
+
+    useEffect(() => {
+        if (toastMessage) {
+            const timer = setTimeout(() => setToastMessage(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [toastMessage]);
+
     const [showRegistrationForm, setShowRegistrationForm] = useState(false);
     const [showScheduleForm, setShowScheduleForm] = useState<NavigationTask | null>(null);
     const [viewingScoresForTask, setViewingScoresForTask] = useState<NavigationTask | null>(null);
@@ -164,12 +173,20 @@ const ContestDashboard = () => {
 
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
+            {toastMessage && (
+                <div className="toast toast-top toast-end z-[2000]">
+                    {toastMessage.map((msg, idx) => (
+                         <div key={idx} className="alert alert-warning">
+                            <span>{msg}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
             {/* Modals for forms */}
             {showRegistrationForm && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-center">
                     <ContestRegistrationForm
                         contest={contest}
-                        myFutureParticipations={myFutureFlights}
                         myContestTeams={myContestTeams}
                         onClose={async () => {
                             setShowRegistrationForm(false);
@@ -185,7 +202,10 @@ const ContestDashboard = () => {
                         contest={contest}
                         navigationTaskId={showScheduleForm.pk}
                         myContestTeams={myContestTeams}
-                        onClose={async () => {
+                        onClose={async (warnings?: string[]) => {
+                            if (warnings && warnings.length > 0) {
+                                setToastMessage(warnings);
+                            }
                             setShowScheduleForm(null);
                             await fetchMyContestTeams(true);
                             await fetchMyFutureFlights(true);

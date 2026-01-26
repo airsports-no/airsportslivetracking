@@ -824,7 +824,7 @@ class NavigationTaskViewSet(ModelViewSet):
             generate_and_maybe_notify_flight_order.apply_async(
                 (contestant.pk, request.user.email, request.user.first_name, True)
             )
-            return Response(status=status.HTTP_201_CREATED)
+            return Response(ContestantSerialiser(contestant).data, status=status.HTTP_201_CREATED)
 
     @action(
         detail=True,

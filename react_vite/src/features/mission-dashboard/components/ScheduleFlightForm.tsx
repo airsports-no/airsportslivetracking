@@ -36,7 +36,7 @@ interface ScheduleFlightFormProps {
     contest: Contest;
     navigationTaskId: number;
     myContestTeams: MyContestTeam[];
-    onClose: () => void;
+    onClose: (warnings?: string[]) => void;
 }
 
 const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, navigationTaskId, myContestTeams, onClose }) => {
@@ -208,8 +208,12 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     wind_speed: windSpeed,
                     wind_direction: windDirection,
                 };
-                await api.scheduleFlight(contest.id, navigationTaskId, schedulePayload);
-                onClose();
+                const result = await api.scheduleFlight(contest.id, navigationTaskId, schedulePayload);
+                if (result && result.overlap_warnings && result.overlap_warnings.length > 0) {
+                    onClose(result.overlap_warnings);
+                } else {
+                    onClose();
+                }
             } else {
                 setError("Failed to obtain contest team ID for scheduling flight.");
                 console.error("Failed to obtain contest team ID for scheduling flight:");
@@ -301,7 +305,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     {error && <div className="alert alert-error mt-4">{error}</div>}
 
                     <div className="card-actions justify-end">
-                        <button type="button" onClick={onClose} className="btn btn-ghost">Cancel</button>
+                        <button type="button" onClick={() => onClose()} className="btn btn-ghost">Cancel</button>
                         <button type="submit" className="btn btn-primary" disabled={loading}>
                             {loading && <span className="loading loading-spinner"></span>}
                             Schedule

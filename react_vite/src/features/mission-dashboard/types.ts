@@ -239,7 +239,7 @@ export interface Contestant {
     annotation_index: number;
     has_been_tracked_by_simulator: boolean;
     team: Team;
-
+    overlap_warnings?: string[];
 }
 
 export interface OngoingNavigation {

@@ -6,12 +6,11 @@ import { useMissionDashboardStore } from '../store';
 
 interface ContestRegistrationFormProps {
     contest: Contest;
-    myFutureParticipations: MyParticipatingContest[];
     myContestTeams: MyContestTeam[];
     onClose: () => void;
 }
 
-const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ contest, myFutureParticipations, myContestTeams, onClose }) => {
+const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ contest, myContestTeams, onClose }) => {
     const { clubs, aircrafts, pilots, fetchClubs, fetchAircrafts, fetchPilots, withdraw } = useMissionDashboardStore();
     const existingRegistration = myContestTeams.find(mc => mc.contest === contest.id);
 
