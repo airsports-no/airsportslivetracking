@@ -161,6 +161,9 @@
                 <!-- Mobile Card View (Visible on small screens, hidden on md+) -->
                 <div class="block md:hidden space-y-4">
                     {% for contestant in object.contestant_set.all %}
+                    {% ifchanged contestant.takeoff_time|date:"Y-m-d" %}
+                        <div class="divider font-bold text-base-content/60">{{ contestant.takeoff_time|date:"l, F j, Y" }}</div>
+                    {% endifchanged %}
                     <div class="card bg-base-200/50 shadow-sm border border-base-300">
                         <div class="card-body p-4">
                             <div class="flex justify-between items-start">
@@ -274,7 +277,10 @@
                                 </div>
                                 <div class="bg-base-100 p-2 rounded">
                                     <div class="opacity-70 mb-0.5">Takeoff</div>
-                                    <div class="font-mono">{% if contestant.adaptive_start %}Adaptive{% else %}{{ contestant.takeoff_time|date:"H:i:s"|default:"-" }}{% endif %}</div>
+                                    <div class="font-mono">
+                                        <span class="text-[10px] block opacity-60">{{ contestant.takeoff_time|date:"Y-m-d" }}</span>
+                                        {% if contestant.adaptive_start %}Adaptive{% else %}{{ contestant.takeoff_time|date:"H:i:s"|default:"-" }}{% endif %}
+                                    </div>
                                 </div>
                                 <div class="bg-base-100 p-2 rounded">
                                     <div class="opacity-70 mb-0.5">Finished</div>
@@ -316,6 +322,13 @@
                         </thead>
                         <tbody>
                         {% for contestant in object.contestant_set.all %}
+                            {% ifchanged contestant.takeoff_time|date:"Y-m-d" %}
+                                <tr class="bg-base-200 font-bold">
+                                    <td colspan="10" class="text-center py-2 text-base-content/80">
+                                        {{ contestant.takeoff_time|date:"l, F j, Y" }}
+                                    </td>
+                                </tr>
+                            {% endifchanged %}
                             <tr class="hover">
                                 <td class="font-bold text-base-content/70">
                                     <div class="flex items-center gap-1">
