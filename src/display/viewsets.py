@@ -215,7 +215,9 @@ class UserPersonViewSet(GenericViewSet):
             .distinct()
         )
         return Response(
-            ContestantNestedTeamSerialiserWithContestantTrack(contestants, many=True, context={"request": request}).data
+            ContestantNestedTeamSerialiserWithContestantTrack(
+                contestants, many=True, context={"request": request, "exclude_overlaps": True}
+            ).data
         )
 
     @action(detail=False, methods=["patch"])

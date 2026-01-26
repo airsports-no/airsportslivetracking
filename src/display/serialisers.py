@@ -896,6 +896,12 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
 
 
 class ContestantSerialiser(serializers.ModelSerializer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.context.get("exclude_overlaps"):
+            self.fields.pop("overlap_warnings", None)
+            self.fields.pop("overlapping_tasks", None)
+
     class Meta:
         model = Contestant
         exclude = ("predefined_gate_times",)
