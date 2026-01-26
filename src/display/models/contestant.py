@@ -383,74 +383,77 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     def get_overlapping_tasks(self) -> list[dict]:
         overlaps = []
-        # Validate single-use tracker
-        overlapping_trackers = Contestant.objects.filter(
-            tracking_service=self.tracking_service,
-            tracker_device_id__in=self.get_tracker_ids(),
-            tracker_start_time__lte=self.finished_by_time,
-            finished_by_time__gte=self.tracker_start_time,
-        ).exclude(pk=self.pk)
         
-        for contestant in overlapping_trackers:
-            smallest_end = min(contestant.finished_by_time, self.finished_by_time)
-            largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
-            overlaps.append({
-                "task": contestant.navigation_task,
-                "start_time": largest_start,
-                "end_time": smallest_end,
-                "reason": "Tracker collision"
-            })
+        # Prepare filters for a single query
+        time_filter = Q(tracker_start_time__lte=self.finished_by_time, finished_by_time__gte=self.tracker_start_time)
+        
+        tracker_ids = self.get_tracker_ids()
+        # Filter out empty tracker IDs
+        tracker_ids = [tid for tid in tracker_ids if tid]
+        
+        tracker_q = Q(pk__in=[])
+        if tracker_ids:
+             tracker_q = Q(tracking_service=self.tracking_service, tracker_device_id__in=tracker_ids)
 
-        # Check for overlapping aircraft
+        aircraft_q = Q(pk__in=[])
         if self.team and self.team.aeroplane:
-            possible_overlapping_aircraft = Contestant.objects.filter(
-                tracker_start_time__lte=self.finished_by_time,
-                finished_by_time__gte=self.tracker_start_time,
-                team__aeroplane=self.team.aeroplane,
-            ).exclude(pk=self.pk)
+             aircraft_q = Q(team__aeroplane=self.team.aeroplane)
 
-            for contestant in possible_overlapping_aircraft:
-                if contestant.takeoff_time < self.landing_time and contestant.landing_time >= self.takeoff_time:
-                     overlaps.append({
-                        "task": contestant.navigation_task,
-                        "start_time": max(contestant.takeoff_time, self.takeoff_time), # approx
-                        "end_time": min(contestant.landing_time, self.landing_time),
-                        "reason": "Aircraft collision"
-                    })
+        pilot = self.team.crew.member1
+        pilot_q = Q(pk__in=[])
+        if pilot:
+             pilot_q = (Q(team__crew__member1=pilot) | Q(team__crew__member2=pilot))
 
-        # Validate that persons are not part of other contestants for the same interval
-        overlapping1 = Contestant.objects.filter(
-            Q(team__crew__member1=self.team.crew.member1) | Q(team__crew__member2=self.team.crew.member1),
-            tracker_start_time__lte=self.finished_by_time,
-            finished_by_time__gte=self.tracker_start_time,
-        ).exclude(pk=self.pk)
-        for contestant in overlapping1:
-            smallest_end = min(contestant.finished_by_time, self.finished_by_time)
-            largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
-            overlaps.append({
-                "task": contestant.navigation_task,
-                "start_time": largest_start,
-                "end_time": smallest_end,
-                "reason": "Pilot collision"
-            })
+        copilot = self.team.crew.member2
+        copilot_q = Q(pk__in=[])
+        if copilot:
+             copilot_q = (Q(team__crew__member1=copilot) | Q(team__crew__member2=copilot))
 
-        if self.team.crew.member2 is not None:
-            overlapping2 = Contestant.objects.filter(
-                Q(team__crew__member1=self.team.crew.member2) | Q(team__crew__member2=self.team.crew.member2),
-                tracker_start_time__lte=self.finished_by_time,
-                finished_by_time__gte=self.tracker_start_time,
-            ).exclude(pk=self.pk)
-            for contestant in overlapping2:
-                smallest_end = min(contestant.finished_by_time, self.finished_by_time)
-                largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
+        combined_q = time_filter & (tracker_q | aircraft_q | pilot_q | copilot_q)
+        
+        potential_overlaps = Contestant.objects.filter(combined_q).exclude(pk=self.pk).select_related(
+            'navigation_task', 
+            'navigation_task__contest', 
+            'team__aeroplane', 
+            'team__crew__member1', 
+            'team__crew__member2'
+        )
+
+        for other in potential_overlaps:
+            reasons = set()
+            
+            # 1. Tracker collision
+            if tracker_ids and other.tracking_service == self.tracking_service:
+                # Original logic: tracker_device_id__in=tracker_ids.
+                # If other.tracker_device_id is in our list.
+                if other.tracker_device_id in tracker_ids:
+                    reasons.add("Tracker collision")
+
+            # 2. Aircraft collision
+            if self.team.aeroplane and other.team.aeroplane == self.team.aeroplane:
+                 # Original logic has tighter time check for aircraft
+                 if other.takeoff_time < self.landing_time and other.landing_time >= self.takeoff_time:
+                     reasons.add("Aircraft collision")
+
+            # 3. Pilot collision
+            if pilot and (other.team.crew.member1 == pilot or other.team.crew.member2 == pilot):
+                reasons.add("Pilot collision")
+
+            # 4. Copilot collision
+            if copilot and (other.team.crew.member1 == copilot or other.team.crew.member2 == copilot):
+                reasons.add("Copilot collision")
+
+            if reasons:
+                smallest_end = min(other.finished_by_time, self.finished_by_time)
+                largest_start = max(other.tracker_start_time, self.tracker_start_time)
                 overlaps.append({
-                    "task": contestant.navigation_task,
+                    "task": other.navigation_task,
                     "start_time": largest_start,
                     "end_time": smallest_end,
-                    "reason": "Copilot collision"
+                    "reason": reasons # Set of strings
                 })
         
-        # Deduplicate and group reasons
+        # Deduplicate and group reasons (already grouped per contestant, but we group by task)
         grouped_overlaps = {}
         for item in overlaps:
             task_pk = item["task"].pk
@@ -459,11 +462,10 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     "task": item["task"],
                     "start_time": item["start_time"],
                     "end_time": item["end_time"],
-                    "reasons": {item["reason"]}
+                    "reasons": item["reason"]
                 }
             else:
-                grouped_overlaps[task_pk]["reasons"].add(item["reason"])
-                # We could update start/end times here if needed, but keeping the first encountered is usually fine for overlaps
+                grouped_overlaps[task_pk]["reasons"].update(item["reason"])
         
         return list(grouped_overlaps.values())
 
