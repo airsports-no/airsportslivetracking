@@ -168,9 +168,33 @@
                                     <div class="flex items-center gap-2 min-w-0">
                                         <span class="badge badge-neutral font-mono font-bold shrink-0">#{{ contestant.contestant_number }}</span>
                                         {% if contestant.get_overlap_warnings %}
-                                            <div class="tooltip tooltip-right text-warning" data-tip="Overlapping contestants detected on this tracker.">
-                                                {% lucide "alert-triangle" size=16 %}
-                                            </div>
+                                            <button class="text-warning cursor-pointer hover:text-warning-content transition-colors" onclick="document.getElementById('overlap_modal_mobile_{{ contestant.pk }}').showModal()">
+                                                {% lucide "triangle-alert" size=16 %}
+                                            </button>
+                                            <dialog id="overlap_modal_mobile_{{ contestant.pk }}" class="modal text-left cursor-default">
+                                                <div class="modal-box">
+                                                    <form method="dialog">
+                                                        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+                                                    </form>
+                                                    <h3 class="font-bold text-lg flex items-center gap-2 text-warning">
+                                                        {% lucide "triangle-alert" %} Overlapping Contestants
+                                                    </h3>
+                                                    <p class="py-4 text-sm">
+                                                        This tracker is shared by multiple contestants, causing simultaneous active flights in different tasks. To prevent data contamination, when a contestant crosses the start line, any earlier overlapping flights are automatically terminated.
+                                                    </p>
+                                                    <p class="font-bold text-sm">Conflicting Tasks:</p>
+                                                    <ul class="list-disc list-inside mt-2 text-sm">
+                                                        {% for overlap in contestant.get_overlapping_tasks %}
+                                                            <li>
+                                                                <a href="{% url 'navigationtask_detail' overlap.task.pk %}" class="link link-primary" target="_blank">{{ overlap.task.name }}</a>
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                                <form method="dialog" class="modal-backdrop">
+                                                    <button>close</button>
+                                                </form>
+                                            </dialog>
                                         {% endif %}
                                         <a href="{% url 'contestant_update' contestant.pk %}" class="font-bold text-lg link link-hover break-words block leading-tight">
                                             {{ contestant.team.table_display|safe }}
@@ -297,9 +321,33 @@
                                     <div class="flex items-center gap-1">
                                         {{ contestant.contestant_number }}
                                         {% if contestant.get_overlap_warnings %}
-                                            <div class="tooltip tooltip-right text-warning" data-tip="Overlapping contestants detected on this tracker.">
-                                                {% lucide "alert-triangle" size=14 %}
-                                            </div>
+                                            <button class="text-warning cursor-pointer hover:text-warning-content transition-colors" onclick="document.getElementById('overlap_modal_{{ contestant.pk }}').showModal()">
+                                                {% lucide "triangle-alert" size=14 %}
+                                            </button>
+                                            <dialog id="overlap_modal_{{ contestant.pk }}" class="modal text-left cursor-default">
+                                                <div class="modal-box">
+                                                    <form method="dialog">
+                                                        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+                                                    </form>
+                                                    <h3 class="font-bold text-lg flex items-center gap-2 text-warning">
+                                                        {% lucide "triangle-alert" %} Overlapping Contestants
+                                                    </h3>
+                                                    <p class="py-4 text-sm">
+                                                        This tracker is shared by multiple contestants, causing simultaneous active flights in different tasks. To prevent data contamination, when a contestant crosses the start line, any earlier overlapping flights are automatically terminated.
+                                                    </p>
+                                                    <p class="font-bold text-sm">Conflicting Tasks:</p>
+                                                    <ul class="list-disc list-inside mt-2 text-sm">
+                                                        {% for overlap in contestant.get_overlapping_tasks %}
+                                                            <li>
+                                                                <a href="{% url 'navigationtask_detail' overlap.task.pk %}" class="link link-primary" target="_blank">{{ overlap.task.name }}</a>
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                                <form method="dialog" class="modal-backdrop">
+                                                    <button>close</button>
+                                                </form>
+                                            </dialog>
                                         {% endif %}
                                     </div>
                                 </td>

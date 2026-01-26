@@ -381,8 +381,8 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         """
         return calculate_ground_speed_combined(bearing, self.air_speed, self.wind_speed, self.wind_direction)
 
-    def get_overlap_warnings(self) -> list[str]:
-        warnings = []
+    def get_overlapping_tasks(self) -> list[dict]:
+        overlaps = []
         # Validate single-use tracker
         overlapping_trackers = Contestant.objects.filter(
             tracking_service=self.tracking_service,
@@ -390,27 +390,19 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             tracker_start_time__lte=self.finished_by_time,
             finished_by_time__gte=self.tracker_start_time,
         ).exclude(pk=self.pk)
-        if overlapping_trackers.exists():
-            intervals = []
-            for contestant in overlapping_trackers:
-                smallest_end = min(contestant.finished_by_time, self.finished_by_time)
-                largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
-                intervals.append(
-                    (
-                        contestant.navigation_task,
-                        largest_start.isoformat(),
-                        smallest_end.isoformat(),
-                    )
-                )
-            warnings.append(
-                "The tracker '{}' for contestant {} is in use by other contestants for the intervals: {}".format(
-                    self.tracker_device_id, self, intervals
-                )
-            )
+        
+        for contestant in overlapping_trackers:
+            smallest_end = min(contestant.finished_by_time, self.finished_by_time)
+            largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
+            overlaps.append({
+                "task": contestant.navigation_task,
+                "start_time": largest_start,
+                "end_time": smallest_end,
+                "reason": "Tracker collision"
+            })
 
         # Check for overlapping aircraft
         if self.team and self.team.aeroplane:
-            overlapping_aircraft = []
             possible_overlapping_aircraft = Contestant.objects.filter(
                 tracker_start_time__lte=self.finished_by_time,
                 finished_by_time__gte=self.tracker_start_time,
@@ -419,12 +411,12 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
             for contestant in possible_overlapping_aircraft:
                 if contestant.takeoff_time < self.landing_time and contestant.landing_time >= self.takeoff_time:
-                    overlapping_aircraft.append(contestant)
-
-            if overlapping_aircraft:
-                warnings.append(
-                    f"The aircraft {self.team.aeroplane.registration} for contestant {self} is already in use by another contestant during this time period."
-                )
+                     overlaps.append({
+                        "task": contestant.navigation_task,
+                        "start_time": max(contestant.takeoff_time, self.takeoff_time), # approx
+                        "end_time": min(contestant.landing_time, self.landing_time),
+                        "reason": "Aircraft collision"
+                    })
 
         # Validate that persons are not part of other contestants for the same interval
         overlapping1 = Contestant.objects.filter(
@@ -432,35 +424,15 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             tracker_start_time__lte=self.finished_by_time,
             finished_by_time__gte=self.tracker_start_time,
         ).exclude(pk=self.pk)
-        if overlapping1.exists():
-            intervals = []
-            for contestant in overlapping1:
-                smallest_end = min(contestant.finished_by_time, self.finished_by_time)
-                largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
-                intervals.append(
-                    (
-                        contestant.navigation_task,
-                        largest_start,
-                        smallest_end,
-                    )
-                )
-            links = []
-            for task, start, finish in intervals:
-                links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": task.pk})}">{task}</a>')
-            start_time = min(item[1] for item in intervals)
-            finish_time = max(item[2] for item in intervals)
-            if hasattr(self, "navigation_task") and self.navigation_task:
-                warnings.append(
-                    mark_safe(
-                        f"The pilot '{self.team.crew.member1}' for contestant {self} is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
-                    )
-                )
-            else:
-                warnings.append(
-                    mark_safe(
-                        f"The pilot '{self.team.crew.member1}' is competing as a different contestant in the tasks: {', '.join(links)}"
-                    )
-                )
+        for contestant in overlapping1:
+            smallest_end = min(contestant.finished_by_time, self.finished_by_time)
+            largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
+            overlaps.append({
+                "task": contestant.navigation_task,
+                "start_time": largest_start,
+                "end_time": smallest_end,
+                "reason": "Pilot collision"
+            })
 
         if self.team.crew.member2 is not None:
             overlapping2 = Contestant.objects.filter(
@@ -468,28 +440,92 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 tracker_start_time__lte=self.finished_by_time,
                 finished_by_time__gte=self.tracker_start_time,
             ).exclude(pk=self.pk)
-            if overlapping2.exists():
-                intervals = []
-                for contestant in overlapping2:
-                    smallest_end = min(contestant.finished_by_time, self.finished_by_time)
-                    largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
-                    intervals.append(
-                        (
-                            contestant.navigation_task,
-                            largest_start,
-                            smallest_end,
-                        )
-                    )
-                links = []
-                for task, start, finish in intervals:
-                    links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": task.pk})}">{task}</a>')
-                start_time = min(item[1] for item in intervals)
-                finish_time = max(item[2] for item in intervals)
-                warnings.append(
-                    mark_safe(
-                        f"The copilot '{self.team.crew.member2}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
-                    )
+            for contestant in overlapping2:
+                smallest_end = min(contestant.finished_by_time, self.finished_by_time)
+                largest_start = max(contestant.tracker_start_time, self.tracker_start_time)
+                overlaps.append({
+                    "task": contestant.navigation_task,
+                    "start_time": largest_start,
+                    "end_time": smallest_end,
+                    "reason": "Copilot collision"
+                })
+        
+        # Deduplicate and group reasons
+        grouped_overlaps = {}
+        for item in overlaps:
+            task_pk = item["task"].pk
+            if task_pk not in grouped_overlaps:
+                grouped_overlaps[task_pk] = {
+                    "task": item["task"],
+                    "start_time": item["start_time"],
+                    "end_time": item["end_time"],
+                    "reasons": {item["reason"]}
+                }
+            else:
+                grouped_overlaps[task_pk]["reasons"].add(item["reason"])
+                # We could update start/end times here if needed, but keeping the first encountered is usually fine for overlaps
+        
+        return list(grouped_overlaps.values())
+
+    def get_overlap_warnings(self) -> list[str]:
+        warnings = []
+        overlaps = self.get_overlapping_tasks()
+
+        # Helper to format intervals
+        def format_intervals(items):
+            return [(item["task"], item["start_time"].isoformat(), item["end_time"].isoformat()) for item in items]
+
+        # 1. Tracker Overlaps
+        tracker_overlaps = [o for o in overlaps if "Tracker collision" in o["reasons"]]
+        if tracker_overlaps:
+            intervals = format_intervals(tracker_overlaps)
+            warnings.append(
+                "The tracker '{}' for contestant {} is in use by other contestants for the intervals: {}".format(
+                    self.tracker_device_id, self, intervals
                 )
+            )
+
+        # 2. Aircraft Overlaps
+        aircraft_overlaps = [o for o in overlaps if "Aircraft collision" in o["reasons"]]
+        if aircraft_overlaps:
+            warnings.append(
+                f"The aircraft {self.team.aeroplane.registration} for contestant {self} is already in use by another contestant during this time period."
+            )
+
+        # 3. Pilot Overlaps
+        pilot_overlaps = [o for o in overlaps if "Pilot collision" in o["reasons"]]
+        if pilot_overlaps:
+            links = []
+            for item in pilot_overlaps:
+                links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": item["task"].pk})}">{item["task"]}</a>')
+
+            start_time = min(item["start_time"] for item in pilot_overlaps)
+            finish_time = max(item["end_time"] for item in pilot_overlaps)
+
+            msg = f"The pilot '{self.team.crew.member1}' "
+            if hasattr(self, "navigation_task") and self.navigation_task:
+                msg += f"for contestant {self} is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
+            else:
+                msg += f"is competing as a different contestant in the tasks: {', '.join(links)}"
+
+            warnings.append(mark_safe(msg))
+
+        # 4. Copilot Overlaps
+        copilot_overlaps = [o for o in overlaps if "Copilot collision" in o["reasons"]]
+        if copilot_overlaps:
+            links = []
+            for item in copilot_overlaps:
+                links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": item["task"].pk})}">{item["task"]}</a>')
+
+            start_time = min(item["start_time"] for item in copilot_overlaps)
+            finish_time = max(item["end_time"] for item in copilot_overlaps)
+
+            warnings.append(
+                mark_safe(
+                    f"The copilot '{self.team.crew.member2}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
+                )
+            )
+
         return warnings
 
     def terminate_concurrent_contestants(self, termination_time: datetime.datetime):

@@ -915,6 +915,16 @@ class ContestantSerialiser(serializers.ModelSerializer):
     landing_time = serializers.DateTimeField(read_only=True)
     schedule_locked = serializers.BooleanField(required=False)
     overlap_warnings = SerializerMethodField("get_overlap_warnings", read_only=True)
+    overlapping_tasks = SerializerMethodField("get_overlapping_tasks", read_only=True)
+
+    def get_overlapping_tasks(self, contestant):
+        overlaps = contestant.get_overlapping_tasks()
+        return [{
+            "task_id": item["task"].pk,
+            "task_name": item["task"].name,
+            "contest_id": item["task"].contest.pk,
+            "reason": ", ".join(sorted(item["reasons"]))
+        } for item in overlaps]
 
     def get_overlap_warnings(self, contestant):
         return contestant.get_overlap_warnings()

@@ -90,6 +90,12 @@ export interface Contestant {
   takeoff_time: string;
   finished_by_time: string;
   overlap_warnings?: string[];
+  overlapping_tasks?: {
+    task_id: number;
+    task_name: string;
+    contest_id: number;
+    reason: string;
+  }[];
 }
 
 export interface NavigationTask {

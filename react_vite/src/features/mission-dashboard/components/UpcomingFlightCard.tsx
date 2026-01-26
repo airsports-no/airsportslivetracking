@@ -5,6 +5,7 @@ import PublicityIcon from './PublicityIcon';
 import { Route, Contest, NavigationTask } from '../types';
 import TaskStatistics from './TaskStatistics';
 import { formatDateInterval } from '../../../utils';
+import { reverse } from '../../../urls';
 
 interface UpcomingFlightCardProps {
     flight: Contestant;
@@ -37,11 +38,25 @@ const UpcomingFlightCard: React.FC<UpcomingFlightCardProps> = ({ flight, contest
                             <AlertTriangle size={20} className="shrink-0" />
                             <div className="flex-1">
                                 <span className="font-semibold">Overlapping contestants detected on this tracker.</span>
-                                <div className="dropdown dropdown-hover dropdown-top dropdown-end ml-1 align-middle inline-block">
+                                <div className="dropdown dropdown-top dropdown-end ml-1 align-middle inline-block">
                                     <label tabIndex={0} className="cursor-pointer text-warning-content/70 hover:text-warning-content"><HelpCircle size={16} /></label>
                                     <div tabIndex={0} className="dropdown-content z-[1] card card-compact w-80 p-2 shadow bg-base-100 text-base-content">
                                         <div className="card-body">
                                             <p>This tracker is shared by multiple contestants, causing simultaneous active flights in different tasks. To prevent data contamination, when a contestant crosses the start line, any earlier overlapping flights are automatically terminated.</p>
+                                            {flight.overlapping_tasks && flight.overlapping_tasks.length > 0 && (
+                                                <div className="mt-2">
+                                                    <p className="font-semibold mb-1">Overlapping Tasks:</p>
+                                                    <ul className="list-disc list-inside">
+                                                        {flight.overlapping_tasks.map((task, idx) => (
+                                                            <li key={idx}>
+                                                                <a href={reverse('navigationtask_detail', task.task_id)} className="link" target="_blank" rel="noopener noreferrer">
+                                                                    {task.task_name} ({task.reason})
+                                                                </a>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

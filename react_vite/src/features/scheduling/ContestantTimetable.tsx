@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, HelpCircle } from 'lucide-react';
+import { reverse } from '../../urls';
 
 interface ContestantTimetableProps {
     navigationTask: any;
@@ -58,7 +59,7 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
                 <h2 className="card-title flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         <span>Timetable</span>
-                        <div className="dropdown dropdown-hover dropdown-right">
+                        <div className="dropdown">
                             <label tabIndex={0} className="cursor-pointer text-base-content/50 hover:text-base-content"><HelpCircle size={18} /></label>
                             <div tabIndex={0} className="dropdown-content z-[1] card card-compact w-96 p-2 shadow bg-base-100 text-base-content font-normal text-sm">
                                 <div className="card-body">
@@ -105,18 +106,51 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
                                             </tr>
                                         )}
                                         <tr>
+                                            <td>{c.contestant_number}</td>
                                             <td>
-                                                <div className="flex items-center gap-1">
-                                                    {c.contestant_number}
+                                                <div className="flex items-center gap-2">
+                                                    <span>{c.team.crew.member1.first_name} {c.team.crew.member1.last_name}</span>
                                                     {c.overlap_warnings && c.overlap_warnings.length > 0 && (
-                                                        <div className="tooltip tooltip-right text-warning" data-tip="Overlapping contestants detected on this tracker.">
-                                                            <AlertTriangle size={14} />
-                                                        </div>
+                                                        <>
+                                                            <button 
+                                                                className="text-warning cursor-pointer hover:text-warning-content transition-colors" 
+                                                                onClick={() => (document.getElementById(`overlap_modal_${c.id}`) as HTMLDialogElement)?.showModal()}
+                                                            >
+                                                                <AlertTriangle size={14} />
+                                                            </button>
+                                                            <dialog id={`overlap_modal_${c.id}`} className="modal text-left">
+                                                                <div className="modal-box">
+                                                                    <form method="dialog">
+                                                                        <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+                                                                    </form>
+                                                                    <h3 className="font-bold text-lg flex items-center gap-2 text-warning">
+                                                                        <AlertTriangle /> Overlapping Contestants
+                                                                    </h3>
+                                                                    <p className="py-4 text-sm">
+                                                                        This tracker is shared by multiple contestants, causing simultaneous active flights in different tasks. To prevent data contamination, when a contestant crosses the start line, any earlier overlapping flights are automatically terminated.
+                                                                    </p>
+                                                                    {c.overlapping_tasks && c.overlapping_tasks.length > 0 && (
+                                                                        <>
+                                                                            <p className="font-bold text-sm">Conflicting Tasks:</p>
+                                                                            <ul className="list-disc list-inside mt-2 text-sm">
+                                                                                {c.overlapping_tasks.map((task: any, idx: number) => (
+                                                                                    <li key={idx}>
+                                                                                        <a href={reverse('navigationtask_detail', task.task_id)} className="link link-primary" target="_blank" rel="noopener noreferrer">
+                                                                                            {task.task_name}
+                                                                                        </a>
+                                                                                    </li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                                <form method="dialog" className="modal-backdrop">
+                                                                    <button>close</button>
+                                                                </form>
+                                                            </dialog>
+                                                        </>
                                                     )}
                                                 </div>
-                                            </td>
-                                            <td>
-                                                {c.team.crew.member1.first_name} {c.team.crew.member1.last_name}
                                             </td>
                                             <td>{c.team.aeroplane.registration}</td>
                                             {c.adaptive_start ? (
