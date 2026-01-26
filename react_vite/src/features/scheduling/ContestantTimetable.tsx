@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertTriangle, HelpCircle } from 'lucide-react';
 
 interface ContestantTimetableProps {
     navigationTask: any;
@@ -55,7 +56,17 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
         <div className="card bg-base-100 shadow-xl mt-8">
             <div className="card-body">
                 <h2 className="card-title flex justify-between items-center">
-                    <span>Timetable</span>
+                    <div className="flex items-center gap-2">
+                        <span>Timetable</span>
+                        <div className="dropdown dropdown-hover dropdown-right">
+                            <label tabIndex={0} className="cursor-pointer text-base-content/50 hover:text-base-content"><HelpCircle size={18} /></label>
+                            <div tabIndex={0} className="dropdown-content z-[1] card card-compact w-96 p-2 shadow bg-base-100 text-base-content font-normal text-sm">
+                                <div className="card-body">
+                                    <p>This tracker is shared by multiple contestants, causing simultaneous active flights in different tasks. To prevent data contamination, when a contestant crosses the start line, any earlier overlapping flights are automatically terminated.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <span className="hidden print:block text-xl font-bold">{navigationTask.name}</span>
                 </h2>
                 <div className="overflow-x-auto w-full">
@@ -94,7 +105,16 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
                                             </tr>
                                         )}
                                         <tr>
-                                            <td>{c.contestant_number}</td>
+                                            <td>
+                                                <div className="flex items-center gap-1">
+                                                    {c.contestant_number}
+                                                    {c.overlap_warnings && c.overlap_warnings.length > 0 && (
+                                                        <div className="tooltip tooltip-right text-warning" data-tip="Overlapping contestants detected on this tracker.">
+                                                            <AlertTriangle size={14} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td>
                                                 {c.team.crew.member1.first_name} {c.team.crew.member1.last_name}
                                             </td>

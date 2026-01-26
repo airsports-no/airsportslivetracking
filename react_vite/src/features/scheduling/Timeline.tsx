@@ -87,7 +87,16 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                 lockTooltip = '\nSchedule locked.';
             }
 
-            const content = `${lockIcon}<b>#${contestant.contestant_number}</b> ${contestant.team.crew.member1.last_name}`;
+            const hasOverlaps = contestant.overlap_warnings && contestant.overlap_warnings.length > 0;
+            let warningIcon = '';
+            let warningTooltip = '';
+
+            if (hasOverlaps) {
+                warningIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:text-bottom; margin-right:2px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+                warningTooltip = '\nWarning: Overlapping contestants detected on this tracker.';
+            }
+
+            const content = `${warningIcon}${lockIcon}<b>#${contestant.contestant_number}</b> ${contestant.team.crew.member1.last_name}`;
 
             const takeoffText = isAdaptive ? 'Adaptive' : formatTimeLocal(takeoff);
             
@@ -112,7 +121,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                 content: content,
                 editable: itemEditable,
                 className: isLocked ? 'vis-item-locked' : 'vis-item-normal',
-                title: `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} (${contestant.team.aeroplane.registration})\nTake-off: ${takeoffText}${lockTooltip}`,
+                title: `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} (${contestant.team.aeroplane.registration})\nTake-off: ${takeoffText}${lockTooltip}${warningTooltip}`,
                 // Custom data to help with updates
                 data: {
                     trackerStart,

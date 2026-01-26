@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, AlertTriangle, HelpCircle } from 'lucide-react';
 import { Contestant } from '../../competition-map/types';
 import PublicityIcon from './PublicityIcon';
 import { Route, Contest, NavigationTask } from '../types';
@@ -32,6 +32,23 @@ const UpcomingFlightCard: React.FC<UpcomingFlightCardProps> = ({ flight, contest
                 <p className="text-sm text-gray-500">{formatDateInterval(navTask.start_time, navTask.finish_time)}</p>
 
                 <>
+                    {flight.overlap_warnings && flight.overlap_warnings.length > 0 && (
+                        <div className="alert alert-warning text-sm shadow-sm p-3">
+                            <AlertTriangle size={20} className="shrink-0" />
+                            <div className="flex-1">
+                                <span className="font-semibold">Overlapping contestants detected on this tracker.</span>
+                                <div className="dropdown dropdown-hover dropdown-top dropdown-end ml-1 align-middle inline-block">
+                                    <label tabIndex={0} className="cursor-pointer text-warning-content/70 hover:text-warning-content"><HelpCircle size={16} /></label>
+                                    <div tabIndex={0} className="dropdown-content z-[1] card card-compact w-80 p-2 shadow bg-base-100 text-base-content">
+                                        <div className="card-body">
+                                            <p>This tracker is shared by multiple contestants, causing simultaneous active flights in different tasks. To prevent data contamination, when a contestant crosses the start line, any earlier overlapping flights are automatically terminated.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {flight.adaptive_start ? (
                         <div className="bg-info/10 border border-info/20 rounded-lg p-3 text-sm mb-2">
                             <p className="font-bold text-info mb-1 uppercase text-xs tracking-wider">Adaptive start</p>

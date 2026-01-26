@@ -109,6 +109,9 @@
                             <div id="contestant-info-content" class="text-xs mt-2 transition-all duration-200">
                                 <p>For single contestants these can be added using the <strong>Quick add</strong> button for the contestant to be created with useful default values from the team registration. Edit the contestant by clicking its name after creation to change any of the default settings.</p>
                                 <p class="mt-2">For a competition with more than a few contestants we recommend using the <strong>Scheduling assistant</strong> (under More Tools) to create a conflict free time schedule.</p>
+                                <hr class="my-2 border-info-content/20">
+                                <p class="font-semibold mb-1">Handling Overlaps:</p>
+                                <p>This tracker is shared by multiple contestants, causing simultaneous active flights in different tasks. To prevent data contamination, when a contestant crosses the start line, any earlier overlapping flights are automatically terminated.</p>
                             </div>
                         </div>
                     </div>
@@ -164,6 +167,11 @@
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-2 min-w-0">
                                         <span class="badge badge-neutral font-mono font-bold shrink-0">#{{ contestant.contestant_number }}</span>
+                                        {% if contestant.get_overlap_warnings %}
+                                            <div class="tooltip tooltip-right text-warning" data-tip="Overlapping contestants detected on this tracker.">
+                                                {% lucide "alert-triangle" size=16 %}
+                                            </div>
+                                        {% endif %}
                                         <a href="{% url 'contestant_update' contestant.pk %}" class="font-bold text-lg link link-hover break-words block leading-tight">
                                             {{ contestant.team.table_display|safe }}
                                         </a>
@@ -285,7 +293,16 @@
                         <tbody>
                         {% for contestant in object.contestant_set.all %}
                             <tr class="hover">
-                                <td class="font-bold text-base-content/70">{{ contestant.contestant_number }}</td>
+                                <td class="font-bold text-base-content/70">
+                                    <div class="flex items-center gap-1">
+                                        {{ contestant.contestant_number }}
+                                        {% if contestant.get_overlap_warnings %}
+                                            <div class="tooltip tooltip-right text-warning" data-tip="Overlapping contestants detected on this tracker.">
+                                                {% lucide "alert-triangle" size=14 %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
                                 <td class="whitespace-nowrap font-medium">
                                     <a href="{% url 'contestant_update' contestant.pk %}" class="link link-hover">{{ contestant.team.table_display|safe }}</a>
                                 </td>
