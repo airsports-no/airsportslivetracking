@@ -405,6 +405,63 @@ class RouteSerialiser(serializers.ModelSerializer):
         return instance
 
 
+class RouteSummarySerialiser(serializers.ModelSerializer):
+    """
+    Lightweight serializer for Route summary info, excluding geometry.
+    """
+
+    number_of_wayoints = serializers.IntegerField(read_only=True)
+    route_length_nm = serializers.FloatField(read_only=True)
+    number_of_prohibited_zones = serializers.IntegerField(read_only=True)
+    number_of_penalty_zones = serializers.IntegerField(read_only=True)
+    has_landing_gate = serializers.BooleanField(read_only=True)
+    has_takeoff_gate = serializers.BooleanField(read_only=True)
+    number_of_photos = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Route
+        fields = [
+            "id",
+            "name",
+            "use_procedure_turns",
+            "rounded_corners",
+            "corridor_width",
+            # Exclude waypoints, gates, prohibited_set, corridor_polygon
+            "number_of_wayoints",
+            "route_length_nm",
+            "number_of_prohibited_zones",
+            "number_of_penalty_zones",
+            "has_landing_gate",
+            "has_takeoff_gate",
+            "number_of_photos",
+        ]
+
+
+class NavigationTasksLightSerialiser(serializers.ModelSerializer):
+    route = RouteSummarySerialiser(read_only=True)
+    flown_contestants_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NavigationTask
+        fields = (
+            "pk",
+            "name",
+            "start_time",
+            "schedule_start_time",
+            "finish_time",
+            "tracking_link",
+            "allow_self_management",
+            "route",
+            "flown_contestants_count",
+            "is_public",
+            "is_featured",
+            "planning_time",
+        )
+
+    def get_flown_contestants_count(self, obj):
+        return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
+
+
 class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
     route = RouteSerialiser(read_only=True)
     flown_contestants_count = serializers.SerializerMethodField()
@@ -462,7 +519,11 @@ class ContestTeamSerialiser(serializers.ModelSerializer):
         request = self.context.get("request", None)
         if request is None or not request.user.is_authenticated:
             return False
-        user_person = Person.objects.filter(email=request.user.email).first()
+        if "user_person" in self.context:
+            user_person = self.context["user_person"]
+        else:
+            user_person = Person.objects.filter(email=request.user.email).first()
+
         if user_person is None:
             return False
         return contest_team.team.crew.member1 == user_person
@@ -490,6 +551,11 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     is_editor = serializers.SerializerMethodField("get_is_editor")
     contestteam_set = ContestTeamSerialiser(read_only=True, many=True)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.context.get("exclude_teams"):
+            self.fields.pop("contestteam_set")
+
     def get_is_editor(self, contest):
         return contest.id in self.context.get("editable_contest_ids", set())
 
@@ -516,6 +582,9 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         return {"change_contest": [user], "delete_contest": [user], "view_contest": [user]}
 
     def get_visiblenavigationtasks(self, contest):
+        if self.context.get("exclude_tasks"):
+            return []
+
         user = self.context["request"].user
         viewable_contest = user.has_perm("display.view_contest", contest)
 
@@ -527,7 +596,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
                 is_public=True, contest__is_public=True, is_featured=True
             )
 
-        serialiser = NavigationTasksSummarySerialiser(tasks_queryset, many=True, read_only=True)
+        serialiser = NavigationTasksLightSerialiser(tasks_queryset, many=True, read_only=True)
         return serialiser.data
 
     def get_registered(self, contest):

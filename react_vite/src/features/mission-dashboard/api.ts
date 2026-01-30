@@ -60,6 +60,8 @@ export interface ContestFilters {
     startTimeGte?: string;
     finishTimeLte?: string;
     isEditor?: boolean;
+    excludeTasks?: boolean;
+    excludeTeams?: boolean;
 }
 
 const _fetchContestsPage = async (cursor?: string | null, filters?: ContestFilters): Promise<PaginatedContests> => {
@@ -79,6 +81,12 @@ const _fetchContestsPage = async (cursor?: string | null, filters?: ContestFilte
     }
     if (filters?.isEditor !== undefined) {
         url.searchParams.set('is_editor', filters.isEditor.toString());
+    }
+    if (filters?.excludeTasks !== undefined) {
+        url.searchParams.set('exclude_tasks', filters.excludeTasks.toString());
+    }
+    if (filters?.excludeTeams !== undefined) {
+        url.searchParams.set('exclude_teams', filters.excludeTeams.toString());
     }
 
     const response = await fetch(url.toString(), { headers: getAuthHeaders() });

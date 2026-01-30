@@ -160,10 +160,12 @@ const MissionDashboard = () => {
                 fetchPromises.push(fetchMyEditorContestsFromStore());
             }
 
+            let initialFetchPerformed = false;
             // Conditionally fetch the main contest list only if it's empty.
             if (state.contests.length === 0) {
                 const oneYearAgo = new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
-                fetchPromises.push(fetchContestsFromStore({ startTimeGte: oneYearAgo.toISOString().split('T')[0] }));
+                fetchPromises.push(fetchContestsFromStore({ startTimeGte: oneYearAgo.toISOString().split('T')[0], excludeTasks: true, excludeTeams: true }));
+                initialFetchPerformed = true;
             }
 
             try {
@@ -196,6 +198,11 @@ const MissionDashboard = () => {
                 setError((err as Error).message);
             } finally {
                 setLoading(false);
+            }
+
+            if (initialFetchPerformed) {
+                const oneYearAgo = new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
+                fetchContestsFromStore({ startTimeGte: oneYearAgo.toISOString().split('T')[0] }).catch(console.error);
             }
         };
 

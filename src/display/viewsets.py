@@ -590,6 +590,11 @@ class ContestViewSet(ModelViewSet):
         except AssertionError:
             # This is when we are creating a new contest
             pass
+        if self.request:
+            context["exclude_tasks"] = self.request.query_params.get("exclude_tasks", "false").lower() == "true"
+            context["exclude_teams"] = self.request.query_params.get("exclude_teams", "false").lower() == "true"
+            if self.request.user.is_authenticated:
+                context["user_person"] = Person.objects.filter(email=self.request.user.email).first()
         return context
 
 

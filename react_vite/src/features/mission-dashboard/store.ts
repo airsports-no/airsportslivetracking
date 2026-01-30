@@ -47,7 +47,20 @@ export const useMissionDashboardStore = create<MissionDashboardState>((set, get)
 
     fetchContests: async (filters) => {
         const contests = await api.fetchContests(filters);
-        set(state => ({ contests: [...state.contests, ...contests.filter(c => !state.contests.find(sc => sc.id === c.id))] }));
+        set(state => {
+            const newContests = [...state.contests];
+            contests.forEach(c => {
+                const index = newContests.findIndex(sc => sc.id === c.id);
+                if (index !== -1) {
+                    // Update existing
+                    newContests[index] = { ...newContests[index], ...c };
+                } else {
+                    // Append new
+                    newContests.push(c);
+                }
+            });
+            return { contests: newContests };
+        });
     },
     fetchContest: async (contestId, force) => {
         if (!force && get().contestsById[contestId]) {
