@@ -15,6 +15,7 @@
             <form method="post" class="form mt-4">
                 {% csrf_token %}
                 {% crispy form %}
+                <button type="submit" class="btn btn-primary mt-4">{% trans "Save" %}</button>
             </form>
         </div>
     </div>
