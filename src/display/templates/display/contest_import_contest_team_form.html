@@ -11,10 +11,7 @@
             <p>
                 Select the contest from which to import the list of teams. Available contest is any public contest or any other contest where you have view permissions.
             </p>
-            <form method="post" class="form">
-                {% csrf_token %}
-                {% crispy form %}
-            </form>
+            {% crispy form %}
         </div>
     </div>
 </div>

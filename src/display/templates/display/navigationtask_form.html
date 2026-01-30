@@ -9,10 +9,7 @@
             <h2 class="card-title">Update Navigation Task {{ object }}</h2>
             {{ form.media }}
             {{ form.errors }}
-            <form method="post" class="form mt-4">
-                {% csrf_token %}
-                {% crispy form %}
-            </form>
+            {% crispy form %}
         </div>
     </div>
 </div>

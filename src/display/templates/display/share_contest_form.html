@@ -12,11 +12,7 @@
             <p class="mt-4 text-sm text-base-content/70">
                 <b>Note:</b> changing the status to unlisted or private will also change the navigation tasks to at most that sharing level. E.g. if the contest is made private, all the navigation tasks are also changed to private.
             </p>
-            <form method="post" class="form mt-4">
-                {% csrf_token %}
-                {% crispy form %}
-                <button type="submit" class="btn btn-primary mt-4">{% trans "Save" %}</button>
-            </form>
+            {% crispy form %}
         </div>
     </div>
 </div>

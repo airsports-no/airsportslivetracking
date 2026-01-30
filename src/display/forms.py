@@ -61,7 +61,11 @@ class ShareForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.form_tag = False
+        self.helper.form_class = "form mt-4"
+        self.helper.layout = Layout(
+            Field("publicity"),
+            ButtonHolder(Submit("submit", "Save")),
+        )
 
 
 class MapForm(forms.Form):
@@ -92,16 +96,36 @@ class MapForm(forms.Form):
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
     colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
 
-    def clean(self):
-        cleaned_data = super().clean()
-        validate_map_zoom_level(
-            cleaned_data.get("map_source"), cleaned_data.get("user_uploaded_map"), cleaned_data.get("zoom_level")
-        )
-
     def __init__(self, *args, **kwargs):
+        self.redirect_url = kwargs.pop("redirect_url", "#")
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.form_tag = False
+        self.helper.form_class = "form mt-4"
+        self.helper.layout = Layout(
+            Fieldset(
+                "Map details",
+                "size",
+                "orientation",
+                "plot_track_between_waypoints",
+                "include_meridians_and_parallels_lines",
+                "scale",
+                "map_source",
+                "user_map_source",
+                "zoom_level",
+                "dpi",
+                "line_width",
+            ),
+            Field("colour", type="hidden"),
+            HTML('<h5 class="text-lg font-semibold mt-4">Pick a colour for the route</h5><div id="picker" class="mx-auto mt-2" style="margin-bottom: 15px"></div>'),
+            HTML("""<div role="alert" class="alert alert-warning mt-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert stroke-current shrink-0 h-6 w-6"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <span><b>Caution:</b> Map generation may require several minutes. Using large zoom levels (e.g., above 12) with significant scales (e.g., 1:200,000 or higher) could result in an out of memory error. If this occurs, kindly decrease the zoom level (use a lower number).</span>
+            </div>"""),
+            ButtonHolder(
+                Submit("submit", "Submit"),
+                HTML(f'<a href="{self.redirect_url}" class="btn btn-secondary">Back</a>')
+            ),
+        )
         self.fields["map_source"].choices = get_map_choices()
 
 
@@ -135,9 +159,37 @@ class ContestantMapForm(forms.Form):
         )
 
     def __init__(self, *args, **kwargs):
+        self.redirect_url = kwargs.pop("redirect_url", "#")
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.form_tag = False
+        self.helper.form_class = "form mt-4"
+        self.helper.layout = Layout(
+            Fieldset(
+                "Map details",
+                "size",
+                "dpi",
+                "orientation",
+                "scale",
+                "map_source",
+                "user_map_source",
+                "zoom_level",
+                "include_annotations",
+                "plot_track_between_waypoints",
+                "include_meridians_and_parallels_lines",
+                "line_width",
+                "minute_mark_line_width",
+            ),
+            Field("colour", type="hidden"),
+            HTML('<h5 class="text-lg font-semibold mt-4">Pick a colour for the route</h5><div id="picker" class="mx-auto mt-2" style="margin-bottom: 15px"></div>'),
+            HTML("""<div role="alert" class="alert alert-warning mt-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert stroke-current shrink-0 h-6 w-6"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <span><b>Caution:</b> Map generation may require several minutes. Using large zoom levels (e.g., above 12) with significant scales (e.g., 1:200,000 or higher) could result in an out of memory error. If this occurs, kindly decrease the zoom level (use a lower number).</span>
+            </div>"""),
+            ButtonHolder(
+                Submit("submit", "Submit"),
+                HTML(f'<a href="{self.redirect_url}" class="btn btn-secondary">Back</a>')
+            ),
+        )
         self.fields["map_source"].choices = get_map_choices()
 
 
@@ -150,6 +202,8 @@ class UserUploadedMapForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
+        self.helper.form_class = "form mt-4"
+        self.helper.attrs = {"enctype": "multipart/form-data"}
         self.helper.layout = Layout(
             Fieldset("User map", "name", "default_zoom_level", "attribution", "map_file"),
             Field("user", type="hidden"),
@@ -192,8 +246,11 @@ class FlightOrderConfigurationForm(forms.ModelForm):
         self.fields["map_source"].choices = get_map_choices()
         print(self.fields["map_source"].choices)
         self.helper = FormHelper()
-        self.helper.form_tag = False
         self.helper.layout = Layout(
+            HTML("""<div role="alert" class="alert alert-warning mt-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert stroke-current shrink-0 h-6 w-6"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <span><b>Caution:</b> Map generation may require several minutes. Using large zoom levels (e.g., above 12) with significant scales (e.g., 1:200,000 or higher) could result in an out of memory error. If this occurs, kindly decrease the zoom level (use a lower number). Be sure to test map generation when changing the values here.</span>
+            </div>"""),
             Fieldset(
                 "Map options",
                 "map_source",
@@ -231,7 +288,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
                 "photos_zoom_level",
             ),
             Field("map_line_colour", type="hidden"),
-            HTML('<h3>Pick a colour for the map lines</h3><div id="picker" style="margin-bottom: 10px"></div>'),
+            HTML('<h3>Pick a colour for the map lines</h3><div id="picker" class="mx-auto mt-4" style="margin-bottom: 10px"></div>'),
             ButtonHolder(Submit("submit", "Submit"), Submit("cancel", "Cancel", css_class="btn-secondary")),
         )
 
@@ -317,10 +374,11 @@ class ContestForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['start_time'].widget = forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d')
-        self.fields['finish_time'].widget = forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d')
+        self.fields["start_time"].widget = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
+        self.fields["finish_time"].widget = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
         self.helper = FormHelper()
-        self.helper.form_tag = False
+        self.helper.form_class = "form"
+        self.helper.attrs = {"enctype": "multipart/form-data"}
         self.helper.layout = Layout(
             Fieldset(
                 "Contest details",
@@ -380,17 +438,26 @@ class PictureWidget(forms.widgets.Widget):
 
 class ImagePreviewWidget(forms.widgets.FileInput):
     def render(self, name, value, attrs=None, **kwargs):
+        if attrs is None:
+            attrs = {}
+        attrs["class"] = (attrs.get("class", "") + " file-input file-input-bordered w-full max-w-xs").strip()
         input_html = super().render(name, value, attrs=attrs, **kwargs)
-        image_html = mark_safe(f'<br><br><img src="{value.url}"/>')
-        return f"{input_html}{image_html}"
+        if value and hasattr(value, "url"):
+            image_html = mark_safe(
+                f'<div class="mt-4"><img src="{value.url}" class="max-w-[200px] max-h-[200px] rounded-lg shadow-md object-cover"/></div>'
+            )
+            return mark_safe(f"<div>{input_html}{image_html}</div>")
+        return input_html
 
 
 class PersonPictureForm(forms.ModelForm):
-    # picture = forms.ImageField(widget=ImagePreviewWidget)
+    picture = forms.ImageField(widget=ImagePreviewWidget)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.form_tag = False
+        self.helper.form_class = "form mt-4"
+        self.helper.attrs = {"enctype": "multipart/form-data"}
         self.helper.layout = Layout(
             Fieldset(
                 "Upload picture",
@@ -408,7 +475,8 @@ class TrackingDataForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.form_tag = False
+        self.helper.form_class = "form mt-4"
+        self.helper.attrs = {"enctype": "multipart/form-data"}
         self.helper.layout = Layout(
             Fieldset("Team contest information", "air_speed", "tracking_service", "tracking_device"),
             Fieldset(
@@ -424,11 +492,13 @@ class TrackingDataForm(forms.ModelForm):
 
 
 class PersonForm(forms.ModelForm):
-    # picture = forms.ImageField(widget=ImagePreviewWidget)
+    picture = forms.ImageField(widget=ImagePreviewWidget, required=False)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.form_tag = False
+        self.helper.form_class = "form mt-4"
+        self.helper.attrs = {"enctype": "multipart/form-data"}
         self.helper.layout = Layout(
             Fieldset(
                 "Create new person", "first_name", "last_name", "phone", "email", "country", "picture", "biography"
@@ -451,24 +521,6 @@ class PersonForm(forms.ModelForm):
         fields = "__all__"
 
 
-class TeamForm(forms.ModelForm):
-    logo = forms.ImageField(widget=ImagePreviewWidget, required=False)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["crew"].disabled = True
-        self.fields["aeroplane"].disabled = True
-        self.fields["club"].disabled = True
-        self.helper = FormHelper()
-        self.helper.layout = Layout(
-            Fieldset("Team", "crew", "aeroplane", "club", "country", "logo"), ButtonHolder(Submit("submit", "Submit"))
-        )
-
-    class Meta:
-        model = Team
-        fields = "__all__"
-
-
 class ContestantForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.navigation_task = kwargs.pop("navigation_task")  # type: NavigationTask
@@ -484,6 +536,7 @@ class ContestantForm(forms.ModelForm):
         self.fields["wind_direction"].initial = self.navigation_task.wind_direction
         self.fields["wind_direction"].initial = self.navigation_task.wind_direction
         self.helper = FormHelper()
+        self.helper.attrs = {"enctype": "multipart/form-data"}
         self.helper.layout = Layout(
             Fieldset(
                 "Contestant",
@@ -557,39 +610,22 @@ class ContestantQuickAddForm(forms.Form):
         )
 
 
-class ContestTeamOptimisationForm(forms.Form):
-    contest_teams = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple())
-    first_takeoff_time = forms.DateTimeField()
-    minutes_between_contestants_at_start = forms.FloatField(initial=5, help_text="The minimum spacing between takeoffs")
-    minutes_between_contestants_at_finish = forms.FloatField(
-        initial=2,
-        help_text="The minimum spacing between aircraft as they cross the finish point (I.e. how close the second aircraft is allowed to get to the first aircraft",
-    )
-    minutes_for_aircraft_switch = forms.IntegerField(
-        initial=30,
-        help_text="If an aircraft is shared between competitors, how much time is required from the landing time to the next takeoff for the same aircraft.",
-    )
-    minutes_for_tracker_switch = forms.IntegerField(
-        initial=15,
-        help_text="If a tracker is shared between competitors, how much time is required from the landing time to the next takeoff for the same tracker.",
-    )
-    minutes_for_crew_switch = forms.IntegerField(
-        initial=15,
-        help_text="If a person is part of multiple crews, how much time does he/she require to jump from one crew to another.",
-    )
-    tracker_lead_time_minutes = forms.IntegerField(
-        initial=15, help_text="How long before takeoff time should tracking of the contestant start"
-    )
-    optimise = forms.BooleanField(
-        required=False,
-        initial=True,
-        help_text="Try to further optimise the schedule. This will take a maximum of 10 minutes. If a solution is not found within the time, the result will be a suboptimal solution. In that case, rerun the scheduler without this flag set",
-    )
-
-
 class AssignPokerCardForm(forms.Form):
     waypoint = forms.ChoiceField(choices=())
     playing_card = forms.ChoiceField(choices=[("random", "Random")] + PLAYING_CARDS, initial="random")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_class = "form"
+        self.helper.layout = Layout(
+            Fieldset(
+                "Assign Poker Card",
+                "waypoint",
+                "playing_card",
+            ),
+            ButtonHolder(Submit("submit", "Assign")),
+        )
 
 
 PERMISSIONS_CHOICE = [("nothing", "Nothing"), ("view", "View"), ("change", "Change"), ("delete", "Delete")]
@@ -599,13 +635,34 @@ class AddPermissionsForm(forms.Form):
     email = forms.EmailField()
     permission = forms.ChoiceField(choices=PERMISSIONS_CHOICE)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_class = "form mt-4"
+        self.helper.layout = Layout(
+            Fieldset(
+                "Add Permission",
+                "email",
+                "permission",
+            ),
+            ButtonHolder(Submit("submit", "Add")),
+        )
+
 
 class ChangePermissionsForm(forms.Form):
     permission = forms.ChoiceField(choices=PERMISSIONS_CHOICE)
 
-
-class RouteCreationForm(forms.Form):
-    route = LineStringField(widget=OSMWidget(attrs={"map_width": 800, "map_height": 500}))
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_class = "form mt-4"
+        self.helper.layout = Layout(
+            Fieldset(
+                "Change Permission",
+                "permission",
+            ),
+            ButtonHolder(Submit("submit", "Update")),
+        )
 
 
 class GPXTrackImportForm(forms.Form):
@@ -614,6 +671,8 @@ class GPXTrackImportForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
+        self.helper.form_class = "form mt-4"
+        self.helper.attrs = {"enctype": "multipart/form-data"}
         self.helper.layout = Layout(
             Fieldset(
                 "GPX Track upload",
@@ -637,6 +696,7 @@ class ScorecardForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         self.helper = FormHelper()
+        self.helper.form_class = "form mt-4"
         self.helper.layout = Layout(
             *[
                 Fieldset(*[field for field in block if field != "corridor_width"])
@@ -666,6 +726,7 @@ class GateScoreForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
+        self.helper.form_class = "form mt-4"
         self.helper.layout = Layout(
             *[Fieldset(*block) for block in self.instance.included_fields],
             *[Field(key, type="hidden") for key in self.fields.keys() if key not in self.instance.visible_fields],
@@ -716,7 +777,6 @@ class ImportRouteForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.form_tag = False
         self.helper.layout = Layout(
             Fieldset("Route import", "name", "file"),
             kml_description,
@@ -733,7 +793,6 @@ class DeleteUserForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.form_tag = False
         self.helper.layout = Layout(
             Fieldset("User selection", "email", "send_email"),
             ButtonHolder(Submit("submit", "Submit")),
@@ -746,3 +805,9 @@ class ImportContestTeamForm(forms.Form):
     def __init__(self, available_contests: Iterable[Contest], *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["contest"].queryset = available_contests
+        self.helper = FormHelper()
+        self.helper.form_class = "form"
+        self.helper.layout = Layout(
+            Fieldset("Import Teams", "contest"),
+            ButtonHolder(Submit("submit", "Import")),
+        )

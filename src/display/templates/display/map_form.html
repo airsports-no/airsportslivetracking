@@ -10,20 +10,7 @@
     <div class="card bg-base-100 shadow-xl max-w-3xl mx-auto">
         <div class="card-body">
             <h2 class="card-title">Generate map</h2>
-            <form method="post" class="form mt-4">
-                {% csrf_token %}
-                {% crispy form %}
-                <h5 class="text-lg font-semibold mt-4">Pick a colour for the route</h5>
-                <div id="picker" class="mx-auto mt-2" style="margin-bottom: 15px"></div>
-                <div role="alert" class="alert alert-warning mt-4">
-                    {% lucide "triangle-alert" class="stroke-current shrink-0 h-6 w-6" %}
-                    <span><b>Caution:</b> Map generation may require several minutes. Using large zoom levels (e.g., above 12) with significant scales (e.g., 1:200,000 or higher) could result in an out of memory error. If this occurs, kindly decrease the zoom level (use a lower number).</span>
-                </div>
-                <div class="card-actions justify-end mt-4">
-                    <button type="submit" class="btn btn-primary">Submit</button>
-                    <a href="{{ redirect }}" class="btn btn-secondary">Back</a>
-                </div>
-            </form>
+            {% crispy form %}
         </div>
     </div>
 </div>

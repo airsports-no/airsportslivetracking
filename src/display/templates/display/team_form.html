@@ -8,11 +8,8 @@
         <div class="card-body">
             <h2 class="card-title">Team</h2>
             <p class="text-sm text-base-content/70">This is the resulting team based on previous choices. Consider updating country and logo if necessary.</p>
-            <form method="post" class="form mt-4" enctype="multipart/form-data">
-                {% csrf_token %}
-                {{ form.media }}
-                {% crispy form %}
-            </form>
+            {{ form.media }}
+            {% crispy form %}
         </div>
     </div>
 </div>

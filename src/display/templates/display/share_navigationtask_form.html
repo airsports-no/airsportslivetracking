@@ -12,11 +12,7 @@
             <p class="mt-4 text-sm text-base-content/70">
                 <b>Note:</b> changing the status to public or unlisted will also change the contest of the navigation task to at least that sharing level. E.g. if the navigation task is made public, the contest is also changed to public.
             </p>
-            <form method="post" class="form mt-4">
-                {% csrf_token %}
-                {% crispy form %}
-                <button type="submit" class="btn btn-primary mt-4">{% trans "Save" %}</button>
-            </form>
+            {% crispy form %}
         </div>
     </div>
 </div>

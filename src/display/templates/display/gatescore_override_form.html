@@ -8,11 +8,7 @@
         <div class="card-body">
             <h2 class="card-title">Change scorecard parameters for {{ navigation_task.name }} gate type {{ gate_score.get_gate_type_display }}</h2>
             {{ form.errors }}
-            <form method="post" class="form mt-4">
-                {% csrf_token %}
-                {{ form.media }}
-                {% crispy form %}
-            </form>
+            {% crispy form %}
         </div>
     </div>
 </div>

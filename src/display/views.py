@@ -74,11 +74,9 @@ from display.forms import (
     LANDSCAPE,
     MapForm,
     TrackingDataForm,
-    ContestTeamOptimisationForm,
     AssignPokerCardForm,
     ChangePermissionsForm,
     AddPermissionsForm,
-    RouteCreationForm,
     ShareForm,
     GPXTrackImportForm,
     PersonPictureForm,
@@ -88,7 +86,6 @@ from display.forms import (
     UserUploadedMapForm,
     ImportRouteForm,
     DeleteUserForm,
-    TeamForm,
     PersonForm,
 )
 from display.flight_order_and_maps.generate_flight_orders import (
@@ -528,8 +525,9 @@ def get_contestant_map(request, pk):
     a form, and the resulting file is downloaded as a PDF.
     """
     contestant = get_object_or_404(Contestant, pk=pk)
+    redirect_url = reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
     if request.method == "POST":
-        form = ContestantMapForm(request.POST)
+        form = ContestantMapForm(request.POST, redirect_url=redirect_url)
         form.fields["user_map_source"].queryset = contestant.navigation_task.get_available_user_maps()
         if form.is_valid():
             margin = 10
@@ -559,7 +557,7 @@ def get_contestant_map(request, pk):
                     "display/map_form.html",
                     {
                         "form": form,
-                        "redirect": reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}),
+                        "redirect": redirect_url,
                         "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
                     },
                 )
@@ -591,7 +589,8 @@ def get_contestant_map(request, pk):
                 "line_width": configuration.map_line_width,
                 "minute_mark_line_width": configuration.map_minute_mark_line_width,
                 "colour": configuration.map_line_colour,
-            }
+            },
+            redirect_url=redirect_url,
         )
         form.fields["user_map_source"].queryset = contestant.navigation_task.get_available_user_maps()
         form.fields["user_map_source"].initial = contestant.navigation_task.flightorderconfiguration.map_user_source
@@ -601,7 +600,7 @@ def get_contestant_map(request, pk):
         "display/map_form.html",
         {
             "form": form,
-            "redirect": reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}),
+            "redirect": redirect_url,
             "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
         },
     )
@@ -788,8 +787,9 @@ def get_navigation_task_map(request, pk):
     task and cannot contain contestants specific annotations.
     """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    redirect_url = reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
     if request.method == "POST":
-        form = MapForm(request.POST)
+        form = MapForm(request.POST, redirect_url=redirect_url)
         form.fields["user_map_source"].queryset = navigation_task.get_available_user_maps()
         if form.is_valid():
             margin = 10
@@ -816,7 +816,7 @@ def get_navigation_task_map(request, pk):
                     "display/map_form.html",
                     {
                         "form": form,
-                        "redirect": reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}),
+                        "redirect": redirect_url,
                         "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
                     },
                 )
@@ -847,7 +847,8 @@ def get_navigation_task_map(request, pk):
                 "dpi": configuration.map_dpi,
                 "line_width": configuration.map_line_width,
                 "colour": configuration.map_line_colour,
-            }
+            },
+            redirect_url=redirect_url,
         )
         form.fields["user_map_source"].queryset = navigation_task.get_available_user_maps()
         form.fields["user_map_source"].initial = navigation_task.flightorderconfiguration.map_user_source
@@ -856,7 +857,7 @@ def get_navigation_task_map(request, pk):
         "display/map_form.html",
         {
             "form": form,
-            "redirect": reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}),
+            "redirect": redirect_url,
             "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
         },
     )

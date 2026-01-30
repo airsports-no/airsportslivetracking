@@ -21,9 +21,7 @@
             </h2>
             <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
             {{ form.media }}
-            <form method="post" class="form" enctype="multipart/form-data">
-                {% crispy form %}
-            </form>
+            {% crispy form %}
         </div>
     </div>
 </div>

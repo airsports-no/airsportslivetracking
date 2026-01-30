@@ -42,10 +42,7 @@
             <div class="divider"></div>
 
             <h2 class="card-title">Deal new card</h2>
-            <form method="post" class="form">
-                {% csrf_token %}
-                {% crispy form %}
-            </form>
+            {% crispy form %}
         </div>
     </div>
 </div>

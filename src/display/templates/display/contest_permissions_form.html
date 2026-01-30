@@ -20,10 +20,7 @@
                   </span>
                 </div>
             </div>
-            <form method="post" class="form mt-4">
-                {% csrf_token %}
-                {% crispy form %}
-            </form>
+            {% crispy form %}
         </div>
     </div>
 </div>
