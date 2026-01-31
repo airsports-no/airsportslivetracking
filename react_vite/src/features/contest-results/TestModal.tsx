@@ -31,13 +31,14 @@ export const TestModal: React.FC<TestModalProps> = ({ show, onClose, onSubmit, t
   }, [test, show]);
 
   const handleSubmit = () => {
+    const isNavigationTask = test?.navigation_task !== null && test?.navigation_task !== undefined;
     const editedTest: Test = {
       ...test,
       id: test?.id || 0,
       name,
       heading: name, // Ensure heading is always the same as name
       weight,
-      sorting,
+      sorting: isNavigationTask ? test.sorting : sorting,
       index: test?.index || 0,
       task: task?.id || 0,
       navigation_task: test?.navigation_task || null,
@@ -50,6 +51,8 @@ export const TestModal: React.FC<TestModalProps> = ({ show, onClose, onSubmit, t
   if (!show) {
     return null;
   }
+
+  const isNavigationTask = test?.navigation_task !== null && test?.navigation_task !== undefined;
 
   return (
     <dialog open className="modal">
@@ -65,6 +68,7 @@ export const TestModal: React.FC<TestModalProps> = ({ show, onClose, onSubmit, t
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="input input-bordered"
+            disabled={isNavigationTask}
           />
         </div>
 
@@ -81,19 +85,21 @@ export const TestModal: React.FC<TestModalProps> = ({ show, onClose, onSubmit, t
           />
         </div>
 
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text">Score Sorting Direction</span>
-          </label>
-          <select
-            value={sorting}
-            onChange={(e) => setSorting(e.target.value)}
-            className="select select-bordered"
-          >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
-        </div>
+        {!isNavigationTask && (
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text">Score Sorting Direction</span>
+            </label>
+            <select
+              value={sorting}
+              onChange={(e) => setSorting(e.target.value)}
+              className="select select-bordered"
+            >
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </div>
+        )}
 
         <div className="modal-action">
           <button onClick={handleSubmit} className="btn btn-primary">

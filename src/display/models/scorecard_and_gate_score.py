@@ -46,6 +46,12 @@ class Scorecard(models.Model):
         help_text="Supported calculator types",
     )
     task_type = MyPickledObjectField(default=list, help_text="List of task types supported by the scorecard")
+    score_sorting_direction = models.CharField(
+        choices=(("asc", "Ascending"), ("desc", "Descending")),
+        default="asc",
+        max_length=4,
+        help_text="The direction to sort the scores in the scoreboard",
+    )
     initial_score = models.FloatField(
         default=0,
         help_text="Initial score awarded to the contestant it start. This is typically 0, but if the penalties are negative, this can be set to some positive initial value.",

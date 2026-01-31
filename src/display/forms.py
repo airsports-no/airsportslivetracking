@@ -310,7 +310,6 @@ class NavigationTaskForm(forms.ModelForm):
             "wind_speed",
             "wind_direction",
             "allow_self_management",
-            "score_sorting_direction",
             "calculation_delay_minutes",
         )
 
@@ -329,7 +328,6 @@ class NavigationTaskForm(forms.ModelForm):
                 "finish_time",
                 "original_scorecard",
                 "allow_self_management",
-                "score_sorting_direction",
                 "planning_time",
             ),
             Fieldset("Wind", "wind_speed", "wind_direction"),

@@ -30,9 +30,6 @@ class NavigationTask(models.Model):
     Route, and a scorecard.
     """
 
-    DESCENDING = "desc"
-    ASCENDING = "asc"
-    SORTING_DIRECTION = ((DESCENDING, "Highest score is best"), (ASCENDING, "Lowest score is best"))
     name = models.CharField(max_length=200)
     contest = models.ForeignKey("Contest", on_delete=models.CASCADE)
     route = models.OneToOneField("Route", on_delete=models.PROTECT)
@@ -50,13 +47,13 @@ class NavigationTask(models.Model):
         related_name="navigation_task_override",
     )
     editable_route = models.ForeignKey("EditableRoute", on_delete=models.SET_NULL, null=True, blank=True)
-    score_sorting_direction = models.CharField(
-        default=ASCENDING,
-        choices=SORTING_DIRECTION,
-        help_text="Whether the lowest (ascending) or highest (descending) score is the best result",
-        max_length=50,
-        blank=True,
-    )
+
+    @property
+    def score_sorting_direction(self) -> str:
+        if self.scorecard:
+            return self.scorecard.score_sorting_direction
+        return "asc"
+
     start_time = models.DateTimeField(
         help_text="The start time of the navigation test. Not really important, but nice to have"
     )
@@ -257,6 +254,11 @@ class NavigationTask(models.Model):
                 self.scorecard.delete()
             self.scorecard = self.original_scorecard.copy(self.pk)
             self.save(update_fields=("scorecard",))
+            if hasattr(self, "tasktest"):
+                self.tasktest.sorting = self.score_sorting_direction
+                self.tasktest.save(update_fields=["sorting"])
+                self.tasktest.task.summary_score_sorting_direction = self.score_sorting_direction
+                self.tasktest.task.save(update_fields=["summary_score_sorting_direction"])
 
     def refresh_editable_route(self):
         """
@@ -323,7 +325,7 @@ class NavigationTask(models.Model):
             contest=self.contest,
             name=f"Navigation task {self.name}",
             defaults={
-                "summary_score_sorting_direction": Task.ASCENDING,
+                "summary_score_sorting_direction": self.scorecard.score_sorting_direction,
                 "heading": self.name,
             },
         )
@@ -332,7 +334,7 @@ class NavigationTask(models.Model):
             task=task,
             name="Navigation",
             heading="Navigation",
-            sorting=TaskTest.ASCENDING,
+            sorting=self.scorecard.score_sorting_direction,
             index=0,
             navigation_task=self,
         )

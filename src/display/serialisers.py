@@ -440,6 +440,7 @@ class RouteSummarySerialiser(serializers.ModelSerializer):
 class NavigationTasksLightSerialiser(serializers.ModelSerializer):
     route = RouteSummarySerialiser(read_only=True)
     flown_contestants_count = serializers.SerializerMethodField()
+    score_sorting_direction = serializers.ReadOnlyField()
 
     class Meta:
         model = NavigationTask
@@ -465,6 +466,7 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
 class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
     route = RouteSerialiser(read_only=True)
     flown_contestants_count = serializers.SerializerMethodField()
+    score_sorting_direction = serializers.ReadOnlyField()
 
     class Meta:
         model = NavigationTask
@@ -1182,6 +1184,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     route = RouteSerialiser()
     time_zone = TimeZoneSerializerField(source="contest.time_zone", read_only=True)
     contest = serializers.PrimaryKeyRelatedField(read_only=True)
+    score_sorting_direction = serializers.ReadOnlyField()
     user_has_change_permission = SerializerMethodField("get_user_has_change_permission")
     flown_contestants_count = serializers.SerializerMethodField()
 
