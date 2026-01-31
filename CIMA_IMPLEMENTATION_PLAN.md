@@ -319,32 +319,55 @@ class ContestantDeclarationSerializer(serializers.ModelSerializer):
 
 Ensure the `ContestantViewSet` allows PATCH requests to `declared_configuration` for the authenticated user (if they are the pilot) or admin.
 ### 5.2. Live Map
-
-## 5. User Interface (React)
 *   **Circle Visualization:** Draw the circle min/max bounds and the target radius on the map.
 *   **Free Waypoints:** Display them differently (e.g., distinct icon/color) to indicate they are not part of the sequential string line.
 *   **Pilot's Planned Route:** If a pilot has a custom order, draw lines connecting the waypoints in *their* declared order when that pilot is selected.
 
-### 5.1. Declaration Form (`react_vite/src/features/contestant/DeclarationForm.tsx`)
-## 6. Development Phasing
+### 5.3. Route Editor (React)
 
-A new form accessible to the pilot.
+Modifications to `react_vite/src/features/route-editor/` to support creating CIMA task features.
 
-*   **Inputs**:
-    *   **Speed Table**: List all route legs (derived from Route API). Input field for Speed beside each leg.
-    *   **Sorter**: Only if task type is Contract Nav. List all Free Points. Use a library like `dnd-kit` to allow reordering.
-    *   **Save Button**: POSTs the JSON payload to the API.
+#### A. Data Types (`react_vite/src/types.ts`)
+Extend the core types to support new point attributes.
 
-### 5.2. Map Visualization (`react_vite/src/features/map/`)
+```typescript
+export interface RoutePoint extends LatLng {
+  // ... existing fields ...
+  type: "sp" | "tp" | "secret" | "fp" |
+        "circle_center" | "circle_entry" |
+        "free_point" | "speed_start" | "speed_end";
+  radius?: number; // In meters (for circle_center)
+  score?: number;  // Points (for free_point)
+  groupId?: string; // To link start/end or center/entry
+}
 
-Update the map components to render the new data.
+export type Mode = "view" | "add_point" | "add_landing" | "add_takeoff" |
+                   "add_observation" | "add_polygon" |
+                   "add_circle" | "add_free_point";
+```
 
-*   **`RouteLayer.tsx`**:
-    *   Iterate through `route.waypoints`.
-    *   If `wp.is_circle_center`: Render a `<Circle>` component (Leaflet) with `center=[lat,lon]` and `radius={wp.radius}`. Style with dashed line.
-    *   If `wp.is_free_point`: Render a `<Marker>` or `<CircleMarker>` with a distinct color (e.g., blue or yellow) to distinguish from compulsory gates.
-*   **`ContestantLayer.tsx`**:
-    *   If `contestant.declared_configuration.waypoint_order` exists, render a polyline connecting these points to visualize the pilot's specific plan.
+#### B. Toolbar (`react_vite/src/features/route-editor/components/Toolbar.tsx`)
+Add new tool buttons to the toolbar.
+
+*   **Circle Tool:** Sets mode to `add_circle`. Icon: `Circle` (lucide-react).
+*   **Free Point Tool:** Sets mode to `add_free_point`. Icon: `Flag` (lucide-react).
+
+#### C. Point Editor (`react_vite/src/features/route-editor/components/EditPointView.tsx`)
+Update the sidebar form to allow editing specific properties based on the selected point type.
+
+*   **Type Dropdown:** Add options for "Circle Center", "Circle Entry", "Free Waypoint", "Speed Start", "Speed End".
+*   **Conditional Inputs:**
+    *   If `type === 'circle_center'`: Show input for **Radius (m)**.
+    *   If `type === 'free_point'`: Show input for **Score Value**.
+    *   If `type` is Speed/Circle related: Show/Edit **Group ID**.
+
+#### D. Map Canvas (`react_vite/src/features/route-editor/components/MapCanvas.tsx`)
+*   **Rendering:**
+    *   Draw a dashed circle overlay for points with `type === 'circle_center'` using the `radius` property.
+    *   Use distinct colors/icons for Free Points (e.g., Blue) vs Sequential Points (Green/Red).
+*   **Interaction:**
+    *   Handle `add_circle` click: Create a `circle_center` point. Optionally, next click creates `circle_entry`.
+    *   Handle `add_free_point` click: Create a `free_point`.
 
 ## 6. Testing Strategy
 
