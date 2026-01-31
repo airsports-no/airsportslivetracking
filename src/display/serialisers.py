@@ -888,7 +888,22 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
     Used for output to the frontend
     """
 
-    contest_summary = serializers.FloatField(read_only=True, required=False)
+    contest_summary = serializers.SerializerMethodField()
+
+    def get_contest_summary(self, obj):
+        try:
+            team = obj.contestant.team
+            contest = obj.contestant.navigation_task.contest
+            # Optimize by checking if the relation is already prefetched
+            if hasattr(team, "_prefetched_objects_cache") and "contestsummary_set" in team._prefetched_objects_cache:
+                for summary in team.contestsummary_set.all():
+                    if summary.contest_id == contest.id:
+                        return summary.points
+                return None
+            else:
+                return obj.contest_summary
+        except ObjectDoesNotExist:
+            return None
 
     class Meta:
         model = ContestantTrack

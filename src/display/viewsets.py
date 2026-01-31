@@ -207,11 +207,13 @@ class UserPersonViewSet(GenericViewSet):
                 navigation_task__contest__in=available_contests,
                 finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc),
             )
+            .select_related("navigation_task__contest")
             .prefetch_related(
                 "team__aeroplane",
                 "team__club",
                 "team__crew__member1",
                 "team__crew__member2",
+                "team__contestsummary_set",
                 "contestanttrack",
             )
             .order_by("navigation_task__contest__start_time")
