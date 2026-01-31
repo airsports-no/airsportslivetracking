@@ -90,7 +90,10 @@ export default function RouteEditor() {
             controlLng: f.properties.controlLng,
             width: f.properties.width || 1852,
             isTiming: f.properties.isTiming || false,
-            isPassing: f.properties.isPassing || true
+            isPassing: f.properties.isPassing || true,
+            radius: f.properties.radius,
+            score: f.properties.score,
+            groupId: f.properties.groupId
           });
         });
 
@@ -344,6 +347,42 @@ export default function RouteEditor() {
       setIsDirty(true);
     }
 
+    if (mode === 'add_circle') {
+      const newPoint: RoutePoint = {
+        id: crypto.randomUUID(),
+        lat: latlng.lat,
+        lng: latlng.lng,
+        name: `Circle ${routePoints.length + 1}`,
+        type: 'circle_center',
+        width: 0,
+        isTiming: false,
+        isPassing: true,
+        segmentType: 'straight',
+        radius: 500, // Default 500m
+        groupId: crypto.randomUUID()
+      };
+      setRoutePoints(prev => [...prev, newPoint]);
+      setIsDirty(true);
+      setMode('view'); 
+    }
+
+    if (mode === 'add_free_point') {
+      const newPoint: RoutePoint = {
+        id: crypto.randomUUID(),
+        lat: latlng.lat,
+        lng: latlng.lng,
+        name: `FP ${routePoints.length + 1}`,
+        type: 'free_point',
+        width: 0,
+        isTiming: false,
+        isPassing: true,
+        segmentType: 'straight',
+        score: 100
+      };
+      setRoutePoints(prev => [...prev, newPoint]);
+      setIsDirty(true);
+    }
+
     if (mode === 'add_polygon') {
       setTempPolygonPoints(prev => [...prev, latlng]);
     }
@@ -569,7 +608,10 @@ export default function RouteEditor() {
             width: p.width,
             isTiming: p.isTiming,
             isPassing: p.isPassing,
-            sequence: i
+            sequence: i,
+            radius: p.radius,
+            score: p.score,
+            groupId: p.groupId
           },
           geometry: {
             type: "Point",

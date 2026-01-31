@@ -5,7 +5,9 @@ import {
   Anchor, 
   Activity,
   Camera,
-  Hexagon
+  Hexagon,
+  Circle,
+  Flag
 } from 'lucide-react';
 import { Mode, LatLng } from '../../../types';
 
@@ -25,6 +27,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ mode, setMode, tempGatePoint, setTemp
     if (mode.includes('landing')) return !tempGatePoint ? "Click start of landing line." : "Click end of landing line.";
     if (mode.includes('takeoff')) return !tempGatePoint ? "Click start of take-off line." : "Click end of take-off line.";
     if (mode === 'add_polygon') return "Click to add points. Click the first point to close loop.";
+    if (mode === 'add_circle') return "Click center to place circle.";
+    if (mode === 'add_free_point') return "Click map to place free point.";
     return "";
   })();
 
@@ -79,6 +83,22 @@ const Toolbar: React.FC<ToolbarProps> = ({ mode, setMode, tempGatePoint, setTemp
         >
           <Activity size={18} />
           <span>Take-off</span>
+        </button>
+
+        <button 
+          onClick={() => { setMode('add_circle'); setTempGatePoint(null); setTempPolygonPoints([]); }}
+          className={`btn btn-sm rounded-full gap-2 border-none ${mode === 'add_circle' ? 'btn-accent' : 'btn-ghost'}`}
+        >
+          <Circle size={18} />
+          <span>Circle</span>
+        </button>
+
+        <button 
+          onClick={() => { setMode('add_free_point'); setTempGatePoint(null); setTempPolygonPoints([]); }}
+          className={`btn btn-sm rounded-full gap-2 border-none ${mode === 'add_free_point' ? 'btn-accent' : 'btn-ghost'}`}
+        >
+          <Flag size={18} />
+          <span>Free Pt</span>
         </button>
 
       </div>

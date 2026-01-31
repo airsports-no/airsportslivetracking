@@ -22,7 +22,7 @@ export interface LatLng {
 export interface RoutePoint extends LatLng {
   id: string;
   name: string;
-  type: "sp" | "tp" | "secret" | "fp";
+  type: "sp" | "tp" | "secret" | "fp" | "circle_center" | "circle_entry" | "free_point" | "speed_start" | "speed_end";
   segmentType: "straight" | "curved";
   controlLat?: number;
   controlLng?: number;
@@ -30,6 +30,9 @@ export interface RoutePoint extends LatLng {
   isTiming: boolean;
   isPassing: boolean;
   isSecret?: boolean;
+  radius?: number; // In meters (for circle_center)
+  score?: number;  // Points (for free_point)
+  groupId?: string; // To link start/end or center/entry
 }
 
 export interface Gate {
@@ -55,4 +58,4 @@ export interface Polygon {
 }
 
 export type SelectionType = "point" | "gate" | "observation" | "polygon" | "settings" | "help";
-export type Mode = "view" | "add_point" | "add_landing" | "add_takeoff" | "add_observation" | "add_polygon";
+export type Mode = "view" | "add_point" | "add_landing" | "add_takeoff" | "add_observation" | "add_polygon" | "add_circle" | "add_free_point";

@@ -58,6 +58,11 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
           <option value="tp">Visible Turning Point</option>
           <option value="secret">Secret Point</option>
           <option value="fp">Finish Point</option>
+          <option value="circle_center">Circle Center</option>
+          <option value="circle_entry">Circle Entry</option>
+          <option value="free_point">Free Point</option>
+          <option value="speed_start">Speed Section Start</option>
+          <option value="speed_end">Speed Section End</option>
         </select>
         {point.type === 'secret' && (
           <p className="text-xs text-amber-600 mt-1">
@@ -65,6 +70,41 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
           </p>
         )}
       </div>
+
+      {point.type === 'circle_center' && (
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase">Radius (m)</label>
+          <input 
+            type="number"
+            className="input input-bordered input-sm w-full"
+            value={point.radius || 0} 
+            onChange={(e) => updatePoint('radius', parseFloat(e.target.value))}
+          />
+        </div>
+      )}
+
+      {point.type === 'free_point' && (
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase">Score</label>
+          <input 
+            type="number"
+            className="input input-bordered input-sm w-full"
+            value={point.score || 0} 
+            onChange={(e) => updatePoint('score', parseFloat(e.target.value))}
+          />
+        </div>
+      )}
+
+      {['circle_center', 'circle_entry', 'speed_start', 'speed_end'].includes(point.type) && (
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase">Group ID</label>
+          <input 
+            className="input input-bordered input-sm w-full"
+            value={point.groupId || ''} 
+            onChange={(e) => updatePoint('groupId', e.target.value)}
+          />
+        </div>
+      )}
 
       <div>
         <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Satellite View</label>

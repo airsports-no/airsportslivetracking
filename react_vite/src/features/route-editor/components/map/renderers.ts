@@ -148,8 +148,24 @@ export const drawPoints = (map: L.Map, routePoints: RoutePoint[], mode: Mode, se
     if (p.type === 'sp') { color = '#22c55e'; radius = 8; }
     if (p.type === 'fp') { color = '#ef4444'; radius = 8; }
     if (p.type === 'secret') { color = '#64748b'; }
+    if (p.type === 'circle_center') { color = '#a855f7'; radius = 6; } // Purple
+    if (p.type === 'free_point') { color = '#0ea5e9'; radius = 6; } // Sky Blue
+    if (p.type && p.type.includes('speed')) { color = '#f59e0b'; radius = 6; } // Amber
 
     const pointGroup = L.featureGroup().addTo(map);
+
+    // Circle Task Radius
+    if (p.type === 'circle_center' && (p.radius || 0) > 0) {
+      L.circle([p.lat, p.lng], {
+        radius: p.radius,
+        color: color,
+        weight: 2,
+        fillColor: color,
+        fillOpacity: 0.05,
+        dashArray: '8, 8',
+        interactive: false
+      }).addTo(pointGroup);
+    }
 
     // Width Circle
     if (p.width > 0) {
