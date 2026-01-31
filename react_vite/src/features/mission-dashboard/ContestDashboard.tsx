@@ -167,6 +167,7 @@ const ContestDashboard = () => {
 
     const userContestTeam = myContestTeams.find(team => team.contest === contest?.id);
     const canSchedule = document.configuration.isAuthenticated && (!userContestTeam || !!userContestTeam?.is_user_pilot);
+    const isRegisteredButNotPilot = !!userContestTeam && !userContestTeam.is_user_pilot;
 
     const tasksForThisContest = new Set(contest.navigationtask_set.map(t => t.pk));
     const upcomingFlightsForThisContest = myFutureFlights.filter(f => tasksForThisContest.has(f.navigation_task));
@@ -365,6 +366,8 @@ const ContestDashboard = () => {
                                         onScheduleClick={() => setShowScheduleForm(task)}
                                         onViewScoresClick={() => handleViewScoresClick(task)}
                                         canSchedule={canSchedule}
+                                        allow_self_management={task.allow_self_management}
+                                        isRegisteredButNotPilot={isRegisteredButNotPilot}
                                         is_public={task.is_public}
                                         is_featured={task.is_featured}
                                         timeZone={contest.time_zone}
