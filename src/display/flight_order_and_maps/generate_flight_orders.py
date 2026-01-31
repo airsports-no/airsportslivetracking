@@ -362,7 +362,12 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         try:
             urllib.request.urlretrieve(logo_url, logo)
             lower_logo = logo.lower()
-            if not (lower_logo.endswith(".png") or lower_logo.endswith(".jpg") or lower_logo.endswith(".jpeg") or lower_logo.endswith(".pdf")):
+            if not (
+                lower_logo.endswith(".png")
+                or lower_logo.endswith(".jpg")
+                or lower_logo.endswith(".jpeg")
+                or lower_logo.endswith(".pdf")
+            ):
                 img = Image.open(logo)
                 logo = logo.rsplit(".", 1)[0] + ".png"
                 img.save(logo)
@@ -437,11 +442,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         header_page.append(Command(r"hfill"))
 
         # Logo Column (Right)
-        with header_page.create(MiniPage(width=NoEscape(r"0.20\textwidth"), pos='c', align='c')) as logo_col:
+        with header_page.create(MiniPage(width=NoEscape(r"0.20\textwidth"), pos="c", align="c")) as logo_col:
             logo_col.append(StandAloneGraphic(image_options=r"width=\linewidth", filename=logo))
 
+    document.append(LineBreak())
     document.append(VerticalSpace("10pt"))
-
     # Flight Briefing Section
     document.append(NoEscape(r"\noindent"))
     with document.create(MiniPage(width=NoEscape(r"\textwidth"))) as briefing_wrapper:
