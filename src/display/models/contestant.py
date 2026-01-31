@@ -145,6 +145,11 @@ class Contestant(models.Model):
         default=False,
         help_text="If true, the contestant's timing should not be modified by the scheduling algorithm.",
     )
+    declared_configuration = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="JSON object storing pilot declarations (leg speeds, waypoint order, times)",
+    )
 
     class Meta:
         unique_together = ("navigation_task", "contestant_number")
@@ -660,11 +665,13 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     hour=0, minute=0, second=0, microsecond=0
                 )
         crossing_times = {}
+        leg_speeds = self.declared_configuration.get("leg_speeds", {})
         relative_crossing_times = calculate_and_get_relative_gate_times(
             self.navigation_task.route,
             self.air_speed,
             self.wind_speed,
             self.wind_direction,
+            leg_speeds=leg_speeds,
         )
         leg_times = Contestant._convert_to_individual_leg_times(relative_crossing_times)
         for gate_name, leg_time in leg_times:

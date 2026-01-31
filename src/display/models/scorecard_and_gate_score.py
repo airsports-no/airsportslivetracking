@@ -105,6 +105,13 @@ class Scorecard(models.Model):
     )
     corridor_maximum_penalty = models.FloatField(default=-1, help_text="The maximum penalty for leaving the corridor")
 
+    ##### CIMA Tasks
+    circle_performance_factor = models.FloatField(default=500, help_text="Factor used in circle scoring formula")
+    circle_min_radius_ratio = models.FloatField(default=0.5, help_text="Ratio of min/max radius below which score is zero")
+    circle_altitude_tolerance = models.FloatField(default=61, help_text="Altitude tolerance for circle task (meters)")
+    circle_altitude_penalty = models.FloatField(default=0.2, help_text="Percentage penalty (0.0-1.0) for altitude violation in circle")
+    free_point_missed_penalty = models.FloatField(default=0, help_text="Points deducted if a declared free point is missed")
+
     def __str__(self):
         return self.name
 

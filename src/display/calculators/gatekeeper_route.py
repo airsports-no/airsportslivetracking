@@ -8,6 +8,8 @@ from display.calculators.calculator_utilities import round_time_minute
 from display.calculators.gatekeeper import Gatekeeper
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
+from display.calculators.circle_calculator import CircleCalculator
+from display.calculators.free_navigation_calculator import FreeNavigationCalculator
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.route_building_utilities import calculate_extended_gate
 from display.utilities.coordinate_utilities import (
@@ -55,6 +57,31 @@ class GatekeeperRoute(Gatekeeper):
         if self.contestant.adaptive_start:
             self.takeoff_gate = None
         self.in_range_of_gate = None
+
+        self.sub_calculators = []
+        
+        # Check for Circle Task
+        circle_config = self.contestant.navigation_task.route.get_circle_configuration()
+        if circle_config:
+            self.sub_calculators.append(
+                CircleCalculator(
+                    circle_config['center'],
+                    circle_config['entry'],
+                    self.scorecard,
+                    self.contestant
+                )
+            )
+            
+        # Check for Free Points
+        free_points = self.contestant.navigation_task.route.get_free_points()
+        if free_points:
+            self.sub_calculators.append(
+                FreeNavigationCalculator(
+                    free_points,
+                    self.scorecard,
+                    self.contestant
+                )
+            )
 
     def recalculate_gates_times_from_start_time(self, start_time: datetime.datetime):
         """
@@ -614,6 +641,14 @@ class GatekeeperRoute(Gatekeeper):
         """
         Does everything related to tracking gate passings.
         """
+        # Run sub-calculators (CIMA tasks)
+        if len(self.track) > 0:
+            latest_position = self.track[-1]
+            for calculator in self.sub_calculators:
+                update = calculator.process_position(latest_position, self.track)
+                if update:
+                    self.update_score(update)
+
         self.check_intersections()
         self.calculate_gate_score()
         if (

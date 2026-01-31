@@ -37,6 +37,16 @@ class Waypoint:
         self.inside_distance = 0
         self.outside_distance = 0
 
+        # CIMA Extensions
+        self.radius: float = 0.0          # Radius in meters (for Circle tasks)
+        self.is_circle_center: bool = False
+        self.is_circle_entry: bool = False # The point where circle timing starts
+        self.is_free_point: bool = False   # If True, this point is not part of the sequential spine by default
+        self.is_speed_section_start: bool = False
+        self.is_speed_section_end: bool = False
+        self.group_id: str | int | None = None # To associate Center with Entry, or Speed Start with Speed End
+        self.score_value: float = 0.0      # Points awarded for visiting (for Turnpoint Hunt)
+
     @property
     def original_gate_line(self):
         if hasattr(self, "_original_gate_line"):

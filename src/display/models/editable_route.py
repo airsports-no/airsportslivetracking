@@ -261,20 +261,38 @@ class EditableRoute(models.Model):
                         )
 
             # Add the current waypoint
-            waypoint_list.append(
-                build_waypoint(
-                    props["name"],
-                    lat,
-                    lon,
-                    point_type,
-                    width,
-                    is_timing,
-                    is_passing,
-                    control_latitude=props.get("controlLat"),
-                    control_longitude=props.get("controlLng"),
-                    end_curved=props.get("segmentType") == "curved",
-                )
+            wp = build_waypoint(
+                props["name"],
+                lat,
+                lon,
+                point_type,
+                width,
+                is_timing,
+                is_passing,
+                control_latitude=props.get("controlLat"),
+                control_longitude=props.get("controlLng"),
+                end_curved=props.get("segmentType") == "curved",
             )
+
+            # CIMA Extensions
+            if point_type == "circle_center":
+                wp.is_circle_center = True
+                wp.radius = float(props.get("radius", 0))
+                wp.group_id = props.get("groupId")
+            elif point_type == "circle_entry":
+                wp.is_circle_entry = True
+                wp.group_id = props.get("groupId")
+            elif point_type == "free_point":
+                wp.is_free_point = True
+                wp.score_value = float(props.get("score", 0))
+            elif point_type == "speed_start":
+                wp.is_speed_section_start = True
+                wp.group_id = props.get("groupId")
+            elif point_type == "speed_end":
+                wp.is_speed_section_end = True
+                wp.group_id = props.get("groupId")
+
+            waypoint_list.append(wp)
 
         return waypoint_list
 

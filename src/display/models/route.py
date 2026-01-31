@@ -129,7 +129,8 @@ class Route(models.Model):
         """
         Validate that the gate polygons must contain exactly one waypoint
         """
-        waypoint_names = [gate.name for gate in self.waypoints if gate.type != "secret"]
+        # Skip circle centers as they are not gates
+        waypoint_names = [gate.name for gate in self.waypoints if gate.type != "secret" and not getattr(gate, "is_circle_center", False)]
         if self.prohibited_set.filter(type="gate"):
             if len(waypoint_names) != len(set(waypoint_names)):
                 self.delete()
@@ -138,6 +139,16 @@ class Route(models.Model):
             if gate_polygon.name not in waypoint_names:
                 self.delete()
                 raise ValidationError(f"Gate polygon '{gate_polygon.name}' is not matched by any turning point names.")
+
+    def get_free_points(self) -> list[Waypoint]:
+        return [wp for wp in self.waypoints if getattr(wp, "is_free_point", False)]
+    
+    def get_circle_configuration(self) -> dict | None:
+        center = next((wp for wp in self.waypoints if getattr(wp, "is_circle_center", False)), None)
+        entry = next((wp for wp in self.waypoints if getattr(wp, "is_circle_entry", False)), None)
+        if center:
+            return {"center": center, "entry": entry}
+        return None
 
     def __str__(self):
         return self.name
