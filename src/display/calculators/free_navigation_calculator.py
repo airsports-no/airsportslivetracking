@@ -23,6 +23,8 @@ class FreeNavigationCalculator:
         self.scorecard = scorecard
         self.contestant = contestant
         self.visited_names = set()
+        self.expected_order = self.contestant.declared_configuration.get("waypoint_order", [])
+        self.next_expected_index = 0
 
     def process_position(self, position: ContestantReceivedPosition, track: list[ContestantReceivedPosition]) -> Optional[UpdateScoreMessage]:
         
@@ -31,14 +33,11 @@ class FreeNavigationCalculator:
                 continue
             
             # Check if inside range
-            # Use wp.radius if set (e.g. for circles used as turnpoints) or a default acceptance radius
-            # CIMA 2.A6 says "fly to and identify...". Usually means getting close. 
-            # Existing logic uses `inside_distance`.
             acceptance_radius = getattr(wp, 'radius', 0)
             if acceptance_radius == 0:
-                acceptance_radius = 500 # Default 500m? Or use width? 
+                acceptance_radius = 500 # Default 500m
                 if wp.width > 0:
-                    acceptance_radius = (wp.width * 1852) / 2 # Width is NM usually? Waypoint.width is usually NM.
+                    acceptance_radius = (wp.width * 1852) / 2
             
             distance = calculate_distance_lat_lon(
                 (position.latitude, position.longitude),
@@ -46,19 +45,41 @@ class FreeNavigationCalculator:
             )
             
             if distance <= acceptance_radius:
-                self.visited_names.add(wp.name)
-                logger.info(f"{self.contestant}: Visited free waypoint {wp.name}")
                 
-                return UpdateScoreMessage(
-                    position.time,
-                    wp,
-                    round(wp.score_value),
-                    f"Visited {wp.name}",
-                    position.latitude,
-                    position.longitude,
-                    "score",
-                    SCORE_TYPE_FREE_POINT,
-                    actual=position.time
-                )
+                # Check ordering if defined
+                if self.expected_order:
+                    if self.next_expected_index < len(self.expected_order):
+                        expected_name = self.expected_order[self.next_expected_index]
+                        if wp.name == expected_name:
+                            self.visited_names.add(wp.name)
+                            self.next_expected_index += 1
+                            logger.info(f"{self.contestant}: Visited ordered waypoint {wp.name}")
+                            
+                            return UpdateScoreMessage(
+                                position.time,
+                                wp,
+                                round(wp.score_value),
+                                f"Visited {wp.name}",
+                                position.latitude,
+                                position.longitude,
+                                "score",
+                                SCORE_TYPE_FREE_POINT,
+                                actual=position.time
+                            )
+                else:
+                    self.visited_names.add(wp.name)
+                    logger.info(f"{self.contestant}: Visited free waypoint {wp.name}")
+                    
+                    return UpdateScoreMessage(
+                        position.time,
+                        wp,
+                        round(wp.score_value),
+                        f"Visited {wp.name}",
+                        position.latitude,
+                        position.longitude,
+                        "score",
+                        SCORE_TYPE_FREE_POINT,
+                        actual=position.time
+                    )
         
         return None

@@ -377,9 +377,23 @@ Update the sidebar form to allow editing specific properties based on the select
     *   Test `Contestant.calculate_missing_gate_times` with declared speeds.
 2.  **Integration Tests**:
     *   Create a Route with a Circle. Run a simulated track through it via `GatekeeperRoute`. Verify final score.
-1.  **Phase 1:** Model updates (`Waypoint`, `Contestant`, `Scorecard`).
-2.  **Phase 2:** Route Editor updates to support creating Circle and Free waypoints.
-3.  **Phase 3:** Backend logic for `FreeWaypointCalculator` and `Contestant` speed declarations.
-4.  **Phase 4:** Backend logic for `CircleCalculator`.
-5.  **Phase 5:** Frontend UI for declarations and Map updates.
-6.  **Phase 6:** Integration testing with full CIMA task flows.
+## 6. Implementation Status & Phasing
+
+### Completed
+1.  **Backend Core:**
+    *   Extended `Waypoint`, `Contestant`, `Scorecard` models.
+    *   Implemented `CircleCalculator` and `FreeNavigationCalculator` (with ordering logic).
+    *   Integrated calculators into `GatekeeperRoute`.
+    *   Updated timing utilities to support declared leg speeds.
+2.  **Route Editor:**
+    *   Updated `EditableRoute` backend parsing.
+    *   Updated `RouteEditor` frontend (Types, Toolbar, Edit View, Map Rendering) to support creating/editing CIMA features.
+3.  **Live Map Viewer:**
+    *   Updated `RouteRenderer` to visualize circles and free points on the public tracking map.
+
+### Pending / Next Steps
+1.  **Pilot Dashboard (Phase 5):**
+    *   Develop the frontend UI for pilots to input their declarations (leg speeds, waypoint order).
+    *   Connect this UI to the `Contestant` API to update `declared_configuration`.
+2.  **Verification (Phase 6):**
+    *   Perform end-to-end integration testing of the full workflow (Create Route -> Declare -> Fly/Simulate -> Verify Score).

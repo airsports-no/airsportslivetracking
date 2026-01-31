@@ -173,6 +173,35 @@ function renderLandingRoute(map: L.Map, route: RouteData): L.Layer[] {
     return layers;
 }
 
+function renderCIMAFeatures(map: L.Map, route: RouteData): L.Layer[] {
+    const layers: L.Layer[] = [];
+    route.waypoints.forEach(wp => {
+        const anyWp = wp as any;
+        // Render Circle
+        if (anyWp.is_circle_center && anyWp.radius) {
+             layers.push(L.circle([wp.latitude, wp.longitude], {
+                 radius: anyWp.radius,
+                 color: '#a855f7',
+                 fillColor: '#a855f7',
+                 fillOpacity: 0.1,
+                 dashArray: '8, 8',
+                 interactive: false
+             }).addTo(map));
+        }
+        
+        // Render Free Point
+        if (anyWp.is_free_point) {
+             layers.push(L.circleMarker([wp.latitude, wp.longitude], {
+                 radius: 6,
+                 color: '#0ea5e9',
+                 fillColor: '#0ea5e9',
+                 fillOpacity: 0.8
+             }).addTo(map).bindTooltip(wp.name));
+        }
+    });
+    return layers;
+}
+
 
 export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
   const layersRef = useRef<L.Layer[]>([]);
@@ -198,6 +227,9 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
     if (taskType.includes("landing")) {
       layers = layers.concat(renderLandingRoute(map, route));
     }
+    
+    // Always check for CIMA features (Circle/Free Points) regardless of task type
+    layers = layers.concat(renderCIMAFeatures(map, route));
     
     const waypointsToLabel = route.waypoints.filter(w => 
         (w.gate_check || w.time_check) && 
