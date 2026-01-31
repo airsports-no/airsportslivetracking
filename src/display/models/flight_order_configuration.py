@@ -1,7 +1,7 @@
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
-from display.flight_order_and_maps.map_constants import MAP_SIZES, A4, ORIENTATIONS, PORTRAIT, SCALES, SCALE_TO_FIT
+from display.flight_order_and_maps.map_constants import A3, MAP_SIZES, A4, ORIENTATIONS, PORTRAIT, SCALES, SCALE_TO_FIT
 from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_choices
 
 
@@ -72,6 +72,24 @@ class FlightOrderConfiguration(models.Model):
         help_text="The tile zoom level used for generating photos from google satellite imagery",
         validators=[MinValueValidator(1), MaxValueValidator(20)],
     )
+
+    @property
+    def paper_size_latex(self):
+        if self.document_size == A3:
+            return "a3paper"
+        return "a4paper"
+
+    @property
+    def page_width_mm(self):
+        if self.document_size == A3:
+            return 297
+        return 210
+
+    @property
+    def page_height_mm(self):
+        if self.document_size == A3:
+            return 420
+        return 297
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

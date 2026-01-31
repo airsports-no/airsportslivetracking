@@ -233,7 +233,7 @@ def validate_map_zoom_level(map_source: str, user_uploaded_map: Optional[UserUpl
 class FlightOrderConfigurationForm(forms.ModelForm):
     class Meta:
         model = FlightOrderConfiguration
-        exclude = ("navigation_task", "document_size")
+        exclude = ("navigation_task",)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -253,6 +253,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
             </div>"""),
             Fieldset(
                 "Map options",
+                "document_size",
                 "map_source",
                 "map_user_source",
                 "map_orientation",

@@ -17,12 +17,12 @@ from fpdf import FPDF, HTMLMixin
 from display.models.flight_order_configuration import FlightOrderConfiguration
 from display.models.route import Photo
 from pylatex.base_classes import Environment, Arguments
-from pylatex.utils import bold
+from pylatex.utils import bold, italic
 from shapely.geometry import Polygon
 
 from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
 from display.utilities.coordinate_utilities import utm_from_lat_lon, normalise_bearing
-from display.flight_order_and_maps.map_constants import LANDSCAPE, A4
+from display.flight_order_and_maps.map_constants import LANDSCAPE, A4, A3
 from display.flight_order_and_maps.map_plotter import plot_route
 from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_image
 from display.models import Contestant
@@ -42,7 +42,6 @@ from pylatex import (
     Center,
     LineBreak,
     LargeText,
-    Package,
     TextColor,
     Tabu,
     VerticalSpace,
@@ -199,126 +198,130 @@ def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_
     return temporary_file
 
 
-def insert_turning_point_images_latex(contestant, document: Document, meters_across: float, zoom_level: int):
+def insert_turning_point_images_latex(
+    contestant, document: Document, flight_order_configuration: FlightOrderConfiguration
+):
     navigation = contestant.navigation_task  # type: NavigationTask
     render_turning_point_images(
         navigation.route.waypoints,
         document,
-        meters_across,
-        zoom_level,
+        flight_order_configuration,
         "Turning point and time gate",
         is_unknown_leg=False,
     )
 
 
-def insert_unknown_leg_images_latex(contestant, document: Document, meters_across: float, zoom_level: int):
+def insert_unknown_leg_images_latex(
+    contestant, document: Document, flight_order_configuration: FlightOrderConfiguration
+):
     navigation = contestant.navigation_task  # type: NavigationTask
     render_waypoints = [waypoint for waypoint in navigation.route.waypoints if waypoint.type == UNKNOWN_LEG]
     random.shuffle(render_waypoints)
     render_turning_point_images(
-        render_waypoints, document, meters_across, zoom_level, "Unknown legs", is_unknown_leg=True
+        render_waypoints, document, flight_order_configuration, "Unknown legs", is_unknown_leg=True
     )
 
 
-def insert_photos_latex(contestant, document: Document, meters_across: float, zoom_level: int):
+def insert_photos_latex(contestant, document: Document, flight_order_configuration: FlightOrderConfiguration):
+    from display.flight_order_and_maps.map_constants import A3
+
     photos = list(contestant.navigation_task.route.photo_set.all().order_by("name"))
-    rows_per_page = 3
+
+    if flight_order_configuration.document_size == A3:
+        cols, rows, figure_width = 3, 4, 0.3
+    else:
+        cols, rows, figure_width = 2, 3, 0.45
+
+    meters_across = flight_order_configuration.photos_meters_across
+    zoom_level = flight_order_configuration.photos_zoom_level
+
+    images_per_page = cols * rows
     number_of_images = len(photos)
-    number_of_pages = 1 + ((number_of_images - 1) // (2 * rows_per_page))
-    current_page = -1
+    number_of_pages = (number_of_images + images_per_page - 1) // images_per_page
+    current_page = 0
     document.append(Label(Marker("firstpagetocount")))
-    for index in range(0, len(photos), 2):
-        if index % (rows_per_page * 2) == 0:
-            document.append(NewPage())
-            page_text = f"Photos {current_page + 2}/{number_of_pages}"  # if number_of_pages > 1 else ""
-            document.append(Section(page_text, numbering=False))
-            current_page += 1
-        figure_width = 0.4
-        with document.create(Figure(position="!ht")):
-            if waypoint := photos[index].leg:
-                with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
-                    image_file = generate_photo(photos[index], waypoint, meters_across, zoom_level)
-                    document.append(
-                        StandAloneGraphic(
-                            image_options=r"width=\linewidth",
-                            filename=image_file.name,
-                        )
-                    )
-                    document.append(Command("caption*", photos[index].name))
-                document.append(Command("hfill"))
-            if index < len(photos) - 1:
-                if waypoint := photos[index + 1].leg:
-                    image_file = generate_photo(photos[index + 1], waypoint, meters_across, zoom_level)
-                    with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
-                        document.append(
-                            StandAloneGraphic(
-                                image_options=r"width=\linewidth",
-                                filename=image_file.name,
+    for i in range(0, number_of_images, images_per_page):
+        current_page += 1
+        document.append(NewPage())
+        page_text = f"Photos {current_page}/{number_of_pages}"
+        document.append(Section(page_text, numbering=False))
+
+        page_photos = photos[i : i + images_per_page]
+        for j in range(0, len(page_photos), cols):
+            row_photos = page_photos[j : j + cols]
+            with document.create(Figure(position="!ht")) as fig:
+                for photo in row_photos:
+                    if waypoint := photo.leg:
+                        with fig.create(MiniPage(width=rf"{figure_width}\textwidth")) as mp:
+                            image_file = generate_photo(photo, waypoint, meters_across, zoom_level)
+                            mp.append(
+                                StandAloneGraphic(
+                                    image_options=r"width=\linewidth",
+                                    filename=image_file.name,
+                                )
                             )
-                        )
-                        document.append(Command("caption*", photos[index + 1].name))
+                            mp.append(Command("caption*", photo.name))
+                        fig.append(Command("hfill"))
     document.append(Label(Marker("lastpagetocount")))
 
 
 def render_turning_point_images(
     waypoints: List[Waypoint],
     document,
-    meters_across: float,
-    zoom_level: int,
+    flight_order_configuration: FlightOrderConfiguration,
     header_prefix: str,
     is_unknown_leg: bool = False,
 ):
+    from display.flight_order_and_maps.map_constants import A3
+
     render_waypoints = [waypoint for waypoint in waypoints if waypoint.type not in (SECRETPOINT, DUMMY, UNKNOWN_LEG)]
 
-    rows_per_page = 3
+    if flight_order_configuration.document_size == A3:
+        cols, rows, figure_width = 3, 4, 0.3
+    else:
+        cols, rows, figure_width = 2, 3, 0.45
+
+    if is_unknown_leg:
+        meters_across = flight_order_configuration.unknown_leg_photos_meters_across
+        zoom_level = flight_order_configuration.unknown_leg_photos_zoom_level
+    else:
+        meters_across = flight_order_configuration.turning_point_photos_meters_across
+        zoom_level = flight_order_configuration.turning_point_photos_zoom_level
+
+    images_per_page = cols * rows
     number_of_images = len(render_waypoints)
-    number_of_pages = 1 + ((number_of_images - 1) // (2 * rows_per_page))
-    current_page = -1
+    number_of_pages = (number_of_images + images_per_page - 1) // images_per_page
+    current_page = 0
     document.append(Label(Marker("firstpagetocount")))
-    for index in range(0, len(render_waypoints), 2):
-        if index % (rows_per_page * 2) == 0:
-            document.append(NewPage())
-            page_text = f"{header_prefix} images {current_page + 2}/{number_of_pages}"  # if number_of_pages > 1 else ""
-            document.append(Section(page_text, numbering=False))
-            current_page += 1
-        figure_width = 0.4
-        with document.create(Figure(position="!ht")):
-            with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
-                image_file = get_turning_point_image(
-                    # Use full waypoint list to get correct track in image
-                    waypoints,
-                    waypoints.index(render_waypoints[index]),
-                    meters_across,
-                    zoom_level,
-                    is_unknown_leg=is_unknown_leg,
-                )
-                document.append(
-                    StandAloneGraphic(
-                        image_options=r"width=\linewidth",
-                        filename=image_file.name,
-                    )
-                )
-                if not is_unknown_leg:
-                    document.append(Command("caption*", render_waypoints[index].name))
-            document.append(Command("hfill"))
-            if index < len(render_waypoints) - 1:
-                image_file = get_turning_point_image(
-                    # Use full waypoint list to get correct track in image
-                    waypoints,
-                    waypoints.index(render_waypoints[index + 1]),
-                    meters_across,
-                    zoom_level,
-                    is_unknown_leg=is_unknown_leg,
-                )
-                with document.create(MiniPage(width=rf"{figure_width}\textwidth")):
-                    document.append(
-                        StandAloneGraphic(
-                            image_options=r"width=\linewidth",
-                            filename=image_file.name,
+    for i in range(0, number_of_images, images_per_page):
+        current_page += 1
+        document.append(NewPage())
+        page_text = f"{header_prefix} images {current_page}/{number_of_pages}"
+        document.append(Section(page_text, numbering=False))
+
+        page_waypoints = render_waypoints[i : i + images_per_page]
+        for j in range(0, len(page_waypoints), cols):
+            row_waypoints = page_waypoints[j : j + cols]
+            with document.create(Figure(position="!ht")) as fig:
+                for wp in row_waypoints:
+                    with fig.create(MiniPage(width=rf"{figure_width}\textwidth")) as mp:
+                        image_file = get_turning_point_image(
+                            # Use full waypoint list to get correct track in image
+                            waypoints,
+                            waypoints.index(wp),
+                            meters_across,
+                            zoom_level,
+                            is_unknown_leg=is_unknown_leg,
                         )
-                    )
-                    if not is_unknown_leg:
-                        document.append(Command("caption*", render_waypoints[index + 1].name))
+                        mp.append(
+                            StandAloneGraphic(
+                                image_options=r"width=\linewidth",
+                                filename=image_file.name,
+                            )
+                        )
+                        if not is_unknown_leg:
+                            mp.append(Command("caption*", wp.name))
+                    fig.append(Command("hfill"))
     document.append(Label(Marker("lastpagetocount")))
 
 
@@ -326,15 +329,8 @@ def recode_text(text: str):
     return text.encode("latin-1", "replace").decode("latin-1")
 
 
-class WrapFigure(Environment):
-    _latex_name = "wrapfigure"
-    packages = [Package("wrapfig")]
-
-    def __init__(self, left_or_right: str, width_string, data=None):
-        super().__init__(
-            arguments=Arguments(left_or_right, width_string),
-            data=data,
-        )
+class TColorBox(Environment):
+    _latex_name = "tcolorbox"
 
 
 def round_seconds_timedelta(stamp: datetime.timedelta) -> datetime.timedelta:
@@ -370,21 +366,14 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     else:
         logo = "/src/static/img/airsports_no_text.png"
 
-    geometry_options = {
-        "a4paper": True,
-        "head": "40pt",
-        "left": "10mm",
-        "right": "10mm",
-        "top": "10mm",
-        "bottom": "15mm",
-        "includeheadfoot": False,
-    }
-    document = Document(indent=False)
+    is_a3 = flight_order_configuration.document_size == A3
+    base_font_size = "12pt" if is_a3 else "11pt"
+    document = Document(indent=False, document_options=[base_font_size])
     document.preamble.append(
         Command(
             "usepackage",
             "geometry",
-            "a4paper,head=40pt,left=10mm,right=10mm,top=10mm,bottom=15mm",
+            f"{flight_order_configuration.paper_size_latex},head=40pt,left=10mm,right=10mm,top=10mm,bottom=15mm",
         )
     )
     document.preamble.append(Command("usepackage", "graphicx"))
@@ -392,20 +381,8 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     document.preamble.append(Command("usepackage", "xassoccnt"))
     document.preamble.append(Command("usepackage", "zref", "abspage,user,lastpage"))
     document.preamble.append(Command("usepackage", "hyperref"))
-    # document.preamble.append(Command("newcounter", "turningpointimagepages"))
-    # document.preamble.append(Command("makeatletter"))
-    # count_command = UnsafeCommand(
-    #     "newcommand",
-    #     "totalimagepages",
-    #     extra_arguments=r"\setcounter{turningpointimagepages}{\numexpr\zref@extract{lastpagetocount}{abspage} -\zref@extract{firstpagetocount}{abspage}+1\relax}\theturningpointimagepages",
-    # )
-    # document.preamble.append(count_command)
-    # document.preamble.append(Command("makeatother"))
-    # document.preamble.append(Command("newcounter", "realpage"))
-    # document.preamble.append(Command("DeclareAssociatedCounters", ["page", "realpage"]))
-    # document.preamble.append(
-    #     Command("AtBeginDocument", NoEscape(r"\stepcounter{realpage}"))
-    # )
+    document.preamble.append(Command("usepackage", "tcolorbox", "most"))
+    document.preamble.append(Command("usepackage", "enumitem"))
     document.preamble.append(Command("captionsetup", "font=Large", "figure"))
     header = PageStyle("header")
     with header.create(Foot("C")):
@@ -438,74 +415,94 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     #     )
     # document.preamble.append(turning_point_header)
     document.change_document_style("header")
-    with document.create(MiniPage()):
-        with document.create(WrapFigure("r", "80pt")):
-            document.append(StandAloneGraphic(image_options=r"width=\linewidth", filename=logo))
-        with document.create(Section("", numbering=False)):
-            with document.create(Center()):
-                document.append(LargeText("Welcome to"))
-                document.append(LineBreak())
-                document.append(LineBreak())
-                document.append(HugeText(f"{contestant.navigation_task.contest.name}"))
-                document.append(LineBreak())
-                document.append(LineBreak())
-                document.append(TextColor("red", LargeText(f"{contestant.navigation_task.name}")))
+    # Header with Logo and Welcome Message
+    document.append(NoEscape(r"\noindent"))
+    with document.create(MiniPage(width=NoEscape(r"\textwidth"))) as header_page:
+        # Text Column (Left)
+        with header_page.create(MiniPage(width=NoEscape(r"0.9\textwidth"), pos="c", align="c")) as text_col:
+            with text_col.create(Center()) as centered_header:
+                centered_header.append(LargeText("Welcome to"))
+                centered_header.append(LineBreak())
+                centered_header.append(VerticalSpace("7pt"))
+                centered_header.append(HugeText(bold(f"{contestant.navigation_task.contest.name}")))
+                centered_header.append(LineBreak())
+                centered_header.append(VerticalSpace("5pt"))
+                centered_header.append(LargeText(TextColor("red", bold(f"{contestant.navigation_task.name}"))))
+
+        header_page.append(Command(r"hfill"))
+
+        # Logo Column (Right)
+        with header_page.create(MiniPage(width=NoEscape(r"0.20\textwidth"), pos="c", align="c")) as logo_col:
+            logo_col.append(StandAloneGraphic(image_options=r"width=\linewidth", filename=logo))
+
+    document.append(LineBreak())
     document.append(VerticalSpace("10pt"))
-    with document.create(Section("", numbering=False)):
-        with document.create(MiniPage()):
-            with document.create(MiniPage(width=NoEscape(r"0.7\textwidth"))):
-                with document.create(Section("", numbering=False)):
-                    with document.create(Tabu("ll", row_height=1.2, booktabs=False)) as data_table:
-                        document.append(Command("fontsize", "14pt", extra_arguments="16pt"))
-                        document.append(Command("selectfont"))
-                        data_table.add_row(bold("Contestant:"), MediumText(str(contestant)))
-                        data_table.add_row(
-                            bold("Task type:"),
-                            f"{contestant.navigation_task.scorecard.get_calculator_display()}",
-                        )
-                        data_table.add_row(
-                            bold("Competition date:"),
-                            f'{contestant.starting_point_time_local.strftime("%Y-%m-%d")}',
-                        )
-                        data_table.add_row(bold("Airspeed:"), f'{"{:.0f}".format(contestant.air_speed)} knots')
-                        data_table.add_row(
-                            bold("Tasks wind:"),
-                            f'{"{:03.0f}".format(contestant.wind_direction)}@{"{:.0f}".format(contestant.wind_speed)}',
-                        )
-                        data_table.add_row(
-                            bold("Departure:"),
-                            f"{contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%H:%M:%S') if not contestant.adaptive_start else 'Take-off time is not measured'}",
-                        )
-                        data_table.add_row(bold("Start point:"), f"{starting_point_text}")
-                        data_table.add_row(bold("Finish by:"), f"{finish_tracking_time} (tracking will stop)")
-                if contestant.adaptive_start:
-                    with document.create(Section("", numbering=False)):
-                        document.append(
-                            "Using adaptive start, your start time will be set to the nearest whole minute you cross the infinite "
-                            "line going through the starting gate anywhere between one hour before and one hour after the selected "
-                            "starting point time."
-                        )
-                        document.append(LineBreak())
-                        document.append("https://home.airsports.no/faq/#ADAPTIVE")
 
-            document.append(Command(r"hfill"))
-            with document.create(MiniPage(width=NoEscape(r"0.25\textwidth"))):
-                document.append(Command("centering"))
-                document.append(StandAloneGraphic(image_options=r"width=0.8\linewidth", filename=qr_file.name))
-                document.append(
-                    Command(
-                        "captionof*",
-                        "figure",
-                        extra_arguments=NoEscape(rf"\protect\href{{{url}}}{{Share on Facebook}}"),
+    # Flight Briefing Section
+    document.append(NoEscape(r"\noindent"))
+    with document.create(MiniPage(width=NoEscape(r"\textwidth"))) as briefing_wrapper:
+        # Left side: Briefing Box
+        with briefing_wrapper.create(MiniPage(width=NoEscape(r"0.58\textwidth"), pos="t")) as left_column:
+            dt_font_size = "14pt" if is_a3 else "12pt"
+            dt_line_spacing = "18pt" if is_a3 else "14pt"
+            box_options = NoEscape(
+                "title=Flight Briefing, colback=blue!5, colframe=blue!75!black, fonttitle=\\bfseries\\Large"
+            )
+            with left_column.create(TColorBox(options=box_options)) as briefing_box:
+                briefing_box.append(Command("fontsize", dt_font_size, extra_arguments=dt_line_spacing))
+                briefing_box.append(Command("selectfont"))
+                briefing_box.append(NoEscape(r"\renewcommand{\arraystretch}{1.4}"))
+                with briefing_box.create(Tabu("lX[l]", to=NoEscape(r"\linewidth"))) as data_table:
+                    data_table.add_row(bold("Contestant:"), str(contestant))
+                    data_table.add_row(
+                        bold("Task Type:"), f"{contestant.navigation_task.scorecard.get_calculator_display()}"
                     )
-                )
+                    data_table.add_row(bold("Date:"), f'{contestant.starting_point_time_local.strftime("%Y-%m-%d")}')
+                    data_table.add_row(bold("Airspeed:"), f'{"{:.0f}".format(contestant.air_speed)} knots')
+                    data_table.add_row(
+                        bold("Wind:"),
+                        f'{"{:03.0f}".format(contestant.wind_direction)}@{"{:.0f}".format(contestant.wind_speed)}',
+                    )
+                    data_table.add_row(
+                        bold("Departure:"),
+                        f"{contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%H:%M:%S') if not contestant.adaptive_start else 'Adaptive'}",
+                    )
+                    data_table.add_row(bold("Start Point:"), starting_point_text)
+                    data_table.add_row(bold("Finish By:"), f"{finish_tracking_time}")
 
-    with document.create(Section("Rules", numbering=False)):
-        document.append(contestant.get_formatted_rules_description().replace("\n", ""))
-    document.append(VerticalSpace("25pt"))
-    with document.create(Center()):
-        document.append(HugeText(bold("Good luck")))
+        # Right side: QR Code
+        briefing_wrapper.append(Command(r"hfill"))
+        with briefing_wrapper.create(MiniPage(width=NoEscape(r"0.30\textwidth"), pos="t")) as right_column:
+            right_column.append(Command("centering"))
+            right_column.append(StandAloneGraphic(image_options=r"width=0.9\linewidth", filename=qr_file.name))
+            right_column.append(VerticalSpace("5pt"))
+            right_column.append(
+                Command(
+                    "captionof*", Arguments("figure", NoEscape(rf"\protect\href{{{url}}}{{\small Share on Facebook}}"))
+                )
+            )
+
+    if contestant.adaptive_start:
+        document.append(VerticalSpace("10pt"))
+        document.append(
+            italic(
+                "Adaptive Start: Your start time is set to the nearest whole minute you cross the starting gate line (within +/- 1 hour)."
+            )
+        )
+
+    document.append(VerticalSpace("15pt"))
+
+    # Rules Section
+    rules_box_options = NoEscape(
+        "title=Rules and Regulations, colback=red!5, colframe=red!75!black, fonttitle=\\bfseries"
+    )
+    with document.create(TColorBox(options=rules_box_options)) as rules_box:
+        rules_box.append(NoEscape(contestant.get_formatted_rules_description()))
+
     document.append(VerticalSpace("20pt"))
+    with document.create(Center()):
+        document.append(HugeText(bold("Good Luck!")))
+    document.append(VerticalSpace("10pt"))
     waypoints = list(
         filter(
             lambda waypoint: waypoint.type != "dummy",
@@ -524,34 +521,34 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         flight_order_configuration.turning_point_photos_meters_across,
         flight_order_configuration.turning_point_photos_zoom_level,
     )
-    with document.create(Figure(position="!ht")):
-        with document.create(MiniPage(width=r"0.45\textwidth")):
-            document.append(
+    with document.create(Figure(position="!ht")) as fig:
+        with fig.create(MiniPage(width=r"0.45\textwidth")) as mp1:
+            mp1.append(
                 StandAloneGraphic(
                     image_options=r"width=\linewidth",
                     filename=starting_point_image_file.name,
                 )
             )
-            document.append(Command("caption*", "Starting point"))
-        document.append(Command("hfill"))
-        with document.create(MiniPage(width=r"0.45\textwidth")):
-            document.append(
+            mp1.append(Command("caption*", "Starting point"))
+        fig.append(Command("hfill"))
+        with fig.create(MiniPage(width=r"0.45\textwidth")) as mp2:
+            mp2.append(
                 StandAloneGraphic(
                     image_options=r"width=\linewidth",
                     filename=finish_point_image_file.name,
                 )
             )
-            document.append(Command("caption*", "Finish point"))
+            mp2.append(Command("caption*", "Finish point"))
     document.append(VerticalSpace(Command("fill")))
     document.append(
         f"Flight order generated at {datetime.datetime.now().astimezone(contestant.navigation_task.contest.time_zone).strftime('%Y-%m-%d %H:%M:%S %Z')}"
     )
 
     document.append(NewPage())
-    with document.create(Section("Turning points and time gates", numbering=False)):
-        with document.create(MiniPage(width=r"\textwidth")):
-            document.append(Command("Large"))
-            with document.create(Tabu("X[l] X[l] X[l] X[l] X[l] X[l] X[l] X[l]")) as data_table:
+    with document.create(Section("Turning points and time gates", numbering=False)) as section:
+        with section.create(MiniPage(width=r"\textwidth")) as mp:
+            mp.append(Command("Large"))
+            with mp.create(Tabu("X[l] X[l] X[l] X[l] X[l] X[l] X[l] X[l]")) as data_table:
                 data_table.add_row(
                     ["Gate", "Leg (NM)", "Tot (NM)", "TT", "TH", "GS (kt)", "Leg time", "Gate Time"], mapper=[bold]
                 )
@@ -644,7 +641,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
 
     map_image = plot_route(
         contestant.navigation_task,
-        A4,  # flight_order_configuration.document_size,
+        flight_order_configuration.document_size,
         zoom_level=flight_order_configuration.map_zoom_level,
         landscape=flight_order_configuration.map_orientation == LANDSCAPE,
         contestant=contestant,
@@ -667,12 +664,18 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     # document.append(Command("newgeometry", "left=0pt,bottom=0pt,top=0pt,right=0pt"))
     document.change_document_style("mapheader")
     # with document.create(Figure(position="!ht")):
-    with document.create(MiniPage()):
-        document.append(Command("centering"))
-        document.append(
+    map_width = flight_order_configuration.page_width_mm - 20
+    map_height = flight_order_configuration.page_height_mm - 20
+    with document.create(MiniPage()) as mp:
+        mp.append(Command("centering"))
+        mp.append(
             StandAloneGraphic(
                 mapimage_file.name,
-                r"width=190mm" if flight_order_configuration.map_orientation != LANDSCAPE else r"height=277mm",
+                (
+                    rf"width={map_width}mm"
+                    if flight_order_configuration.map_orientation != LANDSCAPE
+                    else rf"height={map_height}mm"
+                ),
             )
         )  # f"resolution={flight_order_configuration.map_dpi}"))
     document.append(NewPage())
@@ -681,27 +684,12 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     document.change_document_style("header")
     # document.change_document_style("turningpointheader")
     if flight_order_configuration.include_turning_point_images:
-        insert_turning_point_images_latex(
-            contestant,
-            document,
-            flight_order_configuration.turning_point_photos_meters_across,
-            flight_order_configuration.turning_point_photos_zoom_level,
-        )
+        insert_turning_point_images_latex(contestant, document, flight_order_configuration)
 
     if any(waypoint.type == UNKNOWN_LEG for waypoint in contestant.navigation_task.route.waypoints):
-        insert_unknown_leg_images_latex(
-            contestant,
-            document,
-            flight_order_configuration.unknown_leg_photos_meters_across,
-            flight_order_configuration.unknown_leg_photos_zoom_level,
-        )
+        insert_unknown_leg_images_latex(contestant, document, flight_order_configuration)
     if contestant.navigation_task.route.photo_set.all().count() > 0:
-        insert_photos_latex(
-            contestant,
-            document,
-            flight_order_configuration.photos_meters_across,
-            flight_order_configuration.photos_zoom_level,
-        )
+        insert_photos_latex(contestant, document, flight_order_configuration)
     # Produce the output
     pdf_file = NamedTemporaryFile()
     document.generate_tex(pdf_file.name)
