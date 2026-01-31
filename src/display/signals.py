@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.db.models.signals import post_save, post_delete, pre_delete, pre_save, m2m_changed
 from django.dispatch import receiver
 
+from django.core.cache import cache
 from display.flight_order_and_maps.map_plotter_shared_utilities import country_code_to_map_source
 from display.models import (
     TeamTestScore,
@@ -29,12 +30,28 @@ from display.models import (
     Person,
     MyUser,
     EditableRoute,
+    Contest,
 )
 from display.models.scorecard_and_gate_score import Scorecard
 from display.utilities.traccar_factory import get_traccar_instance
 from display.utilities.tracking_definitions import TrackingService
 
 logger = logging.getLogger(__name__)
+
+
+def invalidate_contest_list_cache(sender, **kwargs):
+    try:
+        cache.incr("contest_list_version")
+    except ValueError:
+        cache.set("contest_list_version", 1)
+
+
+@receiver(post_save, sender=Contest)
+@receiver(post_delete, sender=Contest)
+@receiver(post_save, sender=NavigationTask)
+@receiver(post_delete, sender=NavigationTask)
+def invalid_cache_handler(sender, **kwargs):
+    invalidate_contest_list_cache(sender, **kwargs)
 
 
 def prevent_recursion(func):

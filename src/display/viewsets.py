@@ -2,7 +2,10 @@ import base64
 from collections import OrderedDict
 import datetime
 import logging
+import hashlib
+import json
 
+from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.core.paginator import InvalidPage
 from django.db import transaction
@@ -370,6 +373,25 @@ class ContestViewSet(ModelViewSet):
     permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
     filter_backends = [DjangoFilterBackend]
     filterset_class = ContestFilter
+
+    def list(self, request, *args, **kwargs):
+        user_id = request.user.id if request.user.is_authenticated else 'anon'
+        params = request.query_params.dict()
+        sorted_params = json.dumps(params, sort_keys=True)
+        params_hash = hashlib.md5(sorted_params.encode('utf-8')).hexdigest()
+
+        version = cache.get("contest_list_version", 1)
+        cache_key = f"contest_list_v{version}_u{user_id}_{params_hash}"
+
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
+        response = super().list(request, *args, **kwargs)
+        if response.status_code == 200:
+            cache.set(cache_key, response.data, timeout=60 * 60 * 24)
+
+        return response
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
