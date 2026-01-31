@@ -13,6 +13,7 @@ def get_default_scorecard():
         defaults={
             "shortcut_name": "Landing",
             "valid_from": datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc),
+            "score_sorting_direction": "asc",
             "backtracking_penalty": 0,
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": False,

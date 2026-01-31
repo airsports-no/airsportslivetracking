@@ -26,6 +26,7 @@ def get_default_scorecard():
         defaults={
             "shortcut_name": "Air Sports Race",
             "valid_from": datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc),
+            "score_sorting_direction": "asc",
             "backtracking_penalty": 10,
             "backtracking_grace_time_seconds": 5,
             "backtracking_maximum_penalty": 100,
