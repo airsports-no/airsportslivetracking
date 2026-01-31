@@ -361,6 +361,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         logo = f"/tmp/{contestant.navigation_task.contest.logo}"
         try:
             urllib.request.urlretrieve(logo_url, logo)
+            lower_logo = logo.lower()
+            if not (lower_logo.endswith(".png") or lower_logo.endswith(".jpg") or lower_logo.endswith(".jpeg") or lower_logo.endswith(".pdf")):
+                img = Image.open(logo)
+                logo = logo.rsplit(".", 1)[0] + ".png"
+                img.save(logo)
         except:
             logo = "/src/static/img/airsports_no_text.png"
     else:
@@ -419,7 +424,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     document.append(NoEscape(r"\noindent"))
     with document.create(MiniPage(width=NoEscape(r"\textwidth"))) as header_page:
         # Text Column (Left)
-        with header_page.create(MiniPage(width=NoEscape(r"0.9\textwidth"), pos="c", align="c")) as text_col:
+        with header_page.create(MiniPage(width=NoEscape(r"0.70\textwidth"), pos="c", align="c")) as text_col:
             with text_col.create(Center()) as centered_header:
                 centered_header.append(LargeText("Welcome to"))
                 centered_header.append(LineBreak())
@@ -432,10 +437,9 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
         header_page.append(Command(r"hfill"))
 
         # Logo Column (Right)
-        with header_page.create(MiniPage(width=NoEscape(r"0.20\textwidth"), pos="c", align="c")) as logo_col:
+        with header_page.create(MiniPage(width=NoEscape(r"0.20\textwidth"), pos='c', align='c')) as logo_col:
             logo_col.append(StandAloneGraphic(image_options=r"width=\linewidth", filename=logo))
 
-    document.append(LineBreak())
     document.append(VerticalSpace("10pt"))
 
     # Flight Briefing Section
@@ -494,7 +498,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
 
     # Rules Section
     rules_box_options = NoEscape(
-        "title=Rules and Regulations, colback=red!5, colframe=red!75!black, fonttitle=\\bfseries"
+        "title=Rules \\& Regulations, colback=red!5, colframe=red!75!black, fonttitle=\\bfseries"
     )
     with document.create(TColorBox(options=rules_box_options)) as rules_box:
         rules_box.append(NoEscape(contestant.get_formatted_rules_description()))
