@@ -164,7 +164,25 @@ const MissionDashboard = () => {
             // Conditionally fetch the main contest list only if it's empty.
             if (state.contests.length === 0) {
                 const oneYearAgo = new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
-                fetchPromises.push(fetchContestsFromStore({ startTimeGte: oneYearAgo.toISOString().split('T')[0], excludeTasks: true, excludeTeams: true }));
+                
+                // Fetch public contests (Globally cached)
+                fetchPromises.push(fetchContestsFromStore({ 
+                    startTimeGte: oneYearAgo.toISOString().split('T')[0], 
+                    excludeTasks: true, 
+                    excludeTeams: true,
+                    publicOnly: true 
+                }));
+
+                // Fetch shared/private contests if authenticated (User specific cache)
+                if (document.configuration.isAuthenticated) {
+                    fetchPromises.push(fetchContestsFromStore({ 
+                        startTimeGte: oneYearAgo.toISOString().split('T')[0], 
+                        excludeTasks: true, 
+                        excludeTeams: true,
+                        sharedOnly: true 
+                    }));
+                }
+
                 initialFetchPerformed = true;
             }
 
@@ -202,7 +220,10 @@ const MissionDashboard = () => {
 
             if (initialFetchPerformed) {
                 const oneYearAgo = new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
-                fetchContestsFromStore({ startTimeGte: oneYearAgo.toISOString().split('T')[0] }).catch(console.error);
+                fetchContestsFromStore({ startTimeGte: oneYearAgo.toISOString().split('T')[0], publicOnly: true }).catch(console.error);
+                if (document.configuration.isAuthenticated) {
+                    fetchContestsFromStore({ startTimeGte: oneYearAgo.toISOString().split('T')[0], sharedOnly: true }).catch(console.error);
+                }
             }
         };
 

@@ -377,7 +377,12 @@ class ContestViewSet(ModelViewSet):
     filterset_class = ContestFilter
 
     def list(self, request, *args, **kwargs):
-        user_id = request.user.id if request.user.is_authenticated else 'anon'
+        public_only = request.query_params.get("public_only", "false").lower() == "true"
+        user_id = (
+            "global"
+            if public_only
+            else (request.user.id if request.user.is_authenticated else "anon")
+        )
         params = request.query_params.dict()
         sorted_params = json.dumps(params, sort_keys=True)
         params_hash = hashlib.md5(sorted_params.encode('utf-8')).hexdigest()
@@ -403,6 +408,9 @@ class ContestViewSet(ModelViewSet):
         queryset = self.queryset
 
         is_editor_filter_param = self.request.query_params.get("is_editor", "false").lower() == "true"
+        public_only = self.request.query_params.get("public_only", "false").lower() == "true"
+        shared_only = self.request.query_params.get("shared_only", "false").lower() == "true"
+
         logger.info(f"ContestViewSet.get_queryset called. is_editor_filter_param: {is_editor_filter_param}")
 
         if is_editor_filter_param:
@@ -416,6 +424,35 @@ class ContestViewSet(ModelViewSet):
                     klass=Contest,
                     accept_global_perms=False,
                 )
+                .prefetch_related(
+                    "navigationtask_set__route__prohibited_set",
+                    "contestteam_set__team__crew__member1",
+                )
+                .order_by("-start_time")
+            )
+
+        if public_only:
+            return (
+                queryset.filter(is_public=True, is_featured=True)
+                .prefetch_related(
+                    "navigationtask_set__route__prohibited_set",
+                    "contestteam_set__team__crew__member1",
+                )
+                .order_by("-start_time")
+            )
+
+        if shared_only:
+            if not user.is_authenticated:
+                return queryset.none()
+            return (
+                get_objects_for_user(
+                    user,
+                    "display.view_contest",
+                    klass=Contest,
+                    accept_global_perms=False,
+                )
+                .exclude(is_public=True, is_featured=True)
+                .distinct()
                 .prefetch_related(
                     "navigationtask_set__route__prohibited_set",
                     "contestteam_set__team__crew__member1",

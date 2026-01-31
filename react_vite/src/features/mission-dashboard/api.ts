@@ -61,6 +61,8 @@ export interface ContestFilters {
     isEditor?: boolean;
     excludeTasks?: boolean;
     excludeTeams?: boolean;
+    publicOnly?: boolean;
+    sharedOnly?: boolean;
 }
 
 const _fetchContestsPage = async (cursor?: string | null, filters?: ContestFilters): Promise<PaginatedContests> => {
@@ -86,6 +88,12 @@ const _fetchContestsPage = async (cursor?: string | null, filters?: ContestFilte
     }
     if (filters?.excludeTeams !== undefined) {
         url.searchParams.set('exclude_teams', filters.excludeTeams.toString());
+    }
+    if (filters?.publicOnly !== undefined) {
+        url.searchParams.set('public_only', filters.publicOnly.toString());
+    }
+    if (filters?.sharedOnly !== undefined) {
+        url.searchParams.set('shared_only', filters.sharedOnly.toString());
     }
 
     const response = await fetch(url.toString(), { headers: getAuthHeaders() });
