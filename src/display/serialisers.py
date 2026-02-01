@@ -321,6 +321,10 @@ class WaypointSerialiser(serializers.Serializer):
     is_speed_section_end = serializers.BooleanField(required=False)
     group_id = serializers.CharField(required=False)
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        return ret
+
 
 class ProhibitedSerialiser(serializers.ModelSerializer):
     path = serializers.JSONField()
