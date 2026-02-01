@@ -323,6 +323,14 @@ class WaypointSerialiser(serializers.Serializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
+        # Ensure CIMA flags are included from the model object
+        ret["is_circle_center"] = getattr(instance, "is_circle_center", False)
+        ret["is_circle_entry"] = getattr(instance, "is_circle_entry", False)
+        ret["is_free_point"] = getattr(instance, "is_free_point", False)
+        ret["is_speed_section_start"] = getattr(instance, "is_speed_section_start", False)
+        ret["is_speed_section_end"] = getattr(instance, "is_speed_section_end", False)
+        ret["radius"] = getattr(instance, "radius", 0.0)
+        ret["group_id"] = getattr(instance, "group_id", None)
         return ret
 
 
@@ -960,7 +968,38 @@ class ContestantSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = Contestant
-        exclude = ("predefined_gate_times",)
+        fields = [
+            "id",
+            "contestant_number",
+            "team",
+            "navigation_task",
+            "takeoff_time",
+            "minutes_to_starting_point",
+            "finished_by_time",
+            "air_speed",
+            "track_version",
+            "tracking_service",
+            "tracking_device",
+            "tracker_device_id",
+            "tracker_start_time",
+            "competition_class_longform",
+            "competition_class_shortform",
+            "wind_speed",
+            "wind_direction",
+            "schedule_locked",
+            "gate_times",
+            "declared_configuration",
+            "scorecard_rules",
+            "tracker_id_display",
+            "default_map_url",
+            "has_crossed_starting_line",
+            "contest_id",
+            "landing_time",
+            "overlap_warnings",
+            "overlapping_tasks",
+            "route",
+            "contestanttrack"
+        ]
 
     gate_times = serializers.JSONField(
         help_text="Dictionary where the keys are gate names (must match the gate names in the route file) and the "
@@ -979,6 +1018,28 @@ class ContestantSerialiser(serializers.ModelSerializer):
     schedule_locked = serializers.BooleanField(required=False)
     overlap_warnings = SerializerMethodField("get_overlap_warnings", read_only=True)
     overlapping_tasks = SerializerMethodField("get_overlapping_tasks", read_only=True)
+    route = SerializerMethodField("get_route", read_only=True)
+    contestanttrack = ContestantTrackSerialiser(read_only=True)
+
+    def get_route(self, contestant):
+        task_route = contestant.navigation_task.route
+        declaration_order = (contestant.declared_configuration or {}).get("waypoint_order", [])
+        
+        if not declaration_order:
+            return RouteSerialiser(task_route).data
+            
+        # Reconstruct route based on pilot declaration
+        all_available = {wp.name: wp for wp in list(task_route.waypoints) + list(task_route.standalone_waypoints)}
+        reordered_waypoints = [all_available[name] for name in declaration_order if name in all_available]
+        
+        # We use a shallow copy but replace the waypoints list
+        from copy import copy
+        custom_route = copy(task_route)
+        custom_route.waypoints = reordered_waypoints
+        # Mark as custom so frontend knows it's contestant-specific
+        data = RouteSerialiser(custom_route).data
+        data["is_custom"] = True
+        return data
 
     def get_overlapping_tasks(self, contestant):
         overlaps = contestant.get_overlapping_tasks()

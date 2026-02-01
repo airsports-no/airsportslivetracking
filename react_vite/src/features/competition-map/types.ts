@@ -1,4 +1,5 @@
 // Types for Navigation Task live competition map
+import { RouteData, Scorecard } from '../route-editor/types';
 
 export interface Aeroplane {
   id: number;
@@ -87,6 +88,7 @@ export interface Contestant {
   tracker_id_display?: TrackerDisplay[];
   playing_cards?: { card: string }[];
   navigation_task: NavigationTask;
+  route?: RouteData;
   takeoff_time: string;
   finished_by_time: string;
   overlap_warnings?: string[];

@@ -202,41 +202,16 @@ function renderCIMAFeatures(map: L.Map, route: RouteData): L.Layer[] {
     return layers;
 }
 
-function renderContestantSpecificRoute(map: L.Map, route: RouteData, contestant: Contestant): L.Layer[] {
-    const layers: L.Layer[] = [];
-    const order = (contestant as any).declared_configuration?.waypoint_order;
-    
-    if (!order || !Array.isArray(order) || order.length < 2) {
-        return layers;
-    }
-
-    const path: L.LatLngExpression[] = [];
-    order.forEach(name => {
-        const wp = route.waypoints.find(w => w.name === name);
-        if (wp) {
-            path.push([wp.latitude, wp.longitude]);
-        }
-    });
-
-    if (path.length >= 2) {
-        layers.push(L.polyline(path, {
-            color: '#3b82f6',
-            weight: 6,
-            opacity: 0.6,
-            dashArray: '10, 10',
-            lineJoin: 'round'
-        }).addTo(map));
-    }
-
-    return layers;
-}
-
-
 export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
   const layersRef = useRef<L.Layer[]>([]);
 
   useEffect(() => {
     if (!map || !route || !taskType) return;
+
+    // Use contestant-specific route if available
+    const activeRoute = (selectedContestantId !== null && contestants[selectedContestantId]?.route) 
+        ? contestants[selectedContestantId].route 
+        : route;
 
     // Clear previous layers
     layersRef.current.forEach(layer => layer.remove());
@@ -245,27 +220,22 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
     let layers: L.Layer[] = [];
 
     if (taskType.includes("precision") || taskType.includes("poker")) {
-      layers = layers.concat(renderPrecisionRoute(map, route, navTaskDisplaySecrets, displaySecrets));
+      layers = layers.concat(renderPrecisionRoute(map, activeRoute, navTaskDisplaySecrets, displaySecrets));
     }
     if (taskType.includes("airsports") || taskType.includes("airsportchallenge")) {
-      layers = layers.concat(renderAirsportsRoute(map, route, false, navTaskDisplaySecrets, displaySecrets));
+      layers = layers.concat(renderAirsportsRoute(map, activeRoute, false, navTaskDisplaySecrets, displaySecrets));
     }
     if (taskType.includes("anr_corridor")) {
-      layers = layers.concat(renderAirsportsRoute(map, route, true, navTaskDisplaySecrets, displaySecrets));
+      layers = layers.concat(renderAirsportsRoute(map, activeRoute, true, navTaskDisplaySecrets, displaySecrets));
     }
     if (taskType.includes("landing")) {
-      layers = layers.concat(renderLandingRoute(map, route));
+      layers = layers.concat(renderLandingRoute(map, activeRoute));
     }
     
     // Always check for CIMA features (Circle/Free Points) regardless of task type
-    layers = layers.concat(renderCIMAFeatures(map, route));
+    layers = layers.concat(renderCIMAFeatures(map, activeRoute));
 
-    // Render Contestant-Specific Route Path if order is declared
-    if (selectedContestantId !== null && contestants[selectedContestantId]) {
-        layers = layers.concat(renderContestantSpecificRoute(map, route, contestants[selectedContestantId]));
-    }
-    
-    const waypointsToLabel = route.waypoints.filter(w => 
+    const waypointsToLabel = activeRoute.waypoints.filter(w => 
         (w.gate_check || w.time_check) && 
         ((navTaskDisplaySecrets && displaySecrets) || w.type !== "secret") && 
         w.type !== "dummy"
@@ -302,6 +272,9 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
       map.getContainer().classList.remove('hide-waypoint-labels');
     };
   }, [map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit]);
+
+  return null;
+}
 
   return null;
 }
