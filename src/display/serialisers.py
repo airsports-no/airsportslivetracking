@@ -442,6 +442,8 @@ class RouteSummarySerialiser(serializers.ModelSerializer):
     """
     Lightweight serializer for Route summary info, excluding geometry.
     """
+    waypoints = WaypointSerialiser(many=True, read_only=True)
+    standalone_waypoints = WaypointSerialiser(many=True, read_only=True)
 
     number_of_wayoints = serializers.IntegerField(read_only=True)
     route_length_nm = serializers.FloatField(read_only=True)
@@ -459,7 +461,9 @@ class RouteSummarySerialiser(serializers.ModelSerializer):
             "use_procedure_turns",
             "rounded_corners",
             "corridor_width",
-            # Exclude waypoints, gates, prohibited_set, corridor_polygon
+            "waypoints",
+            "standalone_waypoints",
+            # Exclude gates, prohibited_set, corridor_polygon
             "number_of_wayoints",
             "route_length_nm",
             "number_of_prohibited_zones",

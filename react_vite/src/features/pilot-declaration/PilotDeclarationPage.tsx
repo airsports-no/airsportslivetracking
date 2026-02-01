@@ -35,7 +35,8 @@ export const PilotDeclarationPage = () => {
                     
                     // Default tab logic
                     const route = t.route;
-                    const hasFreePoints = route.waypoints.some((wp: any) => wp.is_free_point);
+                    const allWaypoints = [...(route.waypoints || []), ...(route.standalone_waypoints || [])];
+                    const hasFreePoints = allWaypoints.some((wp: any) => wp.is_free_point);
                     if (hasFreePoints) setActiveTab('sequence');
                 }
             } catch (e) {
