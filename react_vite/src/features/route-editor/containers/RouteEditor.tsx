@@ -34,6 +34,7 @@ export default function RouteEditor() {
   const { routeId: paramRouteId } = useParams<{ routeId: string }>();
   const [routeName, setRouteName] = useState("");
   const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Modes: 'view', 'add_point', 'add_landing...', 'add_takeoff...', 'add_observation', 'add_polygon'
   const [mode, setMode] = useState<Mode>('view');
@@ -643,6 +644,7 @@ export default function RouteEditor() {
       if (!confirm("Route has validation errors. Save anyway?")) return;
     }
 
+    setIsSaving(true);
     const geoJson = {
       type: "FeatureCollection",
       features: [
@@ -770,6 +772,8 @@ export default function RouteEditor() {
     } catch (e) {
       console.error(e);
       alert("Error saving route");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -861,12 +865,23 @@ export default function RouteEditor() {
           onDelete={deleteSelected}
           onMovePoint={movePointOrder}
           onFit={handleFit}
-          onSave={handleSave}
-          onToggleLabels={() => setHideLabels(!hideLabels)}
+          handleSave={handleSave}
+          handleReverseRoute={handleReverseRoute}
+          showCorridor={showCorridor}
+          setShowCorridor={setShowCorridor}
           hideLabels={hideLabels}
+          setHideLabels={setHideLabels}
+          maxObsDist={maxObsDist}
+          setMaxObsDist={setMaxObsDist}
+          setSelectedId={setSelectedId}
+          setSelectionType={setSelectionType}
+          updateSelectedObservation={updateSelectedObservation}
+          updateSelectedPolygon={updateSelectedPolygon}
+          deleteSelected={deleteSelected}
+          movePointOrder={movePointOrder}
           routeName={routeName}
-          onUpdateRouteName={setRouteName}
-          isSaving={isSaving}
+          setRouteName={setRouteName}
+          isAuthenticated={(window as any).configuration.isAuthenticated}
           isDirty={isDirty}
           validationErrors={validationErrors}
         />
