@@ -366,7 +366,7 @@ export default function RouteEditor() {
         id: crypto.randomUUID(),
         lat: latlng.lat,
         lng: latlng.lng,
-        name: `Circle ${standalonePoints.length + 1}`,
+        name: `Circle ${standalonePoints.filter(p => p.type === 'circle_center').length + 1}`,
         type: 'circle_center',
         width: 0,
         isTiming: false,
@@ -385,7 +385,7 @@ export default function RouteEditor() {
         id: crypto.randomUUID(),
         lat: latlng.lat,
         lng: latlng.lng,
-        name: `FP ${standalonePoints.length + 1}`,
+        name: `FP ${standalonePoints.filter(p => p.type === 'free_point').length + 1}`,
         type: 'free_point',
         width: 0,
         isTiming: false,
@@ -399,7 +399,7 @@ export default function RouteEditor() {
     if (mode === 'add_polygon') {
       setTempPolygonPoints(prev => [...prev, latlng]);
     }
-  }, [mode, routePoints, gates.length, tempGatePoint, observationMarkers.length, polygons.length, addCurveMode]);
+  }, [mode, routePoints, standalonePoints, gates.length, tempGatePoint, observationMarkers.length, polygons.length, addCurveMode]);
 
   const updateSelectedPoint = (field: keyof RoutePoint, value: any) => {
     setIsDirty(true);
@@ -767,7 +767,8 @@ export default function RouteEditor() {
       if (!routeId && result.id) {
         setRouteId(result.id.toString());
         // Optionally update URL
-        window.history.pushState({}, '', document.configuration.editRouteViewUrl(result.id));
+        const editUrl = (document.configuration as any)?.editRouteViewUrl?.(result.id) || `/routeeditor/edit/${result.id}`;
+        window.history.pushState({}, '', editUrl);
       }
     } catch (e) {
       console.error(e);
@@ -881,7 +882,7 @@ export default function RouteEditor() {
           movePointOrder={movePointOrder}
           routeName={routeName}
           setRouteName={setRouteName}
-          isAuthenticated={(window as any).configuration.isAuthenticated}
+          isAuthenticated={document.configuration?.isAuthenticated ?? false}
           isDirty={isDirty}
           validationErrors={validationErrors}
         />
