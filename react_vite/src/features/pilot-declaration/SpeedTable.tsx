@@ -1,4 +1,5 @@
 import React from 'react';
+import { getDistance } from '../../utils/geoUtils';
 
 interface SpeedTableProps {
     waypoints: any[];
@@ -39,19 +40,26 @@ export const SpeedTable: React.FC<SpeedTableProps> = ({ waypoints, speeds, onCha
                         const nextWp = validWaypoints[index + 1];
                         const speed = speeds[wp.name] || 0;
                         
+                        // Calculate distance between points in NM
+                        const distMeters = getDistance(
+                            { lat: wp.latitude, lng: wp.longitude },
+                            { lat: nextWp.latitude, lng: nextWp.longitude }
+                        );
+                        const distNm = distMeters / 1852;
+
                         let duration = "-";
-                        if (speed > 0 && wp.distance_next > 0) {
-                            const hours = wp.distance_next / speed;
-                            const minutes = Math.round(hours * 60);
+                        if (speed > 0 && distNm > 0) {
+                            const hours = distNm / speed;
+                            const minutes = Math.floor(hours * 60);
                             const seconds = Math.round((hours * 3600) % 60);
                             duration = `${minutes}m ${seconds}s`;
                         }
 
                         return (
-                            <tr key={wp.name}>
+                            <tr key={`${wp.name}-${index}`}>
                                 <td>{wp.name}</td>
                                 <td>{nextWp.name}</td>
-                                <td>{wp.distance_next.toFixed(2)}</td>
+                                <td>{distNm.toFixed(2)}</td>
                                 <td>
                                     <input 
                                         type="number" 

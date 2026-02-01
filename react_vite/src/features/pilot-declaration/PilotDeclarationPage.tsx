@@ -76,8 +76,16 @@ export const PilotDeclarationPage = () => {
     );
 
     const route = task.route;
-    const freePoints = route.waypoints.filter((wp: any) => wp.is_free_point);
+    const allWaypoints = [...(route.waypoints || []), ...(route.standalone_waypoints || [])];
+    const freePoints = allWaypoints.filter((wp: any) => wp.is_free_point);
     const hasFreePoints = freePoints.length > 0;
+
+    // Determine current sequence for speed table
+    let speedTableSequence = route.waypoints || [];
+    if (waypointOrder && waypointOrder.length > 0) {
+        const wpMap = new Map(allWaypoints.map(wp => [wp.name, wp]));
+        speedTableSequence = waypointOrder.map(name => wpMap.get(name)).filter(Boolean);
+    }
 
     return (
         <div className="min-h-screen bg-base-200 p-4 md:p-8">
@@ -132,7 +140,7 @@ export const PilotDeclarationPage = () => {
                             <h3 className="font-bold text-lg mb-4">Declared Ground Speeds</h3>
                             <p className="text-sm mb-4">Enter your planned ground speed (Knots) for each leg. This will determine your target crossing times.</p>
                             <SpeedTable 
-                                waypoints={route.waypoints} 
+                                waypoints={speedTableSequence} 
                                 speeds={legSpeeds} 
                                 onChange={setLegSpeeds} 
                             />
@@ -141,10 +149,10 @@ export const PilotDeclarationPage = () => {
 
                     {activeTab === 'sequence' && hasFreePoints && (
                         <div>
-                            <h3 className="font-bold text-lg mb-4">Free Point Sequence</h3>
-                            <p className="text-sm mb-4">Define the order in which you will visit the free waypoints.</p>
+                            <h3 className="font-bold text-lg mb-4">Route Sequence</h3>
+                            <p className="text-sm mb-4">Define the full sequence of waypoints you intend to visit, including the Start, Middle, and Finish points.</p>
                             <WaypointSorter 
-                                freePoints={freePoints} 
+                                freePoints={allWaypoints.filter((wp: any) => wp.type !== 'dummy')} 
                                 order={waypointOrder} 
                                 onChange={setWaypointOrder} 
                             />
