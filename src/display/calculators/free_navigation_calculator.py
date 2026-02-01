@@ -58,7 +58,7 @@ class FreeNavigationCalculator:
                             return UpdateScoreMessage(
                                 position.time,
                                 wp,
-                                round(wp.score_value),
+                                round(self.scorecard.free_waypoint_score),
                                 f"Visited {wp.name}",
                                 position.latitude,
                                 position.longitude,
@@ -73,7 +73,7 @@ class FreeNavigationCalculator:
                     return UpdateScoreMessage(
                         position.time,
                         wp,
-                        round(wp.score_value),
+                        round(self.scorecard.free_waypoint_score),
                         f"Visited {wp.name}",
                         position.latitude,
                         position.longitude,

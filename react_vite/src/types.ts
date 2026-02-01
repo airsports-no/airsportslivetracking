@@ -31,7 +31,6 @@ export interface RoutePoint extends LatLng {
   isPassing: boolean;
   isSecret?: boolean;
   radius?: number; // In meters (for circle_center)
-  score?: number;  // Points (for free_point)
   groupId?: string; // To link start/end or center/entry
 }
 

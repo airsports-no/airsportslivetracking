@@ -111,6 +111,7 @@ class Scorecard(models.Model):
     circle_altitude_tolerance = models.FloatField(default=61, help_text="Altitude tolerance for circle task (meters)")
     circle_altitude_penalty = models.FloatField(default=0.2, help_text="Percentage penalty (0.0-1.0) for altitude violation in circle")
     free_point_missed_penalty = models.FloatField(default=0, help_text="Points deducted if a declared free point is missed")
+    free_waypoint_score = models.FloatField(default=100, help_text="Points awarded for visiting a free waypoint (e.g. Turnpoint Hunt)")
 
     def __str__(self):
         return self.name

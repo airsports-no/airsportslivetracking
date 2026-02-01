@@ -92,7 +92,6 @@ export default function RouteEditor() {
             isTiming: f.properties.isTiming || false,
             isPassing: f.properties.isPassing || true,
             radius: f.properties.radius,
-            score: f.properties.score,
             groupId: f.properties.groupId
           });
         });
@@ -376,8 +375,7 @@ export default function RouteEditor() {
         width: 0,
         isTiming: false,
         isPassing: true,
-        segmentType: 'straight',
-        score: 100
+        segmentType: 'straight'
       };
       setRoutePoints(prev => [...prev, newPoint]);
       setIsDirty(true);
@@ -610,7 +608,6 @@ export default function RouteEditor() {
             isPassing: p.isPassing,
             sequence: i,
             radius: p.radius,
-            score: p.score,
             groupId: p.groupId
           },
           geometry: {

@@ -85,13 +85,7 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
 
       {point.type === 'free_point' && (
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase">Score</label>
-          <input 
-            type="number"
-            className="input input-bordered input-sm w-full"
-            value={point.score || 0} 
-            onChange={(e) => updatePoint('score', parseFloat(e.target.value))}
-          />
+          <p className="text-xs text-info italic">Score is defined in the Task Scorecard.</p>
         </div>
       )}
 

@@ -314,7 +314,6 @@ class WaypointSerialiser(serializers.Serializer):
 
     outer_corner_position = serializers.JSONField(required=False)
     radius = serializers.FloatField(required=False)
-    score_value = serializers.FloatField(required=False)
     is_circle_center = serializers.BooleanField(required=False)
     is_circle_entry = serializers.BooleanField(required=False)
     is_free_point = serializers.BooleanField(required=False)
@@ -388,7 +387,6 @@ class RouteSerialiser(serializers.ModelSerializer):
         waypoint.control_longitude = waypoint_data.get("control_longitude", None)
 
         waypoint.radius = waypoint_data.get("radius", 0.0)
-        waypoint.score_value = waypoint_data.get("score_value", 0.0)
         waypoint.is_circle_center = waypoint_data.get("is_circle_center", False)
         waypoint.is_circle_entry = waypoint_data.get("is_circle_entry", False)
         waypoint.is_free_point = waypoint_data.get("is_free_point", False)
