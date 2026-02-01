@@ -336,14 +336,17 @@ def create_gate_from_line(gate_line, name: str, type: str) -> Waypoint:
 def create_precision_route_from_waypoint_list(
     route_name, waypoint_list, use_procedure_turns: bool, scorecard: Scorecard
 ) -> Route:
-    if len(waypoint_list) < 2:
+    spine = [wp for wp in waypoint_list if not getattr(wp, 'is_free_point', False) and not getattr(wp, 'is_circle_center', False)]
+    standalone = [wp for wp in waypoint_list if getattr(wp, 'is_free_point', False) or getattr(wp, 'is_circle_center', False)]
+
+    if len(spine) < 2:
         raise ValidationError("A route must at least have a starting point and finish point")
-    if waypoint_list[0].type != "sp":
+    if spine[0].type != "sp":
         raise ValidationError("The first waypoint must be of type starting point")
-    if waypoint_list[-1].type != "fp":
+    if spine[-1].type != "fp":
         raise ValidationError("The last waypoint must be of type finish point")
     # First give everything a line according to the  drawn track
-    gates = waypoint_list
+    gates = spine
     for index in range(len(gates) - 1):
         if index < len(gates) - 2 and (gates[index + 1].type == "isp"):
             # or (gates[index].type in ("dummy", "ul") and gates[index + 1].type != "dummy")):
@@ -367,7 +370,7 @@ def create_precision_route_from_waypoint_list(
         gates[index + 1].gate_line[0].reverse()
         gates[index + 1].gate_line[1].reverse()
     # Then correct the lines for the actual track
-    gates = list(filter(lambda waypoint: waypoint.type != "dummy", waypoint_list))
+    gates = list(filter(lambda waypoint: waypoint.type != "dummy", spine))
     for index in range(len(gates) - 1):
         if index < len(gates) - 2 and (gates[index + 1].type == "isp"):
             # or (gates[index].type in ("dummy", "ul") and gates[index + 1].type != "dummy")):
@@ -407,7 +410,7 @@ def create_precision_route_from_waypoint_list(
     calculate_and_update_legs(waypoint_list, use_procedure_turns)
     insert_gate_ranges(waypoint_list)
 
-    instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=use_procedure_turns)
+    instance = Route(name=route_name, waypoints=spine, standalone_waypoints=standalone, use_procedure_turns=use_procedure_turns)
     instance.save()
     return instance
 
@@ -467,14 +470,17 @@ def create_anr_corridor_route_from_waypoint_list(
     :param corridor_width: If this is set, use this for corridor width and leave the gates as they should be
     :return:
     """
-    if len(waypoint_list) < 2:
+    spine = [wp for wp in waypoint_list if not getattr(wp, 'is_free_point', False) and not getattr(wp, 'is_circle_center', False)]
+    standalone = [wp for wp in waypoint_list if getattr(wp, 'is_free_point', False) or getattr(wp, 'is_circle_center', False)]
+
+    if len(spine) < 2:
         raise ValidationError("A route must at least have a starting point and finish point")
-    if waypoint_list[0].type != "sp":
+    if spine[0].type != "sp":
         raise ValidationError("The first waypoint must be of type starting point")
-    if waypoint_list[-1].type != "fp":
+    if spine[-1].type != "fp":
         raise ValidationError("The last waypoint must be of type finish point")
 
-    corridor_polygon, path_points = generate_corridor_polygon(waypoint_list, rounded_corners)
+    corridor_polygon, path_points = generate_corridor_polygon(spine, rounded_corners)
     logger.debug(f"Corridor polygon: {corridor_polygon}")
 
     points = list(filter(lambda point: point.get("left_miter"), path_points))
@@ -485,9 +491,9 @@ def create_anr_corridor_route_from_waypoint_list(
             [point["right_miter"]["lat"], point["right_miter"]["lng"]],
         ]
 
-    for index in range(0, len(waypoint_list)):
+    for index in range(0, len(spine)):
         point = points[index]
-        waypoint_list[index].gate_line = extract_gate_line(point)
+        spine[index].gate_line = extract_gate_line(point)
 
     for waypoint in waypoint_list:
         waypoint.gate_line_extended = calculate_extended_gate(waypoint, scorecard)
@@ -495,12 +501,12 @@ def create_anr_corridor_route_from_waypoint_list(
     # Calculate bearings and distances
     calculate_and_update_legs(waypoint_list, False)
     insert_gate_ranges(waypoint_list)
-    correct_gate_directions_to_the_right(waypoint_list)
+    correct_gate_directions_to_the_right(spine)
 
     # Validate that waypoints are not too close so that the gates cross each other
     # validate_no_overlapping_gate_lines(waypoint_list)
 
-    instance = Route(name=route_name, waypoints=waypoint_list, use_procedure_turns=False)
+    instance = Route(name=route_name, waypoints=spine, standalone_waypoints=standalone, use_procedure_turns=False)
     instance.rounded_corners = rounded_corners
     instance.corridor_polygon = corridor_polygon
     if corridor_width is not None:

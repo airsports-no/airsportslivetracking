@@ -14,13 +14,18 @@ def get_segment_time(start, finish, air_speed, wind_speed, wind_direction) -> da
 
 
 def calculate_and_get_relative_gate_times(
-    route, air_speed, wind_speed, wind_direction, leg_speeds: dict = None
+    route, air_speed, wind_speed, wind_direction, leg_speeds: dict = None, waypoint_sequence: list = None
 ) -> List[Tuple[str, datetime.timedelta]]:
     """
     Used to calculate the gate times for a contestant when it is created.
     leg_speeds: Optional dictionary mapping gate name (start of leg) to ground speed in Knots.
+    waypoint_sequence: Optional list of Waypoint objects defining the path.
     """
-    waypoints = list(filter(lambda waypoint: waypoint.type not in ("dummy",), route.waypoints))  # type: List[Waypoint]
+    if waypoint_sequence:
+        waypoints = waypoint_sequence
+    else:
+        waypoints = list(filter(lambda waypoint: waypoint.type not in ("dummy",), route.waypoints))  # type: List[Waypoint]
+    
     if len(waypoints) == 0:
         return []
     centre_tracks = []

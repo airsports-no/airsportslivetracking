@@ -125,6 +125,9 @@ class EditableRoute(models.Model):
     def get_track_waypoints(self) -> list[dict]:
         return self.get_features_type("route_waypoint")
 
+    def get_standalone_waypoints(self) -> list[dict]:
+        return self.get_features_type("standalone_waypoint")
+
     def get_ordered_track_waypoints(self) -> list[dict]:
         """
         Returns track waypoints sorted by their sequence number.
@@ -388,6 +391,34 @@ class EditableRoute(models.Model):
                 # tooltip_position=feature.get("tooltip_position", []),
             )
         from display.models.route import Photo
+        from display.utilities.route_building_utilities import build_waypoint
+
+        # Populate Standalone CIMA Waypoints
+        standalone_features = self.get_standalone_waypoints()
+        route.standalone_waypoints = []
+        for feature in standalone_features:
+            props = feature["properties"]
+            lon, lat = feature["geometry"]["coordinates"]
+            wp = build_waypoint(
+                props["name"],
+                lat,
+                lon,
+                props["pointType"],
+                props["width"] / 1852,
+                props["isTiming"],
+                props["isPassing"],
+                control_latitude=props.get("controlLat"),
+                control_longitude=props.get("controlLng"),
+            )
+            if props["pointType"] == "circle_center":
+                wp.is_circle_center = True
+                wp.radius = float(props.get("radius", 0))
+            elif props["pointType"] == "circle_entry":
+                wp.is_circle_entry = True
+            elif props["pointType"] == "free_point":
+                wp.is_free_point = True
+            wp.group_id = props.get("groupId")
+            route.standalone_waypoints.append(wp)
 
         for photo in self.get_features_type("observation_photo"):
             Photo.objects.create(

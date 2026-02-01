@@ -336,6 +336,7 @@ class ProhibitedSerialiser(serializers.ModelSerializer):
 
 class RouteSerialiser(serializers.ModelSerializer):
     waypoints = WaypointSerialiser(many=True)
+    standalone_waypoints = WaypointSerialiser(many=True, required=False)
     landing_gates = WaypointSerialiser(required=False, help_text="Optional landing gate", many=True)
     takeoff_gates = WaypointSerialiser(required=False, help_text="Optional takeoff gate", many=True)
     prohibited_set = ProhibitedSerialiser(many=True, required=False)
@@ -357,6 +358,7 @@ class RouteSerialiser(serializers.ModelSerializer):
             "rounded_corners",
             "corridor_width",
             "waypoints",
+            "standalone_waypoints",
             "takeoff_gates",
             "landing_gates",
             "corridor_polygon",
@@ -406,8 +408,14 @@ class RouteSerialiser(serializers.ModelSerializer):
         waypoints = []
         for waypoint_data in validated_data.pop("waypoints"):
             waypoints.append(self._create_waypoint(waypoint_data))
+        
+        standalone_waypoints = []
+        for waypoint_data in validated_data.pop("standalone_waypoints", []):
+            standalone_waypoints.append(self._create_waypoint(waypoint_data))
+
         route = Route.objects.create(
             waypoints=waypoints,
+            standalone_waypoints=standalone_waypoints,
             landing_gates=[self._create_waypoint(data) for data in validated_data.pop("landing_gates")],
             takeoff_gates=[self._create_waypoint(data) for data in validated_data.pop("takeoff_gates")],
             **validated_data,
@@ -419,6 +427,12 @@ class RouteSerialiser(serializers.ModelSerializer):
         for waypoint_data in validated_data.pop("waypoints"):
             waypoints.append(self._create_waypoint(waypoint_data))
         instance.waypoints = waypoints
+
+        standalone_waypoints = []
+        for waypoint_data in validated_data.pop("standalone_waypoints", []):
+            standalone_waypoints.append(self._create_waypoint(waypoint_data))
+        instance.standalone_waypoints = standalone_waypoints
+
         instance.landing_gates = [self._create_waypoint(data) for data in validated_data.pop("landing_gates")]
         instance.takeoff_gates = [self._create_waypoint(data) for data in validated_data.pop("takeoff_gates")]
         return instance

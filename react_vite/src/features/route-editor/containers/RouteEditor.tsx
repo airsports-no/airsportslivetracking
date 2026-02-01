@@ -15,6 +15,7 @@ import {
 } from '../../../utils/geoUtils';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { Map } from 'leaflet';
+import L from 'leaflet';
 
 
 /**
@@ -45,7 +46,12 @@ export default function RouteEditor() {
   
 
   const modeRef = useRef(mode);
+  const mapRef = useRef<Map | null>(null);
   const [mapInstance, setMapInstance] = useState<Map | null>(null);
+  const handleMapRef = useCallback((map: Map | null) => {
+    mapRef.current = map;
+    setMapInstance(map);
+  }, []);
   const [pendingBounds, setPendingBounds] = useState<L.LatLngBoundsExpression | null>(null);
 
   useEffect(() => {
@@ -605,6 +611,27 @@ export default function RouteEditor() {
   }, [routePoints]);
 
 
+  const handleFit = useCallback(() => {
+    if (!mapInstance) return;
+    const all: LatLng[] = [
+      ...routePoints,
+      ...standalonePoints,
+      ...observationMarkers,
+      ...gates.flatMap(g => [g.p1, g.p2]),
+      ...polygons.flatMap(p => p.points)
+    ];
+    if (all.length === 0) return;
+
+    const lats = all.map(p => p.lat);
+    const lngs = all.map(p => p.lng);
+    const bounds = L.latLngBounds(
+      [Math.min(...lats), Math.min(...lngs)],
+      [Math.max(...lats), Math.max(...lngs)]
+    );
+    mapInstance.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+  }, [mapInstance, routePoints, standalonePoints, observationMarkers, gates, polygons]);
+
+
   // --- SAVE ---
   const handleSave = async () => {
     if (!routeName || !routeName.trim()) {
@@ -860,7 +887,7 @@ export default function RouteEditor() {
 
         {/* MAP CONTAINER */}
         <MapCanvas 
-          ref={mapRef}
+          ref={handleMapRef}
           routePoints={routePoints}
           standalonePoints={standalonePoints}
           gates={gates}

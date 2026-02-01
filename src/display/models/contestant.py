@@ -666,12 +666,22 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 )
         crossing_times = {}
         leg_speeds = self.declared_configuration.get("leg_speeds", {})
+        
+        # Handle pilot declaration sequence (CIMA 2.A3)
+        route = self.navigation_task.route
+        declaration_order = self.declared_configuration.get("waypoint_order", [])
+        waypoint_sequence = None
+        if declaration_order:
+            all_available = {wp.name: wp for wp in list(route.waypoints) + list(route.standalone_waypoints)}
+            waypoint_sequence = [all_available[name] for name in declaration_order if name in all_available]
+
         relative_crossing_times = calculate_and_get_relative_gate_times(
-            self.navigation_task.route,
+            route,
             self.air_speed,
             self.wind_speed,
             self.wind_direction,
             leg_speeds=leg_speeds,
+            waypoint_sequence=waypoint_sequence
         )
         leg_times = Contestant._convert_to_individual_leg_times(relative_crossing_times)
         for gate_name, leg_time in leg_times:

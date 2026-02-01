@@ -20,6 +20,7 @@ class Route(models.Model):
     rounded_corners = models.BooleanField(default=False, blank=True)
     corridor_width = models.FloatField(default=0.5, blank=True)
     waypoints = MyPickledObjectField(default=list)
+    standalone_waypoints = MyPickledObjectField(default=list)
     takeoff_gates = MyPickledObjectField(default=list, null=False)
     landing_gates = MyPickledObjectField(default=list, null=False)
     # List of dictionary objects representing the corridor polygon with the keys lat and lng
@@ -32,6 +33,7 @@ class Route(models.Model):
             rounded_corners=self.rounded_corners,
             corridor_width=self.corridor_width,
             waypoints=self.waypoints,
+            standalone_waypoints=self.standalone_waypoints,
             takeoff_gates=self.takeoff_gates,
             landing_gates=self.landing_gates,
             corridor_polygon=self.corridor_polygon,
@@ -141,11 +143,11 @@ class Route(models.Model):
                 raise ValidationError(f"Gate polygon '{gate_polygon.name}' is not matched by any turning point names.")
 
     def get_free_points(self) -> list[Waypoint]:
-        return [wp for wp in self.waypoints if getattr(wp, "is_free_point", False)]
+        return [wp for wp in self.standalone_waypoints if getattr(wp, "is_free_point", False)]
     
     def get_circle_configuration(self) -> dict | None:
-        center = next((wp for wp in self.waypoints if getattr(wp, "is_circle_center", False)), None)
-        entry = next((wp for wp in self.waypoints if getattr(wp, "is_circle_entry", False)), None)
+        center = next((wp for wp in self.standalone_waypoints if getattr(wp, "is_circle_center", False)), None)
+        entry = next((wp for wp in self.standalone_waypoints if getattr(wp, "is_circle_entry", False)), None)
         if center:
             return {"center": center, "entry": entry}
         return None
