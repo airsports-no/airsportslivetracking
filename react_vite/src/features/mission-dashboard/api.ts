@@ -58,6 +58,8 @@ export interface ContestFilters {
     pks?: number[];
     startTimeGte?: string;
     finishTimeLte?: string;
+    startTimeLte?: string;
+    finishTimeGte?: string;
     isEditor?: boolean;
     excludeTasks?: boolean;
     excludeTeams?: boolean;
@@ -79,6 +81,12 @@ const _fetchContestsPage = async (cursor?: string | null, filters?: ContestFilte
     }
     if (filters?.finishTimeLte) {
         url.searchParams.set('finish_time__lte', filters.finishTimeLte);
+    }
+    if (filters?.startTimeLte) {
+        url.searchParams.set('start_time__lte', filters.startTimeLte);
+    }
+    if (filters?.finishTimeGte) {
+        url.searchParams.set('finish_time__gte', filters.finishTimeGte);
     }
     if (filters?.isEditor !== undefined) {
         url.searchParams.set('is_editor', filters.isEditor.toString());
@@ -107,7 +115,7 @@ const _fetchContestsPage = async (cursor?: string | null, filters?: ContestFilte
 export type OnContestPageFetched = (contests: Contest[], nextCursor: string | null) => void;
 
 export const fetchContests = async (filters?: ContestFilters, onPageFetched?: OnContestPageFetched): Promise<Contest[]> => {
-    const hasFilters = filters && (filters.pks?.length || filters.startTimeGte || filters.finishTimeLte || filters.isEditor !== undefined);
+    const hasFilters = filters && (filters.pks?.length || filters.startTimeGte || filters.startTimeLte || filters.finishTimeGte || filters.finishTimeLte || filters.isEditor !== undefined);
 
     if (!hasFilters && cachedContests) {
         return Promise.resolve(cachedContests);

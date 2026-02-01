@@ -167,7 +167,7 @@ const MissionDashboard = () => {
                 
                 // Fetch public contests (Globally cached)
                 fetchPromises.push(fetchContestsFromStore({ 
-                    startTimeGte: oneYearAgo.toISOString().split('T')[0], 
+                    finishTimeGte: oneYearAgo.toISOString().split('T')[0], 
                     excludeTasks: true, 
                     excludeTeams: true,
                     publicOnly: true 
@@ -176,7 +176,7 @@ const MissionDashboard = () => {
                 // Fetch shared/private contests if authenticated (User specific cache)
                 if (document.configuration.isAuthenticated) {
                     fetchPromises.push(fetchContestsFromStore({ 
-                        startTimeGte: oneYearAgo.toISOString().split('T')[0], 
+                        finishTimeGte: oneYearAgo.toISOString().split('T')[0], 
                         excludeTasks: true, 
                         excludeTeams: true,
                         sharedOnly: true 
@@ -220,9 +220,9 @@ const MissionDashboard = () => {
 
             if (initialFetchPerformed) {
                 const oneYearAgo = new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
-                fetchContestsFromStore({ startTimeGte: oneYearAgo.toISOString().split('T')[0], publicOnly: true }).catch(console.error);
+                fetchContestsFromStore({ finishTimeGte: oneYearAgo.toISOString().split('T')[0], publicOnly: true }).catch(console.error);
                 if (document.configuration.isAuthenticated) {
-                    fetchContestsFromStore({ startTimeGte: oneYearAgo.toISOString().split('T')[0], sharedOnly: true }).catch(console.error);
+                    fetchContestsFromStore({ finishTimeGte: oneYearAgo.toISOString().split('T')[0], sharedOnly: true }).catch(console.error);
                 }
             }
         };
@@ -242,8 +242,8 @@ const MissionDashboard = () => {
             setLoadingMore(true);
             try {
                 await fetchContestsFromStore({
-                    startTimeGte: newStartDate.toISOString().split('T')[0],
-                    finishTimeLte: oldestContestDate.toISOString().split('T')[0]
+                    finishTimeGte: newStartDate.toISOString().split('T')[0],
+                    startTimeLte: oldestContestDate.toISOString().split('T')[0]
                 });
                 setOldestContestDate(newStartDate);
             } catch (err) {
@@ -314,8 +314,9 @@ const MissionDashboard = () => {
                 const nameMatch = nameFilter === '' || contest.name.toLowerCase().includes(nameFilter.toLowerCase());
                 const countryMatch = selectedCountries.length === 0 || (contest.country && selectedCountries.includes(contest.country));
 
-                const contestDate = new Date(contest.start_time).getTime();
-                const dateMatch = !dateRange || (contestDate >= dateRange[0] && contestDate <= dateRange[1]);
+                const contestStartDate = new Date(contest.start_time).getTime();
+                const contestEndDate = new Date(contest.finish_time).getTime();
+                const dateMatch = !dateRange || (contestEndDate >= dateRange[0] && contestStartDate <= dateRange[1]);
                 
                 // Determine if contest has any navigation tasks open for scheduling
                 const hasOpenTasks = contest.navigationtask_set?.some((task: NavigationTask) => 
