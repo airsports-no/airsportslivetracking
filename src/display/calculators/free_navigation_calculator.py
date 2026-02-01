@@ -25,6 +25,15 @@ class FreeNavigationCalculator:
         self.visited_names = set()
         self.expected_order = self.contestant.declared_configuration.get("waypoint_order", [])
         self.next_expected_index = 0
+        
+        # CIMA 2.A3: Identify Middle Point for timing constraint
+        self.mp_waypoint = next((wp for wp in self.contestant.navigation_task.route.waypoints if wp.type == 'mp'), None)
+        self.mp_index_in_order = -1
+        if self.mp_waypoint and self.expected_order:
+            try:
+                self.mp_index_in_order = self.expected_order.index(self.mp_waypoint.name)
+            except ValueError:
+                self.mp_index_in_order = -1
 
     def process_position(self, position: ContestantReceivedPosition, track: list[ContestantReceivedPosition]) -> Optional[UpdateScoreMessage]:
         
@@ -50,7 +59,15 @@ class FreeNavigationCalculator:
                 if self.expected_order:
                     if self.next_expected_index < len(self.expected_order):
                         expected_name = self.expected_order[self.next_expected_index]
+                        
                         if wp.name == expected_name:
+                            # CIMA 2.A3 Constraint: Waypoints after MP cannot be crossed before MP time
+                            if self.mp_index_in_order != -1 and self.next_expected_index > self.mp_index_in_order:
+                                actual_mp = self.contestant.actualgatetime_set.filter(gate=self.mp_waypoint.name).first()
+                                if not actual_mp:
+                                    logger.info(f"{self.contestant}: Ignoring {wp.name} as MP has not been passed yet.")
+                                    return None
+
                             self.visited_names.add(wp.name)
                             self.next_expected_index += 1
                             logger.info(f"{self.contestant}: Visited ordered waypoint {wp.name}")

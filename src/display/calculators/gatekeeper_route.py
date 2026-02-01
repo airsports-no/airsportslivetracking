@@ -10,6 +10,8 @@ from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.calculators.circle_calculator import CircleCalculator
 from display.calculators.free_navigation_calculator import FreeNavigationCalculator
+from display.calculators.speed_section_calculator import SpeedSectionCalculator
+from display.calculators.duration_calculator import DurationCalculator
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.route_building_utilities import calculate_extended_gate
 from display.utilities.coordinate_utilities import (
@@ -82,6 +84,19 @@ class GatekeeperRoute(Gatekeeper):
                     self.contestant
                 )
             )
+
+        # Check for Speed Sections
+        speed_starts = [wp for wp in self.contestant.navigation_task.route.waypoints if getattr(wp, 'is_speed_section_start', False)]
+        speed_ends = [wp for wp in self.contestant.navigation_task.route.waypoints if getattr(wp, 'is_speed_section_end', False)]
+        if speed_starts and speed_ends:
+            self.sub_calculators.append(
+                SpeedSectionCalculator(speed_starts, speed_ends, self.scorecard, self.contestant)
+            )
+
+        # Check for Duration Task (if no waypoints but TO/LDG, or explicitly requested)
+        # For now, always add it if it's a CIMA task or simple duration task
+        # We can check task type if needed.
+        self.sub_calculators.append(DurationCalculator(self.scorecard, self.contestant))
 
     def recalculate_gates_times_from_start_time(self, start_time: datetime.datetime):
         """

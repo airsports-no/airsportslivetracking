@@ -32,8 +32,9 @@ class CircleCalculator:
         self.state = self.STATE_WAITING
         self.min_dist = float('inf')
         self.max_dist = 0.0
+        self.min_alt = float('inf')
+        self.max_alt = float('-inf')
         self.entry_time: Optional[datetime] = None
-        self.start_altitude: Optional[float] = None
         self.altitude_valid = True
         
         # Projector for entry line intersection checks
@@ -75,19 +76,12 @@ class CircleCalculator:
             self.min_dist = min(self.min_dist, dist)
             self.max_dist = max(self.max_dist, dist)
 
-            # 2. Check Altitude
-            # CIMA 2.A7: "without exceeding 200ft (61m) between lowest and highest height."
-            # The rule says "range of 200ft", implying max_alt - min_alt <= 200ft.
-            # My design doc simplified it to abs(current - start). 
-            # Let's stick to simple "range from start" for now or track min/max alt.
-            # Let's track min/max altitude if we want strict adherence, but for now let's compare to start.
-            if abs(position.altitude - self.start_altitude) > (self.scorecard.circle_altitude_tolerance / 0.3048): # convert meters to feet if tolerance is in feet? 
-                # Wait, scorecard field help says "meters". 
-                # Let's assume input altitude is meters (Traccar/Flymaster usually meters).
-                # Actually ContestantReceivedPosition altitude is usually meters.
-                # Scorecard tolerance is meters.
-                if abs(position.altitude - self.start_altitude) > self.scorecard.circle_altitude_tolerance:
-                    self.altitude_valid = False
+            # 2. Check Altitude (CIMA 2.A7: range < 61m)
+            self.min_alt = min(self.min_alt, position.altitude)
+            self.max_alt = max(self.max_alt, position.altitude)
+            
+            if (self.max_alt - self.min_alt) > self.scorecard.circle_altitude_tolerance:
+                self.altitude_valid = False
 
             # 3. Check Exit
             # CIMA 2.A7: "Scoring ends by crossing the entry line (X)." 

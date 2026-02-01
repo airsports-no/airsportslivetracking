@@ -1112,6 +1112,55 @@ def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
     return figdata
 
 
+def plot_cima_features(route: Route, ax):
+    """
+    Plots CIMA specific features like Circles and Free Points on the static map.
+    """
+    for wp in route.waypoints:
+        # 1. Circle Task
+        if getattr(wp, "is_circle_center", False) and getattr(wp, "radius", 0) > 0:
+            # Accurate circle in meters using tissot
+            ax.tissot(
+                rad_km=wp.radius / 1000.0,
+                lons=wp.longitude,
+                lats=wp.latitude,
+                n_samples=64,
+                facecolor="purple",
+                alpha=0.1,
+                edgecolor="purple",
+                linestyle="--",
+            )
+            plt.plot(wp.longitude, wp.latitude, "mo", transform=ccrs.PlateCarree(), markersize=4)
+
+        # 2. Free Waypoints
+        if getattr(wp, "is_free_point", False):
+            plt.plot(
+                wp.longitude,
+                wp.latitude,
+                "bs",
+                transform=ccrs.PlateCarree(),
+                markersize=6,
+                fillstyle="none",
+                markeredgewidth=1.5,
+            )
+            plt.text(
+                wp.longitude,
+                wp.latitude,
+                f"  {wp.name}",
+                transform=ccrs.PlateCarree(),
+                fontsize=8,
+                color="blue",
+                weight="bold",
+                va="center",
+            )
+
+        # 3. Speed Sections
+        if getattr(wp, "is_speed_section_start", False):
+            plt.plot(wp.longitude, wp.latitude, "y^", transform=ccrs.PlateCarree(), markersize=8, label="Speed Start")
+        if getattr(wp, "is_speed_section_end", False):
+            plt.plot(wp.longitude, wp.latitude, "yv", transform=ccrs.PlateCarree(), markersize=8, label="Speed End")
+
+
 def plot_route(
     task: NavigationTask,
     map_size: str,
@@ -1215,6 +1264,7 @@ def plot_route(
         )
     else:
         paths = []
+    plot_cima_features(route, ax)
     plot_prohibited_zones(route, imagery.crs, ax)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:
