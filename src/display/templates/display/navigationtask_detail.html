@@ -218,6 +218,11 @@
                                         </div>
 
                                         <span class="badge badge-outline badge-sm">{{ contestant.contestanttrack.current_state }}</span>
+                                        {% if contestant.declared_configuration %}
+                                            <span class="badge badge-info badge-sm" title="Flight plan declared">
+                                                {% lucide "clipboard-check" size=12 class="mr-1" %} Declared
+                                            </span>
+                                        {% endif %}
                                     </div>
                                 </div>
 
@@ -416,7 +421,13 @@
                                 <td class="text-center">
                                     <a href="{% url 'contestant_gate_times' contestant.pk %}" class="btn btn-ghost btn-xs text-primary px-1">View</a>
                                 </td>
-                                <td><span class="badge badge-outline badge-xs whitespace-nowrap">{{ contestant.contestanttrack.current_state }}</span></td>
+                                <td><span class="badge badge-outline badge-xs whitespace-nowrap">{{ contestant.contestanttrack.current_state }}</span>
+                                    {% if contestant.declared_configuration %}
+                                        <div class="mt-1">
+                                            <span class="badge badge-info badge-xs" title="Flight plan declared">Declared</span>
+                                        </div>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <div class="dropdown dropdown-end dropdown-left">
                                         <label tabindex="0" class="btn btn-ghost btn-xs px-1">Actions</label>

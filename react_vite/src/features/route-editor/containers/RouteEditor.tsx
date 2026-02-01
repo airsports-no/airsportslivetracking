@@ -565,6 +565,20 @@ export default function RouteEditor() {
       }
     });
 
+    // CIMA Structural Integrity Checks
+    const circleCenters = routePoints.filter(p => p.type === 'circle_center');
+    const circleEntries = routePoints.filter(p => p.type === 'circle_entry');
+    if (circleCenters.length > 0 && circleEntries.length === 0) {
+      errors.push("Route contains a Circle Center but no Circle Entry point.");
+    }
+
+    const speedStarts = routePoints.filter(p => p.type === 'speed_start');
+    const speedEnds = routePoints.filter(p => p.type === 'speed_end');
+    speedStarts.forEach(s => {
+      const match = speedEnds.find(e => e.groupId === s.groupId);
+      if (!match) errors.push(`Speed Start "${s.name}" (Group ${s.groupId}) has no matching Speed End.`);
+    });
+
     return errors;
   }, [routePoints]);
 
