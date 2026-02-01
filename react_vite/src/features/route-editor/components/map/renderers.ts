@@ -20,16 +20,15 @@ export const clearLayers = (markersRef: React.MutableRefObject<{ [key: string]: 
 };
 
 export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRef: React.MutableRefObject<L.Polyline | null>, polylinesRef: React.MutableRefObject<L.Layer[]>, mode: Mode, setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>, setSelectedId: (id: string | null) => void, setSelectionType: (type: SelectionType | null) => void, hideLabels: boolean) => {
-  const sequentialPoints = routePoints.filter(p => p.type !== 'free_point' && p.type !== 'circle_center');
-  if (sequentialPoints.length <= 1) return;
+  if (routePoints.length <= 1) return;
 
   const latlngs: L.LatLng[] = [];
-  sequentialPoints.forEach((p, i) => {
+  routePoints.forEach((p, i) => {
     if (i === 0) {
       latlngs.push(L.latLng(p.lat, p.lng));
     } else {
       if (p.segmentType === 'curved' && p.controlLat && p.controlLng) {
-        const prev = sequentialPoints[i - 1];
+        const prev = routePoints[i - 1];
         const curvePoints = getQuadraticBezierPoints(prev, p, { lat: p.controlLat, lng: p.controlLng });
         latlngs.push(...curvePoints);
       } else {
@@ -50,9 +49,9 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
     let minDistance = Infinity;
 
     // Find closest segment
-    for (let i = 0; i < sequentialPoints.length - 1; i++) {
-      const p1 = sequentialPoints[i];
-      const p2 = sequentialPoints[i + 1];
+    for (let i = 0; i < routePoints.length - 1; i++) {
+      const p1 = routePoints[i];
+      const p2 = routePoints[i + 1];
       let dist = Infinity;
 
       if (p2.segmentType === 'curved' && p2.controlLat && p2.controlLng) {
@@ -72,8 +71,8 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
     }
 
     if (bestIndex !== -1) {
-      const p1 = sequentialPoints[bestIndex];
-      const p2 = sequentialPoints[bestIndex + 1];
+      const p1 = routePoints[bestIndex];
+      const p2 = routePoints[bestIndex + 1];
 
       if (p2.segmentType === 'curved') {
         setSelectedId(p2.id);
@@ -99,10 +98,8 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
       };
 
       setRoutePoints(prev => {
-        // We need the index in the ORIGINAL array
-        const originalIndex = prev.findIndex(p => p.id === sequentialPoints[bestIndex].id);
         const next = [...prev];
-        next.splice(originalIndex + 1, 0, newPoint);
+        next.splice(bestIndex + 1, 0, newPoint);
         return next;
       });
     }
@@ -113,9 +110,9 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
 
   // Draw Segment Lengths
   if (!hideLabels) {
-    for (let i = 0; i < sequentialPoints.length - 1; i++) {
-      const p1 = sequentialPoints[i];
-      const p2 = sequentialPoints[i + 1];
+    for (let i = 0; i < routePoints.length - 1; i++) {
+      const p1 = routePoints[i];
+      const p2 = routePoints[i + 1];
       let dist = 0;
       let mid: L.LatLng | null = null;
 
@@ -143,8 +140,13 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
   }
 };
 
-export const drawPoints = (map: L.Map, routePoints: RoutePoint[], mode: Mode, selectedId: string | null, markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, dragRef: React.MutableRefObject<any>, handleDragMove: (e: L.LeafletMouseEvent) => void, handleDragEnd: (e: L.LeafletMouseEvent) => void, hideLabels: boolean) => {
-  routePoints.forEach((p, index) => {
+export const drawPoints = (map: L.Map, routePoints: RoutePoint[], standalonePoints: RoutePoint[], mode: Mode, selectedId: string | null, markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, dragRef: React.MutableRefObject<any>, handleDragMove: (e: L.LeafletMouseEvent) => void, handleDragEnd: (e: L.LeafletMouseEvent) => void, hideLabels: boolean) => {
+  const allPoints = [
+    ...routePoints.map((p, i) => ({ ...p, isStandalone: false, sequence: i + 1 })),
+    ...standalonePoints.map(p => ({ ...p, isStandalone: true, sequence: null }))
+  ];
+
+  allPoints.forEach((p) => {
     let color = '#3b82f6'; // Default Blue
     let radius = 6;
 
@@ -191,10 +193,15 @@ export const drawPoints = (map: L.Map, routePoints: RoutePoint[], mode: Mode, se
       weight: 2,
       opacity: 1,
       fillOpacity: 0.8,
-      className: p.type === 'secret' ? '' : 'cursor-grab'
+      className: p.type === 'secret' ? '' : 'cursor-grab border-2'
     }).addTo(pointGroup);
 
-    marker.bindTooltip(`${index + 1}. ${p.name}`, { permanent: !hideLabels, direction: 'right', offset: [10, 0] });
+    if (selectedId === p.id) {
+        marker.setStyle({ weight: 4, color: '#000' });
+    }
+
+    const label = p.sequence ? `${p.sequence}. ${p.name}` : p.name;
+    marker.bindTooltip(label, { permanent: !hideLabels, direction: 'right', offset: [10, 0] });
 
     marker.on('click', (e: L.LeafletMouseEvent) => L.DomEvent.stopPropagation(e.originalEvent || e));
     marker.on('mouseover', () => { if (mode === 'view') map.dragging.disable(); });
@@ -206,45 +213,54 @@ export const drawPoints = (map: L.Map, routePoints: RoutePoint[], mode: Mode, se
 
       L.DomEvent.stopPropagation(e.originalEvent);
       map.dragging.disable();
-      dragRef.current = { type: 'point', id: p.id, index, startLatLng: e.latlng, initialPoints: routePoints, hasMoved: false };
+      dragRef.current = { 
+        type: p.isStandalone ? 'standalone_point' : 'point', 
+        id: p.id, 
+        startLatLng: e.latlng, 
+        initialPoints: p.isStandalone ? standalonePoints : routePoints, 
+        hasMoved: false 
+      };
       map.on('mousemove', handleDragMove);
       map.on('mouseup', handleDragEnd);
     });
 
     markersRef.current[`point-${p.id}`] = pointGroup;
 
-    // Curve Controls
-    if (selectedId === p.id && p.segmentType === 'curved' && index > 0 && p.controlLat && p.controlLng) {
-      const prev = routePoints[index - 1];
-      const controlLatLng: L.LatLngTuple = [p.controlLat, p.controlLng];
+    // Curve Controls (Only for spine points)
+    if (!p.isStandalone && selectedId === p.id && p.segmentType === 'curved') {
+      const idx = routePoints.findIndex(rp => rp.id === p.id);
+      if (idx > 0) {
+        const prev = routePoints[idx - 1];
+        const controlLatLng: L.LatLngTuple = [p.controlLat!, p.controlLng!];
 
-      const dashLine = L.polyline([[prev.lat, prev.lng], controlLatLng, [p.lat, p.lng]], {
-        color: '#64748b', weight: 1, dashArray: '4, 4'
-      }).addTo(map);
-      markersRef.current[`curve-dash-${p.id}`] = dashLine;
+        const dashLine = L.polyline([[prev.lat, prev.lng], controlLatLng, [p.lat, p.lng]], {
+            color: '#64748b', weight: 1, dashArray: '4, 4'
+        }).addTo(map);
+        markersRef.current[`curve-dash-${p.id}`] = dashLine;
 
-      const controlHandle = L.circleMarker(controlLatLng, {
-        radius: 5, color: '#64748b', fillColor: '#fff', fillOpacity: 1, className: 'cursor-move'
-      }).addTo(map);
+        const controlHandle = L.circleMarker(controlLatLng, {
+            radius: 5, color: '#64748b', fillColor: '#fff', fillOpacity: 1, className: 'cursor-move'
+        }).addTo(map);
 
-      controlHandle.on('click', (e: L.LeafletMouseEvent) => L.DomEvent.stopPropagation(e.originalEvent || e));
-      controlHandle.on('mousedown', (e: L.LeafletMouseEvent) => {
-        if (mode !== 'view') return;
-        L.DomEvent.stopPropagation(e.originalEvent);
-        map.dragging.disable();
-        dragRef.current = {
-          type: 'curve_control',
-          id: p.id,
-          index,
-          startLatLng: e.latlng,
-          initialPoints: routePoints,
-          hasMoved: false
-        };
-        map.on('mousemove', handleDragMove);
-        map.on('mouseup', handleDragEnd);
-      });
+        controlHandle.on('click', (e: L.LeafletMouseEvent) => L.DomEvent.stopPropagation(e.originalEvent || e));
+        controlHandle.on('mousedown', (e: L.LeafletMouseEvent) => {
+            if (mode !== 'view') return;
+            L.DomEvent.stopPropagation(e.originalEvent);
+            map.dragging.disable();
+            dragRef.current = {
+            type: 'curve_control',
+            id: p.id,
+            index: idx,
+            startLatLng: e.latlng,
+            initialPoints: routePoints,
+            hasMoved: false
+            };
+            map.on('mousemove', handleDragMove);
+            map.on('mouseup', handleDragEnd);
+        });
 
-      markersRef.current[`curve-handle-${p.id}`] = controlHandle;
+        markersRef.current[`curve-handle-${p.id}`] = controlHandle;
+      }
     }
   });
 };

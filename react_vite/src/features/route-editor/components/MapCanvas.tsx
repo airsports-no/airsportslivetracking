@@ -21,6 +21,7 @@ const getAngleDiff = (a: number, b: number) => {
 
 interface MapCanvasProps {
     routePoints: RoutePoint[];
+    standalonePoints: RoutePoint[];
     gates: Gate[];
     observationMarkers: ObservationMarker[];
     polygons: Polygon[];
@@ -33,6 +34,7 @@ interface MapCanvasProps {
     maxObsDist: number;
     hideLabels: boolean;
     setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
+    setStandalonePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
     setGates: React.Dispatch<React.SetStateAction<Gate[]>>;
     setObservationMarkers: React.Dispatch<React.SetStateAction<ObservationMarker[]>>;
     setPolygons: React.Dispatch<React.SetStateAction<Polygon[]>>;
@@ -46,6 +48,7 @@ interface MapCanvasProps {
 const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   // --- Data Props ---
   routePoints,
+  standalonePoints,
   gates,
   observationMarkers,
   polygons,
@@ -60,6 +63,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
 
   // --- Actions / Setters ---
   setRoutePoints,
+  setStandalonePoints,
   setGates,
   setObservationMarkers,
   setPolygons,
@@ -78,6 +82,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   const { handleDragMove, handleDragEnd, dragRef } = useDragHandlers({
     mapRef,
     setRoutePoints,
+    setStandalonePoints,
     setPolygons,
     observationMarkers,
     markersRef,
@@ -317,7 +322,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     Renderers.drawRouteLine(map, routePoints, routeLineRef, polylinesRef, mode, setRoutePoints, setSelectedId, setSelectionType, hideLabels);
 
     // --- RENDERER: DRAW POINTS ---
-    Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels);
+    Renderers.drawPoints(map, routePoints, standalonePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels);
 
     // --- RENDERER: DRAW GATES ---
     Renderers.drawGates(map, gates, polylinesRef, setSelectedId, setSelectionType, setMode, hideLabels);
@@ -402,9 +407,9 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     }
 
   }, [
-    routePoints, gates, tempGatePoint, showCorridor, observationMarkers, 
+    routePoints, standalonePoints, gates, tempGatePoint, showCorridor, observationMarkers, 
     polygons, tempPolygonPoints, selectedId, selectionType, mode,
-    setRoutePoints, setGates, setObservationMarkers, setPolygons, 
+    setRoutePoints, setStandalonePoints, setGates, setObservationMarkers, setPolygons, 
     setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels
   ]);
 

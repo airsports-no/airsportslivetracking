@@ -4,6 +4,7 @@ import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../
 
 interface RouteListViewProps {
     routePoints: RoutePoint[];
+    standalonePoints: RoutePoint[];
     gates: Gate[];
     observationMarkers: ObservationMarker[];
     polygons: Polygon[];
@@ -13,6 +14,7 @@ interface RouteListViewProps {
 
 const RouteListView: React.FC<RouteListViewProps> = ({ 
   routePoints, 
+  standalonePoints,
   gates, 
   observationMarkers, 
   polygons,
@@ -65,6 +67,31 @@ const RouteListView: React.FC<RouteListViewProps> = ({
                   p.type === 'secret' ? 'badge-ghost' : 'badge-info'
                 }`}>
                   {p.type}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Standalone CIMA Waypoints */}
+      <div>
+        <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Standalone CIMA Waypoints</h3>
+        {standalonePoints.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">No free points or circles.</p>
+        ) : (
+          <ul className="space-y-1">
+            {standalonePoints.map((p) => (
+              <li 
+                key={p.id} 
+                className="flex items-center justify-between p-2 bg-base-100 border rounded hover:bg-base-200 cursor-pointer text-sm"
+                onClick={() => onSelect(p.id, 'point')}
+              >
+                <span className="font-medium">{p.name}</span>
+                <span className={`badge badge-sm ${
+                  p.type === 'free_point' ? 'badge-info' : 'badge-secondary'
+                }`}>
+                  {p.type === 'free_point' ? 'Free Point' : 'Circle'}
                 </span>
               </li>
             ))}

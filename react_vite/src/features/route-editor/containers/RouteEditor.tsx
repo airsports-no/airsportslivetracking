@@ -23,6 +23,7 @@ import { Map } from 'leaflet';
 export default function RouteEditor() {
   // --- STATE ---
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([]);
+  const [standalonePoints, setStandalonePoints] = useState<RoutePoint[]>([]);
   const [gates, setGates] = useState<Gate[]>([]);
   const [observationMarkers, setObservationMarkers] = useState<ObservationMarker[]>([]);
   const [polygons, setPolygons] = useState<Polygon[]>([]);
@@ -67,6 +68,7 @@ export default function RouteEditor() {
   const loadRouteData = useCallback((json: any) => {
     try {
       const newPoints: RoutePoint[] = [];
+      const newStandalone: RoutePoint[] = [];
       const newGates: Gate[] = [];
       const newObs: ObservationMarker[] = [];
       const newPolys: Polygon[] = [];
@@ -79,7 +81,7 @@ export default function RouteEditor() {
         const pointFeatures = features.filter((f: any) => f.geometry.type === 'Point' && f.properties.featureType !== 'observation_photo').sort((a: any, b: any) => a.properties.sequence - b.properties.sequence);
 
         pointFeatures.forEach((f: any) => {
-          newPoints.push({
+          const pt: RoutePoint = {
             id: f.properties.id || crypto.randomUUID(),
             lat: f.geometry.coordinates[1],
             lng: f.geometry.coordinates[0],
@@ -93,7 +95,12 @@ export default function RouteEditor() {
             isPassing: f.properties.isPassing || true,
             radius: f.properties.radius,
             groupId: f.properties.groupId
-          });
+          };
+          if (pt.type === 'free_point' || pt.type === 'circle_center' || pt.type === 'circle_entry') {
+            newStandalone.push(pt);
+          } else {
+            newPoints.push(pt);
+          }
         });
 
         // Filter Gates
@@ -137,6 +144,7 @@ export default function RouteEditor() {
         });
 
         setRoutePoints(newPoints);
+        setStandalonePoints(newStandalone);
         setGates(newGates);
         setObservationMarkers(newObs);
         setPolygons(newPolys);
@@ -351,7 +359,7 @@ export default function RouteEditor() {
         id: crypto.randomUUID(),
         lat: latlng.lat,
         lng: latlng.lng,
-        name: `Circle ${routePoints.length + 1}`,
+        name: `Circle ${standalonePoints.length + 1}`,
         type: 'circle_center',
         width: 0,
         isTiming: false,
@@ -360,7 +368,7 @@ export default function RouteEditor() {
         radius: 500, // Default 500m
         groupId: crypto.randomUUID()
       };
-      setRoutePoints(prev => [...prev, newPoint]);
+      setStandalonePoints(prev => [...prev, newPoint]);
       setIsDirty(true);
       setMode('view'); 
     }
@@ -370,14 +378,14 @@ export default function RouteEditor() {
         id: crypto.randomUUID(),
         lat: latlng.lat,
         lng: latlng.lng,
-        name: `FP ${routePoints.length + 1}`,
+        name: `FP ${standalonePoints.length + 1}`,
         type: 'free_point',
         width: 0,
         isTiming: false,
         isPassing: true,
         segmentType: 'straight'
       };
-      setRoutePoints(prev => [...prev, newPoint]);
+      setStandalonePoints(prev => [...prev, newPoint]);
       setIsDirty(true);
     }
 
@@ -425,6 +433,14 @@ export default function RouteEditor() {
 
       return newPoints;
     });
+  };
+
+  const updateSelectedStandalonePoint = (field: keyof RoutePoint, value: any) => {
+    setIsDirty(true);
+    setStandalonePoints(points => points.map(p => {
+      if (p.id !== selectedId) return p;
+      return { ...p, [field]: value };
+    }));
   };
 
   const updateSelectedGate = (field: keyof Gate, value: any) => {
@@ -494,17 +510,20 @@ export default function RouteEditor() {
   const deleteSelected = () => {
     setIsDirty(true);
     if (selectionType === 'point') {
-      const index = routePoints.findIndex(p => p.id === selectedId);
-      const newPoints = routePoints.filter(p => p.id !== selectedId);
-
-      if (newPoints.length > 0) {
-        if (index === 0) {
-          newPoints[0] = { ...newPoints[0], type: 'sp', name: 'Start' };
-        } else if (index === routePoints.length - 1) {
-          newPoints[newPoints.length - 1] = { ...newPoints[newPoints.length - 1], type: 'fp', name: 'Finish' };
+      const idxInRoute = routePoints.findIndex(p => p.id === selectedId);
+      if (idxInRoute !== -1) {
+        const newPoints = routePoints.filter(p => p.id !== selectedId);
+        if (newPoints.length > 0) {
+          if (idxInRoute === 0) {
+            newPoints[0] = { ...newPoints[0], type: 'sp', name: 'Start' };
+          } else if (idxInRoute === routePoints.length - 1) {
+            newPoints[newPoints.length - 1] = { ...newPoints[newPoints.length - 1], type: 'fp', name: 'Finish' };
+          }
         }
+        setRoutePoints(newPoints);
+      } else {
+        setStandalonePoints(prev => prev.filter(p => p.id !== selectedId));
       }
-      setRoutePoints(newPoints);
     } else if (selectionType === 'observation') {
       setObservationMarkers(observationMarkers.filter(m => m.id !== selectedId));
     } else if (selectionType === 'polygon') {
@@ -534,28 +553,31 @@ export default function RouteEditor() {
   // --- VALIDATION LOGIC ---
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
+    
+    // CIMA: Standalone points (free_point, circle_center) are NOT part of the sequential spine.
+    const spine = routePoints.filter(p => p.type !== 'free_point' && p.type !== 'circle_center');
 
-    if (routePoints.length < 2) {
-      errors.push("Route must have at least 2 points.");
+    if (spine.length < 2) {
+      errors.push("Route must have at least 2 sequential points (Start and Finish).");
     } else {
-      if (routePoints[0].type !== 'sp') errors.push("First point must be type 'Start'.");
-      if (routePoints[routePoints.length - 1].type !== 'fp') errors.push("Last point must be type 'Finish'.");
+      if (spine[0].type !== 'sp') errors.push("First sequential point must be type 'Start'.");
+      if (spine[spine.length - 1].type !== 'fp') errors.push("Last sequential point must be type 'Finish'.");
 
       // Check for Start/Finish in middle
-      for (let i = 1; i < routePoints.length - 1; i++) {
-        if (routePoints[i].type === 'sp') errors.push(`Point ${i + 1} cannot be Start (middle of route).`);
-        if (routePoints[i].type === 'fp') errors.push(`Point ${i + 1} cannot be Finish (middle of route).`);
+      for (let i = 1; i < spine.length - 1; i++) {
+        if (spine[i].type === 'sp') errors.push(`Point "${spine[i].name}" cannot be Start (middle of route).`);
+        if (spine[i].type === 'fp') errors.push(`Point "${spine[i].name}" cannot be Finish (middle of route).`);
       }
     }
 
     // Secret Point Linearity Check
-    routePoints.forEach((p, i) => {
+    spine.forEach((p, i) => {
       if (p.type === 'secret') {
-        if (i === 0 || i === routePoints.length - 1) {
+        if (i === 0 || i === spine.length - 1) {
           errors.push(`Secret point "${p.name}" cannot be Start or Finish.`);
         } else {
-          const prev = routePoints[i - 1];
-          const next = routePoints[i + 1];
+          const prev = spine[i - 1];
+          const next = spine[i + 1];
           const isCurved = p.segmentType === 'curved' || next.segmentType === 'curved';
 
           if (!isCurved && !isCollinear(prev, p, next)) {
@@ -603,18 +625,16 @@ export default function RouteEditor() {
           properties: { featureType: "route_path" },
           geometry: {
             type: "LineString",
-            coordinates: routePoints
-              .filter(p => p.type !== 'free_point' && p.type !== 'circle_center')
-              .map(p => [p.lng, p.lat])
+            coordinates: routePoints.map(p => [p.lng, p.lat])
           }
         },
-        // Points
+        // Points (Spine)
         ...routePoints.map((p, i) => ({
           type: "Feature",
           properties: {
             id: p.id,
             name: p.name,
-            pointType: p.type, // Renamed to avoid conflict with GeoJSON type
+            pointType: p.type,
             featureType: "route_waypoint",
             segmentType: p.segmentType || 'straight',
             controlLat: p.controlLat,
@@ -623,6 +643,27 @@ export default function RouteEditor() {
             isTiming: p.isTiming,
             isPassing: p.isPassing,
             sequence: i,
+            radius: p.radius,
+            groupId: p.groupId
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [p.lng, p.lat]
+          }
+        })),
+        // Standalone CIMA Points
+        ...standalonePoints.map((p, i) => ({
+          type: "Feature",
+          properties: {
+            id: p.id,
+            name: p.name,
+            pointType: p.type,
+            featureType: "standalone_waypoint",
+            segmentType: 'straight',
+            width: p.width,
+            isTiming: p.isTiming,
+            isPassing: p.isPassing,
+            sequence: i + routePoints.length, // Keep a sequence for order tracking
             radius: p.radius,
             groupId: p.groupId
           },
@@ -775,46 +816,32 @@ export default function RouteEditor() {
 
       {/* SIDEBAR */}
       <div className="h-full overflow-y-auto shrink-0 max-w-xs">
-        <Sidebar
+        <Sidebar 
           routePoints={routePoints}
+          standalonePoints={standalonePoints}
           gates={gates}
           observationMarkers={observationMarkers}
           polygons={polygons}
           selectedId={selectedId}
           selectionType={selectionType}
-          validationErrors={validationErrors}
-          showCorridor={showCorridor}
-          setShowCorridor={(val) => {
-            setShowCorridor(val);
-            setIsDirty(true);
-          }}
-          hideLabels={hideLabels}
-          setHideLabels={(val) => {
-            setHideLabels(val);
-            setIsDirty(true);
-          }}
-          setSelectedId={setSelectedId}
-          setSelectionType={setSelectionType}
+          onSelect={setSelectedId}
+          onSelectType={setSelectionType}
           updateSelectedPoint={updateSelectedPoint}
+          updateSelectedStandalonePoint={updateSelectedStandalonePoint}
           updateSelectedGate={updateSelectedGate}
-          updateSelectedObservation={updateSelectedObservation}
-          updateSelectedPolygon={updateSelectedPolygon}
-          deleteSelected={deleteSelected}
-          movePointOrder={movePointOrder}
-          handleSave={handleSave}
-          handleReverseRoute={handleReverseRoute}
-          maxObsDist={maxObsDist}
-          setMaxObsDist={(val) => {
-            setMaxObsDist(val);
-            setIsDirty(true);
-          }}
+          onUpdateObs={updateSelectedObservation}
+          onUpdatePoly={updateSelectedPolygon}
+          onDelete={deleteSelected}
+          onMovePoint={movePointOrder}
+          onFit={handleFit}
+          onSave={handleSave}
+          onToggleLabels={() => setHideLabels(!hideLabels)}
+          hideLabels={hideLabels}
           routeName={routeName}
-          setRouteName={(name) => {
-            setRouteName(name);
-            setIsDirty(true);
-          }}
-          isAuthenticated={document.configuration.isAuthenticated}
+          onUpdateRouteName={setRouteName}
+          isSaving={isSaving}
           isDirty={isDirty}
+          validationErrors={validationErrors}
         />
       </div>
 
@@ -832,30 +859,32 @@ export default function RouteEditor() {
 
 
         {/* MAP CONTAINER */}
-            <MapCanvas
-                ref={setMapInstance}
-                routePoints={routePoints}
-                gates={gates}
-                observationMarkers={observationMarkers}
-                polygons={polygons}
-                selectedId={selectedId}
-                selectionType={selectionType}
-                mode={mode}
-                tempGatePoint={tempGatePoint}
-                tempPolygonPoints={tempPolygonPoints}
-                showCorridor={showCorridor}
-                hideLabels={hideLabels}
-                setRoutePoints={setRoutePoints}
-                setGates={setGates}
-                setObservationMarkers={setObservationMarkers}
-                setPolygons={setPolygons}
-                setSelectedId={setSelectedId}
-                setSelectionType={setSelectionType}
-                setMode={setMode}
-                setTempPolygonPoints={setTempPolygonPoints}
-                onMapClick={handleMapClick}
-                maxObsDist={maxObsDist}
-            />
+        <MapCanvas 
+          ref={mapRef}
+          routePoints={routePoints}
+          standalonePoints={standalonePoints}
+          gates={gates}
+          observationMarkers={observationMarkers}
+          polygons={polygons}
+          selectedId={selectedId}
+          selectionType={selectionType}
+          mode={mode}
+          tempGatePoint={tempGatePoint}
+          tempPolygonPoints={tempPolygonPoints}
+          showCorridor={showCorridor}
+          maxObsDist={maxObsDist}
+          hideLabels={hideLabels}
+          setRoutePoints={setRoutePoints}
+          setStandalonePoints={setStandalonePoints}
+          setGates={setGates}
+          setObservationMarkers={setObservationMarkers}
+          setPolygons={setPolygons}
+          setSelectedId={setSelectedId}
+          setSelectionType={setSelectionType}
+          setMode={setMode}
+          setTempPolygonPoints={setTempPolygonPoints}
+          onMapClick={handleMapClick}
+        />
 
             {/* OVERLAY CONTROLS */}
             <div className="absolute bottom-4 left-4 z-[1000] flex flex-col gap-2">

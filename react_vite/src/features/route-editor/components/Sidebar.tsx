@@ -17,6 +17,7 @@ import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../
 
 interface SidebarProps {
   routePoints: RoutePoint[];
+  standalonePoints: RoutePoint[];
   gates: Gate[];
   observationMarkers: ObservationMarker[];
   polygons: Polygon[];
@@ -30,13 +31,14 @@ interface SidebarProps {
   setSelectedId: (id: string | null) => void;
   setSelectionType: (type: SelectionType | null) => void;
   updateSelectedPoint: (field: keyof RoutePoint, value: any) => void;
+  updateSelectedStandalonePoint: (field: keyof RoutePoint, value: any) => void;
   updateSelectedGate: (field: keyof Gate, value: any) => void;
   updateSelectedObservation: (field: keyof ObservationMarker, value: any) => void;
   updateSelectedPolygon: (field: keyof Polygon, value: any) => void;
   deleteSelected: () => void;
   movePointOrder: (direction: "up" | "down") => void;
   handleSave: () => void;
-  handleReverseRoute: () => void; // Added new prop
+  handleReverseRoute: () => void; 
   maxObsDist: number;
   setMaxObsDist: (dist: number) => void;
   routeName: string;
@@ -48,6 +50,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({
   routePoints,
+  standalonePoints,
   gates,
   observationMarkers,
   polygons,
@@ -61,13 +64,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   setSelectedId,
   setSelectionType,
   updateSelectedPoint,
+  updateSelectedStandalonePoint,
   updateSelectedGate,
   updateSelectedObservation,
   updateSelectedPolygon,
   deleteSelected,
   movePointOrder,
   handleSave,
-  handleReverseRoute, // Destructured new prop
+  handleReverseRoute, 
   maxObsDist,
   setMaxObsDist,
   routeName,
@@ -78,16 +82,17 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const renderContent = () => {
     const selectedPoint = routePoints.find(p => p.id === selectedId);
+    const selectedStandalone = standalonePoints.find(p => p.id === selectedId);
     const selectedGate = gates.find(g => g.id === selectedId);
     const selectedObs = observationMarkers.find(m => m.id === selectedId);
     const selectedPolygon = polygons?.find(p => p.id === selectedId);
 
-    if (selectionType === 'point' && selectedPoint) {
+    if (selectionType === 'point' && (selectedPoint || selectedStandalone)) {
       return <EditPointView
-        point={selectedPoint}
-        updatePoint={updateSelectedPoint}
+        point={(selectedPoint || selectedStandalone)!}
+        updatePoint={selectedPoint ? updateSelectedPoint : updateSelectedStandalonePoint}
         deletePoint={deleteSelected}
-        moveOrder={movePointOrder}
+        moveOrder={selectedPoint ? movePointOrder : undefined}
         onClose={() => { setSelectedId(null); setSelectionType(null); }}
       />;
     }
@@ -177,6 +182,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     // Default View (List)
     return <RouteListView
       routePoints={routePoints}
+      standalonePoints={standalonePoints}
       gates={gates}
       observationMarkers={observationMarkers}
       polygons={polygons}

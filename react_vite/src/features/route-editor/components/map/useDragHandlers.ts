@@ -9,6 +9,7 @@ import { RoutePoint, Polygon, ObservationMarker, SelectionType, Mode } from '../
 interface useDragHandlersProps {
     mapRef: React.MutableRefObject<L.Map | null>;
     setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
+    setStandalonePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
     setPolygons: React.Dispatch<React.SetStateAction<Polygon[]>>;
     observationMarkers: ObservationMarker[];
     markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>;
@@ -22,6 +23,7 @@ interface useDragHandlersProps {
 export default function useDragHandlers({
   mapRef,
   setRoutePoints,
+  setStandalonePoints,
   setPolygons,
   observationMarkers,
   markersRef,
@@ -48,7 +50,7 @@ export default function useDragHandlers({
             mapContainer.style.cursor = 'grabbing';
         }
 
-      if (type === 'point') {
+      if (type === 'point' || type === 'standalone_point') {
         // Update Marker Visual
         const group = markersRef.current[`point-${id}`] as L.FeatureGroup;
         if (group) {
@@ -57,8 +59,8 @@ export default function useDragHandlers({
           });
         }
 
-        // Update Route Line Visual
-        if (routeLineRef.current) {
+        // Update Route Line Visual (Only for spine points)
+        if (type === 'point' && routeLineRef.current) {
           const tempPoints = [...initialPoints];
           const latDiff = e.latlng.lat - startLatLng.lat;
           const lngDiff = e.latlng.lng - startLatLng.lng;
@@ -235,12 +237,16 @@ export default function useDragHandlers({
             return p;
           });
 
-          // Logic: Snap "Secret" points to be collinear
-          if (movedIndex !== -1) {
-            // ... (Snap logic omitted for brevity, same as original)
-          }
           return newPoints;
         });
+      } else if (type === 'standalone_point') {
+        const newLatLng = e.latlng;
+        setStandalonePoints(prev => prev.map(p => {
+          if (p.id === id) {
+            return { ...p, lat: newLatLng.lat, lng: newLatLng.lng };
+          }
+          return p;
+        }));
       } else if (type === 'curve_control') {
         setRoutePoints(prev => prev.map(p => {
           if (p.id === id) {
