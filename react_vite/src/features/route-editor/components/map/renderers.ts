@@ -20,15 +20,16 @@ export const clearLayers = (markersRef: React.MutableRefObject<{ [key: string]: 
 };
 
 export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRef: React.MutableRefObject<L.Polyline | null>, polylinesRef: React.MutableRefObject<L.Layer[]>, mode: Mode, setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>, setSelectedId: (id: string | null) => void, setSelectionType: (type: SelectionType | null) => void, hideLabels: boolean) => {
-  if (routePoints.length <= 1) return;
+  const sequentialPoints = routePoints.filter(p => p.type !== 'free_point' && p.type !== 'circle_center');
+  if (sequentialPoints.length <= 1) return;
 
   const latlngs: L.LatLng[] = [];
-  routePoints.forEach((p, i) => {
+  sequentialPoints.forEach((p, i) => {
     if (i === 0) {
       latlngs.push(L.latLng(p.lat, p.lng));
     } else {
       if (p.segmentType === 'curved' && p.controlLat && p.controlLng) {
-        const prev = routePoints[i - 1];
+        const prev = sequentialPoints[i - 1];
         const curvePoints = getQuadraticBezierPoints(prev, p, { lat: p.controlLat, lng: p.controlLng });
         latlngs.push(...curvePoints);
       } else {
@@ -49,9 +50,9 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
     let minDistance = Infinity;
 
     // Find closest segment
-    for (let i = 0; i < routePoints.length - 1; i++) {
-      const p1 = routePoints[i];
-      const p2 = routePoints[i + 1];
+    for (let i = 0; i < sequentialPoints.length - 1; i++) {
+      const p1 = sequentialPoints[i];
+      const p2 = sequentialPoints[i + 1];
       let dist = Infinity;
 
       if (p2.segmentType === 'curved' && p2.controlLat && p2.controlLng) {
@@ -71,8 +72,8 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
     }
 
     if (bestIndex !== -1) {
-      const p1 = routePoints[bestIndex];
-      const p2 = routePoints[bestIndex + 1];
+      const p1 = sequentialPoints[bestIndex];
+      const p2 = sequentialPoints[bestIndex + 1];
 
       if (p2.segmentType === 'curved') {
         setSelectedId(p2.id);
@@ -98,8 +99,10 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
       };
 
       setRoutePoints(prev => {
+        // We need the index in the ORIGINAL array
+        const originalIndex = prev.findIndex(p => p.id === sequentialPoints[bestIndex].id);
         const next = [...prev];
-        next.splice(bestIndex + 1, 0, newPoint);
+        next.splice(originalIndex + 1, 0, newPoint);
         return next;
       });
     }
@@ -110,9 +113,9 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
 
   // Draw Segment Lengths
   if (!hideLabels) {
-    for (let i = 0; i < routePoints.length - 1; i++) {
-      const p1 = routePoints[i];
-      const p2 = routePoints[i + 1];
+    for (let i = 0; i < sequentialPoints.length - 1; i++) {
+      const p1 = sequentialPoints[i];
+      const p2 = sequentialPoints[i + 1];
       let dist = 0;
       let mid: L.LatLng | null = null;
 

@@ -124,7 +124,8 @@ class Gatekeeper(ABC):
         gates = []
         for item in waypoints:  # type: Waypoint
             # Dummy gates are not part of the actual route
-            if item.type != "dummy":
+            # Standalone points (free waypoints, circle centers) are also not part of the sequential gates
+            if item.type != "dummy" and not getattr(item, "is_free_point", False) and not getattr(item, "is_circle_center", False):
                 gates.append(
                     Gate(
                         item,

@@ -603,7 +603,9 @@ export default function RouteEditor() {
           properties: { featureType: "route_path" },
           geometry: {
             type: "LineString",
-            coordinates: routePoints.map(p => [p.lng, p.lat])
+            coordinates: routePoints
+              .filter(p => p.type !== 'free_point' && p.type !== 'circle_center')
+              .map(p => [p.lng, p.lat])
           }
         },
         // Points

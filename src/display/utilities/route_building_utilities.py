@@ -511,13 +511,13 @@ def create_anr_corridor_route_from_waypoint_list(
 
 def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bool):
     # gates = [item for item in waypoints if item.type in ("fp", "sp", "tp", "secret")]  # type: List[Waypoint]
-    gates = list(filter(lambda waypoint: waypoint.type not in ("dummy",), waypoints))
+    gates = list(filter(lambda waypoint: waypoint.type not in ("dummy",) and not getattr(waypoint, "is_free_point", False) and not getattr(waypoint, "is_circle_center", False), waypoints))
     for index in range(0, len(gates) - 1):
         current_gate = gates[index]
         next_gate = gates[index + 1]
         current_gate.distance_next = calculate_distance_lat_lon(
             (current_gate.latitude, current_gate.longitude), (next_gate.latitude, next_gate.longitude)
-        )
+        ) / 1852.0
         current_gate.bearing_next = calculate_bearing(
             (current_gate.latitude, current_gate.longitude), (next_gate.latitude, next_gate.longitude)
         )
@@ -526,7 +526,7 @@ def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bo
         previous_gate = gates[index - 1]
         current_gate.distance_previous = calculate_distance_lat_lon(
             (current_gate.latitude, current_gate.longitude), (previous_gate.latitude, previous_gate.longitude)
-        )
+        ) / 1852.0
         current_gate.bearing_from_previous = calculate_bearing(
             (previous_gate.latitude, previous_gate.longitude), (current_gate.latitude, current_gate.longitude)
         )
