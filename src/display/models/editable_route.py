@@ -277,18 +277,8 @@ class EditableRoute(models.Model):
                 end_curved=props.get("segmentType") == "curved",
             )
 
-            # CIMA Extensions
-            if point_type == "circle_center":
-                wp.is_circle_center = True
-                wp.radius = float(props.get("radius", 0))
-                wp.group_id = props.get("groupId")
-            elif point_type == "circle_entry":
-                wp.is_circle_entry = True
-                wp.group_id = props.get("groupId")
-            elif point_type == "free_point":
-                wp.is_free_point = True
-                wp.score_value = float(props.get("score", 0))
-            elif point_type == "speed_start":
+            # CIMA Extensions (Sequential only)
+            if point_type == "speed_start":
                 wp.is_speed_section_start = True
                 wp.group_id = props.get("groupId")
             elif point_type == "speed_end":
@@ -379,7 +369,7 @@ class EditableRoute(models.Model):
             gate = create_gate_from_line(landing_gate_line, f"Landing {index + 1}", "ldg")
             gate.gate_line = landing_gate_line
             route.landing_gates.append(gate)
-        route.save()
+
         # Create prohibited zones
         for feature in self.get_features_type("zone"):
             logger.debug(feature)
@@ -388,8 +378,8 @@ class EditableRoute(models.Model):
                 route=route,
                 path=self.get_feature_coordinates(feature, flip=False),
                 type=feature["properties"]["polygonType"],
-                # tooltip_position=feature.get("tooltip_position", []),
             )
+
         from display.models.route import Photo
         from display.utilities.route_building_utilities import build_waypoint
 
@@ -404,9 +394,9 @@ class EditableRoute(models.Model):
                 lat,
                 lon,
                 props["pointType"],
-                props["width"] / 1852,
-                props["isTiming"],
-                props["isPassing"],
+                props.get("width", 0) / 1852.0,
+                props.get("isTiming", False),
+                props.get("isPassing", True),
                 control_latitude=props.get("controlLat"),
                 control_longitude=props.get("controlLng"),
             )
@@ -417,6 +407,7 @@ class EditableRoute(models.Model):
                 wp.is_circle_entry = True
             elif props["pointType"] == "free_point":
                 wp.is_free_point = True
+
             wp.group_id = props.get("groupId")
             route.standalone_waypoints.append(wp)
 
@@ -427,6 +418,7 @@ class EditableRoute(models.Model):
                 latitude=photo["geometry"]["coordinates"][1],
                 longitude=photo["geometry"]["coordinates"][0],
             )
+        route.save()
 
     @classmethod
     def _create_route_and_thumbnail(cls, name: str, route: dict) -> "EditableRoute":
