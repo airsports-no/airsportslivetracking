@@ -17,6 +17,7 @@ from display.views_api import (
     auto_complete_aeroplane,
     auto_complete_club,
     get_persons_for_signup,
+    contestant_declaration_api,
 )
 
 urlpatterns = [
@@ -54,4 +55,5 @@ urlpatterns = [
     path("aeroplane/autocomplete/registration/", auto_complete_aeroplane, name="autocomplete_aeroplane"),
     path("club/autocomplete/name/", auto_complete_club, name="autocomplete_club"),
     path("person/signuplist/", get_persons_for_signup, name="get_persons_for_signup"),
+    path("contestant/<int:pk>/declaration_api/", contestant_declaration_api, name="contestant_declaration_api"),
 ]

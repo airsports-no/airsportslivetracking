@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import TemplateView
 
 from display.views import (
     fly_master_data_post,
@@ -218,6 +219,7 @@ urlpatterns = [
     # path('contestant/<int:pk>/downloadgpxtrack/', download_gpx_track_for_contesant, name="contestant_downloadgpxtrack"),
     path("contestant/remove_score_item/<int:pk>/", delete_score_item, name="contestant_remove_score_item"),
     path("contestant/<int:pk>/gates/", ContestantGateTimesView.as_view(), name="contestant_gate_times"),
+    path("contestant/<int:pk>/declaration/", TemplateView.as_view(template_name="display/frontend.html"), name="contestant_declaration"),
     path("contest/<int:contest_pk>/team/<int:team_pk>/wizardupdate/", RegisterTeamWizard.as_view(), name="team_wizard"),
     path("contest/<int:contest_pk>/team/<int:team_pk>/remove/", remove_team_from_contest, name="remove_team"),
     path("contest/<int:contest_pk>/team/create/", RegisterTeamWizard.as_view(), name="create_team"),

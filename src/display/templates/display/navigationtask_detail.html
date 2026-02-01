@@ -241,6 +241,7 @@
                                             {% endif %}
                                             <li><a href="{% url 'contestant_uploadgpxtrack' contestant.pk %}">Upload GPX</a></li>
                                             <li><a href="{% url 'contestant_recalculatelivetrack' contestant.pk %}">Recalculate Track</a></li>
+                                            <li><a href="{% fe_url 'CONTESTANT_DECLARATION' contestantId=contestant.pk %}">Pilot Declaration</a></li>
                                             {% if object.is_poker_run %}
                                                 <li><a href="{% url 'contestant_cards_list' contestant.pk %}">Playing Cards</a></li>
                                             {% endif %}
@@ -430,6 +431,7 @@
                                                 <li><a href="{% url 'contestant_uploadgpxtrack' contestant.pk %}">Upload gpx</a></li>
                                                 <li><a href="{% url 'contestant_downloadgpxtrack' contestant.pk %}">Download gpx</a></li>
                                                 <li><a href="{% url 'contestant_recalculatelivetrack' contestant.pk %}">Recalculate live track</a></li>
+                                                <li><a href="{% fe_url 'CONTESTANT_DECLARATION' contestantId=contestant.pk %}">Pilot Declaration</a></li>
                                                 <li><a href="{% url 'processingstatistics' contestant.pk %}">Processing statistics</a></li>
                                                 {% if object.is_poker_run %}
                                                     <li><a href="{% url 'contestant_cards_list' contestant.pk %}">Playing cards</a></li>

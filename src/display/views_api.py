@@ -11,13 +11,14 @@ from display.tasks import (
     notify_flight_order,
 )
 
-from display.models import Aeroplane, Club, Person, Contest, NavigationTask
+from display.models import Aeroplane, Club, Person, Contest, NavigationTask, Contestant
 from display.permissions import ContestPermissionsWithoutObjects
 from display.serialisers import (
     AeroplaneSerialiser,
     ClubSerialiser,
     PersonSerialiserExcludingTracking,
     PersonSignUpSerialiser,
+    ContestantSerialiser,
 )
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.views import get_navigation_task_orders_status_object
@@ -268,3 +269,32 @@ def get_contestant_schedule(request, pk):
         )
 
     return Response({"cols": columns, "rows": rows})
+
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated])
+def contestant_declaration_api(request, pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    
+    has_perm = request.user.has_perm("display.change_contest", contestant.navigation_task.contest)
+    if not has_perm:
+        if contestant.team.crew.member1.email == request.user.email:
+            has_perm = True
+        elif contestant.team.crew.member2 and contestant.team.crew.member2.email == request.user.email:
+            has_perm = True
+    
+    if not has_perm:
+        return Response({"error": "Permission denied"}, status=403)
+
+    if request.method == "GET":
+        return Response(ContestantSerialiser(contestant).data)
+
+    elif request.method == "PUT":
+        declared_config = request.data.get("declared_configuration")
+        if declared_config is not None:
+            contestant.declared_configuration = declared_config
+            # Trigger gate time recalculation by resetting cached times
+            contestant.predefined_gate_times = None 
+            contestant.save()
+            return Response({"status": "success"})
+        return Response({"error": "No configuration provided"}, status=400)

@@ -313,6 +313,14 @@ class WaypointSerialiser(serializers.Serializer):
     )
 
     outer_corner_position = serializers.JSONField(required=False)
+    radius = serializers.FloatField(required=False)
+    score_value = serializers.FloatField(required=False)
+    is_circle_center = serializers.BooleanField(required=False)
+    is_circle_entry = serializers.BooleanField(required=False)
+    is_free_point = serializers.BooleanField(required=False)
+    is_speed_section_start = serializers.BooleanField(required=False)
+    is_speed_section_end = serializers.BooleanField(required=False)
+    group_id = serializers.CharField(required=False)
 
 
 class ProhibitedSerialiser(serializers.ModelSerializer):
@@ -378,6 +386,15 @@ class RouteSerialiser(serializers.ModelSerializer):
         waypoint.is_procedure_turn = waypoint_data["is_procedure_turn"]
         waypoint.control_latitude = waypoint_data.get("control_latitude", None)
         waypoint.control_longitude = waypoint_data.get("control_longitude", None)
+
+        waypoint.radius = waypoint_data.get("radius", 0.0)
+        waypoint.score_value = waypoint_data.get("score_value", 0.0)
+        waypoint.is_circle_center = waypoint_data.get("is_circle_center", False)
+        waypoint.is_circle_entry = waypoint_data.get("is_circle_entry", False)
+        waypoint.is_free_point = waypoint_data.get("is_free_point", False)
+        waypoint.is_speed_section_start = waypoint_data.get("is_speed_section_start", False)
+        waypoint.is_speed_section_end = waypoint_data.get("is_speed_section_end", False)
+        waypoint.group_id = waypoint_data.get("group_id", None)
 
         # waypoint.inside_distance = waypoint_data["inside_distance"]
         # waypoint.outside_distance = waypoint_data["outside_distance"]
@@ -929,6 +946,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
         "calculations.",
         required=False,
     )
+    declared_configuration = serializers.JSONField(required=False)
     scorecard_rules = serializers.JSONField(help_text="Dictionary with all rules", read_only=True)
     tracker_id_display = serializers.JSONField(help_text="", read_only=True)
     default_map_url = SerializerMethodField("get_default_map_url", read_only=True)

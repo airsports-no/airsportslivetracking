@@ -12,5 +12,6 @@
   "CONTEST_RESULTS_TABLE": "mission-dashboard/:contestId/results",
   "CONTEST_MANAGEMENT": "mission-dashboard/:contestId/manage",
   "CONTESTANT_SCHEDULING": "schedule-contestants/:contestId/:navigationTaskId",
+  "CONTESTANT_DECLARATION": "contestant/:contestantId/declaration",
   "NOT_FOUND": "*"
 }
