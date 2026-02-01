@@ -56,6 +56,7 @@ class GatekeeperRoute(Gatekeeper):
         self.projector = Projector(self.starting_line.latitude, self.starting_line.longitude)
 
         self.outstanding_gates = list(self.gates)
+        self.passed_gate_names = set()
         if self.contestant.adaptive_start:
             self.takeoff_gate = None
         self.in_range_of_gate = None
@@ -331,6 +332,24 @@ class GatekeeperRoute(Gatekeeper):
                 # Only update the last gate with the one that was crossed, not the one we detect is missed because of it.
                 self.pop_gate(i, not intersected_gate.missed)
             i -= 1
+
+        # Check for re-crossing of already passed gates (CIMA 2.A1/2.A2)
+        if len(self.track) > 2:
+            for gate in self.gates:
+                if gate.name in self.passed_gate_names:
+                    intersection_time = gate.get_gate_intersection_time(self.projector, self.track)
+                    if intersection_time:
+                        score = self.scorecard.re_crossing_penalty
+                        if score != 0:
+                            self.update_gate_score(
+                                self.track[-1],
+                                gate,
+                                score,
+                                "re_crossing_penalty",
+                                f"Re-crossing gate {gate.name}",
+                                ANOMALY,
+                            )
+
         # Look for near misses
         # Do not look for misses further out if we have not crossed the starting line at some point.
         if not crossed_gate and len(self.outstanding_gates) > 0 and self.starting_line.has_infinite_been_passed():
@@ -619,6 +638,7 @@ class GatekeeperRoute(Gatekeeper):
                     #                   current_position.latitude, current_position.longitude, "anomaly")
             elif gate.passing_time is not None:
                 index += 1
+                self.passed_gate_names.add(gate.name)
                 time_difference = (gate.passing_time - gate.expected_time).total_seconds()
                 self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
                 if gate.time_check:
@@ -656,6 +676,12 @@ class GatekeeperRoute(Gatekeeper):
         """
         Does everything related to tracking gate passings.
         """
+        # Start Safety Check (CIMA 2.A1): Must have declared speeds to start precision tasks
+        if not self.any_gate_passed() and self.scorecard.calculator == PRECISION:
+            declared = self.contestant.declared_configuration.get('leg_speeds', {})
+            if not declared:
+                return
+
         # Run sub-calculators (CIMA tasks)
         if len(self.track) > 0:
             latest_position = self.track[-1]

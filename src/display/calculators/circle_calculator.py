@@ -20,7 +20,8 @@ class CircleCalculator:
     """
 
     STATE_WAITING = "WAITING"
-    STATE_ORBITING = "ORBITING"
+    STATE_ORIENTING = "ORIENTING" # First 180 deg
+    STATE_SCORING = "SCORING" # The 360 deg orbit
     STATE_FINISHED = "FINISHED"
 
     def __init__(self, center_wp: Waypoint, entry_wp: Waypoint, scorecard: Scorecard, contestant: Contestant):
@@ -34,7 +35,8 @@ class CircleCalculator:
         self.max_dist = 0.0
         self.min_alt = float('inf')
         self.max_alt = float('-inf')
-        self.entry_time: Optional[datetime] = None
+        self.last_crossing_time: Optional[datetime] = None
+        self.entry_crossings = 0
         self.altitude_valid = True
         
         # Projector for entry line intersection checks
@@ -44,55 +46,53 @@ class CircleCalculator:
         if self.state == self.STATE_FINISHED:
             return None
 
-        # Check for Entry
-        if self.state == self.STATE_WAITING:
-            # Check intersection with Entry Line
-            # We assume entry_wp.gate_line is defined and valid
-            intersection_time = self._check_gate_intersection(self.entry_wp, track)
-            
-            if intersection_time:
-                logger.info(f"{self.contestant}: Entered circle task at {intersection_time}")
-                self.state = self.STATE_ORBITING
-                self.entry_time = intersection_time
-                self.start_altitude = position.altitude
+        # Check for Entry Line Crossings
+        intersection_time = self._check_gate_intersection(self.entry_wp, track)
+        
+        # Debounce crossings (minimum 20s between detections)
+        is_valid_crossing = False
+        if intersection_time:
+            if not self.last_crossing_time or (intersection_time - self.last_crossing_time).total_seconds() > 20:
+                is_valid_crossing = True
+                self.last_crossing_time = intersection_time
+                self.entry_crossings += 1
+
+        if is_valid_crossing:
+            if self.entry_crossings == 1:
+                self.state = self.STATE_ORIENTING
+                logger.info(f"{self.contestant}: Circle Phase 1 (Orientation) started at {intersection_time}")
                 return UpdateScoreMessage(
-                    position.time,
-                    self.entry_wp,
-                    0,
-                    "Entered Circle",
-                    position.latitude,
-                    position.longitude,
-                    "information",
-                    SCORE_TYPE_CIRCLE
+                    position.time, self.entry_wp, 0, "Circle: Orienting (180 deg)",
+                    position.latitude, position.longitude, "information", SCORE_TYPE_CIRCLE
                 )
+            
+            elif self.entry_crossings == 2:
+                self.state = self.STATE_SCORING
+                logger.info(f"{self.contestant}: Circle Phase 2 (Scoring) started at {intersection_time}")
+                return UpdateScoreMessage(
+                    position.time, self.entry_wp, 0, "Circle: Scoring Orbit started",
+                    position.latitude, position.longitude, "information", SCORE_TYPE_CIRCLE
+                )
+            
+            elif self.entry_crossings == 3:
+                return self._finish_task(position)
 
-        # Orbiting Logic
-        elif self.state == self.STATE_ORBITING:
-            # 1. Update Min/Max Radius
-            dist = calculate_distance_lat_lon(
-                (position.latitude, position.longitude),
-                (self.center_wp.latitude, self.center_wp.longitude)
-            )
-            self.min_dist = min(self.min_dist, dist)
-            self.max_dist = max(self.max_dist, dist)
-
-            # 2. Check Altitude (CIMA 2.A7: range < 61m)
+        # Active Task Monitoring
+        if self.state in (self.STATE_ORIENTING, self.STATE_SCORING):
+            # 1. Update Altitude Range (range < 61m)
             self.min_alt = min(self.min_alt, position.altitude)
             self.max_alt = max(self.max_alt, position.altitude)
-            
             if (self.max_alt - self.min_alt) > self.scorecard.circle_altitude_tolerance:
                 self.altitude_valid = False
 
-            # 3. Check Exit
-            # CIMA 2.A7: "Scoring ends by crossing the entry line (X)." 
-            # We need to ensure we don't detect the *entry* crossing as exit immediately.
-            # Usually circle is 360 degrees. 
-            # Simplest check: time since entry > some buffer (e.g. 30 seconds) AND crossing line.
-            time_since_entry = (position.time - self.entry_time).total_seconds()
-            if time_since_entry > 30:
-                intersection_time = self._check_gate_intersection(self.entry_wp, track)
-                if intersection_time:
-                    return self._finish_task(position)
+            # 2. Update Min/Max Radius (Only in scoring phase)
+            if self.state == self.STATE_SCORING:
+                dist = calculate_distance_lat_lon(
+                    (position.latitude, position.longitude),
+                    (self.center_wp.latitude, self.center_wp.longitude)
+                )
+                self.min_dist = min(self.min_dist, dist)
+                self.max_dist = max(self.max_dist, dist)
                     
         return None
 

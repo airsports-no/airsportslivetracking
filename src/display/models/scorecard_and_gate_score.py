@@ -112,6 +112,7 @@ class Scorecard(models.Model):
     circle_altitude_penalty = models.FloatField(default=0.2, help_text="Percentage penalty (0.0-1.0) for altitude violation in circle")
     free_point_missed_penalty = models.FloatField(default=0, help_text="Points deducted if a declared free point is missed")
     free_waypoint_score = models.FloatField(default=100, help_text="Points awarded for visiting a free waypoint (e.g. Turnpoint Hunt)")
+    re_crossing_penalty = models.FloatField(default=50, help_text="Penalty for crossing a gate that has already been passed (CIMA 2.A1/2.A2)")
 
     def __str__(self):
         return self.name
