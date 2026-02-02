@@ -327,6 +327,7 @@ def update_contestant_initial_score(sender, instance: Scorecard, **kwargs):
 @receiver(post_save, sender=NavigationTask)
 def initialise_navigation_task_dependencies(sender, instance: NavigationTask, created, **kwargs):
     if created:
+        instance.assign_scorecard_from_original(force=False)
         instance.create_results_service_test()
         map_source = country_code_to_map_source(instance.contest.country)
         FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})

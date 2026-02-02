@@ -944,12 +944,15 @@ class ContestantSerialiser(serializers.ModelSerializer):
 
     def get_overlapping_tasks(self, contestant):
         overlaps = contestant.get_overlapping_tasks()
-        return [{
-            "task_id": item["task"].pk,
-            "task_name": item["task"].name,
-            "contest_id": item["task"].contest.pk,
-            "reason": ", ".join(sorted(item["reasons"]))
-        } for item in overlaps]
+        return [
+            {
+                "task_id": item["task"].pk,
+                "task_name": item["task"].name,
+                "contest_id": item["task"].contest.pk,
+                "reason": ", ".join(sorted(item["reasons"])),
+            }
+            for item in overlaps
+        ]
 
     def get_overlap_warnings(self, contestant):
         return contestant.get_overlap_warnings()
