@@ -293,6 +293,49 @@ def contestant_declaration_api(request, pk):
         declared_config = request.data.get("declared_configuration")
         if declared_config is not None:
             contestant.declared_configuration = declared_config
+            
+            # CIMA: Handle per-contestant route reconstruction (Task 2.A3)
+            order = declared_config.get("waypoint_order", [])
+            if order:
+                from display.utilities.route_building_utilities import create_precision_route_from_waypoint_list, create_anr_corridor_route_from_waypoint_list
+                from display.utilities.navigation_task_type_definitions import PRECISION, POKER, ANR_CORRIDOR, AIRSPORTS, AIRSPORT_CHALLENGE
+                
+                task_route = contestant.navigation_task.route
+                all_available = {wp.name: wp for wp in list(task_route.waypoints) + list(task_route.standalone_waypoints)}
+                reordered_waypoints = [all_available[name] for name in order if name in all_available]
+                
+                # Delete existing override if any
+                if contestant.custom_route:
+                    old_route = contestant.custom_route
+                    contestant.custom_route = None
+                    contestant.save()
+                    old_route.delete()
+                
+                # Create correctly initialized route based on task type
+                calc_type = contestant.navigation_task.scorecard.calculator
+                new_route = None
+                if calc_type in (PRECISION, POKER):
+                    new_route = create_precision_route_from_waypoint_list(
+                        f"{contestant.navigation_task.name} - #{contestant.contestant_number}",
+                        reordered_waypoints,
+                        task_route.use_procedure_turns,
+                        contestant.navigation_task.scorecard
+                    )
+                elif calc_type in (ANR_CORRIDOR, AIRSPORTS, AIRSPORT_CHALLENGE):
+                    new_route = create_anr_corridor_route_from_waypoint_list(
+                        f"{contestant.navigation_task.name} - #{contestant.contestant_number}",
+                        reordered_waypoints,
+                        task_route.rounded_corners,
+                        contestant.navigation_task.scorecard,
+                        corridor_width=task_route.corridor_width
+                    )
+                
+                if new_route:
+                    # Preserve standalone waypoints for CIMA features visualization
+                    new_route.standalone_waypoints = task_route.standalone_waypoints
+                    new_route.save()
+                    contestant.custom_route = new_route
+
             # Trigger gate time recalculation by resetting cached times
             contestant.predefined_gate_times = None 
             contestant.save()

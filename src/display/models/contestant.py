@@ -63,6 +63,9 @@ class Contestant(models.Model):
 
     team = models.ForeignKey("Team", on_delete=models.CASCADE)
     navigation_task = models.ForeignKey("NavigationTask", on_delete=models.CASCADE)
+    custom_route = models.OneToOneField(
+        "Route", on_delete=models.SET_NULL, null=True, blank=True, related_name="contestant_override"
+    )
     adaptive_start = models.BooleanField(
         default=False,
         help_text="If true, takeoff time and minutes to starting point is ignored. Start time is set to the closest minute to the time crossing the infinite starting line in the correct direction. This is typically used for a case where it is difficult to control the start time because of external factors such as ATC.",
@@ -690,6 +693,17 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         for gate_name, crossing_time in self._get_takeoff_and_landing_times().items():
             crossing_times[gate_name] = predefined_gate_times.get(gate_name, crossing_time)
         return crossing_times
+
+    @property
+    def route(self) -> "Route":
+        """
+        Returns the route for this contestant. If a custom route has been created
+        and stored in the 'custom_route' field (e.g. from pilot declaration), use that.
+        Otherwise fall back to the navigation task's route.
+        """
+        if self.pk and getattr(self, 'custom_route_id', None):
+            return getattr(self, 'custom_route')
+        return self.navigation_task.route
 
     @property
     def gate_times(self) -> dict:
