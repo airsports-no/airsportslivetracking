@@ -175,7 +175,17 @@ function renderLandingRoute(map: L.Map, route: RouteData): L.Layer[] {
 
 function renderCIMAFeatures(map: L.Map, route: RouteData): L.Layer[] {
     const layers: L.Layer[] = [];
-    route.waypoints.forEach(wp => {
+    const allWaypoints = [...(route.waypoints || []), ...(route.standalone_waypoints || [])];
+    
+    // Deduplicate by name to avoid double rendering if a point is in both lists
+    const seen = new Set<string>();
+    const uniqueWaypoints = allWaypoints.filter(wp => {
+        if (seen.has(wp.name)) return false;
+        seen.add(wp.name);
+        return true;
+    });
+
+    uniqueWaypoints.forEach(wp => {
         const anyWp = wp as any;
         // Render Circle
         if (anyWp.is_circle_center && anyWp.radius) {
@@ -235,8 +245,9 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
     // Always check for CIMA features (Circle/Free Points) regardless of task type
     layers = layers.concat(renderCIMAFeatures(map, activeRoute));
 
-    const waypointsToLabel = activeRoute.waypoints.filter(w => 
-        (w.gate_check || w.time_check) && 
+    const allLabelableWaypoints = [...(activeRoute.waypoints || []), ...(activeRoute.standalone_waypoints || [])];
+    const waypointsToLabel = allLabelableWaypoints.filter(w => 
+        ((w as any).is_free_point || (w as any).is_circle_center || w.gate_check || w.time_check) && 
         ((navTaskDisplaySecrets && displaySecrets) || w.type !== "secret") && 
         w.type !== "dummy"
     );
@@ -257,10 +268,13 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
     handleZoom(); // Initial check
 
     if (layers.length > 0) {
-        const bounds = new L.FeatureGroup(layers).getBounds();
-        if (isInitialLoad && bounds.isValid()) { // Only fit bounds on initial load
-            map.fitBounds(bounds, { padding: [50, 50] });
-            onMapFit(true); // Signal that initial fit has occurred
+        if (isInitialLoad) {
+            const allLabelableWaypoints = [...(activeRoute.waypoints || []), ...(activeRoute.standalone_waypoints || [])];
+            const bounds = L.latLngBounds(allLabelableWaypoints.map(wp => [wp.latitude, wp.longitude]));
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+                onMapFit(true);
+            }
         }
     }
 
@@ -272,9 +286,6 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
       map.getContainer().classList.remove('hide-waypoint-labels');
     };
   }, [map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit]);
-
-  return null;
-}
 
   return null;
 }

@@ -117,19 +117,17 @@ class Gatekeeper(ABC):
 
     def create_gates(self) -> List[Gate]:
         """
-        Helper function to create gates from the waypoints defined in a route
+        Helper function to create gates from the waypoints defined in the contestant's route.
         """
-        waypoints = self.contestant.navigation_task.route.waypoints
+        waypoints = self.contestant.route.waypoints
         expected_times = self.contestant.gate_times
         gates = []
         for item in waypoints:  # type: Waypoint
-            # Dummy gates are not part of the actual route
-            # Standalone points (free waypoints, circle centers) are also not part of the sequential gates
-            if item.type != "dummy" and not getattr(item, "is_free_point", False) and not getattr(item, "is_circle_center", False):
+            if item.type != "dummy":
                 gates.append(
                     Gate(
                         item,
-                        expected_times[item.name],
+                        expected_times.get(item.name),
                         calculate_extended_gate(item, self.contestant.navigation_task.scorecard),
                     )
                 )

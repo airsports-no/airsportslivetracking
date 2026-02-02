@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from display.utilities.coordinate_utilities import (
     extend_line,
@@ -31,21 +31,21 @@ class Waypoint:
         self.is_procedure_turn = False
         self.is_steep_turn = False
 
-        self.control_latitude: float|None = None
-        self.control_longitude: float|None = None
+        self.control_latitude: float | None = None
+        self.control_longitude: float | None = None
 
         self.inside_distance = 0
         self.outside_distance = 0
 
         # CIMA Extensions
-        self.radius: float = 0.0          # Radius in meters (for Circle tasks)
+        self.radius: float = 0.0  # Radius in meters (for Circle tasks)
         self.is_circle_center: bool = False
-        self.is_circle_entry: bool = False # The point where circle timing starts
-        self.is_free_point: bool = False   # If True, this point is not part of the sequential spine by default
+        self.is_circle_entry: bool = False  # The point where circle timing starts
+        self.is_free_point: bool = False  # If True, this point is not part of the sequential spine by default
         self.is_speed_section_start: bool = False
         self.is_speed_section_end: bool = False
-        self.group_id: str | int | None = None # To associate Center with Entry, or Speed Start with Speed End
-        self.score_value: float = 0.0      # Points awarded for visiting (for Turnpoint Hunt)
+        self.group_id: str | int | None = None  # To associate Center with Entry, or Speed Start with Speed End
+        self.score_value: float = 0.0  # Points awarded for visiting (for Turnpoint Hunt)
 
     @property
     def original_gate_line(self):
@@ -59,6 +59,8 @@ class Waypoint:
 
     @property
     def gate_line_infinite(self):
+        if not self.gate_line or len(self.gate_line) < 2:
+            return None
         if self._gate_line_infinite is None or len(self._gate_line_infinite) == 0:
             self._gate_line_infinite = extend_line(self.gate_line[0], self.gate_line[1], 10)
         return self._gate_line_infinite
@@ -90,6 +92,8 @@ class Waypoint:
 
     def is_gate_line_pointing_right(self, original: bool = False):
         line = self.gate_line if not original else self.original_gate_line
+        if not line or len(line) < 2:
+            return False
         gate_line_bearing = calculate_bearing(line[0], line[1])
         waypoint_bearing = self.bearing_from_previous if self.bearing_from_previous >= 0 else self.bearing_next
         # This should be close to 90 if pointing right for a precision track
@@ -97,6 +101,8 @@ class Waypoint:
 
     def get_gate_position_right_of_track(self, original: bool = False):
         line = self.gate_line if not original else self.original_gate_line
+        if not line or len(line) < 2:
+            return (self.latitude, self.longitude)
         if self.is_gate_line_pointing_right(original):
             return line[1]
         else:
@@ -104,6 +110,8 @@ class Waypoint:
 
     def get_gate_position_left_of_track(self, original: bool = False):
         line = self.gate_line if not original else self.original_gate_line
+        if not line or len(line) < 2:
+            return (self.latitude, self.longitude)
         if self.is_gate_line_pointing_right(original):
             return line[0]
         else:
@@ -118,13 +126,17 @@ class Waypoint:
         """
         The direction the gate is facing
         """
+        if not self.gate_line or len(self.gate_line) < 2:
+            return 0.0
         gate_line_bearing = calculate_bearing(
             self.get_gate_position_right_of_track(), self.get_gate_position_left_of_track()
         )
         return (gate_line_bearing + 90) % 360
 
     @property
-    def outer_corner_position(self) -> Tuple[Tuple[float, float], int]:
+    def outer_corner_position(self) -> Optional[Tuple[Tuple[float, float], int]]:
+        if not self.gate_line or len(self.gate_line) < 2:
+            return None
         gate_line_bearing = calculate_bearing(self.gate_line[0], self.gate_line[1])
         gate_right = 0 < gate_line_bearing < 180
         gate_down = 90 < gate_line_bearing < 270

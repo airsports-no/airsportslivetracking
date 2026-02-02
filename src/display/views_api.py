@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
+import logging
 from guardian.decorators import permission_required as guardian_permission_required
 from display.tasks import (
     generate_and_maybe_notify_flight_order,
@@ -22,6 +22,8 @@ from display.serialisers import (
 )
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.views import get_navigation_task_orders_status_object
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(["POST"])
@@ -275,14 +277,14 @@ def get_contestant_schedule(request, pk):
 @permission_classes([IsAuthenticated])
 def contestant_declaration_api(request, pk):
     contestant = get_object_or_404(Contestant, pk=pk)
-    
+
     has_perm = request.user.has_perm("display.change_contest", contestant.navigation_task.contest)
     if not has_perm:
         if contestant.team.crew.member1.email == request.user.email:
             has_perm = True
         elif contestant.team.crew.member2 and contestant.team.crew.member2.email == request.user.email:
             has_perm = True
-    
+
     if not has_perm:
         return Response({"error": "Permission denied"}, status=403)
 
@@ -293,51 +295,69 @@ def contestant_declaration_api(request, pk):
         declared_config = request.data.get("declared_configuration")
         if declared_config is not None:
             contestant.declared_configuration = declared_config
-            
+
             # CIMA: Handle per-contestant route reconstruction (Task 2.A3)
             order = declared_config.get("waypoint_order", [])
             if order:
-                from display.utilities.route_building_utilities import create_precision_route_from_waypoint_list, create_anr_corridor_route_from_waypoint_list
-                from display.utilities.navigation_task_type_definitions import PRECISION, POKER, ANR_CORRIDOR, AIRSPORTS, AIRSPORT_CHALLENGE
-                
+                logger.info(f"ordering waypoints for contestant {contestant}: {order}")
+                from display.utilities.route_building_utilities import (
+                    create_precision_route_from_waypoint_list,
+                    create_anr_corridor_route_from_waypoint_list,
+                )
+                from display.utilities.navigation_task_type_definitions import (
+                    PRECISION,
+                    POKER,
+                    ANR_CORRIDOR,
+                    AIRSPORTS,
+                    AIRSPORT_CHALLENGE,
+                )
+
                 task_route = contestant.navigation_task.route
-                all_available = {wp.name: wp for wp in list(task_route.waypoints) + list(task_route.standalone_waypoints)}
+                all_available = {
+                    wp.name: wp for wp in list(task_route.waypoints) + list(task_route.standalone_waypoints)
+                }
+                logger.info(f"All available waypoints: {list(all_available.keys())}")
                 reordered_waypoints = [all_available[name] for name in order if name in all_available]
-                
+                logger.info(f"Reordered waypoints: {[i.name for i in reordered_waypoints]}")
                 # Delete existing override if any
                 if contestant.custom_route:
                     old_route = contestant.custom_route
                     contestant.custom_route = None
                     contestant.save()
                     old_route.delete()
-                
+
                 # Create correctly initialized route based on task type
                 calc_type = contestant.navigation_task.scorecard.calculator
                 new_route = None
                 if calc_type in (PRECISION, POKER):
+                    logger.info(f"Creating new route for contestant {contestant} with calculator type {calc_type}")
                     new_route = create_precision_route_from_waypoint_list(
                         f"{contestant.navigation_task.name} - #{contestant.contestant_number}",
                         reordered_waypoints,
                         task_route.use_procedure_turns,
-                        contestant.navigation_task.scorecard
+                        contestant.navigation_task.scorecard,
                     )
                 elif calc_type in (ANR_CORRIDOR, AIRSPORTS, AIRSPORT_CHALLENGE):
+                    logger.info(f"Creating new route for contestant {contestant} with calculator type {calc_type}")
                     new_route = create_anr_corridor_route_from_waypoint_list(
                         f"{contestant.navigation_task.name} - #{contestant.contestant_number}",
                         reordered_waypoints,
                         task_route.rounded_corners,
                         contestant.navigation_task.scorecard,
-                        corridor_width=task_route.corridor_width
+                        corridor_width=task_route.corridor_width,
                     )
-                
+
                 if new_route:
                     # Preserve standalone waypoints for CIMA features visualization
                     new_route.standalone_waypoints = task_route.standalone_waypoints
                     new_route.save()
                     contestant.custom_route = new_route
+                    logger.info(
+                        f"Set new custom route for contestant {contestant}: {[i.name for i in new_route.waypoints]}"
+                    )
 
             # Trigger gate time recalculation by resetting cached times
-            contestant.predefined_gate_times = None 
+            contestant.predefined_gate_times = None
             contestant.save()
             return Response({"status": "success"})
         return Response({"error": "No configuration provided"}, status=400)

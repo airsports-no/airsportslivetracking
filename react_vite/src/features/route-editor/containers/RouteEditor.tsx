@@ -608,8 +608,16 @@ export default function RouteEditor() {
       if (!match) errors.push(`Speed Start "${s.name}" (Group ${s.groupId}) has no matching Speed End.`);
     });
 
+    // Check for unique names across all waypoints
+    const allNames = [...routePoints, ...standalonePoints].map(p => p.name.trim().toLowerCase());
+    const duplicates = allNames.filter((name, index) => name !== "" && allNames.indexOf(name) !== index);
+    if (duplicates.length > 0) {
+      const uniqueDupes = Array.from(new Set(duplicates));
+      errors.push(`Duplicate waypoint names found: ${uniqueDupes.join(", ")}. All waypoints must have unique names.`);
+    }
+
     return errors;
-  }, [routePoints]);
+  }, [routePoints, standalonePoints]);
 
 
   const handleFit = useCallback(() => {

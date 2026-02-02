@@ -2,7 +2,7 @@ import { reverse } from '../../urls';
 
 // Helper to get CSRF token
 const getCsrfToken = () => {
-    return (window as any).document?.configuration?.csrfToken || '';
+    return (window as any).document?.configuration?.csrftoken || '';
 };
 
 export const fetchDeclarationData = async (contestantId: string) => {

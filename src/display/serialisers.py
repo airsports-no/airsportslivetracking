@@ -1022,23 +1022,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
     contestanttrack = ContestantTrackSerialiser(read_only=True)
 
     def get_route(self, contestant):
-        task_route = contestant.navigation_task.route
-        declaration_order = (contestant.declared_configuration or {}).get("waypoint_order", [])
-        
-        if not declaration_order:
-            return RouteSerialiser(task_route).data
-            
-        # Reconstruct route based on pilot declaration
-        all_available = {wp.name: wp for wp in list(task_route.waypoints) + list(task_route.standalone_waypoints)}
-        reordered_waypoints = [all_available[name] for name in declaration_order if name in all_available]
-        
-        # We use a shallow copy but replace the waypoints list
-        from copy import copy
-        custom_route = copy(task_route)
-        custom_route.waypoints = reordered_waypoints
-        # Mark as custom so frontend knows it's contestant-specific
-        data = RouteSerialiser(custom_route).data
-        data["is_custom"] = True
+        # Mark as custom if it differs from the base task route
+        data = RouteSerialiser(contestant.route).data
+        if (contestant.declared_configuration or {}).get("waypoint_order"):
+            data["is_custom"] = True
         return data
 
     def get_overlapping_tasks(self, contestant):

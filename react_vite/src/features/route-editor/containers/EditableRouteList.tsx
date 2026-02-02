@@ -111,7 +111,7 @@ export const EditableRouteList = () => {
         <div className="w-full flex flex-col items-center mt-10 px-4">
             <div className="w-full max-w-5xl flex justify-between items-center mb-4">
                 <div>
-                    {document.configuration.is_superuser && (
+                    {document.configuration?.is_superuser && (
                         <div className="flex items-center">
                             <input
                                 id="show-all-routes"

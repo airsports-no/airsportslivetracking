@@ -138,6 +138,7 @@ class NavigationTask(models.Model):
 
     @classmethod
     def create(cls, **kwargs) -> "NavigationTask":
+        kwargs.pop("score_sorting_direction", None)
         task = cls.objects.create(**kwargs)
         task.assign_scorecard_from_original(force=False)
         return task
@@ -321,11 +322,18 @@ class NavigationTask(models.Model):
         """
         from display.models import Task, TaskTest
 
+        # Determine sorting direction safely
+        sorting = "asc"
+        if self.scorecard:
+            sorting = self.scorecard.score_sorting_direction
+        elif self.original_scorecard:
+            sorting = self.original_scorecard.score_sorting_direction
+
         task, _ = Task.objects.get_or_create(
             contest=self.contest,
             name=f"Navigation task {self.name}",
             defaults={
-                "summary_score_sorting_direction": self.scorecard.score_sorting_direction,
+                "summary_score_sorting_direction": sorting,
                 "heading": self.name,
             },
         )
@@ -334,7 +342,7 @@ class NavigationTask(models.Model):
             task=task,
             name="Navigation",
             heading="Navigation",
-            sorting=self.scorecard.score_sorting_direction,
+            sorting=sorting,
             index=0,
             navigation_task=self,
         )

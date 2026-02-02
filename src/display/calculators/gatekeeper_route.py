@@ -20,7 +20,7 @@ from display.utilities.coordinate_utilities import (
     cross_track_distance,
     nv_intersect,
 )
-from display.models import Contestant, INFORMATION, ANOMALY
+from display.models import Contestant, INFORMATION, ANOMALY, PRECISION
 
 logger = logging.getLogger(__name__)
 

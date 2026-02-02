@@ -334,10 +334,16 @@ def create_gate_from_line(gate_line, name: str, type: str) -> Waypoint:
 
 
 def create_precision_route_from_waypoint_list(
-    route_name, waypoint_list, use_procedure_turns: bool, scorecard: Scorecard
+    route_name, waypoint_list: list[Waypoint], use_procedure_turns: bool, scorecard: Scorecard
 ) -> Route:
-    spine = [wp for wp in waypoint_list if not getattr(wp, 'is_free_point', False) and not getattr(wp, 'is_circle_center', False)]
-    standalone = [wp for wp in waypoint_list if getattr(wp, 'is_free_point', False) or getattr(wp, 'is_circle_center', False)]
+    spine = [
+        wp
+        for wp in waypoint_list
+        if not getattr(wp, "is_free_point", False) and not getattr(wp, "is_circle_center", False)
+    ]
+    standalone = [
+        wp for wp in waypoint_list if getattr(wp, "is_free_point", False) or getattr(wp, "is_circle_center", False)
+    ]
 
     if len(spine) < 2:
         raise ValidationError("A route must at least have a starting point and finish point")
@@ -346,7 +352,7 @@ def create_precision_route_from_waypoint_list(
     if spine[-1].type != "fp":
         raise ValidationError("The last waypoint must be of type finish point")
     # First give everything a line according to the  drawn track
-    gates = spine
+    gates = waypoint_list
     for index in range(len(gates) - 1):
         if index < len(gates) - 2 and (gates[index + 1].type == "isp"):
             # or (gates[index].type in ("dummy", "ul") and gates[index + 1].type != "dummy")):
@@ -402,7 +408,8 @@ def create_precision_route_from_waypoint_list(
     # Reverse the line since we have created it in the wrong direction
     gates[0].gate_line.reverse()
     for waypoint in waypoint_list:
-        waypoint.gate_line_extended = calculate_extended_gate(waypoint, scorecard)
+        if waypoint.gate_line and len(waypoint.gate_line) >= 2:
+            waypoint.gate_line_extended = calculate_extended_gate(waypoint, scorecard)
 
     # Validate that waypoints are not too close so that the gates cross each other
     validate_no_overlapping_gate_lines(gates)
@@ -410,7 +417,9 @@ def create_precision_route_from_waypoint_list(
     calculate_and_update_legs(waypoint_list, use_procedure_turns)
     insert_gate_ranges(waypoint_list)
 
-    instance = Route(name=route_name, waypoints=spine, standalone_waypoints=standalone, use_procedure_turns=use_procedure_turns)
+    instance = Route(
+        name=route_name, waypoints=spine, standalone_waypoints=standalone, use_procedure_turns=use_procedure_turns
+    )
     instance.save()
     return instance
 
@@ -470,8 +479,14 @@ def create_anr_corridor_route_from_waypoint_list(
     :param corridor_width: If this is set, use this for corridor width and leave the gates as they should be
     :return:
     """
-    spine = [wp for wp in waypoint_list if not getattr(wp, 'is_free_point', False) and not getattr(wp, 'is_circle_center', False)]
-    standalone = [wp for wp in waypoint_list if getattr(wp, 'is_free_point', False) or getattr(wp, 'is_circle_center', False)]
+    spine = [
+        wp
+        for wp in waypoint_list
+        if not getattr(wp, "is_free_point", False) and not getattr(wp, "is_circle_center", False)
+    ]
+    standalone = [
+        wp for wp in waypoint_list if getattr(wp, "is_free_point", False) or getattr(wp, "is_circle_center", False)
+    ]
 
     if len(spine) < 2:
         raise ValidationError("A route must at least have a starting point and finish point")
@@ -496,7 +511,8 @@ def create_anr_corridor_route_from_waypoint_list(
         spine[index].gate_line = extract_gate_line(point)
 
     for waypoint in waypoint_list:
-        waypoint.gate_line_extended = calculate_extended_gate(waypoint, scorecard)
+        if waypoint.gate_line and len(waypoint.gate_line) >= 2:
+            waypoint.gate_line_extended = calculate_extended_gate(waypoint, scorecard)
 
     # Calculate bearings and distances
     calculate_and_update_legs(waypoint_list, False)
@@ -517,22 +533,35 @@ def create_anr_corridor_route_from_waypoint_list(
 
 def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bool):
     # gates = [item for item in waypoints if item.type in ("fp", "sp", "tp", "secret")]  # type: List[Waypoint]
-    gates = list(filter(lambda waypoint: waypoint.type not in ("dummy",) and not getattr(waypoint, "is_free_point", False) and not getattr(waypoint, "is_circle_center", False), waypoints))
+    gates = list(
+        filter(
+            lambda waypoint: waypoint.type not in ("dummy",)
+            and not getattr(waypoint, "is_free_point", False)
+            and not getattr(waypoint, "is_circle_center", False),
+            waypoints,
+        )
+    )
     for index in range(0, len(gates) - 1):
         current_gate = gates[index]
         next_gate = gates[index + 1]
-        current_gate.distance_next = calculate_distance_lat_lon(
-            (current_gate.latitude, current_gate.longitude), (next_gate.latitude, next_gate.longitude)
-        ) / 1852.0
+        current_gate.distance_next = (
+            calculate_distance_lat_lon(
+                (current_gate.latitude, current_gate.longitude), (next_gate.latitude, next_gate.longitude)
+            )
+            / 1852.0
+        )
         current_gate.bearing_next = calculate_bearing(
             (current_gate.latitude, current_gate.longitude), (next_gate.latitude, next_gate.longitude)
         )
     for index in range(1, len(gates)):
         current_gate = gates[index]
         previous_gate = gates[index - 1]
-        current_gate.distance_previous = calculate_distance_lat_lon(
-            (current_gate.latitude, current_gate.longitude), (previous_gate.latitude, previous_gate.longitude)
-        ) / 1852.0
+        current_gate.distance_previous = (
+            calculate_distance_lat_lon(
+                (current_gate.latitude, current_gate.longitude), (previous_gate.latitude, previous_gate.longitude)
+            )
+            / 1852.0
+        )
         current_gate.bearing_from_previous = calculate_bearing(
             (previous_gate.latitude, previous_gate.longitude), (current_gate.latitude, current_gate.longitude)
         )
