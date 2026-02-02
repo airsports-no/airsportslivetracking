@@ -8,8 +8,9 @@ import { EditableCell } from '../../components/common/DataTable/EditableCell';
 import { useScoreUpdates } from '../../hooks/useScoreUpdates';
 import { TaskModal } from './TaskModal';
 import { TestModal } from './TestModal';
-import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon } from 'lucide-react';
+import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon, DownloadIcon } from 'lucide-react';
 import { useParams } from 'react-router-dom';
+import { reverse } from '../../urls';
 import { Test } from '../../store/contestResultsStore';
 import { fetchContest } from '../mission-dashboard/api';
 import { Contest } from '../mission-dashboard/types';
@@ -407,7 +408,21 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
             className="w-full h-64 object-cover rounded-lg mb-4"
           />
         )}
-        <h2 className="text-2xl font-bold text-center">{results.name}</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex-1" />
+          <h2 className="text-2xl font-bold text-center">{results.name}</h2>
+          <div className="flex-1 flex justify-end">
+            <a
+              href={reverse('contests-results-csv', contestId)}
+              className="btn btn-sm btn-outline gap-2"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <DownloadIcon size={16} />
+              Export CSV
+            </a>
+          </div>
+        </div>
       </div>
       <DataTable
         columns={columns}

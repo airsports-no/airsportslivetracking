@@ -4,13 +4,14 @@ import datetime
 import logging
 import hashlib
 import json
+import csv
 
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.core.paginator import InvalidPage
 from django.db import transaction
 from django.db.models import Q, Count
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.utils.cache import add_never_cache_headers, patch_response_headers
 from guardian.shortcuts import get_objects_for_user
 from rest_framework import status, permissions, mixins
@@ -538,6 +539,74 @@ class ContestViewSet(ModelViewSet):
         contest.permission_change_contest = request.user.has_perm("display.change_contest", contest)
         serialiser = ContestResultsDetailsSerialiser(contest)
         return Response(serialiser.data)
+
+    @action(detail=True, methods=["get"])
+    def results_csv(self, request, *args, **kwargs):
+        """
+        Download contest results as CSV
+        """
+        contest = self.get_object()
+        
+        tasks = contest.task_set.all().order_by('index')
+        tests_by_task = {}
+        for task in tasks:
+            tests_by_task[task.id] = list(task.tasktest_set.all().order_by('index'))
+            
+        summaries = contest.contestsummary_set.select_related('team', 'team__crew__member1', 'team__crew__member2').order_by('points')
+        
+        if contest.summary_score_sorting_direction == Contest.DESCENDING:
+             summaries = summaries.order_by('-points')
+        else:
+             summaries = summaries.order_by('points')
+             
+        headers = ['Rank', 'Crew', 'Total Score']
+        
+        for task in tasks:
+            headers.append(f"Task: {task.heading}")
+            for test in tests_by_task[task.id]:
+                headers.append(f"Test: {test.heading}")
+                
+        response = HttpResponse(
+            content_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{contest.name}_results.csv"'},
+        )
+
+        writer = csv.writer(response)
+        writer.writerow(headers)
+        
+        task_summaries = TaskSummary.objects.filter(task__contest=contest)
+        test_scores = TeamTestScore.objects.filter(task_test__task__contest=contest)
+        
+        task_points = {(s.team_id, s.task_id): s.points for s in task_summaries}
+        test_points = {(s.team_id, s.task_test_id): s.points for s in test_scores}
+
+        rank = 1
+        for summary in summaries:
+            team = summary.team
+            parts = []
+            if team and team.crew:
+                 m1 = team.crew.member1
+                 m2 = team.crew.member2
+                 if m1:
+                     parts.append(f"{m1.first_name} {m1.last_name}")
+                 if m2:
+                     parts.append(f"{m2.first_name} {m2.last_name}")
+            crew_name = " / ".join(parts) if parts else "N/A"
+            
+            row = [rank, crew_name, summary.points]
+            
+            for task in tasks:
+                t_points = task_points.get((team.id, task.id), '-')
+                row.append(t_points)
+                
+                for test in tests_by_task[task.id]:
+                    tt_points = test_points.get((team.id, test.id), '-')
+                    row.append(tt_points)
+            
+            writer.writerow(row)
+            rank += 1
+            
+        return response
 
     @action(["GET"], detail=True)
     def teams(self, request, pk=None, **kwargs):
