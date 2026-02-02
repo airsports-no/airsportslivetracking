@@ -116,14 +116,17 @@ class MapForm(forms.Form):
                 "line_width",
             ),
             Field("colour", type="hidden"),
-            HTML('<h5 class="text-lg font-semibold mt-4">Pick a colour for the route</h5><div id="picker" class="mx-auto mt-2" style="margin-bottom: 15px"></div>'),
-            HTML("""<div role="alert" class="alert alert-warning mt-4">
+            HTML(
+                '<h5 class="text-lg font-semibold mt-4">Pick a colour for the route</h5><div id="picker" class="mx-auto mt-2" style="margin-bottom: 15px"></div>'
+            ),
+            HTML(
+                """<div role="alert" class="alert alert-warning mt-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert stroke-current shrink-0 h-6 w-6"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
                 <span><b>Caution:</b> Map generation may require several minutes. Using large zoom levels (e.g., above 12) with significant scales (e.g., 1:200,000 or higher) could result in an out of memory error. If this occurs, kindly decrease the zoom level (use a lower number).</span>
-            </div>"""),
+            </div>"""
+            ),
             ButtonHolder(
-                Submit("submit", "Submit"),
-                HTML(f'<a href="{self.redirect_url}" class="btn btn-secondary">Back</a>')
+                Submit("submit", "Submit"), HTML(f'<a href="{self.redirect_url}" class="btn btn-secondary">Back</a>')
             ),
         )
         self.fields["map_source"].choices = get_map_choices()
@@ -180,14 +183,17 @@ class ContestantMapForm(forms.Form):
                 "minute_mark_line_width",
             ),
             Field("colour", type="hidden"),
-            HTML('<h5 class="text-lg font-semibold mt-4">Pick a colour for the route</h5><div id="picker" class="mx-auto mt-2" style="margin-bottom: 15px"></div>'),
-            HTML("""<div role="alert" class="alert alert-warning mt-4">
+            HTML(
+                '<h5 class="text-lg font-semibold mt-4">Pick a colour for the route</h5><div id="picker" class="mx-auto mt-2" style="margin-bottom: 15px"></div>'
+            ),
+            HTML(
+                """<div role="alert" class="alert alert-warning mt-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert stroke-current shrink-0 h-6 w-6"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
                 <span><b>Caution:</b> Map generation may require several minutes. Using large zoom levels (e.g., above 12) with significant scales (e.g., 1:200,000 or higher) could result in an out of memory error. If this occurs, kindly decrease the zoom level (use a lower number).</span>
-            </div>"""),
+            </div>"""
+            ),
             ButtonHolder(
-                Submit("submit", "Submit"),
-                HTML(f'<a href="{self.redirect_url}" class="btn btn-secondary">Back</a>')
+                Submit("submit", "Submit"), HTML(f'<a href="{self.redirect_url}" class="btn btn-secondary">Back</a>')
             ),
         )
         self.fields["map_source"].choices = get_map_choices()
@@ -247,10 +253,12 @@ class FlightOrderConfigurationForm(forms.ModelForm):
         print(self.fields["map_source"].choices)
         self.helper = FormHelper()
         self.helper.layout = Layout(
-            HTML("""<div role="alert" class="alert alert-warning mt-4">
+            HTML(
+                """<div role="alert" class="alert alert-warning mt-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert stroke-current shrink-0 h-6 w-6"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
                 <span><b>Caution:</b> Map generation may require several minutes. Using large zoom levels (e.g., above 12) with significant scales (e.g., 1:200,000 or higher) could result in an out of memory error. If this occurs, kindly decrease the zoom level (use a lower number). Be sure to test map generation when changing the values here.</span>
-            </div>"""),
+            </div>"""
+            ),
             Fieldset(
                 "Map options",
                 "document_size",
@@ -289,7 +297,9 @@ class FlightOrderConfigurationForm(forms.ModelForm):
                 "photos_zoom_level",
             ),
             Field("map_line_colour", type="hidden"),
-            HTML('<h3>Pick a colour for the map lines</h3><div id="picker" class="mx-auto mt-4" style="margin-bottom: 10px"></div>'),
+            HTML(
+                '<h3>Pick a colour for the map lines</h3><div id="picker" class="mx-auto mt-4" style="margin-bottom: 10px"></div>'
+            ),
             ButtonHolder(Submit("submit", "Submit"), Submit("cancel", "Cancel", css_class="btn-secondary")),
         )
 
@@ -697,6 +707,7 @@ class ScorecardForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_class = "form mt-4"
         self.helper.layout = Layout(
+            Fieldset("Score sorting direction", "score_sorting_direction"),
             *[
                 Fieldset(*[field for field in block if field != "corridor_width"])
                 for block in self.instance.included_fields
