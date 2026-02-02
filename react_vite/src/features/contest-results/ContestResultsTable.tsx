@@ -61,6 +61,11 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   useContestResultsWebSocket(contestId); // Listen for real-time updates
   const { updateContestSummary, updateTaskSummary, updateTestResult } = useScoreUpdates(); // Use the new hook
 
+  const initialSorting = useMemo(() => {
+    if (!results) return [];
+    return [{ id: 'contestSummary', desc: results.summary_score_sorting_direction === 'DESC' }];
+  }, [results]);
+
   const handleNewTask = () => {
     setEditingTask(null);
     setTaskModalOpen(true);
@@ -181,8 +186,12 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
             )}
           </div>
         ),
-        enableSorting: false,
+        enableSorting: true,
+        sortDescFirst: results.summary_score_sorting_direction === 'DESC',
         cell: results.permission_change_contest && !results.autosum_scores ? EditableCell : (info) => info.getValue(),
+        meta: {
+          fixedSortDirection: results.summary_score_sorting_direction,
+        },
       }),
     ];
 
@@ -201,11 +210,13 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
             columnHelper.accessor(testDataField, {
               header: () => <span className="px-2 py-1 text-sm bg-base-200 text-base-content font-normal">{test.heading}</span>,
               id: `test-${test.id}`,
-              enableSorting: false,
+              enableSorting: true,
+              sortDescFirst: test.sorting === 'DESC',
               cell: results.permission_change_contest && test.navigation_task === null ? EditableCell : (info) => info.getValue(),
               meta: {
                 columnType: 'test',
                 testId: test.id,
+                fixedSortDirection: test.sorting,
               },
             }),
           );
@@ -219,7 +230,10 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
             <div className="flex flex-col items-center gap-1">
               <div
                 className="flex items-center gap-2 cursor-pointer bg-primary text-primary-content hover:bg-primary-focus px-2 py-1 rounded-md font-semibold"
-                onClick={() => handleToggleTask(task.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleTask(task.id);
+                }}
               >
                 <ChevronDownIcon
                   size={16}
@@ -290,12 +304,14 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
             </div>
           ),
           id: `task-${task.id}`,
-          enableSorting: false,
+          enableSorting: true,
+          sortDescFirst: task.summary_score_sorting_direction === 'DESC',
           cell: results.permission_change_contest && !task.autosum_scores ? EditableCell : (info) => info.getValue(),
           meta: {
             columnType: 'task',
             taskId: task.id,
             sortDirection: task.summary_score_sorting_direction,
+            fixedSortDirection: task.summary_score_sorting_direction,
           },
         }),
       );
@@ -398,6 +414,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
         data={data}
         className="table table-zebra table-pin-rows table-pin-cols"
         updateMyData={updateMyData}
+        initialSorting={initialSorting}
       />
       <TaskModal
         show={isTaskModalOpen}

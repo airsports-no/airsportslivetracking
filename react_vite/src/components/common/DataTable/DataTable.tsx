@@ -29,6 +29,7 @@ interface DataTableProps<TData extends object> {
   initialState?: {
     hiddenColumns?: string[];
   };
+  initialSorting?: SortingState;
 }
 
 export function DataTable<TData extends object>({
@@ -39,8 +40,9 @@ export function DataTable<TData extends object>({
   className,
   updateMyData,
   initialState,
+  initialSorting = [],
 }: DataTableProps<TData>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [columnVisibility, setColumnVisibility] = useState({});
 
   const table = useReactTable({
@@ -91,7 +93,19 @@ export function DataTable<TData extends object>({
                   key={header.id}
                   colSpan={header.colSpan}
                   style={{ position: 'relative', height: '100%' }}
-                  onClick={header.column.getToggleSortingHandler()}
+                  onClick={(e) => {
+                    const meta = header.column.columnDef.meta as any;
+                    if (meta?.fixedSortDirection) {
+                      const isDesc = meta.fixedSortDirection === 'DESC';
+                      const currentSort = header.column.getIsSorted();
+                      if (currentSort === (isDesc ? 'desc' : 'asc')) {
+                        return; // Already sorted in the correct direction, do nothing
+                      }
+                      header.column.toggleSorting(isDesc, e.shiftKey);
+                    } else {
+                      header.column.getToggleSortingHandler()?.(e);
+                    }
+                  }}
                 >
                   {flexRender(header.column.columnDef.header, header.getContext())}
                   {{
