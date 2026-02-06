@@ -175,8 +175,8 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
 
     if (columnId === 'contestSummary') {
       await updateContestSummary(contestId, teamId, value);
-    } else if (columnId.startsWith('task_')) {
-      const taskId = parseInt(columnId.replace('task_', ''));
+    } else if (columnId.startsWith('task-')) {
+      const taskId = parseInt(columnId.replace('task-', ''));
       await updateTaskSummary(contestId, teamId, taskId, value);
     } else if (columnId.startsWith('test-')) {
       const testId = parseInt(columnId.replace('test-', ''));
