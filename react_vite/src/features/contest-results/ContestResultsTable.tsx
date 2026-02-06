@@ -43,6 +43,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   const createOrUpdateTask = useContestResultsStore((state) => state.createOrUpdateTask);
   const createOrUpdateTest = useContestResultsStore((state) => state.createOrUpdateTest);
   const deleteTask = useContestResultsStore((state) => state.deleteTask);
+  const deleteTest = useContestResultsStore((state) => state.deleteTest);
   const deleteTeamResults = useContestResultsStore((state) => state.deleteTeamResults);
 
   const [isTaskModalOpen, setTaskModalOpen] = useState(false);
@@ -64,7 +65,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
 
   const initialSorting = useMemo(() => {
     if (!results) return [];
-    return [{ id: 'contestSummary', desc: results.summary_score_sorting_direction === 'DESC' }];
+    return [{ id: 'contestSummary', desc: results.summary_score_sorting_direction?.toUpperCase() === 'DESC' }];
   }, [results]);
 
   const handleNewTask = () => {
@@ -83,9 +84,27 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
     setTestModalOpen(true);
   };
 
+  const handleEditTest = (test: Test, task: Task) => {
+    setEditingTest(test);
+    setEditingTask(task);
+    setTestModalOpen(true);
+  };
+
   const handleDeleteTask = async (taskId: number) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
       await deleteTask(contestId, taskId);
+    }
+  };
+
+  const handleDeleteTest = async (testId: number) => {
+    if (window.confirm('Are you sure you want to delete this test?')) {
+      await deleteTest(contestId, testId);
+    }
+  };
+
+  const handleDeleteTeamResults = async (teamId: number) => {
+    if (window.confirm('Are you sure you want to delete this team results?')) {
+      await deleteTeamResults(contestId, teamId);
     }
   };
 
@@ -104,6 +123,30 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
       const taskA = { ...task, index: task.index + 1 };
       const taskB = { ...otherTask, index: otherTask.index - 1 };
       await Promise.all([createOrUpdateTask(contestId, taskA), createOrUpdateTask(contestId, taskB)]);
+    }
+  };
+
+  const handleMoveTest = async (test: Test, task: Task, direction: 'left' | 'right') => {
+    if (!task.tasktest_set) return;
+    const tests = [...task.tasktest_set].sort((a, b) => ((a.index || 0) > (b.index || 0) ? 1 : -1));
+    const currentIndex = tests.findIndex((t) => t.id === test.id);
+
+    if (direction === 'left' && currentIndex > 0) {
+      const otherTest = tests[currentIndex - 1];
+      const testA = { ...test, index: test.index - 1 };
+      const testB = { ...otherTest, index: otherTest.index + 1 };
+      await Promise.all([
+        createOrUpdateTest(contestId, task.id, testA),
+        createOrUpdateTest(contestId, task.id, testB)
+      ]);
+    } else if (direction === 'right' && currentIndex < tests.length - 1) {
+      const otherTest = tests[currentIndex + 1];
+      const testA = { ...test, index: test.index + 1 };
+      const testB = { ...otherTest, index: otherTest.index - 1 };
+      await Promise.all([
+        createOrUpdateTest(contestId, task.id, testA),
+        createOrUpdateTest(contestId, task.id, testB)
+      ]);
     }
   };
 
@@ -188,7 +231,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
           </div>
         ),
         enableSorting: true,
-        sortDescFirst: results.summary_score_sorting_direction === 'DESC',
+        sortDescFirst: results.summary_score_sorting_direction?.toUpperCase() === 'DESC',
         cell: results.permission_change_contest && !results.autosum_scores ? EditableCell : (info) => info.getValue(),
         meta: {
           fixedSortDirection: results.summary_score_sorting_direction,
@@ -205,14 +248,64 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
       // Add columns for tests within the task if expanded
       if (expandedTasks[task.id]) {
         const tests = (task.tasktest_set || []).sort((a, b) => ((a.index || 0) > (b.index || 0) ? 1 : -1));
-        tests.forEach((test) => {
+        tests.forEach((test, testIndex) => {
           const testDataField = `test_${test.id.toFixed(0)}`;
           baseColumns.push(
             columnHelper.accessor(testDataField, {
-              header: () => <span className="px-2 py-1 text-sm bg-base-200 text-base-content font-normal">{test.heading}</span>,
+              header: () => (
+                <div className="flex flex-col items-center gap-1">
+                  <span className="px-2 py-1 text-sm bg-base-200 text-base-content font-normal rounded-md">{test.heading}</span>
+                  {results.permission_change_contest && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveTest(test, task, 'left');
+                        }}
+                        className="btn btn-xs btn-ghost"
+                        disabled={testIndex === 0}
+                        title="Move test left"
+                      >
+                        <ChevronLeftIcon size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveTest(test, task, 'right');
+                        }}
+                        className="btn btn-xs btn-ghost"
+                        disabled={testIndex === tests.length - 1}
+                        title="Move test right"
+                      >
+                        <ChevronRightIcon size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditTest(test, task);
+                        }}
+                        className="btn btn-xs btn-ghost"
+                        title="Edit test"
+                      >
+                        <PencilIcon size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTest(test.id);
+                        }}
+                        className="btn btn-xs btn-ghost"
+                        title="Delete test"
+                      >
+                        <Trash2Icon size={12} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ),
               id: `test-${test.id}`,
               enableSorting: true,
-              sortDescFirst: test.sorting === 'DESC',
+              sortDescFirst: test.sorting?.toUpperCase() === 'DESC',
               cell: results.permission_change_contest && test.navigation_task === null ? EditableCell : (info) => info.getValue(),
               meta: {
                 columnType: 'test',
@@ -306,7 +399,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
           ),
           id: `task-${task.id}`,
           enableSorting: true,
-          sortDescFirst: task.summary_score_sorting_direction === 'DESC',
+          sortDescFirst: task.summary_score_sorting_direction?.toUpperCase() === 'DESC',
           cell: results.permission_change_contest && !task.autosum_scores ? EditableCell : (info) => info.getValue(),
           meta: {
             columnType: 'task',
