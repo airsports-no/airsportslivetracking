@@ -715,7 +715,8 @@ class ScorecardForm(forms.ModelForm):
             *[
                 Field(key, type="hidden")
                 for key in self.fields.keys()
-                if key not in self.instance.visible_fields or key == "corridor_width"
+                if (key not in self.instance.visible_fields and key != "score_sorting_direction")
+                or key == "corridor_width"
             ],
             ButtonHolder(
                 Submit("submit", "Submit"),

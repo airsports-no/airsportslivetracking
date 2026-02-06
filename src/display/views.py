@@ -1619,10 +1619,13 @@ def _extract_values_from_form(form: ModelForm) -> List:
             data = {"legend": field.legend, "values": []}
             for internal_field in field.fields:
                 try:
+                    value = getattr(form.instance, internal_field)
+                    if hasattr(form.instance, f"get_{internal_field}_display"):
+                        value = getattr(form.instance, f"get_{internal_field}_display")()
                     data["values"].append(
                         {
                             "label": form.fields[internal_field].label,
-                            "value": getattr(form.instance, internal_field),
+                            "value": value,
                         }
                     )
                 except KeyError:

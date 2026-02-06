@@ -479,6 +479,17 @@ def adjust_group_notifications(instance, action, reverse, model, pk_set, using, 
         logger.info("Group %s is modifying its relation to users «%s»", instance, pk_set)
 
 
+@receiver(post_save, sender=Scorecard)
+def sync_scorecard_sorting_direction(sender, instance: Scorecard, **kwargs):
+    if hasattr(instance, "navigation_task_override"):
+        nt = instance.navigation_task_override
+        if hasattr(nt, "tasktest"):
+            nt.tasktest.sorting = instance.score_sorting_direction
+            nt.tasktest.save(update_fields=["sorting"])
+            nt.tasktest.task.summary_score_sorting_direction = instance.score_sorting_direction
+            nt.tasktest.task.save(update_fields=["summary_score_sorting_direction"])
+
+
 @receiver(post_save, sender=EditableRoute)
 def calculate_editable_route_statistics(sender, instance: EditableRoute, **kwargs):
     EditableRoute.objects.filter(pk=instance.pk).update(
