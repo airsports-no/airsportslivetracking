@@ -32,6 +32,7 @@ def get_default_scorecard():
         defaults={
             "shortcut_name": "FAI ANR",
             "valid_from": datetime.datetime(2023, 1, 1, tzinfo=datetime.timezone.utc),
+            "score_sorting_direction": "asc",
             "backtracking_penalty": 200,  # verified
             "backtracking_grace_time_seconds": 0,  # verified?
             "backtracking_maximum_penalty": 400,  # verified

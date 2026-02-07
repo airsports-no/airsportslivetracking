@@ -33,7 +33,7 @@ export const useScoreUpdates = () => {
   }, []);
 
   const updateTaskSummary = useCallback(async (contestId: number, teamId: number, taskId: number, points: number) => {
-    const url = reverse('contest-update-task-summary', contestId);
+    const url = reverse('contests-update-task-summary', contestId);
     const payload: ScoreUpdatePayload = { team: teamId, task: taskId, points: points };
     try {
       const response = await fetch(url, {

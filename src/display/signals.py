@@ -327,6 +327,7 @@ def update_contestant_initial_score(sender, instance: Scorecard, **kwargs):
 @receiver(post_save, sender=NavigationTask)
 def initialise_navigation_task_dependencies(sender, instance: NavigationTask, created, **kwargs):
     if created:
+        instance.assign_scorecard_from_original(force=False)
         instance.create_results_service_test()
         map_source = country_code_to_map_source(instance.contest.country)
         FlightOrderConfiguration.objects.get_or_create(navigation_task=instance, defaults={"map_source": map_source})
@@ -476,6 +477,17 @@ def adjust_group_notifications(instance, action, reverse, model, pk_set, using, 
                     instance.send_contest_creator_email(person)
     else:
         logger.info("Group %s is modifying its relation to users «%s»", instance, pk_set)
+
+
+@receiver(post_save, sender=Scorecard)
+def sync_scorecard_sorting_direction(sender, instance: Scorecard, **kwargs):
+    if hasattr(instance, "navigation_task_override"):
+        nt = instance.navigation_task_override
+        if hasattr(nt, "tasktest"):
+            nt.tasktest.sorting = instance.score_sorting_direction
+            nt.tasktest.save(update_fields=["sorting"])
+            nt.tasktest.task.summary_score_sorting_direction = instance.score_sorting_direction
+            nt.tasktest.task.save(update_fields=["summary_score_sorting_direction"])
 
 
 @receiver(post_save, sender=EditableRoute)

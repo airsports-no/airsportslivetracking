@@ -440,6 +440,7 @@ class RouteSummarySerialiser(serializers.ModelSerializer):
 class NavigationTasksLightSerialiser(serializers.ModelSerializer):
     route = RouteSummarySerialiser(read_only=True)
     flown_contestants_count = serializers.SerializerMethodField()
+    score_sorting_direction = serializers.ReadOnlyField()
 
     class Meta:
         model = NavigationTask
@@ -453,6 +454,7 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
             "allow_self_management",
             "route",
             "flown_contestants_count",
+            "score_sorting_direction",
             "is_public",
             "is_featured",
             "planning_time",
@@ -465,6 +467,7 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
 class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
     route = RouteSerialiser(read_only=True)
     flown_contestants_count = serializers.SerializerMethodField()
+    score_sorting_direction = serializers.ReadOnlyField()
 
     class Meta:
         model = NavigationTask
@@ -478,6 +481,7 @@ class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
             "allow_self_management",
             "route",
             "flown_contestants_count",
+            "score_sorting_direction",
             "is_public",
             "is_featured",
             "planning_time",
@@ -940,12 +944,15 @@ class ContestantSerialiser(serializers.ModelSerializer):
 
     def get_overlapping_tasks(self, contestant):
         overlaps = contestant.get_overlapping_tasks()
-        return [{
-            "task_id": item["task"].pk,
-            "task_name": item["task"].name,
-            "contest_id": item["task"].contest.pk,
-            "reason": ", ".join(sorted(item["reasons"]))
-        } for item in overlaps]
+        return [
+            {
+                "task_id": item["task"].pk,
+                "task_name": item["task"].name,
+                "contest_id": item["task"].contest.pk,
+                "reason": ", ".join(sorted(item["reasons"])),
+            }
+            for item in overlaps
+        ]
 
     def get_overlap_warnings(self, contestant):
         return contestant.get_overlap_warnings()
@@ -1182,6 +1189,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     route = RouteSerialiser()
     time_zone = TimeZoneSerializerField(source="contest.time_zone", read_only=True)
     contest = serializers.PrimaryKeyRelatedField(read_only=True)
+    score_sorting_direction = serializers.ReadOnlyField()
     user_has_change_permission = SerializerMethodField("get_user_has_change_permission")
     flown_contestants_count = serializers.SerializerMethodField()
 

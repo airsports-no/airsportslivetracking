@@ -68,6 +68,7 @@ export interface ContestResultsState {
   createOrUpdateTask: (contestId: number, task: Task) => Promise<void>;
   createOrUpdateTest: (contestId: number, taskId: number, test: Test) => Promise<void>;
   deleteTask: (contestId: number, taskId: number) => Promise<void>;
+  deleteTest: (contestId: number, testId: number) => Promise<void>;
   deleteTeamResults: (contestId: number, teamId: number) => Promise<void>;
 }
 
@@ -178,6 +179,27 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
       await get().fetchResults(contestId);
     } catch (error: any) {
       console.error("Error deleting task:", error);
+      set({ error: error.message });
+    }
+  },
+
+  deleteTest: async (contestId: number, testId: number) => {
+    const url = reverse('tasktests-detail', contestId, testId);
+    try {
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken')!,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete test');
+      }
+      // Refresh results to get the latest state
+      await get().fetchResults(contestId);
+    } catch (error: any) {
+      console.error("Error deleting test:", error);
       set({ error: error.message });
     }
   },

@@ -96,7 +96,7 @@ export function DataTable<TData extends object>({
                   onClick={(e) => {
                     const meta = header.column.columnDef.meta as any;
                     if (meta?.fixedSortDirection) {
-                      const isDesc = meta.fixedSortDirection === 'DESC';
+                      const isDesc = meta.fixedSortDirection.toUpperCase() === 'DESC';
                       const currentSort = header.column.getIsSorted();
                       if (currentSort === (isDesc ? 'desc' : 'asc')) {
                         return; // Already sorted in the correct direction, do nothing
