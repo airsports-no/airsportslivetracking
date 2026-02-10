@@ -4,6 +4,7 @@ RUN apt update && apt install -y curl bash
 COPY src /app/src
 
 WORKDIR /app/src/static/css
+RUN rm -f tailwindcss
 RUN curl -sL daisyui.com/fast | bash
 
 COPY react_vite /app/react_vite
@@ -18,6 +19,7 @@ COPY package.json package-lock.json /app/
 WORKDIR /app
 RUN npm ci
 WORKDIR /app/
+RUN chmod 755 src/static/css/tailwindcss
 RUN src/static/css/tailwindcss -i src/static/css/input.css -o src/static/css/output.css --minify
 
 # Stage 2: Build python dependencies
