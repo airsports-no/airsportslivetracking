@@ -40,6 +40,7 @@
         let autocompleteContainer = document.createElement('div');
         autocompleteContainer.setAttribute('class', 'absolute z-50 w-full bg-base-100 rounded-box shadow-lg top-full mt-1 max-h-60 overflow-y-auto');
         registrationInput.parentNode.style.position = 'relative'; // Needed for absolute positioning of child
+        registrationInput.parentNode.style.overflow = 'visible'; // Prevent clipping of the dropdown
         registrationInput.parentNode.appendChild(autocompleteContainer);
 
         registrationInput.addEventListener('input', async function(e) {

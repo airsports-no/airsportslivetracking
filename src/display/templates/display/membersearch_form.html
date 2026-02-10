@@ -87,6 +87,7 @@
             const autocompleteContainer = document.createElement('div');
             autocompleteContainer.setAttribute('class', 'absolute z-50 w-full bg-base-100 rounded-box shadow-lg top-full mt-1 max-h-60 overflow-y-auto');
             input.parentNode.style.position = 'relative'; // Ensure parent has relative positioning
+            input.parentNode.style.overflow = 'visible'; // Prevent clipping of the dropdown
             input.parentNode.appendChild(autocompleteContainer);
 
             input.addEventListener('input', async function(e) {
