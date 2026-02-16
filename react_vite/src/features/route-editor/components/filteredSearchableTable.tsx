@@ -228,7 +228,7 @@ export function ASTable<T>({ columns = [], data = [], rowEvents, initialState, c
     });
 
     return (
-        <div className="flex flex-col">
+        <div className="flex flex-col w-full">
             <GlobalFilter
                 globalFilter={globalFilter}
                 setGlobalFilter={setGlobalFilter}
@@ -242,7 +242,7 @@ export function ASTable<T>({ columns = [], data = [], rowEvents, initialState, c
                                 <th
                                     key={column.id}
                                     colSpan={column.colSpan}
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider align-top"
+                                    className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider align-top"
                                 >
                                     <div className="flex flex-col gap-2">
                                         <div className="flex items-center justify-between">
@@ -282,7 +282,7 @@ export function ASTable<T>({ columns = [], data = [], rowEvents, initialState, c
                             >
                                 {row.getVisibleCells().map(cell => {
                                     return (
-                                        <td key={cell.id} className="whitespace-nowrap text-sm">
+                                        <td key={cell.id} className="px-2 sm:px-4 py-2 text-sm whitespace-normal break-words">
                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                         </td>
                                     );

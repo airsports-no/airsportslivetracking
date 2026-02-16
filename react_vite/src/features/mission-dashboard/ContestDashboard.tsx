@@ -306,40 +306,33 @@ const ContestDashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Leaderboard */}
-                <div className="lg:col-span-2">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold mb-4">Leaderboard</h2>
-                        <Link to={generatePath('CONTEST_RESULTS_TABLE', { contestId: contestId })} className="btn btn-primary">View Full Results</Link>
-                    </div>
-                    <Leaderboard results={contestResults || null} />
-                </div>
-
                 {/* Task Suite */}
-                <div>
-                    <p className="text-sm text-gray-500 mb-4">All times are in contest time zone: {contest.time_zone}</p>
+                <div className="lg:col-span-2 order-1 lg:order-2">
                     {upcomingFlightsForThisContest.length > 0 && (
                         <div className="mb-8">
                             <h2 className="text-2xl font-bold mb-4">My Upcoming Flights</h2>
                             <UpcomingFlights myFutureFlights={upcomingFlightsForThisContest} contests={contest ? [contest] : []} onCancel={handleCancelFlight} />
                         </div>
                     )}
-                    <h2 className="text-2xl font-bold mb-1 flex items-center gap-2">
-                        Task Suite
-                        <div className="dropdown dropdown-hover dropdown-left">
-                            <label tabIndex={0} className="m-1"><HelpCircle size={20} className="cursor-pointer" /></label>
-                            <div tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-64">
-                                <p className="font-bold">Open:</p>
-                                <p className="mb-2">The task's finish time has not passed, and you currently do not have a flight scheduled for it. It is ready for flight plan registration.</p>
-                                <p className="font-bold">Scheduled:</p>
-                                <p className="mb-2">You have successfully registered a flight plan.</p>
-                                <p className="font-bold">Live:</p>
-                                <p className="mb-2">The task is actively being tracked.</p>
-                                <p className="font-bold">Finalized:</p>
-                                <p>The task's finish time has passed and results are available.</p>
+                    <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+                        <h2 className="text-2xl font-bold flex items-center gap-2">
+                            Task Suite
+                            <div className="dropdown dropdown-hover dropdown-left">
+                                <label tabIndex={0} className="m-1"><HelpCircle size={20} className="cursor-pointer" /></label>
+                                <div tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-64">
+                                    <p className="font-bold">Open:</p>
+                                    <p className="mb-2">The task's finish time has not passed, and you currently do not have a flight scheduled for it. It is ready for flight plan registration.</p>
+                                    <p className="font-bold">Scheduled:</p>
+                                    <p className="mb-2">You have successfully registered a flight plan.</p>
+                                    <p className="font-bold">Live:</p>
+                                    <p className="mb-2">The task is actively being tracked.</p>
+                                    <p className="font-bold">Finalized:</p>
+                                    <p>The task's finish time has passed and results are available.</p>
+                                </div>
                             </div>
-                        </div>
-                    </h2>
+                        </h2>
+                        <p className="text-sm text-gray-500">Times in {contest.time_zone}</p>
+                    </div>
                     <div className="space-y-4">
                         {contest.navigationtask_set
                             .filter(task => {
@@ -377,6 +370,15 @@ const ContestDashboard = () => {
                                 );
                             })}
                     </div>
+                </div>
+
+                {/* Leaderboard */}
+                <div className="order-2 lg:order-1">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold mb-4">Leaderboard</h2>
+                        <Link to={generatePath('CONTEST_RESULTS_TABLE', { contestId: contestId })} className="btn btn-primary">View Full Results</Link>
+                    </div>
+                    <Leaderboard results={contestResults || null} />
                 </div>
             </div>
             <Link to="/" className="btn btn-secondary mt-4">Back to Dashboard</Link>

@@ -36,12 +36,14 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ results }) => {
 
     const columns = useMemo<ColumnDef<LeaderboardData>[]>(() => [
         {
-            header: 'Rank',
+            header: '',
             accessorKey: 'rank',
+            enableColumnFilter: false,
         },
         {
             header: 'Name',
             accessorKey: 'name',
+            enableColumnFilter: false,
             cell: ({ getValue }) => (
                 <div className="whitespace-normal break-words min-w-[120px]">
                     {getValue() as string}
@@ -51,6 +53,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ results }) => {
         {
             header: 'Score',
             accessorKey: 'score',
+            enableColumnFilter: false,
             cell: ({ getValue }) => (getValue() as number).toFixed(0),
         },
     ], []);
