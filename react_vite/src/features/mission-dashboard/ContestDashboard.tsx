@@ -185,7 +185,7 @@ const ContestDashboard = () => {
             )}
             {/* Modals for forms */}
             {showRegistrationForm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-center">
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <ContestRegistrationForm
                         contest={contest}
                         myContestTeams={myContestTeams}
@@ -198,7 +198,7 @@ const ContestDashboard = () => {
                 </div>
             )}
             {showScheduleForm && (
-                 <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-center">
+                 <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <ScheduleFlightForm
                         contest={contest}
                         navigationTaskId={showScheduleForm.pk}
@@ -216,7 +216,7 @@ const ContestDashboard = () => {
                 </div>
             )}
             {viewingScoresForTask && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-center">
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <div className="card bg-base-100 shadow-xl max-w-4xl w-full">
                         <div className="card-body">
                             {loadingTaskScores ? (

@@ -126,7 +126,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto px-1">
             <div className="form-control w-full">
                 <label className="label">
                     <span className="label-text font-bold">Contest Teams</span>

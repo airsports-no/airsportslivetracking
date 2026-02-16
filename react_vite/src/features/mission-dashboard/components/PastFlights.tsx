@@ -109,7 +109,7 @@ const PastFlights = () => {
             {error && <div className="alert alert-error">{error}</div>}
 
             {selectedContest && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-center">
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <div className="card bg-base-100 shadow-xl max-w-4xl w-full">
                         <div className="card-body">
                             <h2 className="card-title">Results for {selectedContest.name}</h2>
