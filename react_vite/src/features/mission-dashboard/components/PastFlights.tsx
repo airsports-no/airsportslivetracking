@@ -147,7 +147,7 @@ const PastFlights = () => {
                     options={countryOptions}
                     value={countryOptions.filter(option => selectedCountries.includes(option.value))}
                     onChange={(selectedOptions) => setSelectedCountries(selectedOptions ? selectedOptions.map(option => option.value) : [])}
-                    className="w-full max-w-[120px] dark:bg-black text-sm"
+                    className="w-full max-w-[200px] dark:bg-black text-sm"
                     placeholder="Country..."
                     classNamePrefix="my-react-select"
                 />

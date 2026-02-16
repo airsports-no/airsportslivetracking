@@ -435,7 +435,7 @@ const MissionDashboard = () => {
                                 setSelectedCountries(countries);
                                 updateURL({ countries });
                             }}
-                            className="w-full max-w-[120px] dark:bg-black text-sm"
+                            className="w-full max-w-[200px] dark:bg-black text-sm"
                             placeholder="Country..."
                             classNamePrefix="my-react-select"
                         />
