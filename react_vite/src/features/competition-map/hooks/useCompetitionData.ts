@@ -170,7 +170,9 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                         });
                     }
 
-                    const allScoreLogs = [...existingScoreLogs, ...newEntries];
+                    // The score_log WebSocket message contains the FULL history for the contestant,
+                    // so we replace the existing log rather than appending.
+                    const allScoreLogs = [...newEntries];
                     allScoreLogs.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                     return { ...prev, [contestantId]: allScoreLogs };
                 });

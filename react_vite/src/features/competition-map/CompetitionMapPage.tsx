@@ -20,6 +20,7 @@ import Disclaimer from './components/Disclaimer';
 import TaskInfoModal from './TaskInfoModal';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { reverse } from '../../urls';
+import './CompetitionMap.css';
 
 
 
@@ -140,7 +141,8 @@ export default function CompetitionMapPage() {
 
     if (staticNavTaskData?.display_background_map && userShowBackgroundMap) {
         const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
+            attribution: '&copy; OpenStreetMap contributors',
+            opacity: 0.6
         }).addTo(map);
         tileLayerRef.current = osm;
     }

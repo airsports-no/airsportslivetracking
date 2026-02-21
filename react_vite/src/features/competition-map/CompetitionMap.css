@@ -1,0 +1,9 @@
+/* Mute the background map tiles */
+.muted-tiles {
+    filter: grayscale(30%) brightness(1.1) contrast(0.9);
+}
+
+/* Ensure tracks are always on top and distinct */
+.plane-icon {
+    z-index: 1000 !important;
+}

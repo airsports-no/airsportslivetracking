@@ -126,8 +126,8 @@ export function useMapLayers({
                     onContestantSelect(c.id, false);
                 });
 
-                const recentTrail = L.polyline([], { color, weight: 5, opacity: 0 }).addTo(map);
-                const fullTrail = L.polyline([], { color, weight: 4, opacity: 0 }).addTo(map);
+                const recentTrail = L.polyline([], { color, weight: 6, opacity: 0 }).addTo(map);
+                const fullTrail = L.polyline([], { color, weight: 5, opacity: 0 }).addTo(map);
 
                 layersRef.current[c.id] = { marker, recentTrail, fullTrail };
             } else {
@@ -182,13 +182,13 @@ export function useMapLayers({
             if (showFullTrails || isSelected) {
                 const fullLatLngs = positions.map(p => [p.latitude, p.longitude] as [number, number]);
                 layers.fullTrail.setLatLngs(fullLatLngs);
-                layers.fullTrail.setStyle({ opacity: 0.7 });
+                layers.fullTrail.setStyle({ opacity: 0.85, weight: 5 });
                 layers.recentTrail.setStyle({ opacity: 0 });
             } else {
                 const recentPositions = lastMinutesPositions(positions, 5, currentTime);
                 const recentLatLngs = recentPositions.map(p => [p.latitude, p.longitude] as [number, number]);
                 layers.recentTrail.setLatLngs(recentLatLngs);
-                layers.recentTrail.setStyle({ opacity: 0.9 });
+                layers.recentTrail.setStyle({ opacity: 1.0, weight: 6 });
                 layers.fullTrail.setStyle({ opacity: 0 });
             }
         });
