@@ -41,6 +41,12 @@ export default function CompetitionMapPage() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [permanentAnnotations, setPermanentAnnotations] = useState(false);
   const [contestDetails, setContestDetails] = useState<any | null>(null);
+  const hasAutoEnabledTrailsRef = useRef(false);
+
+  useEffect(() => {
+    // Reset auto-enable flag when switching tasks
+    hasAutoEnabledTrailsRef.current = false;
+  }, [navigationTaskIdNum]);
 
   useEffect(() => {
     if (contestIdNum) {
@@ -177,7 +183,7 @@ export default function CompetitionMapPage() {
 
   // Default to full trails if task is over or no one is running
   useEffect(() => {
-    if (!staticNavTaskData) return;
+    if (!staticNavTaskData || hasAutoEnabledTrailsRef.current) return;
 
     const isAfterFinishTime = currentTime > new Date(staticNavTaskData.finish_time);
     const contestants = Object.values(contestantsById);
@@ -187,6 +193,7 @@ export default function CompetitionMapPage() {
 
     if (isAfterFinishTime || (contestants.length > 0 && !anyRunning)) {
       setShowFullTrails(true);
+      hasAutoEnabledTrailsRef.current = true;
     }
   }, [staticNavTaskData, contestantsById, currentTime]);
 
@@ -392,7 +399,15 @@ export default function CompetitionMapPage() {
 
               <label className="label cursor-pointer text-xs p-0">
                 <span className="label-text mr-1">Full Trails</span>
-                <input type="checkbox" className="toggle toggle-xs" checked={showFullTrails} onChange={e => setShowFullTrails(e.target.checked)} />
+                <input 
+                  type="checkbox" 
+                  className="toggle toggle-xs" 
+                  checked={showFullTrails} 
+                  onChange={e => {
+                    setShowFullTrails(e.target.checked);
+                    hasAutoEnabledTrailsRef.current = true;
+                  }} 
+                />
               </label>
 
               <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline">Task Info</button>
