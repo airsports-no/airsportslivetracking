@@ -170,7 +170,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                         });
                     }
 
-                    const allScoreLogs = [...newEntries];
+                    const allScoreLogs = [...existingScoreLogs, ...newEntries];
                     allScoreLogs.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                     return { ...prev, [contestantId]: allScoreLogs };
                 });

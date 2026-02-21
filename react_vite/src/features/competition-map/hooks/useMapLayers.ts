@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import { planeIcon, getAnnotationIcon } from '../components/icons';
 import { TrackPosition, NavigationTask, Contestant } from '../types';
@@ -22,7 +22,7 @@ interface ContestantLayers {
 interface MapLayersProps {
     mapRef: React.MutableRefObject<L.Map | null>;
     navTask: NavigationTask | null; // Stable navTask data
-    contestants: Contestant[]; // Dynamic contestants
+    contestants: Contestant[]; // Sorted dynamic contestants
     currentPositions: Record<number, TrackPosition[]>;
     showFullTrails: boolean;
     currentTime: Date;
@@ -38,7 +38,7 @@ interface MapLayersProps {
 export function useMapLayers({
     mapRef,
     navTask,
-    contestants, // Destructure new prop
+    contestants, // Sorted dynamic contestants
     currentPositions,
     showFullTrails,
     currentTime,
@@ -56,6 +56,9 @@ export function useMapLayers({
     const prevPermanentAnnotationsRef = useRef(permanentAnnotations);
     
     const [clickedAnnotationId, setClickedAnnotationId] = useState<number | null>(null);
+
+    // Memoize the list of contestant IDs to stabilize effect dependencies
+    const contestantIds = useMemo(() => contestants.map(c => c.id).join(','), [contestants]);
 
     // Cleanup effect for when mode changes
     useEffect(() => {
@@ -88,69 +91,77 @@ export function useMapLayers({
         };
     }, [mapRef]);
 
-    // Effect 1: Layer creation/destruction. Runs when fundamental map data changes.
+    // Effect 1: Layer synchronization. Creates/destroys layers to match 'contestants' list.
     useEffect(() => {
         const map = mapRef.current;
-        if (!map || !navTask) return;
+        if (!map) return;
 
-        // Clear all layers from previous run of this effect (e.g., if task changes)
-        Object.values(layersRef.current).forEach(l => {
-            l.marker.remove();
-            l.recentTrail.remove();
-            l.fullTrail.remove();
-        });
-        layersRef.current = {}; // Clear the ref
+        const total = contestants.length;
+        const currentIds = new Set(contestants.map(c => c.id));
 
-        // Create initial layers for each contestant from the stable navTask.contestant_set
-        navTask.contestant_set.forEach((c, index) => {
-            const color = hslColor(index, navTask.contestant_set.length);
-            const marker = L.marker([0, 0], { // Create at 0,0 initially, hidden
-                icon: planeIcon(c.contestant_number, color, 0),
-                opacity: 0,
-            }).addTo(map);
-
-            marker.on('click', (e) => {
-                L.DomEvent.stopPropagation(e);
-                onContestantSelect(c.id, false);
-            });
-
-            const recentTrail = L.polyline([], { color, weight: 5, opacity: 0 }).addTo(map); // Initially hidden
-            const fullTrail = L.polyline([], { color, weight: 4, opacity: 0 }).addTo(map); // Initially hidden
-
-            layersRef.current[c.id] = { marker, recentTrail, fullTrail };
-        });
-
-        // This cleanup runs only when mapRef, navTask, or onContestantSelect change
-        return () => {
-            Object.values(layersRef.current).forEach(l => {
+        // 1. Remove layers for contestants no longer present
+        Object.keys(layersRef.current).forEach(idStr => {
+            const id = Number(idStr);
+            if (!currentIds.has(id)) {
+                const l = layersRef.current[id];
                 l.marker.remove();
                 l.recentTrail.remove();
                 l.fullTrail.remove();
-            });
-            layersRef.current = {};
+                delete layersRef.current[id];
+            }
+        });
+
+        // 2. Add or update layers for current contestants
+        contestants.forEach((c, index) => {
+            const color = hslColor(index, total);
             
-            annotationMarkersRef.current.forEach(m => m.remove());
-            annotationMarkersRef.current.clear();
-            annotationStatesRef.current.clear();
-        };
-    }, [mapRef, navTask, onContestantSelect]); // Dependencies for creation/destruction
+            if (!layersRef.current[c.id]) {
+                const marker = L.marker([0, 0], {
+                    icon: planeIcon(c.contestant_number, color, 0),
+                    opacity: 0,
+                }).addTo(map);
+
+                marker.on('click', (e) => {
+                    L.DomEvent.stopPropagation(e);
+                    onContestantSelect(c.id, false);
+                });
+
+                const recentTrail = L.polyline([], { color, weight: 5, opacity: 0 }).addTo(map);
+                const fullTrail = L.polyline([], { color, weight: 4, opacity: 0 }).addTo(map);
+
+                layersRef.current[c.id] = { marker, recentTrail, fullTrail };
+            } else {
+                // Update color if it changed due to re-indexing
+                const l = layersRef.current[c.id];
+                l.recentTrail.setStyle({ color });
+                l.fullTrail.setStyle({ color });
+                // Marker icon will be updated in Effect 2
+            }
+        });
+
+    }, [mapRef, contestantIds, onContestantSelect]); // Run when map or list of contestants changes
 
     // Effect 2: Layer updates. Runs frequently to update positions/styles.
     useEffect(() => {
         const map = mapRef.current;
         if (!map || !navTask) return;
 
-        contestants.forEach((c) => {
-            const layers = layersRef.current[c.id];
-            if (!layers) return; // Layers might not be initialized yet by Effect 1
+        // Iterate over ALL current layers to ensure correct visibility state
+        // even if some contestants are filtered out in this specific update cycle.
+        Object.keys(layersRef.current).forEach(idStr => {
+            const id = Number(idStr);
+            const layers = layersRef.current[id];
+            const contestant = contestants.find(c => c.id === id);
+            
+            if (!contestant) return; // Should have been handled by Effect 1 cleanup
 
-            const positions = currentPositions[c.id] ?? [];
-            const isSelected = selectedContestantId === c.id;
+            const positions = currentPositions[id] ?? [];
+            const isSelected = selectedContestantId === id;
             const isAnySelected = selectedContestantId !== null;
             const shouldBeVisible = !(isAnySelected && !isSelected);
 
             // Handle visibility based on positions.length
-            if (positions.length === 0) {
+            if (positions.length === 0 || !shouldBeVisible) {
                 layers.marker.setOpacity(0);
                 layers.recentTrail.setStyle({ opacity: 0 });
                 layers.fullTrail.setStyle({ opacity: 0 });
@@ -159,39 +170,32 @@ export function useMapLayers({
 
             // Update marker position and icon
             const latest = positions[positions.length - 1];
-            if (latest && shouldBeVisible) {
+            if (latest) {
                 layers.marker.setLatLng([latest.latitude, latest.longitude]);
-                layers.marker.setIcon(planeIcon(c.contestant_number, layers.recentTrail.options.color as string, latest.course ?? 0));
+                layers.marker.setIcon(planeIcon(contestant.contestant_number, layers.recentTrail.options.color as string, latest.course ?? 0));
                 layers.marker.setOpacity(1);
             } else {
                 layers.marker.setOpacity(0);
             }
 
             // Update trails
-            if (shouldBeVisible && (showFullTrails || isSelected)) {
+            if (showFullTrails || isSelected) {
                 const fullLatLngs = positions.map(p => [p.latitude, p.longitude] as [number, number]);
                 layers.fullTrail.setLatLngs(fullLatLngs);
                 layers.fullTrail.setStyle({ opacity: 0.7 });
                 layers.recentTrail.setStyle({ opacity: 0 });
-            } else if (shouldBeVisible) {
+            } else {
                 const recentPositions = lastMinutesPositions(positions, 5, currentTime);
                 const recentLatLngs = recentPositions.map(p => [p.latitude, p.longitude] as [number, number]);
                 layers.recentTrail.setLatLngs(recentLatLngs);
                 layers.recentTrail.setStyle({ opacity: 0.9 });
                 layers.fullTrail.setStyle({ opacity: 0 });
-            } else {
-                layers.recentTrail.setStyle({ opacity: 0 });
-                layers.fullTrail.setStyle({ opacity: 0 });
             }
         });
 
         // Annotations cleanup and rendering
-        // Check if permanentAnnotations changed, if so clear all to force recreate (or simply rely on diffing logic below)
-        // Diffing logic below handles switching isExpanded on/off, so we don't necessarily need to nuke everything.
-        // However, if permanentAnnotations changes, all markers need update.
         if (prevPermanentAnnotationsRef.current !== permanentAnnotations) {
              prevPermanentAnnotationsRef.current = permanentAnnotations;
-             // We don't need to clear, just let the loop handle the update.
         }
 
         const visibleAnnotationIds = new Set<number>();
@@ -237,7 +241,6 @@ export function useMapLayers({
                     marker.addTo(map);
                     annotationMarkersRef.current.set(ann.id, marker);
                     
-                    // Initialize state
                     annotationStatesRef.current.set(ann.id, {
                         content,
                         type: ann.type,
@@ -248,7 +251,6 @@ export function useMapLayers({
                 } else {
                     let stateChanged = false;
 
-                    // Handle expansion state change
                     if (lastState?.isExpanded !== shouldExpand) {
                         marker.unbindTooltip();
                         marker.bindTooltip(content, { permanent: shouldExpand, direction: 'top' });
@@ -257,19 +259,16 @@ export function useMapLayers({
                         }
                         stateChanged = true;
                     } 
-                    // Handle content change
                     else if (lastState?.content !== content) {
                          marker.setTooltipContent(content);
                          stateChanged = true;
                     }
                     
-                    // Update position if changed
                     if (lastState?.lat !== ann.latitude || lastState?.lng !== ann.longitude) {
                         marker.setLatLng([ann.latitude, ann.longitude]);
                         stateChanged = true;
                     }
 
-                    // Update icon if type changed
                     if (lastState?.type !== ann.type) {
                         marker.setIcon(getAnnotationIcon(ann.type));
                         stateChanged = true;
@@ -288,7 +287,6 @@ export function useMapLayers({
             });
         }
         
-        // Remove markers that are no longer visible
         for (const [id, marker] of annotationMarkersRef.current.entries()) {
             if (!visibleAnnotationIds.has(id)) {
                 marker.remove();

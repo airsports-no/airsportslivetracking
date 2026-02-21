@@ -74,6 +74,10 @@ export default function CompetitionMapPage() {
     wsStatus,
   } = useCompetitionData(contestIdNum, navigationTaskIdNum, mode, showToast); // Pass showToast
 
+  const sortedContestants = useMemo(() => {
+    return Object.values(contestantsById).sort((a, b) => a.id - b.id);
+  }, [contestantsById]);
+
   const selectedContestant = useMemo(() => {
     if (!selectedContestantId || !staticNavTaskData) return null; // Still needs staticNavTaskData for general check
     return contestantsById[selectedContestantId]; // Updated
@@ -229,7 +233,7 @@ export default function CompetitionMapPage() {
   useMapLayers({
     mapRef,
     navTask: staticNavTaskData,
-    contestants: Object.values(contestantsById), // Pass the dynamic contestants
+    contestants: sortedContestants, // Pass the sorted dynamic contestants
     currentPositions,
     showFullTrails,
     currentTime,
@@ -247,7 +251,7 @@ export default function CompetitionMapPage() {
   const standings = useMemo(() => {
     if (!staticNavTaskData) return [] as any[];
     const dir = staticNavTaskData.score_sorting_direction;
-    const allContestantsData = Object.values(contestantsById);
+    const allContestantsData = sortedContestants;
     const total = allContestantsData.length;
     const startGateName = staticNavTaskData.route.waypoints.find(wp => wp.type === 'sp')?.name;
 
@@ -312,7 +316,7 @@ export default function CompetitionMapPage() {
     active.sort(sortFn);
     waiting.sort(sortFn);
     return [...active, ...waiting];
-  }, [staticNavTaskData, contestantsById, mode, currentScores, currentTime, scoreLogByContestant]);
+  }, [staticNavTaskData, sortedContestants, mode, currentScores, currentTime, scoreLogByContestant]);
 
 
 
