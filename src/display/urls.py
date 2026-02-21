@@ -76,6 +76,7 @@ from display.views import (
     StatisticsView,
     import_route,
     delete_user_and_person,
+    upgrade_to_organizer,
     user_start_request_profile_deletion,
     user_request_profile_deletion,
 )
@@ -234,6 +235,7 @@ urlpatterns = [
     path("person/request_deletion_confirm/", user_request_profile_deletion, name="user_request_profile_deletion"),
     path("person/", PersonList.as_view(), name="person_list"),
     path("manifest/", manifest, name="tracking_manifest"),
+    path("users/upgrade/", upgrade_to_organizer, name="upgrade_to_organizer"),
     path("editableroute/import/", import_route, name="editableroute_import"),
     path("editableroute/<int:pk>/delete/", EditableRouteDeleteView.as_view(), name="editableroute_delete"),
     path("editableroute/<int:pk>/copy/", copy_editable_route, name="editableroute_copy"),

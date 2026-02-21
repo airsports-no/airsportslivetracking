@@ -210,6 +210,17 @@ def get_contest_creators_emails(request):
     )
 
 
+@login_required
+def upgrade_to_organizer(request):
+    if request.method == "POST":
+        from django.contrib.auth.models import Group
+
+        group, created = Group.objects.get_or_create(name="ContestCreator")
+        request.user.groups.add(group)
+        return JsonResponse({"status": "success"})
+    return JsonResponse({"status": "error", "message": "Invalid method"}, status=405)
+
+
 def manifest(request):
     data = {
         "short_name": "Airsports live tracking",
