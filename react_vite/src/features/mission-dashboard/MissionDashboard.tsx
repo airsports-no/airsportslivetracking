@@ -126,15 +126,31 @@ const MissionDashboard = () => {
     }, [location.search]);
 
     useEffect(() => {
-        // This effect sets up local UI state that doesn't depend on fetched data
         const today = new Date();
         const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+        const twoYearsFromNow = new Date(today.getFullYear() + 2, today.getMonth(), today.getDate());
         const sliderMinDate = new Date(2021, 1, 15);
 
-        setOldestContestDate(oneYearAgo);
-        setDateRange([oneYearAgo.getTime(), today.getTime()]);
-        setSliderRange([sliderMinDate.getTime(), today.getTime()]);
-    }, []); // Empty dependency array ensures this runs only once on mount
+        let maxTime = today.getTime();
+        if (contests && contests.length > 0) {
+            // Sanity check: only consider contests finishing within the next 2 years
+            const validContests = contests.filter(c => new Date(c.finish_time).getTime() <= twoYearsFromNow.getTime());
+            if (validContests.length > 0) {
+                const latestFinishTime = Math.max(...validContests.map(c => new Date(c.finish_time).getTime()));
+                maxTime = Math.max(maxTime, latestFinishTime);
+            }
+        }
+
+        setOldestContestDate(prev => prev || oneYearAgo);
+        setSliderRange(prev => {
+            const min = prev ? prev[0] : sliderMinDate.getTime();
+            return [min, maxTime];
+        });
+        setDateRange(prev => {
+            if (!prev) return [oneYearAgo.getTime(), maxTime];
+            return [prev[0], maxTime];
+        });
+    }, [contests]); // Updated to depend on contests to refresh max time when data arrives
 
     useLayoutEffect(() => {
         document.querySelector('main')?.scrollTo(0, 0);
