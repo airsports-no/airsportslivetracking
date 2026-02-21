@@ -24,6 +24,7 @@ TRACKER_NAME = "tracker"
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.register_personal_tracker", return_value=TraccarMock)
 class TestContestantTermination(TransactionTestCase):
     def setUp(self, *args):
         self.contest = Contest.objects.create(
@@ -43,10 +44,10 @@ class TestContestantTermination(TransactionTestCase):
         aeroplane = Aeroplane.objects.create(registration="registration")
         self.person1 = Person.objects.create(first_name="Mister", last_name="Pilot", email="pilot@test.com")
         self.person2 = Person.objects.create(first_name="Mister", last_name="Copilot", email="copilot@test.com")
-        
+
         crew1 = Crew.objects.create(member1=self.person1)
         self.team1 = Team.objects.create(crew=crew1, aeroplane=aeroplane)
-        
+
         crew2 = Crew.objects.create(member1=self.person2)
         self.team2 = Team.objects.create(crew=crew2, aeroplane=aeroplane)
 
@@ -100,7 +101,7 @@ class TestContestantTermination(TransactionTestCase):
 
         # New contestant: person1 is pilot (in team3), using app tracking
         new_contestant = Contestant.objects.create(
-            team=self.team3, # crew3 has person1 as member1
+            team=self.team3,  # crew3 has person1 as member1
             tracking_device=TRACKING_PILOT,
             navigation_task=self.navigation_task,
             takeoff_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
@@ -119,7 +120,7 @@ class TestContestantTermination(TransactionTestCase):
         # Old contestant: person2 is pilot (in team2), using app tracking
         # Wait, tracking_device=TRACKING_PILOT uses member1's ID.
         old_contestant = Contestant.objects.create(
-            team=self.team2, # crew2 has person2 as member1
+            team=self.team2,  # crew2 has person2 as member1
             tracking_device=TRACKING_PILOT,
             navigation_task=self.navigation_task,
             takeoff_time=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
@@ -130,7 +131,7 @@ class TestContestantTermination(TransactionTestCase):
 
         # New contestant: person2 is copilot (in team3), using app tracking (TRACKING_COPILOT)
         new_contestant = Contestant.objects.create(
-            team=self.team3, # crew3 has person2 as member2
+            team=self.team3,  # crew3 has person2 as member2
             tracking_device=TRACKING_COPILOT,
             navigation_task=self.navigation_task,
             takeoff_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
@@ -173,7 +174,9 @@ class TestContestantTermination(TransactionTestCase):
 
         old_contestant.refresh_from_db()
         # Should NOT satisfy termination criteria because IDs are different
-        self.assertEqual(old_contestant.finished_by_time, datetime.datetime(2020, 1, 1, 12, tzinfo=datetime.timezone.utc))
+        self.assertEqual(
+            old_contestant.finished_by_time, datetime.datetime(2020, 1, 1, 12, tzinfo=datetime.timezone.utc)
+        )
 
     def test_no_overlap_time_disjoint(self, *args):
         # Old contestant finished at 10:59
@@ -203,4 +206,6 @@ class TestContestantTermination(TransactionTestCase):
 
         old_contestant.refresh_from_db()
         # Should NOT change because finished_by_time < termination_time
-        self.assertEqual(old_contestant.finished_by_time, datetime.datetime(2020, 1, 1, 10, 59, tzinfo=datetime.timezone.utc))
+        self.assertEqual(
+            old_contestant.finished_by_time, datetime.datetime(2020, 1, 1, 10, 59, tzinfo=datetime.timezone.utc)
+        )
