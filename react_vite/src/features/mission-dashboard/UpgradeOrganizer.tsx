@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCookie } from '../../utils/csrf';
+import routes from '../../routes.json';
 
 const UpgradeOrganizer = () => {
     const [loading, setLoading] = useState(false);
@@ -18,9 +19,10 @@ const UpgradeOrganizer = () => {
                 },
             });
             if (response.ok) {
-                // Success - redirect to My Contests
-                // We reload the page to ensure all frontend state and document.configuration are updated with new permissions
-                window.location.href = '/?tab=editorContests';
+                // Success - redirect to Upgrade Success page
+                // We use navigate if we don't want a full reload, 
+                // but window.location.href ensures document.configuration.isOrganizer is refreshed from the server
+                window.location.href = `/${routes.UPGRADE_SUCCESS}`;
             } else {
                 const data = await response.json();
                 setError(data.message || 'Upgrade failed');

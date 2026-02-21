@@ -13,5 +13,6 @@
   "CONTEST_MANAGEMENT": "mission-dashboard/:contestId/manage",
   "CONTESTANT_SCHEDULING": "schedule-contestants/:contestId/:navigationTaskId",
   "UPGRADE_ORGANIZER": "upgrade-organizer",
+  "UPGRADE_SUCCESS": "upgrade-success",
   "NOT_FOUND": "*"
 }
