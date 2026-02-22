@@ -1282,7 +1282,7 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
 
     class Meta:
         model = NavigationTask
-        exclude = ("route", "contest", "scorecard")
+        exclude = ("route", "contest", "scorecard", "score_sorting_direction")
 
     def create(self, validated_data):
         with transaction.atomic():
@@ -1328,7 +1328,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = NavigationTask
-        exclude = ("route", "contest")
+        exclude = ("route", "contest", "score_sorting_direction")
 
     def validate_route_file(self, value):
         if value:
@@ -1383,7 +1383,7 @@ class ExternalNavigationTaskTeamIdSerialiser(ExternalNavigationTaskNestedTeamSer
 
     class Meta:
         model = NavigationTask
-        exclude = ("route", "contest")
+        exclude = ("route", "contest", "score_sorting_direction")
 
 
 class TrackAnnotationSerialiser(serializers.ModelSerializer):

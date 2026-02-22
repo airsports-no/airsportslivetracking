@@ -255,10 +255,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         """
         Provide initial values to the forms for different steps.
         """
-        if step == "task_content":
-            return {
-                "score_sorting_direction": self.contest.summary_score_sorting_direction,
-            }
         return {}
 
 
@@ -369,7 +365,6 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
                 start_time=contest.start_time,
                 finish_time=contest.finish_time,
                 allow_self_management=True,
-                score_sorting_direction=contest.summary_score_sorting_direction,
             )
             return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
         except IndexError:

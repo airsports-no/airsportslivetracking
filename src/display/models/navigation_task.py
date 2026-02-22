@@ -138,6 +138,7 @@ class NavigationTask(models.Model):
 
     @classmethod
     def create(cls, **kwargs) -> "NavigationTask":
+        kwargs.pop("score_sorting_direction", None)
         task = cls.objects.create(**kwargs)
         task.assign_scorecard_from_original(force=False)
         return task
