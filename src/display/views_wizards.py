@@ -217,6 +217,16 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         """
         scorecard = self.get_cleaned_data_for_step("task_content")["original_scorecard"]
         route, ediable_route = self.create_route(scorecard)
+
+        if ediable_route:
+            task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
+            corridor_width = None
+            if task_type == ANR_CORRIDOR:
+                corridor_width = self.get_cleaned_data_for_step("anr_route_import")["corridor_width"]
+
+            for warning in ediable_route.get_validation_errors(corridor_width=corridor_width):
+                messages.warning(self.request, warning)
+
         final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.create(
             **final_data,
@@ -356,6 +366,14 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
         try:
             scorecard = scorecards[0]
             route = self.create_route(scorecard)
+
+            corridor_width = None
+            if task_type == ANR_CORRIDOR:
+                corridor_width = self.get_cleaned_data_for_step("anr_parameters")["corridor_width"]
+
+            for warning in self.editable_route.get_validation_errors(corridor_width=corridor_width):
+                messages.warning(self.request, warning)
+
             navigation_task = NavigationTask.create(
                 name=task_name,
                 contest=contest,

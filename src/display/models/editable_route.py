@@ -111,12 +111,19 @@ class EditableRoute(models.Model):
     @property
     def validation_errors(self) -> list[str]:
         """
+        Returns a list of validation warnings/errors for the route using its default widths.
+        """
+        return self.get_validation_errors()
+
+    def get_validation_errors(self, corridor_width: Optional[float] = None) -> list[str]:
+        """
         Returns a list of validation warnings/errors for the route.
+        :param corridor_width: Optional override for corridor width in NM.
         """
         from display.utilities.corridor_renderer import validate_corridor
-        
+
         errors = []
-        waypoint_list = self._create_waypoint_list()
+        waypoint_list = self._create_waypoint_list(corridor_width=corridor_width)
         if waypoint_list:
             errors.extend(validate_corridor(waypoint_list))
         return errors
