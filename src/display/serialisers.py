@@ -1639,6 +1639,7 @@ Prohibited, penalty, information, gate zones
     is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)
     number_of_waypoints = serializers.IntegerField(read_only=True)
     route_length = serializers.FloatField(read_only=True)
+    validation_errors = serializers.ListField(child=serializers.CharField(), read_only=True)
 
     class Meta:
         model = EditableRoute
@@ -1650,6 +1651,3 @@ Prohibited, penalty, information, gate zones
 
     def get_is_editor(self, editable_route):
         return "change_editableroute" in get_user_perms(self.context["request"].user, editable_route)
-
-
-serializers.SerializerMethodField("get_is_editor", read_only=True)

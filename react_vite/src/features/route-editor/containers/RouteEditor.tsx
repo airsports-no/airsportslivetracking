@@ -16,6 +16,13 @@ import {
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { Map } from 'leaflet';
 
+const getAngleDiff = (a: number, b: number) => {
+  let diff = a - b;
+  while (diff > 180) diff -= 360;
+  while (diff < -180) diff += 360;
+  return diff;
+};
+
 
 /**
  * MAIN COMPONENT
@@ -527,6 +534,39 @@ export default function RouteEditor() {
         }
       }
     });
+
+    // Corridor rendering validation
+    if (routePoints.length >= 3) {
+      for (let i = 1; i < routePoints.length - 1; i++) {
+        const p = routePoints[i];
+        const prev = routePoints[i - 1];
+        const next = routePoints[i + 1];
+
+        const b1 = getBearing(prev, p);
+        const b2 = getBearing(p, next);
+        const diff = getAngleDiff(b2, b1);
+
+        const miterFactor = Math.min(1 / Math.cos(toRad(diff / 2)), 5);
+        const miterLength = (p.width / 2) * miterFactor;
+
+        const distPrev = getDistance(prev, p);
+        const distNext = getDistance(p, next);
+
+        if (miterLength > distPrev) {
+          errors.push(`Waypoint "${p.name}" turn is too sharp for the corridor width and the previous leg length (${(distPrev / 1852).toFixed(2)} NM). Rendering may break.`);
+        } else if (miterLength > distPrev * 0.7) {
+          errors.push(`Waypoint "${p.name}" turn is nearly too sharp for the previous leg. Rendering might be distorted.`);
+        }
+
+        if (miterLength > distNext) {
+          const msg = `Waypoint "${p.name}" turn is too sharp for the corridor width and the next leg length (${(distNext / 1852).toFixed(2)} NM). Rendering may break.`;
+          if (!errors.includes(msg)) errors.push(msg);
+        } else if (miterLength > distNext * 0.7) {
+          const msg = `Waypoint "${p.name}" turn is nearly too sharp for the next leg. Rendering might be distorted.`;
+          if (!errors.includes(msg)) errors.push(msg);
+        }
+      }
+    }
 
     return errors;
   }, [routePoints]);

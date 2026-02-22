@@ -240,3 +240,77 @@ def generate_corridor_polygon(route_points:list[Waypoint], round_edges:bool=True
 
     # Combine left and right points (right points reversed)
     return final_left + final_right[::-1], path_points
+
+def validate_corridor(route_points:list[Waypoint]) -> list[str]:
+    """
+    Validates that the corridor can be rendered properly.
+    Returns a list of warning messages.
+    """
+    if len(route_points) < 2:
+        return []
+
+    warnings = []
+    
+    # Check each leg relative to miter lengths at its endpoints
+    for i in range(len(route_points)):
+        p = route_points[i]
+        
+        # We need bearings to calculate turn angle
+        b1 = None
+        b2 = None
+        
+        if i == 0:
+            # Start point - no miter issues here usually, but let's be thorough
+            continue
+        elif i == len(route_points) - 1:
+            # Finish point
+            continue
+        else:
+            prev = route_points[i-1]
+            next_p = route_points[i+1]
+            
+            p_coords = {'lat': p.latitude, 'lng': p.longitude}
+            prev_coords = {'lat': prev.latitude, 'lng': prev.longitude}
+            next_coords = {'lat': next_p.latitude, 'lng': next_p.longitude}
+            
+            b1 = get_bearing(prev_coords, p_coords)
+            b2 = get_bearing(p_coords, next_coords)
+            diff = get_angle_diff(b2, b1)
+            
+            # Miter calculation
+            miter_factor = 1 / math.cos(to_rad(diff / 2))
+            miter_factor = min(miter_factor, 5)
+            half_width = (p.width * 1852) / 2
+            miter_length = half_width * miter_factor
+            
+            dist_prev = get_distance(prev_coords, p_coords)
+            dist_next = get_distance(p_coords, next_coords)
+            
+            # If miter length is more than 70% of leg length, it's getting risky
+            # If it's more than 100%, it's definitely an issue
+            if miter_length > dist_prev:
+                warnings.append(
+                    f"Waypoint '{p.name}' has a sharp turn and wide corridor that exceeds the length of the previous leg "
+                    f"({dist_prev/1852:.2f} NM). Corridor rendering may be distorted. "
+                    f"Suggestion: Reduce corridor width at this point or increase leg length."
+                )
+            elif miter_length > dist_prev * 0.7:
+                warnings.append(
+                    f"Waypoint '{p.name}' has a sharp turn and wide corridor that nearly exceeds the length of the previous leg. "
+                    f"Corridor rendering may be distorted."
+                )
+                
+            if miter_length > dist_next:
+                # Avoid duplicate warnings if both legs are short
+                msg = f"Waypoint '{p.name}' has a sharp turn and wide corridor that exceeds the length of the next leg ({dist_next/1852:.2f} NM)."
+                if msg not in [w.split("Suggestion")[0].strip() for w in warnings]:
+                     warnings.append(
+                        f"{msg} Corridor rendering may be distorted. "
+                        f"Suggestion: Reduce corridor width at this point or increase leg length."
+                    )
+            elif miter_length > dist_next * 0.7:
+                msg = f"Waypoint '{p.name}' has a sharp turn and wide corridor that nearly exceeds the length of the next leg."
+                if msg not in [w.split("Suggestion")[0].strip() for w in warnings]:
+                    warnings.append(f"{msg} Corridor rendering may be distorted.")
+                    
+    return warnings

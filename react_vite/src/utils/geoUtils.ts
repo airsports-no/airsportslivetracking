@@ -7,6 +7,13 @@ export const toRad = (val: number) => (val * Math.PI) / 180;
 export const toDeg = (val: number) => (val * 180) / Math.PI;
 
 // Calculate distance between two lat/lng points in meters
+export function getAngleDiff(a: number, b: number) {
+  let diff = a - b;
+  while (diff > 180) diff -= 360;
+  while (diff < -180) diff += 360;
+  return diff;
+}
+
 export const getDistance = (p1: LatLng, p2: LatLng) => {
   const R = EARTH_RADIUS;
   const φ1 = toRad(p1.lat);

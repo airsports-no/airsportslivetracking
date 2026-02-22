@@ -108,6 +108,19 @@ class EditableRoute(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def validation_errors(self) -> list[str]:
+        """
+        Returns a list of validation warnings/errors for the route.
+        """
+        from display.utilities.corridor_renderer import validate_corridor
+        
+        errors = []
+        waypoint_list = self._create_waypoint_list()
+        if waypoint_list:
+            errors.extend(validate_corridor(waypoint_list))
+        return errors
+
     def get_features_type(self, feature_type: str) -> list[dict]:
         return [
             item for item in self.route["features"] if item.get("properties", {}).get("featureType") == feature_type
