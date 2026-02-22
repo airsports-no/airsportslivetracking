@@ -22,11 +22,13 @@ from utilities.mock_utilities import TraccarMock
 TRACKER_NAME = "tracker"
 
 
-@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
-@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
-@patch("display.signals.register_personal_tracker", return_value=TraccarMock)
 class TestContestantTermination(TransactionTestCase):
-    def setUp(self, *args):
+    def setUp(self):
+        # Pythonic way to handle persistent mocks in TestCase without modifying every method signature
+        self.traccar_patcher = patch("display.utilities.traccar_factory.Traccar")
+        self.mock_traccar_class = self.traccar_patcher.start()
+        self.mock_traccar_class.create_from_configuration.return_value = TraccarMock
+
         self.contest = Contest.objects.create(
             name="TestContest",
             start_time=datetime.datetime.now(datetime.timezone.utc),
@@ -55,7 +57,10 @@ class TestContestantTermination(TransactionTestCase):
         crew3 = Crew.objects.create(member1=self.person1, member2=self.person2)
         self.team3 = Team.objects.create(crew=crew3, aeroplane=aeroplane)
 
-    def test_terminate_physical_tracker_overlap(self, *args):
+    def tearDown(self):
+        self.traccar_patcher.stop()
+
+    def test_terminate_physical_tracker_overlap(self):
         # Old contestant running from 10:00 to 12:00
         old_contestant = Contestant.objects.create(
             team=self.team1,
@@ -87,7 +92,7 @@ class TestContestantTermination(TransactionTestCase):
         old_contestant.refresh_from_db()
         self.assertEqual(old_contestant.finished_by_time, termination_time)
 
-    def test_terminate_app_tracker_pilot_overlap(self, *args):
+    def test_terminate_app_tracker_pilot_overlap(self):
         # Old contestant: person1 is pilot, using app tracking
         old_contestant = Contestant.objects.create(
             team=self.team1,
@@ -116,7 +121,7 @@ class TestContestantTermination(TransactionTestCase):
         old_contestant.refresh_from_db()
         self.assertEqual(old_contestant.finished_by_time, termination_time)
 
-    def test_terminate_app_tracker_copilot_overlap(self, *args):
+    def test_terminate_app_tracker_copilot_overlap(self):
         # Old contestant: person2 is pilot (in team2), using app tracking
         # Wait, tracking_device=TRACKING_PILOT uses member1's ID.
         old_contestant = Contestant.objects.create(
@@ -146,7 +151,7 @@ class TestContestantTermination(TransactionTestCase):
         old_contestant.refresh_from_db()
         self.assertEqual(old_contestant.finished_by_time, termination_time)
 
-    def test_no_overlap_different_trackers(self, *args):
+    def test_no_overlap_different_trackers(self):
         # Old contestant: person1 using app
         old_contestant = Contestant.objects.create(
             team=self.team1,
@@ -178,7 +183,7 @@ class TestContestantTermination(TransactionTestCase):
             old_contestant.finished_by_time, datetime.datetime(2020, 1, 1, 12, tzinfo=datetime.timezone.utc)
         )
 
-    def test_no_overlap_time_disjoint(self, *args):
+    def test_no_overlap_time_disjoint(self):
         # Old contestant finished at 10:59
         old_contestant = Contestant.objects.create(
             team=self.team1,
