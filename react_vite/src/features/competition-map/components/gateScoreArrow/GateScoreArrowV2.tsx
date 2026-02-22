@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import "./gateScore.css";
 import GateScoreArrowRenderer from "./GateScoreArrowRenderer";
 import GateCountdownTimer from "./GateCountdownTimer";
-import { Contestant, NavigationTask, GateArrowData } from "../../types";
+import { Contestant, NavigationTask, GateArrowData, Waypoint, GateScoreRule } from "../../types";
 
 interface GateScoreArrowV2Props {
     contestant: Contestant;
@@ -45,7 +45,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     // Helper functions (converted from class methods)
     const getWaypointType = (waypointName: string) => {
         try {
-            return navigationTask.route.waypoints.find((waypoint) => {
+            return navigationTask.route.waypoints.find((waypoint: Waypoint) => {
                 return waypoint.name === waypointName;
             })?.type;
         } catch (e) {
@@ -61,11 +61,11 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
             const waypointType = getWaypointType(currentArrowData.waypoint_name);
             if (!waypointType) return 0;
 
-            const gateScore = navigationTask.scorecard.gatescore_set.find((gate) => {
+            const gateScore = navigationTask.scorecard.gatescore_set.find((gate: GateScoreRule) => {
                 return gate.gate_type === waypointType;
             });
-            // @ts-ignore - gateScore[ruleName] might be undefined in the type definition, but we know it should exist for these rules.
-            return gateScore ? gateScore[ruleName] : 0;
+            
+            return gateScore ? (gateScore[ruleName as keyof GateScoreRule] as number) : 0;
         } catch (e) {
             console.error("Unknown rule " + ruleName + ": " + e);
             return 0;

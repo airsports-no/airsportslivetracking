@@ -835,6 +835,7 @@ class PositionSerialiser(serializers.Serializer):
     device_id = serializers.CharField()
     course = serializers.FloatField()
     position_id = serializers.IntegerField()
+    interpolated = serializers.BooleanField(required=False)
 
 
 class GpxTrackSerialiser(serializers.Serializer):

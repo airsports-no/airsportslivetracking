@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { NavigationTask, ProhibitedZone } from '../types';
+import type { NavigationTask, ProhibitedZone } from '../../types';
 
 interface Props {
   map: L.Map | null;
@@ -13,7 +13,7 @@ function drawProhibitedZone(map: L.Map, zone: ProhibitedZone): L.Polygon {
   else if (zone.type === 'info') color = 'lightblue';
   else if (zone.type === 'gate') color = 'blue';
 
-  const p = L.polygon(zone.path.map(c => [c[1], c[0]]), { color, weight: 1 }).addTo(map);
+  const p = L.polygon(zone.path.map((c: [number, number]) => [c[1], c[0]]), { color, weight: 1 }).addTo(map);
 
   const options: L.TooltipOptions = {
     permanent: true,

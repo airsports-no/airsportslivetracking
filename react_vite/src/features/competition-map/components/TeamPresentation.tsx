@@ -28,13 +28,15 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
                     </div>
                 )
             ) : (
-                <div className="flex-shrink-0" style={{ width: '512px' }}>
-                    <GateScoreArrowV2
-                        contestant={contestant}
-                        navigationTask={navigationTask}
-                        gateArrowData={gateArrowData}
-                    />
-                </div>
+                navigationTask && (
+                    <div className="flex-shrink-0" style={{ width: '512px' }}>
+                        <GateScoreArrowV2
+                            contestant={contestant}
+                            navigationTask={navigationTask}
+                            gateArrowData={gateArrowData}
+                        />
+                    </div>
+                )
             )}
             <div className="flex items-end gap-2 sm:gap-4 relative z-20">
                 {/* Main Content Box: Score and Crew Info */}

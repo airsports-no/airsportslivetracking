@@ -15,7 +15,7 @@ const AboutANR: React.FC<Props> = ({ scorecard, route }) => {
             corridor and cross the start and finish lines at predefined times.
         </p>
         <p>
-            For this ANR task the corridor width is {getTrackValue(scorecard, "corridor_width")} NM. Contestants
+            For this ANR task the corridor width is {scorecard.corridor_width ?? route.corridor_width} NM. Contestants
             are given a penalty
             of {getTrackValue(scorecard, "corridor_outside_penalty")} points for each second outside the
             corridor beyond the

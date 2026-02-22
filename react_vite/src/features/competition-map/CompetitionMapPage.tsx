@@ -21,6 +21,7 @@ import TaskInfoModal from './TaskInfoModal';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { reverse } from '../../urls';
 import './CompetitionMap.css';
+import { NavigationTask } from './types';
 
 
 
@@ -118,7 +119,7 @@ export default function CompetitionMapPage() {
   const mapRef = useMapInit();
   const tileLayerRef = useRef<L.TileLayer | null>(null);
 
-  const previousStaticNavTaskDataRef = useRef(); // Add this ref
+  const previousStaticNavTaskDataRef = useRef<NavigationTask | null>(null); // Add this ref
 
   useEffect(() => {
     console.log("CompetitionMapPage: staticNavTaskData change detection.");
@@ -460,9 +461,9 @@ export default function CompetitionMapPage() {
               </div>
             </div>
 
-            {mode === 'realtime' && staticNavTaskData?.calculation_delay_minutes > 0 && (
+            {mode === 'realtime' && staticNavTaskData?.calculation_delay_minutes !== undefined && staticNavTaskData.calculation_delay_minutes > 0 && (
               <div className="text-xs text-warning-content bg-warning rounded-md px-2 py-1 mt-2 text-center">
-                Live data is delayed by {staticNavTaskData?.calculation_delay_minutes} minute(s).
+                Live data is delayed by {staticNavTaskData.calculation_delay_minutes} minute(s).
               </div>
             )}
 

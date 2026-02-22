@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { NavigationTask, Waypoint, Contestant } from '../../types';
+import type { NavigationTask, Waypoint, Contestant, RouteData } from '../../types';
 import './WaypointLabel.css';
 
 function formatTime(dt: Date): string {
@@ -23,12 +23,12 @@ function renderWaypointLabels(
         iconAnchor: [0, 0],
     });
 
-    waypoints.forEach(waypoint => {
+    waypoints.forEach((waypoint: Waypoint) => {
         let label = waypoint.name; // Initialize label with waypoint name
 
         // Logic to add expected gate time
-        if (selectedContestantId !== null && contestants[selectedContestantId]?.gate_times && contestants[selectedContestantId].gate_times[waypoint.name]) {
-            const expectedTime = new Date(contestants[selectedContestantId].gate_times[waypoint.name]);
+        if (selectedContestantId !== null && contestants[selectedContestantId]?.gate_times && contestants[selectedContestantId].gate_times![waypoint.name]) {
+            const expectedTime = new Date(contestants[selectedContestantId].gate_times![waypoint.name]);
             label = `${waypoint.name} ${formatTime(expectedTime)}`;
         }
 
@@ -88,20 +88,20 @@ interface Props {
 function renderPrecisionRoute(map: L.Map, route: RouteData, navTaskDisplaySecrets: boolean, displaySecrets: boolean): L.Layer[] {
   const layers: L.Layer[] = [];
 
-  route.waypoints.filter((waypoint) => {
+  route.waypoints.filter((waypoint: Waypoint) => {
     return waypoint.type === 'sp' && waypoint.gate_line_extended
-  }).forEach((gate) => {
-    layers.push(L.polyline(gate.gate_line_extended, {
+  }).forEach((gate: Waypoint) => {
+    layers.push(L.polyline(gate.gate_line_extended!, {
         color: "blue",
         dashArray: "4 8"
     }).addTo(map));
   });
 
-  const filterWaypoints = () => route.waypoints.filter((waypoint) => {
+  const filterWaypoints = () => route.waypoints.filter((waypoint: Waypoint) => {
     return ((waypoint.gate_check || waypoint.time_check) && ((navTaskDisplaySecrets && displaySecrets) || waypoint.type !== "secret") && waypoint.type!=="dummy")
   });
 
-  filterWaypoints().forEach((gate) => {
+  filterWaypoints().forEach((gate: Waypoint) => {
     layers.push(L.polyline(gate.gate_line, {
         color: "blue"
     }).addTo(map));
@@ -111,7 +111,7 @@ function renderPrecisionRoute(map: L.Map, route: RouteData, navTaskDisplaySecret
   let currentTrack: L.LatLngExpression[] = [];
   const typesToIgnore = ["to", "ldg", "ildg", "dummy"];
   
-  route.waypoints.forEach(waypoint => {
+  route.waypoints.forEach((waypoint: Waypoint) => {
     if (waypoint.type === 'isp') { // This type is not in the Waypoint type, assuming it's a string from old code.
         tracks.push(currentTrack);
         currentTrack = [];
@@ -129,10 +129,10 @@ function renderPrecisionRoute(map: L.Map, route: RouteData, navTaskDisplaySecret
   tracks.push(currentTrack);
 
   for (const track of tracks) {
-    const route = L.polyline(track, {
+    const routePolyline = L.polyline(track, {
         color: "blue"
     }).addTo(map);
-    layers.push(route);
+    layers.push(routePolyline);
   }
 
   return layers;
@@ -143,19 +143,19 @@ function renderAirsportsRoute(map: L.Map, route: RouteData, isAnr: boolean, navT
     const layers: L.Layer[] = [];
     
     if (route.corridor_polygon) {
-        const polygon = route.corridor_polygon.map(p => [p.lat, p.lng] as [number, number]);
+        const polygon = route.corridor_polygon.map((p: any) => [p.lat, p.lng] as [number, number]);
         // The polygon is not closed in the new API response, so we don't need to close it manually.
         layers.push(L.polyline(polygon, { color: "blue" }).addTo(map));
     }
 
     const filterWaypoints = () => {
         if (isAnr) {
-            return route.waypoints.filter(w => w.type === 'sp' || w.type === 'fp');
+            return route.waypoints.filter((w: Waypoint) => w.type === 'sp' || w.type === 'fp');
         }
-        return route.waypoints.filter(w => ((w.gate_check || w.time_check) && ((navTaskDisplaySecrets && displaySecrets) || w.type !== "secret") && w.type!=="dummy"));
+        return route.waypoints.filter((w: Waypoint) => ((w.gate_check || w.time_check) && ((navTaskDisplaySecrets && displaySecrets) || w.type !== "secret") && w.type!=="dummy"));
     }
 
-    filterWaypoints().forEach(gate => {
+    filterWaypoints().forEach((gate: Waypoint) => {
         layers.push(L.polyline(gate.gate_line, { color: "blue" }).addTo(map));
     });
 
@@ -199,7 +199,7 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
       layers = layers.concat(renderLandingRoute(map, route));
     }
     
-    const waypointsToLabel = route.waypoints.filter(w => 
+    const waypointsToLabel = route.waypoints.filter((w: Waypoint) => 
         (w.gate_check || w.time_check) && 
         ((navTaskDisplaySecrets && displaySecrets) || w.type !== "secret") && 
         w.type !== "dummy"

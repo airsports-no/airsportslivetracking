@@ -73,6 +73,79 @@ export interface Contest {
     contest_website?: string;
 }
 
+export interface Waypoint {
+  name: string;
+  latitude: number;
+  longitude: number;
+  elevation: number;
+  width: number;
+  gate_line: [number, number][];
+  gate_line_extended?: [number, number][];
+  time_check: boolean;
+  gate_check: boolean;
+  end_curved: boolean;
+  type: string;
+  distance_next: number;
+  distance_previous: number;
+  bearing_next: number;
+  bearing_from_previous: number;
+  procedure_turn_points?: [number, number][];
+  is_procedure_turn: boolean;
+  outer_corner_position?: any[];
+}
+
+export interface ProhibitedZone {
+  id: number;
+  name: string;
+  type: 'prohibited' | 'penalty' | 'info' | 'gate';
+  path: [number, number][];
+  tooltip_position?: [number, number];
+}
+
+export interface RouteData {
+  id: number;
+  name: string;
+  use_procedure_turns: boolean;
+  rounded_corners: boolean;
+  corridor_width: number;
+  waypoints: Waypoint[];
+  takeoff_gates: Waypoint[];
+  landing_gates: Waypoint[];
+  corridor_polygon?: { lat: number; lng: number }[];
+  prohibited_set: ProhibitedZone[];
+}
+
+export interface GateScoreRule {
+  gate_type: string;
+  graceperiod_before: number;
+  graceperiod_after: number;
+  penalty_per_second: number;
+  maximum_penalty: number;
+  maximum_timing_penalty?: number;
+  missed_penalty: number;
+  missed_procedure_turn_penalty?: number;
+  extended_gate_width?: number;
+  bad_crossing_extended_gate_penalty?: number;
+}
+
+export interface Scorecard {
+  gatescore_set: GateScoreRule[];
+  task_type: string[];
+  initial_score?: number;
+  corridor_width?: number;
+  corridor_outside_penalty?: number;
+  corridor_grace_time?: number;
+  corridor_maximum_penalty?: number;
+  prohibited_zone_penalty?: number;
+  penalty_zone_penalty_per_second?: number;
+  penalty_zone_grace_time?: number;
+  penalty_zone_maximum?: number;
+  backtracking_bearing_difference?: number;
+  backtracking_grace_time_seconds?: number;
+  backtracking_penalty?: number;
+  backtracking_maximum_penalty?: number;
+}
+
 export interface Contestant {
   id: number;
   contest_id: number;
@@ -89,6 +162,8 @@ export interface Contestant {
   navigation_task: NavigationTask;
   takeoff_time: string;
   finished_by_time: string;
+  adaptive_start?: boolean;
+  latest_emaillink?: { url: string; created_at: string };
   overlap_warnings?: string[];
   overlapping_tasks?: {
     task_id: number;
@@ -128,6 +203,7 @@ export interface TrackPosition {
   course?: number;
   altitude?: number;
   progress?: number;
+  interpolated?: boolean;
 }
 
 export interface PaginatedTrackResponse {
@@ -169,6 +245,7 @@ export interface ContestantScoreData {
   score_log_entries: ScoreLogEntry[];
   gate_scores: { id: number; gate: string; points: number; contestant: number }[];
   contestant_track: ContestantTrackSummary;
+  playing_cards?: { card: string }[];
 }
 
 export interface GateArrowData {
@@ -193,3 +270,4 @@ export type LiveTrackMessage =
   | { type: "gate_distance_and_estimate"; data: string } // JSON string of GateArrowData & contestant_id
   | { type: "danger_level"; data: string } // JSON string of DangerData & contestant_id
   | { type: string; data: string }; // fallback
+

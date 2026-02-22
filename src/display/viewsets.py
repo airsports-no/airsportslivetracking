@@ -1158,7 +1158,7 @@ class ContestantViewSet(ModelViewSet):
         position_data = contestant.get_track()
         pagination = MyCursorPagination()
         page = pagination.paginate_queryset(
-            position_data.values("time", "latitude", "longitude", "speed", "course", "altitude", "progress"), request
+            position_data.values("time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"), request
         )
         if page is not None:
             if len(page):

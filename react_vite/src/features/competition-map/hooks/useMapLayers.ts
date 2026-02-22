@@ -13,10 +13,80 @@ function lastMinutesPositions(all: TrackPosition[], minutes: number, currentTime
     return all.filter(p => new Date(p.time) >= cutoff);
 }
 
+function splitSegments(positions: TrackPosition[]): { solid: [number, number][][], dashed: [number, number][][] } {
+    const solid: [number, number][][] = [];
+    const dashed: [number, number][][] = [];
+    
+    if (positions.length < 2) return { solid, dashed };
+
+    const numSegments = positions.length - 1;
+    const isSegmentDashed = new Array(numSegments).fill(false);
+
+    // Identify runs of interpolated points that are at least 10 points long.
+    // A run of points P_j...P_{j+k-1} has length k.
+    let j = 0;
+    while (j < positions.length) {
+        if (positions[j].interpolated) {
+            let k = j;
+            while (k < positions.length && positions[k].interpolated) {
+                k++;
+            }
+            const runLength = k - j;
+            if (runLength >= 10) {
+                // If the run of interpolated points is >= 10, 
+                // mark all segments connecting them (and to adjacent real points) as dashed.
+                for (let m = Math.max(0, j - 1); m < Math.min(numSegments, k); m++) {
+                    isSegmentDashed[m] = true;
+                }
+            }
+            j = k;
+        } else {
+            j++;
+        }
+    }
+
+    let currentSolid: [number, number][] = [];
+    let currentDashed: [number, number][] = [];
+
+    for (let i = 0; i < numSegments; i++) {
+        const p1 = positions[i];
+        const p2 = positions[i+1];
+
+        if (isSegmentDashed[i]) {
+            if (currentSolid.length > 1) {
+                solid.push(currentSolid);
+            }
+            currentSolid = [];
+            
+            if (currentDashed.length === 0) {
+                currentDashed.push([p1.latitude, p1.longitude]);
+            }
+            currentDashed.push([p2.latitude, p2.longitude]);
+        } else {
+            if (currentDashed.length > 1) {
+                dashed.push(currentDashed);
+            }
+            currentDashed = [];
+            
+            if (currentSolid.length === 0) {
+                currentSolid.push([p1.latitude, p1.longitude]);
+            }
+            currentSolid.push([p2.latitude, p2.longitude]);
+        }
+    }
+    
+    if (currentSolid.length > 1) solid.push(currentSolid);
+    if (currentDashed.length > 1) dashed.push(currentDashed);
+
+    return { solid, dashed };
+}
+
 interface ContestantLayers {
     marker: L.Marker;
-    recentTrail: L.Polyline;
-    fullTrail: L.Polyline;
+    recentTrailSolid: L.Polyline;
+    recentTrailDashed: L.Polyline;
+    fullTrailSolid: L.Polyline;
+    fullTrailDashed: L.Polyline;
 }
 
 interface MapLayersProps {
@@ -65,8 +135,10 @@ export function useMapLayers({
         return () => {
             Object.values(layersRef.current).forEach(l => {
                 l.marker.remove();
-                l.recentTrail.remove();
-                l.fullTrail.remove();
+                l.recentTrailSolid.remove();
+                l.recentTrailDashed.remove();
+                l.fullTrailSolid.remove();
+                l.fullTrailDashed.remove();
             });
             layersRef.current = {};
             
@@ -105,8 +177,10 @@ export function useMapLayers({
             if (!currentIds.has(id)) {
                 const l = layersRef.current[id];
                 l.marker.remove();
-                l.recentTrail.remove();
-                l.fullTrail.remove();
+                l.recentTrailSolid.remove();
+                l.recentTrailDashed.remove();
+                l.fullTrailSolid.remove();
+                l.fullTrailDashed.remove();
                 delete layersRef.current[id];
             }
         });
@@ -126,15 +200,19 @@ export function useMapLayers({
                     onContestantSelect(c.id, false);
                 });
 
-                const recentTrail = L.polyline([], { color, weight: 6, opacity: 0 }).addTo(map);
-                const fullTrail = L.polyline([], { color, weight: 5, opacity: 0 }).addTo(map);
+                const recentTrailSolid = L.polyline([], { color, weight: 6, opacity: 0 }).addTo(map);
+                const recentTrailDashed = L.polyline([], { color, weight: 6, opacity: 0, dashArray: '10, 10' }).addTo(map);
+                const fullTrailSolid = L.polyline([], { color, weight: 5, opacity: 0 }).addTo(map);
+                const fullTrailDashed = L.polyline([], { color, weight: 5, opacity: 0, dashArray: '10, 10' }).addTo(map);
 
-                layersRef.current[c.id] = { marker, recentTrail, fullTrail };
+                layersRef.current[c.id] = { marker, recentTrailSolid, recentTrailDashed, fullTrailSolid, fullTrailDashed };
             } else {
                 // Update color if it changed due to re-indexing
                 const l = layersRef.current[c.id];
-                l.recentTrail.setStyle({ color });
-                l.fullTrail.setStyle({ color });
+                l.recentTrailSolid.setStyle({ color });
+                l.recentTrailDashed.setStyle({ color });
+                l.fullTrailSolid.setStyle({ color });
+                l.fullTrailDashed.setStyle({ color });
                 // Marker icon will be updated in Effect 2
             }
         });
@@ -163,8 +241,10 @@ export function useMapLayers({
             // Handle visibility based on positions.length
             if (positions.length === 0 || !shouldBeVisible) {
                 layers.marker.setOpacity(0);
-                layers.recentTrail.setStyle({ opacity: 0 });
-                layers.fullTrail.setStyle({ opacity: 0 });
+                layers.recentTrailSolid.setStyle({ opacity: 0 });
+                layers.recentTrailDashed.setStyle({ opacity: 0 });
+                layers.fullTrailSolid.setStyle({ opacity: 0 });
+                layers.fullTrailDashed.setStyle({ opacity: 0 });
                 return;
             }
 
@@ -172,7 +252,7 @@ export function useMapLayers({
             const latest = positions[positions.length - 1];
             if (latest) {
                 layers.marker.setLatLng([latest.latitude, latest.longitude]);
-                layers.marker.setIcon(planeIcon(contestant.contestant_number, layers.recentTrail.options.color as string, latest.course ?? 0));
+                layers.marker.setIcon(planeIcon(contestant.contestant_number, layers.recentTrailSolid.options.color as string, latest.course ?? 0));
                 layers.marker.setOpacity(1);
             } else {
                 layers.marker.setOpacity(0);
@@ -180,16 +260,24 @@ export function useMapLayers({
 
             // Update trails
             if (showFullTrails || isSelected) {
-                const fullLatLngs = positions.map(p => [p.latitude, p.longitude] as [number, number]);
-                layers.fullTrail.setLatLngs(fullLatLngs);
-                layers.fullTrail.setStyle({ opacity: 0.85, weight: 5 });
-                layers.recentTrail.setStyle({ opacity: 0 });
+                const split = splitSegments(positions);
+                layers.fullTrailSolid.setLatLngs(split.solid);
+                layers.fullTrailDashed.setLatLngs(split.dashed);
+                layers.fullTrailSolid.setStyle({ opacity: 0.85, weight: 5 });
+                layers.fullTrailDashed.setStyle({ opacity: 0.85, weight: 5 });
+                
+                layers.recentTrailSolid.setStyle({ opacity: 0 });
+                layers.recentTrailDashed.setStyle({ opacity: 0 });
             } else {
                 const recentPositions = lastMinutesPositions(positions, 5, currentTime);
-                const recentLatLngs = recentPositions.map(p => [p.latitude, p.longitude] as [number, number]);
-                layers.recentTrail.setLatLngs(recentLatLngs);
-                layers.recentTrail.setStyle({ opacity: 1.0, weight: 6 });
-                layers.fullTrail.setStyle({ opacity: 0 });
+                const split = splitSegments(recentPositions);
+                layers.recentTrailSolid.setLatLngs(split.solid);
+                layers.recentTrailDashed.setLatLngs(split.dashed);
+                layers.recentTrailSolid.setStyle({ opacity: 1.0, weight: 6 });
+                layers.recentTrailDashed.setStyle({ opacity: 1.0, weight: 6 });
+                
+                layers.fullTrailSolid.setStyle({ opacity: 0 });
+                layers.fullTrailDashed.setStyle({ opacity: 0 });
             }
         });
 

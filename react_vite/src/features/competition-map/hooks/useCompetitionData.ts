@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchNavigationTask, fetchContestantPaginatedTrack, fetchContestantScoreData, makeWebSocket } from '../api';
-import type { Contestant, NavigationTask, TrackPosition, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData } from '../types';
+import type { Contestant, NavigationTask, TrackPosition, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData, Waypoint } from '../types';
 
 export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback', showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void) {
     const [staticNavTaskData, setStaticNavTaskData] = useState<NavigationTask | null>(null);
@@ -146,13 +146,13 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                     const newEntries = payload.score_log_entries; // These are the *newly arrived* entries, not all of them yet.
 
                     // Identify start and finish gates from navigation task data
-                    const startGateName = staticNavTaskDataRef.current?.route?.waypoints.find(wp => wp.type === 'sp')?.name;
-                    const finishGateName = staticNavTaskDataRef.current?.route?.waypoints.find(wp => wp.type === 'fp')?.name;
+                    const startGateName = staticNavTaskDataRef.current?.route?.waypoints.find((wp: Waypoint) => wp.type === 'sp')?.name;
+                    const finishGateName = staticNavTaskDataRef.current?.route?.waypoints.find((wp: Waypoint) => wp.type === 'fp')?.name;
 
                     if (staticNavTaskDataRef.current && (startGateName || finishGateName)) {
                         const previousGateNames = new Set(existingScoreLogs.map(log => log.gate));
 
-                        newEntries.forEach(newLogEntry => {
+                        newEntries.forEach((newLogEntry: ScoreLogEntry) => {
                             if (!previousGateNames.has(newLogEntry.gate) && newLogEntry.planned!==null) {
                                 // This is a new score log entry
                                 if (newLogEntry.gate === startGateName || newLogEntry.gate === finishGateName) {
