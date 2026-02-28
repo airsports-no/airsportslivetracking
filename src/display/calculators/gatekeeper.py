@@ -2,7 +2,6 @@ import datetime
 import logging
 import threading
 import time
-from abc import abstractmethod, ABC
 from queue import Queue
 from typing import List, Optional, Callable
 
@@ -11,6 +10,20 @@ from display.models.contestant_utility_models import ContestantReceivedPosition
 from websocket_channels import WebsocketFacade
 
 from display.calculators.positions_and_gates import Gate, MultiGate
+from display.calculators.calculator import (
+    GatekeeperState,
+    GatekeeperEvent,
+    GatePassedEvent,
+    GateMissedEvent,
+    TakeoffPassedEvent,
+    LandingPassedEvent,
+    StartingLinePassedEvent,
+    StartingLineExtendedPassedWrongDirectionEvent,
+    PokerGatePassedEvent,
+    AdaptiveStartEvent,
+    EstimationUpdatedEvent,
+    InRangeUpdatedEvent,
+)
 from display.utilities.route_building_utilities import calculate_extended_gate
 from display.utilities.coordinate_utilities import Projector
 
@@ -26,14 +39,11 @@ logger = logging.getLogger(__name__)
 LOOP_TIME = 60
 
 
-class Gatekeeper(ABC):
+class Gatekeeper:
     """
     The Gatekeeper is the main class for scoring contestants during flight. As the name implies it is built around
-    maintaining a list of gates and tracking the contestants progress through these gates. This abstract class
-    instantiates the gates from the root and the optional takeoff and landing gates. It is then up to the gatekeeper
-    subclasses to enforce the rules that govern gate passing (e.g. should they be in sequence, et cetera) and calculate
-    the gate scores and any other scores related to the flight.
-
+    maintaining a list of gates and tracking the contestants progress through these gates.
+    
     To score other aspects than gate passing, the gatekeeper supports a list of calculators. This can be used to score
     additional elements such as altitude constraints, penalty zones, prohibited zones, backtracking, et cetera.
     """
@@ -64,10 +74,22 @@ class Gatekeeper(ABC):
 
         self.last_gate = None  # type: Optional[Gate]
         self.previous_last_gate = None  # type: Optional[Gate]
-        self.projector = Projector(self.gates[0].latitude, self.gates[0].longitude)
+        
+        # Use first waypoint for projector, fallback to first landing gate if no waypoints
+        if len(self.gates) > 0:
+            self.projector = Projector(self.gates[0].latitude, self.gates[0].longitude)
+        elif self.landing_gate and len(self.landing_gate.gates) > 0:
+            self.projector = Projector(self.landing_gate.gates[0].latitude, self.landing_gate.gates[0].longitude)
+        else:
+            self.projector = Projector(0, 0)
+            
         self.in_range_of_gate = None
         self.websocket_facade = WebsocketFacade()
         logger.debug(f"{self.contestant}: Starting calculators")
+
+        self.estimated_next_timed_gate = None
+        self.estimated_crossing_time = None
+        self.recalculation_completed = not self.contestant.adaptive_start
 
         self.calculators = []
         for calculator in calculators:
@@ -80,6 +102,37 @@ class Gatekeeper(ABC):
                     self.score_processing_queue,
                 )
             )
+
+    def get_state(self) -> GatekeeperState:
+        return GatekeeperState(
+            last_gate=self.last_gate,
+            outstanding_gates=list(self.outstanding_gates),
+            in_range_of_gate=self.in_range_of_gate,
+            projector=self.projector,
+            takeoff_gate=self.takeoff_gate,
+            landing_gate=self.landing_gate,
+            has_passed_finishpoint=self.has_passed_finishpoint,
+            recalculation_completed=self.recalculation_completed,
+            estimated_next_timed_gate=self.estimated_next_timed_gate,
+            estimated_crossing_time=self.estimated_crossing_time,
+        )
+
+    def recalculate_gates_times_from_start_time(self, start_time: datetime.datetime):
+        """
+        Calculate expected crossing times for all outstanding gates given the start time.
+        """
+        self.contestant.refresh_from_db()
+        gate_times = self.contestant.calculate_missing_gate_times({}, start_time)
+        Contestant.objects.filter(pk=self.contestant.pk).update(predefined_gate_times=gate_times)
+        logger.info(f"Recalculating gates times for contestant {self.contestant}: {gate_times}")
+        self.contestant.refresh_from_db()
+        self.websocket_facade.transmit_contestant(self.contestant)
+        for item in self.outstanding_gates:
+            item.expected_time = gate_times[item.name]
+        if self.landing_gate is not None:
+            self.landing_gate.set_expected_time(gate_times[self.landing_gate.name])
+        self.recalculation_completed = True
+        self.websocket_facade.transmit_contestant(self.contestant)
 
     def initiate_takeoff_and_landing_gates(self):
         self.takeoff_gate = (
@@ -113,7 +166,7 @@ class Gatekeeper(ABC):
 
     def has_the_contestant_passed_a_gate_and_landed(self) -> bool:
         """Should return true if the contestant has started a route and then landed, signifying that it has been completed"""
-        return False
+        return self.any_gate_passed() and self.landing_gate is not None and self.landing_gate.has_been_passed()
 
     def create_gates(self) -> List[Gate]:
         """
@@ -188,16 +241,71 @@ class Gatekeeper(ABC):
             for calculator in self.calculators:
                 calculator.passed_finishpoint(self.track, self.last_gate)
 
-    @abstractmethod
-    def check_gates(self):
-        raise NotImplementedError
+    def handle_event(self, event: GatekeeperEvent):
+        """
+        Update state based on event and notify all calculators.
+        """
+        if isinstance(event, GatePassedEvent):
+            event.gate.pass_gate(event.intersection_time)
+            if event.gate in self.outstanding_gates:
+                self.pop_gate(self.outstanding_gates.index(event.gate), True)
+            else:
+                self.previous_last_gate = self.last_gate
+                self.last_gate = event.gate
+                self.update_enroute()
+            for calculator in self.calculators:
+                calculator.on_gate_passed(event.gate, event.position)
 
-    def execute_missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: ContestantReceivedPosition):
-        """
-        Call the missed_gate event in all calculators.
-        """
-        for calculator in self.calculators:
-            calculator.missed_gate(previous_gate, gate, position)
+        elif isinstance(event, GateMissedEvent):
+            if event.gate in self.outstanding_gates:
+                event.gate.missed = True
+                self.pop_gate(self.outstanding_gates.index(event.gate), False)
+                for calculator in self.calculators:
+                    calculator.missed_gate(event.previous_gate, event.gate, event.position)
+
+        elif isinstance(event, TakeoffPassedEvent):
+            event.gate.pass_gate(event.intersection_time)
+            if self.takeoff_gate:
+                self.takeoff_gate.pass_gate(event.intersection_time)
+            for calculator in self.calculators:
+                calculator.on_takeoff_passed(event.gate, event.position)
+
+        elif isinstance(event, LandingPassedEvent):
+            event.gate.pass_gate(event.intersection_time)
+            if self.landing_gate:
+                self.landing_gate.pass_gate(event.intersection_time)
+            for calculator in self.calculators:
+                calculator.on_landing_passed(event.gate, event.position)
+
+        elif isinstance(event, StartingLinePassedEvent):
+            event.gate.pass_infinite_gate(event.intersection_time)
+            if event.gate in self.outstanding_gates:
+                self.pop_gate(self.outstanding_gates.index(event.gate), True)
+            else:
+                self.previous_last_gate = self.last_gate
+                self.last_gate = event.gate
+                self.update_enroute(override_enroute=True)
+            for calculator in self.calculators:
+                calculator.on_starting_line_passed(event.gate, event.position)
+                calculator.on_gate_passed(event.gate, event.position)
+
+        elif isinstance(event, StartingLineExtendedPassedWrongDirectionEvent):
+            for calculator in self.calculators:
+                calculator.on_starting_line_extended_passed_wrong_direction(event.gate, event.position)
+
+        elif isinstance(event, PokerGatePassedEvent):
+            for calculator in self.calculators:
+                calculator.on_poker_gate_passed(event.gate, event.position)
+
+        elif isinstance(event, AdaptiveStartEvent):
+            self.recalculate_gates_times_from_start_time(event.start_time)
+
+        elif isinstance(event, EstimationUpdatedEvent):
+            self.estimated_next_timed_gate = event.gate
+            self.estimated_crossing_time = event.estimated_time
+
+        elif isinstance(event, InRangeUpdatedEvent):
+            self.in_range_of_gate = event.gate
 
     def report_calculator_danger_level(self):
         """
@@ -220,17 +328,23 @@ class Gatekeeper(ABC):
         Calculate the score. Is called once for every received (or interpolated) position.
         """
         self.track.append(position)
-        self.check_gates()
+        
+        # Detection and state update phase
+        state = self.get_state()
         for calculator in self.calculators:
             if self.enroute:
-                calculator.calculate_enroute(
-                    self.track,
-                    self.last_gate,
-                    self.in_range_of_gate,
-                    self.outstanding_gates[0] if len(self.outstanding_gates) > 0 else None,
-                )
+                events = calculator.calculate_enroute(self.track, state)
             else:
-                calculator.calculate_outside_route(self.track, self.last_gate)
+                events = calculator.calculate_outside_route(self.track, state)
+            
+            for event in events:
+                self.handle_event(event)
+                # Refresh state after event in case subsequent calculators need new state
+                state = self.get_state()
+
+        if self.last_gate and self.last_gate.type == "fp":
+            self.passed_finishpoint()
+
         if self.last_danger_level_report + DANGER_LEVEL_REPORT_INTERVAL < time.time():
             self.last_danger_level_report = time.time()
             self.report_calculator_danger_level()

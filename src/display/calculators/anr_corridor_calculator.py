@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 from shapely.geometry import Polygon
 
-from display.calculators.calculator import Calculator
+from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -31,9 +31,14 @@ class AnrCorridorCalculator(Calculator):
                 self.corridor_state = self.INSIDE_CORRIDOR
                 self.check_and_apply_outside_penalty(position, self.crossed_outside_gate or last_gate)
 
-    def calculate_outside_route(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
+    def calculate_outside_route(
+        self,
+        track: List[ContestantReceivedPosition],
+        state: GatekeeperState,
+    ) -> List[GatekeeperEvent]:
         self.enroute = False
         self.accumulated_score = 0
+        return []
 
     INSIDE_CORRIDOR = 0
     OUTSIDE_CORRIDOR = 1
@@ -124,12 +129,11 @@ class AnrCorridorCalculator(Calculator):
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
-        last_gate: "Gate",
-        in_range_of_gate: "Gate",
-        next_gate: Optional["Gate"],
-    ):
+        state: GatekeeperState,
+    ) -> List[GatekeeperEvent]:
         self.enroute = True
-        self.check_outside_corridor(track, last_gate)
+        self.check_outside_corridor(track, state.last_gate)
+        return []
 
     def check_and_apply_outside_penalty(self, position: ContestantReceivedPosition, last_gate: Gate):
         if self.crossed_outside_time is None or last_gate is None:

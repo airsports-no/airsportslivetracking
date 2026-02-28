@@ -1,11 +1,11 @@
 from queue import Queue
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.backtracking_and_procedure_turns import BacktrackingAndProcedureTurnsCalculator
+from display.calculators.gate_calculator import GateCalculator
 from display.calculators.gatekeeper import Gatekeeper
-from display.calculators.gatekeeper_landing import GatekeeperLanding
-from display.calculators.gatekeeper_poker import GatekeeperPoker
-from display.calculators.gatekeeper_route import GatekeeperRoute
+from display.calculators.landing_pattern_calculator import LandingPatternCalculator
 from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
+from display.calculators.poker_calculator import PokerCalculator
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 
 from display.models import Contestant
@@ -21,20 +21,21 @@ from display.utilities.navigation_task_type_definitions import (
 
 def calculator_factory(contestant: "Contestant", score_processing_queue: Queue) -> "Gatekeeper":
     if contestant.navigation_task.scorecard.calculator == PRECISION:
-        return GatekeeperRoute(
+        return Gatekeeper(
             contestant,
             score_processing_queue,
-            [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator, PenaltyZoneCalculator],
+            [GateCalculator, BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator, PenaltyZoneCalculator],
         )
     if contestant.navigation_task.scorecard.calculator in (
         ANR_CORRIDOR,
         AIRSPORTS,
         AIRSPORT_CHALLENGE,
     ):
-        return GatekeeperRoute(
+        return Gatekeeper(
             contestant,
             score_processing_queue,
             [
+                GateCalculator,
                 BacktrackingAndProcedureTurnsCalculator,
                 AnrCorridorCalculator,
                 ProhibitedZoneCalculator,
@@ -42,14 +43,15 @@ def calculator_factory(contestant: "Contestant", score_processing_queue: Queue) 
             ],
         )
     if contestant.navigation_task.scorecard.calculator == LANDING:
-        return GatekeeperLanding(contestant, score_processing_queue, [])
+        return Gatekeeper(contestant, score_processing_queue, [LandingPatternCalculator])
     if contestant.navigation_task.scorecard.calculator == POKER:
-        return GatekeeperPoker(
+        return Gatekeeper(
             contestant,
             score_processing_queue,
             [
+                PokerCalculator,
                 ProhibitedZoneCalculator,
                 PenaltyZoneCalculator,
             ],
         )
-    return GatekeeperRoute(contestant, score_processing_queue, [])
+    return Gatekeeper(contestant, score_processing_queue, [GateCalculator])

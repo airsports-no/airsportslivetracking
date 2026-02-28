@@ -3,7 +3,7 @@ import logging
 from multiprocessing import Queue
 from typing import TYPE_CHECKING, List, Optional
 
-from display.calculators.calculator import Calculator
+from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent
 from display.calculators.calculator_utilities import bearing_between
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_utility_models import ContestantReceivedPosition
@@ -70,15 +70,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.non_circling_lookback = datetime.timedelta(seconds=30)
         self.last_bearing = None
         self.last_gate_previous_round = None
-        self.current_speed_estimate = 0
-        self.previous_gate_distances = None
-        self.earliest_circle_check = None
-        self.inside_gates = None
-        self.between_tracks = False
-        self.calculate_track = False
-        self.circling = False
-        self.circling_start_time = None
-        self.previous_last_gate = None
+        self.last_leg_name = None
         self.current_last_gate = None
         self.gate_bearings = []  # type: list[tuple[int,float]]
         # Put into separate parameter so that we can change this when finalising in order to terminate any ongoing
@@ -96,23 +88,25 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
-        last_gate: "Gate",
-        in_range_of_gate: "Gate",
-        next_gate: Optional["Gate"],
-    ):
+        state: GatekeeperState,
+    ) -> List[GatekeeperEvent]:
         # Need to do the track score first since this might declare the remaining gates as missed if we are done
         # with the track. We can then calculate gate score and consider the missed gates.
-        self.calculate_track_score(track, last_gate, in_range_of_gate, next_gate)
-        # self.detect_circling(track, last_gate, in_range_of_gate)
+        self.calculate_track_score(track, state.last_gate, state.in_range_of_gate, state.outstanding_gates[0] if state.outstanding_gates else None)
+        return []
 
-    def calculate_outside_route(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
-        self.circling_position_list = []
+    def calculate_outside_route(
+        self,
+        track: List[ContestantReceivedPosition],
+        state: GatekeeperState,
+    ) -> List[GatekeeperEvent]:
+        return []
 
     def update_current_leg(self, current_leg):
-        if current_leg:
-            self.contestant.contestanttrack.update_current_leg(current_leg.name)
-        else:
-            self.contestant.contestanttrack.update_current_leg("")
+        leg_name = current_leg.name if current_leg else ""
+        if not hasattr(self, "last_leg_name") or self.last_leg_name != leg_name:
+            self.contestant.contestanttrack.update_current_leg(leg_name)
+            self.last_leg_name = leg_name
 
     TIME_FORMAT = "%H:%M:%S"
 
@@ -134,7 +128,6 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         :return:
         """
         if last_gate != self.current_last_gate:
-            self.previous_last_gate = self.current_last_gate
             self.current_last_gate = last_gate
             self.gate_bearings.append((len(track) - 1, last_gate.bearing))
         next_position = track[-1]
@@ -353,18 +346,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 backtracking = True
                 logger.debug("{}: Backtracking according to last gate {}".format(self.contestant, last_gate))
                 if in_range_of_gate is not None and in_range_of_gate != last_gate:
-                    outgoing_bearing_difference = abs(get_heading_difference(bearing, in_range_of_gate.bearing))
-                    if (
-                        outgoing_bearing_difference <= self.scorecard.backtracking_bearing_difference
-                        and self.tracking_state != self.BACKTRACKING
-                    ):
-                        # We are not backtracking according to the outgoing gate, so ignore it
-                        backtracking = False
-                        logger.debug(
-                            "{}: Not backtracking according to gate in range {}".format(
-                                self.contestant, in_range_of_gate
-                            )
-                        )
+                    pass
 
             if backtracking:
                 if self.tracking_state == self.TRACKING:
@@ -446,8 +428,9 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                                 maximum_score=self.scorecard.backtracking_maximum_penalty,
                             )
                         )
-            else:
-                if self.tracking_state == self.BACKTRACKING:
+                        # Keep state as BACKTRACKING to avoid multiple scores for the same occurrence
+                        # It will transition back to TRACKING once bearing is correct
+
                     logger.info(
                         "{} {}: Done backtracking for {} seconds".format(
                             self.contestant,
@@ -463,7 +446,18 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                             (last_position.time - self.backtracking_start_time).total_seconds(),
                         )
                     )
-
-                self.update_tracking_state(self.TRACKING)
+            else:
+                if self.tracking_state in (self.BACKTRACKING, self.BACKTRACKING_TEMPORARY):
+                    logger.info(
+                        "{} {}: Done backtracking".format(
+                            self.contestant,
+                            last_position.time,
+                        )
+                    )
+                    self.update_tracking_state(self.TRACKING)
         self.last_bearing = bearing
         self.last_gate_previous_round = last_gate
+
+    def on_starting_line_passed(self, gate: "Gate", position: ContestantReceivedPosition):
+        self.update_tracking_state(self.STARTED)
+        self.backtracking_start_time = None

@@ -101,6 +101,7 @@ class ContestantProcessor:
         self.accumulated_scores = ScoreAccumulator()
         self.websocket_facade = WebsocketFacade()
         self.timed_queue = TimedQueue()
+        self.projector: Projector = None
         self.delay = datetime.timedelta(minutes=self.contestant.navigation_task.calculation_delay_minutes)
         self.finished_loading_initial_positions = (
             threading.Event()
@@ -135,14 +136,15 @@ class ContestantProcessor:
         if last_position is None:
             return [position]
         initial_time = last_position.time
-        projector = Projector(last_position.latitude, last_position.longitude)
 
         time_difference = int((position.time - initial_time).total_seconds())
         positions = []
         if time_difference > 1.2:
+            if self.projector is None:
+                self.projector = Projector(last_position.latitude, last_position.longitude)
             fraction = 1 / time_difference
             for step in range(1, time_difference):
-                new_position = projector.fractional_point_on_line(
+                new_position = self.projector.fractional_point_on_line(
                     (last_position.latitude, last_position.longitude),
                     (position.latitude, position.longitude),
                     step * fraction,
@@ -221,9 +223,16 @@ class ContestantProcessor:
         number_of_positions = 0
         # Wait while the thread loads outstanding positions.
         self.finished_loading_initial_positions.wait()
+        self.last_status_check = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+        positions_to_save = []
         while not self.track_terminated:
-            calculator_is_alive(self.contestant.pk, 30)
             now = datetime.datetime.now(datetime.timezone.utc)
+            if now - self.last_status_check > datetime.timedelta(seconds=5):
+                calculator_is_alive(self.contestant.pk, 30)
+                self.should_i_terminate()
+                self.check_termination_is_commanded(self.previous_position)
+                self.last_status_check = now
+
             if self.live_processing and now > self.contestant.finished_by_time + self.delay:
                 data = self.timed_queue.peek()
                 if data is None or data["device_time"] > now:
@@ -248,6 +257,9 @@ class ContestantProcessor:
             if position_data is None:
                 # Signal the track processor that this is the end, and perform the track calculation
                 logger.debug(f"End of position list after {number_of_positions} positions")
+                if positions_to_save:
+                    ContestantReceivedPosition.objects.bulk_create(positions_to_save)
+                    positions_to_save = []
                 self.notify_termination()
                 continue
             if not receiving:
@@ -261,7 +273,6 @@ class ContestantProcessor:
             else:
                 positions_to_process = [position_data]
             all_positions = []
-            generated_positions = []
             for position_to_process in positions_to_process:
                 p = self.contestant.generate_position_block_for_contestant(
                     position_to_process, position_to_process["device_time"]
@@ -276,19 +287,23 @@ class ContestantProcessor:
                     if self.previous_position.time < p.time:
                         self.previous_position = p
                     continue
+
                 all_positions.append(p)
                 for position in self.interpolate_track(self.previous_position, p):
                     position.websocket_transmitted_time = datetime.datetime.now(datetime.timezone.utc)
-                    generated_positions.append(position)
+                    positions_to_save.append(position)
                 self.previous_position = p
-            ContestantReceivedPosition.objects.bulk_create(generated_positions)
+
+            if len(positions_to_save) > 100:
+                ContestantReceivedPosition.objects.bulk_create(positions_to_save)
+                positions_to_save = []
+
             for position in all_positions:
-                calculator_is_alive(self.contestant.pk, 30)
                 self.gatekeeper.calculate_score(position)
 
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
-            self.should_i_terminate()
-            self.check_termination_is_commanded(self.previous_position)
+        if positions_to_save:
+            ContestantReceivedPosition.objects.bulk_create(positions_to_save)
         self.gatekeeper.finished_processing()
         self.contestant_track.set_calculator_finished()
         while not self.position_queue.empty():

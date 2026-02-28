@@ -1,18 +1,109 @@
+import datetime
 import logging
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from multiprocessing import Queue
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, TYPE_CHECKING
+from dataclasses import dataclass
 
-from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Contestant, Scorecard, Route
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.gate_definitions import SECRETPOINT
 
+if TYPE_CHECKING:
+    from display.calculators.positions_and_gates import Gate, MultiGate
+    from display.utilities.coordinate_utilities import Projector
+
+
 logger = logging.getLogger(__name__)
 
 
-class Calculator:
+@dataclass
+class GatekeeperState:
+    last_gate: Optional["Gate"]
+    outstanding_gates: List["Gate"]
+    in_range_of_gate: Optional["Gate"]
+    projector: "Projector"
+    takeoff_gate: Optional["MultiGate"]
+    landing_gate: Optional["MultiGate"]
+    has_passed_finishpoint: bool
+    recalculation_completed: bool
+    estimated_next_timed_gate: Optional["Gate"] = None
+    estimated_crossing_time: Optional[datetime.datetime] = None
+
+
+class GatekeeperEvent:
+    def __init__(self, position: ContestantReceivedPosition):
+        self.position = position
+
+
+class GatePassedEvent(GatekeeperEvent):
+    def __init__(self, gate: "Gate", position: ContestantReceivedPosition, intersection_time: datetime.datetime):
+        super().__init__(position)
+        self.gate = gate
+        self.intersection_time = intersection_time
+
+
+class GateMissedEvent(GatekeeperEvent):
+    def __init__(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition):
+        super().__init__(position)
+        self.previous_gate = previous_gate
+        self.gate = gate
+
+
+class TakeoffPassedEvent(GatekeeperEvent):
+    def __init__(self, gate: "Gate", position: ContestantReceivedPosition, intersection_time: datetime.datetime):
+        super().__init__(position)
+        self.gate = gate
+        self.intersection_time = intersection_time
+
+
+class LandingPassedEvent(GatekeeperEvent):
+    def __init__(self, gate: "Gate", position: ContestantReceivedPosition, intersection_time: datetime.datetime):
+        super().__init__(position)
+        self.gate = gate
+        self.intersection_time = intersection_time
+
+
+class StartingLinePassedEvent(GatekeeperEvent):
+    def __init__(self, gate: "Gate", position: ContestantReceivedPosition, intersection_time: datetime.datetime):
+        super().__init__(position)
+        self.gate = gate
+        self.intersection_time = intersection_time
+
+
+class StartingLineExtendedPassedWrongDirectionEvent(GatekeeperEvent):
+    def __init__(self, gate: "Gate", position: ContestantReceivedPosition):
+        super().__init__(position)
+        self.gate = gate
+
+
+class PokerGatePassedEvent(GatekeeperEvent):
+    def __init__(self, gate: "Gate", position: ContestantReceivedPosition):
+        super().__init__(position)
+        self.gate = gate
+
+
+class AdaptiveStartEvent(GatekeeperEvent):
+    def __init__(self, start_time: datetime.datetime, position: ContestantReceivedPosition):
+        super().__init__(position)
+        self.start_time = start_time
+
+
+class EstimationUpdatedEvent(GatekeeperEvent):
+    def __init__(self, gate: "Gate", estimated_time: datetime.datetime, position: ContestantReceivedPosition):
+        super().__init__(position)
+        self.gate = gate
+        self.estimated_time = estimated_time
+
+
+class InRangeUpdatedEvent(GatekeeperEvent):
+    def __init__(self, gate: Optional["Gate"], position: ContestantReceivedPosition):
+        super().__init__(position)
+        self.gate = gate
+
+
+class Calculator(ABC):
     """
     Abstract class that defines the interface for all calculator types
     """
@@ -51,24 +142,40 @@ class Calculator:
         except IndexError:
             return last_gate
 
-    @abstractmethod
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
-        last_gate: "Gate",
-        in_range_of_gate: "Gate",
-        next_gate: Optional["Gate"],
-    ):
-        pass
+        state: GatekeeperState,
+    ) -> List[GatekeeperEvent]:
+        return []
 
-    @abstractmethod
-    def calculate_outside_route(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
-        pass
+    def calculate_outside_route(
+        self,
+        track: List[ContestantReceivedPosition],
+        state: GatekeeperState,
+    ) -> List[GatekeeperEvent]:
+        return []
 
-    @abstractmethod
     def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         pass
 
-    @abstractmethod
-    def missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: ContestantReceivedPosition):
+    def missed_gate(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition):
+        pass
+
+    def on_gate_passed(self, gate: "Gate", position: ContestantReceivedPosition):
+        pass
+
+    def on_takeoff_passed(self, gate: "Gate", position: ContestantReceivedPosition):
+        pass
+
+    def on_landing_passed(self, gate: "Gate", position: ContestantReceivedPosition):
+        pass
+
+    def on_starting_line_passed(self, gate: "Gate", position: ContestantReceivedPosition):
+        pass
+
+    def on_starting_line_extended_passed_wrong_direction(self, gate: "Gate", position: ContestantReceivedPosition):
+        pass
+
+    def on_poker_gate_passed(self, gate: "Gate", position: ContestantReceivedPosition):
         pass

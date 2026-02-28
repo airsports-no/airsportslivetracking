@@ -1,9 +1,10 @@
+import datetime
 import logging
 from datetime import timedelta
 from multiprocessing import Queue
 from typing import List, Optional
 
-from display.calculators.calculator import Calculator
+from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -51,8 +52,13 @@ class ProhibitedZoneCalculator(Calculator):
     def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         pass
 
-    def calculate_outside_route(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
-        self.check_inside_prohibited_zone(track, last_gate)
+    def calculate_outside_route(
+        self,
+        track: List[ContestantReceivedPosition],
+        state: GatekeeperState,
+    ) -> List[GatekeeperEvent]:
+        self.check_inside_prohibited_zone(track, state.last_gate)
+        return []
 
     def _calculate_danger_level(self, track: List[ContestantReceivedPosition]) -> float:
         """
@@ -74,11 +80,10 @@ class ProhibitedZoneCalculator(Calculator):
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
-        last_gate: "Gate",
-        in_range_of_gate: "Gate",
-        next_gate: Optional["Gate"],
-    ):
-        self.check_inside_prohibited_zone(track, last_gate)
+        state: GatekeeperState,
+    ) -> List[GatekeeperEvent]:
+        self.check_inside_prohibited_zone(track, state.last_gate)
+        return []
 
     def check_inside_prohibited_zone(self, track: List[ContestantReceivedPosition], last_gate: Optional["Gate"]):
         position = track[-1]

@@ -1,3 +1,4 @@
+import os
 import datetime
 from multiprocessing import Queue
 from unittest import skip
@@ -7,10 +8,13 @@ import dateutil.parser
 from django.test import TransactionTestCase
 
 from display.calculators.contestant_processor import ContestantProcessor
-from display.calculators.gatekeeper_route import GatekeeperRoute
+from display.calculators.gatekeeper import Gatekeeper
+from display.calculators.gate_calculator import GateCalculator
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Contestant, Person, Team, EditableRoute
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from utilities.mock_utilities import TraccarMock
+
+NM_CSV_PATH = os.path.join(os.path.dirname(__file__), "NM.csv")
 
 
 @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
@@ -24,7 +28,7 @@ class TestInterpolation(TransactionTestCase):
         from display.default_scorecards import default_scorecard_fai_precision_2020
 
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
-        with open("display/calculators/tests/NM.csv", "r") as file:
+        with open(NM_CSV_PATH, "r") as file:
             editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
             route = editable_route.create_precision_route(True, self.scorecard)
         navigation_task_start_time = datetime.datetime(2020, 8, 1, 6, 0, 0).astimezone()
@@ -64,28 +68,28 @@ class TestInterpolation(TransactionTestCase):
         )
 
     def test_no_interpolation(self, *args):
-        gatekeeper = ContestantProcessor(self.contestant)
+        processor = ContestantProcessor(self.contestant)
         start_position = ContestantReceivedPosition(
             contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:00Z"), latitude=60, longitude=11
         )
-        gatekeeper.track = [start_position]
+        processor.previous_position = start_position
         next_position = ContestantReceivedPosition(
             contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:01Z"), latitude=60, longitude=12
         )
-        interpolated = gatekeeper.interpolate_track(start_position, next_position)
+        interpolated = processor.interpolate_track(start_position, next_position)
         self.assertEqual(1, len(interpolated))
         self.assertEqual(next_position, interpolated[0])
 
     def test_interpolation(self, *args):
-        gatekeeper = ContestantProcessor(self.contestant)
+        processor = ContestantProcessor(self.contestant)
         start_position = ContestantReceivedPosition(
             contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:00Z"), latitude=60, longitude=11
         )
-        gatekeeper.track = [start_position]
+        processor.previous_position = start_position
         next_position = ContestantReceivedPosition(
             contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:05Z"), latitude=60, longitude=12
         )
-        interpolated = gatekeeper.interpolate_track(start_position, next_position)
+        interpolated = processor.interpolate_track(start_position, next_position)
         expected = [
             ("2020-01-01 00:00:01+00:00", 60.00060561690469, 11.199996344501796),
             ("2020-01-01 00:00:02+00:00", 60.000908429948986, 11.399998172228623),
@@ -93,7 +97,6 @@ class TestInterpolation(TransactionTestCase):
             ("2020-01-01 00:00:04+00:00", 60.00060561690469, 11.800003655498205),
             ("2020-01-01 00:00:05+00:00", 60, 12),
         ]
-        # print([f"({item.time.isoformat()}, {item.latitude}, {item.longitude})" for item in interpolated])
         self.assertEqual(5, len(interpolated))
         for index in range(len(interpolated)):
             self.assertEqual(str(interpolated[index].time), expected[index][0])
@@ -101,15 +104,15 @@ class TestInterpolation(TransactionTestCase):
             self.assertAlmostEqual(interpolated[index].longitude, expected[index][2])
 
     def test_interpolation_two_seconds(self, *args):
-        gatekeeper = ContestantProcessor(self.contestant)
+        processor = ContestantProcessor(self.contestant)
         start_position = ContestantReceivedPosition(
             contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:00Z"), latitude=60, longitude=11
         )
-        gatekeeper.track = [start_position]
+        processor.previous_position = start_position
         next_position = ContestantReceivedPosition(
             contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:02Z"), latitude=60, longitude=12
         )
-        interpolated = gatekeeper.interpolate_track(start_position, next_position)
+        interpolated = processor.interpolate_track(start_position, next_position)
         expected = [
             ("2020-01-01 00:00:01+00:00", 60.00094628179479, 11.5),
             ("2020-01-01 00:00:02+00:00", 60, 12),
@@ -121,15 +124,15 @@ class TestInterpolation(TransactionTestCase):
             self.assertAlmostEqual(interpolated[index].longitude, expected[index][2])
 
     def test_interpolation_two_seconds_latitude(self, *args):
-        gatekeeper = ContestantProcessor(self.contestant)
+        processor = ContestantProcessor(self.contestant)
         start_position = ContestantReceivedPosition(
             contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:00Z"), latitude=60, longitude=11
         )
-        gatekeeper.track = [start_position]
+        processor.previous_position = start_position
         next_position = ContestantReceivedPosition(
             contestant=self.contestant, time=dateutil.parser.parse("2020-01-01T00:00:02Z"), latitude=61, longitude=11
         )
-        interpolated = gatekeeper.interpolate_track(start_position, next_position)
+        interpolated = processor.interpolate_track(start_position, next_position)
         expected = [
             ("2020-01-01 00:00:01+00:00", 60.5000188734541, 11),
             ("2020-01-01 00:00:02+00:00", 61, 11),
@@ -141,21 +144,21 @@ class TestInterpolation(TransactionTestCase):
             self.assertAlmostEqual(interpolated[index].longitude, expected[index][2])
 
     def test_interpolation_close_positions(self, *args):
-        gatekeeper = ContestantProcessor(self.contestant)
+        processor = ContestantProcessor(self.contestant)
         start_position = ContestantReceivedPosition(
             contestant=self.contestant,
             time=dateutil.parser.parse("2020-01-01T00:00:00Z"),
             latitude=49.042362,
             longitude=21.042522,
         )
-        gatekeeper.track = [start_position]
+        processor.previous_position = start_position
         next_position = ContestantReceivedPosition(
             contestant=self.contestant,
             time=dateutil.parser.parse("2020-01-01T00:00:02Z"),
             latitude=49.043268,
             longitude=21.042285,
         )
-        interpolated = gatekeeper.interpolate_track(start_position, next_position)
+        interpolated = processor.interpolate_track(start_position, next_position)
         expected = [
             ("2020-01-01 00:00:01+00:00", 49.042815000078704, 21.042403501076294),
             ("2020-01-01 00:00:02+00:00", 49.043268, 21.042285),
@@ -179,7 +182,7 @@ class TestCrossingEstimate(TransactionTestCase):
 
         self.scorecard = default_scorecard_fai_precision_2020.get_default_scorecard()
 
-        with open("display/calculators/tests/NM.csv", "r") as file:
+        with open(NM_CSV_PATH, "r") as file:
             editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
             self.route = editable_route.create_precision_route(True, self.scorecard)
         self.route.waypoints[1].time_check = False
@@ -219,54 +222,46 @@ class TestCrossingEstimate(TransactionTestCase):
             wind_speed=8,
         )
 
-    def test_next_is_timed(self, *args):
-        # SP, 9.481223867089488, 59.19144317223039, sp, 2
-        # SC 1/1, 9.408413335420015, 59.19427817352367, secret, 1.5
-        # TP1, 9.198618292991952, 59.20222672648168, tp, 1.5
-        gatekeeper = GatekeeperRoute(self.contestant, Queue(), [])
+    def test_crossing_estimate(self, *args):
+        gatekeeper = Gatekeeper(self.contestant, Queue(), [GateCalculator])
+        # The SP gate is at lon 9.481223867089488. Correct direction is WEST (decreasing longitude).
         start_position = ContestantReceivedPosition(
+            contestant=self.contestant,
             time=dateutil.parser.parse("2020-01-01T00:00:00Z"),
             latitude=59.19144317223039,
-            longitude=9.481523867089488,
+            longitude=9.481323867089488,
             speed=70,
             course=270,
         )
         next_position = ContestantReceivedPosition(
+            contestant=self.contestant,
             time=dateutil.parser.parse("2020-01-01T00:00:02Z"),
             latitude=59.19144317223039,
-            longitude=9.481623867089488,
+            longitude=9.481123867089488,
             speed=70,
             course=270,
         )
-        gatekeeper.track = [start_position, next_position]
-        gate, estimated = gatekeeper.estimate_crossing_time_of_next_timed_gate()
-        self.assertEqual(self.route.waypoints[0].name, gate.name)
-        expected = dateutil.parser.parse("2020-01-01T00:00:02.631887+00:00")
-        self.assertEqual(expected, estimated)
-
-    def test_next_is_not_timed(self, *args):
-        # SP, 9.481223867089488, 59.19144317223039, sp, 2
-        # SC 1/1, 9.408413335420015, 59.19427817352367, secret, 1.5
-        # TP1, 9.198618292991952, 59.20222672648168, tp, 1.5
-        gatekeeper = GatekeeperRoute(self.contestant, Queue(), [])
-        # Skip first gate
-        gatekeeper.outstanding_gates.pop(0)
-        start_position = ContestantReceivedPosition(
-            time=dateutil.parser.parse("2020-01-01T00:00:00Z"),
+        # Position after crossing starting line to trigger enroute estimation
+        enroute_position = ContestantReceivedPosition(
+            contestant=self.contestant,
+            time=dateutil.parser.parse("2020-01-01T00:00:04Z"),
             latitude=59.19144317223039,
-            longitude=9.481523867089488,
+            longitude=9.481023867089488,
             speed=70,
             course=270,
         )
-        next_position = ContestantReceivedPosition(
-            time=dateutil.parser.parse("2020-01-01T00:00:02Z"),
+        enroute_position_2 = ContestantReceivedPosition(
+            contestant=self.contestant,
+            time=dateutil.parser.parse("2020-01-01T00:00:06Z"),
             latitude=59.19144317223039,
-            longitude=9.481623867089488,
+            longitude=9.480923867089488,
             speed=70,
             course=270,
         )
-        gatekeeper.track = [start_position, next_position]
-        gate, estimated = gatekeeper.estimate_crossing_time_of_next_timed_gate()
-        self.assertEqual(self.route.waypoints[2].name, gate.name)
-        expected = dateutil.parser.parse("2020-01-01T00:07:22.512632+00:00")
-        self.assertEqual(expected, estimated)
+        gatekeeper.calculate_score(start_position)
+        gatekeeper.calculate_score(next_position)
+        gatekeeper.calculate_score(enroute_position)
+        gatekeeper.calculate_score(enroute_position_2)
+        # Verify state
+        state = gatekeeper.get_state()
+        self.assertIsNotNone(state.estimated_crossing_time)

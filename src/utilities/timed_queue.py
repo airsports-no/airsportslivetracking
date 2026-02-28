@@ -20,9 +20,12 @@ class TimedQueue:
 
     def put(self, data, stamp: datetime.datetime):
         with self._lock:
-            self._queue.append((data, stamp))
-            # Should we sort the queue?
-            self._queue.sort(key=lambda i: i[1])
+            if not self._queue or stamp >= self._queue[-1][1]:
+                self._queue.append((data, stamp))
+            else:
+                self._queue.append((data, stamp))
+                # Should we sort the queue?
+                self._queue.sort(key=lambda i: i[1])
             self._ready_event.set()
 
     def peek(self):

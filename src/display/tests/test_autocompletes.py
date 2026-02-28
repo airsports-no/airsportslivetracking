@@ -43,7 +43,7 @@ class TestAutoCompleteAeroplane(APITestCase):
                 "search": "reg",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual(["registration"], result.json())
@@ -57,7 +57,7 @@ class TestAutoCompleteAeroplane(APITestCase):
                 "search": "registration",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
@@ -96,7 +96,7 @@ class TestAutoCompleteClub(APITestCase):
                 "search": "nam",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([{"label": "name ()", "value": "name"}], result.json())
@@ -110,7 +110,7 @@ class TestAutoCompleteClub(APITestCase):
                 "search": "name",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         response = result.json()[0]
@@ -157,7 +157,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
                 "search": "first",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([{"label": "first_name last_name", "value": self.person.id}], result.json())
@@ -171,7 +171,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
                 "search": "different",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([], result.json())
@@ -185,7 +185,7 @@ class TestAutoCompletePersonFirstName(APITestCase):
                 "search": self.person.id,
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
@@ -230,7 +230,7 @@ class TestAutoCompletePersonLastname(APITestCase):
                 "search": "last",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([{"label": "first_name last_name", "value": self.person.id}], result.json())
@@ -244,7 +244,7 @@ class TestAutoCompletePersonLastname(APITestCase):
                 "search": "different",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([], result.json())
@@ -258,7 +258,7 @@ class TestAutoCompletePersonLastname(APITestCase):
                 "search": self.person.id,
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
@@ -303,7 +303,7 @@ class TestAutoCompletePersonPhone(APITestCase):
                 "search": "123",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual(["+471234678"], result.json())
@@ -317,7 +317,7 @@ class TestAutoCompletePersonPhone(APITestCase):
                 "search": "321",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([], result.json())
@@ -331,7 +331,7 @@ class TestAutoCompletePersonPhone(APITestCase):
                 "search": "+471234678",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
@@ -376,7 +376,7 @@ class TestAutoCompletePersonEmail(APITestCase):
                 "search": "mail",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual(["mail@address.com"], result.json())
@@ -390,7 +390,7 @@ class TestAutoCompletePersonEmail(APITestCase):
                 "search": "321",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([], result.json())
@@ -404,7 +404,7 @@ class TestAutoCompletePersonEmail(APITestCase):
                 "search": "mail@address.com",
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
@@ -459,7 +459,7 @@ class TestAutoCompletePersonId(APITestCase):
                 "search": self.person.pk,
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual(["+471234678"], result.json())
@@ -473,7 +473,7 @@ class TestAutoCompletePersonId(APITestCase):
                 "search": -321,
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         self.assertListEqual([], result.json())
@@ -487,7 +487,7 @@ class TestAutoCompletePersonId(APITestCase):
                 "search": self.person.pk,
             },
             format="json",
-            **AJAX_HEADER
+            **AJAX_HEADER,
         )
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         result = result.json()
