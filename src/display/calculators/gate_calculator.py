@@ -303,7 +303,7 @@ class GateCalculator(Calculator):
     def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         # When finish point is passed, all outstanding gates should be marked as missed
         for gate in self.gates:
-            if not gate.has_been_passed():
+            if not gate.has_been_passed() and not gate.missed:
                 gate.missed = True
                 self.missed_gate(None, gate, track[-1] if track else None)
 

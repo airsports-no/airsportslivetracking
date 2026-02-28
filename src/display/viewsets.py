@@ -379,14 +379,10 @@ class ContestViewSet(ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         public_only = request.query_params.get("public_only", "false").lower() == "true"
-        user_id = (
-            "global"
-            if public_only
-            else (request.user.id if request.user.is_authenticated else "anon")
-        )
+        user_id = "global" if public_only else (request.user.id if request.user.is_authenticated else "anon")
         params = request.query_params.dict()
         sorted_params = json.dumps(params, sort_keys=True)
-        params_hash = hashlib.md5(sorted_params.encode('utf-8')).hexdigest()
+        params_hash = hashlib.md5(sorted_params.encode("utf-8")).hexdigest()
 
         version = cache.get("contest_list_version", 1)
         cache_key = f"contest_list_v{version}_u{user_id}_{params_hash}"
@@ -546,26 +542,28 @@ class ContestViewSet(ModelViewSet):
         Download contest results as CSV
         """
         contest = self.get_object()
-        
-        tasks = contest.task_set.all().order_by('index')
+
+        tasks = contest.task_set.all().order_by("index")
         tests_by_task = {}
         for task in tasks:
-            tests_by_task[task.id] = list(task.tasktest_set.all().order_by('index'))
-            
-        summaries = contest.contestsummary_set.select_related('team', 'team__crew__member1', 'team__crew__member2').order_by('points')
-        
+            tests_by_task[task.id] = list(task.tasktest_set.all().order_by("index"))
+
+        summaries = contest.contestsummary_set.select_related(
+            "team", "team__crew__member1", "team__crew__member2"
+        ).order_by("points")
+
         if contest.summary_score_sorting_direction == Contest.DESCENDING:
-             summaries = summaries.order_by('-points')
+            summaries = summaries.order_by("-points")
         else:
-             summaries = summaries.order_by('points')
-             
-        headers = ['Rank', 'Crew', 'Total Score']
-        
+            summaries = summaries.order_by("points")
+
+        headers = ["Rank", "Crew", "Total Score"]
+
         for task in tasks:
             headers.append(f"Task: {task.heading}")
             for test in tests_by_task[task.id]:
                 headers.append(f"Test: {test.heading}")
-                
+
         response = HttpResponse(
             content_type="text/csv",
             headers={"Content-Disposition": f'attachment; filename="{contest.name}_results.csv"'},
@@ -573,10 +571,10 @@ class ContestViewSet(ModelViewSet):
 
         writer = csv.writer(response)
         writer.writerow(headers)
-        
+
         task_summaries = TaskSummary.objects.filter(task__contest=contest)
         test_scores = TeamTestScore.objects.filter(task_test__task__contest=contest)
-        
+
         task_points = {(s.team_id, s.task_id): s.points for s in task_summaries}
         test_points = {(s.team_id, s.task_test_id): s.points for s in test_scores}
 
@@ -585,27 +583,27 @@ class ContestViewSet(ModelViewSet):
             team = summary.team
             parts = []
             if team and team.crew:
-                 m1 = team.crew.member1
-                 m2 = team.crew.member2
-                 if m1:
-                     parts.append(f"{m1.first_name} {m1.last_name}")
-                 if m2:
-                     parts.append(f"{m2.first_name} {m2.last_name}")
+                m1 = team.crew.member1
+                m2 = team.crew.member2
+                if m1:
+                    parts.append(f"{m1.first_name} {m1.last_name}")
+                if m2:
+                    parts.append(f"{m2.first_name} {m2.last_name}")
             crew_name = " / ".join(parts) if parts else "N/A"
-            
+
             row = [rank, crew_name, summary.points]
-            
+
             for task in tasks:
-                t_points = task_points.get((team.id, task.id), '-')
+                t_points = task_points.get((team.id, task.id), "-")
                 row.append(t_points)
-                
+
                 for test in tests_by_task[task.id]:
-                    tt_points = test_points.get((team.id, test.id), '-')
+                    tt_points = test_points.get((team.id, test.id), "-")
                     row.append(tt_points)
-            
+
             writer.writerow(row)
             rank += 1
-            
+
         return response
 
     @action(["GET"], detail=True)
@@ -1061,13 +1059,96 @@ class ContestantTeamIdViewSet(ModelViewSet):
 
 def generate_score_data(contestant_pk):
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
+
+    # Manually serialize related sets to avoid DRF overhead
+    annotations = []
+    for ann in contestant.trackannotation_set.all():
+        annotations.append(
+            {
+                "id": ann.id,
+                "time": ann.time.isoformat() if hasattr(ann.time, "isoformat") else ann.time,
+                "latitude": ann.latitude,
+                "longitude": ann.longitude,
+                "message": ann.message,
+                "gate": ann.gate,
+                "gate_type": ann.gate_type,
+                "type": ann.type,
+                "contestant": ann.contestant_id,
+                "score_log_entry": ann.score_log_entry_id,
+            }
+        )
+
+    log_entries = []
+    for entry in contestant.scorelogentry_set.filter(type=ANOMALY):
+        log_entries.append(
+            {
+                "id": entry.id,
+                "type": entry.type,
+                "message": entry.message,
+                "points": entry.points,
+                "gate": entry.gate,
+                "time": entry.time.isoformat() if hasattr(entry.time, "isoformat") else entry.time,
+                "planned": (
+                    entry.planned.isoformat()
+                    if entry.planned and hasattr(entry.planned, "isoformat")
+                    else entry.planned
+                ),
+                "actual": (
+                    entry.actual.isoformat() if entry.actual and hasattr(entry.actual, "isoformat") else entry.actual
+                ),
+                "string": entry.string,
+                "offset_string": entry.offset_string,
+                "times_string": entry.times_string,
+                "contestant": entry.contestant_id,
+            }
+        )
+
+    gate_scores = []
+    for gs in contestant.gatecumulativescore_set.all():
+        gate_scores.append(
+            {
+                "id": gs.id,
+                "gate": gs.gate,
+                "points": gs.points,
+                "contestant": gs.contestant_id,
+            }
+        )
+
+    playing_cards = []
+    for pc in contestant.playingcard_set.all():
+        playing_cards.append(
+            {
+                "id": pc.id,
+                "waypoint": pc.waypoint,
+                "suit": pc.suit,
+                "rank": pc.rank,
+                "contestant": pc.contestant_id,
+            }
+        )
+
+    ct = contestant.contestanttrack
+    track_data = {
+        "id": ct.id,
+        "score": ct.score,
+        "current_state": ct.current_state,
+        "current_leg": ct.current_leg,
+        "last_gate": ct.last_gate,
+        "last_gate_time_offset": ct.last_gate_time_offset,
+        "passed_starting_gate": ct.passed_starting_gate,
+        "passed_finish_gate": ct.passed_finish_gate,
+        "calculator_finished": ct.calculator_finished,
+        "calculator_started": ct.calculator_started,
+        "contestant": ct.contestant_id,
+        "contest_summary": ct.contest_summary,
+    }
+
     data = generate_contestant_data_block(
         contestant,
-        annotations=TrackAnnotationSerialiser(contestant.trackannotation_set.all(), many=True).data,
-        log_entries=ScoreLogEntrySerialiser(contestant.scorelogentry_set.filter(type=ANOMALY), many=True).data,
-        gate_scores=GateCumulativeScoreSerialiser(contestant.gatecumulativescore_set.all(), many=True).data,
-        playing_cards=PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data,
-        contestant_track_data=ContestantTrackSerialiser(contestant.contestanttrack).data,
+        annotations=annotations,
+        log_entries=log_entries,
+        gate_scores=gate_scores,
+        playing_cards=playing_cards,
+        contestant_track_data=track_data,
         gate_times=contestant.gate_times,
     )
 
@@ -1158,19 +1239,14 @@ class ContestantViewSet(ModelViewSet):
         position_data = contestant.get_track()
         pagination = MyCursorPagination()
         page = pagination.paginate_queryset(
-            position_data.values("time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"), request
+            position_data.values(
+                "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
+            ),
+            request,
         )
         if page is not None:
             if len(page):
                 page[-1]["progress"] = contestant.calculate_progress(page[-1]["time"], ignore_finished=True)
-            # progress = 0
-            # step_length = int(len(page) / 10)
-            # for index, item in enumerate(page):
-            #     if index % step_length == 0:
-            #         progress = contestant.calculate_progress(item.time, ignore_finished=True)
-            #     item.progress = progress
-            # serializer = PositionSerialiser(page, many=True)
-            # result = pagination.get_paginated_response(serializer.data)
             result = pagination.get_paginated_response(page)
             response = Response(result.data)
             if (
@@ -1182,9 +1258,14 @@ class ContestantViewSet(ModelViewSet):
             else:
                 patch_response_headers(response, 60 * 60 * 24 * 31)
         else:
-            position_data[-1].progress = contestant.calculate_progress(position_data[-1].time, ignore_finished=True)
-            serializer = PositionSerialiser(position_data, many=True)
-            response = Response(serializer.data)
+            # Manually serialize the positions to avoid PositionSerialiser overhead
+            positions = position_data.values(
+                "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
+            )
+            if len(positions):
+                positions = list(positions)
+                positions[-1]["progress"] = contestant.calculate_progress(positions[-1]["time"], ignore_finished=True)
+            response = Response(positions)
 
         return response
 
@@ -1194,12 +1275,31 @@ class ContestantViewSet(ModelViewSet):
         Returns the GPS track for the contestant
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
-        contestant_track = contestant.contestanttrack
+        ct = contestant.contestanttrack
 
         position_data = contestant.get_track()
-        contestant_track.track = position_data
-        serialiser = ContestantTrackWithTrackPointsSerialiser(contestant_track)
-        return Response(serialiser.data)
+        # Manually construct the response to avoid nested PositionSerialiser overhead
+        positions = list(
+            position_data.values(
+                "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
+            )
+        )
+
+        data = {
+            "id": ct.id,
+            "score": ct.score,
+            "current_state": ct.current_state,
+            "current_leg": ct.current_leg,
+            "last_gate": ct.last_gate,
+            "last_gate_time_offset": ct.last_gate_time_offset,
+            "passed_starting_gate": ct.passed_starting_gate,
+            "passed_finish_gate": ct.passed_finish_gate,
+            "calculator_finished": ct.calculator_finished,
+            "calculator_started": ct.calculator_started,
+            "contestant": ct.contestant_id,
+            "track": positions,
+        }
+        return Response(data)
 
     @action(detail=True, methods=["post"])
     def gpx_track(self, request, pk=None, **kwargs):

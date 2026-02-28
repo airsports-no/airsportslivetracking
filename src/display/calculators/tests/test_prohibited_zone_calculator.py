@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 from django.test import TransactionTestCase
 
+from display.calculators.calculator import GatekeeperState
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Prohibited, Route
@@ -30,8 +31,9 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         position.latitude = 60.5
         position.longitude = 11.5
         position.time = datetime.datetime(2023, 6, 22, 12)
-        gate = Mock()
-        self.calculator.calculate_enroute([position], gate, gate, None)
+        state = Mock(GatekeeperState)
+        state.last_gate = Mock()
+        self.calculator.calculate_enroute([position], state)
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11.5
@@ -43,17 +45,19 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         position.latitude = 60.5
         position.longitude = 11.5
         position.time = datetime.datetime(2023, 6, 22, 12)
-        gate = Mock()
-        self.calculator.calculate_enroute([position], gate, gate, None)
+        state = Mock(GatekeeperState)
+        state.last_gate = Mock()
+
+        self.calculator.calculate_enroute([position], state)
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11.5
         position.time = datetime.datetime(2023, 6, 22, 12, 0, 7)
-        self.calculator.calculate_enroute([position], gate, gate, None)
+        self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_called_with(
             UpdateScoreMessage(
                 datetime.datetime(2023, 6, 22, 12, 0, 7),
-                gate,
+                state.last_gate,
                 self.calculator.scorecard.prohibited_zone_penalty,
                 "entered prohibited zone test",
                 60.5,
@@ -69,14 +73,15 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         position.latitude = 59.5
         position.longitude = 11.5
         position.time = datetime.datetime(2023, 6, 22, 12)
-        gate = Mock()
-        self.calculator.calculate_enroute([position], gate, gate, None)
+        state = Mock(GatekeeperState)
+        state.last_gate = Mock()
+        self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_not_called()
         position = Mock()
         position.latitude = 59.5
         position.longitude = 11.5
         position.time = datetime.datetime(2023, 6, 22, 12, 1)
-        self.calculator.calculate_enroute([position], gate, gate, None)
+        self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_not_called()
 
     def test_outside_outside_route(self):
@@ -84,12 +89,13 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         position.latitude = 59.5
         position.longitude = 11.5
         position.time = datetime.datetime(2023, 6, 22, 12)
-        gate = Mock()
-        self.calculator.calculate_outside_route([position], gate)
+        state = Mock(GatekeeperState)
+        state.last_gate = Mock()
+        self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_not_called()
         position = Mock()
         position.latitude = 59.5
         position.longitude = 11.5
         position.time = datetime.datetime(2023, 6, 22, 12)
-        self.calculator.calculate_outside_route([position], gate)
+        self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_not_called()

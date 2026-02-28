@@ -36,7 +36,8 @@ def is_procedure_turn(bearing1, bearing2) -> bool:
     :param bearing2: degrees
     :return:
     """
-    return abs(bearing_difference(bearing1, bearing2)) > 90
+    return abs(bearing_difference(bearing1, bearing2)) >= 90
+
 
 
 def add_line(place_mark):
@@ -536,6 +537,10 @@ def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bo
                 continue
             if use_procedure_turns:
                 next_gate.is_procedure_turn = is_procedure_turn(current_gate.bearing_next, next_gate.bearing_next)
+                if next_gate.is_procedure_turn:
+                    logger.info(f"CALC_PROC_DEBUG: {next_gate.name} is procedure turn. Turn: {abs(bearing_difference(current_gate.bearing_next, next_gate.bearing_next))} Bearings: {current_gate.bearing_next}, {next_gate.bearing_next}")
+                else:
+                    logger.info(f"CALC_PROC_DEBUG: {next_gate.name} is NOT procedure turn. Turn: {abs(bearing_difference(current_gate.bearing_next, next_gate.bearing_next))} Bearings: {current_gate.bearing_next}, {next_gate.bearing_next}")
             next_gate.is_steep_turn = is_procedure_turn(current_gate.bearing_next, next_gate.bearing_next)
 
 

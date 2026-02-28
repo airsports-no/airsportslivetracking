@@ -73,6 +73,14 @@ if __name__ == "__main__":
         default=False,
         help="Introduce random delays during the playback",
     )
+
+    argparser.add_argument(
+        "-c",
+        "--copy",
+        action="store_true",
+        default=False,
+        help="Keep the original contestant names",
+    )
     arguments = argparser.parse_args()
 
     traccar = Traccar.create_from_configuration()
@@ -153,6 +161,7 @@ def create_contestants(
     new_navigation_task: NavigationTask,
     number_of_contestants: int,
     start_interval: datetime.timedelta,
+    keep_names: bool = False,
 ) -> List[Tuple[Contestant, List[dict]]]:
     logger.info(f"Creating {number_of_contestants} contestants with start interval {start_interval}")
     created_contestants = []
@@ -168,18 +177,21 @@ def create_contestants(
     while current_contestant_index < number_of_contestants:
         logger.info(f"Creating contestant number {current_contestant_index}")
         current_old_contestant = existing_contestants[existing_contestant_index]
-        contestant_email = f"test{current_contestant_index}@internal.contestant com"
-        person, _ = Person.objects.get_or_create(
-            email=contestant_email,
-            defaults={"first_name": "Test", "last_name": f"Person {current_contestant_index}"},
-        )
-        traccar.delete_device(traccar.unique_id_map.get(person.simulator_tracking_id))
-        traccar.create_device(person.first_name, person.simulator_tracking_id)
-        crew, _ = Crew.objects.get_or_create(member1=person)
-        aeroplane, _ = Aeroplane.objects.get_or_create(registration=f"LN-X{current_contestant_index}")
-        team, _ = Team.objects.get_or_create(
-            crew=crew, aeroplane=aeroplane, club=Club.objects.get_or_create(name="Airsports test")[0]
-        )
+        if keep_names:
+            team = current_old_contestant.team
+        else:
+            contestant_email = f"test{current_contestant_index}@internal.contestant com"
+            person, _ = Person.objects.get_or_create(
+                email=contestant_email,
+                defaults={"first_name": "Test", "last_name": f"Person {current_contestant_index}"},
+            )
+            traccar.delete_device(traccar.unique_id_map.get(person.simulator_tracking_id))
+            traccar.create_device(person.first_name, person.simulator_tracking_id)
+            crew, _ = Crew.objects.get_or_create(member1=person)
+            aeroplane, _ = Aeroplane.objects.get_or_create(registration=f"LN-X{current_contestant_index}")
+            team, _ = Team.objects.get_or_create(
+                crew=crew, aeroplane=aeroplane, club=Club.objects.get_or_create(name="Airsports test")[0]
+            )
         ContestTeam.objects.get_or_create(
             team=team,
             contest=new_navigation_task.contest,
@@ -258,8 +270,9 @@ if __name__ == "__main__":
     new_contestants = create_contestants(
         navigation_task,
         new_navigation_task,
-        arguments.number_of_contestants,
+        arguments.number_of_contestants if not arguments.copy else navigation_task.contestant_set.count(),
         datetime.timedelta(seconds=arguments.start_interval_seconds),
+        arguments.copy,
     )
     load_data_traccar(new_contestants)
     logger.info(

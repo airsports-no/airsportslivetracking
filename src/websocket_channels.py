@@ -100,7 +100,24 @@ class WebsocketFacade:
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         # Only push anomalous score logs to the GUI. Everything will be visible as annotations or on the contestant
         # table administration page.
-        log_entries = ScoreLogEntrySerialiser(contestant.scorelogentry_set.filter(type=ANOMALY), many=True).data
+        log_entries_raw = contestant.scorelogentry_set.filter(type=ANOMALY)
+        log_entries = []
+        for entry in log_entries_raw:
+            log_entries.append({
+                "id": entry.id,
+                "type": entry.type,
+                "message": entry.message,
+                "points": entry.points,
+                "gate": entry.gate,
+                "time": entry.time.isoformat() if hasattr(entry.time, "isoformat") else entry.time,
+                "planned": entry.planned.isoformat() if entry.planned and hasattr(entry.planned, "isoformat") else entry.planned,
+                "actual": entry.actual.isoformat() if entry.actual and hasattr(entry.actual, "isoformat") else entry.actual,
+                "string": entry.string,
+                "offset_string": entry.offset_string,
+                "times_string": entry.times_string,
+                "contestant": entry.contestant_id,
+            })
+        
         channel_data = generate_contestant_data_block(contestant, log_entries=log_entries)
         async_to_sync(self.channel_layer.group_send)(
             group_key,
@@ -136,9 +153,19 @@ class WebsocketFacade:
 
     def transmit_basic_information(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        channel_data = generate_contestant_data_block(
-            contestant, contestant_track_data=ContestantTrackSerialiser(contestant.contestanttrack).data
-        )
+        ct = contestant.contestanttrack
+        track_data = {
+            "score": ct.score,
+            "current_state": ct.current_state,
+            "current_leg": ct.current_leg,
+            "last_gate": ct.last_gate,
+            "last_gate_time_offset": ct.last_gate_time_offset,
+            "passed_starting_gate": ct.passed_starting_gate,
+            "passed_finish_gate": ct.passed_finish_gate,
+            "calculator_finished": ct.calculator_finished,
+            "calculator_started": ct.calculator_started,
+        }
+        channel_data = generate_contestant_data_block(contestant, contestant_track_data=track_data)
         async_to_sync(self.channel_layer.group_send)(
             group_key,
             {
@@ -174,7 +201,22 @@ class WebsocketFacade:
     ):
         if len(positions) == 0:
             return
-        position_data = PositionSerialiser(positions, many=True).data
+        
+        # Manually serialize positions to avoid DRF overhead
+        position_data = []
+        for pos in positions:
+            position_data.append({
+                "latitude": pos.latitude,
+                "longitude": pos.longitude,
+                "altitude": pos.altitude,
+                "time": pos.time.isoformat() if hasattr(pos.time, "isoformat") else pos.time,
+                "progress": pos.progress,
+                "device_id": pos.device_id,
+                "course": pos.course,
+                "position_id": pos.position_id,
+                "interpolated": pos.interpolated,
+            })
+
         channel_data = generate_contestant_data_block(
             contestant,
             positions=position_data,

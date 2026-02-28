@@ -289,6 +289,12 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         #     return
         # self.calculate_track = True
         # logger.info(bearing_difference)
+        if just_passed_gate:
+            logger.info(f"PROC_DEBUG: {self.contestant} passed {last_gate.name}, is_proc: {last_gate.is_procedure_turn}, has_ext: {last_gate.has_extended_been_passed()}, state: {self.TRACKING_MAP[self.tracking_state]}")
+            if self.tracking_state in (self.FAILED_PROCEDURE_TURN, self.BACKTRACKING, self.BACKTRACKING_TEMPORARY):
+                self.update_tracking_state(self.TRACKING)
+            self.backtracking_start_time = None
+
         if (
             just_passed_gate
             and last_gate.is_procedure_turn
@@ -328,6 +334,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         score = self.scorecard.get_procedure_turn_penalty_for_gate_type(
                             self.current_procedure_turn_gate.type
                         )
+                        logger.info(f"SCORE_DEBUG: {self.contestant} {last_position.time} - Procedure turn penalty: {score}")
                         self.update_score(
                             UpdateScoreMessage(
                                 last_position.time,
@@ -344,12 +351,12 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             backtracking = False
             if bearing_difference > self.backtracking_limit:
                 backtracking = True
-                logger.debug("{}: Backtracking according to last gate {}".format(self.contestant, last_gate))
+                logger.info(f"BACKTRACK_DEBUG: {self.contestant} {last_position.time} - diff: {bearing_difference}, limit: {self.backtracking_limit}, last_gate: {last_gate}")
                 if in_range_of_gate is not None and in_range_of_gate != last_gate:
                     pass
 
             if backtracking:
-                if self.tracking_state == self.TRACKING:
+                if self.tracking_state in (self.TRACKING, self.STARTED, self.TAKEOFF):
                     # Check if we are within 0.5 NM of a gate we just passed, A.2.2.13
                     is_grace_time_after_steep_turn = (
                         last_gate.infinite_passing_time is not None
@@ -382,11 +389,11 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         self.update_tracking_state(self.BACKTRACKING_TEMPORARY)
                     elif is_grace_distance_before_turn:
                         logger.info(
-                            "{} {}: Backtracking within {} NM of the next gate, ignoring".format(
+                            "{} {}: Backtracking within {} NM of reaching next gate, ignoring".format(
                                 self.contestant,
                                 last_position.time,
-                                self.scorecard.get_backtracking_after_gate_grace_period_nm_for_gate_type(
-                                    last_gate.type
+                                self.scorecard.get_backtracking_before_gate_grace_period_nm_for_gate_type(
+                                    next_gate.type
                                 ),
                             )
                         )
@@ -415,6 +422,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         last_position.time - self.backtracking_start_time
                     ).total_seconds() > self.scorecard.backtracking_grace_time_seconds:
                         self.update_tracking_state(self.BACKTRACKING)
+                        logger.info(f"SCORE_DEBUG: {self.contestant} {last_position.time} - Backtracking penalty: {self.scorecard.backtracking_penalty}")
                         self.update_score(
                             UpdateScoreMessage(
                                 last_position.time,
@@ -430,14 +438,13 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         )
                         # Keep state as BACKTRACKING to avoid multiple scores for the same occurrence
                         # It will transition back to TRACKING once bearing is correct
-
-                    logger.info(
-                        "{} {}: Done backtracking for {} seconds".format(
-                            self.contestant,
-                            last_position.time,
-                            (last_position.time - self.backtracking_start_time).total_seconds(),
+                        logger.info(
+                            "{} {}: Done backtracking for {} seconds".format(
+                                self.contestant,
+                                last_position.time,
+                                (last_position.time - self.backtracking_start_time).total_seconds(),
+                            )
                         )
-                    )
                 elif self.tracking_state == self.BACKTRACKING_TEMPORARY:
                     logger.info(
                         "{} {}: Resumed tracking within time limits ({} seconds), so no penalty".format(

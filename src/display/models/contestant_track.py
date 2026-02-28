@@ -46,7 +46,6 @@ class ContestantTrack(models.Model):
             return None
 
     def update_last_gate(self, gate_name, time_difference):
-        self.refresh_from_db()
         self.last_gate = gate_name
         self.last_gate_time_offset = time_difference
         self.save(update_fields=["last_gate", "last_gate_time_offset"])
@@ -55,13 +54,12 @@ class ContestantTrack(models.Model):
     def update_score(self, score):
         from display.models import TeamTestScore
 
-        self.refresh_from_db()
         if self.score != score:
             self.score = score
             self.save(update_fields=["score"])
             # Update task test score if it exists
             if hasattr(self.contestant.navigation_task, "tasktest"):
-                entry, _ = TeamTestScore.objects.update_or_create(
+                TeamTestScore.objects.update_or_create(
                     team=self.contestant.team,
                     task_test=self.contestant.navigation_task.tasktest,
                     defaults={"points": score},
@@ -70,29 +68,29 @@ class ContestantTrack(models.Model):
 
     def increment_score(self, score_increment):
         from display.models import TeamTestScore
+        from django.db.models import F
 
-        self.refresh_from_db()
         if score_increment != 0:
-            self.score += score_increment
+            new_score = self.score + score_increment
+            self.score = F("score") + score_increment
             self.save(update_fields=["score"])
+            self.refresh_from_db(fields=["score"])
             # Update task test score if it exists
             if hasattr(self.contestant.navigation_task, "tasktest"):
-                entry, _ = TeamTestScore.objects.update_or_create(
+                TeamTestScore.objects.update_or_create(
                     team=self.contestant.team,
                     task_test=self.contestant.navigation_task.tasktest,
-                    defaults={"points": self.score},
+                    defaults={"points": new_score},
                 )
             self.__push_change()
 
     def updates_current_state(self, state: str):
-        self.refresh_from_db()
         if self.current_state != state:
             self.current_state = state
             self.save(update_fields=["current_state"])
             self.__push_change()
 
     def update_current_leg(self, current_leg: str):
-        self.refresh_from_db()
         if self.current_leg != current_leg:
             self.current_leg = current_leg
             self.save(update_fields=["current_leg"])
@@ -110,13 +108,11 @@ class ContestantTrack(models.Model):
         self.__push_change()
 
     def set_passed_starting_gate(self):
-        self.refresh_from_db()
         self.passed_starting_gate = True
         self.save(update_fields=["passed_starting_gate"])
         self.__push_change()
 
     def set_passed_finish_gate(self):
-        self.refresh_from_db()
         self.passed_finish_gate = True
         self.save(update_fields=["passed_finish_gate"])
         self.__push_change()
