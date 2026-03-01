@@ -110,9 +110,9 @@ class TestFullTrack(TransactionTestCase):
         )
         crew = Crew.objects.create(
             member1=Person.objects.create(
-                first_name="Mister", 
-                last_name="Pilot", 
-                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp())
+                first_name="Mister",
+                last_name="Pilot",
+                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp()),
             )
         )
         self.team = Team.objects.create(crew=crew, aeroplane=aeroplane)
@@ -190,8 +190,10 @@ class TestFullTrack(TransactionTestCase):
     def test_missed_procedure_turn(self, *args):
         positions = load_track_points(os.path.join(TEST_DATA_DIR, "jorgen_missed_procedure_turn.gpx"))
         calculator_runner(self.contestant, positions)
+        # expected_strings = []
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
-        print(strings)
+        # print(strings)
+        # self.assertListEqual(expected_strings, strings)
         self.assertTrue("TP1: 200.0 points incorrect procedure turn" in strings)
         self.assertTrue("TP4: 200.0 points incorrect procedure turn" in strings)
         # This is a bit in question, but I think it is correct since he never crosses the extended gate line
@@ -233,9 +235,9 @@ class Test2017WPFC(TransactionTestCase):
         )
         crew = Crew.objects.create(
             member1=Person.objects.create(
-                first_name="Mister", 
-                last_name="Pilot", 
-                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp())
+                first_name="Mister",
+                last_name="Pilot",
+                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp()),
             )
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
@@ -268,6 +270,36 @@ class Test2017WPFC(TransactionTestCase):
         )
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        expected_strings = [
+            "T/O: 0 points passing takeoff gate (+28 s)\nplanned: 08:30:00\nactual: 08:30:28",
+            "SP: 15.0 points passing gate (+7 s)\nplanned: 08:38:00\nactual: 08:38:07",
+            "SC1: 9.0 points passing gate (-5 s)\nplanned: 08:40:30\nactual: 08:40:25",
+            "TP1: 21.0 points passing gate (-9 s)\nplanned: 08:42:17\nactual: 08:42:08",
+            "TP1: 200.0 points backtracking",
+            "SC2: 100.0 points missing gate\nplanned: 08:44:21\nactual: --",
+            "SC3: 100.0 points passing gate (+41 s)\nplanned: 08:47:57\nactual: 08:48:38",
+            "TP2: 100.0 points missing gate\nplanned: 08:48:58\nactual: --",
+            "SC4: 100.0 points missing gate\nplanned: 08:49:26\nactual: --",
+            "SC5: 75.0 points passing gate (+27 s)\nplanned: 08:52:45\nactual: 08:53:12",
+            "SC6: 3.0 points passing gate (-3 s)\nplanned: 08:55:39\nactual: 08:55:36",
+            "TP3: 0 points passing gate (0 s)\nplanned: 08:57:11\nactual: 08:57:11",
+            "SC7: 6.0 points passing gate (-4 s)\nplanned: 09:02:07\nactual: 09:02:03",
+            "SC8: 15.0 points passing gate (-7 s)\nplanned: 09:04:52\nactual: 09:04:45",
+            "TP4: 3.0 points passing gate (-3 s)\nplanned: 09:10:20\nactual: 09:10:17",
+            "SC9: 45.0 points passing gate (+17 s)\nplanned: 09:14:06\nactual: 09:14:23",
+            "SC10: 36.0 points passing gate (+14 s)\nplanned: 09:16:22\nactual: 09:16:36",
+            "TP5: 30.0 points passing gate (+12 s)\nplanned: 09:21:04\nactual: 09:21:16",
+            "SC11: 33.0 points passing gate (+13 s)\nplanned: 09:23:40\nactual: 09:23:53",
+            "TP6: 21.0 points passing gate (+9 s)\nplanned: 09:27:49\nactual: 09:27:58",
+            "SC12: 33.0 points passing gate (+13 s)\nplanned: 09:33:54\nactual: 09:34:07",
+            "SC13: 57.0 points passing gate (+21 s)\nplanned: 09:37:49\nactual: 09:38:10",
+            "TP7: 30.0 points passing gate (+12 s)\nplanned: 09:38:47\nactual: 09:38:59",
+            "SC14: 15.0 points passing gate (+7 s)\nplanned: 09:41:46\nactual: 09:41:53",
+            "FP: 18.0 points passing gate (+8 s)\nplanned: 09:46:03\nactual: 09:46:11",
+            "LDG: 0 points gate_score (-2300 s)\nplanned: 10:29:00\nactual: 09:50:40",
+        ]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
+        self.assertListEqual(expected_strings, strings)
         self.assertEqual(
             1065, contestant_track.score  # 1152,
         )  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
@@ -308,9 +340,9 @@ class TestNM2019(TransactionTestCase):
         )
         crew = Crew.objects.create(
             member1=Person.objects.create(
-                first_name="Mister", 
-                last_name="Pilot", 
-                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp())
+                first_name="Mister",
+                last_name="Pilot",
+                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp()),
             )
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
@@ -336,6 +368,22 @@ class TestNM2019(TransactionTestCase):
         calculator_runner(self.contestant, track)
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        expected_strings = [
+            "Takeoff 1: 200.0 points missing takeoff gate\nplanned: 15:25:00\nactual: --",
+            "SP: 21.0 points passing gate (+9 s)\nplanned: 15:31:00\nactual: 15:31:09",
+            "TP1: 96.0 points passing gate (+34 s)\nplanned: 15:32:51\nactual: 15:33:25",
+            "TP2: 84.0 points passing gate (+30 s)\nplanned: 15:42:26\nactual: 15:42:56",
+            "TP3: 18.0 points passing gate (+8 s)\nplanned: 15:49:03\nactual: 15:49:11",
+            "TP3: 200.0 points incorrect procedure turn",
+            "TP4: 39.0 points passing gate (-15 s)\nplanned: 15:53:04\nactual: 15:52:49",
+            "TP5: 42.0 points passing gate (+16 s)\nplanned: 15:56:37\nactual: 15:56:53",
+            "TP6: 48.0 points passing gate (+18 s)\nplanned: 15:59:17\nactual: 15:59:35",
+            "FP: 90.0 points passing gate (+32 s)\nplanned: 16:05:12\nactual: 16:05:44",
+            "Landing 1: 0.0 points missing landing gate\nplanned: 17:24:00\nactual: --",
+        ]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
+        self.assertListEqual(expected_strings, strings)
+
         self.assertEqual(
             838, contestant_track.score
         )  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
@@ -400,9 +448,9 @@ class TestHamar23March2021(TransactionTestCase):
         )
         crew = Crew.objects.create(
             member1=Person.objects.create(
-                first_name="Mister", 
-                last_name="Pilot", 
-                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp())
+                first_name="Mister",
+                last_name="Pilot",
+                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp()),
             )
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
@@ -429,6 +477,19 @@ class TestHamar23March2021(TransactionTestCase):
         calculator_runner(self.contestant, track)
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        expected_strings = [
+            "SP: 0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 6.0 points passing gate (-4 s)\nplanned: 14:38:00\nactual: 14:37:56",
+            "TP 1: 36.0 points passing gate (-14 s)\nplanned: 14:41:26\nactual: 14:41:12",
+            "TP 2: 21.0 points passing gate (+9 s)\nplanned: 14:46:41\nactual: 14:46:50",
+            "TP 3: 63.0 points passing gate (+23 s)\nplanned: 14:50:41\nactual: 14:51:04",
+            "TP 4: 42.0 points passing gate (+16 s)\nplanned: 14:58:23\nactual: 14:58:39",
+            "TP 5: 12.0 points passing gate (-6 s)\nplanned: 15:02:07\nactual: 15:02:02",
+            "FP: 36.0 points passing gate (-14 s)\nplanned: 15:09:16\nactual: 15:09:03",
+        ]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
+        self.assertListEqual(expected_strings, strings)
+
         self.assertEqual(216, contestant_track.score)  # 15 points more than website
 
     def test_vjoycar(self, *args):
@@ -450,6 +511,19 @@ class TestHamar23March2021(TransactionTestCase):
         )
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        expected_strings = [
+            "SP: 0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 3.0 points passing gate (-3 s)\nplanned: 14:38:00\nactual: 14:37:57",
+            "TP 1: 33.0 points passing gate (-13 s)\nplanned: 14:41:26\nactual: 14:41:13",
+            "TP 2: 21.0 points passing gate (+9 s)\nplanned: 14:46:41\nactual: 14:46:50",
+            "TP 3: 63.0 points passing gate (+23 s)\nplanned: 14:50:41\nactual: 14:51:04",
+            "TP 4: 45.0 points passing gate (+17 s)\nplanned: 14:58:23\nactual: 14:58:40",
+            "TP 5: 15.0 points passing gate (-7 s)\nplanned: 15:02:07\nactual: 15:02:01",
+            "FP: 33.0 points passing gate (-13 s)\nplanned: 15:09:16\nactual: 15:09:04",
+        ]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
+        self.assertListEqual(expected_strings, strings)
+
         self.assertEqual(213, contestant_track.score)
 
     def test_lt03(self, *args):
@@ -471,6 +545,19 @@ class TestHamar23March2021(TransactionTestCase):
         )
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        expected_strings = [
+            "SP: 0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 6.0 points passing gate (-4 s)\nplanned: 14:38:00\nactual: 14:37:56",
+            "TP 1: 36.0 points passing gate (-14 s)\nplanned: 14:41:26\nactual: 14:41:12",
+            "TP 2: 24.0 points passing gate (+10 s)\nplanned: 14:46:41\nactual: 14:46:51",
+            "TP 3: 63.0 points passing gate (+23 s)\nplanned: 14:50:41\nactual: 14:51:04",
+            "TP 4: 42.0 points passing gate (+16 s)\nplanned: 14:58:23\nactual: 14:58:39",
+            "TP 5: 9.0 points passing gate (-5 s)\nplanned: 15:02:07\nactual: 15:02:03",
+            "FP: 33.0 points passing gate (-13 s)\nplanned: 15:09:16\nactual: 15:09:04",
+        ]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
+        self.assertListEqual(expected_strings, strings)
+
         self.assertEqual(213, contestant_track.score)
 
     def test_kolaf_trackar(self, *args):
@@ -492,6 +579,19 @@ class TestHamar23March2021(TransactionTestCase):
         )
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        expected_strings = [
+            "SP: 0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 6.0 points passing gate (-4 s)\nplanned: 14:38:00\nactual: 14:37:56",
+            "TP 1: 33.0 points passing gate (-13 s)\nplanned: 14:41:26\nactual: 14:41:13",
+            "TP 2: 24.0 points passing gate (+10 s)\nplanned: 14:46:41\nactual: 14:46:51",
+            "TP 3: 63.0 points passing gate (+23 s)\nplanned: 14:50:41\nactual: 14:51:04",
+            "TP 4: 42.0 points passing gate (+16 s)\nplanned: 14:58:23\nactual: 14:58:39",
+            "TP 5: 12.0 points passing gate (-6 s)\nplanned: 15:02:07\nactual: 15:02:02",
+            "FP: 33.0 points passing gate (-13 s)\nplanned: 15:09:16\nactual: 15:09:04",
+        ]
+        strings = [item.string for item in self.contestant.scorelogentry_set.all()]
+        self.assertListEqual(expected_strings, strings)
+
         self.assertEqual(213, contestant_track.score)  # same as website
         # Test that task test is updated
         self.assertTrue(hasattr(self.navigation_task, "tasktest"))
