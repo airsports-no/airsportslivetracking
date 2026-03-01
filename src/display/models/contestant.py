@@ -655,10 +655,6 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             previous_crossing_time = start_point_override
         else:
             previous_crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
-            if self.adaptive_start:
-                previous_crossing_time = self.takeoff_time.astimezone(self.navigation_task.contest.time_zone).replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                )
         crossing_times = {}
         relative_crossing_times = calculate_and_get_relative_gate_times(
             self.navigation_task.route,
@@ -673,6 +669,13 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         for gate_name, crossing_time in self._get_takeoff_and_landing_times().items():
             crossing_times[gate_name] = predefined_gate_times.get(gate_name, crossing_time)
         return crossing_times
+
+    @property
+    def gate_times_actual(self) -> dict:
+        """
+        Returns a dictionary of actual gate passing times.
+        """
+        return {item.gate: item.time for item in self.actualgatetime_set.all()}
 
     @property
     def gate_times(self) -> dict:

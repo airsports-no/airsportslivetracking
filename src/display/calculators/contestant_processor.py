@@ -112,19 +112,20 @@ class ContestantProcessor:
         )
         self.websocket_facade.transmit_delete_contestant(self.contestant)
         self.websocket_facade.transmit_contestant(self.contestant)
-        threading.Thread(target=self.score_updater_thread, daemon=True).start()
+        self.score_thread = threading.Thread(target=self.score_updater_thread, daemon=True)
+        self.score_thread.start()
         self.gatekeeper = calculator_factory(self.contestant, self.score_processing_queue)
 
     def score_updater_thread(self):
-        """
-        Thread function used to provide asynchronous update of scores. Updating the score may take some time and this
-        will lead to a noticeable glitch in the calculator performance/tracking in the tracking map. Running this in a
-        separate thread avoids this.
-        """
-        while True:
-            score = self.score_processing_queue.get(True)
-            self.update_score_from_thread(score)
-            self.score_processing_queue.task_done()
+        from queue import Empty
+        while not self.track_terminated or not self.score_processing_queue.empty():
+            try:
+                score = self.score_processing_queue.get(timeout=1)
+                self.update_score_from_thread(score)
+                self.score_processing_queue.task_done()
+            except Empty:
+                pass
+        logger.info(f"{self.contestant}: score_updater_thread exiting")
 
     def interpolate_track(
         self, last_position: Optional[ContestantReceivedPosition], position: ContestantReceivedPosition
@@ -309,6 +310,7 @@ class ContestantProcessor:
         while not self.position_queue.empty():
             self.position_queue.pop()
         self.score_processing_queue.join()
+        self.score_thread.join()
         logger.info("Terminating calculator for {}".format(self.contestant))
         calculator_is_terminated(self.contestant.pk)
 
@@ -455,7 +457,9 @@ class ContestantProcessor:
             if update_score_message.actual
             else None
         )
-        string = "{}: {} points {}".format(update_score_message.gate.name, score, update_score_message.message)
+        # Format score as float for consistency (0.0, 15.0, etc.)
+        display_score = float(score)
+        string = "{}: {} points {}".format(update_score_message.gate.name, display_score, update_score_message.message)
         if offset_string:
             string += " ({})".format(offset_string)
         times_string = ""

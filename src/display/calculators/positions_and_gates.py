@@ -147,10 +147,9 @@ class MultiGate:
 
 
 def round_seconds(stamp: datetime) -> datetime:
-    new_stamp = stamp
     if stamp.microsecond >= 500000:
-        new_stamp = stamp + timedelta(seconds=1)
-    return new_stamp.replace(microsecond=0)
+        return stamp.replace(microsecond=0) + timedelta(seconds=1)
+    return stamp.replace(microsecond=0)
 
 
 def get_intersect_time(
