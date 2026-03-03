@@ -224,7 +224,8 @@ class ContestantProcessor:
             logger.info(f"{self.contestant}: Termination request received before processing started")
             self.notify_termination()
             return
-        threading.Thread(target=self.enqueue_positions_thread, daemon=True).start()
+        self.queuer_thread = threading.Thread(target=self.enqueue_positions_thread, daemon=True)
+        self.queuer_thread.start()
         receiving = False
         number_of_positions = 0
         # Wait while the thread loads outstanding positions.
@@ -274,9 +275,12 @@ class ContestantProcessor:
                     positions_to_save = []
                 self.notify_termination()
                 continue
+            
+            if self.track_terminated:
+                break
+                
             if not receiving:
                 logger.info(f"{self.contestant}: Started processing data")
-                receiving = True
             # logger.debug(f"Processing position ID {position_data['id']} for device ID {position_data['deviceId']}")
             position_data["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)
             number_of_positions += 1
@@ -322,6 +326,7 @@ class ContestantProcessor:
             self.position_queue.pop()
         self.score_processing_queue.join()
         self.score_thread.join()
+        self.queuer_thread.join()
         logger.info("Terminating calculator for {}".format(self.contestant))
         calculator_is_terminated(self.contestant.pk)
 
@@ -348,6 +353,7 @@ class ContestantProcessor:
         logger.info(f"{self.contestant}: Setting termination flag")
         self.contestant_track.set_calculator_finished()
         self.track_terminated = True
+        self.timed_queue.close()
 
     def check_termination_is_commanded(self, position: Optional[ContestantReceivedPosition]):
         """

@@ -286,6 +286,9 @@ class Gatekeeper:
                     calculator.missed_gate_with_time(event.previous_gate, event.gate, event.position, event.event_time)
                 else:
                     calculator.missed_gate(event.previous_gate, event.gate, event.position)
+            
+            if event.gate.type == "fp":
+                self.passed_finishpoint()
 
         elif isinstance(event, TakeoffPassedEvent):
             event.gate.pass_gate(event.intersection_time)

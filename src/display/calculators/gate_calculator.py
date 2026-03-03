@@ -324,6 +324,13 @@ class GateCalculator(Calculator):
     def finalise(self, track: List[ContestantReceivedPosition]):
         # Catch any remaining missed gates at the very end of processing
         from display.utilities.route_building_utilities import calculate_extended_gate
+        
+        # Check main route waypoints (SP, TP, FP)
+        for gate in self.gates:
+            if not gate.has_been_passed() and not gate.missed and (gate.name, GATE_SCORE_TYPE) not in self.scored_gates:
+                gate.missed = True
+                self.missed_gate(None, gate, track[-1] if track else None)
+
         for tg in self.route.takeoff_gates:
             if (tg.name, GATE_SCORE_TYPE) in self.scored_gates:
                 continue

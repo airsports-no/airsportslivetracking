@@ -184,6 +184,14 @@ class AnrCorridorCalculator(Calculator):
 
         self.previous_existing_reference = self.existing_reference
 
+    def finalise(self, track: List[ContestantReceivedPosition]):
+        if self.corridor_state == self.OUTSIDE_CORRIDOR:
+            position = track[-1] if track else None
+            if position:
+                self.previous_corridor_state = self.OUTSIDE_CORRIDOR
+                self.corridor_state = self.INSIDE_CORRIDOR
+                self.check_and_apply_outside_penalty(position, self.crossed_outside_gate or self.previous_last_gate)
+
     def check_outside_corridor(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         self.previous_corridor_state = self.corridor_state
         position = track[-1]

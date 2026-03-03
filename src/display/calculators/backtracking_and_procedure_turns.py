@@ -7,7 +7,11 @@ from display.calculators.calculator import Calculator, GatekeeperState, Gatekeep
 from display.calculators.calculator_utilities import bearing_between
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_utility_models import ContestantReceivedPosition
-from display.utilities.coordinate_utilities import get_heading_difference, bearing_difference, calculate_distance_lat_lon
+from display.utilities.coordinate_utilities import (
+    get_heading_difference,
+    bearing_difference,
+    calculate_distance_lat_lon,
+)
 from display.models import Contestant, Scorecard, Route, ANOMALY, INFORMATION
 
 if TYPE_CHECKING:
@@ -93,7 +97,12 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
     ) -> List[GatekeeperEvent]:
         # Need to do the track score first since this might declare the remaining gates as missed if we are done
         # with the track. We can then calculate gate score and consider the missed gates.
-        self.calculate_track_score(track, state.last_gate, state.in_range_of_gate, state.outstanding_gates[0] if state.outstanding_gates else None)
+        self.calculate_track_score(
+            track,
+            state.last_gate,
+            state.in_range_of_gate,
+            state.outstanding_gates[0] if state.outstanding_gates else None,
+        )
         return []
 
     def calculate_outside_route(
@@ -356,11 +365,10 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                     (last_position.latitude, last_position.longitude), (last_gate.latitude, last_gate.longitude)
                 )
                 # Use a larger grace zone for SP (20.0 NM) to avoid penalties during start maneuvers
-                grace_zone = 20.0 * 1852 if last_gate.type == "sp" else 0.5 * 1852
+                grace_zone = 0.5 * 1852 if last_gate.type == "sp" else 0.5 * 1852
 
-                
                 if distance_to_gate < grace_zone:
-                    pass # Ignore backtracking within grace zone of the gate
+                    pass  # Ignore backtracking within grace zone of the gate
                 else:
                     backtracking = True
                     if in_range_of_gate is not None and in_range_of_gate != last_gate:
@@ -434,7 +442,9 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                     ).total_seconds() >= self.scorecard.backtracking_grace_time_seconds:
                         self.update_tracking_state(self.BACKTRACKING)
                         if not self.backtracked_on_current_leg:
-                            logger.info(f"BACKTRACK_SCORE_TRIGGER: {self.contestant} {last_position.time} - Triggering penalty for {last_gate.name}")
+                            logger.info(
+                                f"BACKTRACK_SCORE_TRIGGER: {self.contestant} {last_position.time} - Triggering penalty for {last_gate.name}"
+                            )
                             self.backtracked_on_current_leg = True
                             self.update_score(
                                 UpdateScoreMessage(
@@ -470,7 +480,9 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 if self.tracking_state in (self.BACKTRACKING, self.BACKTRACKING_TEMPORARY):
                     # One last check for duration if we were in temporary state
                     if self.tracking_state == self.BACKTRACKING_TEMPORARY:
-                        if (last_position.time - self.backtracking_start_time).total_seconds() >= self.scorecard.backtracking_grace_time_seconds:
+                        if (
+                            last_position.time - self.backtracking_start_time
+                        ).total_seconds() >= self.scorecard.backtracking_grace_time_seconds:
                             self.update_tracking_state(self.BACKTRACKING)
                             if not self.backtracked_on_current_leg:
                                 self.backtracked_on_current_leg = True

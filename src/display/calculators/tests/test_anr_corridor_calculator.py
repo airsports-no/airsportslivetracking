@@ -164,6 +164,15 @@ class TestANRPerLeg(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
         pprint(strings)
+        # final_list = [
+        #     "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 14:00:00\nactual: --",
+        #     "SP: 200.0 points passing gate (-71535748 s)\nplanned: 14:07:00\nactual: 14:04:32",
+        #     "SP: 0.0 points exiting corridor",
+        #     "SP: 50.0 points outside corridor (25 s) (capped)",
+        #     "SP: 0.0 points exiting corridor",
+        #     "SP: 200.0 points backtracking",
+        #     "Landing 1: 0.0 points missing landing gate\nplanned: 15:59:00\nactual: --",
+        # ]
         final_list = [
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 14:00:00\nactual: --",
             "SP: 200.0 points passing gate (-71535748 s)\nplanned: 14:07:00\nactual: 14:04:32",
@@ -171,13 +180,15 @@ class TestANRPerLeg(TransactionTestCase):
             "SP: 50.0 points outside corridor (25 s) (capped)",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
+            "SP: 0.0 points outside corridor (227 s) (capped)",
+            "FP: 200.0 points missing gate\nplanned: 14:18:11\nactual: --",
             "Landing 1: 0.0 points missing landing gate\nplanned: 15:59:00\nactual: --",
         ]
         self.assertListEqual(
             final_list,
             strings,
         )
-        self.assertEqual(400.0, contestant_track.score)
+        self.assertEqual(650.0, contestant_track.score)
 
     def test_manually_terminate_calculator(self, *args):
         cache.clear()

@@ -36,23 +36,31 @@ class TimedQueue:
 
     def get(self, timeout: float = None):
         start = datetime.datetime.now(datetime.timezone.utc)
-        now = datetime.datetime.now(datetime.timezone.utc)
         while True:
-            with self._lock:
-                if len(self._queue) == 0 and self._closed:
-                    return None
-                internal_timeout = max(0, (self._queue[0][1] - now).total_seconds()) if len(self._queue) > 0 else 10
-            if timeout is not None:
-                remaining_external_timeout = timeout - (now - start).total_seconds()
-                internal_timeout = min(remaining_external_timeout, internal_timeout)
-            self._ready_event.wait(timeout=internal_timeout)
-            self._ready_event.clear()
             now = datetime.datetime.now(datetime.timezone.utc)
             with self._lock:
-                if len(self._queue) > 0:
+                if not self._queue:
+                    if self._closed:
+                        return None
+                    internal_timeout = 10.0
+                else:
                     data, stamp = self._queue[0]
-                    if stamp < now:
+                    if stamp <= now:
                         self._queue.pop(0)
                         return data
-            if timeout is not None and (now - start).total_seconds() >= timeout:
-                raise TimedOut
+                    internal_timeout = (stamp - now).total_seconds()
+
+            if timeout is not None:
+                elapsed = (now - start).total_seconds()
+                remaining = timeout - elapsed
+                if remaining <= 0:
+                    raise TimedOut
+                internal_timeout = min(internal_timeout, remaining)
+            
+            if self._ready_event.wait(timeout=max(0, internal_timeout)):
+                with self._lock:
+                    if not self._closed:
+                        self._ready_event.clear()
+            else:
+                # Timeout or time to release reached
+                pass
