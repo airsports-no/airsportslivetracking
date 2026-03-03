@@ -47,10 +47,17 @@
         const trackerDeviceId = document.getElementById("id_tracker_device_id");
         const trackerDeviceIdGroup = document.getElementById("div_id_tracker_device_id");
 
-        // Change input types to datetime-local
-        if (takeoffTime) takeoffTime.type = 'datetime-local';
-        if (trackingStart) trackingStart.type = 'datetime-local';
-        if (finishedByTime) finishedByTime.type = 'datetime-local';
+        // Change input types to datetime-local and set step to 60 seconds (1 minute)
+        [takeoffTime, trackingStart, finishedByTime].forEach(el => {
+            if (el) {
+                el.type = 'datetime-local';
+                el.step = '60';
+                // If initial value has seconds, strip them
+                if (el.value && el.value.length > 16) {
+                    el.value = el.value.substring(0, 16);
+                }
+            }
+        });
 
         function updateTracking() {
             const takeoffDate = new Date(takeoffTime.value);

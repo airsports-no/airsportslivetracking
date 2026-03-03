@@ -544,6 +544,14 @@ class ContestantForm(forms.ModelForm):
         self.fields["wind_speed"].initial = self.navigation_task.wind_speed
         self.fields["wind_direction"].initial = self.navigation_task.wind_direction
         self.fields["wind_direction"].initial = self.navigation_task.wind_direction
+
+        datetime_widget = forms.DateTimeInput(
+            attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M"
+        )
+        self.fields["takeoff_time"].widget = datetime_widget
+        self.fields["tracker_start_time"].widget = datetime_widget
+        self.fields["finished_by_time"].widget = datetime_widget
+
         self.helper = FormHelper()
         self.helper.attrs = {"enctype": "multipart/form-data"}
         self.helper.layout = Layout(
@@ -597,7 +605,7 @@ class ContestantQuickAddForm(forms.Form):
     contest_team = forms.ModelChoiceField(queryset=ContestTeam.objects.none(), label="Team")
     starting_point_time = forms.DateTimeField(
         label="Time at starting point",
-        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M"),
         help_text="The time the contestant is expected to cross the starting point",
     )
     adaptive_start = forms.BooleanField(required=False, initial=False, label="Adaptive start")
