@@ -809,9 +809,21 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         )
         calculator_runner(self.contestant, track)
         # Gets 200 unnecessary points for being inside prohibited zone at departure. Also 200 points for missing final gate. Actual score is 368
+        expected_strings = [
+            "SP: 200.0 points entered prohibited zone enbr",
+            "SP: 0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 36.0 points passing gate (+13 s)\nplanned: 13:45:00\nactual: 13:45:13",
+            "SP: 0 points exiting corridor",
+            "SP: 99.0 points outside corridor (38 s)",
+            "TP 1: 0 points passing gate (no time check) (+71 s)\nplanned: 13:47:52\nactual: 13:49:04",
+            "TP 2: 0 points passing gate (no time check) (+44 s)\nplanned: 13:51:30\nactual: 13:52:14",
+            "TP 3: 0 points passing gate (no time check) (+38 s)\nplanned: 13:53:41\nactual: 13:54:19",
+            "TP 4: 0 points passing gate (no time check) (+59 s)\nplanned: 13:57:51\nactual: 13:58:50",
+            "FP: 200.0 points missing gate\nplanned: 14:10:06\nactual: --",
+        ]  # 535 points.  Why is score only 335?
         strings = [item.string for item in self.contestant.scorelogentry_set.all()]
-        for s in strings:
-            print(s)
+        print(strings)
+        self.assertListEqual(expected_strings, strings)
         self.assertEqual(335, self.contestant.contestanttrack.score)  # 735
         # contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         # self.assertTrue("SP: 200.0 points circling start" in strings)
