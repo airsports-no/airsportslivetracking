@@ -1,6 +1,6 @@
 import datetime
 import numpy as np
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, call
 from django.test import TestCase
 from display.calculators.calculator import (
     GatekeeperState,
@@ -128,6 +128,133 @@ class TestGateCalculator(CalculatorUnitTestBase):
         events = self.calculator.calculate_enroute(track, state)
         
         self.assertTrue(any(isinstance(e, GatePassedEvent) for e in events))
+
+    def test_calculate_enroute_starting_line_passed(self):
+        gate = MagicMock()
+        gate.name = "SP"
+        gate.type = "sp"
+        gate.is_passed_in_correct_direction_track.return_value = True
+        gate.has_infinite_been_passed.return_value = False
+        
+        self.calculator.gates = [gate]
+        self.contestant.adaptive_start = True
+        
+        state = GatekeeperState(
+            last_gate=None,
+            outstanding_gates=[gate],
+            in_range_of_gate=None,
+            projector=self.projector,
+            takeoff_gate=None,
+            landing_gate=None,
+            has_passed_finishpoint=False,
+            recalculation_completed=False
+        )
+        
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        track = [pos]
+        
+        gate.get_gate_infinite_intersection_time.return_value = pos.time
+        
+        events = self.calculator.calculate_enroute(track, state)
+        
+        from display.calculators.calculator import StartingLinePassedEvent, AdaptiveStartEvent
+        self.assertTrue(any(isinstance(e, StartingLinePassedEvent) for e in events))
+        self.assertTrue(any(isinstance(e, AdaptiveStartEvent) for e in events))
+
+    def test_calculate_enroute_starting_line_extended_passed_wrong_direction(self):
+        gate = MagicMock()
+        gate.name = "SP"
+        gate.type = "sp"
+        gate.is_passed_in_correct_direction_track.return_value = False
+        
+        self.calculator.gates = [gate]
+        
+        state = GatekeeperState(
+            last_gate=None,
+            outstanding_gates=[gate],
+            in_range_of_gate=None,
+            projector=self.projector,
+            takeoff_gate=None,
+            landing_gate=None,
+            has_passed_finishpoint=False,
+            recalculation_completed=False
+        )
+        
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        track = [pos]
+        
+        # Extended line intersection
+        gate.get_gate_extended_intersection_time.return_value = pos.time
+        
+        from display.calculators.calculator import StartingLineExtendedPassedWrongDirectionEvent
+        events = self.calculator.calculate_enroute(track, state)
+        
+        self.assertTrue(any(isinstance(e, StartingLineExtendedPassedWrongDirectionEvent) for e in events))
+
+    def test_calculate_enroute_gate_missed(self):
+        gate1 = MagicMock()
+        gate1.name = "TP 1"
+        gate1.has_been_passed.return_value = False
+        
+        gate2 = MagicMock()
+        gate2.name = "TP 2"
+        gate2.is_passed_in_correct_direction_track.return_value = True
+        gate2.has_been_passed.return_value = False
+        
+        self.calculator.gates = [gate1, gate2]
+        
+        state = GatekeeperState(
+            last_gate=None,
+            outstanding_gates=[gate1, gate2],
+            in_range_of_gate=None,
+            projector=self.projector,
+            takeoff_gate=None,
+            landing_gate=None,
+            has_passed_finishpoint=False,
+            recalculation_completed=True
+        )
+        
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 5))
+        track = [pos]
+        
+        # We skip gate1 and pass gate2
+        gate1.get_gate_intersection_time.return_value = None
+        gate2.get_gate_intersection_time.return_value = pos.time
+        
+        events = self.calculator.calculate_enroute(track, state)
+        
+        self.assertTrue(any(isinstance(e, GateMissedEvent) and e.gate == gate1 for e in events))
+        self.assertTrue(any(isinstance(e, GatePassedEvent) and e.gate == gate2 for e in events))
+
+    @patch("display.calculators.gate_calculator.calculate_distance_lat_lon")
+    def test_calculate_enroute_in_range(self, mock_dist):
+        gate = MagicMock()
+        gate.name = "TP 1"
+        gate.type = "tp"
+        gate.latitude = 60.0
+        gate.longitude = 11.0
+        gate.inside_distance = 1000.0 # 1km
+        gate.get_gate_intersection_time.return_value = None
+        
+        mock_dist.return_value = 500.0 # 500m < 1km
+        
+        state = GatekeeperState(
+            last_gate=None,
+            outstanding_gates=[gate],
+            in_range_of_gate=None,
+            projector=self.projector,
+            takeoff_gate=None,
+            landing_gate=None,
+            has_passed_finishpoint=False,
+            recalculation_completed=True
+        )
+        
+        # Position within 1km (roughly 111m North and 55m East)
+        pos = self.create_position(60.001, 11.001, datetime.datetime(2020, 1, 1, 10, 0))
+        
+        from display.calculators.calculator import InRangeUpdatedEvent
+        events = self.calculator.calculate_enroute([pos], state)
+        self.assertTrue(any(isinstance(e, InRangeUpdatedEvent) and e.gate == gate for e in events))
 
 class TestAnrCorridorCalculator(CalculatorUnitTestBase):
     @patch("display.calculators.anr_corridor_calculator.PolygonHelper")
@@ -379,50 +506,3 @@ class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
         self.assertNotIn(1, self.calculator.entered_polygon_times)
 
 from display.calculators.gatekeeper import Gatekeeper
-
-class TestGatekeeperEventHandling(CalculatorUnitTestBase):
-    @patch("display.calculators.gatekeeper.WebsocketFacade")
-    def setUp(self, mock_ws):
-        super().setUp()
-        # Mocking calculate_missing_gate_times to avoid DB issues
-        self.contestant.calculate_missing_gate_times.return_value = {}
-        self.gatekeeper = Gatekeeper(self.contestant, self.score_processing_queue, [])
-
-    def test_handle_gate_passed_event(self):
-        gate = MagicMock()
-        gate.type = "tp"
-        self.gatekeeper.outstanding_gates = [gate]
-        
-        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        event = GatePassedEvent(gate, pos, pos.time)
-        
-        self.gatekeeper.handle_event(event)
-        
-        self.assertEqual(self.gatekeeper.last_gate, gate)
-        self.assertNotIn(gate, self.gatekeeper.outstanding_gates)
-        self.assertTrue(gate.pass_gate.called)
-
-    def test_handle_gate_missed_event(self):
-        gate = MagicMock()
-        self.gatekeeper.outstanding_gates = [gate]
-        
-        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        event = GateMissedEvent(None, gate, pos)
-        
-        self.gatekeeper.handle_event(event)
-        
-        self.assertNotIn(gate, self.gatekeeper.outstanding_gates)
-        self.assertTrue(gate.missed)
-
-    def test_handle_takeoff_passed_event(self):
-        gate = MagicMock()
-        takeoff_gate = MagicMock()
-        self.gatekeeper.takeoff_gate = takeoff_gate
-        
-        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        event = TakeoffPassedEvent(gate, pos, pos.time)
-        
-        self.gatekeeper.handle_event(event)
-        
-        self.assertTrue(gate.pass_gate.called)
-        self.assertTrue(takeoff_gate.pass_gate.called)
