@@ -315,7 +315,7 @@ class TestProhibitedZoneCalculator(CalculatorUnitTestBase):
         self.scorecard.prohibited_zone_grace_time = 5
         self.scorecard.prohibited_zone_penalty = 200
         self.scorecard.prohibited_zone_maximum = 1000
-        zone = MagicMock(pk=1, name="Zone 1", path=[])
+        zone = MagicMock(pk=1, name="Zone 1", path=[(60, 11), (60, 12), (61, 12), (61, 11)])
         self.route.prohibited_set.filter.return_value = [zone]
         
         self.calculator = ProhibitedZoneCalculator(
@@ -325,10 +325,11 @@ class TestProhibitedZoneCalculator(CalculatorUnitTestBase):
             self.route,
             self.score_processing_queue
         )
-        self.calculator.polygon_helper = MagicMock()
+        # Mock the per-zone helper
+        self.mock_helper = self.calculator.zone_helpers[0][1]
 
     def test_check_inside_prohibited_zone_penalty(self):
-        self.calculator.polygon_helper.check_inside_polygons.return_value = [1]
+        self.mock_helper.check_inside_polygons.return_value = [1]
         
         pos1 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         self.calculator.check_inside_prohibited_zone([pos1], None)
@@ -343,7 +344,7 @@ class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
     def setUp(self, mock_polygon_helper):
         super().setUp()
         self.scorecard.calculate_penalty_zone_score.return_value = 50
-        zone = MagicMock(pk=1, name="Penalty 1", path=[])
+        zone = MagicMock(pk=1, name="Penalty 1", path=[(60, 11), (60, 12), (61, 12), (61, 11)])
         self.route.prohibited_set.filter.return_value = [zone]
         
         self.calculator = PenaltyZoneCalculator(
@@ -353,11 +354,12 @@ class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
             self.route,
             self.score_processing_queue
         )
-        self.calculator.polygon_helper = MagicMock()
+        # Mock the per-zone helper
+        self.mock_helper = self.calculator.zone_helpers[0][1]
 
     def test_check_inside_penalty_zone(self):
         # Entering
-        self.calculator.polygon_helper.check_inside_polygons.return_value = [1]
+        self.mock_helper.check_inside_polygons.return_value = [1]
         pos1 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         self.calculator.check_inside_prohibited_zone([pos1], None)
         
@@ -370,7 +372,7 @@ class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
         self.assertEqual(self.calculator.running_penalty[1], 50)
         
         # Exiting
-        self.calculator.polygon_helper.check_inside_polygons.return_value = []
+        self.mock_helper.check_inside_polygons.return_value = []
         pos3 = self.create_position(60.1, 11.1, datetime.datetime(2020, 1, 1, 10, 2))
         self.calculator.check_inside_prohibited_zone([pos1, pos2, pos3], None)
         

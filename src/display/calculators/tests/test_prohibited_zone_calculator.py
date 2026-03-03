@@ -63,7 +63,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
                 60.5,
                 11.5,
                 "anomaly",
-                "inside_prohibited_zone",
+                "inside_prohibited_zone_test",
                 maximum_score=0,
             )
         )

@@ -42,7 +42,7 @@ class ProhibitedZoneCalculator(Calculator):
         self.zone_map = {}
         self.prohibited_zone_grace_time = timedelta(seconds=self.scorecard.prohibited_zone_grace_time)
         zones = route.prohibited_set.filter(type="prohibited")
-        logger.info(f"{self.contestant}: Found {zones.count()} prohibited zones for route {route.pk}")
+        logger.info(f"{self.contestant}: Found {len(zones)} prohibited zones for route {route.pk}")
         for zone in zones:
             self.zone_map[zone.pk] = zone
             # Create a helper centered on this zone's first point for better UTM precision

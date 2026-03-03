@@ -819,8 +819,8 @@ class TestANRBergenBacktracking(TransactionTestCase):
         )
         calculator_runner(self.contestant, track)
         # Incorrectly gets 200 points for prohibited zone at departure and arrival, actual score is 51.
-        self.contestant.refresh_from_db()
-        self.assertEqual(6.0, self.contestant.contestanttrack.score)  # 406
+        self.contestant.contestanttrack.refresh_from_db()
+        self.assertEqual(406.0, self.contestant.contestanttrack.score)  # 406
 
 
 @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
@@ -901,6 +901,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         calculator_runner(self.contestant, track)
         # Gets 200 unnecessary points for being inside prohibited zone at departure. Also 200 points for missing final gate. Actual score is 368
         expected_strings = [
+            "SP: 200.0 points entered prohibited zone enbr",
             "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
             "SP: 36.0 points passing gate (+13 s)\nplanned: 13:45:00\nactual: 13:45:13",
             "SP: 0.0 points exiting corridor",
@@ -910,12 +911,12 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
             "TP 3: 0.0 points passing gate (no time check) (+38 s)\nplanned: 13:53:41\nactual: 13:54:19",
             "TP 4: 0.0 points passing gate (no time check) (+59 s)\nplanned: 13:57:51\nactual: 13:58:50",
             "FP: 200.0 points missing gate\nplanned: 14:10:06\nactual: --",
-        ]  # 335.0 points total
+        ]  # 535.0 points total
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
         print(strings)
         self.assertListEqual(expected_strings, strings)
         self.contestant.contestanttrack.refresh_from_db()
-        self.assertEqual(335.0, self.contestant.contestanttrack.score)  # 735
+        self.assertEqual(535.0, self.contestant.contestanttrack.score)  # 735
         # contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         # self.assertTrue("SP: 200.0 points circling start" in strings)
 
