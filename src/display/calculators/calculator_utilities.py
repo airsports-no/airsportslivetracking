@@ -86,8 +86,11 @@ class PolygonHelper:
 
     def build_polygon(self, path):
         line = []
+        # logger.info(f"Building polygon with path sample: {path[:2] if path else 'empty'}")
         for element in path:
-            line.append(self.utm.transform_point(*list(element), self.pc))
+            # transform_point expects (x, y) which is (longitude, latitude)
+            # if element is (lat, lon), we need to swap them
+            line.append(self.utm.transform_point(element[1], element[0], self.pc))
         return Polygon(line)
 
     def check_inside_polygons(self, polygons: list[tuple[int, Polygon]], latitude, longitude) -> list[int]:

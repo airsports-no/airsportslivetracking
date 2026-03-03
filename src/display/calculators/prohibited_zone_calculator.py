@@ -37,17 +37,21 @@ class ProhibitedZoneCalculator(Calculator):
         self.last_outside_penalty = None
         self.crossed_outside_position = None
         waypoint = self.contestant.navigation_task.route.waypoints[0]
-        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
-        self.zone_polygons = []
+        self.zone_helpers = [] # List of (zone_pk, helper, polygon)
         self.running_penalty = {}
         self.zone_map = {}
         self.prohibited_zone_grace_time = timedelta(seconds=self.scorecard.prohibited_zone_grace_time)
         zones = route.prohibited_set.filter(type="prohibited")
+        logger.info(f"{self.contestant}: Found {zones.count()} prohibited zones for route {route.pk}")
         for zone in zones:
             self.zone_map[zone.pk] = zone
-            self.zone_polygons.append((zone.pk, self.polygon_helper.build_polygon(zone.path)))
-        logger.debug("Prohibited zones loaded: %s", str(i.name for i in self.zone_map.values()))
-        logger.debug("Prohibited zone polygons: %s", self.zone_polygons)
+            # Create a helper centered on this zone's first point for better UTM precision
+            helper = PolygonHelper(zone.path[0][0], zone.path[0][1])
+            poly = helper.build_polygon(zone.path)
+            self.zone_helpers.append((zone.pk, helper, poly))
+            logger.info(f"{self.contestant}: Loaded prohibited zone {zone.name} (pk={zone.pk}) with {len(zone.path)} points")
+        # logger.debug("Prohibited zones loaded: %s", str(i.name for i in self.zone_map.values()))
+        # logger.debug("Prohibited zone polygons: %s", self.zone_polygons)
 
     def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         pass
@@ -65,9 +69,15 @@ class ProhibitedZoneCalculator(Calculator):
         Danger level ranges from 0 to 100 where 100 is inside a prohibited zone
         """
         LOOKAHEAD_SECONDS = 40
-        shortest_time = get_shortest_intersection_time(
-            track, self.polygon_helper, self.zone_polygons, LOOKAHEAD_SECONDS
-        )
+        shortest_time = LOOKAHEAD_SECONDS
+        
+        for zone_pk, helper, poly in self.zone_helpers:
+            time = get_shortest_intersection_time(
+                track, helper, [(zone_pk, poly)], LOOKAHEAD_SECONDS
+            )
+            if time < shortest_time:
+                shortest_time = time
+                
         return 99 * (LOOKAHEAD_SECONDS - shortest_time) / LOOKAHEAD_SECONDS
 
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]):
@@ -88,32 +98,37 @@ class ProhibitedZoneCalculator(Calculator):
     def check_inside_prohibited_zone(self, track: List[ContestantReceivedPosition], last_gate: Optional["Gate"]):
         position = track[-1]
         inside_this_time = set()
-        for zone_pk in self.polygon_helper.check_inside_polygons(
-            self.zone_polygons, position.latitude, position.longitude
-        ):
-            inside_this_time.add(zone_pk)
-            if zone_pk not in self.inside_zones:
-                self.inside_zones[zone_pk] = position.time
-            if (
-                zone_pk not in self.zones_scored
-                and position.time > self.inside_zones[zone_pk] + self.prohibited_zone_grace_time
-            ):
-                self.zones_scored.add(zone_pk)
-                penalty = self.scorecard.prohibited_zone_penalty
-                self.running_penalty[zone_pk] = penalty
-                self.update_score(
-                    UpdateScoreMessage(
-                        position.time,
-                        last_gate or self.gates[0],
-                        penalty,
-                        "entered prohibited zone {}".format(self.zone_map[zone_pk].name),
-                        position.latitude,
-                        position.longitude,
-                        "anomaly",
-                        self.INSIDE_PROHIBITED_ZONE_PENALTY_TYPE,
-                        maximum_score=self.scorecard.prohibited_zone_maximum,
+        
+        for zone_pk, helper, poly in self.zone_helpers:
+            is_inside = helper.check_inside_polygons([(zone_pk, poly)], position.latitude, position.longitude)
+            if is_inside:
+                inside_this_time.add(zone_pk)
+                # logger.info(f"{self.contestant}: Inside zone {zone_pk} at {position.time}")
+                
+                if zone_pk not in self.inside_zones:
+                    self.inside_zones[zone_pk] = position.time
+                if (
+                    zone_pk not in self.zones_scored
+                    and position.time > self.inside_zones[zone_pk] + self.prohibited_zone_grace_time
+                ):
+                    self.zones_scored.add(zone_pk)
+                    penalty = self.scorecard.prohibited_zone_penalty
+                    self.running_penalty[zone_pk] = penalty
+                    zone_name = self.zone_map[zone_pk].name
+                    self.update_score(
+                        UpdateScoreMessage(
+                            position.time,
+                            last_gate or self.gates[0],
+                            penalty,
+                            "entered prohibited zone {}".format(zone_name),
+                            position.latitude,
+                            position.longitude,
+                            "anomaly",
+                            f"{self.INSIDE_PROHIBITED_ZONE_PENALTY_TYPE}_{zone_name}",
+                            maximum_score=self.scorecard.prohibited_zone_maximum,
+                        )
                     )
-                )
+        
         for zone in list(self.inside_zones.keys()):
             if zone not in inside_this_time:
                 try:

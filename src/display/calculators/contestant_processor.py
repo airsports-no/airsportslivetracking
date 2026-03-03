@@ -239,11 +239,14 @@ class ContestantProcessor:
         self.last_status_check = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         positions_to_save = []
         while not self.track_terminated:
+            self.check_termination_is_commanded(self.previous_position)
+            if self.track_terminated:
+                break
+
             now = datetime.datetime.now(datetime.timezone.utc)
             if now - self.last_status_check > datetime.timedelta(seconds=5):
                 calculator_is_alive(self.contestant.pk, 30)
                 self.should_i_terminate()
-                self.check_termination_is_commanded(self.previous_position)
                 self.last_status_check = now
 
             if self.live_processing and now > self.contestant.finished_by_time + self.delay:

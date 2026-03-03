@@ -364,8 +364,9 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 distance_to_gate = calculate_distance_lat_lon(
                     (last_position.latitude, last_position.longitude), (last_gate.latitude, last_gate.longitude)
                 )
-                # Use a larger grace zone for SP (20.0 NM) to avoid penalties during start maneuvers
-                grace_zone = 0.5 * 1852 if last_gate.type == "sp" else 0.5 * 1852
+                # Use a small grace zone for all gates (0.5 NM)
+                grace_zone = 0.5 * 1852
+
 
                 if distance_to_gate < grace_zone:
                     pass  # Ignore backtracking within grace zone of the gate
