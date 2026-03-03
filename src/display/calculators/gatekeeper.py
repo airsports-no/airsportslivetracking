@@ -282,7 +282,10 @@ class Gatekeeper:
             if event.gate in self.outstanding_gates:
                 self.pop_gate(self.outstanding_gates.index(event.gate), False)
             for calculator in self.calculators:
-                calculator.missed_gate(event.previous_gate, event.gate, event.position)
+                if hasattr(calculator, "missed_gate_with_time"):
+                    calculator.missed_gate_with_time(event.previous_gate, event.gate, event.position, event.event_time)
+                else:
+                    calculator.missed_gate(event.previous_gate, event.gate, event.position)
 
         elif isinstance(event, TakeoffPassedEvent):
             event.gate.pass_gate(event.intersection_time)
@@ -303,6 +306,12 @@ class Gatekeeper:
 
         elif isinstance(event, StartingLinePassedEvent):
             event.gate.pass_infinite_gate(event.intersection_time)
+            
+            # Recalculate if this is the start point and adaptive start is on
+            # (In case the event didn't come through as AdaptiveStartEvent specifically)
+            if self.contestant.adaptive_start and not self.recalculation_completed:
+                self.recalculate_gates_times_from_start_time(event.intersection_time)
+
             if event.gate in self.outstanding_gates:
                 self.pop_gate(self.outstanding_gates.index(event.gate), True)
                 for calculator in self.calculators:
@@ -315,8 +324,7 @@ class Gatekeeper:
                 for calculator in self.calculators:
                     calculator.on_starting_line_passed(event.gate, event.position)
                     # For adaptive start, we still want to score the SP timing even if it's already passed as a regular gate
-                    if self.contestant.adaptive_start:
-                        calculator.on_gate_passed(event.gate, event.position)
+                    calculator.on_gate_passed(event.gate, event.position)
 
         elif isinstance(event, StartingLineExtendedPassedWrongDirectionEvent):
             for calculator in self.calculators:

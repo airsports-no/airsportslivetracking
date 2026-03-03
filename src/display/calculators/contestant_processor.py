@@ -219,11 +219,22 @@ class ContestantProcessor:
                 self.contestant, self.contestant.takeoff_time, self.contestant.finished_by_time
             )
         )
+        # Check if termination is already requested
+        if self.is_termination_commanded():
+            logger.info(f"{self.contestant}: Termination request received before processing started")
+            self.notify_termination()
+            return
         threading.Thread(target=self.enqueue_positions_thread, daemon=True).start()
         receiving = False
         number_of_positions = 0
         # Wait while the thread loads outstanding positions.
         self.finished_loading_initial_positions.wait()
+        
+        # Check for termination again after wait
+        if self.is_termination_commanded():
+            logger.info(f"{self.contestant}: Termination request received after initial positions wait")
+            self.notify_termination()
+            return
         self.last_status_check = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         positions_to_save = []
         while not self.track_terminated:
@@ -409,23 +420,30 @@ class ContestantProcessor:
 
         while not self.track_terminated:
             try:
-                position_data = self.position_queue.pop(True, timeout=30)
+                position_data = self.position_queue.pop(True, timeout=1)
                 if position_data is not None:
                     release_time = position_data["device_time"] + self.delay
                     if not receiving:
                         logger.info(f"{self.contestant}: Started receiving data")
+                        receiving = True
+                        self.finished_loading_initial_positions.set()
+                    self.timed_queue.put(position_data, release_time)
                 else:
                     logger.info(f"{self.contestant}: Delayed position queuer received None")
-                    if len(self.timed_queue._queue):
-                        release_time = self.timed_queue._queue[-1][1] + datetime.timedelta(seconds=1)
-                    else:
-                        release_time = datetime.datetime.now(datetime.timezone.utc)
-                self.timed_queue.put(position_data, release_time)
-                if not receiving:
-                    self.finished_loading_initial_positions.set()
-                    receiving = True
+                    self.timed_queue.close()
+                    if not receiving:
+                        self.finished_loading_initial_positions.set()
+                        receiving = True
+                    break
             except RedisEmpty:
-                self.check_termination_is_commanded(self.previous_position)
+                if receiving:
+                    self.check_termination_is_commanded(self.previous_position)
+                else:
+                    if self.is_termination_commanded():
+                        logger.info(f"{self.contestant}: Termination request received while waiting for first position")
+                        self.finished_loading_initial_positions.set()
+                        break
+                    time.sleep(0.5)
 
     def update_score_from_thread(self, update_score_message: UpdateScoreMessage):
         """

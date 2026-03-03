@@ -927,19 +927,14 @@ class NavigationTaskViewSet(ModelViewSet):
             )
             logger.debug("Created contestant")
             final_time = contestant.get_final_gate_time()
+            logger.debug(f"Finall gate time is {final_time}")
+
             if final_time is None:
                 final_time = starting_point_time
             if adaptive_start:
+                duration = final_time - starting_point_time
                 # Properly account for how final time is created when adaptive start is active
-                final_time = (
-                    starting_point_time
-                    + datetime.timedelta(hours=1)
-                    + datetime.timedelta(
-                        hours=final_time.hour,
-                        minutes=final_time.minute,
-                        seconds=final_time.second,
-                    )
-                )
+                final_time = starting_point_time + datetime.timedelta(hours=1) + duration
             logger.debug(f"Take-off time is {contestant.takeoff_time}")
             logger.debug(f"Final time is {final_time}")
             contestant.finished_by_time = final_time + datetime.timedelta(

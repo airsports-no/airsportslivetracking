@@ -45,10 +45,11 @@ class GatePassedEvent(GatekeeperEvent):
 
 
 class GateMissedEvent(GatekeeperEvent):
-    def __init__(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition):
+    def __init__(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition, event_time: Optional[datetime.datetime] = None):
         super().__init__(position)
         self.previous_gate = previous_gate
         self.gate = gate
+        self.event_time = event_time
 
 
 class TakeoffPassedEvent(GatekeeperEvent):
