@@ -116,7 +116,9 @@ class AnrCorridorCalculator(Calculator):
         """
         Returns true if the point lies inside the corridor
         """
-        return "test" in self.polygon_helper.check_inside_polygons([("test", self.track_polygon)], latitude, longitude)
+        res = "test" in self.polygon_helper.check_inside_polygons([("test", self.track_polygon)], latitude, longitude)
+        # print(f"Checking point {latitude}, {longitude} inside polygon: {res}")
+        return res
 
     def _distance_from_point_to_polygons(self, latitude: float, longitude: float) -> float:
         """
@@ -136,8 +138,13 @@ class AnrCorridorCalculator(Calculator):
         return []
 
     def check_and_apply_outside_penalty(self, position: ContestantReceivedPosition, last_gate: Gate):
-        if self.crossed_outside_time is None or last_gate is None:
+        if self.crossed_outside_time is None:
             return
+        
+        # Use first waypoint as a fallback if last_gate is None
+        scoring_gate = self.get_last_non_secret_gate(last_gate) if last_gate else self.gates[0]
+        gate_name = last_gate.name if last_gate else scoring_gate.name
+
         # If we are back inside the corridor because we must calculate the score for the previous second
         if self.corridor_state == self.INSIDE_CORRIDOR:
             current_time = position.time - datetime.timedelta(seconds=1)
@@ -154,13 +161,13 @@ class AnrCorridorCalculator(Calculator):
             self.update_score(
                 UpdateScoreMessage(
                     position.time,
-                    self.get_last_non_secret_gate(last_gate),
+                    scoring_gate,
                     0,
                     "exiting corridor",
                     position.latitude,
                     position.longitude,
                     INFORMATION,
-                    f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
+                    f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{gate_name}",
                 )
             )
         elif self.corridor_state == self.INSIDE_CORRIDOR and self.previous_corridor_state == self.OUTSIDE_CORRIDOR:
@@ -168,13 +175,13 @@ class AnrCorridorCalculator(Calculator):
             self.update_score(
                 UpdateScoreMessage(
                     position.time,
-                    self.get_last_non_secret_gate(last_gate),
+                    scoring_gate,
                     self.accumulated_score,
                     "outside corridor ({} s)".format(int(outside_time)),
                     position.latitude,
                     position.longitude,
                     ANOMALY,
-                    f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{last_gate.name}",
+                    f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{gate_name}",
                     maximum_score=self.scorecard.corridor_maximum_penalty,
                 )
             )
