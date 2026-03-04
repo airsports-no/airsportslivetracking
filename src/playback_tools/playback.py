@@ -155,7 +155,7 @@ def recalculate_from_existing_positions_sync(contestant: "Contestant"):
             q.append(data)
         q.append(None)
         
-        logger.debug(f"Loaded {positions.count()} existing positions for recalculation")
+        logger.info(f"Loaded {positions.count()} existing positions for recalculation")
         cancel_termination_request(contestant.pk)
         
         # We must clear existing scores and interpolated positions before starting

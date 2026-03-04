@@ -160,7 +160,7 @@
             <div class="mt-8">
                 <!-- Mobile Card View (Visible on small screens, hidden on md+) -->
                 <div class="block md:hidden space-y-4">
-                    {% for contestant in object.contestant_set.all %}
+                    {% for contestant in object.contestant_set.all|dictsort:"contestant_number" %}
                     {% ifchanged contestant.takeoff_time|date:"Y-m-d" %}
                         <div class="divider font-bold text-base-content/60">{{ contestant.takeoff_time|date:"l, F j, Y" }}</div>
                     {% endifchanged %}
@@ -322,7 +322,7 @@
                         </tr>
                         </thead>
                         <tbody>
-                        {% for contestant in object.contestant_set.all %}
+                        {% for contestant in object.contestant_set.all|dictsort:"contestant_number" %}
                             {% ifchanged contestant.takeoff_time|date:"Y-m-d" %}
                                 <tr class="bg-base-200 font-bold">
                                     <td colspan="10" class="text-center py-2 text-base-content/80">

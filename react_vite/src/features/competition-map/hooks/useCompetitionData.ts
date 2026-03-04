@@ -54,17 +54,52 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const lastMessageTimeRef = useRef<number>(Date.now());
 
 
+    const updateContestant = useCallback((id: number, update: Partial<Contestant>) => {
+        setContestantsById(prev => {
+            const existing = prev[id];
+            if (existing) {
+                // Perform deep merge for team and its nested objects
+                let newTeam = existing.team;
+                if (update.team) {
+                    const newAeroplane = (update.team.aeroplane && existing.team?.aeroplane)
+                        ? { ...existing.team.aeroplane, ...update.team.aeroplane }
+                        : (update.team.aeroplane || existing.team?.aeroplane);
+                    
+                    const newCrew = (update.team.crew && existing.team?.crew)
+                        ? { ...existing.team.crew, ...update.team.crew }
+                        : (update.team.crew || existing.team?.crew);
+
+                    newTeam = { 
+                        ...existing.team, 
+                        ...update.team, 
+                        aeroplane: newAeroplane,
+                        crew: newCrew 
+                    };
+                }
+                
+                return { 
+                    ...prev, 
+                    [id]: { 
+                        ...existing, 
+                        ...update,
+                        team: newTeam
+                    } 
+                };
+            } else if (update.team) {
+                return { ...prev, [id]: update as Contestant };
+            }
+            return prev;
+        });
+    }, []);
+
     const processWsMessage = useCallback((data: string) => {
         try {
             const msg = JSON.parse(data) as { type: string; data: string };
 
             if (msg.type === 'contestant') {
                 const c = JSON.parse(msg.data) as Partial<Contestant> & { id: number };
-                setContestantsById(prev => {
-                    const existingContestant = prev[c.id] || {};
-                    const updatedContestant = { ...existingContestant, ...c };
-                    return { ...prev, [c.id]: updatedContestant as Contestant };
-                });
+                console.debug('WS: received contestant metadata', c);
+                updateContestant(c.id, c);
                 return;
             }
 
@@ -91,19 +126,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 const contestantId = playingCardsPayload.contestant_id;
                 const playing_cards = playingCardsPayload.playing_cards;
 
-                setContestantsById(prev => {
-                    const existingContestant = prev[contestantId];
-                    if (existingContestant) {
-                        return {
-                            ...prev,
-                            [contestantId]: {
-                                ...existingContestant,
-                                playing_cards: playing_cards
-                            }
-                        };
-                    }
-                    return prev;
-                });
+                updateContestant(contestantId, { playing_cards });
                 return;
             }
             if (msg.type === 'crossing_time') {
@@ -157,7 +180,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                                 // This is a new score log entry
                                 if (newLogEntry.gate === startGateName || newLogEntry.gate === finishGateName) {
                                     const contestant = contestantsByIdRef.current[contestantId];
-                                    if (contestant) {
+                                    if (contestant && contestant.team?.crew?.member1) {
                                         const gateType = newLogEntry.gate === startGateName ? 'STARTING POINT' : 'FINISH POINT';
                                         const scoreMessage = newLogEntry.points !== undefined ? `Score: ${newLogEntry.points.toFixed(1)}` : '';
                                         showToast(
@@ -178,20 +201,12 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 });
             }
             if (payload.contestant_track) {
-                setContestantsById(prev => {
-                    const existingContestant = prev[contestantId];
-                    if (existingContestant) {
-                        return { ...prev, [contestantId]: { ...existingContestant, contestanttrack: payload.contestant_track } };
-                    }
-                    // If contestant doesn't exist, this means we received track data before contestant data.
-                    // This is an edge case, but we should create a basic entry.
-                    return { ...prev, [contestantId]: { id: contestantId, contestanttrack: payload.contestant_track } as Contestant };
-                });
+                updateContestant(contestantId, { contestanttrack: payload.contestant_track });
             }
         } catch (e) {
             console.error('WS parse error', e);
         }
-    }, [showToast]);
+    }, [showToast, updateContestant]);
 
 
     const fetchAllContestantData = useCallback(async (contestantsToFetch: Contestant[], onProgress: (p: { loaded: number, total: number }) => void) => {

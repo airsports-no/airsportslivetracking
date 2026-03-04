@@ -123,7 +123,7 @@ from display.contestant_scheduling.schedule_contestants import schedule_and_crea
 from display.tasks import (
     import_gpx_track,
     process_flymaster_file,
-    recalculate_from_existing_positions,
+    recalculate_existing_positions,
     recalculate_live_data_for_contestant,
 )
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
@@ -1423,23 +1423,27 @@ class ContestantRecalculateWithStartTimeView(GuardianPermissionRequiredMixin, Fo
     def form_valid(self, form):
         starting_point_time = form.cleaned_data["starting_point_time"]
         nt = self.contestant.navigation_task
-        
+
         # Calculate new times
         takeoff_time = starting_point_time - datetime.timedelta(minutes=nt.minutes_to_starting_point)
         tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
-        
+
         # Initial estimate for finished_by_time
         # We can use route length and airspeed if available, else just a buffer
         route_length_nm = nt.route.route_length_nm
         airspeed = self.contestant.air_speed or 70
         estimated_flight_time_minutes = (route_length_nm / airspeed * 60) if airspeed > 0 else 60
-        finished_by_time = starting_point_time + datetime.timedelta(minutes=estimated_flight_time_minutes + nt.minutes_to_landing + 30)
+        finished_by_time = starting_point_time + datetime.timedelta(
+            minutes=estimated_flight_time_minutes + nt.minutes_to_landing + 30
+        )
 
         with transaction.atomic():
             original_number = self.contestant.contestant_number
             # Use a temporary contestant number to avoid unique constraint violation
-            temp_number = (nt.contestant_set.aggregate(models.Max("contestant_number"))["contestant_number__max"] or 0) + 100
-            
+            temp_number = (
+                nt.contestant_set.aggregate(models.Max("contestant_number"))["contestant_number__max"] or 0
+            ) + 100
+
             # Create new contestant as a copy of the old one but with updated times
             new_contestant = Contestant.objects.create(
                 team=self.contestant.team,
@@ -1460,11 +1464,11 @@ class ContestantRecalculateWithStartTimeView(GuardianPermissionRequiredMixin, Fo
                 competition_class_shortform=self.contestant.competition_class_shortform,
                 schedule_locked=self.contestant.schedule_locked,
             )
-            new_contestant.finished_by_time=new_contestant.landing_time
+            new_contestant.finished_by_time = new_contestant.landing_time
             # Move positions to new contestant
             positions = ContestantReceivedPosition.objects.filter(contestant=self.contestant)
             positions.update(contestant=new_contestant)
-            
+
             # Move uploaded track if exists
             try:
                 uploaded_track = self.contestant.contestantuploadedtrack
@@ -1472,22 +1476,28 @@ class ContestantRecalculateWithStartTimeView(GuardianPermissionRequiredMixin, Fo
                 uploaded_track.save()
             except ObjectDoesNotExist:
                 pass
-            
+
             # Transfer track version
             new_contestant.track_version = self.contestant.track_version
             new_contestant.save(update_fields=["track_version"])
 
+            # Send websocket delete message for the old contestant
+            wf = WebsocketFacade()
+            wf.transmit_delete_contestant(self.contestant)
+
             # Delete old contestant
             old_nt_pk = nt.pk
             self.contestant.delete()
-            
+
             # Restore the original contestant number now that the old one is gone
             new_contestant.contestant_number = original_number
             new_contestant.save(update_fields=["contestant_number"])
 
-        # Trigger recalculation for the new contestant
-        recalculate_from_existing_positions.apply_async((new_contestant.pk,))
-        
+            # Trigger recalculation for the new contestant
+            logger.info(f"Scheduling recalculation task for new contestant {new_contestant.pk}")
+            transaction.on_commit(lambda: wf.transmit_contestant(new_contestant))
+            transaction.on_commit(lambda: recalculate_existing_positions.delay(new_contestant.pk))
+
         messages.success(self.request, f"Contestant timing updated and recalculation started for {new_contestant}")
         return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": old_nt_pk}))
 

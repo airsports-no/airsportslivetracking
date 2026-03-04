@@ -42,7 +42,7 @@ def recalculate_live_data_for_contestant(contestant_pk: int):
     except ObjectDoesNotExist:
         logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
         return
-    logger.debug(f"{contestant}: About recalculate traccar track")
+    logger.info(f"{contestant}: About recalculate traccar track")
     try:
         recalculate_live_contestant(contestant)
     except:
@@ -50,17 +50,17 @@ def recalculate_live_data_for_contestant(contestant_pk: int):
 
 
 @app.task
-def recalculate_from_existing_positions(contestant_pk: int):
+def recalculate_existing_positions(contestant_pk: int):
     try:
         contestant = Contestant.objects.get(pk=contestant_pk)
     except ObjectDoesNotExist:
         logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
         return
-    logger.debug(f"{contestant}: About to recalculate from existing positions")
+    logger.info(f"{contestant}: About to recalculate from existing positions")
     try:
         recalculate_from_existing_positions_sync(contestant)
     except:
-        logger.exception("Exception in recalculate_from_existing_positions")
+        logger.exception("Exception in recalculate_existing_positions")
 
 
 @app.task
@@ -70,7 +70,7 @@ def import_gpx_track(contestant_pk: int, gpx_file: str):
     except ObjectDoesNotExist:
         logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
         return
-    logger.debug(f"{contestant}: About to insert GPX file")
+    logger.info(f"{contestant}: About to insert GPX file")
     try:
         insert_gpx_file(contestant, gpx_file.encode("utf-8"))
     except:

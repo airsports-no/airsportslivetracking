@@ -58,7 +58,7 @@ export default function ResultsTable({ rows, onRowClick, dividerIndex = -1 }: Pr
                     {r.countdown && r.countdown > 0 ? (
                         formatCountdown(r.countdown)
                     ) : (
-                        r.score.toFixed(0)
+                        (r.score ?? 0).toFixed(0)
                     )}
                 </td>
               </tr>

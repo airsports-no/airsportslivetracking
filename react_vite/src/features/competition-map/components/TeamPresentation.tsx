@@ -14,7 +14,7 @@ interface Props {
 }
 
 const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, navigationTask, scale = 1 }: Props) => {
-    if (!contestant) return null;
+    if (!contestant || !contestant.team || !contestant.team.crew || !contestant.team.crew.member1) return null;
     const { team } = contestant;
     const { crew, club } = team;
     const isPoker = navigationTask?.scorecard.task_type.includes("poker");
@@ -68,11 +68,11 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
                             <>
                                 <div className="avatar ml-2 sm:ml-4">
                                     {crew.member2.picture ? (
-                                        <div className="w-16 h-20 sm:w-24 sm:h-32 rounded-lg overflow-hidden">
+                                        <div className="w-16 h-20 sm:w-24 sm:h-32 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2 overflow-hidden">
                                             <img src={crew.member2.picture} alt={`${crew.member2.first_name} ${crew.member2.last_name}`} className="w-full h-full object-cover object-top" />
                                         </div>
                                     ) : (
-                                        <div className="placeholder bg-neutral-focus text-neutral-content w-16 h-20 sm:w-24 sm:h-32 rounded-lg">
+                                        <div className="placeholder bg-neutral-focus text-neutral-content w-16 h-20 sm:w-24 sm:h-32 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2">
                                             <span className="text-xl sm:text-3xl">{(crew.member2.first_name?.[0] || '') + (crew.member2.last_name?.[0] || '')}</span>
                                         </div>
                                     )}

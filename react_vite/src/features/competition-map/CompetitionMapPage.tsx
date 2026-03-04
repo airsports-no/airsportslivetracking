@@ -469,8 +469,9 @@ export default function CompetitionMapPage() {
 
             {selectedContestant && (
               <div className="flex justify-between items-center mt-2 pt-2 border-t border-base-200 gap-2">
-                <span className="text-xs font-bold truncate flex-1" title={`${selectedContestant.team.crew.member1.first_name} ${selectedContestant.team.crew.member1.last_name}`}>
-                  Selected: #{selectedContestant.contestant_number} {selectedContestant.team.crew.member1.first_name}                                                    </span>
+                <span className="text-xs font-bold truncate flex-1" title={`${selectedContestant?.team?.crew?.member1?.first_name ?? ''} ${selectedContestant?.team?.crew?.member1?.last_name ?? ''}`}>
+                  Selected: #{selectedContestant?.contestant_number} {selectedContestant?.team?.crew?.member1?.first_name ?? ''}
+                </span>
                 <div className="flex-none">
                   <button className="btn btn-xs btn-info mr-1" onClick={() => { setShowScoreLog(true); setIsRankingCollapsed(false); }}>Log</button>
                   <button className="btn btn-xs btn-ghost" onClick={() => { setSelectedContestantId(null); setShowScoreLog(false); if (window.innerWidth < 640) setIsRankingCollapsed(false); }}>Clear</button>

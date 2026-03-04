@@ -70,7 +70,7 @@
 			"label": "Start All Watchers",
 			"dependsOn": [
 				"Run server",
-				"Run celery",
+				// "Run celery", // Should be run outside of vscode to avoid issues
 				"Watch React Vite",
 				"Watch Tailwind CSS"
 			],

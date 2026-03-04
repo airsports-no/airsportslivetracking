@@ -109,21 +109,68 @@ def serialize_playing_card(pc: "PlayingCard") -> dict:
     }
 
 
+def serialize_person(p: "Person") -> dict:
+    return {
+        "id": p.id,
+        "first_name": p.first_name,
+        "last_name": p.last_name,
+    }
+
+
+def serialize_crew(c: "Crew") -> dict:
+    return {
+        "id": c.id,
+        "member1": serialize_person(c.member1),
+        "member2": serialize_person(c.member2) if c.member2 else None,
+    }
+
+
+def serialize_aeroplane(a: "Aeroplane") -> dict:
+    return {
+        "id": a.id,
+        "registration": a.registration,
+        "colour": a.colour,
+        "type": a.type,
+        "picture": a.picture.url if a.picture else None,
+    }
+
+
+def serialize_club(c: "Club") -> dict:
+    return {
+        "id": c.id,
+        "name": c.name,
+        "country": str(c.country),
+        "country_flag_url": c.country_flag_url,
+        "logo": c.logo.url if c.logo else None,
+    }
+
+
+def serialize_team(t: "Team") -> dict:
+    return {
+        "id": t.id,
+        "name": str(t),
+        "aeroplane": serialize_aeroplane(t.aeroplane),
+        "crew": serialize_crew(t.crew),
+        "club": serialize_club(t.club) if t.club else None,
+        "country": str(t.country),
+        "country_flag_url": t.country_flag_url,
+        "logo": t.logo.url if t.logo else None,
+    }
+
+
 def serialize_contestant(c: "Contestant") -> dict:
     return {
         "id": c.id,
+        "contest_id": c.navigation_task.contest_id,
         "name": str(c),
         "contestant_number": c.contestant_number,
         "tracker_device_id": c.tracker_device_id,
-        "team": {
-            "id": c.team.id,
-            "name": str(c.team),
-            "aeroplane": {
-                "registration": c.team.aeroplane.registration if c.team.aeroplane else "",
-            },
-        },
+        "team": serialize_team(c.team),
         "track_version": c.track_version,
         "live_processing": getattr(c, "live_processing", True),
+        "takeoff_time": c.takeoff_time,
+        "finished_by_time": c.finished_by_time,
+        "adaptive_start": c.adaptive_start,
     }
 
 
