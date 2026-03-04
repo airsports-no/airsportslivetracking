@@ -38,13 +38,15 @@ class PenaltyZoneCalculator(Calculator):
         self.crossed_outside_position = None
         waypoint = self.contestant.navigation_task.route.waypoints[0]
         self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
-        self.zone_polygons = []
+        self.polygons = [] # List of (zone_pk, polygon)
         self.zone_map = {}
         self.entered_polygon_times = {}
         zones = route.prohibited_set.filter(type="penalty")
         for zone in zones:
             self.zone_map[zone.pk] = zone
-            self.zone_polygons.append((zone.pk, self.polygon_helper.build_polygon(zone.path)))
+            poly = self.polygon_helper.build_polygon(zone.path)
+            self.polygons.append((zone.pk, poly))
+
 
     def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         pass
@@ -62,10 +64,10 @@ class PenaltyZoneCalculator(Calculator):
         Danger level ranges from 0 to 100 where 100 is inside a penalty zone
         """
         LOOKAHEAD_SECONDS = 40
-        shortest_time = get_shortest_intersection_time(
-            track, self.polygon_helper, self.zone_polygons, LOOKAHEAD_SECONDS
+        time = get_shortest_intersection_time(
+            track, self.polygon_helper, self.polygons, LOOKAHEAD_SECONDS
         )
-        return 99 * (LOOKAHEAD_SECONDS - shortest_time) / LOOKAHEAD_SECONDS
+        return 99 * (LOOKAHEAD_SECONDS - time) / LOOKAHEAD_SECONDS
 
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]):
         # return 0, 0
@@ -85,9 +87,11 @@ class PenaltyZoneCalculator(Calculator):
     def check_inside_prohibited_zone(self, track: List[ContestantReceivedPosition], last_gate: Optional["Gate"]):
         position = track[-1]
         zone_pks_the_position_was_already_inside = list(self.entered_polygon_times.keys())
+        
         zone_pks_the_position_is_currently_inside = self.polygon_helper.check_inside_polygons(
-            self.zone_polygons, position.latitude, position.longitude
+            self.polygons, position.latitude, position.longitude
         )
+
         for zone_pk in zone_pks_the_position_is_currently_inside:
             if zone_pk not in self.entered_polygon_times:
                 self.entered_polygon_times[zone_pk] = position.time

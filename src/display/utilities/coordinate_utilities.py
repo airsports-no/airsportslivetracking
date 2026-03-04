@@ -270,6 +270,7 @@ class ProjectedPoint:
         self.projected_x = x
         self.projected_y = y
 
+
 class Projector:
     def __init__(self, latitude, longitude):
         WGS84 = CRS.from_string("epsg:4326")
@@ -287,7 +288,7 @@ class Projector:
 
     def intersect(self, start1, stop1, start2, stop2):
         def get_xy(p):
-            if hasattr(p, 'projected_x') and p.projected_x is not None:
+            if hasattr(p, "projected_x") and p.projected_x is not None:
                 return p.projected_x, p.projected_y
             if isinstance(p, (tuple, list)):
                 return self.to_projection.transform(p[1], p[0])

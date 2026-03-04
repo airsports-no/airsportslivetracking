@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import logging
 from typing import List, Optional, Tuple
 import numpy as np
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, Point
 
 from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
@@ -114,28 +114,25 @@ class AnrCorridorCalculator(Calculator):
         ax.plot(self.track_polygon.boundary.xy[0], self.track_polygon.boundary.xy[1])
         ax.add_geometries([self.track_polygon], crs=self.polygon_helper.utm, facecolor="blue", alpha=0.4)
         plt.savefig("polygon.png", dpi=100)
-
     def _check_inside_polygon(self, position: ContestantReceivedPosition) -> bool:
         """
         Returns true if the point lies inside the corridor
         """
-        # Fast path: use pre-projected coordinates if available
-        if hasattr(position, 'projected_x'):
-            x, y = position.projected_x, position.projected_y
-            # Direct bounding box check
-            if self.track_polygon not in self._bounds_cache:
-                self._bounds_cache[self.track_polygon] = self.track_polygon.bounds
-            
-            minx, miny, maxx, maxy = self._bounds_cache[self.track_polygon]
-            if not (minx <= x <= maxx and miny <= y <= maxy):
-                return False
-            
-            # Still need contains() for precise check
-            p = Point(x, y)
-            return self.track_polygon.contains(p)
+        # We must project using our own polygon_helper because it uses UTM,
+        # while position.projected_x/y (if added) might use AEQD.
+        x, y = self.polygon_helper.utm.transform_point(position.longitude, position.latitude, self.polygon_helper.pc)
 
-        res = "test" in self.polygon_helper.check_inside_polygons([("test", self.track_polygon)], position.latitude, position.longitude)
-        return res
+        # Direct bounding box check
+        if self.track_polygon not in self._bounds_cache:
+            self._bounds_cache[self.track_polygon] = self.track_polygon.bounds
+
+        minx, miny, maxx, maxy = self._bounds_cache[self.track_polygon]
+        if not (minx <= x <= maxx and miny <= y <= maxy):
+            return False
+
+        # Still need contains() for precise check
+        p = Point(x, y)
+        return self.track_polygon.contains(p)
 
     def _distance_from_point_to_polygons(self, latitude: float, longitude: float) -> float:
         """

@@ -119,8 +119,8 @@ class ContestantProcessor:
                 str(self.contestant.navigation_task),
                 f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
             )
-        self.websocket_facade.transmit_delete_contestant(self.contestant)
-        self.websocket_facade.transmit_contestant(self.contestant)
+            self.websocket_facade.transmit_delete_contestant(self.contestant)
+            self.websocket_facade.transmit_contestant(self.contestant)
 
         self.score_thread = threading.Thread(target=self.score_updater_thread, daemon=True)
         self.score_thread.start()
@@ -131,14 +131,18 @@ class ContestantProcessor:
     def score_updater_thread(self):
         from queue import Empty
 
-        while not self.track_terminated or not self.score_processing_queue.empty():
+        while True:
             try:
                 score = self.score_processing_queue.get(timeout=1)
+                if score is None:
+                    self.score_processing_queue.task_done()
+                    break
                 self.update_score_from_thread(score)
                 self.score_processing_queue.task_done()
             except Empty:
-                pass
+                continue
         logger.info(f"{self.contestant}: score_updater_thread exiting")
+
 
     def interpolate_track(
         self, last_position: Optional[ContestantReceivedPosition], position: ContestantReceivedPosition
@@ -216,9 +220,10 @@ class ContestantProcessor:
         loses connectivity with the Web server.
         """
         self.contestant.refresh_from_db()
-        self.websocket_facade.transmit_score_log_entry(self.contestant)
-        self.websocket_facade.transmit_annotations(self.contestant)
-        self.websocket_facade.transmit_basic_information(self.contestant)
+        if self.live_processing:
+            self.websocket_facade.transmit_score_log_entry(self.contestant)
+            self.websocket_facade.transmit_annotations(self.contestant)
+            self.websocket_facade.transmit_basic_information(self.contestant)
 
     def run(self):
         """
@@ -243,7 +248,7 @@ class ContestantProcessor:
         number_of_positions = 0
         # Wait while the thread loads outstanding positions.
         self.finished_loading_initial_positions.wait()
-
+        
         # Check for termination again after wait
         if self.is_termination_commanded():
             logger.info(f"{self.contestant}: Termination request received after initial positions wait")
@@ -252,11 +257,14 @@ class ContestantProcessor:
         self.last_status_check = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         positions_to_save = []
         while not self.track_terminated:
-            self.check_termination_is_commanded(self.previous_position)
+            # Only check for manual termination every 5 seconds or when waiting for data
+            now = datetime.datetime.now(datetime.timezone.utc)
+            if now - self.last_termination_check > datetime.timedelta(seconds=5):
+                self.check_termination_is_commanded(self.previous_position)
+
             if self.track_terminated:
                 break
 
-            now = datetime.datetime.now(datetime.timezone.utc)
             if now - self.last_status_check > datetime.timedelta(seconds=5):
                 calculator_is_alive(self.contestant.pk, 30)
                 self.should_i_terminate()
@@ -282,7 +290,7 @@ class ContestantProcessor:
             try:
                 position_data = self.timed_queue.get(timeout=15)
             except TimedOut:
-                # We have not received anything for 60 seconds, check if we should terminate
+                # We have not received anything for some time, check if we should terminate
                 self.check_termination_is_commanded(self.previous_position)
                 continue
             if position_data is None:
@@ -345,16 +353,23 @@ class ContestantProcessor:
                 self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
         if positions_to_save:
             ContestantReceivedPosition.objects.bulk_create(positions_to_save)
-        self.gatekeeper.finished_processing()
+        
+        if number_of_positions > 0:
+            self.gatekeeper.finished_processing()
+        
         self.contestant_track.set_calculator_finished()
-        while not self.position_queue.empty():
-            self.position_queue.pop()
+        # Drain the position queue efficiently
+        while True:
+            try:
+                self.position_queue.pop()
+            except RedisEmpty:
+                break
+        self.score_processing_queue.put(None)
         self.score_processing_queue.join()
         self.score_thread.join()
         self.queuer_thread.join()
         logger.info("Terminating calculator for {}".format(self.contestant))
         calculator_is_terminated(self.contestant.pk)
-
     def should_i_terminate(self):
         """
         Check if the time has passed the finished by time and terminate the  processor if this is the case
@@ -495,14 +510,17 @@ class ContestantProcessor:
             offset_string = ""
         if capped:
             update_score_message.message += " (capped)"
-
         planned_time = (
-            update_score_message.planned.astimezone(self.time_zone).strftime("%H:%M:%S")
+            update_score_message.planned.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
+                "%H:%M:%S"
+            )
             if update_score_message.planned
             else None
         )
         actual_time = (
-            update_score_message.actual.astimezone(self.time_zone).strftime("%H:%M:%S")
+            update_score_message.actual.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
+                "%H:%M:%S"
+            )
             if update_score_message.actual
             else None
         )

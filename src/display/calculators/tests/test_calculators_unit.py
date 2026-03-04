@@ -67,7 +67,8 @@ class TestGateCalculator(CalculatorUnitTestBase):
             self.scorecard,
             self.gates,
             self.route,
-            self.score_processing_queue
+            self.score_processing_queue,
+            live_processing=False
         )
 
     def test_calculate_enroute_takeoff(self):
@@ -269,18 +270,23 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
         # Mock PolygonHelper to return a mock boundary
         mock_ph_instance = mock_polygon_helper.return_value
         mock_ph_instance.utm.transform_points.return_value = np.array([[0,0], [1,0], [1,1], [0,0]])
+        # Mock transform_point to return a tuple to avoid unpacking error
+        mock_ph_instance.utm.transform_point.return_value = (0.0, 0.0)
         
         self.calculator = AnrCorridorCalculator(
             self.contestant,
             self.scorecard,
             self.gates,
             self.route,
-            self.score_processing_queue
+            self.score_processing_queue,
+            live_processing=False
         )
         self.calculator.polygon_helper = MagicMock()
+        # Ensure transform_point is mocked on the assigned instance too
+        self.calculator.polygon_helper.utm.transform_point.return_value = (0.0, 0.0)
 
     def test_calculate_enroute_inside(self):
-        self.calculator.polygon_helper.check_inside_polygons.return_value = ["test"]
+        self.calculator._check_inside_polygon = MagicMock(return_value=True)
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         state = GatekeeperState(last_gate=MagicMock(), outstanding_gates=[], in_range_of_gate=None, projector=self.projector, takeoff_gate=None, landing_gate=None, has_passed_finishpoint=False, recalculation_completed=True)
@@ -291,7 +297,7 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
         self.assertEqual(self.calculator.corridor_state, self.calculator.INSIDE_CORRIDOR)
 
     def test_calculate_enroute_outside(self):
-        self.calculator.polygon_helper.check_inside_polygons.return_value = [] # Outside
+        self.calculator._check_inside_polygon = MagicMock(return_value=False)
         
         last_gate = MagicMock()
         last_gate.name = "SP"
@@ -321,7 +327,8 @@ class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
             self.scorecard,
             self.gates,
             self.route,
-            self.score_processing_queue
+            self.score_processing_queue,
+            live_processing=False
         )
 
     def test_calculate_enroute_tracking(self):
@@ -381,7 +388,8 @@ class TestLandingPatternCalculator(CalculatorUnitTestBase):
             self.scorecard,
             self.gates,
             self.route,
-            self.score_processing_queue
+            self.score_processing_queue,
+            live_processing=False
         )
 
     def test_calculate_outside_route_landing(self):
@@ -417,7 +425,8 @@ class TestPokerCalculator(CalculatorUnitTestBase):
             self.scorecard,
             self.gates,
             self.route,
-            self.score_processing_queue
+            self.score_processing_queue,
+            live_processing=False
         )
         # PolygonHelper is already mocked in setUp, but we need to re-mock the instance attributes
         self.calculator.polygon_helper = MagicMock()
@@ -450,10 +459,11 @@ class TestProhibitedZoneCalculator(CalculatorUnitTestBase):
             self.scorecard,
             self.gates,
             self.route,
-            self.score_processing_queue
+            self.score_processing_queue,
+            live_processing=False
         )
-        # Mock the per-zone helper
-        self.mock_helper = self.calculator.zone_helpers[0][1]
+        # In refactored version, we use self.polygon_helper directly
+        self.mock_helper = self.calculator.polygon_helper
 
     def test_check_inside_prohibited_zone_penalty(self):
         self.mock_helper.check_inside_polygons.return_value = [1]
@@ -479,10 +489,11 @@ class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
             self.scorecard,
             self.gates,
             self.route,
-            self.score_processing_queue
+            self.score_processing_queue,
+            live_processing=False
         )
-        # Mock the per-zone helper
-        self.mock_helper = self.calculator.zone_helpers[0][1]
+        # In refactored version, we use self.polygon_helper directly
+        self.mock_helper = self.calculator.polygon_helper
 
     def test_check_inside_penalty_zone(self):
         # Entering

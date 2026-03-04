@@ -87,11 +87,9 @@ class PolygonHelper:
 
     def build_polygon(self, path):
         line = []
-        # logger.info(f"Building polygon with path sample: {path[:2] if path else 'empty'}")
         for element in path:
             # transform_point expects (x, y) which is (longitude, latitude)
-            # if element is (lat, lon), we need to swap them
-            line.append(self.utm.transform_point(element[1], element[0], self.pc))
+            line.append(self.utm.transform_point(element[0], element[1], self.pc))
         return Polygon(line)
 
     def check_inside_polygons(self, polygons: list[tuple[int, Polygon]], latitude, longitude) -> list[int]:
@@ -102,11 +100,9 @@ class PolygonHelper:
         p = Point(x, y)
         incursions = []
         for zone_pk, poly in polygons:
-            # Bounding box check first
-            # Caching bounds if not already present
             if poly not in self._bounds_cache:
                 self._bounds_cache[poly] = poly.bounds
-            
+
             minx, miny, maxx, maxy = self._bounds_cache[poly]
             if not (minx <= x <= maxx and miny <= y <= maxy):
                 continue

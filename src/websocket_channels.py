@@ -97,6 +97,36 @@ def serialize_position(p: "ContestantReceivedPosition") -> dict:
     }
 
 
+def serialize_playing_card(pc: "PlayingCard") -> dict:
+    return {
+        "id": pc.id,
+        "contestant": pc.contestant_id,
+        "gate": pc.gate,
+        "card_type": pc.card_type,
+        "card_value": pc.card_value,
+        "card_suit": pc.card_suit,
+        "card_string": pc.card_string,
+    }
+
+
+def serialize_contestant(c: "Contestant") -> dict:
+    return {
+        "id": c.id,
+        "name": str(c),
+        "contestant_number": c.contestant_number,
+        "tracker_device_id": c.tracker_device_id,
+        "team": {
+            "id": c.team.id,
+            "name": str(c.team),
+            "aeroplane": {
+                "registration": c.team.aeroplane.registration if c.team.aeroplane else "",
+            },
+        },
+        "track_version": c.track_version,
+        "live_processing": getattr(c, "live_processing", True),
+    }
+
+
 def generate_contestant_data_block(
     contestant: "Contestant",
     positions: List = None,
@@ -176,8 +206,7 @@ class WebsocketFacade:
 
     def transmit_playing_cards(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        from display.serialisers import PlayingCardSerialiser
-        playing_cards = PlayingCardSerialiser(contestant.playingcard_set.all(), many=True).data
+        playing_cards = [serialize_playing_card(pc) for pc in contestant.playingcard_set.all()]
         channel_data = generate_contestant_data_block(contestant, playing_cards=playing_cards)
         async_to_sync(self.channel_layer.group_send)(
             group_key,
@@ -202,8 +231,7 @@ class WebsocketFacade:
 
     def transmit_contestant(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        from display.serialisers import ContestantNestedTeamSerialiser
-        channel_data = ContestantNestedTeamSerialiser(instance=contestant).data
+        channel_data = serialize_contestant(contestant)
         async_to_sync(self.channel_layer.group_send)(
             group_key,
             {
@@ -435,9 +463,6 @@ class WebsocketFacade:
         
         # Check permissions safely
         if user is not None:
-            from guardian.shortcuts import get_objects_for_user
-            # This is a bit of a hack to match original logic if it used has_perm
-            # original used user.has_perm("display.change_contest", contest)
             contest.permission_change_contest = user.has_perm("display.change_contest", contest)
         else:
             contest.permission_change_contest = False
