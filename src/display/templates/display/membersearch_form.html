@@ -50,7 +50,7 @@
 <script type="text/javascript">
     function setResponse(response) {
         if (response.length > 0) {
-            const useExistingButton = document.getElementById('id_use_existing');
+            const useExistingButton = document.getElementById('use_existing');
             if (useExistingButton) useExistingButton.disabled = false;
 
             const { first_name, last_name, email, phone, picture, country_flag_url, id } = response[0];
@@ -68,7 +68,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        const useExistingButton = document.getElementById('id_use_existing');
+        const useExistingButton = document.getElementById('use_existing');
         if (useExistingButton) {
             useExistingButton.disabled = true;
         }
@@ -85,13 +85,16 @@
             if (!input) return;
 
             const autocompleteContainer = document.createElement('div');
-            autocompleteContainer.setAttribute('class', 'absolute z-50 w-full bg-base-100 rounded-box shadow-lg top-full mt-1 max-h-60 overflow-y-auto');
+            autocompleteContainer.setAttribute('class', 'absolute border border-gray-300 z-50 w-full bg-base-100 rounded-box shadow-lg top-full mt-1 max-h-60 overflow-y-auto');
             input.parentNode.style.position = 'relative'; // Ensure parent has relative positioning
             input.parentNode.style.overflow = 'visible'; // Prevent clipping of the dropdown
             input.parentNode.appendChild(autocompleteContainer);
 
             input.addEventListener('input', async function(e) {
                 if (useExistingButton) useExistingButton.disabled = true;
+                const personIdInput = document.getElementById('id_person_id');
+                if (personIdInput) personIdInput.value = '';
+                
                 const searchTerm = e.target.value;
                 autocompleteContainer.innerHTML = '';
                 if (searchTerm.length < 1) {
@@ -112,9 +115,15 @@
                     data.forEach(item => {
                         let option = document.createElement('a');
                         option.setAttribute('class', 'block p-2 hover:bg-base-200 cursor-pointer');
-                        option.textContent = item.label;
-                        option.addEventListener('click', function() {
-                            input.value = item.label;
+                        
+                        const label = typeof item === 'object' ? item.label : item;
+                        const value = typeof item === 'object' ? item.value : item;
+                        
+                        option.textContent = label;
+                        // Use mousedown instead of click to fire before blur, and preventDefault to keep focus
+                        option.addEventListener('mousedown', function(event) {
+                            event.preventDefault();
+                            input.value = label;
                             autocompleteContainer.innerHTML = '';
                             
                             fetch(field.url, {
@@ -123,7 +132,7 @@
                                     'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                                     'X-CSRFToken': document.configuration.csrftoken
                                 },
-                                body: `search=${encodeURIComponent(item.value)}&request=2`
+                                body: `search=${encodeURIComponent(value)}&request=2`
                             }).then(res => res.json()).then(setResponse);
                         });
                         autocompleteContainer.appendChild(option);
@@ -134,12 +143,8 @@
             });
 
             input.addEventListener('blur', function() {
-                // Delay hiding to allow click event on autocomplete suggestions
-                setTimeout(() => {
-                    if (!autocompleteContainer.contains(document.activeElement)) {
-                        autocompleteContainer.innerHTML = '';
-                    }
-                }, 100);
+                // Clear suggestions when input loses focus
+                autocompleteContainer.innerHTML = '';
             });
         });
 
