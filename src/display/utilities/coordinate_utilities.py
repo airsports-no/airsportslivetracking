@@ -265,6 +265,11 @@ from shapely.ops import transform
 from functools import partial
 
 
+class ProjectedPoint:
+    def __init__(self, x, y):
+        self.projected_x = x
+        self.projected_y = y
+
 class Projector:
     def __init__(self, latitude, longitude):
         WGS84 = CRS.from_string("epsg:4326")
@@ -276,14 +281,24 @@ class Projector:
         self.to_projection = Transformer.from_crs(WGS84, AEQD, always_xy=True)
         self.from_projection = Transformer.from_crs(AEQD, WGS84, always_xy=True)
 
-    def intersect(self, start1: tuple[float, float], stop1, start2, stop2):
-        """latitude, longitude pairs"""
-        start1 = self.to_projection.transform(*reversed(start1))
-        stop1 = self.to_projection.transform(*reversed(stop1))
-        start2 = self.to_projection.transform(*reversed(start2))
-        stop2 = self.to_projection.transform(*reversed(stop2))
+    def project_point(self, lat, lon) -> ProjectedPoint:
+        x, y = self.to_projection.transform(lon, lat)
+        return ProjectedPoint(x, y)
 
-        intersection = line_intersect(*start1, *stop1, *start2, *stop2)
+    def intersect(self, start1, stop1, start2, stop2):
+        def get_xy(p):
+            if hasattr(p, 'projected_x') and p.projected_x is not None:
+                return p.projected_x, p.projected_y
+            if isinstance(p, (tuple, list)):
+                return self.to_projection.transform(p[1], p[0])
+            return self.to_projection.transform(p.longitude, p.latitude)
+
+        s1_xy = get_xy(start1)
+        p1_xy = get_xy(stop1)
+        s2_xy = get_xy(start2)
+        p2_xy = get_xy(stop2)
+
+        intersection = line_intersect(*s1_xy, *p1_xy, *s2_xy, *p2_xy)
         if intersection is None:
             return None
         converted = self.from_projection.transform(*intersection)

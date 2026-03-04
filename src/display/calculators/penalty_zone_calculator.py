@@ -27,25 +27,24 @@ class PenaltyZoneCalculator(Calculator):
         gates: List["Gate"],
         route: "Route",
         score_processing_queue: Queue,
+        live_processing: bool = True,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue)
+        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
         self.inside_zones = set()
         self.running_penalty = {}
         self.gates = gates
         self.crossed_outside_time = None
         self.last_outside_penalty = None
         self.crossed_outside_position = None
-        
-        self.zone_helpers = [] # List of (zone_pk, helper, polygon)
+        waypoint = self.contestant.navigation_task.route.waypoints[0]
+        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
+        self.zone_polygons = []
         self.zone_map = {}
         self.entered_polygon_times = {}
         zones = route.prohibited_set.filter(type="penalty")
         for zone in zones:
             self.zone_map[zone.pk] = zone
-            # Create a helper centered on this zone's first point for better UTM precision
-            helper = PolygonHelper(zone.path[0][0], zone.path[0][1])
-            poly = helper.build_polygon(zone.path)
-            self.zone_helpers.append((zone.pk, helper, poly))
+            self.zone_polygons.append((zone.pk, self.polygon_helper.build_polygon(zone.path)))
 
     def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         pass
@@ -63,15 +62,9 @@ class PenaltyZoneCalculator(Calculator):
         Danger level ranges from 0 to 100 where 100 is inside a penalty zone
         """
         LOOKAHEAD_SECONDS = 40
-        shortest_time = LOOKAHEAD_SECONDS
-        
-        for zone_pk, helper, poly in self.zone_helpers:
-            time = get_shortest_intersection_time(
-                track, helper, [(zone_pk, poly)], LOOKAHEAD_SECONDS
-            )
-            if time < shortest_time:
-                shortest_time = time
-                
+        shortest_time = get_shortest_intersection_time(
+            track, self.polygon_helper, self.zone_polygons, LOOKAHEAD_SECONDS
+        )
         return 99 * (LOOKAHEAD_SECONDS - shortest_time) / LOOKAHEAD_SECONDS
 
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]):
@@ -92,12 +85,9 @@ class PenaltyZoneCalculator(Calculator):
     def check_inside_prohibited_zone(self, track: List[ContestantReceivedPosition], last_gate: Optional["Gate"]):
         position = track[-1]
         zone_pks_the_position_was_already_inside = list(self.entered_polygon_times.keys())
-        
-        zone_pks_the_position_is_currently_inside = []
-        for zone_pk, helper, poly in self.zone_helpers:
-            if helper.check_inside_polygons([(zone_pk, poly)], position.latitude, position.longitude):
-                zone_pks_the_position_is_currently_inside.append(zone_pk)
-
+        zone_pks_the_position_is_currently_inside = self.polygon_helper.check_inside_polygons(
+            self.zone_polygons, position.latitude, position.longitude
+        )
         for zone_pk in zone_pks_the_position_is_currently_inside:
             if zone_pk not in self.entered_polygon_times:
                 self.entered_polygon_times[zone_pk] = position.time

@@ -116,12 +116,14 @@ class Calculator(ABC):
         gates: List["Gate"],
         route: "Route",
         score_processing_queue: Queue,
+        live_processing: bool = True,
     ):
         self.contestant = contestant
         self.scorecard = scorecard
         self.gates = gates
         self.route = route
         self.score_processing_queue = score_processing_queue
+        self.live_processing = live_processing
         logger.debug(f"{contestant}: Starting calculator {self}")
 
     def update_score(self, update_score_message: UpdateScoreMessage) -> None:

@@ -1,4 +1,5 @@
 import logging
+import math
 from datetime import timedelta, datetime
 from typing import Tuple, List, Optional
 
@@ -45,6 +46,35 @@ class Gate:
         self.maybe_missed_time = None
         self.maybe_missed_position = None
         self.expected_time = expected_time
+        
+        self.projected_gate_line = None
+        self.projected_gate_line_infinite = None
+        self.projected_gate_line_extended = None
+
+    def pre_project(self, projector: Projector):
+        def project_line(line):
+            if line is None: return None
+            return (
+                projector.project_point(line[0][0], line[0][1]),
+                projector.project_point(line[1][0], line[1][1])
+            )
+        
+        self.projected_gate_line = project_line(self.gate_line)
+        self.projected_gate_line_infinite = project_line(self.gate_line_infinite)
+        self.projected_gate_line_extended = project_line(self.gate_line_extended)
+        
+        if self.projected_gate_line:
+            self.center_x = (self.projected_gate_line[0].projected_x + self.projected_gate_line[1].projected_x) / 2
+            self.center_y = (self.projected_gate_line[0].projected_y + self.projected_gate_line[1].projected_y) / 2
+            # Calculate half-width (radius) of the gate line
+            self.gate_radius = math.sqrt(
+                (self.projected_gate_line[0].projected_x - self.projected_gate_line[1].projected_x)**2 +
+                (self.projected_gate_line[0].projected_y - self.projected_gate_line[1].projected_y)**2
+            ) / 2
+        else:
+            self.center_x = None
+            self.center_y = None
+            self.gate_radius = 0
 
     def __str__(self):
         return self.name
@@ -83,20 +113,37 @@ class Gate:
 
     def get_gate_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
         if len(track) > 2:
-            return get_intersect_time(projector, track[-3], track[-1], self.gate_line[0], self.gate_line[1])
+            # Fast path: check distance to gate center
+            # Threshold is gate radius + 500m buffer for aircraft movement between points
+            last_pos = track[-1]
+            if hasattr(last_pos, 'projected_x') and self.center_x is not None:
+                dist_sq = (last_pos.projected_x - self.center_x)**2 + (last_pos.projected_y - self.center_y)**2
+                threshold = self.gate_radius + 500 
+                if dist_sq > threshold**2:
+                    return None
+
+            return get_intersect_time(
+                projector, track[-3], track[-1], 
+                self.projected_gate_line[0] if self.projected_gate_line else self.gate_line[0], 
+                self.projected_gate_line[1] if self.projected_gate_line else self.gate_line[1]
+            )
         return None
 
     def get_gate_infinite_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
         if len(track) > 2:
             return get_intersect_time(
-                projector, track[-3], track[-1], self.gate_line_infinite[0], self.gate_line_infinite[1]
+                projector, track[-3], track[-1], 
+                self.projected_gate_line_infinite[0] if self.projected_gate_line_infinite else self.gate_line_infinite[0], 
+                self.projected_gate_line_infinite[1] if self.projected_gate_line_infinite else self.gate_line_infinite[1]
             )
         return None
 
     def get_gate_extended_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
-        if len(track) > 2 and self.gate_line_extended:
+        if len(track) > 2 and (self.projected_gate_line_extended or self.gate_line_extended):
             return get_intersect_time(
-                projector, track[-3], track[-1], self.gate_line_extended[0], self.gate_line_extended[1]
+                projector, track[-3], track[-1], 
+                self.projected_gate_line_extended[0] if self.projected_gate_line_extended else self.gate_line_extended[0], 
+                self.projected_gate_line_extended[1] if self.projected_gate_line_extended else self.gate_line_extended[1]
             )
         return None
 
@@ -160,8 +207,8 @@ def get_intersect_time(
     #                               track_segment_finish.latitude, gate_start[1], gate_start[0], gate_finish[1],
     #                               gate_finish[0])
     intersection = projector.intersect(
-        (track_segment_start.latitude, track_segment_start.longitude),
-        (track_segment_finish.latitude, track_segment_finish.longitude),
+        track_segment_start,
+        track_segment_finish,
         gate_start,
         gate_finish,
     )

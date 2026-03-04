@@ -120,5 +120,6 @@ class ContestantTrack(models.Model):
     def __push_change(self):
         from websocket_channels import WebsocketFacade
 
-        ws = WebsocketFacade()
-        ws.transmit_basic_information(self.contestant)
+        if getattr(self.contestant, "live_processing", True):
+            ws = WebsocketFacade()
+            ws.transmit_basic_information(self.contestant)

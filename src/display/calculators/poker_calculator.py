@@ -26,8 +26,9 @@ class PokerCalculator(Calculator):
         gates,
         route,
         score_processing_queue,
+        live_processing=True,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue)
+        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
         
         self.gate_polygons = []
         if len(self.gates) > 0:

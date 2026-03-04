@@ -51,8 +51,9 @@ class AnrCorridorCalculator(Calculator):
         gates: List["Gate"],
         route: "Route",
         score_processing_queue: Queue,
+        live_processing: bool = True,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue)
+        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
         self.corridor_state = self.INSIDE_CORRIDOR
         self.previous_corridor_state = self.INSIDE_CORRIDOR
         self.crossed_outside_time = None
@@ -66,10 +67,12 @@ class AnrCorridorCalculator(Calculator):
         self.corridor_grace_time = self.scorecard.corridor_grace_time
         waypoint = self.contestant.navigation_task.route.waypoints[0]
         self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
+        self._bounds_cache = {}
         self.track_polygon = self.build_polygon()
         self.existing_reference = None
         self.accumulated_score = 0
-        self.plot_polygon()
+        if self.live_processing:
+            self.plot_polygon()
         self.previous_existing_reference = None
 
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]) -> Tuple[float, float]:
@@ -112,12 +115,26 @@ class AnrCorridorCalculator(Calculator):
         ax.add_geometries([self.track_polygon], crs=self.polygon_helper.utm, facecolor="blue", alpha=0.4)
         plt.savefig("polygon.png", dpi=100)
 
-    def _check_inside_polygon(self, latitude: float, longitude: float) -> bool:
+    def _check_inside_polygon(self, position: ContestantReceivedPosition) -> bool:
         """
         Returns true if the point lies inside the corridor
         """
-        res = "test" in self.polygon_helper.check_inside_polygons([("test", self.track_polygon)], latitude, longitude)
-        # print(f"Checking point {latitude}, {longitude} inside polygon: {res}")
+        # Fast path: use pre-projected coordinates if available
+        if hasattr(position, 'projected_x'):
+            x, y = position.projected_x, position.projected_y
+            # Direct bounding box check
+            if self.track_polygon not in self._bounds_cache:
+                self._bounds_cache[self.track_polygon] = self.track_polygon.bounds
+            
+            minx, miny, maxx, maxy = self._bounds_cache[self.track_polygon]
+            if not (minx <= x <= maxx and miny <= y <= maxy):
+                return False
+            
+            # Still need contains() for precise check
+            p = Point(x, y)
+            return self.track_polygon.contains(p)
+
+        res = "test" in self.polygon_helper.check_inside_polygons([("test", self.track_polygon)], position.latitude, position.longitude)
         return res
 
     def _distance_from_point_to_polygons(self, latitude: float, longitude: float) -> float:
@@ -202,7 +219,7 @@ class AnrCorridorCalculator(Calculator):
     def check_outside_corridor(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         self.previous_corridor_state = self.corridor_state
         position = track[-1]
-        if not self._check_inside_polygon(position.latitude, position.longitude):
+        if not self._check_inside_polygon(position):
             # We are outside the corridor
             if self.corridor_state == self.INSIDE_CORRIDOR:
                 logger.info("{} {}: Heading outside of corridor".format(self.contestant, position.time))

@@ -230,7 +230,14 @@ class Traccar:
 
 def augment_positions_from_traccar(positions):
     """Helper function to convert dates and update the existing objects."""
+    from dateutil.parser import isoparse
     for item in positions:
-        item["device_time"] = parser.parse(item["deviceTime"])
-        item["server_time"] = parser.parse(item["serverTime"])
+        # Traccar date strings are usually ISO8601
+        try:
+            item["device_time"] = isoparse(item["deviceTime"])
+            item["server_time"] = isoparse(item["serverTime"])
+        except ValueError:
+            # Fallback to slower parser if not ISO8601
+            item["device_time"] = parser.parse(item["deviceTime"])
+            item["server_time"] = parser.parse(item["serverTime"])
         item["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)

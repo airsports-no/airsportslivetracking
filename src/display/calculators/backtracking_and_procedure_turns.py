@@ -60,8 +60,9 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         gates: List["Gate"],
         route: "Route",
         score_processing_queue: Queue,
+        live_processing: bool = True,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue)
+        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
         self.contestant = contestant
         self.scorecard = scorecard
         self.current_procedure_turn_gate = None

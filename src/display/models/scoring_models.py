@@ -51,7 +51,8 @@ class ScoreLogEntry(models.Model):
     @classmethod
     def create_and_push(cls, **kwargs) -> "ScoreLogEntry":
         entry = cls.objects.create(**kwargs)
-        cls.push(entry)
+        if getattr(entry.contestant, "live_processing", True):
+            cls.push(entry)
         return entry
 
 
@@ -91,7 +92,8 @@ class TrackAnnotation(models.Model):
     @classmethod
     def create_and_push(cls, **kwargs) -> "TrackAnnotation":
         annotation = cls.objects.create(**kwargs)
-        cls.push(annotation)
+        if getattr(annotation.contestant, "live_processing", True):
+            cls.push(annotation)
         return annotation
 
 

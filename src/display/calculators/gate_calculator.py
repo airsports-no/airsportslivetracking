@@ -43,8 +43,9 @@ class GateCalculator(Calculator):
         gates,
         route,
         score_processing_queue,
+        live_processing=True,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue)
+        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
         self.websocket_facade = WebsocketFacade()
         self.last_backwards = None
         self.has_scored_adaptive_start = False
@@ -100,15 +101,16 @@ class GateCalculator(Calculator):
             gate.type, gate.expected_time, estimated_crossing_time
         )
 
-        self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(
-            self.contestant,
-            gate.name,
-            planned_time_to_crossing,
-            round((estimated_crossing_time - gate.expected_time).total_seconds()),
-            score,
-            True,
-            gate.missed,
-        )
+        if self.live_processing:
+            self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(
+                self.contestant,
+                gate.name,
+                planned_time_to_crossing,
+                round((estimated_crossing_time - gate.expected_time).total_seconds()),
+                score,
+                True,
+                gate.missed,
+            )
 
     def calculate_speed(self, track: List[ContestantReceivedPosition]) -> float:
         if len(track) < 2:
@@ -169,7 +171,7 @@ class GateCalculator(Calculator):
         if estimation_event:
             events.append(estimation_event)
             
-        if state.estimated_next_timed_gate and state.estimated_crossing_time:
+        if self.live_processing and state.estimated_next_timed_gate and state.estimated_crossing_time:
             planned_time_to_crossing = (track[-1].time - state.estimated_next_timed_gate.expected_time).total_seconds()
             score = self.scorecard.get_gate_timing_score_for_gate_type(
                 state.estimated_next_timed_gate.type, state.estimated_next_timed_gate.expected_time, state.estimated_crossing_time
@@ -237,6 +239,10 @@ class GateCalculator(Calculator):
         passed_intersection_time = None
         for i, intersected_gate in enumerate(state.outstanding_gates):
             if starting_line_detected and intersected_gate == self.gates[0]:
+                continue
+            
+            # Skip gates without checks to save time
+            if not intersected_gate.gate_check and not intersected_gate.time_check:
                 continue
                 
             intersection_time = intersected_gate.get_gate_intersection_time(state.projector, track)
@@ -325,6 +331,10 @@ class GateCalculator(Calculator):
         # Catch any remaining missed gates at the very end of processing
         from display.utilities.route_building_utilities import calculate_extended_gate
         
+        # Cache contestant data once
+        gate_times = self.contestant.gate_times
+        gate_times_actual = self.contestant.gate_times_actual
+
         # Check main route waypoints (SP, TP, FP)
         for gate in self.gates:
             if not gate.has_been_passed() and not gate.missed and (gate.name, GATE_SCORE_TYPE) not in self.scored_gates:
@@ -334,18 +344,18 @@ class GateCalculator(Calculator):
         for tg in self.route.takeoff_gates:
             if (tg.name, GATE_SCORE_TYPE) in self.scored_gates:
                 continue
-            expected_time = self.contestant.gate_times.get(tg.name)
+            expected_time = gate_times.get(tg.name)
             g = Gate(tg, expected_time, calculate_extended_gate(tg, self.scorecard))
-            if tg.name not in self.contestant.gate_times_actual:
+            if tg.name not in gate_times_actual:
                 g.missed = True
                 self.missed_gate(None, g, track[-1] if track else None)
 
         for lg in self.route.landing_gates:
             if (lg.name, GATE_SCORE_TYPE) in self.scored_gates:
                 continue
-            expected_time = self.contestant.gate_times.get(lg.name)
+            expected_time = gate_times.get(lg.name)
             g = Gate(lg, expected_time, calculate_extended_gate(lg, self.scorecard))
-            if lg.name not in self.contestant.gate_times_actual:
+            if lg.name not in gate_times_actual:
                 g.missed = True
                 self.missed_gate(None, g, track[-1] if track else None)
 

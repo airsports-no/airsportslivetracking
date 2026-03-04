@@ -77,6 +77,7 @@ class ContestantProcessor:
         super().__init__()
         logger.info(f"{contestant}: Created contestant processor")
         self.contestant = contestant
+        self.contestant.live_processing = live_processing
         self.live_processing = live_processing
 
         self.position_queue = RedisQueue(queue_name_override or str(contestant.pk))
@@ -84,19 +85,25 @@ class ContestantProcessor:
         self.previous_position = None
         self.track_terminated = False
         self.contestant_track: ContestantTrack = contestant.contestanttrack
-        self.contestant_track.update_score(self.contestant.navigation_task.scorecard.initial_score)
+
+        # Reset scoring only once
+        self.contestant.reset_track_and_score()
+        self.contestant_track.refresh_from_db()
+        self.score = self.contestant_track.score
+
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.score_processing_queue = Queue()
-        self.last_termination_command_check = None
-        self.score = self.contestant_track.score
+        self.last_termination_check = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+        self.termination_requested_cached = False
         self.process_event = threading.Event()
-        self.contestant.reset_track_and_score()
         self.contestant.contestantreceivedposition_set.all().delete()
         self.contestant.track_version += 1
         self.contestant.save(update_fields=["track_version"])
         self.contestant_track.set_calculator_started()
         self.scorecard = self.contestant.navigation_task.scorecard
         self.scorecard.refresh_from_db()
+        self.time_zone = self.contestant.navigation_task.contest.time_zone
+        self.gate_scores = {} # Cache for GateCumulativeScore objects
         self.position_update_lock = threading.Lock()
         self.accumulated_scores = ScoreAccumulator()
         self.websocket_facade = WebsocketFacade()
@@ -106,18 +113,24 @@ class ContestantProcessor:
         self.finished_loading_initial_positions = (
             threading.Event()
         )  # Used to prevent the calculator from terminating while we are waiting for initial data if it starts after-the-fact.
-        post_slack_competition_message(
-            str(self.contestant.navigation_task),
-            f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
-        )
-        self.websocket_facade.transmit_delete_contestant(self.contestant)
-        self.websocket_facade.transmit_contestant(self.contestant)
+
+        if self.live_processing:
+            post_slack_competition_message(
+                str(self.contestant.navigation_task),
+                f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
+            )
+            self.websocket_facade.transmit_delete_contestant(self.contestant)
+            self.websocket_facade.transmit_contestant(self.contestant)
+
         self.score_thread = threading.Thread(target=self.score_updater_thread, daemon=True)
         self.score_thread.start()
-        self.gatekeeper = calculator_factory(self.contestant, self.score_processing_queue)
+        self.gatekeeper = calculator_factory(
+            self.contestant, self.score_processing_queue, live_processing=self.live_processing
+        )
 
     def score_updater_thread(self):
         from queue import Empty
+
         while not self.track_terminated or not self.score_processing_queue.empty():
             try:
                 score = self.score_processing_queue.get(timeout=1)
@@ -203,9 +216,10 @@ class ContestantProcessor:
         loses connectivity with the Web server.
         """
         self.contestant.refresh_from_db()
-        self.websocket_facade.transmit_score_log_entry(self.contestant)
-        self.websocket_facade.transmit_annotations(self.contestant)
-        self.websocket_facade.transmit_basic_information(self.contestant)
+        if self.live_processing:
+            self.websocket_facade.transmit_score_log_entry(self.contestant)
+            self.websocket_facade.transmit_annotations(self.contestant)
+            self.websocket_facade.transmit_basic_information(self.contestant)
 
     def run(self):
         """
@@ -230,7 +244,7 @@ class ContestantProcessor:
         number_of_positions = 0
         # Wait while the thread loads outstanding positions.
         self.finished_loading_initial_positions.wait()
-        
+
         # Check for termination again after wait
         if self.is_termination_commanded():
             logger.info(f"{self.contestant}: Termination request received after initial positions wait")
@@ -250,10 +264,12 @@ class ContestantProcessor:
                 self.last_status_check = now
 
             if self.live_processing and now > self.contestant.finished_by_time + self.delay:
-                data = self.timed_queue.peek()
-                if data is None or data["device_time"] > now:
-                    self.notify_termination()
-                    break
+                # Only peek every 5 seconds to reduce Redis overhead
+                if now - self.last_status_check > datetime.timedelta(seconds=5):
+                    data = self.timed_queue.peek()
+                    if data is None or data["device_time"] > now:
+                        self.notify_termination()
+                        break
             if now - self.last_contestant_refresh > CONTESTANT_REFRESH_INTERVAL:
                 self.refresh_scores()
                 try:
@@ -278,12 +294,13 @@ class ContestantProcessor:
                     positions_to_save = []
                 self.notify_termination()
                 continue
-            
+
             if self.track_terminated:
                 break
-                
+
             if not receiving:
                 logger.info(f"{self.contestant}: Started processing data")
+                receiving = True
             # logger.debug(f"Processing position ID {position_data['id']} for device ID {position_data['deviceId']}")
             position_data["calculator_received_time"] = datetime.datetime.now(datetime.timezone.utc)
             number_of_positions += 1
@@ -318,9 +335,15 @@ class ContestantProcessor:
                 positions_to_save = []
 
             for position in all_positions:
+                # Pre-project position using gatekeeper's projector if it exists
+                if self.gatekeeper.projector:
+                    p_obj = self.gatekeeper.projector.project_point(position.latitude, position.longitude)
+                    position.projected_x = p_obj.projected_x
+                    position.projected_y = p_obj.projected_y
                 self.gatekeeper.calculate_score(position)
 
-            self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
+            if self.live_processing:
+                self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
         if positions_to_save:
             ContestantReceivedPosition.objects.bulk_create(positions_to_save)
         self.gatekeeper.finished_processing()
@@ -383,11 +406,14 @@ class ContestantProcessor:
         """
         Return true if manual termination has been requested.
         """
-        termination_requested = is_termination_requested(self.contestant.pk)
-        if termination_requested:
-            logger.info(f"{self.contestant}: Termination request received")
-            return True
-        return False
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if now - self.last_termination_check > datetime.timedelta(seconds=5):
+            self.termination_requested_cached = is_termination_requested(self.contestant.pk)
+            self.last_termination_check = now
+            if self.termination_requested_cached:
+                logger.info(f"{self.contestant}: Termination request received")
+        
+        return self.termination_requested_cached
 
     def enqueue_positions_thread(self):
         """
@@ -470,15 +496,16 @@ class ContestantProcessor:
             offset_string = ""
         if capped:
             update_score_message.message += " (capped)"
+        
         planned_time = (
-            update_score_message.planned.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
+            update_score_message.planned.astimezone(self.time_zone).strftime(
                 "%H:%M:%S"
             )
             if update_score_message.planned
             else None
         )
         actual_time = (
-            update_score_message.actual.astimezone(self.contestant.navigation_task.contest.time_zone).strftime(
+            update_score_message.actual.astimezone(self.time_zone).strftime(
                 "%H:%M:%S"
             )
             if update_score_message.actual
@@ -497,9 +524,21 @@ class ContestantProcessor:
         if len(times_string) > 0:
             string += f"\n{times_string}"
         logger.info("UPDATE_SCORE {}: {}{}".format(self.contestant, "", string))
-        # Take into account that external events may have changed the score
-        self.contestant_track.refresh_from_db()
-        self.contestant.record_score_by_gate(update_score_message.gate.name, score)
+        # Take into account that external events may have changed the score - only for live runs
+        if self.live_processing:
+            self.contestant_track.refresh_from_db()
+        
+        # Optimized record_score_by_gate logic with local caching
+        gate_name = update_score_message.gate.name
+        if gate_name not in self.gate_scores:
+            from display.models import GateCumulativeScore
+            gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate_name, contestant=self.contestant)
+            self.gate_scores[gate_name] = gate_score
+        
+        gate_score = self.gate_scores[gate_name]
+        gate_score.points += score
+        gate_score.save(update_fields=['points'])
+        
         self.score = self.contestant_track.score
         logger.debug(f"Setting existing scores from contestant track: {self.score}")
         self.score += score

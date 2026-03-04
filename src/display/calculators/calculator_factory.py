@@ -19,12 +19,15 @@ from display.utilities.navigation_task_type_definitions import (
 )
 
 
-def calculator_factory(contestant: "Contestant", score_processing_queue: Queue) -> "Gatekeeper":
+def calculator_factory(
+    contestant: "Contestant", score_processing_queue: Queue, live_processing: bool = True
+) -> "Gatekeeper":
     if contestant.navigation_task.scorecard.calculator == PRECISION:
         return Gatekeeper(
             contestant,
             score_processing_queue,
             [GateCalculator, BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator, PenaltyZoneCalculator],
+            live_processing=live_processing,
         )
     if contestant.navigation_task.scorecard.calculator in (
         ANR_CORRIDOR,
@@ -41,9 +44,12 @@ def calculator_factory(contestant: "Contestant", score_processing_queue: Queue) 
                 ProhibitedZoneCalculator,
                 PenaltyZoneCalculator,
             ],
+            live_processing=live_processing,
         )
     if contestant.navigation_task.scorecard.calculator == LANDING:
-        return Gatekeeper(contestant, score_processing_queue, [LandingPatternCalculator])
+        return Gatekeeper(
+            contestant, score_processing_queue, [LandingPatternCalculator], live_processing=live_processing
+        )
     if contestant.navigation_task.scorecard.calculator == POKER:
         return Gatekeeper(
             contestant,
@@ -53,5 +59,6 @@ def calculator_factory(contestant: "Contestant", score_processing_queue: Queue) 
                 ProhibitedZoneCalculator,
                 PenaltyZoneCalculator,
             ],
+            live_processing=live_processing,
         )
-    return Gatekeeper(contestant, score_processing_queue, [GateCalculator])
+    return Gatekeeper(contestant, score_processing_queue, [GateCalculator], live_processing=live_processing)

@@ -83,12 +83,15 @@ class PolygonHelper:
     def __init__(self, latitude, longitude):
         self.pc = ccrs.PlateCarree()
         self.utm = utm_from_lat_lon(latitude, longitude)
+        self._bounds_cache = {}
 
     def build_polygon(self, path):
         line = []
+        # logger.info(f"Building polygon with path sample: {path[:2] if path else 'empty'}")
         for element in path:
             # transform_point expects (x, y) which is (longitude, latitude)
-            line.append(self.utm.transform_point(element[0], element[1], self.pc))
+            # if element is (lat, lon), we need to swap them
+            line.append(self.utm.transform_point(element[1], element[0], self.pc))
         return Polygon(line)
 
     def check_inside_polygons(self, polygons: list[tuple[int, Polygon]], latitude, longitude) -> list[int]:
@@ -98,10 +101,19 @@ class PolygonHelper:
         x, y = self.utm.transform_point(longitude, latitude, self.pc)
         p = Point(x, y)
         incursions = []
-        for zone_pk, zone in polygons:
-            if zone.contains(p):
+        for zone_pk, poly in polygons:
+            # Bounding box check first
+            # Caching bounds if not already present
+            if poly not in self._bounds_cache:
+                self._bounds_cache[poly] = poly.bounds
+            
+            minx, miny, maxx, maxy = self._bounds_cache[poly]
+            if not (minx <= x <= maxx and miny <= y <= maxy):
+                continue
+            if poly.contains(p):
                 incursions.append(zone_pk)
         return incursions
+
 
     def distance_from_point_to_polygons(
         self, polygons: list[tuple[str, Polygon]], latitude, longitude
