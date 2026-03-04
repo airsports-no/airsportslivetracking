@@ -12,6 +12,7 @@ class ScoreLogEntry(models.Model):
     """
     Represents the details around the score awarded when passing a gate.
     """
+
     time = models.DateTimeField()
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     gate = models.CharField(max_length=30, default="")
@@ -51,8 +52,7 @@ class ScoreLogEntry(models.Model):
     @classmethod
     def create_and_push(cls, **kwargs) -> "ScoreLogEntry":
         entry = cls.objects.create(**kwargs)
-        if getattr(entry.contestant, "live_processing", True):
-            cls.push(entry)
+        cls.push(entry)
         return entry
 
 
@@ -62,6 +62,7 @@ class TrackAnnotation(models.Model):
     but where the former appears in the score details list, these entities are displayed at specific positions on the
     map where the event occurred.
     """
+
     time = models.DateTimeField()
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     score_log_entry = models.ForeignKey(ScoreLogEntry, on_delete=models.CASCADE)
@@ -92,8 +93,7 @@ class TrackAnnotation(models.Model):
     @classmethod
     def create_and_push(cls, **kwargs) -> "TrackAnnotation":
         annotation = cls.objects.create(**kwargs)
-        if getattr(annotation.contestant, "live_processing", True):
-            cls.push(annotation)
+        cls.push(annotation)
         return annotation
 
 
@@ -101,6 +101,7 @@ class GateCumulativeScore(models.Model):
     """
     Holds the cumulative score accrued up until passing the gate.
     """
+
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     gate = models.CharField(max_length=30)
     points = models.FloatField(default=0)
@@ -113,6 +114,7 @@ class ActualGateTime(models.Model):
     """
     The actual passing time for a specific date for a contestant.
     """
+
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     gate = models.CharField(max_length=30)
     time = models.DateTimeField()

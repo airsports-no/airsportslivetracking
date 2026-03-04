@@ -103,7 +103,7 @@ class ContestantProcessor:
         self.scorecard = self.contestant.navigation_task.scorecard
         self.scorecard.refresh_from_db()
         self.time_zone = self.contestant.navigation_task.contest.time_zone
-        self.gate_scores = {} # Cache for GateCumulativeScore objects
+        self.gate_scores = {}  # Cache for GateCumulativeScore objects
         self.position_update_lock = threading.Lock()
         self.accumulated_scores = ScoreAccumulator()
         self.websocket_facade = WebsocketFacade()
@@ -119,8 +119,8 @@ class ContestantProcessor:
                 str(self.contestant.navigation_task),
                 f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
             )
-            self.websocket_facade.transmit_delete_contestant(self.contestant)
-            self.websocket_facade.transmit_contestant(self.contestant)
+        self.websocket_facade.transmit_delete_contestant(self.contestant)
+        self.websocket_facade.transmit_contestant(self.contestant)
 
         self.score_thread = threading.Thread(target=self.score_updater_thread, daemon=True)
         self.score_thread.start()
@@ -216,10 +216,9 @@ class ContestantProcessor:
         loses connectivity with the Web server.
         """
         self.contestant.refresh_from_db()
-        if self.live_processing:
-            self.websocket_facade.transmit_score_log_entry(self.contestant)
-            self.websocket_facade.transmit_annotations(self.contestant)
-            self.websocket_facade.transmit_basic_information(self.contestant)
+        self.websocket_facade.transmit_score_log_entry(self.contestant)
+        self.websocket_facade.transmit_annotations(self.contestant)
+        self.websocket_facade.transmit_basic_information(self.contestant)
 
     def run(self):
         """
@@ -412,7 +411,7 @@ class ContestantProcessor:
             self.last_termination_check = now
             if self.termination_requested_cached:
                 logger.info(f"{self.contestant}: Termination request received")
-        
+
         return self.termination_requested_cached
 
     def enqueue_positions_thread(self):
@@ -496,18 +495,14 @@ class ContestantProcessor:
             offset_string = ""
         if capped:
             update_score_message.message += " (capped)"
-        
+
         planned_time = (
-            update_score_message.planned.astimezone(self.time_zone).strftime(
-                "%H:%M:%S"
-            )
+            update_score_message.planned.astimezone(self.time_zone).strftime("%H:%M:%S")
             if update_score_message.planned
             else None
         )
         actual_time = (
-            update_score_message.actual.astimezone(self.time_zone).strftime(
-                "%H:%M:%S"
-            )
+            update_score_message.actual.astimezone(self.time_zone).strftime("%H:%M:%S")
             if update_score_message.actual
             else None
         )
@@ -527,18 +522,19 @@ class ContestantProcessor:
         # Take into account that external events may have changed the score - only for live runs
         if self.live_processing:
             self.contestant_track.refresh_from_db()
-        
+
         # Optimized record_score_by_gate logic with local caching
         gate_name = update_score_message.gate.name
         if gate_name not in self.gate_scores:
             from display.models import GateCumulativeScore
+
             gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate_name, contestant=self.contestant)
             self.gate_scores[gate_name] = gate_score
-        
+
         gate_score = self.gate_scores[gate_name]
         gate_score.points += score
-        gate_score.save(update_fields=['points'])
-        
+        gate_score.save(update_fields=["points"])
+
         self.score = self.contestant_track.score
         logger.debug(f"Setting existing scores from contestant track: {self.score}")
         self.score += score
