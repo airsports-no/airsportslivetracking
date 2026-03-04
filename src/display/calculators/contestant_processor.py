@@ -119,8 +119,8 @@ class ContestantProcessor:
                 str(self.contestant.navigation_task),
                 f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
             )
-            self.websocket_facade.transmit_delete_contestant(self.contestant)
-            self.websocket_facade.transmit_contestant(self.contestant)
+        self.websocket_facade.transmit_delete_contestant(self.contestant)
+        self.websocket_facade.transmit_contestant(self.contestant)
 
         self.score_thread = threading.Thread(target=self.score_updater_thread, daemon=True)
         self.score_thread.start()
@@ -142,7 +142,6 @@ class ContestantProcessor:
             except Empty:
                 continue
         logger.info(f"{self.contestant}: score_updater_thread exiting")
-
 
     def interpolate_track(
         self, last_position: Optional[ContestantReceivedPosition], position: ContestantReceivedPosition
@@ -220,10 +219,9 @@ class ContestantProcessor:
         loses connectivity with the Web server.
         """
         self.contestant.refresh_from_db()
-        if self.live_processing:
-            self.websocket_facade.transmit_score_log_entry(self.contestant)
-            self.websocket_facade.transmit_annotations(self.contestant)
-            self.websocket_facade.transmit_basic_information(self.contestant)
+        self.websocket_facade.transmit_score_log_entry(self.contestant)
+        self.websocket_facade.transmit_annotations(self.contestant)
+        self.websocket_facade.transmit_basic_information(self.contestant)
 
     def run(self):
         """
@@ -248,7 +246,7 @@ class ContestantProcessor:
         number_of_positions = 0
         # Wait while the thread loads outstanding positions.
         self.finished_loading_initial_positions.wait()
-        
+
         # Check for termination again after wait
         if self.is_termination_commanded():
             logger.info(f"{self.contestant}: Termination request received after initial positions wait")
@@ -349,14 +347,13 @@ class ContestantProcessor:
                     position.projected_y = p_obj.projected_y
                 self.gatekeeper.calculate_score(position)
 
-            if self.live_processing:
-                self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
+            self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
         if positions_to_save:
             ContestantReceivedPosition.objects.bulk_create(positions_to_save)
-        
+
         if number_of_positions > 0:
             self.gatekeeper.finished_processing()
-        
+
         self.contestant_track.set_calculator_finished()
         # Drain the position queue efficiently
         while True:
@@ -370,6 +367,7 @@ class ContestantProcessor:
         self.queuer_thread.join()
         logger.info("Terminating calculator for {}".format(self.contestant))
         calculator_is_terminated(self.contestant.pk)
+
     def should_i_terminate(self):
         """
         Check if the time has passed the finished by time and terminate the  processor if this is the case

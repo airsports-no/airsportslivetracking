@@ -43,7 +43,7 @@ class Gatekeeper:
     """
     The Gatekeeper is the main class for scoring contestants during flight. As the name implies it is built around
     maintaining a list of gates and tracking the contestants progress through these gates.
-    
+
     To score other aspects than gate passing, the gatekeeper supports a list of calculators. This can be used to score
     additional elements such as altitude constraints, penalty zones, prohibited zones, backtracking, et cetera.
     """
@@ -77,7 +77,7 @@ class Gatekeeper:
 
         self.last_gate = None  # type: Optional[Gate]
         self.previous_last_gate = None  # type: Optional[Gate]
-        
+
         # Use first waypoint for projector, fallback to first landing gate if no waypoints
         if len(self.gates) > 0:
             self.projector = Projector(self.gates[0].latitude, self.gates[0].longitude)
@@ -137,14 +137,14 @@ class Gatekeeper:
         Calculate expected crossing times for all outstanding gates given the start time.
         """
         self.contestant.refresh_from_db()
-        
+
         # For adaptive start, round to closest minute as per help text
         if self.contestant.adaptive_start:
             rounded_start_time = start_time.replace(second=0, microsecond=0)
             if start_time.second >= 30:
                 rounded_start_time += datetime.timedelta(minutes=1)
             start_time = rounded_start_time
-            
+
         gate_times = self.contestant.calculate_missing_gate_times({}, start_time)
         Contestant.objects.filter(pk=self.contestant.pk).update(predefined_gate_times=gate_times)
         logger.info(f"Recalculating gates times for contestant {self.contestant}: {gate_times}")
@@ -153,12 +153,12 @@ class Gatekeeper:
         for item in self.gates:
             if item.name in gate_times:
                 item.expected_time = gate_times[item.name]
-        
+
         if self.takeoff_gate is not None:
             for gate in self.takeoff_gate.gates:
                 if gate.name in gate_times:
                     gate.expected_time = gate_times[gate.name]
-                    
+
         if self.landing_gate is not None:
             for gate in self.landing_gate.gates:
                 if gate.name in gate_times:
@@ -279,13 +279,14 @@ class Gatekeeper:
         """
         if isinstance(event, GatePassedEvent):
             event.gate.pass_gate(event.intersection_time)
+            self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             if event.gate in self.outstanding_gates:
                 self.pop_gate(self.outstanding_gates.index(event.gate), True)
             else:
                 self.previous_last_gate = self.last_gate
                 self.last_gate = event.gate
                 self.update_enroute()
-            
+
             for calculator in self.calculators:
                 calculator.on_gate_passed(event.gate, event.position)
 
@@ -295,18 +296,19 @@ class Gatekeeper:
         elif isinstance(event, GateMissedEvent):
             event.gate.missed = True
             if event.gate in self.outstanding_gates:
-                self.pop_gate(self.outstanding_gates.index(event.gate), False)
+                self.pop_gate(self.outstanding_gates.index(event.gate), True)
             for calculator in self.calculators:
                 if hasattr(calculator, "missed_gate_with_time"):
                     calculator.missed_gate_with_time(event.previous_gate, event.gate, event.position, event.event_time)
                 else:
                     calculator.missed_gate(event.previous_gate, event.gate, event.position)
-            
+
             if event.gate.type == "fp":
                 self.passed_finishpoint()
 
         elif isinstance(event, TakeoffPassedEvent):
             event.gate.pass_gate(event.intersection_time)
+            self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             if self.takeoff_gate:
                 self.takeoff_gate.pass_gate(event.intersection_time)
             for calculator in self.calculators:
@@ -314,6 +316,7 @@ class Gatekeeper:
 
         elif isinstance(event, LandingPassedEvent):
             event.gate.pass_gate(event.intersection_time)
+            self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             if self.landing_gate:
                 self.landing_gate.pass_gate(event.intersection_time)
             for calculator in self.calculators:
@@ -324,25 +327,18 @@ class Gatekeeper:
 
         elif isinstance(event, StartingLinePassedEvent):
             event.gate.pass_infinite_gate(event.intersection_time)
-            
+
             # Recalculate if this is the start point and adaptive start is on
             # (In case the event didn't come through as AdaptiveStartEvent specifically)
             if self.contestant.adaptive_start and not self.recalculation_completed:
                 self.recalculate_gates_times_from_start_time(event.intersection_time)
 
-            if event.gate in self.outstanding_gates:
-                self.pop_gate(self.outstanding_gates.index(event.gate), True)
-                for calculator in self.calculators:
-                    calculator.on_starting_line_passed(event.gate, event.position)
-                    calculator.on_gate_passed(event.gate, event.position)
-            else:
-                self.previous_last_gate = self.last_gate
-                self.last_gate = event.gate
-                self.update_enroute(override_enroute=True)
-                for calculator in self.calculators:
-                    calculator.on_starting_line_passed(event.gate, event.position)
-                    calculator.on_gate_passed(event.gate, event.position)
+            if not self.enroute:
+                self.enroute = True
+                logger.info(f"{self.contestant}: Switching to enroute after starting line crossing")
 
+            for calculator in self.calculators:
+                calculator.on_starting_line_passed(event.gate, event.position)
         elif isinstance(event, StartingLineExtendedPassedWrongDirectionEvent):
             for calculator in self.calculators:
                 calculator.on_starting_line_extended_passed_wrong_direction(event.gate, event.position)
@@ -379,7 +375,7 @@ class Gatekeeper:
         Calculate the score. Is called once for every received (or interpolated) position.
         """
         self.track.append(position)
-        
+
         # Detection and state update phase
         state = self.get_state()
         for calculator in self.calculators:
@@ -387,7 +383,7 @@ class Gatekeeper:
                 events = calculator.calculate_enroute(self.track, state)
             else:
                 events = calculator.calculate_outside_route(self.track, state)
-            
+
             for event in events:
                 self.handle_event(event)
                 # Refresh state after event in case subsequent calculators need new state
@@ -396,7 +392,7 @@ class Gatekeeper:
         if self.last_gate and self.last_gate.type == "fp":
             self.passed_finishpoint()
 
-        if self.last_danger_level_report + DANGER_LEVEL_REPORT_INTERVAL < time.time():
+        if self.live_processing and self.last_danger_level_report + DANGER_LEVEL_REPORT_INTERVAL < time.time():
             self.last_danger_level_report = time.time()
             self.report_calculator_danger_level()
 

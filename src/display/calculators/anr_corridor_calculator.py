@@ -71,8 +71,6 @@ class AnrCorridorCalculator(Calculator):
         self.track_polygon = self.build_polygon()
         self.existing_reference = None
         self.accumulated_score = 0
-        if self.live_processing:
-            self.plot_polygon()
         self.previous_existing_reference = None
 
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]) -> Tuple[float, float]:
@@ -114,6 +112,7 @@ class AnrCorridorCalculator(Calculator):
         ax.plot(self.track_polygon.boundary.xy[0], self.track_polygon.boundary.xy[1])
         ax.add_geometries([self.track_polygon], crs=self.polygon_helper.utm, facecolor="blue", alpha=0.4)
         plt.savefig("polygon.png", dpi=100)
+
     def _check_inside_polygon(self, position: ContestantReceivedPosition) -> bool:
         """
         Returns true if the point lies inside the corridor
@@ -154,7 +153,7 @@ class AnrCorridorCalculator(Calculator):
     def check_and_apply_outside_penalty(self, position: ContestantReceivedPosition, last_gate: Gate):
         if self.crossed_outside_time is None:
             return
-        
+
         # Use first waypoint as a fallback if last_gate is None
         scoring_gate = self.get_last_non_secret_gate(last_gate) if last_gate else self.gates[0]
         gate_name = last_gate.name if last_gate else scoring_gate.name
@@ -181,7 +180,7 @@ class AnrCorridorCalculator(Calculator):
                     position.latitude,
                     position.longitude,
                     INFORMATION,
-                    f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{gate_name}",
+                    self.OUTSIDE_CORRIDOR_PENALTY_TYPE,
                 )
             )
         elif self.corridor_state == self.INSIDE_CORRIDOR and self.previous_corridor_state == self.OUTSIDE_CORRIDOR:
@@ -195,7 +194,7 @@ class AnrCorridorCalculator(Calculator):
                     position.latitude,
                     position.longitude,
                     ANOMALY,
-                    f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{gate_name}",
+                    self.OUTSIDE_CORRIDOR_PENALTY_TYPE,
                     maximum_score=self.scorecard.corridor_maximum_penalty,
                 )
             )
@@ -216,6 +215,23 @@ class AnrCorridorCalculator(Calculator):
     def check_outside_corridor(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         self.previous_corridor_state = self.corridor_state
         position = track[-1]
+
+        # Detect gate crossing (pass or miss) while outside to advance leg
+        if self.corridor_state == self.OUTSIDE_CORRIDOR and last_gate != self.crossed_outside_gate:
+            logger.info(f"{self.contestant}: Leg advanced from {self.crossed_outside_gate} to {last_gate} while outside corridor")
+            # Finalize current penalty
+            self.corridor_state = self.INSIDE_CORRIDOR  # Fake inside to force finalization
+            self.check_and_apply_outside_penalty(position, self.crossed_outside_gate)
+            
+            # Restart penalty for new leg
+            self.corridor_state = self.OUTSIDE_CORRIDOR
+            self.crossed_outside_time = position.time
+            self.crossed_outside_gate = last_gate
+            self.accumulated_score = 0
+            self.existing_reference = None
+            # Re-initialize with new state
+            self.previous_corridor_state = self.INSIDE_CORRIDOR
+
         if not self._check_inside_polygon(position):
             # We are outside the corridor
             if self.corridor_state == self.INSIDE_CORRIDOR:

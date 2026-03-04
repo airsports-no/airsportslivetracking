@@ -29,7 +29,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
-from django.db import connection
+from django.db import connection, transaction, models
 from django.db.models import Q, ProtectedError
 from django.forms import ModelForm
 
@@ -69,6 +69,7 @@ from display.forms import (
     NavigationTaskForm,
     ContestantForm,
     ContestantQuickAddForm,
+    ContestantRecalculateWithStartTimeForm,
     ContestForm,
     ContestantMapForm,
     LANDSCAPE,
@@ -104,6 +105,7 @@ from display.flight_order_and_maps.map_plotter import (
 from display.models import (
     NavigationTask,
     Contestant,
+    ContestantReceivedPosition,
     Contest,
     Team,
     Person,
@@ -121,6 +123,7 @@ from display.contestant_scheduling.schedule_contestants import schedule_and_crea
 from display.tasks import (
     import_gpx_track,
     process_flymaster_file,
+    recalculate_from_existing_positions,
     recalculate_live_data_for_contestant,
 )
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
@@ -1386,6 +1389,110 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
             actual_times[item.gate] = item.time
         context["actual_times"] = actual_times
         return context
+
+
+class ContestantRecalculateWithStartTimeView(GuardianPermissionRequiredMixin, FormView):
+    form_class = ContestantRecalculateWithStartTimeForm
+    template_name = "display/contestant_recalculate_start_time.html"
+    permission_required = ("display.change_contest",)
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.contestant = get_object_or_404(Contestant, pk=self.kwargs.get("pk"))
+        timezone.activate(self.contestant.navigation_task.contest.time_zone)
+
+    def get_permission_object(self):
+        return self.contestant.navigation_task.contest
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["contestant"] = self.contestant
+        return kwargs
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial["starting_point_time"] = self.contestant.starting_point_time
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["contestant"] = self.contestant
+        context["actual_sp_time"] = self.contestant.actualgatetime_set.filter(gate="SP").first()
+        return context
+
+    def form_valid(self, form):
+        starting_point_time = form.cleaned_data["starting_point_time"]
+        nt = self.contestant.navigation_task
+        
+        # Calculate new times
+        takeoff_time = starting_point_time - datetime.timedelta(minutes=nt.minutes_to_starting_point)
+        tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
+        
+        # Initial estimate for finished_by_time
+        # We can use route length and airspeed if available, else just a buffer
+        route_length_nm = nt.route.route_length_nm
+        airspeed = self.contestant.air_speed or 70
+        estimated_flight_time_minutes = (route_length_nm / airspeed * 60) if airspeed > 0 else 60
+        finished_by_time = starting_point_time + datetime.timedelta(minutes=estimated_flight_time_minutes + nt.minutes_to_landing + 30)
+
+        with transaction.atomic():
+            original_number = self.contestant.contestant_number
+            # Use a temporary contestant number to avoid unique constraint violation
+            temp_number = (nt.contestant_set.aggregate(models.Max("contestant_number"))["contestant_number__max"] or 0) + 100
+            
+            # Create new contestant as a copy of the old one but with updated times
+            new_contestant = Contestant.objects.create(
+                team=self.contestant.team,
+                navigation_task=nt,
+                contestant_number=temp_number,
+                adaptive_start=self.contestant.adaptive_start,
+                takeoff_time=takeoff_time,
+                tracker_start_time=tracker_start_time,
+                finished_by_time=finished_by_time,
+                minutes_to_starting_point=nt.minutes_to_starting_point,
+                air_speed=self.contestant.air_speed,
+                wind_speed=self.contestant.wind_speed,
+                wind_direction=self.contestant.wind_direction,
+                tracking_service=self.contestant.tracking_service,
+                tracking_device=self.contestant.tracking_device,
+                tracker_device_id=self.contestant.tracker_device_id,
+                competition_class_longform=self.contestant.competition_class_longform,
+                competition_class_shortform=self.contestant.competition_class_shortform,
+                schedule_locked=self.contestant.schedule_locked,
+            )
+            new_contestant.finished_by_time=new_contestant.landing_time
+            # Move positions to new contestant
+            positions = ContestantReceivedPosition.objects.filter(contestant=self.contestant)
+            positions.update(contestant=new_contestant)
+            
+            # Move uploaded track if exists
+            try:
+                uploaded_track = self.contestant.contestantuploadedtrack
+                uploaded_track.contestant = new_contestant
+                uploaded_track.save()
+            except ObjectDoesNotExist:
+                pass
+            
+            # Transfer track version
+            new_contestant.track_version = self.contestant.track_version
+            new_contestant.save(update_fields=["track_version"])
+
+            # Delete old contestant
+            old_nt_pk = nt.pk
+            self.contestant.delete()
+            
+            # Restore the original contestant number now that the old one is gone
+            new_contestant.contestant_number = original_number
+            new_contestant.save(update_fields=["contestant_number"])
+
+        # Trigger recalculation for the new contestant
+        recalculate_from_existing_positions.apply_async((new_contestant.pk,))
+        
+        messages.success(self.request, f"Contestant timing updated and recalculation started for {new_contestant}")
+        return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": old_nt_pk}))
+
+    def get_success_url(self):
+        return reverse("navigationtask_detail", kwargs={"pk": self.contestant.navigation_task.pk})
 
 
 class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):

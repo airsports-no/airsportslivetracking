@@ -1,0 +1,41 @@
+{% extends "base_tailwind.html" %}
+{% load crispy_forms_tags %}
+{% load lucide %}
+
+{% block content %}
+<div class="py-6">
+    <div class="max-w-2xl mx-auto">
+        <div class="mb-6">
+            <a href="{% url 'navigationtask_detail' contestant.navigation_task.pk %}" class="btn btn-ghost gap-2">
+                {% lucide "chevron-left" size=20 %}
+                Back to {{ contestant.navigation_task.name }}
+            </a>
+        </div>
+
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-2xl font-bold mb-4">
+                    Recalculate with New Start Time
+                </h2>
+                <div class="bg-base-200 p-4 rounded-lg mb-6">
+                    <p class="font-semibold text-lg">{{ contestant }}</p>
+                    <p class="text-sm opacity-70">Current Planned Takeoff: {{ contestant.takeoff_time|date:"Y-m-d H:i:s" }}</p>
+                    <p class="text-sm opacity-70">Current Planned Finished By: {{ contestant.finished_by_time|date:"Y-m-d H:i:s" }}</p>
+                    {% if actual_sp_time %}
+                        <p class="text-sm font-bold text-primary mt-2">Actual SP Passing Time: {{ actual_sp_time.time|date:"Y-m-d H:i:s" }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="alert alert-info shadow-sm mb-6">
+                    <div>
+                        {% lucide "info" class="stroke-current shrink-0 h-6 w-6" %}
+                        <span>This tool allows you to change the <b>planned starting point time</b> for this contestant. The system will automatically adjust the takeoff and tracking start times, move all existing track positions to a new contestant instance, and start a full recalculation.</span>
+                    </div>
+                </div>
+
+                {% crispy form %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

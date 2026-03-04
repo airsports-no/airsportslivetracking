@@ -90,7 +90,6 @@ class Gate:
 
     def pass_infinite_gate(self, passing_time: datetime):
         self.infinite_passing_time = passing_time
-        self.passing_time = passing_time
 
     def has_been_passed(self):
         return self.missed or self.passing_time is not None

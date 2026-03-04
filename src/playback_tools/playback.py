@@ -131,6 +131,48 @@ def recalculate_live_contestant(contestant: "Contestant"):
         logger.warning("Empty track for contestant, ignoring")
 
 
+def recalculate_from_existing_positions_sync(contestant: "Contestant"):
+    positions = contestant.contestantreceivedposition_set.filter(interpolated=False).order_by("time")
+    if positions.exists():
+        queue_name = f"override_{contestant.pk}"
+        q = RedisQueue(queue_name)
+        while not q.empty():
+            q.pop()
+        
+        for pos in positions:
+            data = {
+                "id": pos.position_id,
+                "deviceId": pos.device_id,
+                "attributes": {"course": pos.course, "batteryLevel": pos.battery_level},
+                "device_time": pos.time,
+                "latitude": pos.latitude,
+                "longitude": pos.longitude,
+                "altitude": pos.altitude,
+                "speed": pos.speed,
+                "time": pos.time.isoformat(),
+                "server_time": pos.server_time,
+            }
+            q.append(data)
+        q.append(None)
+        
+        logger.debug(f"Loaded {positions.count()} existing positions for recalculation")
+        cancel_termination_request(contestant.pk)
+        
+        # We must clear existing scores and interpolated positions before starting
+        contestant.reset_track_and_score()
+        # Wait, reset_track_and_score might delete the positions we just read if we are not careful.
+        # But we already read them into memory (or at least the QuerySet was evaluated if we iterated).
+        # Actually, let's be safe and evaluate the list.
+        
+        contestant_processor = ContestantProcessor(contestant, live_processing=False, queue_name_override=queue_name)
+        contestant_processor.run()
+        
+        while not q.empty():
+            q.pop()
+    else:
+        logger.warning(f"No existing positions found for contestant {contestant}")
+
+
 class InvalidGpxTimeFormatException(Exception): ...
 
 

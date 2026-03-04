@@ -14,7 +14,7 @@ from display.models import Contestant, EmailMapLink
 from display.models.flymaster_data import FlymasterData
 from live_tracking_map.celery import app
 from live_tracking_map.settings import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
-from playback_tools.playback import recalculate_live_contestant, insert_gpx_file
+from playback_tools.playback import recalculate_live_contestant, insert_gpx_file, recalculate_from_existing_positions_sync
 from position_processor_process import add_positions_to_calculator
 
 logger = logging.getLogger(__name__)
@@ -47,6 +47,20 @@ def recalculate_live_data_for_contestant(contestant_pk: int):
         recalculate_live_contestant(contestant)
     except:
         logger.exception("Exception in revert_gpx_track_to_traccar")
+
+
+@app.task
+def recalculate_from_existing_positions(contestant_pk: int):
+    try:
+        contestant = Contestant.objects.get(pk=contestant_pk)
+    except ObjectDoesNotExist:
+        logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
+        return
+    logger.debug(f"{contestant}: About to recalculate from existing positions")
+    try:
+        recalculate_from_existing_positions_sync(contestant)
+    except:
+        logger.exception("Exception in recalculate_from_existing_positions")
 
 
 @app.task

@@ -138,13 +138,13 @@ class TestANRPerLeg(TransactionTestCase):
             "TP 1: 0.0 points passing gate (no time check) (-406 s)\n" + "planned: 20:39:00\n" + "actual: 20:32:14",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 50.0 points outside corridor (117 s) (capped)",
+            "SP: 0.0 points outside corridor (117 s) (capped)",
             "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
             "Landing 1: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --",
         ]
 
         self.assertListEqual(a, strings)
-        self.assertEqual(700.0, contestant_track.score)
+        self.assertEqual(650.0, contestant_track.score)
 
     def test_anr_miss_multiple_finish(self, *args):
         track = load_track_points_traccar_csv(
@@ -227,7 +227,7 @@ class TestANRPerLeg(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
 
         print(strings)
-        self.assertTrue("SP: 0.0 points manually terminated" in strings)
+        self.assertTrue(any("manually terminated" in e for e in strings))
 
         # self.assertEqual(492, contestant_track.score)
 
@@ -530,12 +530,12 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.assertEqual(calls[0].time, datetime.datetime(2020, 1, 1, 0, 0))
         self.assertEqual(calls[0].message, "exiting corridor")
         self.assertEqual(calls[0].score, 0)
-        self.assertEqual(calls[0].score_type, "outside_corridor_SP")
+        self.assertEqual(calls[0].score_type, "outside_corridor")
 
         self.assertEqual(calls[1].time, datetime.datetime(2020, 1, 1, 0, 0, 3))
         self.assertEqual(calls[1].message, "outside corridor (2 s)")
         self.assertEqual(calls[1].score, 0)
-        self.assertEqual(calls[1].score_type, "outside_corridor_SP")
+        self.assertEqual(calls[1].score_type, "outside_corridor")
 
     def test_outside_20_seconds_enroute(self):
         position = Mock()

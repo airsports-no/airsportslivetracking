@@ -10,13 +10,13 @@
         <div class="grid grid-cols-2 gap-2 text-sm">
             <div class="bg-base-100 p-2 rounded">
                 <div class="opacity-70 text-xs mb-0.5">Planned</div>
-                <div class="font-mono">{{ gate_times|dict_key:gate.name|date:"H:i:s.u" }}</div>
+                <div class="font-mono">{{ gate_times|dict_key:gate.name|date:"H:i:s" }}</div>
             </div>
             <div class="bg-base-100 p-2 rounded">
                 <div class="opacity-70 text-xs mb-0.5">Actual</div>
                 <div class="font-mono">
                     {% if actual_times|dict_key:gate.name %}
-                        {{ actual_times|dict_key:gate.name|date:"H:i:s.u" }}
+                        {{ actual_times|dict_key:gate.name|date:"H:i:s" }}
                     {% else %}
                         <span class="opacity-30">--</span>
                     {% endif %}

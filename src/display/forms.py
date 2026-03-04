@@ -627,6 +627,27 @@ class ContestantQuickAddForm(forms.Form):
         )
 
 
+class ContestantRecalculateWithStartTimeForm(forms.Form):
+    starting_point_time = forms.DateTimeField(
+        label="New time at starting point",
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "step": "1"}, format="%Y-%m-%dT%H:%M:%S"),
+        help_text="The time the contestant is expected to cross the starting point",
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.contestant = kwargs.pop("contestant")
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                "Update Starting Point Time and Recalculate",
+                "starting_point_time",
+            ),
+            HTML("<p class='text-error font-bold mb-4'>Warning: This will delete the current contestant and create a new one with the same positions but updated timing. All current scores for this contestant will be lost.</p>"),
+            ButtonHolder(Submit("submit", "Recalculate")),
+        )
+
+
 class AssignPokerCardForm(forms.Form):
     waypoint = forms.ChoiceField(choices=())
     playing_card = forms.ChoiceField(choices=[("random", "Random")] + PLAYING_CARDS, initial="random")
