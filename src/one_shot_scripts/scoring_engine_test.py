@@ -238,6 +238,10 @@ def main():
             all_tasks_passed = True
 
             for task in tasks:
+                if task.pk in IGNORE_TASKS:
+                    logger.info(f"Skipping ignored task '{task.name}' (PK: {task.pk})")
+                    continue
+
                 new_task = clone_navigation_task(task, new_contest)
                 all_contestants_passed = True
 
