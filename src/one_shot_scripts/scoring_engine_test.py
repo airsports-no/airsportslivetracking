@@ -255,6 +255,10 @@ def main():
                     continue
 
                 for contestant in contestants:
+                    if not contestant.scorelogentry_set.exists():
+                        logger.info(f"    Skipping contestant {contestant} (empty score log)")
+                        continue
+
                     new_contestant, positions = clone_contestant(contestant, new_task)
 
                     run_recalculation(new_contestant, positions)

@@ -219,18 +219,10 @@ class AnrCorridorCalculator(Calculator):
         # Detect gate crossing (pass or miss) while outside to advance leg
         if self.corridor_state == self.OUTSIDE_CORRIDOR and last_gate != self.crossed_outside_gate:
             logger.info(f"{self.contestant}: Leg advanced from {self.crossed_outside_gate} to {last_gate} while outside corridor")
-            # Finalize current penalty
-            self.corridor_state = self.INSIDE_CORRIDOR  # Fake inside to force finalization
-            self.check_and_apply_outside_penalty(position, self.crossed_outside_gate)
-            
-            # Restart penalty for new leg
-            self.corridor_state = self.OUTSIDE_CORRIDOR
-            self.crossed_outside_time = position.time
+            # We don't finalize the penalty here anymore. We just update the gate reference.
+            # This ensures the entire outside period is treated as ONE continuous event in the log,
+            # but is internally attributed to the latest leg.
             self.crossed_outside_gate = last_gate
-            self.accumulated_score = 0
-            self.existing_reference = None
-            # Re-initialize with new state
-            self.previous_corridor_state = self.INSIDE_CORRIDOR
 
         if not self._check_inside_polygon(position):
             # We are outside the corridor
