@@ -96,8 +96,8 @@ export default function RouteEditor() {
             controlLat: f.properties.controlLat,
             controlLng: f.properties.controlLng,
             width: f.properties.width || 1852,
-            isTiming: f.properties.isTiming || false,
-            isPassing: f.properties.isPassing || true
+            isTiming: typeof f.properties.isTiming === 'boolean' ? f.properties.isTiming : true,
+            isPassing: typeof f.properties.isPassing === 'boolean' ? f.properties.isPassing : true
           });
         });
 
@@ -268,7 +268,7 @@ export default function RouteEditor() {
           name: count === 0 ? 'Start' : 'Finish',
           type: count === 0 ? 'sp' : 'fp',
           width: 1852, // 1 NM
-          isTiming: false,
+          isTiming: true,
           isPassing: true,
           isSecret: false,
           segmentType,
