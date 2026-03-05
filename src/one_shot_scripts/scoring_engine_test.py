@@ -4,6 +4,7 @@ import datetime
 import logging
 import json
 import difflib
+import re
 from django.db import transaction, models
 from django.core.cache import cache
 
@@ -49,10 +50,13 @@ def load_state():
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+                if "ignored_task_ids" not in data:
+                    data["ignored_task_ids"] = []
+                return data
         except Exception:
             pass
-    return {"remembered_id": None, "ignored_ids": [], "passed_ids": []}
+    return {"remembered_id": None, "ignored_ids": [], "passed_ids": [], "ignored_task_ids": []}
 
 
 def save_state(state):
@@ -252,8 +256,8 @@ def compare_results(original, cloned):
     orig_entries = list(original.scorelogentry_set.all().order_by("time", "pk"))
     clone_entries = list(cloned.scorelogentry_set.all().order_by("time", "pk"))
 
-    orig_strings = [e.string for e in orig_entries]
-    clone_strings = [e.string for e in clone_entries]
+    orig_strings = [re.sub(r"(\d+)\.0\b", r"\1", e.string) for e in orig_entries]
+    clone_strings = [re.sub(r"(\d+)\.0\b", r"\1", e.string) for e in clone_entries]
 
     if orig_strings != clone_strings:
         log_diff = get_side_by_side_diff(orig_strings, clone_strings)
@@ -263,7 +267,7 @@ def compare_results(original, cloned):
 
 
 def run_test_for_contestant(contestant, task, contest, state, is_remembered=False):
-    if contestant.pk in state["ignored_ids"] and not is_remembered:
+    if (contestant.pk in state["ignored_ids"] or task.pk in state["ignored_task_ids"]) and not is_remembered:
         return True
 
     new_contest = clone_contest(contest)
@@ -310,7 +314,7 @@ def run_test_for_contestant(contestant, task, contest, state, is_remembered=Fals
             print("!" * 120 + "\n")
 
         while True:
-            prompt = "[C]ontinue, [I]gnore and continue, [R]etry (restart), or [A]bort? "
+            prompt = "[C]ontinue, [I]gnore contestant, ignore [T]ask, [R]etry (restart), or [A]bort? "
             if is_remembered and not discrepancies:
                 prompt = "Remembered contestant passed. [C]ontinue with full test or [R]etry? "
             
@@ -322,6 +326,11 @@ def run_test_for_contestant(contestant, task, contest, state, is_remembered=Fals
             elif choice == 'i':
                 if contestant.pk not in state["ignored_ids"]:
                     state["ignored_ids"].append(contestant.pk)
+                save_state(state)
+                break
+            elif choice == 't':
+                if task.pk not in state["ignored_task_ids"]:
+                    state["ignored_task_ids"].append(task.pk)
                 save_state(state)
                 break
             elif choice == 'r':
@@ -376,7 +385,7 @@ def main():
                 continue
 
             for task in tasks:
-                if task.pk in IGNORE_TASKS:
+                if task.pk in IGNORE_TASKS or task.pk in state["ignored_task_ids"]:
                     logger.info(f"Skipping ignored task '{task.name}' (PK: {task.pk})")
                     continue
 
