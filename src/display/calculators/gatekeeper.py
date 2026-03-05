@@ -278,7 +278,7 @@ class Gatekeeper:
         Update state based on event and notify all calculators.
         """
         if isinstance(event, GatePassedEvent):
-            event.gate.pass_gate(event.intersection_time)
+            event.gate.pass_gate(event.intersection_time, event.position)
             self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             if event.gate in self.outstanding_gates:
                 self.pop_gate(self.outstanding_gates.index(event.gate), True)
@@ -307,18 +307,18 @@ class Gatekeeper:
                 self.passed_finishpoint()
 
         elif isinstance(event, TakeoffPassedEvent):
-            event.gate.pass_gate(event.intersection_time)
+            event.gate.pass_gate(event.intersection_time, event.position)
             self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             if self.takeoff_gate:
-                self.takeoff_gate.pass_gate(event.intersection_time)
+                self.takeoff_gate.pass_gate(event.intersection_time, event.position)
             for calculator in self.calculators:
                 calculator.on_takeoff_passed(event.gate, event.position)
 
         elif isinstance(event, LandingPassedEvent):
-            event.gate.pass_gate(event.intersection_time)
+            event.gate.pass_gate(event.intersection_time, event.position)
             self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             if self.landing_gate:
-                self.landing_gate.pass_gate(event.intersection_time)
+                self.landing_gate.pass_gate(event.intersection_time, event.position)
             for calculator in self.calculators:
                 calculator.on_landing_passed(event.gate, event.position)
 
@@ -326,7 +326,7 @@ class Gatekeeper:
             self.recalculate_gates_times_from_start_time(event.intersection_time)
 
         elif isinstance(event, StartingLinePassedEvent):
-            event.gate.pass_infinite_gate(event.intersection_time)
+            event.gate.pass_infinite_gate(event.intersection_time, event.position)
 
             # Recalculate if this is the start point and adaptive start is on
             # (In case the event didn't come through as AdaptiveStartEvent specifically)

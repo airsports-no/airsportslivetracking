@@ -42,6 +42,7 @@ class Gate:
         self.passing_time = None
         self.extended_passing_time = None
         self.infinite_passing_time = None
+        self.infinite_passing_position = None
         self.missed = False
         self.maybe_missed_time = None
         self.maybe_missed_position = None
@@ -79,17 +80,20 @@ class Gate:
     def __str__(self):
         return self.name
 
-    def pass_gate(self, passing_time: datetime):
+    def pass_gate(self, passing_time: datetime, position: ContestantReceivedPosition):
         self.passing_time = passing_time
         self.extended_passing_time = passing_time
         self.infinite_passing_time = passing_time
+        self.infinite_passing_position = position
 
-    def pass_extended_gate(self, passing_time: datetime):
+    def pass_extended_gate(self, passing_time: datetime, position: ContestantReceivedPosition):
         self.extended_passing_time = passing_time
         self.infinite_passing_time = passing_time
+        self.infinite_passing_position = position
 
-    def pass_infinite_gate(self, passing_time: datetime):
+    def pass_infinite_gate(self, passing_time: datetime, position: ContestantReceivedPosition):
         self.infinite_passing_time = passing_time
+        self.infinite_passing_position = position
 
     def has_been_passed(self):
         return self.missed or self.passing_time is not None
@@ -169,11 +173,12 @@ class MultiGate:
         self.intersected_gate = None
         self.missed = False
 
-    def pass_gate(self, passing_time: datetime):
+    def pass_gate(self, passing_time: datetime, position: ContestantReceivedPosition):
         assert self.intersected_gate is not None, "Setting passing time when the multi gate has not had an intersection"
         self.intersected_gate.passing_time = passing_time
         self.intersected_gate.extended_passing_time = passing_time
         self.intersected_gate.infinite_passing_time = passing_time
+        self.intersected_gate.infinite_passing_position = position
 
     @property
     def name(self):
@@ -193,6 +198,7 @@ class MultiGate:
                 gate.passing_time = intersection_time
                 gate.extended_passing_time = intersection_time
                 gate.infinite_passing_time = intersection_time
+                gate.infinite_passing_position = track[-1]
                 self.intersected_gate = gate
                 return intersection_time
         return None

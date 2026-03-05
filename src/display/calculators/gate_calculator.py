@@ -226,7 +226,7 @@ class GateCalculator(Calculator):
                 intersection_time = starting_line.get_gate_infinite_intersection_time(state.projector, track)
                 if intersection_time and starting_line.is_passed_in_correct_direction_track(track):
                     self.contestant.terminate_concurrent_contestants(intersection_time)
-                    starting_line.pass_infinite_gate(intersection_time)
+                    starting_line.pass_infinite_gate(intersection_time, track[-1])
                     # Miss takeoff if not already crossed - must happen BEFORE starting line is passed
                     if state.takeoff_gate is not None and not state.takeoff_gate.has_been_passed():
                         events.append(
@@ -278,7 +278,7 @@ class GateCalculator(Calculator):
                 if not gate.has_infinite_been_passed():
                     inf_time = gate.get_gate_infinite_intersection_time(state.projector, track)
                     if inf_time and gate.is_passed_in_correct_direction_track(track):
-                        gate.pass_infinite_gate(inf_time)
+                        gate.pass_infinite_gate(inf_time, track[-1])
 
                 # 2. Trigger miss if 2 seconds passed since infinite crossing and still not passed normally
                 if (
@@ -291,8 +291,7 @@ class GateCalculator(Calculator):
                         # Find previous gate for context
                         current_idx_in_all = self.gates.index(gate)
                         prev_gate = self.gates[current_idx_in_all - 1] if current_idx_in_all > 0 else None
-                        events.append(GateMissedEvent(prev_gate, gate, track[-1]))
-
+                        events.append(GateMissedEvent(prev_gate, gate, gate.infinite_passing_position))
         self.check_gate_in_range(track, state, events)
 
         # Handle landing gate
@@ -424,6 +423,7 @@ class GateCalculator(Calculator):
     def on_gate_passed(self, gate: Gate, position: ContestantReceivedPosition):
         logger.info(f"{self.contestant}: Scoring passed gate {gate}")
         passing_time = gate.passing_time or gate.infinite_passing_time or position.time
+        passing_position = gate.infinite_passing_position or position
         time_difference = (passing_time - gate.expected_time).total_seconds()
         self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
 
@@ -435,9 +435,9 @@ class GateCalculator(Calculator):
 
         if gate.time_check:
             gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, passing_time)
-            self.transmit_actual_crossing(gate, position)
+            self.transmit_actual_crossing(gate, passing_position)
             self.update_gate_score(
-                position,
+                passing_position,
                 gate,
                 gate_score,
                 GATE_SCORE_TYPE,
@@ -448,7 +448,7 @@ class GateCalculator(Calculator):
             )
         else:
             self.update_gate_score(
-                position,
+                passing_position,
                 gate,
                 0,
                 GATE_SCORE_TYPE,
@@ -463,9 +463,10 @@ class GateCalculator(Calculator):
         gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
             gate.type, gate.expected_time, gate.passing_time
         )
-        self.transmit_actual_crossing(gate, position)
+        passing_position = gate.infinite_passing_position or position
+        self.transmit_actual_crossing(gate, passing_position)
         self.update_gate_score(
-            position,
+            passing_position,
             gate,
             gate_score,
             GATE_SCORE_TYPE,
@@ -480,9 +481,10 @@ class GateCalculator(Calculator):
         gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
             gate.type, gate.expected_time, gate.passing_time
         )
-        self.transmit_actual_crossing(gate, position)
+        passing_position = gate.infinite_passing_position or position
+        self.transmit_actual_crossing(gate, passing_position)
         self.update_gate_score(
-            position,
+            passing_position,
             gate,
             gate_score,
             GATE_SCORE_TYPE,
@@ -498,9 +500,10 @@ class GateCalculator(Calculator):
             self.has_scored_adaptive_start = True
             # Use a slightly earlier time to ensure it appears before the timing score in the log
             passing_time = gate.passing_time or gate.infinite_passing_time or position.time
+            passing_position = gate.infinite_passing_position or position
             entry_time = passing_time - datetime.timedelta(seconds=1)
             self.update_gate_score(
-                position,
+                passing_position,
                 gate,
                 0,
                 ADAPTIVE_TIMING_START_SCORE_TYPE,
