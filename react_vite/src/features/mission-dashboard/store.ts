@@ -15,7 +15,7 @@ interface MissionDashboardState {
     aircrafts: Aircraft[];
     pilots: Copilot[];
     
-    fetchContests: (filters?: api.ContestFilters) => Promise<void>;
+    fetchContests: (filters?: api.ContestFilters, clear?: boolean) => Promise<void>;
     fetchContest: (contestId: number, force?: boolean) => Promise<void>;
     fetchMyEditorContests: (force?: boolean) => Promise<void>;
     fetchOngoingNavigation: (force?: boolean) => Promise<void>;
@@ -45,10 +45,11 @@ export const useMissionDashboardStore = create<MissionDashboardState>((set, get)
     aircrafts: [],
     pilots: [],
 
-    fetchContests: async (filters) => {
+    fetchContests: async (filters, clear = false) => {
         const contests = await api.fetchContests(filters);
         set(state => {
-            const newContests = [...state.contests];
+            const baseContests = clear ? [] : [...state.contests];
+            const newContests = [...baseContests];
             contests.forEach(c => {
                 const index = newContests.findIndex(sc => sc.id === c.id);
                 if (index !== -1) {
