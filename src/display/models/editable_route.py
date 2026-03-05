@@ -335,7 +335,6 @@ class EditableRoute(models.Model):
         waypoint_list[-1].time_check = True
         # waypoint_list[-1].width = scorecard.get_extended_gate_width_for_gate_type(FINISHPOINT)
 
-        logger.debug(f"Created waypoints {waypoint_list}")
         route = create_anr_corridor_route_from_waypoint_list(
             self.name, waypoint_list, rounded_corners, scorecard, corridor_width=corridor_width
         )
@@ -383,7 +382,6 @@ class EditableRoute(models.Model):
         route.save()
         # Create prohibited zones
         for feature in self.get_features_type("zone"):
-            logger.debug(feature)
             Prohibited.objects.create(
                 name=feature["properties"]["name"],
                 route=route,

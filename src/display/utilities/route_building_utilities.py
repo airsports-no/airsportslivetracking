@@ -39,7 +39,6 @@ def is_procedure_turn(bearing1, bearing2) -> bool:
     return abs(bearing_difference(bearing1, bearing2)) >= 90
 
 
-
 def add_line(place_mark):
     return [tuple(reversed(item[:2])) for item in place_mark.geometry.coords]
 
@@ -475,7 +474,6 @@ def create_anr_corridor_route_from_waypoint_list(
         raise ValidationError("The last waypoint must be of type finish point")
 
     corridor_polygon, path_points = generate_corridor_polygon(waypoint_list, rounded_corners)
-    logger.debug(f"Corridor polygon: {corridor_polygon}")
 
     points = list(filter(lambda point: point.get("left_miter"), path_points))
 
