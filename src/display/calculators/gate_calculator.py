@@ -271,7 +271,7 @@ class GateCalculator(Calculator):
         # Proactive missed gate detection (only for the first outstanding gate if not just passed)
         if len(state.outstanding_gates) > 0:
             gate = state.outstanding_gates[0]
-            
+
             # Skip if we just added a GatePassedEvent for this specific gate
             if not (crossed_gate_index == 0):
                 # 1. Check for infinite line crossing if not already detected
@@ -280,11 +280,11 @@ class GateCalculator(Calculator):
                     if inf_time and gate.is_passed_in_correct_direction_track(track):
                         gate.pass_infinite_gate(inf_time)
 
-                # 2. Trigger miss if 5 seconds passed since infinite crossing and still not passed normally
+                # 2. Trigger miss if 2 seconds passed since infinite crossing and still not passed normally
                 if (
                     gate.infinite_passing_time is not None
                     and not gate.has_been_passed()
-                    and track[-1].time > gate.infinite_passing_time + datetime.timedelta(seconds=5)
+                    and track[-1].time > gate.infinite_passing_time + datetime.timedelta(seconds=2)
                 ):
                     # Don't mark as missed if we already have a pass or miss for this gate in current events
                     if not any(getattr(e, "gate", None) == gate for e in events):
