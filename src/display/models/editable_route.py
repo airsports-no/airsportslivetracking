@@ -336,7 +336,9 @@ class EditableRoute(models.Model):
         # waypoint_list[-1].width = scorecard.get_extended_gate_width_for_gate_type(FINISHPOINT)
 
         logger.debug(f"Created waypoints {waypoint_list}")
-        route = create_anr_corridor_route_from_waypoint_list(self.name, waypoint_list, rounded_corners, scorecard)
+        route = create_anr_corridor_route_from_waypoint_list(
+            self.name, waypoint_list, rounded_corners, scorecard, corridor_width=corridor_width
+        )
         self.amend_route_with_additional_features(route)
         return route
 
