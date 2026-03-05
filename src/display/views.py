@@ -1265,7 +1265,7 @@ class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = Contest
     permission_required = ("display.delete_contest",)
     template_name = "model_delete.html"
-    success_url = reverse_lazy("contest_list")
+    success_url = f"{fe_url('MISSION_DASHBOARD')}?tab=editorContests"
 
     def get_permission_object(self):
         return self.get_object()
@@ -1319,7 +1319,7 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
     model = NavigationTask
     permission_required = ("display.delete_contest",)
     template_name = "model_delete.html"
-    success_url = reverse_lazy("contest_list")
+    success_url = f"{fe_url('MISSION_DASHBOARD')}?tab=editorContests"
 
     def get_permission_object(self):
         return self.get_object().contest
