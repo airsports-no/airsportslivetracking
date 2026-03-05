@@ -242,8 +242,8 @@ class EditableRoute(models.Model):
                 is_timing = False
                 is_passing = False
             else:
-                is_timing = props["isTiming"]
-                is_passing = props["isPassing"]
+                is_timing = props.get("isTiming", True)
+                is_passing = props.get("isPassing", True)
 
             # Check for curve from previous point
             if index > 0 and props.get("segmentType") == "curved":
@@ -271,8 +271,8 @@ class EditableRoute(models.Model):
                             w = 0.001
                         else:
                             # Linear interpolation
-                            prev_width = prev_item["properties"]["width"] / 1852
-                            curr_width = props["width"] / 1852
+                            prev_width = corridor_width if corridor_width else prev_item["properties"]["width"] / 1852
+                            curr_width = corridor_width if corridor_width else props["width"] / 1852
                             t = i / num_points
                             w = prev_width + (curr_width - prev_width) * t
 
