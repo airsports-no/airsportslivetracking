@@ -138,13 +138,54 @@ class TestANRPerLeg(TransactionTestCase):
             "TP 1: 0.0 points passing gate (no time check) (-406 s)\n" + "planned: 20:39:00\n" + "actual: 20:32:14",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 0.0 points outside corridor (117 s) (capped)",
+            "SP: 50.0 points outside corridor (117 s) (capped)",
             "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
             "Landing 1: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --",
         ]
 
         self.assertListEqual(a, strings)
-        self.assertEqual(650.0, contestant_track.score)
+        self.assertEqual(700.0, contestant_track.score)
+
+    def test_anr_score_per_leg_enabled(self, *args):
+        # This test validates that when per-leg scoring is ON, the maximum penalty applies to each leg individually.
+        track = load_track_points_traccar_csv(load_traccar_track(os.path.join(TEST_DATA_DIR, "kjeller_anr_bad.csv")))
+        start_time, speed = (
+            datetime.datetime(2021, 3, 15, 19, 30, tzinfo=datetime.timezone.utc),
+            70,
+        )
+        self.contestant = Contestant.objects.create(
+            navigation_task=self.navigation_task,
+            team=self.team,
+            takeoff_time=start_time,
+            finished_by_time=start_time + datetime.timedelta(hours=2),
+            tracker_start_time=start_time - datetime.timedelta(minutes=30),
+            tracker_device_id="Test contestant",
+            contestant_number=1,
+            minutes_to_starting_point=7,
+            air_speed=speed,
+            wind_direction=160,
+            wind_speed=0,
+        )
+        # Enable per-leg maximum penalty
+        self.navigation_task.scorecard.corridor_maximum_penalty_is_per_leg = True
+        self.navigation_task.scorecard.save()
+        
+        calculator_runner(self.contestant, track)
+        
+        contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
+        
+        # When per-leg is ON, we expect the penalty to be split across legs.
+        # In this track, there are two separate excursions/legs where the plane is outside.
+        # Each should get its own 50 point cap.
+        
+        # Count how many times we got a 50 point capped penalty
+        capped_50_penalties = [s for s in strings if "SP: 50.0 points outside corridor" in s and "(capped)" in s]
+        self.assertEqual(len(capped_50_penalties), 2)
+        
+        # Verify total score: 200 (SP) + 50 (Leg 1) + 0 (TP1) + 200 (Backtrack) + 50 (Leg 2) + 200 (FP) = 700
+        contestant_track.refresh_from_db()
+        self.assertEqual(700.0, contestant_track.score)
 
     def test_anr_miss_multiple_finish(self, *args):
         track = load_track_points_traccar_csv(
@@ -181,10 +222,12 @@ class TestANRPerLeg(TransactionTestCase):
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 14:00:00\nactual: --",
             "SP: 200.0 points passing gate (-71535748 s)\nplanned: 14:07:00\nactual: 14:04:32",
             "SP: 0.0 points exiting corridor",
-            "SP: 50.0 points outside corridor (25 s) (capped)",
+            "SP: 50.0 points outside corridor (23 s) (capped)",
+            "SP: 0.0 points exiting corridor",
+            "SP: 3.0 points outside corridor (1 s)",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 0.0 points outside corridor (227 s) (capped)",
+            "SP: 47.0 points outside corridor (227 s) (capped)",
             "FP: 200.0 points missing gate\nplanned: 14:18:11\nactual: --",
             "Landing 1: 0.0 points missing landing gate\nplanned: 15:59:00\nactual: --",
         ]
@@ -192,7 +235,7 @@ class TestANRPerLeg(TransactionTestCase):
             final_list,
             strings,
         )
-        self.assertEqual(650.0, contestant_track.score)
+        self.assertEqual(700.0, contestant_track.score)
 
     def test_manually_terminate_calculator(self, *args):
         cache.clear()
@@ -530,12 +573,12 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.assertEqual(calls[0].time, datetime.datetime(2020, 1, 1, 0, 0))
         self.assertEqual(calls[0].message, "exiting corridor")
         self.assertEqual(calls[0].score, 0)
-        self.assertEqual(calls[0].score_type, "outside_corridor")
+        self.assertEqual(calls[0].score_type, "outside_corridor_SP")
 
         self.assertEqual(calls[1].time, datetime.datetime(2020, 1, 1, 0, 0, 3))
         self.assertEqual(calls[1].message, "outside corridor (2 s)")
         self.assertEqual(calls[1].score, 0)
-        self.assertEqual(calls[1].score_type, "outside_corridor")
+        self.assertEqual(calls[1].score_type, "outside_corridor_SP")
 
     def test_outside_20_seconds_enroute(self):
         position = Mock()

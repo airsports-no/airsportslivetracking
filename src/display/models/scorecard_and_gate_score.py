@@ -108,6 +108,7 @@ class Scorecard(models.Model):
         default=True, help_text="If true, the maximum corridor penalty is reset for each leg"
     )
 
+
     def __str__(self):
         return self.name
 

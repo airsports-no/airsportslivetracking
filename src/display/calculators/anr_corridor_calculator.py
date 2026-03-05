@@ -200,7 +200,7 @@ class AnrCorridorCalculator(Calculator):
         
         score_type = self.OUTSIDE_CORRIDOR_PENALTY_TYPE
         if self.corridor_maximum_penalty_is_per_leg:
-            score_type = f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{scoring_gate.name}"
+            score_type = f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{gate_name}"
 
         # If we are back inside the corridor because we must calculate the score for the previous second
         if self.corridor_state == self.INSIDE_CORRIDOR:
