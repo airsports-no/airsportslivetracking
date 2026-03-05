@@ -27,13 +27,22 @@ class PokerCalculator(Calculator):
         route,
         score_processing_queue,
         live_processing=True,
+        projector=None,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
+        super().__init__(
+            contestant,
+            scorecard,
+            gates,
+            route,
+            score_processing_queue,
+            live_processing=live_processing,
+            projector=projector,
+        )
         
         self.gate_polygons = []
         if len(self.gates) > 0:
             waypoint = self.gates[0].waypoint
-            self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
+            self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude, projector=projector)
             self.waypoint_names = [gate.name for gate in self.gates]
             gate_zones = self.route.prohibited_set.filter(type="waypoint")
             for gate in gate_zones:
@@ -68,9 +77,12 @@ class PokerCalculator(Calculator):
     def check_polygons(self, position: ContestantReceivedPosition, state: GatekeeperState) -> List[GatekeeperEvent]:
         events = []
         if len(self.sorted_polygons) > 0:
+            p_x = getattr(position, "projected_x", None)
+            p_y = getattr(position, "projected_y", None)
+            
             for polygon_name, polygon, waypoint_index in list(self.sorted_polygons):
                 inside = self.polygon_helper.check_inside_polygons(
-                    [(polygon_name, polygon)], position.latitude, position.longitude
+                    [(polygon_name, polygon)], position.latitude, position.longitude, p_x, p_y
                 )
                 if len(inside) > 0:
                     passed_gate = self.gates[waypoint_index]

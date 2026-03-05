@@ -80,23 +80,41 @@ def round_time_second(obj: datetime.datetime) -> datetime.datetime:
 
 
 class PolygonHelper:
-    def __init__(self, latitude, longitude):
+    def __init__(self, latitude, longitude, projector=None):
         self.pc = ccrs.PlateCarree()
         self.utm = utm_from_lat_lon(latitude, longitude)
+        self.projector = projector
         self._bounds_cache = {}
 
     def build_polygon(self, path):
         line = []
-        for element in path:
-            # transform_point expects (x, y) which is (longitude, latitude)
-            line.append(self.utm.transform_point(element[0], element[1], self.pc))
+        if self.projector:
+            for element in path:
+                # path is list of [lon, lat]
+                p = self.projector.project_point(element[1], element[0])
+                line.append((p.projected_x, p.projected_y))
+        else:
+            for element in path:
+                # transform_point expects (x, y) which is (longitude, latitude)
+                line.append(self.utm.transform_point(element[0], element[1], self.pc))
         return Polygon(line)
 
-    def check_inside_polygons(self, polygons: list[tuple[int, Polygon]], latitude, longitude) -> list[int]:
+    def check_inside_polygons(
+        self,
+        polygons: list[tuple[int, Polygon]],
+        latitude,
+        longitude,
+        projected_x=None,
+        projected_y=None,
+    ) -> list[int]:
         """
         Returns a list of names of the prohibited zone is the position is inside
         """
-        x, y = self.utm.transform_point(longitude, latitude, self.pc)
+        if self.projector and projected_x is not None and projected_y is not None:
+            x, y = projected_x, projected_y
+        else:
+            x, y = self.utm.transform_point(longitude, latitude, self.pc)
+
         p = Point(x, y)
         incursions = []
         for zone_pk, poly in polygons:
@@ -110,9 +128,13 @@ class PolygonHelper:
                 incursions.append(zone_pk)
         return incursions
 
-
     def distance_from_point_to_polygons(
-        self, polygons: list[tuple[str, Polygon]], latitude, longitude
+        self,
+        polygons: list[tuple[str, Polygon]],
+        latitude,
+        longitude,
+        projected_x=None,
+        projected_y=None,
     ) -> dict[str, float]:
         """
 
@@ -121,7 +143,11 @@ class PolygonHelper:
         :param longitude:
         :return:  distance in metres
         """
-        x, y = self.utm.transform_point(longitude, latitude, self.pc)
+        if self.projector and projected_x is not None and projected_y is not None:
+            x, y = projected_x, projected_y
+        else:
+            x, y = self.utm.transform_point(longitude, latitude, self.pc)
+
         p = Point(x, y)
         distances = {}
         for name, polygon in polygons:

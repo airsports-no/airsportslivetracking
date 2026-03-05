@@ -61,8 +61,17 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         route: "Route",
         score_processing_queue: Queue,
         live_processing: bool = True,
+        projector=None,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
+        super().__init__(
+            contestant,
+            scorecard,
+            gates,
+            route,
+            score_processing_queue,
+            live_processing=live_processing,
+            projector=projector,
+        )
         self.contestant = contestant
         self.scorecard = scorecard
         self.current_procedure_turn_gate = None
@@ -362,14 +371,26 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             if bearing_difference > self.backtracking_limit:
                 # Check if we are near the gate we just passed
                 # To avoid penalties during slow turns or maneuvering near the gate
-                distance_to_gate = calculate_distance_lat_lon(
-                    (last_position.latitude, last_position.longitude), (last_gate.latitude, last_gate.longitude)
-                )
+                if (
+                    hasattr(last_position, "projected_x")
+                    and last_position.projected_x is not None
+                    and last_gate.center_x is not None
+                ):
+                    distance_to_gate_sq = (last_position.projected_x - last_gate.center_x) ** 2 + (
+                        last_position.projected_y - last_gate.center_y
+                    ) ** 2
+                else:
+                    distance_to_gate_sq = (
+                        calculate_distance_lat_lon(
+                            (last_position.latitude, last_position.longitude), (last_gate.latitude, last_gate.longitude)
+                        )
+                        ** 2
+                    )
+
                 # Use a small grace zone for all gates (0.5 NM)
                 grace_zone = 0.5 * 1852
 
-
-                if distance_to_gate < grace_zone:
+                if distance_to_gate_sq < grace_zone**2:
                     pass  # Ignore backtracking within grace zone of the gate
                 else:
                     backtracking = True
@@ -377,6 +398,10 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         pass
 
             if backtracking:
+                # Use projected coordinates for grace period checks if available
+                p_x = getattr(last_position, "projected_x", None)
+                p_y = getattr(last_position, "projected_y", None)
+
                 if self.tracking_state in (self.TRACKING, self.STARTED, self.TAKEOFF):
                     # Check if we are within 0.5 NM of a gate we just passed, A.2.2.13
                     is_grace_time_after_steep_turn = (
@@ -388,14 +413,19 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         )
                     )
                     is_grace_distance_before_turn = (
-                        next_gate.get_distance_to_gate_line(last_position.latitude, last_position.longitude) / 1852
+                        next_gate.get_distance_to_gate_line(
+                            last_position.latitude, last_position.longitude, p_x, p_y
+                        )
+                        / 1852
                         < self.scorecard.get_backtracking_before_gate_grace_period_nm_for_gate_type(next_gate.type)
                         if next_gate
                         else False
                     )
-                    is_grace_distance_after_turn = last_gate.get_distance_to_gate_line(
-                        last_position.latitude, last_position.longitude
-                    ) / 1852 < self.scorecard.get_backtracking_after_gate_grace_period_nm_for_gate_type(last_gate.type)
+                    is_grace_distance_after_turn = (
+                        last_gate.get_distance_to_gate_line(last_position.latitude, last_position.longitude, p_x, p_y)
+                        / 1852
+                        < self.scorecard.get_backtracking_after_gate_grace_period_nm_for_gate_type(last_gate.type)
+                    )
                     if (
                         not is_grace_time_after_steep_turn
                         and not is_grace_distance_after_turn

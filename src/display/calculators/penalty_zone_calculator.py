@@ -28,8 +28,17 @@ class PenaltyZoneCalculator(Calculator):
         route: "Route",
         score_processing_queue: Queue,
         live_processing: bool = True,
+        projector=None,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
+        super().__init__(
+            contestant,
+            scorecard,
+            gates,
+            route,
+            score_processing_queue,
+            live_processing=live_processing,
+            projector=projector,
+        )
         self.inside_zones = set()
         self.running_penalty = {}
         self.gates = gates
@@ -37,7 +46,7 @@ class PenaltyZoneCalculator(Calculator):
         self.last_outside_penalty = None
         self.crossed_outside_position = None
         waypoint = self.contestant.navigation_task.route.waypoints[0]
-        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
+        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude, projector=projector)
         self.polygons = [] # List of (zone_pk, polygon)
         self.zone_map = {}
         self.entered_polygon_times = {}
@@ -88,8 +97,11 @@ class PenaltyZoneCalculator(Calculator):
         position = track[-1]
         zone_pks_the_position_was_already_inside = list(self.entered_polygon_times.keys())
         
+        p_x = getattr(position, "projected_x", None)
+        p_y = getattr(position, "projected_y", None)
+
         zone_pks_the_position_is_currently_inside = self.polygon_helper.check_inside_polygons(
-            self.polygons, position.latitude, position.longitude
+            self.polygons, position.latitude, position.longitude, p_x, p_y
         )
 
         for zone_pk in zone_pks_the_position_is_currently_inside:

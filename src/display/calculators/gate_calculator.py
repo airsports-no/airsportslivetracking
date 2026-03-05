@@ -44,12 +44,22 @@ class GateCalculator(Calculator):
         route,
         score_processing_queue,
         live_processing=True,
+        projector=None,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
+        super().__init__(
+            contestant,
+            scorecard,
+            gates,
+            route,
+            score_processing_queue,
+            live_processing=live_processing,
+            projector=projector,
+        )
         self.websocket_facade = WebsocketFacade()
         self.last_backwards = None
         self.has_scored_adaptive_start = False
         self.scored_gates = set()
+        self.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
 
     def update_gate_score(
         self,
@@ -167,10 +177,13 @@ class GateCalculator(Calculator):
     ) -> List[GatekeeperEvent]:
         events = self.check_intersections(track, state)
 
-        # Performance estimation
-        estimation_event = self.estimate_crossing_time_of_next_timed_gate(track, state)
-        if estimation_event:
-            events.append(estimation_event)
+        # Performance estimation every 5 seconds
+        last_pos = track[-1]
+        if last_pos.time > self.last_estimation_time + datetime.timedelta(seconds=5):
+            estimation_event = self.estimate_crossing_time_of_next_timed_gate(track, state)
+            if estimation_event:
+                events.append(estimation_event)
+                self.last_estimation_time = last_pos.time
 
         if self.live_processing and state.estimated_next_timed_gate and state.estimated_crossing_time:
             planned_time_to_crossing = (track[-1].time - state.estimated_next_timed_gate.expected_time).total_seconds()
@@ -310,19 +323,29 @@ class GateCalculator(Calculator):
         if len(state.outstanding_gates) == 0 or len(track) == 0:
             return
         last_position = track[-1]
+        now = last_position.time
 
         # Don't emit in-range events if we already have a pass or miss for this update
         already_handled_gates = {e.gate for e in events if hasattr(e, "gate")}
+
+        p_x = getattr(last_position, "projected_x", None)
+        p_y = getattr(last_position, "projected_y", None)
 
         if state.in_range_of_gate is not None:
             if state.in_range_of_gate in already_handled_gates:
                 return
 
-            distance_to_gate = calculate_distance_lat_lon(
-                (last_position.latitude, last_position.longitude),
-                (state.in_range_of_gate.latitude, state.in_range_of_gate.longitude),
-            )
-            if distance_to_gate > state.in_range_of_gate.outside_distance:
+            if p_x is not None and state.in_range_of_gate.center_x is not None:
+                dist_sq = (p_x - state.in_range_of_gate.center_x) ** 2 + (p_y - state.in_range_of_gate.center_y) ** 2
+                is_outside = dist_sq > state.in_range_of_gate.outside_distance**2
+            else:
+                distance_to_gate = calculate_distance_lat_lon(
+                    (last_position.latitude, last_position.longitude),
+                    (state.in_range_of_gate.latitude, state.in_range_of_gate.longitude),
+                )
+                is_outside = distance_to_gate > state.in_range_of_gate.outside_distance
+
+            if is_outside:
                 if (
                     state.in_range_of_gate.passing_time is None
                     and not state.in_range_of_gate.missed
@@ -341,11 +364,22 @@ class GateCalculator(Calculator):
 
             if next_gate.type not in ("secret", "sp", "fp", "tp"):
                 return
-            distance_to_gate = calculate_distance_lat_lon(
-                (last_position.latitude, last_position.longitude), (next_gate.latitude, next_gate.longitude)
-            )
-            if distance_to_gate < next_gate.inside_distance:
-                events.append(InRangeUpdatedEvent(next_gate, last_position))
+
+            # Throttle distance check if far away
+            if p_x is not None and next_gate.center_x is not None:
+                dist_sq = (p_x - next_gate.center_x) ** 2 + (p_y - next_gate.center_y) ** 2
+                # If further than 5km, only check every 5 seconds
+                if dist_sq > 5000**2 and now < self.last_estimation_time + datetime.timedelta(seconds=4):
+                    return
+
+                if dist_sq < next_gate.inside_distance**2:
+                    events.append(InRangeUpdatedEvent(next_gate, last_position))
+            else:
+                distance_to_gate = calculate_distance_lat_lon(
+                    (last_position.latitude, last_position.longitude), (next_gate.latitude, next_gate.longitude)
+                )
+                if distance_to_gate < next_gate.inside_distance:
+                    events.append(InRangeUpdatedEvent(next_gate, last_position))
 
     def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         # When finish point is passed, all outstanding regular gates should be marked as missed

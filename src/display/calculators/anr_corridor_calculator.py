@@ -52,8 +52,17 @@ class AnrCorridorCalculator(Calculator):
         route: "Route",
         score_processing_queue: Queue,
         live_processing: bool = True,
+        projector=None,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
+        super().__init__(
+            contestant,
+            scorecard,
+            gates,
+            route,
+            score_processing_queue,
+            live_processing=live_processing,
+            projector=projector,
+        )
         self.corridor_state = self.INSIDE_CORRIDOR
         self.previous_corridor_state = self.INSIDE_CORRIDOR
         self.crossed_outside_time = None
@@ -90,19 +99,41 @@ class AnrCorridorCalculator(Calculator):
         if len(track) > 0:
             position = track[-1]
             MAXIMUM_DISTANCE = 1852  # m
-            polygon_distance = min(
-                [MAXIMUM_DISTANCE, self._distance_from_point_to_polygons(position.latitude, position.longitude)]
-            )
+            
+            # Fast distance check using projected coordinates if available
+            p_x = getattr(position, "projected_x", None)
+            p_y = getattr(position, "projected_y", None)
+            
+            if p_x is not None and self.projector:
+                # We can't easily use track_polygon if it's UTM while position is AEQD
+                # So we fallback to standard check for now until we unify projections
+                polygon_distance = min(
+                    [MAXIMUM_DISTANCE, self._distance_from_point_to_polygons(position.latitude, position.longitude)]
+                )
+            else:
+                polygon_distance = min(
+                    [MAXIMUM_DISTANCE, self._distance_from_point_to_polygons(position.latitude, position.longitude)]
+                )
+            
             distance_danger = 30 * (MAXIMUM_DISTANCE - polygon_distance) / MAXIMUM_DISTANCE
         return max([lookahead_danger, distance_danger]), self.accumulated_score
 
     def build_polygon(self):
         points = [(item["lat"], item["lng"]) for item in self.contestant.navigation_task.route.corridor_polygon]
         points = np.array(points)
-        transformed_points = self.polygon_helper.utm.transform_points(
-            self.polygon_helper.pc, points[:, 1], points[:, 0]
-        )
-        return Polygon(transformed_points)
+        
+        if self.projector:
+            # Use AEQD projection for the polygon to match position.projected_x/y
+            transformed_points = []
+            for lat, lon in points:
+                p = self.projector.project_point(lat, lon)
+                transformed_points.append((p.projected_x, p.projected_y))
+            return Polygon(transformed_points)
+        else:
+            transformed_points = self.polygon_helper.utm.transform_points(
+                self.polygon_helper.pc, points[:, 1], points[:, 0]
+            )
+            return Polygon(transformed_points)
 
     def plot_polygon(self):
         # imagery = OSM()
@@ -117,9 +148,15 @@ class AnrCorridorCalculator(Calculator):
         """
         Returns true if the point lies inside the corridor
         """
-        # We must project using our own polygon_helper because it uses UTM,
-        # while position.projected_x/y (if added) might use AEQD.
-        x, y = self.polygon_helper.utm.transform_point(position.longitude, position.latitude, self.polygon_helper.pc)
+        p_x = getattr(position, "projected_x", None)
+        p_y = getattr(position, "projected_y", None)
+        
+        if p_x is not None and self.projector:
+            # Use pre-projected coordinates directly!
+            x, y = p_x, p_y
+        else:
+            # Fallback to UTM projection
+            x, y = self.polygon_helper.utm.transform_point(position.longitude, position.latitude, self.polygon_helper.pc)
 
         # Direct bounding box check
         if self.track_polygon not in self._bounds_cache:

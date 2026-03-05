@@ -359,6 +359,32 @@ def bear(latA, lonA, latB, lonB):
     )
 
 
+def euclidean_point_to_line_distance(x1, y1, x2, y2, x3, y3) -> float:
+    """
+    Calculates the Euclidean distance from point (x3, y3) to the line segment (x1, y1)-(x2, y2).
+    """
+    px = x2 - x1
+    py = y2 - y1
+    norm = px * px + py * py
+    if norm == 0:
+        return math.sqrt((x3 - x1) ** 2 + (y3 - y1) ** 2)
+
+    u = ((x3 - x1) * px + (y3 - y1) * py) / float(norm)
+
+    if u > 1:
+        u = 1
+    elif u < 0:
+        u = 0
+
+    x = x1 + u * px
+    y = y1 + u * py
+
+    dx = x - x3
+    dy = y - y3
+
+    return math.sqrt(dx * dx + dy * dy)
+
+
 def point_to_line_distance(lat1, lon1, lat2, lon2, lat3, lon3) -> float:
     """
     Calculates the distance from the point (lat3,lon3) two the closest point on the line (lat1,lon1) (lat2,lon2)

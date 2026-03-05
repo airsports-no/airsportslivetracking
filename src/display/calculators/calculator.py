@@ -117,6 +117,7 @@ class Calculator(ABC):
         route: "Route",
         score_processing_queue: Queue,
         live_processing: bool = True,
+        projector: Optional["Projector"] = None,
     ):
         self.contestant = contestant
         self.scorecard = scorecard
@@ -124,6 +125,7 @@ class Calculator(ABC):
         self.route = route
         self.score_processing_queue = score_processing_queue
         self.live_processing = live_processing
+        self.projector = projector
         logger.debug(f"{contestant}: Starting calculator {self}")
 
     def update_score(self, update_score_message: UpdateScoreMessage) -> None:

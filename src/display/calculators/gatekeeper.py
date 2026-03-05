@@ -115,6 +115,7 @@ class Gatekeeper:
                     self.contestant.navigation_task.route,
                     self.score_processing_queue,
                     live_processing=self.live_processing,
+                    projector=self.projector,
                 )
             )
 
@@ -136,7 +137,8 @@ class Gatekeeper:
         """
         Calculate expected crossing times for all outstanding gates given the start time.
         """
-        self.contestant.refresh_from_db()
+        if self.recalculation_completed:
+            return
 
         # For adaptive start, round to closest minute as per help text
         if self.contestant.adaptive_start:
@@ -146,10 +148,11 @@ class Gatekeeper:
             start_time = rounded_start_time
 
         gate_times = self.contestant.calculate_missing_gate_times({}, start_time)
-        Contestant.objects.filter(pk=self.contestant.pk).update(predefined_gate_times=gate_times)
+        self.contestant.predefined_gate_times = gate_times
+        self.contestant.save(update_fields=["predefined_gate_times"])
+
         logger.info(f"Recalculating gates times for contestant {self.contestant}: {gate_times}")
-        self.contestant.refresh_from_db()
-        self.websocket_facade.transmit_contestant(self.contestant)
+        
         for item in self.gates:
             if item.name in gate_times:
                 item.expected_time = gate_times[item.name]
@@ -163,6 +166,7 @@ class Gatekeeper:
             for gate in self.landing_gate.gates:
                 if gate.name in gate_times:
                     gate.expected_time = gate_times[gate.name]
+        
         self.recalculation_completed = True
         self.websocket_facade.transmit_contestant(self.contestant)
 
@@ -328,17 +332,13 @@ class Gatekeeper:
         elif isinstance(event, StartingLinePassedEvent):
             event.gate.pass_infinite_gate(event.intersection_time, event.position)
 
-            # Recalculate if this is the start point and adaptive start is on
-            # (In case the event didn't come through as AdaptiveStartEvent specifically)
-            if self.contestant.adaptive_start and not self.recalculation_completed:
-                self.recalculate_gates_times_from_start_time(event.intersection_time)
-
             if not self.enroute:
                 self.enroute = True
                 logger.info(f"{self.contestant}: Switching to enroute after starting line crossing")
 
             for calculator in self.calculators:
                 calculator.on_starting_line_passed(event.gate, event.position)
+
         elif isinstance(event, StartingLineExtendedPassedWrongDirectionEvent):
             for calculator in self.calculators:
                 calculator.on_starting_line_extended_passed_wrong_direction(event.gate, event.position)

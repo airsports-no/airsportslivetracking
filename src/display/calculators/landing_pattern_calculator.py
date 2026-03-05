@@ -27,11 +27,22 @@ class LandingPatternCalculator(Calculator):
         route,
         score_processing_queue,
         live_processing=True,
+        projector=None,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
+        super().__init__(
+            contestant,
+            scorecard,
+            gates,
+            route,
+            score_processing_queue,
+            live_processing=live_processing,
+            projector=projector,
+        )
         self.last_intersection = None
-        # Initialize projector if landing gates exist, else fallback to origin.
-        if self.route.landing_gates and len(self.route.landing_gates) > 0:
+        # Initialize projector if landing gates exist, else fallback to provided or origin.
+        if self.projector:
+            pass # Use passed one
+        elif self.route.landing_gates and len(self.route.landing_gates) > 0:
             first_gate = self.route.landing_gates[0]
             self.projector = Projector(first_gate.latitude, first_gate.longitude)
         else:

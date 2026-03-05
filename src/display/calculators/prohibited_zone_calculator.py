@@ -29,8 +29,17 @@ class ProhibitedZoneCalculator(Calculator):
         route: "Route",
         score_processing_queue: Queue,
         live_processing: bool = True,
+        projector=None,
     ):
-        super().__init__(contestant, scorecard, gates, route, score_processing_queue, live_processing=live_processing)
+        super().__init__(
+            contestant,
+            scorecard,
+            gates,
+            route,
+            score_processing_queue,
+            live_processing=live_processing,
+            projector=projector,
+        )
         self.inside_zones = {}
         self.zones_scored = set()
         self.gates = gates
@@ -38,7 +47,7 @@ class ProhibitedZoneCalculator(Calculator):
         self.last_outside_penalty = None
         self.crossed_outside_position = None
         waypoint = self.contestant.navigation_task.route.waypoints[0]
-        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
+        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude, projector=projector)
         self.polygons = [] # List of (zone_pk, polygon)
         self.running_penalty = {}
         self.zone_map = {}
@@ -92,7 +101,12 @@ class ProhibitedZoneCalculator(Calculator):
 
     def check_inside_prohibited_zone(self, track: List[ContestantReceivedPosition], last_gate: Optional["Gate"]):
         position = track[-1]
-        incursions = self.polygon_helper.check_inside_polygons(self.polygons, position.latitude, position.longitude)
+        p_x = getattr(position, "projected_x", None)
+        p_y = getattr(position, "projected_y", None)
+        
+        incursions = self.polygon_helper.check_inside_polygons(
+            self.polygons, position.latitude, position.longitude, p_x, p_y
+        )
         inside_this_time = set(incursions)
         
         for zone_pk in incursions:

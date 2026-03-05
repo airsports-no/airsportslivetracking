@@ -10,6 +10,7 @@ from display.utilities.coordinate_utilities import (
     Projector,
     bearing_difference,
     point_to_line_distance,
+    euclidean_point_to_line_distance,
 )
 from display.waypoint import Waypoint
 
@@ -156,14 +157,20 @@ class Gate:
             )
         return None
 
-    def get_distance_to_gate_line(self, latitude: float, longitude: float) -> float:
+    def get_distance_to_gate_line(self, latitude: float, longitude: float, projected_x=None, projected_y=None) -> float:
         """
         Calculates the distance from the current position to the nearest point of the gate line.
-
-        :param latitude:
-        :param longitude:
-        :return:
         """
+        if self.projected_gate_line and projected_x is not None and projected_y is not None:
+            return euclidean_point_to_line_distance(
+                self.projected_gate_line[0].projected_x,
+                self.projected_gate_line[0].projected_y,
+                self.projected_gate_line[1].projected_x,
+                self.projected_gate_line[1].projected_y,
+                projected_x,
+                projected_y,
+            )
+
         return point_to_line_distance(*self.gate_line[0], *self.gate_line[1], latitude, longitude)
 
 
