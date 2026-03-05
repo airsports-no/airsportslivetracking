@@ -47,6 +47,7 @@ class ScoreAccumulator:
         current_score_for_type = self.related_score.setdefault(score_type, 0)
         if maximum_score is not None:
             if (maximum_score > 0 and current_score_for_type + score >= maximum_score) or (
+
                 maximum_score < 0 and current_score_for_type + score <= maximum_score
             ):
                 score = maximum_score - current_score_for_type

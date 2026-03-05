@@ -61,8 +61,9 @@ def clone_navigation_task(original_task, new_contest):
     for prohibited in original_task.route.prohibited_set.all():
         prohibited.copy_to_new_route(new_route)
     
-    new_scorecard = original_task.scorecard.copy(None)
-    new_scorecard.name = f"{CLONE_PREFIX}{original_task.name}_{datetime.datetime.now().timestamp()}"
+    timestamp = str(datetime.datetime.now().timestamp())
+    new_scorecard = original_task.scorecard.copy(timestamp)
+    new_scorecard.name = f"{CLONE_PREFIX}{original_task.name}_{timestamp}"
     new_scorecard.save()
     
     new_task = NavigationTask.objects.create(
@@ -174,19 +175,17 @@ def main():
         delete_existing_clones()
         
         # Target specific contest and task
-        contest_id = 788
-        task_id = 2968
+        task_id = 3129
+        contestant_id = 14349
         
         try:
-            task = NavigationTask.objects.get(pk=task_id, contest_id=contest_id)
+            task = NavigationTask.objects.get(pk=task_id)
         except NavigationTask.DoesNotExist:
-            logger.error(f"Task {task_id} in contest {contest_id} not found")
+            logger.error(f"Task {task_id} not found")
             return
 
-        contestants = list(task.contestant_set.all()[:3])
-        if not contestants:
-            logger.error("No contestants found")
-            return
+        original_contestant = Contestant.objects.get(pk=contestant_id)
+        contestants = [original_contestant]
 
         new_contest = clone_contest(task.contest)
         new_task = clone_navigation_task(task, new_contest)
@@ -252,6 +251,10 @@ def main():
             run_recalculation(new_contestant_v, positions_v)
             current_results = get_results(new_contestant_v)
             
+            print(f"\nScore Log for {baseline['contestant']}:")
+            for entry in current_results['log']:
+                print(f"  {entry}")
+
             discrepancies = compare_two_results(baseline['results'], current_results)
             if discrepancies:
                 print("\n" + "!"*50)

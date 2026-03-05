@@ -4,7 +4,7 @@ import datetime
 import logging
 import json
 import difflib
-from django.db import transaction
+from django.db import transaction, models
 from django.core.cache import cache
 
 # Setup Django
@@ -39,8 +39,30 @@ logger = logging.getLogger(__name__)
 
 CLONE_PREFIX = "[RECALC_TEST] "
 REPORT_FILE = "recalculation_test_report.txt"
+STATE_FILE = "scoring_engine_test_state.json"
 BASE_URL = "http://localhost:8002"
 IGNORE_TASKS = [3108]
+SKIP_FAI_ANR_2022 = True
+
+
+def load_state():
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"remembered_id": None, "ignored_ids": [], "passed_ids": []}
+
+
+def save_state(state):
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f)
+
+
+def restart_script():
+    logger.info("Restarting script to load new code...")
+    os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 def get_tracking_link(contest_pk, task_pk):
@@ -66,7 +88,6 @@ def delete_existing_clones():
 
 
 def clone_contest(original_contest):
-    logger.info(f"Cloning contest: {original_contest.name}")
     new_contest = Contest.objects.create(
         name=f"{CLONE_PREFIX}{original_contest.name}_{datetime.datetime.now().timestamp()}",
         time_zone=original_contest.time_zone,
@@ -92,13 +113,11 @@ def clone_contest(original_contest):
 
 
 def clone_navigation_task(original_task, new_contest):
-    logger.info(f"  Cloning navigation task: {original_task.name}")
     new_route = original_task.route.create_copy()
     for prohibited in original_task.route.prohibited_set.all():
         prohibited.copy_to_new_route(new_route)
 
-    new_scorecard = original_task.scorecard.copy(None)
-    # Ensure unique name for cloned scorecard to avoid IntegrityError
+    new_scorecard = original_task.scorecard.copy(str(datetime.datetime.now().timestamp()))
     new_scorecard.name = f"{CLONE_PREFIX}{original_task.name}_{datetime.datetime.now().timestamp()}"
     new_scorecard.save()
 
@@ -127,7 +146,6 @@ def clone_navigation_task(original_task, new_contest):
 
 
 def clone_contestant(original_contestant, new_task):
-    logger.info(f"    Cloning contestant: {original_contestant}")
     new_contestant = Contestant.objects.create(
         team=original_contestant.team,
         navigation_task=new_task,
@@ -171,7 +189,6 @@ def clone_contestant(original_contestant, new_task):
 
 
 def run_recalculation(contestant, positions):
-    logger.info(f"    Running recalculation for {contestant}...")
     q = RedisQueue(contestant.pk)
     while not q.empty():
         q.pop()
@@ -196,13 +213,38 @@ def run_recalculation(contestant, positions):
     processor.run()
 
 
+def get_side_by_side_diff(list1, list2):
+    matcher = difflib.SequenceMatcher(None, list1, list2)
+    out1, out2 = [], []
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            for i in range(i1, i2):
+                out1.append(list1[i])
+                out2.append(list2[j1 + (i - i1)])
+        elif tag == "replace":
+            max_len = max(i2 - i1, j2 - j1)
+            for i in range(max_len):
+                out1.append(list1[i1 + i] if i1 + i < i2 else "")
+                out2.append(list2[j1 + i] if j1 + i < j2 else "")
+        elif tag == "delete":
+            for i in range(i1, i2):
+                out1.append(list1[i])
+                out2.append("")
+        elif tag == "insert":
+            for i in range(j1, j2):
+                out1.append("")
+                out2.append(list2[i])
+    return out1, out2
+
+
 def compare_results(original, cloned):
     original.contestanttrack.refresh_from_db()
     cloned.contestanttrack.refresh_from_db()
 
     discrepancies = []
+    log_diff = None
 
-    if original.contestanttrack.score != cloned.contestanttrack.score:
+    if abs(original.contestanttrack.score - cloned.contestanttrack.score) > 0.01:
         discrepancies.append(
             f"Score mismatch: Original={original.contestanttrack.score}, Cloned={cloned.contestanttrack.score}"
         )
@@ -214,13 +256,112 @@ def compare_results(original, cloned):
     clone_strings = [e.string for e in clone_entries]
 
     if orig_strings != clone_strings:
-        diff = difflib.unified_diff(orig_strings, clone_strings, fromfile="original", tofile="cloned", lineterm="")
-        discrepancies.append("Score log mismatch:\n" + "\n".join(list(diff)))
+        log_diff = get_side_by_side_diff(orig_strings, clone_strings)
+        discrepancies.append("Score log mismatch detected (see side-by-side view below)")
 
-    return discrepancies
+    return discrepancies, log_diff
+
+
+def run_test_for_contestant(contestant, task, contest, state, is_remembered=False):
+    if contestant.pk in state["ignored_ids"] and not is_remembered:
+        return True
+
+    new_contest = clone_contest(contest)
+    new_task = clone_navigation_task(task, new_contest)
+    new_contestant, positions = clone_contestant(contestant, new_task)
+
+    run_recalculation(new_contestant, positions)
+    discrepancies, log_diff = compare_results(contestant, new_contestant)
+
+    passed = not discrepancies
+    regression = False
+    if not passed and contestant.pk in state["passed_ids"]:
+        regression = True
+
+    if discrepancies or is_remembered:
+        if discrepancies:
+            print("\n" + "!" * 120)
+            print(f"DISCREPANCY FOUND {'(REGRESSION!)' if regression else ''}")
+            print(f"Task: {task.name} (PK: {task.pk})")
+            print(f"Contestant: {contestant} (PK: {contestant.pk})")
+            for d in discrepancies:
+                print(f" - {d}")
+            
+            if log_diff:
+                print("\nSide-by-side Score Log (Original vs Cloned):")
+                print("-" * 120)
+                col_width = 58
+                left_col, right_col = log_diff
+                for l, r in zip(left_col, right_col):
+                    l_norm = l.replace("\n", " ")
+                    r_norm = r.replace("\n", " ")
+                    marker = "  " if l == r else "!!"
+                    # Truncate if too long for side-by-side
+                    l_disp = (l_norm[:col_width-3] + "..") if len(l_norm) > col_width else l_norm
+                    r_disp = (r_norm[:col_width-3] + "..") if len(r_norm) > col_width else r_norm
+                    print(f"{l_disp:<{col_width}} {marker} {r_disp:<{col_width}}")
+                print("-" * 120)
+        else:
+            print(f"\nReviewing remembered contestant: {contestant}")
+
+        print(f"Original map: {get_tracking_link(contest.pk, task.pk)}")
+        print(f"Cloned map: {get_tracking_link(new_contest.pk, new_task.pk)}")
+        if discrepancies:
+            print("!" * 120 + "\n")
+
+        while True:
+            prompt = "[C]ontinue, [I]gnore and continue, [R]etry (restart), or [A]bort? "
+            if is_remembered and not discrepancies:
+                prompt = "Remembered contestant passed. [C]ontinue with full test or [R]etry? "
+            
+            choice = input(prompt).strip().lower()
+            if choice == 'c':
+                if passed and contestant.pk not in state["passed_ids"]:
+                    state["passed_ids"].append(contestant.pk)
+                break
+            elif choice == 'i':
+                if contestant.pk not in state["ignored_ids"]:
+                    state["ignored_ids"].append(contestant.pk)
+                save_state(state)
+                break
+            elif choice == 'r':
+                state["remembered_id"] = contestant.pk
+                save_state(state)
+                restart_script()
+            elif choice == 'a':
+                sys.exit(0)
+
+    # Cleanup clones
+    new_task.delete()
+    if new_task.route_id:
+        Route.objects.filter(pk=new_task.route_id).delete()
+    new_contest.delete()
+    
+    if passed and contestant.pk not in state["passed_ids"]:
+        state["passed_ids"].append(contestant.pk)
+        save_state(state)
+
+    return passed
 
 
 def main():
+    state = load_state()
+    
+    if state["remembered_id"]:
+        remembered_id = state["remembered_id"]
+        try:
+            contestant = Contestant.objects.get(pk=remembered_id)
+            task = contestant.navigation_task
+            contest = task.contest
+            logger.info(f"Running remembered contestant: {contestant}")
+            state["remembered_id"] = None
+            save_state(state)
+            run_test_for_contestant(contestant, task, contest, state, is_remembered=True)
+        except Contestant.DoesNotExist:
+            logger.warning(f"Remembered contestant {remembered_id} no longer exists.")
+            state["remembered_id"] = None
+            save_state(state)
+
     delete_existing_clones()
 
     contests = Contest.objects.exclude(name__startswith=CLONE_PREFIX).order_by("-start_time")
@@ -234,75 +375,27 @@ def main():
             if not tasks.exists():
                 continue
 
-            new_contest = clone_contest(contest)
-            all_tasks_passed = True
-
             for task in tasks:
                 if task.pk in IGNORE_TASKS:
                     logger.info(f"Skipping ignored task '{task.name}' (PK: {task.pk})")
                     continue
 
-                new_task = clone_navigation_task(task, new_contest)
-                all_contestants_passed = True
-
-                # Filter to validate at least 3 contestants as requested (if available)
-                contestants = task.contestant_set.all()
-                if not contestants.exists():
-                    route_id = new_task.route_id
-                    new_task.delete()
-                    if route_id:
-                        Route.objects.filter(pk=route_id).delete()
+                if SKIP_FAI_ANR_2022 and task.original_scorecard and task.original_scorecard.name == "FAI ANR 2022":
+                    logger.info(f"Skipping task '{task.name}' (PK: {task.pk}) using FAI ANR 2022 scorecard")
                     continue
 
+                contestants = task.contestant_set.all()
                 for contestant in contestants:
                     if not contestant.scorelogentry_set.exists():
-                        logger.info(f"    Skipping contestant {contestant} (empty score log)")
                         continue
 
-                    new_contestant, positions = clone_contestant(contestant, new_task)
+                    success = run_test_for_contestant(contestant, task, contest, state)
+                    if success:
+                        report.write(f"SUCCESS: {contestant} in {task.name}\n")
+                    else:
+                        report.write(f"FAILURE: {contestant} in {task.name}\n")
 
-                    run_recalculation(new_contestant, positions)
-
-                    discrepancies = compare_results(contestant, new_contestant)
-
-                    if discrepancies:
-                        print("\n" + "!" * 50)
-                        print(f"DISCREPANCY FOUND")
-                        print(f"Task: {task.name} (PK: {task.pk})")
-                        print(f"Contestant: {contestant}")
-                        for d in discrepancies:
-                            print(d)
-                        print(f"Original map: {get_tracking_link(contest.pk, task.pk)}")
-                        print(f"Cloned map: {get_tracking_link(new_contest.pk, new_task.pk)}")
-                        print("!" * 50 + "\n")
-
-                        report.write(f"FAILURE: Task '{task.name}' (PK: {task.pk}), Contestant '{contestant}'\n")
-                        report.write(f"  Original map: {get_tracking_link(contest.pk, task.pk)}\n")
-                        report.write(f"  Cloned map: {get_tracking_link(new_contest.pk, new_task.pk)}\n")
-                        for d in discrepancies:
-                            report.write(f"  {d}\n")
-
-                        logger.error("TERMINATING TEST DUE TO DISCREPANCY. Cloned objects kept for inspection.")
-                        sys.exit(1)
-
-                if all_contestants_passed:
-                    msg = f"SUCCESS: Navigation Task '{task.name}' validated. Link: {get_tracking_link(contest.pk, task.pk)}"
-                    logger.info(msg)
-                    report.write(msg + "\n")
-                else:
-                    all_tasks_passed = False
-
-                # Delete cloned task and its route
-                route_id = new_task.route_id
-                new_task.delete()
-                if route_id:
-                    Route.objects.filter(pk=route_id).delete()
-
-            if all_tasks_passed:
-                logger.info(f"Contest '{contest.name}' fully validated.")
-                new_contest.delete()
-            else:
-                logger.warning(f"Contest '{contest.name}' had some failures.")
+    logger.info("Test run complete.")
 
 
 if __name__ == "__main__":

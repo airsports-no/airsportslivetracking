@@ -109,8 +109,12 @@ class TestGatekeeperUnit(TestCase):
         self.gatekeeper.handle_event(event)
         
         self.assertTrue(gate.pass_infinite_gate.called)
-        self.assertEqual(self.gatekeeper.last_gate, gate)
-        self.assertNotIn(gate, self.gatekeeper.outstanding_gates)
+        # last_gate is no longer updated by StartingLinePassedEvent as requested
+        self.assertIsNone(self.gatekeeper.last_gate)
+        # But enroute should be True
+        self.assertTrue(self.gatekeeper.enroute)
+        # and gate is still in outstanding_gates (not popped)
+        self.assertIn(gate, self.gatekeeper.outstanding_gates)
 
     def test_handle_adaptive_start_event(self):
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))

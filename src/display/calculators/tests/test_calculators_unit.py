@@ -39,6 +39,9 @@ class CalculatorUnitTestBase(TestCase):
         self.waypoint1.bearing_from_previous = 0
         self.waypoint1.width = 100.0
         self.waypoint1.gate_line = ((60.0, 11.0), (60.0, 11.1))
+        self.waypoint1.infinite_passing_time = None
+        self.waypoint1.passing_time = None
+        self.waypoint1.missed = False
         self.route.waypoints = [self.waypoint1]
         self.route.corridor_polygon = [{"lat": 60.0, "lng": 11.0}, {"lat": 60.1, "lng": 11.0}, {"lat": 60.1, "lng": 11.1}]
         self.route.takeoff_gates = []
@@ -106,6 +109,9 @@ class TestGateCalculator(CalculatorUnitTestBase):
         gate.longitude = 11.0
         gate.is_passed_in_correct_direction_track.return_value = True
         gate.has_been_passed.return_value = False
+        gate.infinite_passing_time = None
+        gate.passing_time = None
+        gate.missed = False
         gate.time_check = False
         
         self.calculator.gates = [gate]
@@ -196,11 +202,17 @@ class TestGateCalculator(CalculatorUnitTestBase):
         gate1 = MagicMock()
         gate1.name = "TP 1"
         gate1.has_been_passed.return_value = False
+        gate1.infinite_passing_time = None
+        gate1.passing_time = None
+        gate1.missed = False
         
         gate2 = MagicMock()
         gate2.name = "TP 2"
         gate2.is_passed_in_correct_direction_track.return_value = True
         gate2.has_been_passed.return_value = False
+        gate2.infinite_passing_time = None
+        gate2.passing_time = None
+        gate2.missed = False
         
         self.calculator.gates = [gate1, gate2]
         
@@ -236,6 +248,9 @@ class TestGateCalculator(CalculatorUnitTestBase):
         gate.longitude = 11.0
         gate.inside_distance = 1000.0 # 1km
         gate.get_gate_intersection_time.return_value = None
+        gate.infinite_passing_time = None
+        gate.passing_time = None
+        gate.missed = False
         
         mock_dist.return_value = 500.0 # 500m < 1km
         
@@ -310,6 +325,45 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
         
         self.assertEqual(self.calculator.corridor_state, self.calculator.OUTSIDE_CORRIDOR)
         self.assertEqual(self.calculator.crossed_outside_time, pos.time)
+
+    def test_calculate_enroute_gate_pass_while_outside_single_penalty(self):
+        # Initial state: already outside corridor
+        self.calculator.corridor_state = self.calculator.OUTSIDE_CORRIDOR
+        self.calculator.crossed_outside_time = datetime.datetime(2020, 1, 1, 10, 0)
+        gate1 = MagicMock(name="SP")
+        self.calculator.crossed_outside_gate = gate1
+        
+        # New position still outside, but gate has advanced to TP1
+        self.calculator._check_inside_polygon = MagicMock(return_value=False)
+        gate2 = MagicMock(name="TP1")
+        
+        pos = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 10, 1))
+        state = GatekeeperState(
+            last_gate=gate2, # Gate has advanced
+            outstanding_gates=[], 
+            in_range_of_gate=None, 
+            projector=self.projector, 
+            takeoff_gate=None, 
+            landing_gate=None, 
+            has_passed_finishpoint=False, 
+            recalculation_completed=True
+        )
+        
+        with patch.object(self.calculator, 'update_score') as mock_update:
+            self.calculator.calculate_enroute([pos], state)
+            
+            # Check how many times update_score was called
+            # It should be called for the 'outside corridor' increment, 
+            # but NOT for a redundant 'exiting corridor' message.
+            
+            # Find any calls that look like "exiting corridor"
+            exiting_calls = [c for c in mock_update.call_args_list if "exiting corridor" in c[0][0].message]
+            self.assertEqual(len(exiting_calls), 0, "Should not emit redundant 'exiting corridor' message on leg advance while already outside")
+            
+            # The gate reference should have advanced
+            self.assertEqual(self.calculator.crossed_outside_gate, gate2)
+            # State remains outside
+            self.assertEqual(self.calculator.corridor_state, self.calculator.OUTSIDE_CORRIDOR)
 
 class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
     def setUp(self):
