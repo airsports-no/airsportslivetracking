@@ -33,6 +33,7 @@ def get_default_scorecard():
             "calculator": ANR_CORRIDOR,
             "corridor_maximum_penalty": 0,  # verified
             "corridor_outside_penalty": 3,  # verified
+            "corridor_maximum_penalty_is_per_leg": True,
             "corridor_grace_time": 5,  # verified
             "below_minimum_altitude_penalty": 500,  # verified
             "below_minimum_altitude_maximum_penalty": 500,  # verified
@@ -44,6 +45,8 @@ def get_default_scorecard():
                     "corridor_grace_time",
                     "backtracking_penalty",
                     "corridor_outside_penalty",
+                    "corridor_maximum_penalty",
+                    "corridor_maximum_penalty_is_per_leg",
                 ],
                 [
                     "Prohibited zone",

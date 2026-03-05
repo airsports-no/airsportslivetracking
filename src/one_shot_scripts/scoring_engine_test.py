@@ -290,7 +290,7 @@ def run_test_for_contestant(contestant, task, contest, state, is_remembered=Fals
             print(f"Contestant: {contestant} (PK: {contestant.pk})")
             for d in discrepancies:
                 print(f" - {d}")
-            
+
             if log_diff:
                 print("\nSide-by-side Score Log (Original vs Cloned):")
                 print("-" * 120)
@@ -301,8 +301,8 @@ def run_test_for_contestant(contestant, task, contest, state, is_remembered=Fals
                     r_norm = r.replace("\n", " ")
                     marker = "  " if l == r else "!!"
                     # Truncate if too long for side-by-side
-                    l_disp = (l_norm[:col_width-3] + "..") if len(l_norm) > col_width else l_norm
-                    r_disp = (r_norm[:col_width-3] + "..") if len(r_norm) > col_width else r_norm
+                    l_disp = (l_norm[: col_width - 3] + "..") if len(l_norm) > col_width else l_norm
+                    r_disp = (r_norm[: col_width - 3] + "..") if len(r_norm) > col_width else r_norm
                     print(f"{l_disp:<{col_width}} {marker} {r_disp:<{col_width}}")
                 print("-" * 120)
         else:
@@ -317,27 +317,27 @@ def run_test_for_contestant(contestant, task, contest, state, is_remembered=Fals
             prompt = "[C]ontinue, [I]gnore contestant, ignore [T]ask, [R]etry (restart), or [A]bort? "
             if is_remembered and not discrepancies:
                 prompt = "Remembered contestant passed. [C]ontinue with full test or [R]etry? "
-            
+
             choice = input(prompt).strip().lower()
-            if choice == 'c':
+            if choice == "c":
                 if passed and contestant.pk not in state["passed_ids"]:
                     state["passed_ids"].append(contestant.pk)
                 break
-            elif choice == 'i':
+            elif choice == "i":
                 if contestant.pk not in state["ignored_ids"]:
                     state["ignored_ids"].append(contestant.pk)
                 save_state(state)
                 break
-            elif choice == 't':
+            elif choice == "t":
                 if task.pk not in state["ignored_task_ids"]:
                     state["ignored_task_ids"].append(task.pk)
                 save_state(state)
                 break
-            elif choice == 'r':
+            elif choice == "r":
                 state["remembered_id"] = contestant.pk
                 save_state(state)
                 restart_script()
-            elif choice == 'a':
+            elif choice == "a":
                 sys.exit(0)
 
     # Cleanup clones
@@ -345,7 +345,7 @@ def run_test_for_contestant(contestant, task, contest, state, is_remembered=Fals
     if new_task.route_id:
         Route.objects.filter(pk=new_task.route_id).delete()
     new_contest.delete()
-    
+
     if passed and contestant.pk not in state["passed_ids"]:
         state["passed_ids"].append(contestant.pk)
         save_state(state)
@@ -355,7 +355,7 @@ def run_test_for_contestant(contestant, task, contest, state, is_remembered=Fals
 
 def main():
     state = load_state()
-    
+
     if state["remembered_id"]:
         remembered_id = state["remembered_id"]
         try:

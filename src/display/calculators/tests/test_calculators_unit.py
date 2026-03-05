@@ -56,6 +56,8 @@ class CalculatorUnitTestBase(TestCase):
         self.projector = MagicMock()
 
     def create_position(self, lat, lon, time):
+        if time.tzinfo is None:
+            time = time.replace(tzinfo=datetime.timezone.utc)
         pos = MagicMock(spec=ContestantReceivedPosition)
         pos.latitude = float(lat)
         pos.longitude = float(lon)
@@ -281,6 +283,7 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
         self.scorecard.corridor_grace_time = 5
         self.scorecard.corridor_outside_penalty = 10
         self.scorecard.corridor_maximum_penalty = 100
+        self.scorecard.corridor_maximum_penalty_is_per_leg = False
         
         # Mock PolygonHelper to return a mock boundary
         mock_ph_instance = mock_polygon_helper.return_value
@@ -329,41 +332,109 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
     def test_calculate_enroute_gate_pass_while_outside_single_penalty(self):
         # Initial state: already outside corridor
         self.calculator.corridor_state = self.calculator.OUTSIDE_CORRIDOR
-        self.calculator.crossed_outside_time = datetime.datetime(2020, 1, 1, 10, 0)
+        self.calculator.crossed_outside_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        self.calculator.current_leg_outside_start_time = self.calculator.crossed_outside_time
         gate1 = MagicMock(name="SP")
+        gate1.name = "SP"
+        gate1.type = "sp"
         self.calculator.crossed_outside_gate = gate1
         
         # New position still outside, but gate has advanced to TP1
-        self.calculator._check_inside_polygon = MagicMock(return_value=False)
         gate2 = MagicMock(name="TP1")
+        gate2.name = "TP1"
+        gate2.type = "tp"
+        
+        self.calculator.gates = [gate1, gate2]
         
         pos = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 10, 1))
-        state = GatekeeperState(
-            last_gate=gate2, # Gate has advanced
-            outstanding_gates=[], 
-            in_range_of_gate=None, 
-            projector=self.projector, 
-            takeoff_gate=None, 
-            landing_gate=None, 
-            has_passed_finishpoint=False, 
-            recalculation_completed=True
-        )
         
-        with patch.object(self.calculator, 'update_score') as mock_update:
-            self.calculator.calculate_enroute([pos], state)
+        with patch.object(self.calculator, '_check_inside_polygon', return_value=False):
+            with patch.object(self.calculator, 'update_score') as mock_update:
+                # 1. Test with per-leg OFF (default)
+                self.calculator.corridor_maximum_penalty_is_per_leg = False
+                self.calculator.check_outside_corridor([pos], gate2)
+                
+                # Find any calls that look like "exiting corridor"
+                exiting_calls = [c for c in mock_update.call_args_list if "exiting corridor" in c[0][0].message]
+                self.assertEqual(len(exiting_calls), 0, "Should not emit redundant 'exiting corridor' message on leg advance while already outside")
+                
+                # 2. Test with per-leg ON
+                self.calculator.corridor_maximum_penalty_is_per_leg = True
+                # Reset state for fresh run
+                self.calculator.corridor_state = self.calculator.OUTSIDE_CORRIDOR
+                self.calculator.crossed_outside_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+                self.calculator.current_leg_outside_start_time = self.calculator.crossed_outside_time
+                self.calculator.crossed_outside_gate = gate1
+                self.calculator.is_first_leg_of_excursion = True
+                
+                mock_update.reset_mock()
+                self.calculator.check_outside_corridor([pos], gate2)
+                
+                exiting_calls_per_leg = [c for c in mock_update.call_args_list if "exiting corridor" in c[0][0].message]
+                # When per-leg is ON, it SHOULD emit exactly ONE "exiting corridor" for the NEW leg TP1
+                self.assertEqual(len(exiting_calls_per_leg), 1)
+                self.assertEqual(exiting_calls_per_leg[0][0][0].gate.name, "TP1")
+                
+                # Verify the SP was finalized (should be the first call)
+                sp_final_msg = mock_update.call_args_list[0][0][0]
+                self.assertEqual(sp_final_msg.gate.name, "SP")
+                self.assertIn("outside corridor", sp_final_msg.message)
+
+    def test_per_leg_maximum_penalty_accumulation(self):
+        # Setup per-leg scoring
+        self.calculator.corridor_maximum_penalty_is_per_leg = True
+        self.scorecard.corridor_maximum_penalty = 50
+        self.scorecard.corridor_outside_penalty = 10
+        self.scorecard.corridor_grace_time = 5
+        
+        t0 = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        gate1 = MagicMock(name="SP")
+        gate1.name = "SP"
+        gate1.type = "sp"
+        
+        gate2 = MagicMock(name="TP1")
+        gate2.name = "TP1"
+        gate2.type = "tp"
+        
+        self.calculator.gates = [gate1, gate2]
+        
+        with patch.object(self.calculator, '_check_inside_polygon') as mock_check:
+            # 1. Go outside at T=0
+            mock_check.return_value = False
+            pos0 = self.create_position(0, 0, t0)
+            self.calculator.check_outside_corridor([pos0], gate1)
             
-            # Check how many times update_score was called
-            # It should be called for the 'outside corridor' increment, 
-            # but NOT for a redundant 'exiting corridor' message.
+            # 2. Stay outside for 10 seconds (Leg 1: SP)
+            t10 = t0 + datetime.timedelta(seconds=10)
+            pos10 = self.create_position(0, 0, t10)
+            self.calculator.check_outside_corridor([pos10], gate1)
             
-            # Find any calls that look like "exiting corridor"
-            exiting_calls = [c for c in mock_update.call_args_list if "exiting corridor" in c[0][0].message]
-            self.assertEqual(len(exiting_calls), 0, "Should not emit redundant 'exiting corridor' message on leg advance while already outside")
+            # Expectation: 10s outside, 5s grace -> 5s penalty. 5 * 10 = 50 points.
+            self.assertEqual(self.calculator.accumulated_score, 50.0)
             
-            # The gate reference should have advanced
-            self.assertEqual(self.calculator.crossed_outside_gate, gate2)
-            # State remains outside
-            self.assertEqual(self.calculator.corridor_state, self.calculator.OUTSIDE_CORRIDOR)
+            # 3. Pass gate TP1 while outside at T=15
+            t15 = t0 + datetime.timedelta(seconds=15)
+            pos15 = self.create_position(0, 0, t15)
+            
+            with patch.object(self.calculator, 'update_score') as mock_update:
+                self.calculator.check_outside_corridor([pos15], gate2)
+                
+                # SP finalized, TP1 started.
+                # TP1 check_and_apply_outside_penalty called at T=15.
+                # Since current_time=T=15 and current_leg_start=T=15, outside_time=0.
+                self.assertEqual(self.calculator.accumulated_score, 0)
+                self.assertFalse(self.calculator.is_first_leg_of_excursion)
+                
+                # 4. Stay outside for another 10 seconds in Leg 2 (T=25)
+                t25 = t0 + datetime.timedelta(seconds=25)
+                pos25 = self.create_position(0, 0, t25)
+                self.calculator.check_outside_corridor([pos25], gate2)
+                
+                # Expectation: 10s in Leg 2. NO GRACE. 10 * 10 = 100 points.
+                self.assertEqual(self.calculator.accumulated_score, 100.0)
+                
+                # Check message score_type contains gate name
+                self.assertEqual(mock_update.call_args_list[1][0][0].score_type, "outside_corridor_TP1")
 
 class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
     def setUp(self):

@@ -104,6 +104,9 @@ class Scorecard(models.Model):
         default=3, help_text="The penalty awarded for leaving the ANR corridor"
     )
     corridor_maximum_penalty = models.FloatField(default=-1, help_text="The maximum penalty for leaving the corridor")
+    corridor_maximum_penalty_is_per_leg = models.BooleanField(
+        default=False, help_text="If true, the maximum corridor penalty is reset for each leg"
+    )
 
     def __str__(self):
         return self.name

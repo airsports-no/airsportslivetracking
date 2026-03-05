@@ -298,7 +298,8 @@ gives a penalty of {scorecard.backtracking_penalty} points.
 Flying outside of the corridor more than {scorecard.corridor_grace_time} seconds gives a penalty of 
 {"{:.0f}".format(scorecard.corridor_outside_penalty)} point(s) per second."""
         if scorecard.corridor_maximum_penalty != 0:
-            text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.corridor_maximum_penalty)} points for being outside the corridor per leg."""
+            per_leg_text = " per leg" if scorecard.corridor_maximum_penalty_is_per_leg else ""
+            text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.corridor_maximum_penalty)} points for being outside the corridor{per_leg_text}."""
         text += f"""
 {self._prohibited_zone_text()} {self._penalty_zone_text()} {"The route has a takeoff gate." if self.navigation_task.route.first_takeoff_gate else ""} {"The route has a landing gate." if self.navigation_task.route.first_landing_gate else ""}
 """
@@ -319,7 +320,8 @@ Flying outside of the corridor more than {scorecard.corridor_grace_time} seconds
 {corridor_width_text} Flying outside of the corridor for more than {scorecard.corridor_grace_time} seconds gives a penalty of 
 {"{:.0f}".format(scorecard.corridor_outside_penalty)} point(s) per second. """
         if scorecard.corridor_maximum_penalty != 0:
-            text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.corridor_maximum_penalty)} points for being outside the corridor per leg."""
+            per_leg_text = " per leg" if scorecard.corridor_maximum_penalty_is_per_leg else ""
+            text += f"""There is a maximum penalty of {"{:.0f}".format(scorecard.corridor_maximum_penalty)} points for being outside the corridor{per_leg_text}."""
 
         text += f"""
 There are timed gates on the track. The penalty for crossing the gate at the wrong time is {self.navigation_task.scorecard.get_penalty_per_second_for_gate_type("tp")} point(s) per second beyond the first {self.navigation_task.scorecard.get_graceperiod_after_for_gate_type("tp")} seconds. 
