@@ -103,6 +103,7 @@ interface MapLayersProps {
     scoreLogByContestant: Record<number, any[]>;
     userShowSecrets: boolean;
     permanentAnnotations: boolean;
+    showPenaltiesOnly: boolean;
 }
 
 export function useMapLayers({
@@ -118,7 +119,8 @@ export function useMapLayers({
     annotationsByContestant,
     scoreLogByContestant,
     userShowSecrets,
-    permanentAnnotations
+    permanentAnnotations,
+    showPenaltiesOnly
 }: MapLayersProps) {
     const layersRef = useRef<Record<number, ContestantLayers>>({});
     const annotationMarkersRef = useRef<Map<number, L.Marker>>(new Map());
@@ -298,9 +300,15 @@ export function useMapLayers({
             );
 
             visibleAnnotations.forEach(ann => {
+                const scoreLog = ann.score_log_entry ? allLogs.find(l => l.id === ann.score_log_entry) : null;
+                
+                // Filter out non-penalties if showPenaltiesOnly is enabled
+                if (showPenaltiesOnly && (!scoreLog || scoreLog.points <= 0)) {
+                    return;
+                }
+
                 visibleAnnotationIds.add(ann.id);
                 
-                const scoreLog = ann.score_log_entry ? allLogs.find(l => l.id === ann.score_log_entry) : null;
                 const content = `
                     <b>${ann.gate} (${ann.type})</b><br/>
                     ${ann.message.replace(/\n/g, '<br/>')}<br/>
@@ -383,5 +391,5 @@ export function useMapLayers({
             }
         }
 
-    }, [mapRef, navTask, contestants, currentPositions, showFullTrails, currentTime, mode, selectedContestantId, annotationsByContestant, scoreLogByContestant, userShowSecrets, permanentAnnotations, clickedAnnotationId]);
+    }, [mapRef, navTask, contestants, currentPositions, showFullTrails, currentTime, mode, selectedContestantId, annotationsByContestant, scoreLogByContestant, userShowSecrets, permanentAnnotations, clickedAnnotationId, showPenaltiesOnly]);
 }

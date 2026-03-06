@@ -37,6 +37,7 @@ export default function CompetitionMapPage() {
   const [showScoreLog, setShowScoreLog] = useState(false);
   const [userShowBackgroundMap, setUserShowBackgroundMap] = useState(true);
   const [userShowSecrets, setUserShowSecrets] = useState(true);
+  const [showPenaltiesOnly, setShowPenaltiesOnly] = useState(false);
   const [hasMapBeenFitted, setHasMapBeenFitted] = useState(false); // New state for initial map fit
   const [isRankingCollapsed, setIsRankingCollapsed] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -254,6 +255,7 @@ export default function CompetitionMapPage() {
     scoreLogByContestant,
     userShowSecrets,
     permanentAnnotations,
+    showPenaltiesOnly,
   });
 
 
@@ -443,6 +445,17 @@ export default function CompetitionMapPage() {
                         checked={userShowSecrets} 
                         onChange={(e) => setUserShowSecrets(e.target.checked)}
                         disabled={!staticNavTaskData?.display_secrets}
+                      />
+                    </label>
+                  </li>
+                  <li>
+                    <label className="label cursor-pointer">
+                      <span className="label-text">Show Penalties Only</span>
+                      <input
+                        type="checkbox"
+                        className="toggle toggle-primary"
+                        checked={showPenaltiesOnly}
+                        onChange={(e) => setShowPenaltiesOnly(e.target.checked)}
                       />
                     </label>
                   </li>
