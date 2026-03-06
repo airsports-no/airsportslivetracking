@@ -34,7 +34,7 @@ def calculator_factory(
         return Gatekeeper(
             contestant,
             score_processing_queue,
-            [GateCalculator, BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator, PenaltyZoneCalculator],
+            [BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator, PenaltyZoneCalculator, GateCalculator],
             live_processing=live_processing,
             projector=projector,
         )
@@ -47,11 +47,11 @@ def calculator_factory(
             contestant,
             score_processing_queue,
             [
-                GateCalculator,
                 BacktrackingAndProcedureTurnsCalculator,
                 AnrCorridorCalculator,
                 ProhibitedZoneCalculator,
                 PenaltyZoneCalculator,
+                GateCalculator,
             ],
             live_processing=live_processing,
             projector=projector,

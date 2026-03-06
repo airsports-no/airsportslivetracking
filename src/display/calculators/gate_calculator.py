@@ -285,7 +285,7 @@ class GateCalculator(Calculator):
                     # Find previous gate for context
                     current_idx_in_all = self.gates.index(gate)
                     prev_gate = self.gates[current_idx_in_all - 1] if current_idx_in_all > 0 else None
-                    events.append(GateMissedEvent(prev_gate, gate, track[-1]))
+                    events.append(GateMissedEvent(prev_gate, gate, track[-1], event_time=passed_intersection_time))
 
             # Mark this one as passed
             gate = state.outstanding_gates[crossed_gate_index]

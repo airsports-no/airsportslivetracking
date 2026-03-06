@@ -274,11 +274,11 @@ class Gatekeeper:
             self.enroute = True
             logger.info("Switching to enroute")
 
-    def passed_finishpoint(self):
+    def passed_finishpoint(self, trigger_time: Optional[datetime.datetime] = None):
         if not self.has_passed_finishpoint:
             self.contestant.contestanttrack.set_passed_finish_gate()
             self.has_passed_finishpoint = True
-            event = FinishLinePassedEvent(self.get_last_gate(), self.track)
+            event = FinishLinePassedEvent(self.get_last_gate(), self.track, event_time=trigger_time)
             for calculator in self.calculators:
                 calculator.passed_finishpoint(event)
 
@@ -296,21 +296,22 @@ class Gatekeeper:
                 self.last_gate = event.gate
                 self.update_enroute()
 
+            if event.gate.type == "fp":
+                self.passed_finishpoint(trigger_time=event.intersection_time)
+
             for calculator in self.calculators:
                 calculator.on_gate_passed(event)
-
-            if event.gate.type == "fp":
-                self.passed_finishpoint()
 
         elif isinstance(event, GateMissedEvent):
             event.gate.missed = True
             if event.gate in self.outstanding_gates:
                 self.pop_gate(self.outstanding_gates.index(event.gate), True)
-            for calculator in self.calculators:
-                calculator.on_gate_missed(event)
 
             if event.gate.type == "fp":
-                self.passed_finishpoint()
+                self.passed_finishpoint(trigger_time=event.event_time)
+
+            for calculator in self.calculators:
+                calculator.on_gate_missed(event)
 
         elif isinstance(event, TakeoffPassedEvent):
             event.gate.pass_gate(event.intersection_time, event.position)

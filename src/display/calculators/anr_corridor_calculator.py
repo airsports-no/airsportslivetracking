@@ -13,6 +13,7 @@ from display.calculators.calculator import (
     GatekeeperEvent,
     FinishLinePassedEvent,
     GateMissedEvent,
+    GatePassedEvent,
 )
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Gate
@@ -30,11 +31,14 @@ class AnrCorridorCalculator(Calculator):
 
     def passed_finishpoint(self, event: FinishLinePassedEvent):
         if not self.has_passed_finish_point:
-            self.previous_corridor_state = self.corridor_state
             self.has_passed_finish_point = True
             if self.corridor_state == self.OUTSIDE_CORRIDOR:
+                self.previous_corridor_state = self.OUTSIDE_CORRIDOR
                 self.corridor_state = self.INSIDE_CORRIDOR
-                self.check_and_apply_outside_penalty(event.position, self.crossed_outside_gate or event.last_gate)
+                # Finalize penalty at the crossing time
+                self.check_and_apply_outside_penalty(
+                    event.position, self.crossed_outside_gate or event.last_gate, current_time=event.event_time
+                )
 
     def calculate_outside_route(
         self,
@@ -89,6 +93,7 @@ class AnrCorridorCalculator(Calculator):
         self.existing_reference = None
         self.accumulated_score = 0
         self.previous_existing_reference = None
+        self.last_finalized_time = None
 
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]) -> Tuple[float, float]:
         """
@@ -198,10 +203,69 @@ class AnrCorridorCalculator(Calculator):
         return []
 
     def on_gate_missed(self, event: GateMissedEvent):
-        pass
+        # Detect gate crossing while outside to advance/finalize leg
+        if self.corridor_state == self.OUTSIDE_CORRIDOR:
+            logger.info(
+                f"{self.contestant}: Finalizing leg {self.crossed_outside_gate} because {event.gate} was missed"
+            )
+            if self.corridor_maximum_penalty_is_per_leg:
+                # Finalize penalty for the leg we just left
+                self.previous_corridor_state = self.OUTSIDE_CORRIDOR
+                self.corridor_state = self.INSIDE_CORRIDOR
+                # We use event.event_time or event.position.time as the end of the previous leg
+                self.check_and_apply_outside_penalty(event.position, self.crossed_outside_gate, current_time=event.event_time)
 
-    def check_and_apply_outside_penalty(self, position: ContestantReceivedPosition, last_gate: Gate):
+                # Restart penalty for the new leg
+                self.corridor_state = self.OUTSIDE_CORRIDOR
+                self.previous_corridor_state = self.INSIDE_CORRIDOR
+                self.current_leg_outside_start_time = event.event_time or event.position.time
+                self.is_first_leg_of_excursion = False
+                self.crossed_outside_gate = event.gate
+                self.check_and_apply_outside_penalty(event.position, event.gate, current_time=event.event_time)
+            else:
+                self.crossed_outside_gate = event.gate
+
+    def on_gate_passed(self, event: "GatePassedEvent"):
+        # Detect gate crossing while outside to advance/finalize leg
+        if self.corridor_state == self.OUTSIDE_CORRIDOR:
+            logger.info(
+                f"{self.contestant}: Finalizing leg {self.crossed_outside_gate} because {event.gate} was passed"
+            )
+            if self.corridor_maximum_penalty_is_per_leg:
+                # Finalize penalty for the leg we just left
+                self.previous_corridor_state = self.OUTSIDE_CORRIDOR
+                self.corridor_state = self.INSIDE_CORRIDOR
+                # We use event.intersection_time as the end of the previous leg
+                self.check_and_apply_outside_penalty(event.position, self.crossed_outside_gate, current_time=event.intersection_time)
+
+                # Restart penalty for the new leg
+                self.corridor_state = self.OUTSIDE_CORRIDOR
+                self.previous_corridor_state = self.INSIDE_CORRIDOR
+                self.current_leg_outside_start_time = event.intersection_time
+                self.is_first_leg_of_excursion = False
+                self.crossed_outside_gate = event.gate
+                self.check_and_apply_outside_penalty(event.position, event.gate, current_time=event.intersection_time)
+            else:
+                self.crossed_outside_gate = event.gate
+
+    def check_and_apply_outside_penalty(
+        self,
+        position: ContestantReceivedPosition,
+        last_gate: Gate,
+        current_time: Optional[datetime.datetime] = None,
+    ):
         if self.crossed_outside_time is None:
+            return
+
+        # Determine calculation time
+        if current_time is None:
+            if self.corridor_state == self.INSIDE_CORRIDOR:
+                current_time = position.time - datetime.timedelta(seconds=1)
+            else:
+                current_time = position.time
+
+        # Prevent double-logging or overlapping updates for the same position/event
+        if self.last_finalized_time and current_time <= self.last_finalized_time:
             return
 
         # Use first waypoint as a fallback if last_gate is None
@@ -211,12 +275,6 @@ class AnrCorridorCalculator(Calculator):
         score_type = self.OUTSIDE_CORRIDOR_PENALTY_TYPE
         if self.corridor_maximum_penalty_is_per_leg:
             score_type = f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{gate_name}"
-
-        # If we are back inside the corridor because we must calculate the score for the previous second
-        if self.corridor_state == self.INSIDE_CORRIDOR:
-            current_time = position.time - datetime.timedelta(seconds=1)
-        else:
-            current_time = position.time
 
         if self.corridor_maximum_penalty_is_per_leg:
             outside_time_this_leg = (
@@ -238,7 +296,7 @@ class AnrCorridorCalculator(Calculator):
         entry_lat = self.crossed_outside_position.latitude if self.crossed_outside_position else position.latitude
         entry_lon = self.crossed_outside_position.longitude if self.crossed_outside_position else position.longitude
 
-        # If this is called when we have crossed a gate, we need to reset the outside time to Grace time before now to start counting new points
+        # Transition handling
         if self.corridor_state == self.OUTSIDE_CORRIDOR and self.previous_corridor_state == self.INSIDE_CORRIDOR:
             self.update_score(
                 UpdateScoreMessage(
@@ -252,11 +310,12 @@ class AnrCorridorCalculator(Calculator):
                     score_type,
                 )
             )
+            # Update last_finalized_time even for "exiting" so that finalization doesn't happen at the same time
+            self.last_finalized_time = current_time
         elif self.corridor_state == self.INSIDE_CORRIDOR and self.previous_corridor_state == self.OUTSIDE_CORRIDOR:
-            # Update initial score logged with the final score
             self.update_score(
                 UpdateScoreMessage(
-                    position.time,
+                    current_time,
                     scoring_gate,
                     self.accumulated_score,
                     "outside corridor ({} s)".format(int(outside_time_for_message)),
@@ -267,11 +326,8 @@ class AnrCorridorCalculator(Calculator):
                     maximum_score=self.scorecard.corridor_maximum_penalty,
                 )
             )
-
-            self.existing_reference = None
             self.accumulated_score = 0
-
-        self.previous_existing_reference = self.existing_reference
+            self.last_finalized_time = current_time
 
     def finalise(self, track: List[ContestantReceivedPosition]):
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
@@ -282,48 +338,16 @@ class AnrCorridorCalculator(Calculator):
                 self.check_and_apply_outside_penalty(position, self.crossed_outside_gate or self.previous_last_gate)
 
     def check_outside_corridor(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
+        if self.has_passed_finish_point:
+            return
+        
         self.previous_corridor_state = self.corridor_state
         position = track[-1]
-
         is_inside = self._check_inside_polygon(position)
 
-        # Detect gate crossing (pass or miss) while outside to advance leg
-        if self.corridor_state == self.OUTSIDE_CORRIDOR and last_gate != self.crossed_outside_gate:
-            logger.info(
-                f"{self.contestant}: Leg advanced from {self.crossed_outside_gate} to {last_gate} while outside corridor"
-            )
-            if self.corridor_maximum_penalty_is_per_leg:
-                # Finalize penalty for the leg we just left
-                self.previous_corridor_state = self.OUTSIDE_CORRIDOR
-                self.corridor_state = self.INSIDE_CORRIDOR
-                # We use position.time as the end of the previous leg
-                self.check_and_apply_outside_penalty(position, self.crossed_outside_gate)
-
-                # Start new penalty for the new leg if we are still outside
-                if not is_inside:
-                    self.corridor_state = self.OUTSIDE_CORRIDOR
-                    self.previous_corridor_state = self.INSIDE_CORRIDOR
-                    self.current_leg_outside_start_time = position.time
-                    self.is_first_leg_of_excursion = False
-                    self.crossed_outside_gate = last_gate
-                    # This call will emit the "exiting corridor" for the new leg
-                    self.check_and_apply_outside_penalty(position, last_gate)
-
-                    # We return here to avoid the fall-through check_and_apply_outside_penalty call at the end of the function
-                    self.previous_last_gate = last_gate
-                    return
-                else:
-                    # We crossed the gate and went inside at the same time?
-                    self.corridor_state = self.INSIDE_CORRIDOR
-                    self.crossed_outside_gate = None
-            else:
-                self.crossed_outside_gate = last_gate
-
         if not is_inside:
-            # We are outside the corridor
             if self.corridor_state == self.INSIDE_CORRIDOR:
                 logger.info("{} {}: Heading outside of corridor".format(self.contestant, position.time))
-
                 self.crossed_outside_position = position
                 self.corridor_state = self.OUTSIDE_CORRIDOR
                 self.crossed_outside_time = position.time
@@ -332,12 +356,11 @@ class AnrCorridorCalculator(Calculator):
                 self.is_first_leg_of_excursion = True
             self.check_and_apply_outside_penalty(position, last_gate)
         elif self.corridor_state == self.OUTSIDE_CORRIDOR:
-            self.existing_reference = None
-            self.accumulated_score = 0
             logger.info("{} {}: Back inside the corridor".format(self.contestant, position.time))
             self.corridor_state = self.INSIDE_CORRIDOR
             self.check_and_apply_outside_penalty(position, last_gate)
-            self.corridor_grace_time = self.scorecard.corridor_grace_time
+            
+            # Reset state for next excursion
             self.crossed_outside_position = None
             self.crossed_outside_time = None
             self.current_leg_outside_start_time = None

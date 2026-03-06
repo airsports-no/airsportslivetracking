@@ -407,6 +407,10 @@ class ContestantProcessor:
             termination_time = self.is_termination_commanded()
             if termination_time:
                 last_gate = self.gatekeeper.get_last_gate()
+                # If we haven't even passed SP, or just passed it, attribute to SP as per user example
+                if not self.gatekeeper.any_gate_passed():
+                    last_gate = self.gatekeeper.gates[0]
+
                 self.score_processing_queue.put_nowait(
                     UpdateScoreMessage(
                         termination_time,
@@ -417,6 +421,7 @@ class ContestantProcessor:
                         position.longitude if position else last_gate.longitude,
                         "information",
                         "",
+                        planned=last_gate.expected_time,
                     )
                 )
                 self.notify_termination()

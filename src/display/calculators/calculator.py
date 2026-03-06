@@ -105,10 +105,12 @@ class InRangeUpdatedEvent(GatekeeperEvent):
 
 
 class FinishLinePassedEvent(GatekeeperEvent):
-    def __init__(self, last_gate: "Gate", track: List[ContestantReceivedPosition]):
-        super().__init__(track[-1] if len(track) > 0 else None)
+    def __init__(self, last_gate: "Gate", track: List[ContestantReceivedPosition], event_time: Optional[datetime.datetime] = None):
+        super().__init__(track[-1] if track else None)
         self.last_gate = last_gate
         self.track = track
+        self.event_time = event_time
+
 
 
 class Calculator(ABC):
