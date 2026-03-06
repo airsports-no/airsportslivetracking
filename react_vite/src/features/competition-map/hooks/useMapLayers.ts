@@ -294,7 +294,7 @@ export function useMapLayers({
 
             const visibleAnnotations = allAnnotations.filter(ann =>
                 new Date(ann.time) <= currentTime &&
-                (ann.type !== 'secret' || (navTask.display_secrets && userShowSecrets))
+                (ann.gate_type !== 'secret' || (navTask.display_secrets && userShowSecrets))
             );
 
             visibleAnnotations.forEach(ann => {
