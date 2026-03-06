@@ -100,6 +100,10 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.tracking_state = tracking_state
         self.contestant.contestanttrack.updates_current_state(self.TRACKING_MAP[tracking_state])
 
+    def missed_gate(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition):
+        pass
+
+
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],

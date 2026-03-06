@@ -41,6 +41,7 @@ class ProhibitedZoneCalculator(Calculator):
             projector=projector,
         )
         self.inside_zones = {}
+        self.inside_positions = {}
         self.zones_scored = set()
         self.gates = gates
         self.crossed_outside_time = None
@@ -62,6 +63,10 @@ class ProhibitedZoneCalculator(Calculator):
 
         # logger.debug("Prohibited zones loaded: %s", str(i.name for i in self.zone_map.values()))
         # logger.debug("Prohibited zone polygons: %s", self.zone_polygons)
+
+    def missed_gate(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition):
+        pass
+
 
     def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         pass
@@ -114,6 +119,7 @@ class ProhibitedZoneCalculator(Calculator):
             
             if zone_pk not in self.inside_zones:
                 self.inside_zones[zone_pk] = position.time
+                self.inside_positions[zone_pk] = (position.latitude, position.longitude)
             if (
                 zone_pk not in self.zones_scored
                 and position.time > self.inside_zones[zone_pk] + self.prohibited_zone_grace_time
@@ -122,14 +128,15 @@ class ProhibitedZoneCalculator(Calculator):
                 penalty = self.scorecard.prohibited_zone_penalty
                 self.running_penalty[zone_pk] = penalty
                 zone_name = self.zone_map[zone_pk].name
+                entry_latitude, entry_longitude = self.inside_positions[zone_pk]
                 self.update_score(
                     UpdateScoreMessage(
                         position.time,
                         last_gate or self.gates[0],
                         penalty,
                         "entered prohibited zone {}".format(zone_name),
-                        position.latitude,
-                        position.longitude,
+                        entry_latitude,
+                        entry_longitude,
                         "anomaly",
                         f"{self.INSIDE_PROHIBITED_ZONE_PENALTY_TYPE}_{zone_name}",
                         maximum_score=self.scorecard.prohibited_zone_maximum,
@@ -143,6 +150,7 @@ class ProhibitedZoneCalculator(Calculator):
                 except KeyError:
                     pass
                 del self.inside_zones[zone]
+                del self.inside_positions[zone]
                 try:
                     self.zones_scored.remove(zone)
                 except KeyError:

@@ -47,15 +47,18 @@ class PenaltyZoneCalculator(Calculator):
         self.crossed_outside_position = None
         waypoint = self.contestant.navigation_task.route.waypoints[0]
         self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude, projector=projector)
-        self.polygons = [] # List of (zone_pk, polygon)
+        self.polygons = []  # List of (zone_pk, polygon)
         self.zone_map = {}
         self.entered_polygon_times = {}
+        self.entered_polygon_positions = {}
         zones = route.prohibited_set.filter(type="penalty")
         for zone in zones:
             self.zone_map[zone.pk] = zone
             poly = self.polygon_helper.build_polygon(zone.path)
             self.polygons.append((zone.pk, poly))
 
+    def missed_gate(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition):
+        pass
 
     def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
         pass
@@ -73,9 +76,7 @@ class PenaltyZoneCalculator(Calculator):
         Danger level ranges from 0 to 100 where 100 is inside a penalty zone
         """
         LOOKAHEAD_SECONDS = 40
-        time = get_shortest_intersection_time(
-            track, self.polygon_helper, self.polygons, LOOKAHEAD_SECONDS
-        )
+        time = get_shortest_intersection_time(track, self.polygon_helper, self.polygons, LOOKAHEAD_SECONDS)
         return 99 * (LOOKAHEAD_SECONDS - time) / LOOKAHEAD_SECONDS
 
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]):
@@ -96,7 +97,7 @@ class PenaltyZoneCalculator(Calculator):
     def check_inside_prohibited_zone(self, track: List[ContestantReceivedPosition], last_gate: Optional["Gate"]):
         position = track[-1]
         zone_pks_the_position_was_already_inside = list(self.entered_polygon_times.keys())
-        
+
         p_x = getattr(position, "projected_x", None)
         p_y = getattr(position, "projected_y", None)
 
@@ -107,6 +108,7 @@ class PenaltyZoneCalculator(Calculator):
         for zone_pk in zone_pks_the_position_is_currently_inside:
             if zone_pk not in self.entered_polygon_times:
                 self.entered_polygon_times[zone_pk] = position.time
+                self.entered_polygon_positions[zone_pk] = (position.latitude, position.longitude)
 
         for zone_pk, start_time in dict(self.entered_polygon_times).items():
             self.running_penalty[zone_pk] = self.scorecard.calculate_penalty_zone_score(start_time, position.time)
@@ -128,17 +130,19 @@ class PenaltyZoneCalculator(Calculator):
                 )
                 # Clear information about being inside the zone
                 del self.entered_polygon_times[zone_pk]
+                del self.entered_polygon_positions[zone_pk]
                 del self.running_penalty[zone_pk]
             elif zone_pk not in zone_pks_the_position_was_already_inside:
                 # Entering the penalty zone
+                entry_latitude, entry_longitude = self.entered_polygon_positions[zone_pk]
                 self.update_score(
                     UpdateScoreMessage(
                         position.time,
                         self.get_last_non_secret_gate(last_gate or self.gates[0]),
                         0,
                         "entering penalty zone {}".format(self.zone_map[zone_pk].name),
-                        position.latitude,
-                        position.longitude,
+                        entry_latitude,
+                        entry_longitude,
                         INFORMATION,
                         self.INSIDE_PENALTY_ZONE_PENALTY_TYPE,
                     )

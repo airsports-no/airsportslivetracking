@@ -102,11 +102,11 @@ class AnrCorridorCalculator(Calculator):
         if len(track) > 0:
             position = track[-1]
             MAXIMUM_DISTANCE = 1852  # m
-            
+
             # Fast distance check using projected coordinates if available
             p_x = getattr(position, "projected_x", None)
             p_y = getattr(position, "projected_y", None)
-            
+
             if p_x is not None and self.projector:
                 # We can't easily use track_polygon if it's UTM while position is AEQD
                 # So we fallback to standard check for now until we unify projections
@@ -117,14 +117,14 @@ class AnrCorridorCalculator(Calculator):
                 polygon_distance = min(
                     [MAXIMUM_DISTANCE, self._distance_from_point_to_polygons(position.latitude, position.longitude)]
                 )
-            
+
             distance_danger = 30 * (MAXIMUM_DISTANCE - polygon_distance) / MAXIMUM_DISTANCE
         return max([lookahead_danger, distance_danger]), self.accumulated_score
 
     def build_polygon(self):
         points = [(item["lat"], item["lng"]) for item in self.contestant.navigation_task.route.corridor_polygon]
         points = np.array(points)
-        
+
         if self.projector:
             # Use AEQD projection for the polygon to match position.projected_x/y
             transformed_points = []
@@ -153,13 +153,15 @@ class AnrCorridorCalculator(Calculator):
         """
         p_x = getattr(position, "projected_x", None)
         p_y = getattr(position, "projected_y", None)
-        
+
         if p_x is not None and self.projector:
             # Use pre-projected coordinates directly!
             x, y = p_x, p_y
         else:
             # Fallback to UTM projection
-            x, y = self.polygon_helper.utm.transform_point(position.longitude, position.latitude, self.polygon_helper.pc)
+            x, y = self.polygon_helper.utm.transform_point(
+                position.longitude, position.latitude, self.polygon_helper.pc
+            )
 
         # Direct bounding box check
         if self.track_polygon not in self._bounds_cache:
@@ -190,6 +192,9 @@ class AnrCorridorCalculator(Calculator):
         self.check_outside_corridor(track, state.last_gate)
         return []
 
+    def missed_gate(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition):
+        pass
+
     def check_and_apply_outside_penalty(self, position: ContestantReceivedPosition, last_gate: Gate):
         if self.crossed_outside_time is None:
             return
@@ -197,7 +202,7 @@ class AnrCorridorCalculator(Calculator):
         # Use first waypoint as a fallback if last_gate is None
         scoring_gate = self.get_last_non_secret_gate(last_gate) if last_gate else self.gates[0]
         gate_name = last_gate.name if last_gate else scoring_gate.name
-        
+
         score_type = self.OUTSIDE_CORRIDOR_PENALTY_TYPE
         if self.corridor_maximum_penalty_is_per_leg:
             score_type = f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{gate_name}"
@@ -207,9 +212,11 @@ class AnrCorridorCalculator(Calculator):
             current_time = position.time - datetime.timedelta(seconds=1)
         else:
             current_time = position.time
-            
+
         if self.corridor_maximum_penalty_is_per_leg:
-            outside_time_this_leg = (current_time - (self.current_leg_outside_start_time or self.crossed_outside_time)).total_seconds()
+            outside_time_this_leg = (
+                current_time - (self.current_leg_outside_start_time or self.crossed_outside_time)
+            ).total_seconds()
             if self.is_first_leg_of_excursion:
                 penalty_time = np.round(max(0.0, outside_time_this_leg - self.corridor_grace_time))
             else:
@@ -221,9 +228,10 @@ class AnrCorridorCalculator(Calculator):
             penalty_time = np.round(max(0.0, outside_time_total - self.corridor_grace_time))
             outside_time_for_message = outside_time_total
 
-        self.accumulated_score = (
-            self.scorecard.corridor_outside_penalty * penalty_time if penalty_time > 0 else 0
-        )
+        self.accumulated_score = self.scorecard.corridor_outside_penalty * penalty_time if penalty_time > 0 else 0
+
+        entry_lat = self.crossed_outside_position.latitude if self.crossed_outside_position else position.latitude
+        entry_lon = self.crossed_outside_position.longitude if self.crossed_outside_position else position.longitude
 
         # If this is called when we have crossed a gate, we need to reset the outside time to Grace time before now to start counting new points
         if self.corridor_state == self.OUTSIDE_CORRIDOR and self.previous_corridor_state == self.INSIDE_CORRIDOR:
@@ -233,8 +241,8 @@ class AnrCorridorCalculator(Calculator):
                     scoring_gate,
                     0,
                     "exiting corridor",
-                    position.latitude,
-                    position.longitude,
+                    entry_lat,
+                    entry_lon,
                     INFORMATION,
                     score_type,
                 )
@@ -276,14 +284,16 @@ class AnrCorridorCalculator(Calculator):
 
         # Detect gate crossing (pass or miss) while outside to advance leg
         if self.corridor_state == self.OUTSIDE_CORRIDOR and last_gate != self.crossed_outside_gate:
-            logger.info(f"{self.contestant}: Leg advanced from {self.crossed_outside_gate} to {last_gate} while outside corridor")
+            logger.info(
+                f"{self.contestant}: Leg advanced from {self.crossed_outside_gate} to {last_gate} while outside corridor"
+            )
             if self.corridor_maximum_penalty_is_per_leg:
                 # Finalize penalty for the leg we just left
                 self.previous_corridor_state = self.OUTSIDE_CORRIDOR
                 self.corridor_state = self.INSIDE_CORRIDOR
                 # We use position.time as the end of the previous leg
                 self.check_and_apply_outside_penalty(position, self.crossed_outside_gate)
-                
+
                 # Start new penalty for the new leg if we are still outside
                 if not is_inside:
                     self.corridor_state = self.OUTSIDE_CORRIDOR
@@ -293,7 +303,7 @@ class AnrCorridorCalculator(Calculator):
                     self.crossed_outside_gate = last_gate
                     # This call will emit the "exiting corridor" for the new leg
                     self.check_and_apply_outside_penalty(position, last_gate)
-                    
+
                     # We return here to avoid the fall-through check_and_apply_outside_penalty call at the end of the function
                     self.previous_last_gate = last_gate
                     return
