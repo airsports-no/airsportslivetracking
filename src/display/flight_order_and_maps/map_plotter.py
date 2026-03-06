@@ -744,6 +744,10 @@ def plot_anr_corridor_track(
     plot_center_line: bool,
 ):
     polygon_track = [(item["lat"], item["lng"]) for item in route.corridor_polygon]
+    path = np.array(polygon_track)
+    ys, xs = path.T
+    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
+
     center_track = []
     for index, waypoint in enumerate(route.waypoints):
         ys, xs = np.array(waypoint.gate_line).T
@@ -763,7 +767,14 @@ def plot_anr_corridor_track(
             )
         center_track.append((waypoint.latitude, waypoint.longitude))
         if waypoint.type not in (SECRETPOINT,):
-            plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
+            is_sp_fp = waypoint.type in (STARTINGPOINT, FINISHPOINT)
+            plt.plot(
+                xs,
+                ys,
+                transform=ccrs.PlateCarree(),
+                color="red" if is_sp_fp else colour,
+                linewidth=line_width * 2 if is_sp_fp else line_width,
+            )
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:
             plot_minute_marks(
                 waypoint,
@@ -781,9 +792,6 @@ def plot_anr_corridor_track(
         path = np.array(center_track)
         ys, xs = path.T
         plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width / 2)
-    path = np.array(polygon_track)
-    ys, xs = path.T
-    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
     return [path]
 
 

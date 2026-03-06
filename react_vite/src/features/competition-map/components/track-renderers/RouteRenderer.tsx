@@ -156,7 +156,11 @@ function renderAirsportsRoute(map: L.Map, route: RouteData, isAnr: boolean, navT
     }
 
     filterWaypoints().forEach((gate: Waypoint) => {
-        layers.push(L.polyline(gate.gate_line, { color: "blue" }).addTo(map));
+        const isSpFp = isAnr && (gate.type === 'sp' || gate.type === 'fp');
+        layers.push(L.polyline(gate.gate_line, { 
+            color: isSpFp ? "red" : "blue",
+            weight: isSpFp ? 5 : 3
+        }).addTo(map));
     });
 
     return layers;
