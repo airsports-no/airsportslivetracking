@@ -11,6 +11,7 @@ interface Row {
 
 interface Props {
     rows: Row[];
+    selectedId?: number | null;
     onRowClick?: (id: number) => void;
     dividerIndex?: number;
 }
@@ -30,7 +31,7 @@ function formatCountdown(totalSeconds: number): string {
     return negative ? `+${timeString}` : `-${timeString}`;
 }
 
-export default function ResultsTable({ rows, onRowClick, dividerIndex = -1 }: Props) {
+export default function ResultsTable({ rows, selectedId, onRowClick, dividerIndex = -1 }: Props) {
   return (
     <div className="overflow-y-auto max-h-[40vh] sm:max-h-96">
       <table className="table table-zebra table-sm w-full">
@@ -51,7 +52,13 @@ export default function ResultsTable({ rows, onRowClick, dividerIndex = -1 }: Pr
                     </td>
                 </tr>
               )}
-              <tr onClick={() => onRowClick?.(r.id)} className={onRowClick ? 'cursor-pointer hover:bg-base-300' : ''}>
+              <tr 
+                onClick={() => onRowClick?.(r.id)} 
+                className={`
+                    ${onRowClick ? 'cursor-pointer hover:bg-base-300' : ''} 
+                    ${selectedId === r.id ? 'bg-primary/20 font-bold' : ''}
+                `}
+              >
                 <td style={{borderLeft: `4px solid ${r.color ?? 'transparent'}`}}>{idx + 1}</td>
                 <td className="max-w-[100px] sm:max-w-[150px] md:max-w-none truncate">{r.name}</td>
                 <td>

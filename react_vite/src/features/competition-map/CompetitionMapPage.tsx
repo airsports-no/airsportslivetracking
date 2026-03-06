@@ -501,7 +501,7 @@ export default function CompetitionMapPage() {
                 <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline">Schedule</Link>
               )}
               {/* Settings Dropdown */}
-              <div className="dropdown dropdown-end">
+              <div className="dropdown">
                 <div tabIndex={0} role="button" className="btn btn-xs btn-outline">Settings</div>
                 <ul tabIndex={0} className="dropdown-content z-[11] menu p-2 shadow bg-base-100 rounded-box w-52">
                   <li>
@@ -566,7 +566,7 @@ export default function CompetitionMapPage() {
                   Selected: #{selectedContestant?.contestant_number} {selectedContestant?.team?.crew?.member1?.first_name ?? ''}
                 </span>
                 <div className="flex-none">
-                  <button className="btn btn-xs btn-info mr-1" onClick={() => { setShowScoreLog(true); setIsRankingCollapsed(false); }}>Log</button>
+                  <button className="btn btn-xs btn-info mr-1" onClick={() => { setShowScoreLog(!showScoreLog); setIsRankingCollapsed(false); }}>{showScoreLog ? 'Rank' : 'Log'}</button>
                   <button className="btn btn-xs btn-ghost" onClick={() => { setSelectedContestantId(null); setShowScoreLog(false); if (window.innerWidth < 640) setIsRankingCollapsed(false); }}>Clear</button>
                 </div>
               </div>
@@ -596,6 +596,7 @@ export default function CompetitionMapPage() {
               ) : (
                 <ResultsTable
                   rows={standings}
+                  selectedId={selectedContestantId}
                   dividerIndex={firstWaitingIndex}
                   onRowClick={(id) => {
                     if (selectedContestantId === id) {
