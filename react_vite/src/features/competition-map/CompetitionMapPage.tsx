@@ -143,6 +143,65 @@ export default function CompetitionMapPage() {
     const map = mapRef.current;
     if (!map) return;
 
+    // Standard scale control for Metric
+    const scaleControl = L.control.scale({
+        imperial: false,
+        metric: true,
+        position: 'bottomleft'
+    }).addTo(map);
+
+    // Custom Nautical Miles scale
+    const NauticalScale = L.Control.extend({
+        options: {
+            position: 'bottomleft'
+        },
+        onAdd: function(map: L.Map) {
+            const container = L.DomUtil.create('div', 'leaflet-control-scale');
+            const inner = L.DomUtil.create('div', 'leaflet-control-scale-line', container);
+            inner.style.borderTop = 'none'; // Only show bottom line for this one
+            
+            const updateScale = () => {
+                const width = 100; // px
+                const p1 = map.containerPointToLatLng([0, 0]);
+                const p2 = map.containerPointToLatLng([width, 0]);
+                const meters = p1.distanceTo(p2);
+                const nm = meters / 1852;
+                
+                // Find a nice round number for NM
+                let roundNM = 1;
+                if (nm > 10) roundNM = 10;
+                if (nm > 50) roundNM = 50;
+                if (nm < 1) roundNM = 0.5;
+                if (nm < 0.5) roundNM = 0.1;
+                if (nm < 0.1) roundNM = 0.05;
+
+                const pxPerNM = width / nm;
+                const finalWidth = roundNM * pxPerNM;
+                
+                inner.style.width = Math.round(finalWidth) + 'px';
+                inner.innerHTML = roundNM + ' NM';
+            };
+
+            map.on('move', updateScale);
+            map.on('zoomend', updateScale);
+            updateScale();
+
+            return container;
+        }
+    });
+
+    const nauticalScale = new NauticalScale().addTo(map);
+    
+    return () => {
+        scaleControl.remove();
+        nauticalScale.remove();
+    };
+  }, [mapRef]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
     if (tileLayerRef.current) {
         tileLayerRef.current.remove();
     }
