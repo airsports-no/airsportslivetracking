@@ -1,4 +1,9 @@
 from queue import Queue
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from display.utilities.coordinate_utilities import Projector
+
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.backtracking_and_procedure_turns import BacktrackingAndProcedureTurnsCalculator
 from display.calculators.gate_calculator import GateCalculator
@@ -20,7 +25,10 @@ from display.utilities.navigation_task_type_definitions import (
 
 
 def calculator_factory(
-    contestant: "Contestant", score_processing_queue: Queue, live_processing: bool = True
+    contestant: "Contestant",
+    score_processing_queue: Queue,
+    live_processing: bool = True,
+    projector: Optional["Projector"] = None,
 ) -> "Gatekeeper":
     if contestant.navigation_task.scorecard.calculator == PRECISION:
         return Gatekeeper(
@@ -28,6 +36,7 @@ def calculator_factory(
             score_processing_queue,
             [GateCalculator, BacktrackingAndProcedureTurnsCalculator, ProhibitedZoneCalculator, PenaltyZoneCalculator],
             live_processing=live_processing,
+            projector=projector,
         )
     if contestant.navigation_task.scorecard.calculator in (
         ANR_CORRIDOR,
@@ -45,10 +54,15 @@ def calculator_factory(
                 PenaltyZoneCalculator,
             ],
             live_processing=live_processing,
+            projector=projector,
         )
     if contestant.navigation_task.scorecard.calculator == LANDING:
         return Gatekeeper(
-            contestant, score_processing_queue, [LandingPatternCalculator], live_processing=live_processing
+            contestant,
+            score_processing_queue,
+            [LandingPatternCalculator],
+            live_processing=live_processing,
+            projector=projector,
         )
     if contestant.navigation_task.scorecard.calculator == POKER:
         return Gatekeeper(
@@ -60,5 +74,12 @@ def calculator_factory(
                 PenaltyZoneCalculator,
             ],
             live_processing=live_processing,
+            projector=projector,
         )
-    return Gatekeeper(contestant, score_processing_queue, [GateCalculator], live_processing=live_processing)
+    return Gatekeeper(
+        contestant,
+        score_processing_queue,
+        [GateCalculator],
+        live_processing=live_processing,
+        projector=projector,
+    )

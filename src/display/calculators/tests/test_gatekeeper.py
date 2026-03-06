@@ -91,10 +91,10 @@ class TestInterpolation(TransactionTestCase):
         )
         interpolated = processor.interpolate_track(start_position, next_position)
         expected = [
-            ("2020-01-01 00:00:01+00:00", 60.00060561690469, 11.199996344501796),
-            ("2020-01-01 00:00:02+00:00", 60.000908429948986, 11.399998172228623),
-            ("2020-01-01 00:00:03+00:00", 60.00090842994899, 11.600001827771377),
-            ("2020-01-01 00:00:04+00:00", 60.00060561690469, 11.800003655498205),
+            ("2020-01-01 00:00:01+00:00", 60.00060238756123, 11.199996344501796),
+            ("2020-01-01 00:00:02+00:00", 60.00090358134184, 11.399998172228623),
+            ("2020-01-01 00:00:03+00:00", 60.00090358134184, 11.600001827771377),
+            ("2020-01-01 00:00:04+00:00", 60.00060238756123, 11.800003655498205),
             ("2020-01-01 00:00:05+00:00", 60, 12),
         ]
         self.assertEqual(5, len(interpolated))
@@ -114,7 +114,7 @@ class TestInterpolation(TransactionTestCase):
         )
         interpolated = processor.interpolate_track(start_position, next_position)
         expected = [
-            ("2020-01-01 00:00:01+00:00", 60.00094628179479, 11.5),
+            ("2020-01-01 00:00:01+00:00", 60.0009412359073, 11.5),
             ("2020-01-01 00:00:02+00:00", 60, 12),
         ]
         self.assertEqual(2, len(interpolated))
@@ -134,7 +134,7 @@ class TestInterpolation(TransactionTestCase):
         )
         interpolated = processor.interpolate_track(start_position, next_position)
         expected = [
-            ("2020-01-01 00:00:01+00:00", 60.5000188734541, 11),
+            ("2020-01-01 00:00:01+00:00", 60.5000188734541, 10.999959962983265),
             ("2020-01-01 00:00:02+00:00", 61, 11),
         ]
         self.assertEqual(2, len(interpolated))

@@ -11,6 +11,7 @@ from websocket_channels import WebsocketFacade
 
 from display.calculators.positions_and_gates import Gate, MultiGate
 from display.calculators.calculator import (
+    FinishLinePassedEvent,
     GatekeeperState,
     GatekeeperEvent,
     GatePassedEvent,
@@ -54,6 +55,7 @@ class Gatekeeper:
         score_processing_queue: Queue,
         calculators: List[Callable],
         live_processing: bool = True,
+        projector: Optional["Projector"] = None,
     ):
         super().__init__()
         logger.info(f"{contestant}: Created gatekeeper")
@@ -78,8 +80,10 @@ class Gatekeeper:
         self.last_gate = None  # type: Optional[Gate]
         self.previous_last_gate = None  # type: Optional[Gate]
 
-        # Use first waypoint for projector, fallback to first landing gate if no waypoints
-        if len(self.gates) > 0:
+        # Use provided projector, or first waypoint for projector, fallback to first landing gate if no waypoints
+        if projector:
+            self.projector = projector
+        elif len(self.gates) > 0:
             self.projector = Projector(self.gates[0].latitude, self.gates[0].longitude)
         elif self.landing_gate and len(self.landing_gate.gates) > 0:
             self.projector = Projector(self.landing_gate.gates[0].latitude, self.landing_gate.gates[0].longitude)
@@ -152,7 +156,7 @@ class Gatekeeper:
         self.contestant.save(update_fields=["predefined_gate_times"])
 
         logger.info(f"Recalculating gates times for contestant {self.contestant}: {gate_times}")
-        
+
         for item in self.gates:
             if item.name in gate_times:
                 item.expected_time = gate_times[item.name]
@@ -166,7 +170,7 @@ class Gatekeeper:
             for gate in self.landing_gate.gates:
                 if gate.name in gate_times:
                     gate.expected_time = gate_times[gate.name]
-        
+
         self.recalculation_completed = True
         self.websocket_facade.transmit_contestant(self.contestant)
 
@@ -372,6 +376,11 @@ class Gatekeeper:
         """
         Calculate the score. Is called once for every received (or interpolated) position.
         """
+        if self.projector and (position.projected_x is None or position.projected_y is None):
+            p_obj = self.projector.project_point(position.latitude, position.longitude)
+            position.projected_x = p_obj.projected_x
+            position.projected_y = p_obj.projected_y
+
         self.track.append(position)
 
         # Detection and state update phase

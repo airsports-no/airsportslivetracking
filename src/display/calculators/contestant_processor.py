@@ -109,7 +109,7 @@ class ContestantProcessor:
         self.accumulated_scores = ScoreAccumulator()
         self.websocket_facade = WebsocketFacade()
         self.timed_queue = TimedQueue()
-        self.projector: Projector = None
+        self.projector = self.contestant.navigation_task.get_projector()
         self.delay = datetime.timedelta(minutes=self.contestant.navigation_task.calculation_delay_minutes)
         self.finished_loading_initial_positions = (
             threading.Event()
@@ -126,7 +126,10 @@ class ContestantProcessor:
         self.score_thread = threading.Thread(target=self.score_updater_thread, daemon=True)
         self.score_thread.start()
         self.gatekeeper = calculator_factory(
-            self.contestant, self.score_processing_queue, live_processing=self.live_processing
+            self.contestant,
+            self.score_processing_queue,
+            live_processing=self.live_processing,
+            projector=self.projector,
         )
 
     def score_updater_thread(self):
@@ -158,8 +161,6 @@ class ContestantProcessor:
         time_difference = int((position.time - initial_time).total_seconds())
         positions = []
         if time_difference > 1.2:
-            if self.projector is None:
-                self.projector = Projector(last_position.latitude, last_position.longitude)
             fraction = 1 / time_difference
             for step in range(1, time_difference):
                 new_position = self.projector.fractional_point_on_line(
@@ -167,20 +168,23 @@ class ContestantProcessor:
                     (position.latitude, position.longitude),
                     step * fraction,
                 )
-                positions.append(
-                    ContestantReceivedPosition(
-                        contestant=position.contestant,
-                        time=initial_time + datetime.timedelta(seconds=step),
-                        latitude=new_position[0],
-                        longitude=new_position[1],
-                        altitude=position.altitude,
-                        speed=position.speed,
-                        course=position.course,
-                        battery_level=position.battery_level,
-                        interpolated=True,
-                        calculator_received_time=datetime.datetime.now(datetime.timezone.utc),
-                    )
+                p = ContestantReceivedPosition(
+                    contestant=position.contestant,
+                    time=initial_time + datetime.timedelta(seconds=step),
+                    latitude=new_position[0],
+                    longitude=new_position[1],
+                    altitude=position.altitude,
+                    speed=position.speed,
+                    course=position.course,
+                    battery_level=position.battery_level,
+                    interpolated=True,
+                    calculator_received_time=datetime.datetime.now(datetime.timezone.utc),
                 )
+                # Pre-project interpolated position
+                p_obj = self.projector.project_point(p.latitude, p.longitude)
+                p.projected_x = p_obj.projected_x
+                p.projected_y = p_obj.projected_y
+                positions.append(p)
         positions.append(position)
         return positions
 
@@ -330,10 +334,15 @@ class ContestantProcessor:
                         self.previous_position = p
                     continue
 
-                all_positions.append(p)
+                # Pre-project non-interpolated position
+                p_obj = self.projector.project_point(p.latitude, p.longitude)
+                p.projected_x = p_obj.projected_x
+                p.projected_y = p_obj.projected_y
+
                 for position in self.interpolate_track(self.previous_position, p):
                     position.websocket_transmitted_time = datetime.datetime.now(datetime.timezone.utc)
                     positions_to_save.append(position)
+                    all_positions.append(position)
                 self.previous_position = p
 
             if len(positions_to_save) > 100:
@@ -341,11 +350,6 @@ class ContestantProcessor:
                 positions_to_save = []
 
             for position in all_positions:
-                # Pre-project position using gatekeeper's projector if it exists
-                if self.gatekeeper.projector:
-                    p_obj = self.gatekeeper.projector.project_point(position.latitude, position.longitude)
-                    position.projected_x = p_obj.projected_x
-                    position.projected_y = p_obj.projected_y
                 self.gatekeeper.calculate_score(position)
 
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)

@@ -24,6 +24,8 @@ class ContestantReceivedPosition(models.Model):
     time = models.DateTimeField()
     latitude = models.FloatField()
     longitude = models.FloatField()
+    projected_x = models.FloatField(null=True, blank=True)
+    projected_y = models.FloatField(null=True, blank=True)
     altitude = models.FloatField(default=0)
     speed = models.FloatField(default=0)
     course = models.FloatField(default=0)

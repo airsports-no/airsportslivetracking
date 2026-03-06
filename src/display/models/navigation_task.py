@@ -136,6 +136,17 @@ class NavigationTask(models.Model):
             self._geo_reference()
         return self._nominatim.get("address", {}).get("country", "")
 
+    def get_projector(self) -> "Projector":
+        """
+        Returns a Projector instance for the navigation task, centered on the first waypoint.
+        """
+        from display.utilities.coordinate_utilities import Projector
+
+        location = self.route.get_location()
+        if location:
+            return Projector(location[0], location[1])
+        return Projector(0, 0)
+
     @classmethod
     def create(cls, **kwargs) -> "NavigationTask":
         kwargs.pop("score_sorting_direction", None)

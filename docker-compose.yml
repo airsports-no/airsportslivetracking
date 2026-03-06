@@ -97,6 +97,13 @@ services:
     container_name: mysql
     restart: always
     command: --max_allowed_packet=325058560
+    # command: 
+    #    - --innodb_flush_log_at_trx_commit=2
+    #    - --innodb_doublewrite=0
+    #    - --sync_binlog=0
+    #    - --max_allowed_packet=1G
+    #    - --innodb_buffer_pool_size=8G  # Set to ~50% of your available RAM
+
     environment:
       - MYSQL_ROOT_PASSWORD=traccar
     ports:

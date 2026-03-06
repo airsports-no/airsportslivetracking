@@ -134,11 +134,11 @@ class TestANRPerLeg(TransactionTestCase):
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 20:30:00\nactual: --",
             "SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53",
             "SP: 0.0 points exiting corridor",
-            "SP: 50.0 points outside corridor (40 s) (capped)",
+            "SP: 50.0 points outside corridor (39 s) (capped)",
             "TP 1: 0.0 points passing gate (no time check) (-406 s)\n" + "planned: 20:39:00\n" + "actual: 20:32:14",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 50.0 points outside corridor (117 s) (capped)",
+            "SP: 50.0 points outside corridor (116 s) (capped)",
             "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
             "Landing 1: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --",
         ]
@@ -224,10 +224,10 @@ class TestANRPerLeg(TransactionTestCase):
             "SP: 0.0 points exiting corridor",
             "SP: 50.0 points outside corridor (23 s) (capped)",
             "SP: 0.0 points exiting corridor",
-            "SP: 3.0 points outside corridor (1 s)",
+            "SP: 0.0 points outside corridor (0 s)",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 47.0 points outside corridor (227 s) (capped)",
+            "SP: 50.0 points outside corridor (227 s) (capped)",
             "FP: 200.0 points missing gate\nplanned: 14:18:11\nactual: --",
             "Landing 1: 0.0 points missing landing gate\nplanned: 15:59:00\nactual: --",
         ]
@@ -644,7 +644,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position3.longitude = 11.5
         position3.time = datetime.datetime(2020, 1, 1, 0, 0, 21)
 
-        from display.calculators.calculator import GatekeeperState
+        from display.calculators.calculator import GatekeeperState, FinishLinePassedEvent
 
         state = GatekeeperState(
             last_gate=None,
@@ -661,7 +661,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
 
         self.calculator.calculate_enroute([position], state)
         self.calculator.calculate_enroute([position, position2], state)
-        self.calculator.passed_finishpoint([position, position2, position3], None)
+        self.calculator.passed_finishpoint(FinishLinePassedEvent(None, [position3]))
 
         calls = [c.args[0] for c in self.calculator.update_score.call_args_list]
         self.assertEqual(len(calls), 2)
@@ -948,17 +948,17 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
             "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
             "SP: 36.0 points passing gate (+13 s)\nplanned: 13:45:00\nactual: 13:45:13",
             "SP: 0.0 points exiting corridor",
-            "SP: 99.0 points outside corridor (38 s)",
+            "SP: 102.0 points outside corridor (39 s)",
             "TP 1: 0.0 points passing gate (no time check) (+71 s)\nplanned: 13:47:52\nactual: 13:49:04",
-            "TP 2: 0.0 points passing gate (no time check) (+44 s)\nplanned: 13:51:30\nactual: 13:52:14",
+            "TP 2: 0.0 points passing gate (no time check) (+45 s)\nplanned: 13:51:30\nactual: 13:52:15",
             "TP 3: 0.0 points passing gate (no time check) (+38 s)\nplanned: 13:53:41\nactual: 13:54:19",
             "TP 4: 0.0 points passing gate (no time check) (+59 s)\nplanned: 13:57:51\nactual: 13:58:50",
             "FP: 200.0 points missing gate\nplanned: 14:10:06\nactual: --",
-        ]  # 535.0 points total
+        ]  # 538.0 points total
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
         print(strings)
         self.assertListEqual(expected_strings, strings)
         self.contestant.contestanttrack.refresh_from_db()
-        self.assertEqual(535.0, self.contestant.contestanttrack.score)  # 735
+        self.assertEqual(538.0, self.contestant.contestanttrack.score)
         # contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         # self.assertTrue("SP: 200.0 points circling start" in strings)

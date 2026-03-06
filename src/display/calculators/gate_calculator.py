@@ -159,12 +159,21 @@ class GateCalculator(Calculator):
             return None
 
         last_pos = track[-1]
-        distance = (
-            calculate_distance_lat_lon(
-                (last_pos.latitude, last_pos.longitude), (next_timed_gate.latitude, next_timed_gate.longitude)
-            )
-            / 1852
-        )  # nm
+        
+        p_x = getattr(last_pos, "projected_x", None)
+        p_y = getattr(last_pos, "projected_y", None)
+        
+        if p_x is not None and next_timed_gate.center_x is not None:
+            import math
+            distance_m = math.sqrt((p_x - next_timed_gate.center_x)**2 + (p_y - next_timed_gate.center_y)**2)
+            distance = distance_m / 1852  # nm
+        else:
+            distance = (
+                calculate_distance_lat_lon(
+                    (last_pos.latitude, last_pos.longitude), (next_timed_gate.latitude, next_timed_gate.longitude)
+                )
+                / 1852
+            )  # nm
 
         seconds_to_gate = (distance / speed) * 3600
         estimated_time = last_pos.time + datetime.timedelta(seconds=seconds_to_gate)

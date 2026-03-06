@@ -62,6 +62,8 @@ class CalculatorUnitTestBase(TestCase):
         pos.latitude = float(lat)
         pos.longitude = float(lon)
         pos.time = time
+        pos.projected_x = None
+        pos.projected_y = None
         return pos
 
 class TestGateCalculator(CalculatorUnitTestBase):
