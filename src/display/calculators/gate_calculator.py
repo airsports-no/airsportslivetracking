@@ -428,10 +428,15 @@ class GateCalculator(Calculator):
 
     def on_gate_missed(self, event: GateMissedEvent):
         # Add a small offset based on gate name/order to ensure deterministic ordering if multiple gates are missed at once
-        event_time = event.event_time or event.gate.expected_time
+        event_time = event.event_time or (event.position.time if event.position else event.gate.expected_time)
         if not event.event_time and event_time:
             # Add 1ms per gate in the route to ensure they stay in order
-            gate_index = self.gates.index(event.gate) if event.gate in self.gates else 0
+            if event.gate in self.gates:
+                gate_index = self.gates.index(event.gate)
+            elif event.gate.type == "to":
+                gate_index = -1
+            else:  # ldg or other
+                gate_index = len(self.gates) + 1
             event_time += datetime.timedelta(milliseconds=gate_index)
 
         logger.info(f"{self.contestant}: Scoring missed gate {event.gate}")
