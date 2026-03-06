@@ -13,6 +13,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const [progress, setProgress] = useState({ loaded: 0, total: 0 });
     const [shouldConnectWs, setShouldConnectWs] = useState(false); // New state
     const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected'>('disconnected');
+    const [error, setError] = useState<{ status?: number; message: string } | null>(null);
 
 
     const navTaskRef = useRef(staticNavTaskData);
@@ -295,28 +296,35 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     useEffect(() => {
         let cancelled = false;
         (async () => {
-            const task = await fetchNavigationTask(contestIdNum, navigationTaskIdNum);
-            if (!cancelled) {
-                // Set stable staticNavTaskData properties, exclude dynamic contestant_set
-                setStaticNavTaskData(task);
-
-                // Populate new contestantsById state
-                const initialContestantsMap = task.contestant_set.reduce((acc, c) => {
-                    acc[c.id] = c;
-                    return acc;
-                }, {} as Record<number, Contestant>);
-                setContestantsById(initialContestantsMap);
-                setShouldConnectWs(true);
-
-                const { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates } = await fetchAllContestantData(task.contestant_set, setProgress);
+            try {
+                const task = await fetchNavigationTask(contestIdNum, navigationTaskIdNum);
                 if (!cancelled) {
-                    setPositionsByContestant(positionUpdates);
-                    setAnnotationsByContestant(annotationUpdates);
-                    setScoreLogByContestant(scoreLogUpdates);
-                    setContestantsById(prev => ({ ...prev, ...contestantUpdates }));
+                    // Set stable staticNavTaskData properties, exclude dynamic contestant_set
+                    setStaticNavTaskData(task);
+
+                    // Populate new contestantsById state
+                    const initialContestantsMap = task.contestant_set.reduce((acc, c) => {
+                        acc[c.id] = c;
+                        return acc;
+                    }, {} as Record<number, Contestant>);
+                    setContestantsById(initialContestantsMap);
+                    setShouldConnectWs(true);
+
+                    const { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates } = await fetchAllContestantData(task.contestant_set, setProgress);
+                    if (!cancelled) {
+                        setPositionsByContestant(positionUpdates);
+                        setAnnotationsByContestant(annotationUpdates);
+                        setScoreLogByContestant(scoreLogUpdates);
+                        setContestantsById(prev => ({ ...prev, ...contestantUpdates }));
+                    }
+                }
+            } catch (e: any) {
+                if (!cancelled) {
+                    console.error("useCompetitionData initial fetch error:", e);
+                    setError({ status: e.status, message: e.message });
                 }
             }
-        })().catch(console.error);
+        })();
         return () => {
             cancelled = true;
         };
@@ -472,5 +480,6 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         gateArrowDataByContestant,
         progress,
         wsStatus,
+        error,
     };
-}
+    }

@@ -36,7 +36,9 @@ export async function fetchNavigationTask(contestId: number, navigationTaskId: n
   });
   if (!res.ok) {
     const errorMessages = await getErrorMessages(res);
-    throw new Error(`Failed to fetch navigation task ${navigationTaskId}: ${errorMessages}`);
+    const error = new Error(`Failed to fetch navigation task ${navigationTaskId}: ${errorMessages}`) as any;
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }

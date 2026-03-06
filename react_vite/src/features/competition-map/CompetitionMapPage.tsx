@@ -81,7 +81,9 @@ export default function CompetitionMapPage() {
     gateArrowDataByContestant,
     progress,
     wsStatus,
+    error: navTaskError,
   } = useCompetitionData(contestIdNum, navigationTaskIdNum, mode, showToast); // Pass showToast
+
 
   const sortedContestants = useMemo(() => {
     return Object.values(contestantsById).sort((a, b) => a.id - b.id);
@@ -409,6 +411,25 @@ export default function CompetitionMapPage() {
     }
   }, [selectedContestantId, scoreLogByContestant, mode, currentTime]);
 
+   if (navTaskError?.status === 404) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-base-200 p-4 text-center">
+        <div className="max-w-md bg-base-100 p-8 rounded-xl shadow-2xl border border-base-300">
+          <h1 className="text-6xl font-black text-error mb-4">404</h1>
+          <h2 className="text-2xl font-bold mb-4">Navigation Task Not Found</h2>
+          <p className="text-base-content/70 mb-8">
+            The navigation task you are looking for doesn't exist or has been removed. Or maybe you just need to log in?
+          </p>
+          <div className="flex flex-col gap-2">
+            <Link to="/" className="btn btn-primary">Go to Dashboard</Link>
+            {contestId && (
+              <Link to={`/mission-dashboard/${contestId}`} className="btn btn-ghost">Back to Contest</Link>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <TaskInfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
