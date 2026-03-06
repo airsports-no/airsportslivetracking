@@ -159,48 +159,33 @@ const MissionDashboard = () => {
     useEffect(() => {
         const fetchDashboardData = async () => {
             const state = useMissionDashboardStore.getState();
-            // Only show the main page loader if the main contest list is not yet loaded.
+            // Show page loader if no contests are currently loaded.
             if (state.contests.length === 0) {
                 setLoading(true);
             }
 
             const fetchPromises = [];
 
-            // These actions are now cached in the store, so it's safe to call them.
-            // They will only fetch if the data is not already present.
+            // Always fetch ongoing navigation and user-specific data on mount to handle stale state
             fetchPromises.push(fetchOngoingNavigationFromStore(true));
             if (document.configuration.isAuthenticated) {
-                fetchPromises.push(fetchMyFutureFlightsFromStore());
-                fetchPromises.push(fetchMyPreviousFlightsFromStore());
-                fetchPromises.push(fetchMyContestTeamsFromStore());
-                fetchPromises.push(fetchMyEditorContestsFromStore());
+                fetchPromises.push(fetchMyFutureFlightsFromStore(true));
+                fetchPromises.push(fetchMyPreviousFlightsFromStore(true));
+                fetchPromises.push(fetchMyContestTeamsFromStore(true));
+                fetchPromises.push(fetchMyEditorContestsFromStore(true));
             }
 
-            let initialFetchPerformed = false;
-            // Conditionally fetch the main contest list only if it's empty.
-            if (state.contests.length === 0) {
-                const oneYearAgo = new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
-                
-                // Fetch public contests (Globally cached)
-                fetchPromises.push(fetchContestsFromStore({ 
-                    finishTimeGte: oneYearAgo.toISOString().split('T')[0], 
-                    excludeTasks: true, 
-                    excludeTeams: true,
-                    publicOnly: true 
-                }));
+            const oneYearAgo = new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
+            const finishTimeGte = oneYearAgo.toISOString().split('T')[0];
 
-                // Fetch shared/private contests if authenticated (User specific cache)
-                if (document.configuration.isAuthenticated) {
-                    fetchPromises.push(fetchContestsFromStore({ 
-                        finishTimeGte: oneYearAgo.toISOString().split('T')[0], 
-                        excludeTasks: true, 
-                        excludeTeams: true,
-                        sharedOnly: true 
-                    }));
-                }
-
-                initialFetchPerformed = true;
-            }
+            // Consolidate main contest list fetches. 
+            // Calling it without publicOnly/sharedOnly gets the union of everything visible to the user.
+            // Using clear=true ensures that deleted contests are removed from the store.
+            fetchPromises.push(fetchContestsFromStore({ 
+                finishTimeGte, 
+                excludeTasks: true, 
+                excludeTeams: true 
+            }, true));
 
             try {
                 await Promise.allSettled(fetchPromises);
@@ -225,6 +210,7 @@ const MissionDashboard = () => {
                     const missingContestIds = Array.from(requiredContestIds).filter(id => !loadedContestIds.has(id));
 
                     if (missingContestIds.length > 0) {
+                        // Merge missing ones (don't clear)
                         await fetchContestsFromStore({ pks: missingContestIds });
                     }
                 }
@@ -234,13 +220,8 @@ const MissionDashboard = () => {
                 setLoading(false);
             }
 
-            if (initialFetchPerformed) {
-                const oneYearAgo = new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
-                fetchContestsFromStore({ finishTimeGte: oneYearAgo.toISOString().split('T')[0], publicOnly: true }).catch(console.error);
-                if (document.configuration.isAuthenticated) {
-                    fetchContestsFromStore({ finishTimeGte: oneYearAgo.toISOString().split('T')[0], sharedOnly: true }).catch(console.error);
-                }
-            }
+            // Start secondary "full" fetch in background to get tasks/teams for the visible contests
+            fetchContestsFromStore({ finishTimeGte }).catch(console.error);
         };
 
         fetchDashboardData();

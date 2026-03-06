@@ -42,8 +42,8 @@ logger = logging.getLogger(__name__)
 def invalidate_contest_list_cache(sender, **kwargs):
     try:
         cache.incr("contest_list_version")
-    except ValueError:
-        cache.set("contest_list_version", 1)
+    except (ValueError, TypeError):
+        cache.set("contest_list_version", 2)
 
 
 @receiver(post_save, sender=Contest)
