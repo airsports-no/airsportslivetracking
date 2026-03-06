@@ -3,7 +3,7 @@ import logging
 from queue import Queue
 from typing import List, Optional
 
-from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent, PokerGatePassedEvent
+from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent, PokerGatePassedEvent, GateMissedEvent, FinishLinePassedEvent
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_utility_models import ContestantReceivedPosition
@@ -96,23 +96,23 @@ class PokerCalculator(Calculator):
                     break
         return events
 
-    def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
+    def passed_finishpoint(self, event: FinishLinePassedEvent):
         pass
 
-    def missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: ContestantReceivedPosition):
+    def on_gate_missed(self, event: GateMissedEvent):
         pass
 
-    def on_poker_gate_passed(self, gate: Gate, position: ContestantReceivedPosition):
-        logger.info(f"{self.contestant}: Scoring poker gate {gate}")
+    def on_poker_gate_passed(self, event: PokerGatePassedEvent):
+        logger.info(f"{self.contestant}: Scoring poker gate {event.gate}")
         # Find the index of this gate in the full list
         try:
-            waypoint_index = self.gates.index(gate)
+            waypoint_index = self.gates.index(event.gate)
         except ValueError:
             waypoint_index = 0
             
         PlayingCard.add_contestant_card(
             self.contestant,
             PlayingCard.get_random_unique_card(self.contestant),
-            gate.name,
+            event.gate.name,
             waypoint_index,
         )

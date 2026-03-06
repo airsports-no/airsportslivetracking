@@ -104,6 +104,13 @@ class InRangeUpdatedEvent(GatekeeperEvent):
         self.gate = gate
 
 
+class FinishLinePassedEvent(GatekeeperEvent):
+    def __init__(self, last_gate: "Gate", track: List[ContestantReceivedPosition]):
+        super().__init__(track[-1] if len(track) > 0 else None)
+        self.last_gate = last_gate
+        self.track = track
+
+
 class Calculator(ABC):
     """
     Abstract class that defines the interface for all calculator types
@@ -161,26 +168,27 @@ class Calculator(ABC):
     ) -> List[GatekeeperEvent]:
         return []
 
-    def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
+    def passed_finishpoint(self, event: FinishLinePassedEvent):
         pass
 
-    def missed_gate(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition):
+    def on_gate_missed(self, event: GateMissedEvent):
         pass
 
-    def on_gate_passed(self, gate: "Gate", position: ContestantReceivedPosition):
+    def on_gate_passed(self, event: GatePassedEvent):
         pass
 
-    def on_takeoff_passed(self, gate: "Gate", position: ContestantReceivedPosition):
+    def on_takeoff_passed(self, event: TakeoffPassedEvent):
         pass
 
-    def on_landing_passed(self, gate: "Gate", position: ContestantReceivedPosition):
+    def on_landing_passed(self, event: LandingPassedEvent):
         pass
 
-    def on_starting_line_passed(self, gate: "Gate", position: ContestantReceivedPosition):
+    def on_starting_line_passed(self, event: StartingLinePassedEvent):
         pass
 
-    def on_starting_line_extended_passed_wrong_direction(self, gate: "Gate", position: ContestantReceivedPosition):
+    def on_starting_line_extended_passed_wrong_direction(self, event: StartingLineExtendedPassedWrongDirectionEvent):
         pass
 
-    def on_poker_gate_passed(self, gate: "Gate", position: ContestantReceivedPosition):
+    def on_poker_gate_passed(self, event: PokerGatePassedEvent):
         pass
+

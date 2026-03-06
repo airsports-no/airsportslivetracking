@@ -7,7 +7,13 @@ from typing import List, Optional, Tuple
 import numpy as np
 from shapely.geometry import Polygon, Point
 
-from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent
+from display.calculators.calculator import (
+    Calculator,
+    GatekeeperState,
+    GatekeeperEvent,
+    FinishLinePassedEvent,
+    GateMissedEvent,
+)
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -22,14 +28,13 @@ class AnrCorridorCalculator(Calculator):
     Implements https://www.fai.org/sites/default/files/documents/gac_2020_precision_flying_rules_final.pdf
     """
 
-    def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
-        position = track[-1]
+    def passed_finishpoint(self, event: FinishLinePassedEvent):
         if not self.has_passed_finish_point:
             self.previous_corridor_state = self.corridor_state
             self.has_passed_finish_point = True
             if self.corridor_state == self.OUTSIDE_CORRIDOR:
                 self.corridor_state = self.INSIDE_CORRIDOR
-                self.check_and_apply_outside_penalty(position, self.crossed_outside_gate or last_gate)
+                self.check_and_apply_outside_penalty(event.position, self.crossed_outside_gate or event.last_gate)
 
     def calculate_outside_route(
         self,
@@ -192,7 +197,7 @@ class AnrCorridorCalculator(Calculator):
         self.check_outside_corridor(track, state.last_gate)
         return []
 
-    def missed_gate(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition):
+    def on_gate_missed(self, event: GateMissedEvent):
         pass
 
     def check_and_apply_outside_penalty(self, position: ContestantReceivedPosition, last_gate: Gate):

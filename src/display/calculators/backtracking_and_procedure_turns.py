@@ -3,7 +3,14 @@ import logging
 from multiprocessing import Queue
 from typing import TYPE_CHECKING, List, Optional
 
-from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent
+from display.calculators.calculator import (
+    Calculator,
+    GatekeeperState,
+    GatekeeperEvent,
+    GateMissedEvent,
+    StartingLinePassedEvent,
+    FinishLinePassedEvent,
+)
 from display.calculators.calculator_utilities import bearing_between
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_utility_models import ContestantReceivedPosition
@@ -100,7 +107,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.tracking_state = tracking_state
         self.contestant.contestanttrack.updates_current_state(self.TRACKING_MAP[tracking_state])
 
-    def missed_gate(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition):
+    def on_gate_missed(self, event: GateMissedEvent):
         pass
 
 
@@ -264,10 +271,10 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             )
             self.circling = False
 
-    def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
+    def passed_finishpoint(self, event: FinishLinePassedEvent):
         self.backtracking_limit = 360
         # Rerun track calculation one final time in order to terminate any ongoing backtracking
-        self.calculate_track_score(track, last_gate, last_gate, None)
+        self.calculate_track_score(event.track, event.last_gate, event.last_gate, None)
         self.update_tracking_state(self.FINISHED)
 
     def calculate_track_score(
@@ -546,7 +553,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.last_bearing = bearing
         self.last_gate_previous_round = last_gate
 
-    def on_starting_line_passed(self, gate: "Gate", position: ContestantReceivedPosition):
+    def on_starting_line_passed(self, event: StartingLinePassedEvent):
         self.update_tracking_state(self.STARTED)
         self.backtracking_start_time = None
-        self.last_gate_previous_round = gate
+        self.last_gate_previous_round = event.gate

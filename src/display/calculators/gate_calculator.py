@@ -16,6 +16,7 @@ from display.calculators.calculator import (
     AdaptiveStartEvent,
     EstimationUpdatedEvent,
     InRangeUpdatedEvent,
+    FinishLinePassedEvent,
 )
 from display.calculators.positions_and_gates import Gate, round_seconds
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -381,12 +382,12 @@ class GateCalculator(Calculator):
                 if distance_to_gate < next_gate.inside_distance:
                     events.append(InRangeUpdatedEvent(next_gate, last_position))
 
-    def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
+    def passed_finishpoint(self, event: FinishLinePassedEvent):
         # When finish point is passed, all outstanding regular gates should be marked as missed
         for gate in self.gates:
             if not gate.has_been_passed() and not gate.missed and (gate.name, GATE_SCORE_TYPE) not in self.scored_gates:
                 gate.missed = True
-                self.missed_gate(None, gate, track[-1] if track else None)
+                self.on_gate_missed(GateMissedEvent(None, gate, event.position))
 
     def finalise(self, track: List[ContestantReceivedPosition]):
         # Catch any remaining missed gates at the very end of processing
@@ -396,7 +397,7 @@ class GateCalculator(Calculator):
         for gate in self.gates:
             if not gate.has_been_passed() and not gate.missed and (gate.name, GATE_SCORE_TYPE) not in self.scored_gates:
                 gate.missed = True
-                self.missed_gate(None, gate, track[-1] if track else None)
+                self.on_gate_missed(GateMissedEvent(None, gate, track[-1] if track else None))
 
         for tg in self.route.takeoff_gates:
             if (tg.name, GATE_SCORE_TYPE) in self.scored_gates:
@@ -405,7 +406,7 @@ class GateCalculator(Calculator):
             g = Gate(tg, expected_time, calculate_extended_gate(tg, self.scorecard))
             if tg.name not in self.contestant.gate_times_actual:
                 g.missed = True
-                self.missed_gate(None, g, track[-1] if track else None)
+                self.on_gate_missed(GateMissedEvent(None, g, track[-1] if track else None))
 
         for lg in self.route.landing_gates:
             if (lg.name, GATE_SCORE_TYPE) in self.scored_gates:
@@ -414,131 +415,124 @@ class GateCalculator(Calculator):
             g = Gate(lg, expected_time, calculate_extended_gate(lg, self.scorecard))
             if lg.name not in self.contestant.gate_times_actual:
                 g.missed = True
-                self.missed_gate(None, g, track[-1] if track else None)
+                self.on_gate_missed(GateMissedEvent(None, g, track[-1] if track else None))
 
-    def missed_gate_with_time(
-        self,
-        previous_gate: Optional[Gate],
-        gate: Gate,
-        position: ContestantReceivedPosition,
-        event_time: Optional[datetime.datetime],
-    ):
-        logger.info(f"{self.contestant}: Scoring missed gate {gate}")
-        if gate.gate_check:
-            score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
+    def on_gate_missed(self, event: GateMissedEvent):
+        # Add a small offset based on gate name/order to ensure deterministic ordering if multiple gates are missed at once
+        event_time = event.event_time or event.gate.expected_time
+        if not event.event_time and event_time:
+            # Add 1ms per gate in the route to ensure they stay in order
+            gate_index = self.gates.index(event.gate) if event.gate in self.gates else 0
+            event_time += datetime.timedelta(milliseconds=gate_index)
+
+        logger.info(f"{self.contestant}: Scoring missed gate {event.gate}")
+        if event.gate.gate_check:
+            score = self.scorecard.get_gate_timing_score_for_gate_type(event.gate.type, event.gate.expected_time, None)
             message = "missing gate"
-            if gate.type == "to":
+            if event.gate.type == "to":
                 message = "missing takeoff gate"
-            elif gate.type == "ldg":
+            elif event.gate.type == "ldg":
                 message = "missing landing gate"
 
             self.update_gate_score(
-                position,
-                gate,
+                event.position,
+                event.gate,
                 score,
                 GATE_SCORE_TYPE,
                 message,
                 ANOMALY,
-                planned=gate.expected_time,
+                planned=event.gate.expected_time,
                 actual=None,
                 time_override=event_time,
             )
 
-    def missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: ContestantReceivedPosition):
-        # Add a small offset based on gate name/order to ensure deterministic ordering if multiple gates are missed at once
-        event_time = gate.expected_time
-        if event_time:
-            # Add 1ms per gate in the route to ensure they stay in order
-            gate_index = self.gates.index(gate) if gate in self.gates else 0
-            event_time += datetime.timedelta(milliseconds=gate_index)
-
-        self.missed_gate_with_time(previous_gate, gate, position, event_time)
-
-    def on_gate_passed(self, gate: Gate, position: ContestantReceivedPosition):
-        logger.info(f"{self.contestant}: Scoring passed gate {gate}")
-        passing_time = gate.passing_time or gate.infinite_passing_time or position.time
-        passing_position = gate.infinite_passing_position or position
-        time_difference = (passing_time - gate.expected_time).total_seconds()
-        self.contestant.contestanttrack.update_last_gate(gate.name, time_difference)
+    def on_gate_passed(self, event: GatePassedEvent):
+        logger.info(f"{self.contestant}: Scoring passed gate {event.gate}")
+        passing_time = event.gate.passing_time or event.gate.infinite_passing_time or event.position.time
+        passing_position = event.gate.infinite_passing_position or event.position
+        time_difference = (passing_time - event.gate.expected_time).total_seconds()
+        self.contestant.contestanttrack.update_last_gate(event.gate.name, time_difference)
 
         message = "passing gate"
-        if gate.type == "to":
+        if event.gate.type == "to":
             message = "passing takeoff gate"
-        elif gate.type == "ldg":
+        elif event.gate.type == "ldg":
             message = GATE_SCORE_TYPE
 
-        if gate.time_check:
-            gate_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, passing_time)
-            self.transmit_actual_crossing(gate, passing_position)
+        if event.gate.time_check:
+            gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
+                event.gate.type, event.gate.expected_time, passing_time
+            )
+            self.transmit_actual_crossing(event.gate, passing_position)
             self.update_gate_score(
                 passing_position,
-                gate,
+                event.gate,
                 gate_score,
                 GATE_SCORE_TYPE,
                 message,
                 ANOMALY,
-                gate.expected_time,
+                event.gate.expected_time,
                 passing_time,
             )
         else:
             self.update_gate_score(
                 passing_position,
-                gate,
+                event.gate,
                 0,
                 GATE_SCORE_TYPE,
                 f"{message} (no time check)",
                 INFORMATION,
-                gate.expected_time,
+                event.gate.expected_time,
                 passing_time,
             )
 
-    def on_takeoff_passed(self, gate: Gate, position: ContestantReceivedPosition):
-        logger.info(f"{self.contestant}: Scoring takeoff gate {gate}")
+    def on_takeoff_passed(self, event: TakeoffPassedEvent):
+        logger.info(f"{self.contestant}: Scoring takeoff gate {event.gate}")
         gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
-            gate.type, gate.expected_time, gate.passing_time
+            event.gate.type, event.gate.expected_time, event.gate.passing_time
         )
-        passing_position = gate.infinite_passing_position or position
-        self.transmit_actual_crossing(gate, passing_position)
+        passing_position = event.gate.infinite_passing_position or event.position
+        self.transmit_actual_crossing(event.gate, passing_position)
         self.update_gate_score(
             passing_position,
-            gate,
+            event.gate,
             gate_score,
             GATE_SCORE_TYPE,
             "passing takeoff gate",
             ANOMALY,
-            gate.expected_time,
-            gate.passing_time,
+            event.gate.expected_time,
+            event.gate.passing_time,
         )
 
-    def on_landing_passed(self, gate: Gate, position: ContestantReceivedPosition):
-        logger.info(f"{self.contestant}: Scoring landing gate {gate}")
+    def on_landing_passed(self, event: LandingPassedEvent):
+        logger.info(f"{self.contestant}: Scoring landing gate {event.gate}")
         gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
-            gate.type, gate.expected_time, gate.passing_time
+            event.gate.type, event.gate.expected_time, event.gate.passing_time
         )
-        passing_position = gate.infinite_passing_position or position
-        self.transmit_actual_crossing(gate, passing_position)
+        passing_position = event.gate.infinite_passing_position or event.position
+        self.transmit_actual_crossing(event.gate, passing_position)
         self.update_gate_score(
             passing_position,
-            gate,
+            event.gate,
             gate_score,
             GATE_SCORE_TYPE,
             GATE_SCORE_TYPE,
             ANOMALY,
-            gate.expected_time,
-            gate.passing_time,
+            event.gate.expected_time,
+            event.gate.passing_time,
         )
 
-    def on_starting_line_passed(self, gate: Gate, position: ContestantReceivedPosition):
-        logger.info(f"{self.contestant}: Scoring starting line {gate}")
+    def on_starting_line_passed(self, event: StartingLinePassedEvent):
+        logger.info(f"{self.contestant}: Scoring starting line {event.gate}")
         if self.contestant.adaptive_start and not self.has_scored_adaptive_start:
             self.has_scored_adaptive_start = True
             # Use a slightly earlier time to ensure it appears before the timing score in the log
-            passing_time = gate.passing_time or gate.infinite_passing_time or position.time
-            passing_position = gate.infinite_passing_position or position
+            passing_time = event.gate.passing_time or event.gate.infinite_passing_time or event.position.time
+            passing_position = event.gate.infinite_passing_position or event.position
             entry_time = passing_time - datetime.timedelta(seconds=1)
             self.update_gate_score(
                 passing_position,
-                gate,
+                event.gate,
                 0,
                 ADAPTIVE_TIMING_START_SCORE_TYPE,
                 "crossing infinite starting line and starting adaptive timing",
@@ -546,13 +540,13 @@ class GateCalculator(Calculator):
                 actual=entry_time,
             )
 
-    def on_starting_line_extended_passed_wrong_direction(self, gate: Gate, position: ContestantReceivedPosition):
-        logger.info(f"{self.contestant}: Scoring starting line wrong direction {gate}")
+    def on_starting_line_extended_passed_wrong_direction(self, event: StartingLineExtendedPassedWrongDirectionEvent):
+        logger.info(f"{self.contestant}: Scoring starting line wrong direction {event.gate}")
         score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")
         if score != 0:
             self.update_gate_score(
-                position,
-                gate,
+                event.position,
+                event.gate,
                 score,
                 BACKWARD_STARTING_LINE_SCORE_TYPE,
                 "crossing extended starting gate backwards",

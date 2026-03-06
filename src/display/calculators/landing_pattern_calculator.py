@@ -3,7 +3,7 @@ import logging
 from queue import Queue
 from typing import List, Optional
 
-from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent, GatePassedEvent, LandingPassedEvent
+from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent, GatePassedEvent, LandingPassedEvent, GateMissedEvent, FinishLinePassedEvent
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_utility_models import ContestantReceivedPosition
@@ -75,22 +75,22 @@ class LandingPatternCalculator(Calculator):
                     events.append(LandingPassedEvent(state.landing_gate.intersected_gate, track[-1], intersection_time))
         return events
 
-    def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
+    def passed_finishpoint(self, event: FinishLinePassedEvent):
         pass
 
-    def missed_gate(self, previous_gate: Optional[Gate], gate: Gate, position: ContestantReceivedPosition):
+    def on_gate_missed(self, event: GateMissedEvent):
         pass
 
-    def on_gate_passed(self, gate: Gate, position: ContestantReceivedPosition):
-        logger.info(f"{self.contestant}: Scoring landing pattern round via gate {gate}")
+    def on_landing_passed(self, event: LandingPassedEvent):
+        logger.info(f"{self.contestant}: Scoring landing pattern round via gate {event.gate}")
         self.update_score(
             UpdateScoreMessage(
-                position.time,
-                gate,
+                event.position.time,
+                event.gate,
                 1,
                 "passed landing line",
-                position.latitude,
-                position.longitude,
+                event.position.latitude,
+                event.position.longitude,
                 ANOMALY,
                 "landing_line",
             )

@@ -3,7 +3,7 @@ import logging
 from multiprocessing import Queue
 from typing import List, Optional
 
-from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent
+from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent, GateMissedEvent, FinishLinePassedEvent
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -57,10 +57,10 @@ class PenaltyZoneCalculator(Calculator):
             poly = self.polygon_helper.build_polygon(zone.path)
             self.polygons.append((zone.pk, poly))
 
-    def missed_gate(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition):
+    def on_gate_missed(self, event: GateMissedEvent):
         pass
 
-    def passed_finishpoint(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
+    def passed_finishpoint(self, event: FinishLinePassedEvent):
         pass
 
     def calculate_outside_route(

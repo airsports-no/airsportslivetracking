@@ -274,8 +274,9 @@ class Gatekeeper:
         if not self.has_passed_finishpoint:
             self.contestant.contestanttrack.set_passed_finish_gate()
             self.has_passed_finishpoint = True
+            event = FinishLinePassedEvent(self.get_last_gate(), self.track)
             for calculator in self.calculators:
-                calculator.passed_finishpoint(self.track, self.last_gate)
+                calculator.passed_finishpoint(event)
 
     def handle_event(self, event: GatekeeperEvent):
         """
@@ -292,7 +293,7 @@ class Gatekeeper:
                 self.update_enroute()
 
             for calculator in self.calculators:
-                calculator.on_gate_passed(event.gate, event.position)
+                calculator.on_gate_passed(event)
 
             if event.gate.type == "fp":
                 self.passed_finishpoint()
@@ -302,10 +303,7 @@ class Gatekeeper:
             if event.gate in self.outstanding_gates:
                 self.pop_gate(self.outstanding_gates.index(event.gate), True)
             for calculator in self.calculators:
-                if hasattr(calculator, "missed_gate_with_time"):
-                    calculator.missed_gate_with_time(event.previous_gate, event.gate, event.position, event.event_time)
-                else:
-                    calculator.missed_gate(event.previous_gate, event.gate, event.position)
+                calculator.on_gate_missed(event)
 
             if event.gate.type == "fp":
                 self.passed_finishpoint()
@@ -316,7 +314,7 @@ class Gatekeeper:
             if self.takeoff_gate:
                 self.takeoff_gate.pass_gate(event.intersection_time, event.position)
             for calculator in self.calculators:
-                calculator.on_takeoff_passed(event.gate, event.position)
+                calculator.on_takeoff_passed(event)
 
         elif isinstance(event, LandingPassedEvent):
             event.gate.pass_gate(event.intersection_time, event.position)
@@ -324,7 +322,7 @@ class Gatekeeper:
             if self.landing_gate:
                 self.landing_gate.pass_gate(event.intersection_time, event.position)
             for calculator in self.calculators:
-                calculator.on_landing_passed(event.gate, event.position)
+                calculator.on_landing_passed(event)
 
         elif isinstance(event, AdaptiveStartEvent):
             self.recalculate_gates_times_from_start_time(event.intersection_time)
@@ -337,15 +335,15 @@ class Gatekeeper:
                 logger.info(f"{self.contestant}: Switching to enroute after starting line crossing")
 
             for calculator in self.calculators:
-                calculator.on_starting_line_passed(event.gate, event.position)
+                calculator.on_starting_line_passed(event)
 
         elif isinstance(event, StartingLineExtendedPassedWrongDirectionEvent):
             for calculator in self.calculators:
-                calculator.on_starting_line_extended_passed_wrong_direction(event.gate, event.position)
+                calculator.on_starting_line_extended_passed_wrong_direction(event)
 
         elif isinstance(event, PokerGatePassedEvent):
             for calculator in self.calculators:
-                calculator.on_poker_gate_passed(event.gate, event.position)
+                calculator.on_poker_gate_passed(event)
 
         elif isinstance(event, EstimationUpdatedEvent):
             self.estimated_next_timed_gate = event.gate
