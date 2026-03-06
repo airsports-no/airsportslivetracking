@@ -95,7 +95,7 @@ class ContestantProcessor:
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.score_processing_queue = Queue()
         self.last_termination_check = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
-        self.termination_requested_cached = False
+        self.termination_requested_cached = None
         self.process_event = threading.Event()
         self.contestant.contestantreceivedposition_set.all().delete()
         self.contestant.track_version += 1
@@ -403,32 +403,34 @@ class ContestantProcessor:
         Checks if termination has been manually triggered. If it has been triggered, create a score log entry to
         reflect this and notify termination.
         """
-        if not self.track_terminated and self.is_termination_commanded():
-            last_gate = self.gatekeeper.get_last_gate()
-            self.score_processing_queue.put_nowait(
-                UpdateScoreMessage(
-                    position.time if position else self.contestant.navigation_task.start_time,
-                    last_gate,
-                    0,
-                    "manually terminated",
-                    position.latitude if position else last_gate.latitude,
-                    position.longitude if position else last_gate.longitude,
-                    "information",
-                    "",
+        if not self.track_terminated:
+            termination_time = self.is_termination_commanded()
+            if termination_time:
+                last_gate = self.gatekeeper.get_last_gate()
+                self.score_processing_queue.put_nowait(
+                    UpdateScoreMessage(
+                        termination_time,
+                        last_gate,
+                        0,
+                        "manually terminated",
+                        position.latitude if position else last_gate.latitude,
+                        position.longitude if position else last_gate.longitude,
+                        "information",
+                        "",
+                    )
                 )
-            )
-            self.notify_termination()
+                self.notify_termination()
 
-    def is_termination_commanded(self) -> bool:
+    def is_termination_commanded(self) -> Optional[datetime.datetime]:
         """
-        Return true if manual termination has been requested.
+        Return the termination request time if manual termination has been requested, else None.
         """
         now = datetime.datetime.now(datetime.timezone.utc)
         if now - self.last_termination_check > datetime.timedelta(seconds=5):
             self.termination_requested_cached = is_termination_requested(self.contestant.pk)
             self.last_termination_check = now
             if self.termination_requested_cached:
-                logger.info(f"{self.contestant}: Termination request received")
+                logger.info(f"{self.contestant}: Termination request received at {self.termination_requested_cached}")
 
         return self.termination_requested_cached
 

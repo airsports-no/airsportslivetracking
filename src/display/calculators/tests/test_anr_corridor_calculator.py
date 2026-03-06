@@ -271,8 +271,12 @@ class TestANRPerLeg(TransactionTestCase):
 
         print(strings)
         self.assertTrue(any("manually terminated" in e for e in strings))
-
-        # self.assertEqual(492, contestant_track.score)
+        
+        # Verify the time matches the request time (roughly, since we use a timer)
+        entry = self.contestant.scorelogentry_set.get(message="manually terminated")
+        # The entry time is stored in the database, let's just make sure it's recent (around now)
+        # and not some fallback like navigation_task.start_time
+        self.assertGreater(entry.time, start_time - datetime.timedelta(minutes=1))
 
     def test_anr_miss_start_and_finish(self, *args):
         track = load_track_points_traccar_csv(
