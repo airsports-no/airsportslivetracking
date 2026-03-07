@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, CheckCircle, Camera, Hexagon } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Camera, Hexagon, Clock, Crosshair, Ruler } from 'lucide-react';
 import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../../../types';
 
 interface RouteListViewProps {
@@ -52,14 +52,20 @@ const RouteListView: React.FC<RouteListViewProps> = ({
             {routePoints.map((p, i) => (
               <li 
                 key={p.id} 
-                className="flex items-center justify-between p-2 bg-base-100 border rounded hover:bg-base-200 cursor-pointer text-sm"
+                className="flex items-center justify-between p-2 bg-base-100 border rounded hover:bg-base-200 cursor-pointer text-sm gap-2"
                 onClick={() => onSelect(p.id, 'point')}
               >
-                <div className="flex items-center space-x-2">
-                  <span className="font-mono text-xs w-5">{i+1}</span>
-                  <span className="font-medium truncate max-w-[120px]">{p.name}</span>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="font-mono text-[10px] w-4 opacity-50 flex-shrink-0 text-right">{i+1}</span>
+                  <span className="font-medium truncate" title={p.name}>{p.name}</span>
+                  <div className="flex items-center gap-1 flex-shrink-0 opacity-70 border-l pl-1 border-base-300 ml-1">
+                    {p.isTiming && <Clock size={11} className="text-primary" title="Time check active" />}
+                    {p.isPassing && <Crosshair size={11} className="text-secondary" title="Gate check active" />}
+                    <Ruler size={11} title="Gate width" />
+                    <span className="text-[9px] font-bold">{(p.width / 1852).toFixed(1)}NM</span>
+                  </div>
                 </div>
-                <span className={`badge badge-sm ${
+                <span className={`badge badge-sm flex-shrink-0 uppercase text-[9px] h-4 leading-none font-bold ${
                   (p.type === 'sp') ? 'badge-success' :
                   (p.type === 'fp') ? 'badge-error' :
                   p.type === 'secret' ? 'badge-ghost' : 'badge-info'
