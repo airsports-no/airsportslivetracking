@@ -141,6 +141,9 @@ class TestANRPerLeg(TransactionTestCase):
             "SP: 200.0 points backtracking",
             "SP: 50.0 points outside corridor (116 s) (capped)",
             "SP: 0.0 points exiting corridor",
+            "SP: 0.0 points outside corridor (0 s) (capped)",  # Missing TP 2
+            "SP: 0.0 points outside corridor (0 s)",  # Missing TP 3
+            "SP: 0.0 points outside corridor (0 s)",  # Missing FP
             "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
             "Landing 1: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --",
         ]
@@ -215,12 +218,14 @@ class TestANRPerLeg(TransactionTestCase):
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 14:00:00\nactual: --",
             "SP: 200.0 points passing gate (-71535748 s)\nplanned: 14:07:00\nactual: 14:04:32",
             "SP: 0.0 points exiting corridor",
-            "SP: 45.0 points outside corridor (20 s)",
-            "SP: 0.0 points exiting corridor",
+            "SP: 48.0 points outside corridor (21 s)",
+            # "SP: 0.0 points exiting corridor", # Is new leg
             "SP: 9.0 points outside corridor (3 s)",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 41.0 points outside corridor (227 s) (capped)",
+            "SP: 41.0 points outside corridor (228 s) (capped)",  # Missed TP 2
+            "SP: 0.0 points outside corridor (0 s)",  # Missed TP 3, but already at maximum penalty, so no additional points
+            "SP: 0.0 points outside corridor (0 s)",  # Missed FP, but already at maximum penalty, so no additional points
             "FP: 200.0 points missing gate\nplanned: 14:18:11\nactual: --",
             "Landing 1: 0.0 points missing landing gate\nplanned: 15:59:00\nactual: --",
         ]
@@ -228,7 +233,7 @@ class TestANRPerLeg(TransactionTestCase):
             final_list,
             strings,
         )
-        self.assertEqual(695.0, contestant_track.score)
+        self.assertEqual(698.0, contestant_track.score)
 
     def test_manually_terminate_calculator(self, *args):
         cache.clear()
@@ -312,6 +317,7 @@ class TestANRPerLeg(TransactionTestCase):
             "TP 2: 0.0 points passing gate (no time check) (-168 s)\nplanned: 14:22:34\nactual: 14:19:46",
             "TP 3: 0.0 points passing gate (no time check) (-221 s)\nplanned: 14:24:32\nactual: 14:20:51",
             "SP: 0.0 points exiting corridor",
+            "SP: 0.0 points outside corridor (0 s)",  # Missing FP
             "FP: 200.0 points passing gate (-320 s)\nplanned: 14:28:10\nactual: 14:22:51",
             "Landing 1: 0.0 points missing landing gate\nplanned: 17:04:00\nactual: --",
         ]

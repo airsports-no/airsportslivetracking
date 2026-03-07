@@ -385,45 +385,49 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     def get_overlapping_tasks(self) -> list[dict]:
         overlaps = []
-        
+
         # Prepare filters for a single query
         time_filter = Q(tracker_start_time__lte=self.finished_by_time, finished_by_time__gte=self.tracker_start_time)
-        
+
         tracker_ids = self.get_tracker_ids()
         # Filter out empty tracker IDs
         tracker_ids = [tid for tid in tracker_ids if tid]
-        
+
         tracker_q = Q(pk__in=[])
         if tracker_ids:
-             tracker_q = Q(tracking_service=self.tracking_service, tracker_device_id__in=tracker_ids)
+            tracker_q = Q(tracking_service=self.tracking_service, tracker_device_id__in=tracker_ids)
 
         aircraft_q = Q(pk__in=[])
         if self.team and self.team.aeroplane:
-             aircraft_q = Q(team__aeroplane=self.team.aeroplane)
+            aircraft_q = Q(team__aeroplane=self.team.aeroplane)
 
         pilot = self.team.crew.member1
         pilot_q = Q(pk__in=[])
         if pilot:
-             pilot_q = (Q(team__crew__member1=pilot) | Q(team__crew__member2=pilot))
+            pilot_q = Q(team__crew__member1=pilot) | Q(team__crew__member2=pilot)
 
         copilot = self.team.crew.member2
         copilot_q = Q(pk__in=[])
         if copilot:
-             copilot_q = (Q(team__crew__member1=copilot) | Q(team__crew__member2=copilot))
+            copilot_q = Q(team__crew__member1=copilot) | Q(team__crew__member2=copilot)
 
         combined_q = time_filter & (tracker_q | aircraft_q | pilot_q | copilot_q)
-        
-        potential_overlaps = Contestant.objects.filter(combined_q).exclude(pk=self.pk).select_related(
-            'navigation_task', 
-            'navigation_task__contest', 
-            'team__aeroplane', 
-            'team__crew__member1', 
-            'team__crew__member2'
+
+        potential_overlaps = (
+            Contestant.objects.filter(combined_q)
+            .exclude(pk=self.pk)
+            .select_related(
+                "navigation_task",
+                "navigation_task__contest",
+                "team__aeroplane",
+                "team__crew__member1",
+                "team__crew__member2",
+            )
         )
 
         for other in potential_overlaps:
             reasons = set()
-            
+
             # 1. Tracker collision
             if tracker_ids and other.tracking_service == self.tracking_service:
                 # Original logic: tracker_device_id__in=tracker_ids.
@@ -433,9 +437,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
             # 2. Aircraft collision
             if self.team.aeroplane and other.team.aeroplane == self.team.aeroplane:
-                 # Original logic has tighter time check for aircraft
-                 if other.takeoff_time < self.landing_time and other.landing_time >= self.takeoff_time:
-                     reasons.add("Aircraft collision")
+                # Original logic has tighter time check for aircraft
+                if other.takeoff_time < self.landing_time and other.landing_time >= self.takeoff_time:
+                    reasons.add("Aircraft collision")
 
             # 3. Pilot collision
             if pilot and (other.team.crew.member1 == pilot or other.team.crew.member2 == pilot):
@@ -448,13 +452,15 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             if reasons:
                 smallest_end = min(other.finished_by_time, self.finished_by_time)
                 largest_start = max(other.tracker_start_time, self.tracker_start_time)
-                overlaps.append({
-                    "task": other.navigation_task,
-                    "start_time": largest_start,
-                    "end_time": smallest_end,
-                    "reason": reasons # Set of strings
-                })
-        
+                overlaps.append(
+                    {
+                        "task": other.navigation_task,
+                        "start_time": largest_start,
+                        "end_time": smallest_end,
+                        "reason": reasons,  # Set of strings
+                    }
+                )
+
         # Deduplicate and group reasons (already grouped per contestant, but we group by task)
         grouped_overlaps = {}
         for item in overlaps:
@@ -464,11 +470,11 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     "task": item["task"],
                     "start_time": item["start_time"],
                     "end_time": item["end_time"],
-                    "reasons": item["reason"]
+                    "reasons": item["reason"],
                 }
             else:
                 grouped_overlaps[task_pk]["reasons"].update(item["reason"])
-        
+
         return list(grouped_overlaps.values())
 
     def get_overlap_warnings(self) -> list[str]:
@@ -501,7 +507,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         if pilot_overlaps:
             links = []
             for item in pilot_overlaps:
-                links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": item["task"].pk})}">{item["task"]}</a>')
+                links.append(
+                    f'<a href="{reverse("navigationtask_detail", kwargs={"pk": item["task"].pk})}">{item["task"]}</a>'
+                )
 
             start_time = min(item["start_time"] for item in pilot_overlaps)
             finish_time = max(item["end_time"] for item in pilot_overlaps)
@@ -519,7 +527,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         if copilot_overlaps:
             links = []
             for item in copilot_overlaps:
-                links.append(f'<a href="{reverse("navigationtask_detail", kwargs={"pk": item["task"].pk})}">{item["task"]}</a>')
+                links.append(
+                    f'<a href="{reverse("navigationtask_detail", kwargs={"pk": item["task"].pk})}">{item["task"]}</a>'
+                )
 
             start_time = min(item["start_time"] for item in copilot_overlaps)
             finish_time = max(item["end_time"] for item in copilot_overlaps)
@@ -544,14 +554,14 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             return
 
         overlapping = Contestant.objects.filter(
-            Q(tracking_device=TRACKING_DEVICE, tracker_device_id__in=tracker_ids) |
-            Q(
+            Q(tracking_device=TRACKING_DEVICE, tracker_device_id__in=tracker_ids)
+            | Q(
                 tracking_device__in=(TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT),
-                team__crew__member1__app_tracking_id__in=tracker_ids
-            ) |
-            Q(
+                team__crew__member1__app_tracking_id__in=tracker_ids,
+            )
+            | Q(
                 tracking_device__in=(TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT),
-                team__crew__member2__app_tracking_id__in=tracker_ids
+                team__crew__member2__app_tracking_id__in=tracker_ids,
             ),
             tracking_service=self.tracking_service,
             tracker_start_time__lt=termination_time,

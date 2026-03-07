@@ -367,16 +367,15 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
                 self.calculator.crossed_outside_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
                 self.calculator.current_leg_outside_start_time = self.calculator.crossed_outside_time
                 self.calculator.crossed_outside_gate = gate1
-                self.calculator.is_first_leg_of_excursion = True
+                self.calculator.is_first_leg_of_excursion = False # Second leg of excursion
                 
                 mock_update.reset_mock()
                 # Simulate the event that Gatekeeper would trigger when gate is passed
                 self.calculator.on_gate_passed(GatePassedEvent(gate2, pos, pos.time))
                 
                 exiting_calls_per_leg = [c for c in mock_update.call_args_list if "exiting corridor" in c[0][0].message]
-                # When per-leg is ON, it SHOULD emit exactly ONE "exiting corridor" for the NEW leg TP1
-                self.assertEqual(len(exiting_calls_per_leg), 1)
-                self.assertEqual(exiting_calls_per_leg[0][0][0].gate.name, "TP1")
+                # When per-leg is ON, it should NOT emit redundant 'exiting corridor' if we are already outside
+                self.assertEqual(len(exiting_calls_per_leg), 0)
                 
                 # Verify the SP was finalized (should be the first call)
                 sp_final_msg = mock_update.call_args_list[0][0][0]
@@ -437,8 +436,16 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
                 # Expectation: 10s in Leg 2. NO GRACE. 10 * 10 = 100 points.
                 self.assertEqual(self.calculator.accumulated_score, 100.0)
                 
+                # 5. Come back inside at T=26
+                t26 = t0 + datetime.timedelta(seconds=26)
+                pos26 = self.create_position(60, 11, t26)
+                mock_check.return_value = True
+                self.calculator.check_outside_corridor([pos26], gate2)
+
                 # Check message score_type contains gate name
+                # Index 0 is SP finalized, Index 1 is TP1 finalized
                 self.assertEqual(mock_update.call_args_list[1][0][0].score_type, "outside_corridor_TP1")
+                self.assertEqual(mock_update.call_args_list[1][0][0].score, 100.0)
 
 class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
     def setUp(self):

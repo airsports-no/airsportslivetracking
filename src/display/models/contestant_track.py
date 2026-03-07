@@ -71,18 +71,28 @@ class ContestantTrack(models.Model):
         from django.db.models import F
 
         if score_increment != 0:
-            new_score = self.score + score_increment
-            self.score = F("score") + score_increment
-            self.save(update_fields=["score"])
-            self.refresh_from_db(fields=["score"])
-            # Update task test score if it exists
-            if hasattr(self.contestant.navigation_task, "tasktest"):
-                TeamTestScore.objects.update_or_create(
-                    team=self.contestant.team,
-                    task_test=self.contestant.navigation_task.tasktest,
-                    defaults={"points": new_score},
-                )
-            self.__push_change()
+            # Atomic update of ContestantTrack score field in the database.
+            # We use .update() to avoid the overhead of retrieving the entire object and to be resilient if it was deleted.
+            updated_count = type(self).objects.filter(pk=self.pk).update(score=F("score") + score_increment)
+
+            if updated_count > 0:
+                # Update task test score if it exists. TeamTestScore has signals for the leaderboard,
+                # so we use .save() with an F expression to keep it atomic while triggering summary updates.
+                if hasattr(self.contestant.navigation_task, "tasktest"):
+                    tts, created = TeamTestScore.objects.get_or_create(
+                        team=self.contestant.team,
+                        task_test=self.contestant.navigation_task.tasktest,
+                        defaults={"points": 0},
+                    )
+                    tts.points = F("points") + score_increment
+                    tts.save(update_fields=["points"])
+
+                # Update the instance score locally so that __push_change() sends the most up-to-date information.
+                # Note: This might be slightly different from DB ground truth if there were concurrent updates,
+                # but it's close enough for the UI and will be corrected during periodic refreshes.
+                if not isinstance(self.score, F):
+                    self.score += score_increment
+                self.__push_change()
 
     def updates_current_state(self, state: str):
         if self.current_state != state:

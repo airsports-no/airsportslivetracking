@@ -407,17 +407,17 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 if distance_to_gate_sq < grace_zone**2:
                     pass  # Ignore backtracking within grace zone of the gate
                 else:
-                    logger.info(
-                        "{} {}: Bearing difference of {}° exceeds backtracking limit of {}° outside of grace zone of gate {} ({} NM, limit {} NM), starting backtracking checks".format(
-                            self.contestant,
-                            last_position.time,
-                            bearing_difference,
-                            self.backtracking_limit,
-                            reference_gate.name,
-                            distance_to_gate_sq**0.5 / 1852,
-                            grace_zone / 1852,
-                        )
-                    )
+                    # logger.info(
+                    #     "{} {}: Bearing difference of {}° exceeds backtracking limit of {}° outside of grace zone of gate {} ({} NM, limit {} NM), starting backtracking checks".format(
+                    #         self.contestant,
+                    #         last_position.time,
+                    #         bearing_difference,
+                    #         self.backtracking_limit,
+                    #         reference_gate.name,
+                    #         distance_to_gate_sq**0.5 / 1852,
+                    #         grace_zone / 1852,
+                    #     )
+                    # )
                     backtracking = True
                     if in_range_of_gate is not None and in_range_of_gate != last_gate:
                         pass

@@ -1,6 +1,7 @@
 import datetime
 import logging
 import threading
+import time
 from queue import Queue
 from typing import List, Optional, Tuple, Dict
 
@@ -47,7 +48,6 @@ class ScoreAccumulator:
         current_score_for_type = self.related_score.setdefault(score_type, 0)
         if maximum_score is not None:
             if (maximum_score > 0 and current_score_for_type + score >= maximum_score) or (
-
                 maximum_score < 0 and current_score_for_type + score <= maximum_score
             ):
                 score = maximum_score - current_score_for_type
@@ -223,7 +223,16 @@ class ContestantProcessor:
         Push all score information to the front end. This needs to be done at regular intervals in case the front end
         loses connectivity with the Web server.
         """
-        self.contestant.refresh_from_db()
+        try:
+            self.contestant.refresh_from_db()
+            self.contestant_track.refresh_from_db()
+            # Synchronize local score state with database to account for manual manager adjustments
+            self.score = self.contestant_track.score
+        except ObjectDoesNotExist:
+            logger.info(f"{self.contestant}: Object deleted during refresh, terminating")
+            self.track_terminated = True
+            return
+
         self.websocket_facade.transmit_score_log_entry(self.contestant)
         self.websocket_facade.transmit_annotations(self.contestant)
         self.websocket_facade.transmit_basic_information(self.contestant)
@@ -546,24 +555,24 @@ class ContestantProcessor:
             times_string = "planned: {}\nactual: --".format(planned_time)
         if len(times_string) > 0:
             string += f"\n{times_string}"
-        logger.info("UPDATE_SCORE {}: {}{}".format(self.contestant, "", string))
-        # Take into account that external events may have changed the score - only for live runs
-        if self.live_processing:
-            self.contestant_track.refresh_from_db()
+        logger.info("UPDATE_SCORE {} {}: {}{}".format(update_score_message.score_type, self.contestant, "", string))
 
         # Optimized record_score_by_gate logic with local caching
         gate_name = update_score_message.gate.name
         if gate_name not in self.gate_scores:
             from display.models import GateCumulativeScore
 
-            gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate_name, contestant=self.contestant)
-            self.gate_scores[gate_name] = gate_score
+            try:
+                gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate_name, contestant=self.contestant)
+                self.gate_scores[gate_name] = gate_score
+            except ObjectDoesNotExist:
+                # Contestant or related objects might have been deleted
+                return
 
         gate_score = self.gate_scores[gate_name]
         gate_score.points += score
         gate_score.save(update_fields=["points"])
 
-        self.score = self.contestant_track.score
         logger.debug(f"Setting existing scores from contestant track: {self.score}")
         self.score += score
         entry = ScoreLogEntry.create_and_push(
@@ -591,4 +600,4 @@ class ContestantProcessor:
             score_log_entry=entry,
         )
         if score != 0:
-            self.contestant_track.update_score(self.score)
+            self.contestant_track.increment_score(score)
