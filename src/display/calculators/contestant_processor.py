@@ -573,7 +573,6 @@ class ContestantProcessor:
         gate_score.points += score
         gate_score.save(update_fields=["points"])
 
-        logger.debug(f"Setting existing scores from contestant track: {self.score}")
         self.score += score
         entry = ScoreLogEntry.create_and_push(
             contestant=self.contestant,

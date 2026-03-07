@@ -133,6 +133,7 @@ class Gatekeeper:
             landing_gate=self.landing_gate,
             has_passed_finishpoint=self.has_passed_finishpoint,
             recalculation_completed=self.recalculation_completed,
+            enroute=self.enroute,
             estimated_next_timed_gate=self.estimated_next_timed_gate,
             estimated_crossing_time=self.estimated_crossing_time,
         )

@@ -140,10 +140,10 @@ class TestANRPerLeg(TransactionTestCase):
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
             "SP: 50.0 points outside corridor (116 s) (capped)",
-            "SP: 0.0 points exiting corridor",
-            "SP: 0.0 points outside corridor (0 s) (capped)",  # Missing TP 2
-            "SP: 0.0 points outside corridor (0 s)",  # Missing TP 3
-            "SP: 0.0 points outside corridor (0 s)",  # Missing FP
+            # "SP: 0.0 points exiting corridor",
+            # "SP: 0.0 points outside corridor (0 s) (capped)",  # Missing TP 2
+            # "SP: 0.0 points outside corridor (0 s)",  # Missing TP 3
+            # "SP: 0.0 points outside corridor (0 s)",  # Missing FP
             "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
             "Landing 1: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --",
         ]
@@ -308,7 +308,7 @@ class TestANRPerLeg(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
-        print(strings)
+        pprint(strings)
         expected = [
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 15:05:00\nactual: --",
             "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
@@ -316,8 +316,8 @@ class TestANRPerLeg(TransactionTestCase):
             "TP 1: 0.0 points passing gate (no time check) (-57 s)\nplanned: 14:19:00\nactual: 14:18:03",
             "TP 2: 0.0 points passing gate (no time check) (-168 s)\nplanned: 14:22:34\nactual: 14:19:46",
             "TP 3: 0.0 points passing gate (no time check) (-221 s)\nplanned: 14:24:32\nactual: 14:20:51",
-            "SP: 0.0 points exiting corridor",
-            "SP: 0.0 points outside corridor (0 s)",  # Missing FP
+            # "SP: 0.0 points exiting corridor",
+            # "SP: 0.0 points outside corridor (0 s)",  # Missing FP
             "FP: 200.0 points passing gate (-320 s)\nplanned: 14:28:10\nactual: 14:22:51",
             "Landing 1: 0.0 points missing landing gate\nplanned: 17:04:00\nactual: --",
         ]

@@ -28,6 +28,7 @@ class GatekeeperState:
     landing_gate: Optional["MultiGate"]
     has_passed_finishpoint: bool
     recalculation_completed: bool
+    enroute: bool = True
     estimated_next_timed_gate: Optional["Gate"] = None
     estimated_crossing_time: Optional[datetime.datetime] = None
 

@@ -198,15 +198,16 @@ class AnrCorridorCalculator(Calculator):
         track: List[ContestantReceivedPosition],
         state: GatekeeperState,
     ) -> List[GatekeeperEvent]:
-        self.enroute = True
-        self.check_outside_corridor(track, state.last_gate)
+        self.enroute = state.enroute
+        if state.enroute:
+            self.check_outside_corridor(track, state.last_gate)
         return []
 
     def on_gate_missed(self, event: GateMissedEvent):
         # Detect gate crossing while outside to advance/finalize leg
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
             logger.info(
-                f"{self.contestant}: Finalizing leg {self.crossed_outside_gate} because {event.gate} was missed"
+                f"{self.contestant}: Finalizing leg {self.crossed_outside_gate} because {event.gate} was missed. Max per leg: {self.corridor_maximum_penalty_is_per_leg}"
             )
             if self.corridor_maximum_penalty_is_per_leg:
                 # Finalize penalty for the leg we just left
@@ -289,6 +290,11 @@ class AnrCorridorCalculator(Calculator):
             else:
                 current_time = position.time
 
+        # Ensure current_time is not before start time to prevent negative durations
+        start_time_ref = self.current_leg_outside_start_time or self.crossed_outside_time
+        if current_time < start_time_ref:
+            current_time = start_time_ref
+
         # Use first waypoint as a fallback if last_gate is None
         scoring_gate = self.get_last_non_secret_gate(last_gate) if last_gate else self.gates[0]
         gate_name = last_gate.name if last_gate else scoring_gate.name
@@ -305,9 +311,7 @@ class AnrCorridorCalculator(Calculator):
         self.last_finalized_time = (current_time, score_type)
 
         if self.corridor_maximum_penalty_is_per_leg:
-            outside_time_this_leg = (
-                current_time - (self.current_leg_outside_start_time or self.crossed_outside_time)
-            ).total_seconds()
+            outside_time_this_leg = (current_time - start_time_ref).total_seconds()
             if self.is_first_leg_of_excursion:
                 penalty_time = np.round(max(0.0, outside_time_this_leg - self.corridor_grace_time))
             else:
@@ -326,10 +330,11 @@ class AnrCorridorCalculator(Calculator):
 
         # Transition handling
         if self.corridor_state == self.OUTSIDE_CORRIDOR and self.previous_corridor_state == self.INSIDE_CORRIDOR:
-            # Only emit "exiting corridor" message for the first leg of an excursion.
-            # is_first_leg_of_excursion is set to True in check_outside_corridor when first heading out.
-            # It is set to False in on_gate_passed/missed for subsequent legs of the same excursion.
-            if self.is_first_leg_of_excursion:
+            # We want to emit the "exiting corridor" message if:
+            # 1. This is the first leg of the excursion (just headed out)
+            # 2. We just changed to a new scoring gate while outside (informative transition)
+            is_new_gate = getattr(self, "last_exiting_gate_name", None) != scoring_gate.name
+            if self.is_first_leg_of_excursion or is_new_gate:
                 self.update_score(
                     UpdateScoreMessage(
                         position.time,
@@ -342,6 +347,7 @@ class AnrCorridorCalculator(Calculator):
                         score_type,
                     )
                 )
+                self.last_exiting_gate_name = scoring_gate.name
         elif self.corridor_state == self.INSIDE_CORRIDOR and self.previous_corridor_state == self.OUTSIDE_CORRIDOR:
             self.update_score(
                 UpdateScoreMessage(
