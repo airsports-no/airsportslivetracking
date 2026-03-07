@@ -152,8 +152,8 @@ class Gatekeeper:
             start_time = rounded_start_time
 
         gate_times = self.contestant.calculate_missing_gate_times({}, start_time)
-        self.contestant.predefined_gate_times = gate_times
-        self.contestant.save(update_fields=["predefined_gate_times"])
+        Contestant.objects.filter(pk=self.contestant.pk).update(predefined_gate_times=gate_times)
+        self.contestant.refresh_from_db()
 
         logger.info(f"Recalculating gates times for contestant {self.contestant}: {gate_times}")
 

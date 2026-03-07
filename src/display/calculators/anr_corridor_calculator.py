@@ -215,13 +215,14 @@ class AnrCorridorCalculator(Calculator):
                 # We use event.event_time or event.position.time as the end of the previous leg
                 self.check_and_apply_outside_penalty(event.position, self.crossed_outside_gate, current_time=event.event_time)
 
-                # Restart penalty for the new leg
-                self.corridor_state = self.OUTSIDE_CORRIDOR
-                self.previous_corridor_state = self.INSIDE_CORRIDOR
-                self.current_leg_outside_start_time = event.event_time or event.position.time
-                self.is_first_leg_of_excursion = False
-                self.crossed_outside_gate = event.gate
-                self.check_and_apply_outside_penalty(event.position, event.gate, current_time=event.event_time)
+                if not self.has_passed_finish_point and event.gate.type != "fp":
+                    # Restart penalty for the new leg
+                    self.corridor_state = self.OUTSIDE_CORRIDOR
+                    self.previous_corridor_state = self.INSIDE_CORRIDOR
+                    self.current_leg_outside_start_time = event.event_time or event.position.time
+                    self.is_first_leg_of_excursion = False
+                    self.crossed_outside_gate = event.gate
+                    self.check_and_apply_outside_penalty(event.position, event.gate, current_time=event.event_time)
             else:
                 self.crossed_outside_gate = event.gate
 
@@ -238,13 +239,14 @@ class AnrCorridorCalculator(Calculator):
                 # We use event.intersection_time as the end of the previous leg
                 self.check_and_apply_outside_penalty(event.position, self.crossed_outside_gate, current_time=event.intersection_time)
 
-                # Restart penalty for the new leg
-                self.corridor_state = self.OUTSIDE_CORRIDOR
-                self.previous_corridor_state = self.INSIDE_CORRIDOR
-                self.current_leg_outside_start_time = event.intersection_time
-                self.is_first_leg_of_excursion = False
-                self.crossed_outside_gate = event.gate
-                self.check_and_apply_outside_penalty(event.position, event.gate, current_time=event.intersection_time)
+                if not self.has_passed_finish_point and event.gate.type != "fp":
+                    # Restart penalty for the new leg
+                    self.corridor_state = self.OUTSIDE_CORRIDOR
+                    self.previous_corridor_state = self.INSIDE_CORRIDOR
+                    self.current_leg_outside_start_time = event.intersection_time
+                    self.is_first_leg_of_excursion = False
+                    self.crossed_outside_gate = event.gate
+                    self.check_and_apply_outside_penalty(event.position, event.gate, current_time=event.intersection_time)
             else:
                 self.crossed_outside_gate = event.gate
 
@@ -264,10 +266,6 @@ class AnrCorridorCalculator(Calculator):
             else:
                 current_time = position.time
 
-        # Prevent double-logging or overlapping updates for the same position/event
-        if self.last_finalized_time and current_time <= self.last_finalized_time:
-            return
-
         # Use first waypoint as a fallback if last_gate is None
         scoring_gate = self.get_last_non_secret_gate(last_gate) if last_gate else self.gates[0]
         gate_name = last_gate.name if last_gate else scoring_gate.name
@@ -275,6 +273,10 @@ class AnrCorridorCalculator(Calculator):
         score_type = self.OUTSIDE_CORRIDOR_PENALTY_TYPE
         if self.corridor_maximum_penalty_is_per_leg:
             score_type = f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{gate_name}"
+
+        # Prevent double-logging or overlapping updates for the same position/event
+        if self.last_finalized_time == (current_time, score_type):
+            return
 
         if self.corridor_maximum_penalty_is_per_leg:
             outside_time_this_leg = (
@@ -310,8 +312,7 @@ class AnrCorridorCalculator(Calculator):
                     score_type,
                 )
             )
-            # Update last_finalized_time even for "exiting" so that finalization doesn't happen at the same time
-            self.last_finalized_time = current_time
+            self.last_finalized_time = (current_time, score_type)
         elif self.corridor_state == self.INSIDE_CORRIDOR and self.previous_corridor_state == self.OUTSIDE_CORRIDOR:
             self.update_score(
                 UpdateScoreMessage(
@@ -327,7 +328,7 @@ class AnrCorridorCalculator(Calculator):
                 )
             )
             self.accumulated_score = 0
-            self.last_finalized_time = current_time
+            self.last_finalized_time = (current_time, score_type)
 
     def finalise(self, track: List[ContestantReceivedPosition]):
         if self.corridor_state == self.OUTSIDE_CORRIDOR:

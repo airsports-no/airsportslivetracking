@@ -110,7 +110,6 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
     def on_gate_missed(self, event: GateMissedEvent):
         pass
 
-
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
@@ -379,36 +378,52 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         )
         else:
             backtracking = False
+            reference_gate = in_range_of_gate or last_gate
             if bearing_difference > self.backtracking_limit:
                 # Check if we are near the gate we just passed
                 # To avoid penalties during slow turns or maneuvering near the gate
                 if (
                     hasattr(last_position, "projected_x")
                     and last_position.projected_x is not None
-                    and last_gate.center_x is not None
+                    and reference_gate.center_x is not None
+                    and reference_gate.center_y is not None
                 ):
-                    distance_to_gate_sq = (last_position.projected_x - last_gate.center_x) ** 2 + (
-                        last_position.projected_y - last_gate.center_y
+                    distance_to_gate_sq = (last_position.projected_x - reference_gate.center_x) ** 2 + (
+                        last_position.projected_y - reference_gate.center_y
                     ) ** 2
                 else:
                     distance_to_gate_sq = (
                         calculate_distance_lat_lon(
-                            (last_position.latitude, last_position.longitude), (last_gate.latitude, last_gate.longitude)
+                            (last_position.latitude, last_position.longitude),
+                            (reference_gate.latitude, reference_gate.longitude),
                         )
                         ** 2
                     )
 
                 # Use a small grace zone for all gates (0.5 NM)
                 grace_zone = 0.5 * 1852
+                # grace_zone = reference_gate.gate_radius * 1852
 
                 if distance_to_gate_sq < grace_zone**2:
                     pass  # Ignore backtracking within grace zone of the gate
                 else:
+                    logger.info(
+                        "{} {}: Bearing difference of {}° exceeds backtracking limit of {}° outside of grace zone of gate {} ({} NM, limit {} NM), starting backtracking checks".format(
+                            self.contestant,
+                            last_position.time,
+                            bearing_difference,
+                            self.backtracking_limit,
+                            reference_gate.name,
+                            distance_to_gate_sq**0.5 / 1852,
+                            grace_zone / 1852,
+                        )
+                    )
                     backtracking = True
                     if in_range_of_gate is not None and in_range_of_gate != last_gate:
                         pass
 
             if backtracking:
+                # TODO: In the precision flying scorecard get_backtracking_before_gate_grace_period_nm_for_gate_type is 0, the default value. Is this correct?
                 # Use projected coordinates for grace period checks if available
                 p_x = getattr(last_position, "projected_x", None)
                 p_y = getattr(last_position, "projected_y", None)
@@ -424,19 +439,37 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                         )
                     )
                     is_grace_distance_before_turn = (
-                        next_gate.get_distance_to_gate_line(
-                            last_position.latitude, last_position.longitude, p_x, p_y
-                        )
+                        next_gate.get_distance_to_gate_line(last_position.latitude, last_position.longitude, p_x, p_y)
                         / 1852
                         < self.scorecard.get_backtracking_before_gate_grace_period_nm_for_gate_type(next_gate.type)
                         if next_gate
                         else False
                     )
-                    is_grace_distance_after_turn = (
-                        last_gate.get_distance_to_gate_line(last_position.latitude, last_position.longitude, p_x, p_y)
-                        / 1852
-                        < self.scorecard.get_backtracking_after_gate_grace_period_nm_for_gate_type(last_gate.type)
+                    logger.info(
+                        "{} {}: Distance to next gate {} is {} NM, grace period is {} NM".format(
+                            self.contestant,
+                            last_position.time,
+                            next_gate.name if next_gate else "N/A",
+                            (
+                                next_gate.get_distance_to_gate_line(
+                                    last_position.latitude, last_position.longitude, p_x, p_y
+                                )
+                                / 1852
+                                if next_gate
+                                else "N/A"
+                            ),
+                            (
+                                self.scorecard.get_backtracking_before_gate_grace_period_nm_for_gate_type(
+                                    next_gate.type
+                                )
+                                if next_gate
+                                else "N/A"
+                            ),
+                        )
                     )
+                    is_grace_distance_after_turn = last_gate.get_distance_to_gate_line(
+                        last_position.latitude, last_position.longitude, p_x, p_y
+                    ) / 1852 < self.scorecard.get_backtracking_after_gate_grace_period_nm_for_gate_type(last_gate.type)
                     if (
                         not is_grace_time_after_steep_turn
                         and not is_grace_distance_after_turn

@@ -370,7 +370,8 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
                 self.calculator.is_first_leg_of_excursion = True
                 
                 mock_update.reset_mock()
-                self.calculator.check_outside_corridor([pos], gate2)
+                # Simulate the event that Gatekeeper would trigger when gate is passed
+                self.calculator.on_gate_passed(GatePassedEvent(gate2, pos, pos.time))
                 
                 exiting_calls_per_leg = [c for c in mock_update.call_args_list if "exiting corridor" in c[0][0].message]
                 # When per-leg is ON, it SHOULD emit exactly ONE "exiting corridor" for the NEW leg TP1
@@ -419,10 +420,11 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
             pos15 = self.create_position(0, 0, t15)
             
             with patch.object(self.calculator, 'update_score') as mock_update:
-                self.calculator.check_outside_corridor([pos15], gate2)
+                # Simulate the event that Gatekeeper would trigger when gate is passed
+                self.calculator.on_gate_passed(GatePassedEvent(gate2, pos15, pos15.time))
                 
                 # SP finalized, TP1 started.
-                # TP1 check_and_apply_outside_penalty called at T=15.
+                # TP1 check_and_apply_outside_penalty called at T=15 via on_gate_passed.
                 # Since current_time=T=15 and current_leg_start=T=15, outside_time=0.
                 self.assertEqual(self.calculator.accumulated_score, 0)
                 self.assertFalse(self.calculator.is_first_leg_of_excursion)

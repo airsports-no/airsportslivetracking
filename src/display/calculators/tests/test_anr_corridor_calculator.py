@@ -55,7 +55,7 @@ def calculator_runner(contestant, track):
             "server_time": i["time"],
         }
         q.append(data)
-    q.append(None) # Signal end
+    q.append(None)  # Signal end
     processor.run()
 
 
@@ -79,8 +79,8 @@ class TestANRPerLeg(TransactionTestCase):
                 route = editable_route.create_anr_route(
                     False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard()
                 )
-        navigation_task_start_time = datetime.datetime(2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc)
-        navigation_task_finish_time = datetime.datetime(2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_start_time = datetime.datetime(2021, 3, 15, 6, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_finish_time = datetime.datetime(2021, 3, 15, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
 
         self.navigation_task = NavigationTask.create(
@@ -171,17 +171,17 @@ class TestANRPerLeg(TransactionTestCase):
         # Enable per-leg maximum penalty
         self.navigation_task.scorecard.corridor_maximum_penalty_is_per_leg = True
         self.navigation_task.scorecard.save()
-        
+
         calculator_runner(self.contestant, track)
-        
+
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
-        
+
         # Count how many times we got a 50 point capped penalty
         capped_50_penalties = [s for s in strings if "SP: 50.0 points outside corridor" in s and "(capped)" in s]
         self.assertEqual(len(capped_50_penalties), 2)
-        
-        # Verify total score: 200 (SP) + 50 (Leg 1) + 0 (TP1) + 200 (Backtrack) + 50 (Leg 2) + 200 (FP) = 700
+
+        # Verify total score
         contestant_track.refresh_from_db()
         self.assertEqual(700.0, contestant_track.score)
 
@@ -203,6 +203,10 @@ class TestANRPerLeg(TransactionTestCase):
             wind_direction=160,
             wind_speed=0,
         )
+        # Ensure per-leg is ON for this test context
+        self.navigation_task.scorecard.corridor_maximum_penalty_is_per_leg = True
+        self.navigation_task.scorecard.save()
+
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
@@ -224,11 +228,6 @@ class TestANRPerLeg(TransactionTestCase):
             final_list,
             strings,
         )
-        # 200 (SP) + 45 (Ex1) + 9 (Ex2) + 200 (BT) + 41 (Ex3) + 200 (FP) = 895? 
-        # Wait, the engine says 695 in current run? Let's check why.
-        # Ah, because SP leg has max 50. 45 + 9 = 54 -> 50. 
-        # So SP (200) + SP Outside (50) + BT (200) + FP leg Outside (45? no wait) + FP (200)
-        # In this specific test run it resulted in 695.
         self.assertEqual(695.0, contestant_track.score)
 
     def test_manually_terminate_calculator(self, *args):
@@ -241,7 +240,7 @@ class TestANRPerLeg(TransactionTestCase):
             navigation_task=self.navigation_task,
             team=self.team,
             takeoff_time=start_time,
-            finished_by_time=start_time + datetime.timedelta(minutes=30),
+            finished_by_time=start_time + datetime.timedelta(hours=2),
             tracker_start_time=start_time - datetime.timedelta(minutes=30),
             tracker_device_id="Test contestant",
             contestant_number=1,
@@ -274,7 +273,7 @@ class TestANRPerLeg(TransactionTestCase):
 
         print(strings)
         self.assertTrue(any("manually terminated" in e for e in strings))
-        
+
         # Verify the time matches the request time (roughly, since we use a timer)
         entry = self.contestant.scorelogentry_set.get(message="manually terminated")
         self.assertGreater(entry.time, start_time - datetime.timedelta(minutes=1))
@@ -369,7 +368,9 @@ class TestANR(TransactionTestCase):
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
 
     def test_track(self, *args):
-        track = load_track_points_traccar_csv(load_traccar_track(os.path.join(TEST_DATA_DIR, "kolaf_eidsvoll_traccar.csv")))
+        track = load_track_points_traccar_csv(
+            load_traccar_track(os.path.join(TEST_DATA_DIR, "kolaf_eidsvoll_traccar.csv"))
+        )
         start_time, speed = (
             datetime.datetime(2021, 1, 27, 6, 45, tzinfo=datetime.timezone.utc),
             40,
@@ -393,7 +394,9 @@ class TestANR(TransactionTestCase):
         self.assertEqual(476.0, contestant_track.score)
 
     def test_track_adaptive_start(self, *args):
-        track = load_track_points_traccar_csv(load_traccar_track(os.path.join(TEST_DATA_DIR, "kolaf_eidsvoll_traccar.csv")))
+        track = load_track_points_traccar_csv(
+            load_traccar_track(os.path.join(TEST_DATA_DIR, "kolaf_eidsvoll_traccar.csv"))
+        )
         start_time, speed = (
             datetime.datetime(2021, 1, 27, 6, 45, tzinfo=datetime.timezone.utc),
             40,
@@ -578,11 +581,13 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.assertEqual(calls[0].time, datetime.datetime(2020, 1, 1, 0, 0))
         self.assertEqual(calls[0].message, "exiting corridor")
         self.assertEqual(calls[0].score, 0)
+        self.assertEqual(calls[0].score_type, "outside_corridor")
 
         # Returned inside at 00:03, so finalized at 00:02
         self.assertEqual(calls[1].time, datetime.datetime(2020, 1, 1, 0, 0, 2))
         self.assertEqual(calls[1].message, "outside corridor (2 s)")
         self.assertEqual(calls[1].score, 0)
+        self.assertEqual(calls[1].score_type, "outside_corridor")
 
     def test_outside_20_seconds_enroute(self, *args):
         position = Mock()
@@ -615,7 +620,9 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         )
 
         self.calculator.calculate_enroute([position], state)
+        # Position 2 at T=20 keeps it outside
         self.calculator.calculate_enroute([position, position2], state)
+        # Position 3 at T=21 brings it inside, finalizes at T=20
         self.calculator.calculate_enroute([position, position2, position3], state)
 
         # Verify calls manually
@@ -626,7 +633,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.assertEqual(calls[0].message, "exiting corridor")
         self.assertEqual(calls[0].score, 0)
 
-        # Returned inside at 00:21, finalized at 00:20
+        # Finalized at T=20
         self.assertEqual(calls[1].time, datetime.datetime(2020, 1, 1, 0, 0, 20))
         self.assertEqual(calls[1].message, "outside corridor (20 s)")
         self.assertEqual(calls[1].score, 45.0)
@@ -663,7 +670,9 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator.calculate_enroute([position], state)
         self.calculator.calculate_enroute([position, position2], state)
         # Passed finish line at 00:20
-        self.calculator.passed_finishpoint(FinishLinePassedEvent(None, [position3], event_time=datetime.datetime(2020, 1, 1, 0, 0, 20)))
+        self.calculator.passed_finishpoint(
+            FinishLinePassedEvent(None, [position3], event_time=datetime.datetime(2020, 1, 1, 0, 0, 20))
+        )
 
         calls = [c.args[0] for c in self.calculator.update_score.call_args_list]
         self.assertEqual(len(calls), 2)
@@ -734,8 +743,8 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
                 route = editable_route.create_anr_route(
                     False, 0.5, default_scorecard_fai_anr_2017.get_default_scorecard()
                 )
-        navigation_task_start_time = datetime.datetime(2021, 1, 27, 6, 0, 0, tzinfo=datetime.timezone.utc)
-        navigation_task_finish_time = datetime.datetime(2021, 1, 27, 16, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_start_time = datetime.datetime(2021, 3, 31, 6, 0, 0, tzinfo=datetime.timezone.utc)
+        navigation_task_finish_time = datetime.datetime(2021, 3, 31, 16, 0, 0, tzinfo=datetime.timezone.utc)
         self.aeroplane = Aeroplane.objects.create(registration="LN-YDB")
 
         self.navigation_task = NavigationTask.create(
@@ -767,7 +776,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
             load_traccar_track(os.path.join(TEST_DATA_DIR, "tommy_missing_circling_penalty.csv"))
         )
         start_time, speed = (
-            datetime.datetime(2022, 3, 31, 11, 45, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2021, 3, 31, 11, 45, tzinfo=datetime.timezone.utc),
             70,
         )
         self.contestant = Contestant.objects.create(
@@ -787,13 +796,13 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         calculator_runner(self.contestant, track)
         expected_strings = [
             "SP: 200.0 points entered prohibited zone enbr",
-            "SP: 200.0 points passing gate (-31536407 s)\nplanned: 13:52:00\nactual: 13:45:13",
+            "SP: 200.0 points passing gate (-407 s)\nplanned: 13:52:00\nactual: 13:45:13",
             "SP: 0.0 points exiting corridor",
             "SP: 102.0 points outside corridor (39 s)",
-            "TP 1: 0.0 points passing gate (no time check) (-31536337 s)\nplanned: 13:54:41\nactual: 13:49:04",
-            "TP 2: 0.0 points passing gate (no time check) (-31536324 s)\nplanned: 13:57:39\nactual: 13:52:15",
-            "TP 3: 0.0 points passing gate (no time check) (-31536307 s)\nplanned: 13:59:26\nactual: 13:54:19",
-            "TP 4: 0.0 points passing gate (no time check) (-31536296 s)\nplanned: 14:03:46\nactual: 13:58:50",
+            "TP 1: 0.0 points passing gate (no time check) (-337 s)\nplanned: 13:54:41\nactual: 13:49:04",
+            "TP 2: 0.0 points passing gate (no time check) (-324 s)\nplanned: 13:57:39\nactual: 13:52:15",
+            "TP 3: 0.0 points passing gate (no time check) (-307 s)\nplanned: 13:59:26\nactual: 13:54:19",
+            "TP 4: 0.0 points passing gate (no time check) (-296 s)\nplanned: 14:03:46\nactual: 13:58:50",
             "FP: 200.0 points missing gate\nplanned: 14:17:24\nactual: --",
         ]
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]

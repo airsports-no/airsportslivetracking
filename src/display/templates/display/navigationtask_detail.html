@@ -288,6 +288,10 @@
                                     <div class="font-mono">{{ contestant.finished_by_time|date:"H:i:s"|default:"-" }}</div>
                                 </div>
                                 <div class="bg-base-100 p-2 rounded">
+                                    <div class="opacity-70 mb-0.5">Airspeed</div>
+                                    <div class="font-mono">{{ contestant.air_speed|stringformat:"d" }}</div>
+                                </div>
+                                <div class="bg-base-100 p-2 rounded">
                                     <div class="opacity-70 mb-0.5">Wind</div>
                                     <div class="font-mono">
                                         {{ contestant.wind_direction|stringformat:"03d" }}/{{ contestant.wind_speed }}
