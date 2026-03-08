@@ -16,7 +16,6 @@ from display.utilities.coordinate_utilities import (
     calculate_bearing,
     create_bisecting_line_between_segments_corridor_width_lonlat,
     create_perpendicular_line_at_end_lonlat,
-    create_rounded_corridor_corner,
     bearing_difference,
     calculate_fractional_distance_point_lat_lon,
     point_to_line_segment_distance,
