@@ -416,16 +416,16 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
 
                 mock_update.reset_mock()
                 # Simulate the event that Gatekeeper would trigger when gate is passed
-                self.calculator.on_gate_passed(GatePassedEvent(gate2, pos, pos.time))
+                self.calculator.on_gate_passed(GatePassedEvent(gate2, pos, pos.time, previous_gate=None))
 
-                exiting_calls_per_leg = [c for c in mock_update.call_args_list if "exiting corridor" in c[0][0].message]
-                # When per-leg is ON, it should NOT emit redundant 'exiting corridor' if we are already outside
-                self.assertEqual(len(exiting_calls_per_leg), 0)
-
-                # Verify the SP was finalized (should be the first call)
-                sp_final_msg = mock_update.call_args_list[0][0][0]
-                self.assertEqual(sp_final_msg.gate.name, "SP")
-                self.assertIn("outside corridor", sp_final_msg.message)
+                # Now we expect 1 informational message about the leg we just passed
+                self.assertEqual(len(mock_update.call_args_list), 1)
+                info_msg = mock_update.call_args_list[0][0][0]
+                self.assertEqual(info_msg.annotation_type, "information")
+                self.assertIn("passed TP1", info_msg.message)
+                
+                # But internal accumulation should have happened
+                self.assertGreater(self.calculator.excursion_accumulated_score, 0)
 
     def test_per_leg_maximum_penalty_accumulation(self):
         # Setup per-leg scoring
@@ -465,21 +465,26 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
 
             with patch.object(self.calculator, "update_score") as mock_update:
                 # Simulate the event that Gatekeeper would trigger when gate is passed
-                self.calculator.on_gate_passed(GatePassedEvent(gate2, pos15, pos15.time))
+                self.calculator.on_gate_passed(GatePassedEvent(gate2, pos15, pos15.time, previous_gate=None))
 
-                # SP finalized, TP1 started.
-                # TP1 check_and_apply_outside_penalty called at T=15 via on_gate_passed.
-                # Since current_time=T=15 and current_leg_start=T=15, outside_time=0.
+                # Leg 1 finalized internally. 15s outside, 5s grace = 10s penalty = 100 points -> capped to 50.
+                self.assertEqual(self.calculator.excursion_accumulated_score, 50.0)
+                self.assertEqual(self.calculator.excursion_total_outside_seconds, 15.0)
+                # accumulated_score is reset for the new leg
                 self.assertEqual(self.calculator.accumulated_score, 0)
                 self.assertFalse(self.calculator.is_first_leg_of_excursion)
+                
+                # We expect 1 informational message about passing gate2 while outside
+                self.assertEqual(len(mock_update.call_args_list), 1)
+                self.assertEqual(mock_update.call_args_list[0][0][0].annotation_type, "information")
 
                 # 4. Stay outside for another 10 seconds in Leg 2 (T=25)
                 t25 = t0 + datetime.timedelta(seconds=25)
                 pos25 = self.create_position(0, 0, t25)
                 self.calculator.check_outside_corridor([pos25], gate2)
 
-                # Expectation: 10s in Leg 2. NO GRACE. 10 * 10 = 100 points.
-                self.assertEqual(self.calculator.accumulated_score, 100.0)
+                # Expectation: 10s in Leg 2. NO GRACE. 10 * 10 = 100 points -> capped to 50.
+                self.assertEqual(self.calculator.accumulated_score, 50.0)
 
                 # 5. Come back inside at T=26
                 t26 = t0 + datetime.timedelta(seconds=26)
@@ -487,10 +492,16 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
                 mock_check.return_value = True
                 self.calculator.check_outside_corridor([pos26], gate2)
 
-                # Check message score_type contains gate name
-                # Index 0 is SP finalized, Index 1 is TP1 finalized
-                self.assertEqual(mock_update.call_args_list[1][0][0].score_type, "outside_corridor_TP1")
-                self.assertEqual(mock_update.call_args_list[1][0][0].score, 100.0)
+                # One consolidated message at the end. Total excursion should be 2 calls (1 info + 1 anomaly)
+                self.assertEqual(len(mock_update.call_args_list), 2)
+                final_msg = mock_update.call_args_list[1][0][0]
+                
+                # Leg 1: 15s total -> 10s penalty -> 50 points (capped)
+                # Leg 2: 11s total (T15 to T26) -> 11s penalty -> 50 points (capped)
+                # Total: 100 points, 25 seconds (T26 - 1s = T25 endpoint)
+                self.assertEqual(final_msg.score, 100.0)
+                self.assertIn("(25 s)", final_msg.message)
+                self.assertIn("Leg scores: [SP: 50.0 (capped), TP1: 50.0 (capped)]", final_msg.message)
 
 
 class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):

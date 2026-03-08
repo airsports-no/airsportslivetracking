@@ -136,15 +136,11 @@ class TestANRPerLeg(TransactionTestCase):
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 20:30:00\nactual: --",
             "SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53",
             "SP: 0.0 points exiting corridor",
-            "SP: 50.0 points outside corridor (39 s) (capped)",
-            "TP 1: 0.0 points passing gate (no time check) (-406 s)\n" + "planned: 20:39:00\n" + "actual: 20:32:14",
+            "SP: 50.0 points outside corridor (39 s). Leg scores: [SP: 50.0 (capped)]. Total: 50.0 (capped)",
+            "TP 1: 0.0 points passing gate (no time check) (-406 s)\nplanned: 20:39:00\nactual: 20:32:14",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 50.0 points outside corridor (116 s) (capped)",
-            # "SP: 0.0 points exiting corridor",
-            # "SP: 0.0 points outside corridor (0 s) (capped)",  # Missing TP 2
-            # "SP: 0.0 points outside corridor (0 s)",  # Missing TP 3
-            # "SP: 0.0 points outside corridor (0 s)",  # Missing FP
+            "SP: 50.0 points outside corridor (116 s). Leg scores: [TP 1: 50.0 (capped)]. Total: 50.0 (capped)",
             "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
             "Landing 1: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --",
         ]
@@ -181,9 +177,22 @@ class TestANRPerLeg(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
 
-        # Count how many times we got a 50 point capped penalty
-        capped_50_penalties = [s for s in strings if "SP: 50.0 points outside corridor" in s and "(capped)" in s]
-        self.assertEqual(len(capped_50_penalties), 2)
+        # In consolidated mode, we expect a single message for the excursion that sums the capped per-leg penalties.
+        # kjeller_anr_bad has an excursion spanning two legs, both capped at 50.
+        expected_string = [
+            "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 20:30:00\nactual: --",
+            "SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53",
+            "SP: 0.0 points exiting corridor",
+            "SP: 50.0 points outside corridor (39 s). Leg scores: [SP: 50.0 (capped)]. Total: 50.0 (capped)",
+            "TP 1: 0.0 points passing gate (no time check) (-406 s)\nplanned: 20:39:00\nactual: 20:32:14",
+            "SP: 0.0 points exiting corridor",
+            "SP: 200.0 points backtracking",
+            "SP: 50.0 points outside corridor (116 s). Leg scores: [TP 1: 50.0 (capped)]. Total: 50.0 (capped)",
+            "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
+            "Landing 1: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --",
+        ]
+        pprint(strings)
+        self.assertListEqual(expected_string, strings)
 
         # Verify total score
         contestant_track.refresh_from_db()
@@ -219,12 +228,11 @@ class TestANRPerLeg(TransactionTestCase):
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 14:00:00\nactual: --",
             "SP: 200.0 points passing gate (-71535748 s)\nplanned: 14:07:00\nactual: 14:04:32",
             "SP: 0.0 points exiting corridor",
-            "SP: 48.0 points outside corridor (21 s)",
-            # "SP: 0.0 points exiting corridor", # Is new leg
-            "SP: 9.0 points outside corridor (3 s)",
+            "TP 1: 0.0 points missed TP 1 while outside corridor. Leg penalty: 48.0. Total excursion: 48.0",
+            "SP: 57.0 points outside corridor (24 s). Leg scores: [SP: 48.0, TP 1: 9.0]. Total: 57.0",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 41.0 points outside corridor (227 s) (capped)",  # Missed TP 2
+            "SP: 41.0 points outside corridor (227 s). Leg scores: [TP 1: 41.0 (capped)]. Total: 41.0 (capped)",
             "FP: 200.0 points missing gate\nplanned: 14:18:11\nactual: --",
             "Landing 1: 0.0 points missing landing gate\nplanned: 15:59:00\nactual: --",
         ]
@@ -310,18 +318,15 @@ class TestANRPerLeg(TransactionTestCase):
         pprint(strings)
         expected = [
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 15:05:00\nactual: --",
-            "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
-            "SP: 9.0 points passing gate (+4 s)\nplanned: 14:17:00\nactual: 14:17:04",
+            "SP: 200.0 points passing gate (-3296 s)\nplanned: 15:12:00\nactual: 14:17:04",
             "TP 1: 0.0 points passing gate (no time check) (-57 s)\nplanned: 14:19:00\nactual: 14:18:03",
             "TP 2: 0.0 points passing gate (no time check) (-168 s)\nplanned: 14:22:34\nactual: 14:19:46",
             "TP 3: 0.0 points passing gate (no time check) (-221 s)\nplanned: 14:24:32\nactual: 14:20:51",
-            # "SP: 0.0 points exiting corridor",
-            # "SP: 0.0 points outside corridor (0 s)",  # Missing FP
             "FP: 200.0 points passing gate (-320 s)\nplanned: 14:28:10\nactual: 14:22:51",
             "Landing 1: 0.0 points missing landing gate\nplanned: 17:04:00\nactual: --",
         ]
         self.assertListEqual(expected, strings)
-        self.assertEqual(209.0, contestant_track.score)
+        self.assertEqual(400.0, contestant_track.score)
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -424,7 +429,7 @@ class TestANR(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         # Verify score is correct
-        self.assertEqual(458.0, contestant_track.score)
+        self.assertEqual(476.0, contestant_track.score)
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -493,7 +498,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             self.route.waypoints,
             self.route,
             Queue(),
-            projector=self.navigation_task.get_projector()
+            projector=self.navigation_task.get_projector(),
         )
         self.calculator.enroute = True
         self.calculator.update_score = Mock()
@@ -503,12 +508,12 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position.latitude = 59.939
         position.longitude = 11.062
         position.time = datetime.datetime(2020, 1, 1, 0, 0)
-        
+
         projector = self.navigation_task.get_projector()
         p = projector.project_point(position.latitude, position.longitude)
         position.projected_x = p.projected_x
         position.projected_y = p.projected_y
-        
+
         from display.calculators.calculator import GatekeeperState
 
         state = GatekeeperState(
@@ -533,12 +538,12 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position.latitude = 60.5
         position.longitude = 11
         position.time = datetime.datetime(2020, 1, 1, 0, 0)
-        
+
         projector = self.navigation_task.get_projector()
         p = projector.project_point(position.latitude, position.longitude)
         position.projected_x = p.projected_x
         position.projected_y = p.projected_y
-        
+
         from display.calculators.calculator import GatekeeperState
 
         state = GatekeeperState(
@@ -564,7 +569,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
 
     def test_outside_2_seconds_enroute(self, *args):
         projector = self.navigation_task.get_projector()
-        
+
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11
@@ -572,7 +577,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         p1 = projector.project_point(position.latitude, position.longitude)
         position.projected_x = p1.projected_x
         position.projected_y = p1.projected_y
-        
+
         position2 = Mock()
         position2.latitude = 60.5
         position2.longitude = 11
@@ -580,7 +585,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         p2 = projector.project_point(position2.latitude, position2.longitude)
         position2.projected_x = p2.projected_x
         position2.projected_y = p2.projected_y
-        
+
         position3 = Mock()
         position3.latitude = 59.939
         position3.longitude = 11.062
@@ -627,7 +632,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
 
     def test_outside_20_seconds_enroute(self, *args):
         projector = self.navigation_task.get_projector()
-        
+
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11
@@ -635,7 +640,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         p1 = projector.project_point(position.latitude, position.longitude)
         position.projected_x = p1.projected_x
         position.projected_y = p1.projected_y
-        
+
         position2 = Mock()
         position2.latitude = 60.5
         position2.longitude = 11
@@ -643,7 +648,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         p2 = projector.project_point(position2.latitude, position2.longitude)
         position2.projected_x = p2.projected_x
         position2.projected_y = p2.projected_y
-        
+
         position3 = Mock()
         position3.latitude = 59.939
         position3.longitude = 11.062
@@ -690,7 +695,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
 
     def test_outside_20_seconds_until_finish(self, *args):
         projector = self.navigation_task.get_projector()
-        
+
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11
@@ -698,7 +703,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         p1 = projector.project_point(position.latitude, position.longitude)
         position.projected_x = p1.projected_x
         position.projected_y = p1.projected_y
-        
+
         position2 = Mock()
         position2.latitude = 60.5
         position2.longitude = 11
@@ -706,7 +711,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         p2 = projector.project_point(position2.latitude, position2.longitude)
         position2.projected_x = p2.projected_x
         position2.projected_y = p2.projected_y
-        
+
         position3 = Mock()
         position3.latitude = 59.939
         position3.longitude = 11.062
@@ -750,7 +755,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
 
     def test_outside_20_seconds_outside_route(self, *args):
         projector = self.navigation_task.get_projector()
-        
+
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11
@@ -758,7 +763,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         p1 = projector.project_point(position.latitude, position.longitude)
         position.projected_x = p1.projected_x
         position.projected_y = p1.projected_y
-        
+
         position2 = Mock()
         position2.latitude = 60.5
         position2.longitude = 11
@@ -766,7 +771,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         p2 = projector.project_point(position2.latitude, position2.longitude)
         position2.projected_x = p2.projected_x
         position2.projected_y = p2.projected_y
-        
+
         position3 = Mock()
         position3.latitude = 59.939
         position3.longitude = 11.062
@@ -877,7 +882,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
             "SP: 200.0 points entered prohibited zone enbr",
             "SP: 200.0 points passing gate (-407 s)\nplanned: 13:52:00\nactual: 13:45:13",
             "SP: 0.0 points exiting corridor",
-            "SP: 102.0 points outside corridor (39 s)",
+            "SP: 102.0 points outside corridor (39 s). Leg scores: [SP: 102.0]. Total: 102.0",
             "TP 1: 0.0 points passing gate (no time check) (-337 s)\nplanned: 13:54:41\nactual: 13:49:04",
             "TP 2: 0.0 points passing gate (no time check) (-324 s)\nplanned: 13:57:39\nactual: 13:52:15",
             "TP 3: 0.0 points passing gate (no time check) (-307 s)\nplanned: 13:59:26\nactual: 13:54:19",

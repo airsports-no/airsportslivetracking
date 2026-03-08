@@ -38,15 +38,14 @@ class GatekeeperEvent:
         self.position = position
 
 
-class GatePassedEvent(GatekeeperEvent):
-    def __init__(self, gate: "Gate", position: ContestantReceivedPosition, intersection_time: datetime.datetime):
-        super().__init__(position)
-        self.gate = gate
-        self.intersection_time = intersection_time
-
-
 class GateMissedEvent(GatekeeperEvent):
-    def __init__(self, previous_gate: Optional["Gate"], gate: "Gate", position: ContestantReceivedPosition, event_time: Optional[datetime.datetime] = None):
+    def __init__(
+        self,
+        previous_gate: Optional["Gate"],
+        gate: "Gate",
+        position: ContestantReceivedPosition,
+        event_time: Optional[datetime.datetime] = None,
+    ):
         super().__init__(position)
         self.previous_gate = previous_gate
         self.gate = gate
@@ -67,11 +66,28 @@ class LandingPassedEvent(GatekeeperEvent):
         self.intersection_time = intersection_time
 
 
-class StartingLinePassedEvent(GatekeeperEvent):
-    def __init__(self, gate: "Gate", position: ContestantReceivedPosition, intersection_time: datetime.datetime):
+class GatePassedEvent(GatekeeperEvent):
+    def __init__(
+        self,
+        gate: "Gate",
+        position: ContestantReceivedPosition,
+        intersection_time: datetime.datetime,
+        previous_gate: Optional["Gate"] = None,
+    ):
         super().__init__(position)
         self.gate = gate
         self.intersection_time = intersection_time
+        self.previous_gate = previous_gate
+
+
+class StartingLinePassedEvent(GatePassedEvent):
+    def __init__(
+        self,
+        gate: "Gate",
+        position: ContestantReceivedPosition,
+        intersection_time: datetime.datetime,
+    ):
+        super().__init__(gate, position, intersection_time, previous_gate=None)
 
 
 class StartingLineExtendedPassedWrongDirectionEvent(GatekeeperEvent):
@@ -106,12 +122,13 @@ class InRangeUpdatedEvent(GatekeeperEvent):
 
 
 class FinishLinePassedEvent(GatekeeperEvent):
-    def __init__(self, last_gate: "Gate", track: List[ContestantReceivedPosition], event_time: Optional[datetime.datetime] = None):
+    def __init__(
+        self, last_gate: "Gate", track: List[ContestantReceivedPosition], event_time: Optional[datetime.datetime] = None
+    ):
         super().__init__(track[-1] if track else None)
         self.last_gate = last_gate
         self.track = track
         self.event_time = event_time
-
 
 
 class Calculator(ABC):
@@ -197,4 +214,3 @@ class Calculator(ABC):
 
     def on_poker_gate_passed(self, event: PokerGatePassedEvent):
         pass
-

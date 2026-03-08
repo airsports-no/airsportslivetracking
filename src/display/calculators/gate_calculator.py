@@ -159,13 +159,14 @@ class GateCalculator(Calculator):
             return None
 
         last_pos = track[-1]
-        
+
         p_x = getattr(last_pos, "projected_x", None)
         p_y = getattr(last_pos, "projected_y", None)
-        
+
         if p_x is not None and next_timed_gate.center_x is not None:
             import math
-            distance_m = math.sqrt((p_x - next_timed_gate.center_x)**2 + (p_y - next_timed_gate.center_y)**2)
+
+            distance_m = math.sqrt((p_x - next_timed_gate.center_x) ** 2 + (p_y - next_timed_gate.center_y) ** 2)
             distance = distance_m / 1852  # nm
         else:
             distance = (
@@ -289,7 +290,9 @@ class GateCalculator(Calculator):
 
             # Mark this one as passed
             gate = state.outstanding_gates[crossed_gate_index]
-            events.append(GatePassedEvent(gate, track[-1], passed_intersection_time))
+            current_idx_in_all = self.gates.index(gate)
+            prev_gate = self.gates[current_idx_in_all - 1] if current_idx_in_all > 0 else None
+            events.append(GatePassedEvent(gate, track[-1], passed_intersection_time, previous_gate=prev_gate))
 
         # Proactive missed gate detection (only for the first outstanding gate if not just passed)
         if len(state.outstanding_gates) > 0:
@@ -387,10 +390,12 @@ class GateCalculator(Calculator):
 
     def passed_finishpoint(self, event: FinishLinePassedEvent):
         # When finish point is passed, all outstanding regular gates should be marked as missed
+        prev = None
         for gate in self.gates:
             if not gate.has_been_passed() and not gate.missed and (gate.name, GATE_SCORE_TYPE) not in self.scored_gates:
                 gate.missed = True
-                self.on_gate_missed(GateMissedEvent(None, gate, event.position))
+                self.on_gate_missed(GateMissedEvent(prev, gate, event.position))
+            prev = gate
 
     def finalise(self, track: List[ContestantReceivedPosition]):
         # Catch any remaining missed gates at the very end of processing

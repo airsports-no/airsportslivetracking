@@ -61,7 +61,7 @@ class TestGatekeeperUnit(TestCase):
         self.gatekeeper.outstanding_gates = [gate]
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        event = GatePassedEvent(gate, pos, pos.time)
+        event = GatePassedEvent(gate, pos, pos.time, previous_gate=None)
         
         self.gatekeeper.handle_event(event)
         
@@ -159,7 +159,7 @@ class TestGatekeeperUnit(TestCase):
         self.gatekeeper.outstanding_gates = [gate]
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        event = GatePassedEvent(gate, pos, pos.time)
+        event = GatePassedEvent(gate, pos, pos.time, previous_gate=None)
         
         with patch.object(self.gatekeeper, 'passed_finishpoint') as mock_passed:
             self.gatekeeper.handle_event(event)
@@ -200,7 +200,7 @@ class TestGatekeeperUnit(TestCase):
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         
         gate = MagicMock()
-        event1 = GatePassedEvent(gate, pos, pos.time)
+        event1 = GatePassedEvent(gate, pos, pos.time, previous_gate=None)
         calc1.calculate_enroute.return_value = [event1]
         
         self.gatekeeper.calculate_score(pos)
