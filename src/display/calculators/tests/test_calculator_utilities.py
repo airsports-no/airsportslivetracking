@@ -35,16 +35,16 @@ class TestProjectPosition(TestCase):
 class TestPolygonHelper(TestCase):
     def test_time_to_intersection(self):
         from display.utilities.coordinate_utilities import Projector
+
         projector = Projector(60, 11)
         helper = PolygonHelper(projector)
         polygon = helper.build_polygon([(11, 60), (12, 60), (12, 61), (11, 61)])
-        
+
         # Mandatory projected coordinates
         p = projector.project_point(59.999, 11.5)
-        
+
         intersection_times = helper.time_to_intersection(
-            [("test", polygon)], 59.999, 11.5, 0, 6, 0, 600,
-            projected_x=p.projected_x, projected_y=p.projected_y
+            [("test", polygon)], 0, 6, 0, 600, projected_x=p.projected_x, projected_y=p.projected_y
         )
         print(intersection_times)
         self.assertEqual({"test": 72}, intersection_times)
