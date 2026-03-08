@@ -361,9 +361,9 @@ class ContestantProcessor:
                 self.gatekeeper.calculate_score(position)
 
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
-            # Save positions before we start processing the next round
-            if positions_to_save:
-                ContestantReceivedPosition.objects.bulk_create(positions_to_save)
+
+        if positions_to_save:
+            ContestantReceivedPosition.objects.bulk_create(positions_to_save)
 
         if number_of_positions > 0:
             self.gatekeeper.finished_processing()
