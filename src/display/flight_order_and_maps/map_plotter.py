@@ -43,6 +43,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
 import matplotlib
+import matplotlib.colors as mcolors
 
 matplotlib.use("Agg")
 from matplotlib import patheffects
@@ -574,6 +575,7 @@ def plot_leg_bearing(
     wind_direction,
     character_offset: int = 4,
     fontsize: int = 14,
+    colour: str = "red",
 ):
     left_of_leg_start = current_waypoint.get_gate_position_left_of_track(True)
     left_of_leg_finish = next_waypoint.get_gate_position_left_of_track(True)
@@ -596,7 +598,7 @@ def plot_leg_bearing(
         course_position[0],
         label,
         verticalalignment="center",
-        color="red",
+        color=colour,
         horizontalalignment="center",
         transform=ccrs.PlateCarree(),
         fontsize=fontsize,
@@ -734,6 +736,22 @@ def plot_waypoint_name(
     )
 
 
+def get_contrasting_anr_gate_colour(colour: str) -> str:
+    """
+    Returns a colour that contrasts well with the provided ANR corridor colour.
+    If the corridor is reddish, it returns blue. Otherwise it returns red.
+    """
+    try:
+        rgb = mcolors.to_rgb(colour)
+        # Distance to red (1, 0, 0)
+        dist_to_red = np.sqrt((rgb[0] - 1) ** 2 + rgb[1] ** 2 + rgb[2] ** 2)
+        if dist_to_red < 0.6:
+            return "blue"
+        return "red"
+    except Exception:
+        return "red"
+
+
 def plot_anr_corridor_track(
     route: Route,
     contestant: Optional[Contestant],
@@ -743,6 +761,7 @@ def plot_anr_corridor_track(
     colour: str,
     plot_center_line: bool,
 ):
+    gate_colour = get_contrasting_anr_gate_colour(colour)
     polygon_track = [(item["lat"], item["lng"]) for item in route.corridor_polygon]
     path = np.array(polygon_track)
     ys, xs = path.T
@@ -762,7 +781,7 @@ def plot_anr_corridor_track(
                 False,
                 contestant,
                 line_width,
-                "red",
+                gate_colour,
                 character_padding=1,
             )
         center_track.append((waypoint.latitude, waypoint.longitude))
@@ -772,7 +791,7 @@ def plot_anr_corridor_track(
                 xs,
                 ys,
                 transform=ccrs.PlateCarree(),
-                color="red" if is_sp_fp else colour,
+                color=gate_colour if is_sp_fp else colour,
                 linewidth=line_width * 2 if is_sp_fp else line_width,
             )
         if index < len(route.waypoints) - 1 and annotations and contestant is not None:
@@ -787,7 +806,7 @@ def plot_anr_corridor_track(
                 line_width_nm=0.5,
                 adaptive=True,
             )
-            maybe_plot_leg_bearing_anr(waypoint, index, route.waypoints, contestant, 2, 12)
+            maybe_plot_leg_bearing_anr(waypoint, index, route.waypoints, contestant, 2, 12, gate_colour)
     if plot_center_line:
         path = np.array(center_track)
         ys, xs = path.T
@@ -796,7 +815,13 @@ def plot_anr_corridor_track(
 
 
 def maybe_plot_leg_bearing_anr(
-    waypoint: Waypoint, index: int, track: List[Waypoint], contestant: Contestant, character_offset: int, font_size: int
+    waypoint: Waypoint,
+    index: int,
+    track: List[Waypoint],
+    contestant: Contestant,
+    character_offset: int,
+    font_size: int,
+    colour: str,
 ):
     next_index = index + 1
     if next_index >= len(track):
@@ -812,6 +837,7 @@ def maybe_plot_leg_bearing_anr(
             contestant.wind_direction,
             character_offset,
             font_size,
+            colour,
         )
 
 
