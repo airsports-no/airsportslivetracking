@@ -3,7 +3,13 @@ import logging
 from multiprocessing import Queue
 from typing import List, Optional
 
-from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent, GateMissedEvent, FinishLinePassedEvent
+from display.calculators.calculator import (
+    Calculator,
+    GatekeeperState,
+    GatekeeperEvent,
+    GateMissedEvent,
+    FinishLinePassedEvent,
+)
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -45,8 +51,8 @@ class PenaltyZoneCalculator(Calculator):
         self.crossed_outside_time = None
         self.last_outside_penalty = None
         self.crossed_outside_position = None
-        waypoint = self.contestant.navigation_task.route.waypoints[0]
-        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude, projector=projector)
+
+        self.polygon_helper = PolygonHelper(projector=self.projector)
         self.polygons = []  # List of (zone_pk, polygon)
         self.zone_map = {}
         self.entered_polygon_times = {}
@@ -101,9 +107,7 @@ class PenaltyZoneCalculator(Calculator):
         p_x = getattr(position, "projected_x", None)
         p_y = getattr(position, "projected_y", None)
 
-        zone_pks_the_position_is_currently_inside = self.polygon_helper.check_inside_polygons(
-            self.polygons, position.latitude, position.longitude, p_x, p_y
-        )
+        zone_pks_the_position_is_currently_inside = self.polygon_helper.check_inside_polygons(self.polygons, p_x, p_y)
 
         for zone_pk in zone_pks_the_position_is_currently_inside:
             if zone_pk not in self.entered_polygon_times:

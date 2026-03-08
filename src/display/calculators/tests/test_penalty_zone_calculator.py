@@ -8,6 +8,7 @@ from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Prohibited, Route
 from display.waypoint import Waypoint
+from display.utilities.coordinate_utilities import Projector
 
 
 class TestPenaltyZoneCalculator(TransactionTestCase):
@@ -23,19 +24,28 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         waypoint.latitude = 60
         waypoint.longitude = 11
         self.contestant.navigation_task.route.waypoints = [waypoint]
-        self.calculator = PenaltyZoneCalculator(self.contestant, get_default_scorecard(), [], self.route, Mock())
+        
+        self.projector = Projector(60, 11)
+        self.calculator = PenaltyZoneCalculator(self.contestant, get_default_scorecard(), [], self.route, Mock(), projector=self.projector)
         self.calculator.scorecard.penalty_zone_grace_time = 3
         self.calculator.scorecard.penalty_zone_penalty_per_second = 3
         self.calculator.scorecard.penalty_zone_maximum = 200
         self.calculator.update_score = Mock()
 
-    def test_maximum_score_is_reset_between_entries(self):
+    def create_position(self, lat, lon, time):
         position = Mock()
-        position.latitude = 60.5
-        position.longitude = 11.5
+        position.latitude = lat
+        position.longitude = lon
+        position.time = time
+        p = self.projector.project_point(lat, lon)
+        position.projected_x = p.projected_x
+        position.projected_y = p.projected_y
+        return position
+
+    def test_maximum_score_is_reset_between_entries(self):
+        position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, tzinfo=datetime.timezone.utc))
         state = Mock(GatekeeperState)
         state.last_gate = Mock()
-        position.time = datetime.datetime(2020, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
         self.calculator.calculate_outside_route([position], state)
 
         self.calculator.update_score.assert_called_with(
@@ -54,10 +64,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
             )
         )
 
-        position = Mock()
-        position.latitude = 59.5
-        position.longitude = 11.5
-        position.time = datetime.datetime(2020, 1, 1, 0, 2, 0, tzinfo=datetime.timezone.utc)
+        position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, 0, 2, 0, tzinfo=datetime.timezone.utc))
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_called_with(
             UpdateScoreMessage(
@@ -72,16 +79,10 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
             )
         )
         # Moving outside again
-        position = Mock()
-        position.latitude = 60.5
-        position.longitude = 11.5
-        position.time = datetime.datetime(2020, 1, 1, 0, 3, tzinfo=datetime.timezone.utc)
+        position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 3, tzinfo=datetime.timezone.utc))
         self.calculator.calculate_outside_route([position], state)
         # Moving inside, should not get additional score.
-        position = Mock()
-        position.latitude = 59.5
-        position.longitude = 11.5
-        position.time = datetime.datetime(2020, 1, 1, 0, 3, 15, tzinfo=datetime.timezone.utc)
+        position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, 0, 3, 15, tzinfo=datetime.timezone.utc))
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_called_with(
             UpdateScoreMessage(
@@ -97,10 +98,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         )
 
     def test_inside_enroute(self):
-        position = Mock()
-        position.latitude = 60.5
-        position.longitude = 11.5
-        position.time = datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc)
+        position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc))
         state = Mock(GatekeeperState)
         state.last_gate = Mock()
         self.calculator.calculate_enroute([position], state)
@@ -118,10 +116,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         )
 
     def test_inside_outside_route(self):
-        position = Mock()
-        position.latitude = 60.5
-        position.longitude = 11.5
-        position.time = datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc)
+        position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc))
         state = Mock(GatekeeperState)
         state.last_gate = Mock()
         self.calculator.calculate_outside_route([position], state)
@@ -139,10 +134,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         )
 
     def test_in_and_out_within_grace_time_enroute(self):
-        position = Mock()
-        position.latitude = 60.5
-        position.longitude = 11.5
-        position.time = datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc)
+        position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc))
         state = Mock(GatekeeperState)
         state.last_gate = Mock()
         self.calculator.calculate_outside_route([position], state)
@@ -159,10 +151,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
             )
         )
 
-        position = Mock()
-        position.latitude = 59.5
-        position.longitude = 11.5
-        position.time = datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc)
+        position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc))
         state = Mock(GatekeeperState)
         state.last_gate = Mock()
         self.calculator.calculate_outside_route([position], state)
@@ -180,14 +169,11 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         )
 
     def test_in_and_out_beyond_grace_time_enroute(self):
-        position = Mock()
-        position.latitude = 60.5
-        position.longitude = 11.5
         state = Mock(GatekeeperState)
         state.last_gate = Mock()
 
         for index in range(0, 30, 3):
-            position.time = datetime.datetime(2020, 1, 1, second=index, tzinfo=datetime.timezone.utc)
+            position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, second=index, tzinfo=datetime.timezone.utc))
             self.calculator.calculate_outside_route([position], state)
         # outside_position = Mock()
         # outside_position.latitude = 59.5
@@ -216,10 +202,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         ]
         self.calculator.update_score.assert_has_calls(expected_calls)
 
-        position = Mock()
-        position.latitude = 59.5
-        position.longitude = 11.5
-        position.time = datetime.datetime(2020, 1, 1, 0, 0, 10, tzinfo=datetime.timezone.utc)
+        position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 10, tzinfo=datetime.timezone.utc))
         state = Mock(GatekeeperState)
         state.last_gate = Mock()
 
@@ -238,18 +221,14 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         )
 
     def test_outside_enroute(self):
-        position = Mock()
-        position.latitude = 59.5
-        position.longitude = 11.5
+        position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, second=0, tzinfo=datetime.timezone.utc))
         state = Mock(GatekeeperState)
         state.last_gate = Mock()
         self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_not_called()
 
     def test_outside_outside_route(self):
-        position = Mock()
-        position.latitude = 59.5
-        position.longitude = 11.5
+        position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, second=0, tzinfo=datetime.timezone.utc))
         state = Mock(GatekeeperState)
         state.last_gate = Mock()
         self.calculator.calculate_outside_route([position], state)

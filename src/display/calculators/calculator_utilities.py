@@ -1,41 +1,21 @@
 import numpy as np
 from shapely.geometry import Polygon, Point, LineString
 
-import cartopy.crs as ccrs
 import datetime
+from typing import Optional, List, Tuple, Dict
 
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import (
-    cross_track_distance,
-    along_track_distance,
-    calculate_distance_lat_lon,
     calculate_bearing,
-    utm_from_lat_lon,
-    project_position_lat_lon,
     bearing_difference,
+    to_rad,
 )
 
 
-def cross_track_gate(gate1, gate2, position) -> float:
-    """
-
-    :param gate1:
-    :param gate2:
-    :param position:
-    :return: The cross track distance in metres
-    """
-    return cross_track_distance(
-        gate1.latitude, gate1.longitude, gate2.latitude, gate2.longitude, position.latitude, position.longitude
-    )
-
-
-def along_track_gate(gate1, cross_track_distance, position):
-    return along_track_distance(
-        gate1.latitude, gate1.longitude, position.latitude, position.longitude, cross_track_distance
-    )
-
-
 def distance_between_gates(gate1, gate2):
+    # This might still need to stay lat/lon if used outside calculation loop for general distance
+    from display.utilities.coordinate_utilities import calculate_distance_lat_lon
+
     return calculate_distance_lat_lon((gate1.latitude, gate1.longitude), (gate2.latitude, gate2.longitude))
 
 
@@ -64,7 +44,6 @@ def round_time_minute(dt=None, round_to=60):
     """Round a datetime object to any time laps in seconds
     dt : datetime.datetime object, default now.
     roundTo : Closest number of seconds to round to, default 1 minute.
-    Author: Thierry Husson 2012 - Use it as you want but don't blame me.
     """
     if dt is None:
         dt = datetime.datetime.now()
@@ -79,41 +58,61 @@ def round_time_second(obj: datetime.datetime) -> datetime.datetime:
     return obj.replace(microsecond=0)
 
 
+def project_position(
+    latitude: float, longitude: float, course: float, turning_rate: float, speed: float, seconds: float
+) -> tuple[float, float]:
+    """
+
+    :param seconds: Number of seconds into the future to project the position
+    :param latitude:
+    :param longitude:
+    :param turning_rate: degrees/second
+    :param speed: knots
+    :return: new position
+    """
+    from display.utilities.coordinate_utilities import project_position_lat_lon
+
+    speed_per_second = speed / 3600  # nm/s
+    if turning_rate == 0:
+        distance = speed_per_second * seconds  # nm
+        return project_position_lat_lon((latitude, longitude), course, distance * 1852)
+
+    total_angle = turning_rate * seconds  # degrees
+    circle_time = 360 / turning_rate  # seconds
+    circumference = speed_per_second * circle_time  # nm
+    circle_radius = circumference / (2 * np.pi)  # nm
+    distance = 2 * circle_radius * np.sin(np.deg2rad(total_angle / 2))  # nm
+    projected_heading = course + total_angle  # degrees
+    return project_position_lat_lon((latitude, longitude), projected_heading, distance * 1852)
+
+
 class PolygonHelper:
-    def __init__(self, latitude, longitude, projector=None):
-        self.pc = ccrs.PlateCarree()
-        self.utm = utm_from_lat_lon(latitude, longitude)
+    def __init__(self, projector):
         self.projector = projector
         self._bounds_cache = {}
 
     def build_polygon(self, path):
+        """
+        path is expected to be a list of [lng, lat] coordinates (GeoJSON style)
+        """
         line = []
-        if self.projector:
-            for element in path:
-                # path is list of [lon, lat]
-                p = self.projector.project_point(element[1], element[0])
-                line.append((p.projected_x, p.projected_y))
-        else:
-            for element in path:
-                # transform_point expects (x, y) which is (longitude, latitude)
-                line.append(self.utm.transform_point(element[0], element[1], self.pc))
+        for element in path:
+            p = self.projector.project_point(element[1], element[0])
+            line.append((p.projected_x, p.projected_y))
         return Polygon(line)
 
     def check_inside_polygons(
         self,
         polygons: list[tuple[int, Polygon]],
-        latitude,
-        longitude,
-        projected_x=None,
-        projected_y=None,
+        projected_x: Optional[float] = None,
+        projected_y: Optional[float] = None,
     ) -> list[int]:
         """
-        Returns a list of names of the prohibited zone is the position is inside
+        Returns a list of PKs of the polygons the position is inside.
         """
-        if self.projector and projected_x is not None and projected_y is not None:
-            x, y = projected_x, projected_y
-        else:
-            x, y = self.utm.transform_point(longitude, latitude, self.pc)
+        if projected_x is None or projected_y is None:
+            raise ValueError(f"Position is missing projected coordinates")
+        x, y = projected_x, projected_y
 
         p = Point(x, y)
         incursions = []
@@ -131,22 +130,15 @@ class PolygonHelper:
     def distance_from_point_to_polygons(
         self,
         polygons: list[tuple[str, Polygon]],
-        latitude,
-        longitude,
-        projected_x=None,
-        projected_y=None,
+        projected_x: Optional[float] = None,
+        projected_y: Optional[float] = None,
     ) -> dict[str, float]:
         """
-
-        :param polygons:
-        :param latitude:
-        :param longitude:
-        :return:  distance in metres
+        Returns a mapping of polygon IDs to Euclidean distance in meters.
         """
-        if self.projector and projected_x is not None and projected_y is not None:
-            x, y = projected_x, projected_y
-        else:
-            x, y = self.utm.transform_point(longitude, latitude, self.pc)
+        if projected_x is None or projected_y is None:
+            raise ValueError(f"Position is missing projected coordinates")
+        x, y = projected_x, projected_y
 
         p = Point(x, y)
         distances = {}
@@ -157,89 +149,67 @@ class PolygonHelper:
     def time_to_intersection(
         self,
         polygons: list[tuple[str, Polygon]],
-        latitude: float,
-        longitude: float,
         bearing: float,
         speed: float,
         turning_rate: float,
         lookahead_seconds: int,
         lookahead_step: int = 2,
         from_inside: bool = False,
+        projected_x: float = None,
+        projected_y: float = None,
     ) -> dict[str, float]:
         """
         Returns the number of seconds until a possible intersect of any polygon from the current position with projected speed and turning rate
-
-        :param reverse: If true, the searches performed backwards. This finds the last item that is within the polygon and can be used to find the intersection from inside a polygon looking out
-        :param polygons:
-        :param latitude:
-        :param longitude:
-        :param bearing: degrees
-        :param speed: knots
-        :param turning_rate: degrees per second
-        :param lookahead_seconds: How far ahead to extrapolate the trajectory
         """
-        previous_longitude = longitude
-        previous_latitude = latitude
+        if projected_x is None or projected_y is None:
+            raise ValueError(f"Position is missing projected coordinates")
+        start_x, start_y = projected_x, projected_y
+
         speed_per_second = 1852 * speed / 3600  # m/s
         intersection_times = {}
+
+        # Fast distance check first
+        distances = self.distance_from_point_to_polygons(polygons, projected_x, projected_y)
         maximum_distance = speed_per_second * lookahead_seconds
-        distances = self.distance_from_point_to_polygons(polygons, latitude, longitude)
-        for name, distance in distances.items():
-            if distance > maximum_distance:
-                intersection_times[name] = None
-        for second in range(lookahead_step, lookahead_seconds, lookahead_step):
+
+        remaining_polygons = []
+        for name, poly in polygons:
+            if distances.get(name, float("inf")) <= maximum_distance:
+                remaining_polygons.append((name, poly))
+            else:
+                intersection_times[name] = lookahead_seconds
+
+        if not remaining_polygons:
+            return intersection_times
+
+        current_x, current_y = start_x, start_y
+        current_bearing = bearing
+
+        for second in range(lookahead_step, lookahead_seconds + 1, lookahead_step):
             if len(intersection_times) == len(polygons):
                 break
-            projected_latitude, projected_longitude = project_position_lat_lon(
-                (previous_latitude, previous_longitude),
-                (bearing + second * turning_rate) % 360,
-                speed_per_second * lookahead_step,
-            )
-            line_string = LineString(
-                self.utm.transform_points(
-                    self.pc,
-                    np.array([previous_longitude, projected_longitude]),
-                    np.array([previous_latitude, projected_latitude]),
-                )
-            )
-            previous_latitude = projected_latitude
-            previous_longitude = projected_longitude
-            for name, polygon in polygons:
+
+            # Project path in metric space directly!
+            # Use basic trigonometry on the metric AEQD plane.
+            # Bearing is from North, clockwise.
+            # x = east, y = north
+            current_bearing = (current_bearing + turning_rate * lookahead_step) % 360
+            dist = speed_per_second * lookahead_step
+
+            next_x = current_x + dist * np.sin(np.deg2rad(current_bearing))
+            next_y = current_y + dist * np.cos(np.deg2rad(current_bearing))
+
+            line_segment = LineString([(current_x, current_y), (next_x, next_y)])
+
+            current_x, current_y = next_x, next_y
+
+            for name, poly in remaining_polygons:
                 if name not in intersection_times:
-                    if (not from_inside and line_string.intersects(polygon)) or (
-                        from_inside and not line_string.intersects(polygon)
-                    ):
+                    intersects = line_segment.intersects(poly)
+                    if (not from_inside and intersects) or (from_inside and not intersects):
                         intersection_times[name] = second
-        for key in list(intersection_times.keys()):
-            if not intersection_times[key]:
-                del intersection_times[key]
+
         return intersection_times
-
-
-def project_position(
-    latitude: float, longitude: float, course: float, turning_rate: float, speed: float, seconds: float
-) -> tuple[float, float]:
-    """
-
-    :param seconds: Number of seconds into the future to project the position
-    :param latitude:
-    :param longitude:
-    :param turning_rate: degrees/second
-    :param speed: knots
-    :return: new position
-    """
-    speed_per_second = speed / 3600  # nm/s
-    if turning_rate == 0:
-        distance = speed_per_second * seconds  # nm
-        return project_position_lat_lon((latitude, longitude), course, distance * 1852)
-
-    total_angle = turning_rate * seconds  # degrees
-    circle_time = 360 / turning_rate  # seconds
-    circumference = speed_per_second * circle_time  # nm
-    circle_radius = circumference / (2 * np.pi)  # nm
-    distance = 2 * circle_radius * np.sin(np.deg2rad(total_angle / 2))  # nm
-    projected_heading = course + total_angle  # degrees
-    return project_position_lat_lon((latitude, longitude), projected_heading, distance * 1852)
 
 
 def get_shortest_intersection_time(
@@ -250,20 +220,24 @@ def get_shortest_intersection_time(
     from_inside: bool = False,
 ) -> float:
     if len(track) > 3:
-        turning_rate = (
-            bearing_difference(track[-3].course, track[-1].course) / (track[-1].time - track[-3].time).total_seconds()
-        )
+        last_pos = track[-1]
+        prev_pos = track[-3]
+
+        time_diff = (last_pos.time - prev_pos.time).total_seconds()
+        if time_diff > 0:
+            turning_rate = bearing_difference(prev_pos.course, last_pos.course) / time_diff
+        else:
+            turning_rate = 0
+
         intersection_times = polygon_helper.time_to_intersection(
             zone_polygons,
-            track[-1].latitude,
-            track[-1].longitude,
-            track[-1].course,
-            track[-1].speed,
+            last_pos.course,
+            last_pos.speed,
             turning_rate,
             lookahead_seconds,
             from_inside=from_inside,
+            projected_x=getattr(last_pos, "projected_x", None),
+            projected_y=getattr(last_pos, "projected_y", None),
         )
-        # for zone, distance in intersection_times.items():
-        #     logger.debug(f"{zone}:{distance}")
         return min([lookahead_seconds] + list(intersection_times.values()))
     return lookahead_seconds

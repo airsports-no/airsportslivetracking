@@ -86,8 +86,8 @@ class AnrCorridorCalculator(Calculator):
         self.corridor_maximum_penalty_is_per_leg = self.scorecard.corridor_maximum_penalty_is_per_leg
         self.current_leg_outside_start_time = None
         self.is_first_leg_of_excursion = True
-        waypoint = self.contestant.navigation_task.route.waypoints[0]
-        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude)
+        
+        self.polygon_helper = PolygonHelper(self.projector)
         self._bounds_cache = {}
         self.track_polygon = self.build_polygon()
         self.existing_reference = None
@@ -113,65 +113,41 @@ class AnrCorridorCalculator(Calculator):
             position = track[-1]
             MAXIMUM_DISTANCE = 1852  # m
 
-            # Fast distance check using projected coordinates if available
             p_x = getattr(position, "projected_x", None)
             p_y = getattr(position, "projected_y", None)
+            
+            if p_x is None or p_y is None:
+                raise ValueError(f"Position at {position.time} is missing projected coordinates")
 
-            if p_x is not None and self.projector:
-                # We can't easily use track_polygon if it's UTM while position is AEQD
-                # So we fallback to standard check for now until we unify projections
-                polygon_distance = min(
-                    [MAXIMUM_DISTANCE, self._distance_from_point_to_polygons(position.latitude, position.longitude)]
-                )
-            else:
-                polygon_distance = min(
-                    [MAXIMUM_DISTANCE, self._distance_from_point_to_polygons(position.latitude, position.longitude)]
-                )
+            p = Point(p_x, p_y)
+            polygon_distance = self.track_polygon.exterior.distance(p)
+            polygon_distance = min(MAXIMUM_DISTANCE, polygon_distance)
 
             distance_danger = 30 * (MAXIMUM_DISTANCE - polygon_distance) / MAXIMUM_DISTANCE
         return max([lookahead_danger, distance_danger]), self.accumulated_score
 
     def build_polygon(self):
         points = [(item["lat"], item["lng"]) for item in self.contestant.navigation_task.route.corridor_polygon]
-        points = np.array(points)
-
-        if self.projector:
-            # Use AEQD projection for the polygon to match position.projected_x/y
-            transformed_points = []
-            for lat, lon in points:
-                p = self.projector.project_point(lat, lon)
-                transformed_points.append((p.projected_x, p.projected_y))
-            return Polygon(transformed_points)
-        else:
-            transformed_points = self.polygon_helper.utm.transform_points(
-                self.polygon_helper.pc, points[:, 1], points[:, 0]
-            )
-            return Polygon(transformed_points)
+        # GeoJSON is [lng, lat], our corridor_polygon list items are {"lat":..., "lng":...}
+        # PolygonHelper.build_polygon expects list of [lng, lat]
+        path = [[item["lng"], item["lat"]] for item in self.contestant.navigation_task.route.corridor_polygon]
+        return self.polygon_helper.build_polygon(path)
 
     def plot_polygon(self):
-        # imagery = OSM()
-        ax = plt.axes(projection=self.polygon_helper.utm)
-        # ax.add_image(imagery, 8)
-        ax.set_aspect("auto")
-        ax.plot(self.track_polygon.boundary.xy[0], self.track_polygon.boundary.xy[1])
-        ax.add_geometries([self.track_polygon], crs=self.polygon_helper.utm, facecolor="blue", alpha=0.4)
+        fig, ax = plt.subplots()
+        ax.set_aspect("equal")
+        ax.plot(*self.track_polygon.exterior.xy)
         plt.savefig("polygon.png", dpi=100)
 
     def _check_inside_polygon(self, position: ContestantReceivedPosition) -> bool:
         """
         Returns true if the point lies inside the corridor
         """
-        p_x = getattr(position, "projected_x", None)
-        p_y = getattr(position, "projected_y", None)
+        x = getattr(position, "projected_x", None)
+        y = getattr(position, "projected_y", None)
 
-        if p_x is not None and self.projector:
-            # Use pre-projected coordinates directly!
-            x, y = p_x, p_y
-        else:
-            # Fallback to UTM projection
-            x, y = self.polygon_helper.utm.transform_point(
-                position.longitude, position.latitude, self.polygon_helper.pc
-            )
+        if x is None or y is None:
+            raise ValueError(f"Position at {position.time} is missing projected coordinates")
 
         # Direct bounding box check
         if self.track_polygon not in self._bounds_cache:
@@ -185,13 +161,18 @@ class AnrCorridorCalculator(Calculator):
         p = Point(x, y)
         return self.track_polygon.contains(p)
 
-    def _distance_from_point_to_polygons(self, latitude: float, longitude: float) -> float:
+    def _distance_from_point_to_polygons(self, position: ContestantReceivedPosition) -> float:
         """
         :return: Distance to inside or outside the polygon (metres)
         """
-        return self.polygon_helper.distance_from_point_to_polygons([("test", self.track_polygon)], latitude, longitude)[
-            "test"
-        ]
+        p_x = getattr(position, "projected_x", None)
+        p_y = getattr(position, "projected_y", None)
+        if p_x is None or p_y is None:
+            raise ValueError(f"Position at {position.time} is missing projected coordinates")
+
+        return self.polygon_helper.distance_from_point_to_polygons(
+            [("test", self.track_polygon)], position.latitude, position.longitude, p_x, p_y
+        )["test"]
 
     def calculate_enroute(
         self,
@@ -283,6 +264,14 @@ class AnrCorridorCalculator(Calculator):
         if self.crossed_outside_time is None:
             return
 
+        # Use first waypoint as a fallback if last_gate is None
+        scoring_gate = self.get_last_non_secret_gate(last_gate) if last_gate else self.gates[0]
+        gate_name = last_gate.name if last_gate else scoring_gate.name
+
+        score_type = self.OUTSIDE_CORRIDOR_PENALTY_TYPE
+        if self.corridor_maximum_penalty_is_per_leg:
+            score_type = f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{gate_name}"
+
         # Determine calculation time
         if current_time is None:
             if self.corridor_state == self.INSIDE_CORRIDOR:
@@ -295,20 +284,12 @@ class AnrCorridorCalculator(Calculator):
         if current_time < start_time_ref:
             current_time = start_time_ref
 
-        # Use first waypoint as a fallback if last_gate is None
-        scoring_gate = self.get_last_non_secret_gate(last_gate) if last_gate else self.gates[0]
-        gate_name = last_gate.name if last_gate else scoring_gate.name
-
-        score_type = self.OUTSIDE_CORRIDOR_PENALTY_TYPE
-        if self.corridor_maximum_penalty_is_per_leg:
-            score_type = f"{self.OUTSIDE_CORRIDOR_PENALTY_TYPE}_{gate_name}"
-
         # Prevent double-logging or overlapping updates for the same position/event
         # BUT always allow if we are transitioning state to ensure finalization is logged
         is_transition = self.corridor_state != self.previous_corridor_state
-        if self.last_finalized_time == (current_time, score_type) and not is_transition:
+        if self.last_finalized_time == (position.time, score_type) and not is_transition:
             return
-        self.last_finalized_time = (current_time, score_type)
+        self.last_finalized_time = (position.time, score_type)
 
         if self.corridor_maximum_penalty_is_per_leg:
             outside_time_this_leg = (current_time - start_time_ref).total_seconds()
@@ -365,7 +346,6 @@ class AnrCorridorCalculator(Calculator):
             self.accumulated_score = 0
 
     def finalise(self, track: List[ContestantReceivedPosition]):
-        pass
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
             position = track[-1] if track else None
             if position:

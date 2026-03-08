@@ -4,7 +4,13 @@ from datetime import timedelta
 from multiprocessing import Queue
 from typing import List, Optional
 
-from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent, GateMissedEvent, FinishLinePassedEvent
+from display.calculators.calculator import (
+    Calculator,
+    GatekeeperState,
+    GatekeeperEvent,
+    GateMissedEvent,
+    FinishLinePassedEvent,
+)
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -47,9 +53,9 @@ class ProhibitedZoneCalculator(Calculator):
         self.crossed_outside_time = None
         self.last_outside_penalty = None
         self.crossed_outside_position = None
-        waypoint = self.contestant.navigation_task.route.waypoints[0]
-        self.polygon_helper = PolygonHelper(waypoint.latitude, waypoint.longitude, projector=projector)
-        self.polygons = [] # List of (zone_pk, polygon)
+
+        self.polygon_helper = PolygonHelper(projector=self.projector)
+        self.polygons = []  # List of (zone_pk, polygon)
         self.running_penalty = {}
         self.zone_map = {}
         self.prohibited_zone_grace_time = timedelta(seconds=self.scorecard.prohibited_zone_grace_time)
@@ -59,14 +65,12 @@ class ProhibitedZoneCalculator(Calculator):
             self.zone_map[zone.pk] = zone
             poly = self.polygon_helper.build_polygon(zone.path)
             self.polygons.append((zone.pk, poly))
-            logger.info(f"{self.contestant}: Loaded prohibited zone {zone.name} (pk={zone.pk}) with {len(zone.path)} points")
-
-        # logger.debug("Prohibited zones loaded: %s", str(i.name for i in self.zone_map.values()))
-        # logger.debug("Prohibited zone polygons: %s", self.zone_polygons)
+            logger.info(
+                f"{self.contestant}: Loaded prohibited zone {zone.name} (pk={zone.pk}) with {len(zone.path)} points"
+            )
 
     def on_gate_missed(self, event: GateMissedEvent):
         pass
-
 
     def passed_finishpoint(self, event: FinishLinePassedEvent):
         pass
@@ -84,9 +88,7 @@ class ProhibitedZoneCalculator(Calculator):
         Danger level ranges from 0 to 100 where 100 is inside a prohibited zone
         """
         LOOKAHEAD_SECONDS = 40
-        time = get_shortest_intersection_time(
-            track, self.polygon_helper, self.polygons, LOOKAHEAD_SECONDS
-        )
+        time = get_shortest_intersection_time(track, self.polygon_helper, self.polygons, LOOKAHEAD_SECONDS)
         return 99 * (LOOKAHEAD_SECONDS - time) / LOOKAHEAD_SECONDS
 
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]):
@@ -108,15 +110,13 @@ class ProhibitedZoneCalculator(Calculator):
         position = track[-1]
         p_x = getattr(position, "projected_x", None)
         p_y = getattr(position, "projected_y", None)
-        
-        incursions = self.polygon_helper.check_inside_polygons(
-            self.polygons, position.latitude, position.longitude, p_x, p_y
-        )
+
+        incursions = self.polygon_helper.check_inside_polygons(self.polygons, p_x, p_y)
         inside_this_time = set(incursions)
-        
+
         for zone_pk in incursions:
             # logger.info(f"{self.contestant}: Inside zone {zone_pk} at {position.time}")
-            
+
             if zone_pk not in self.inside_zones:
                 self.inside_zones[zone_pk] = position.time
                 self.inside_positions[zone_pk] = (position.latitude, position.longitude)
@@ -142,7 +142,7 @@ class ProhibitedZoneCalculator(Calculator):
                         maximum_score=self.scorecard.prohibited_zone_maximum,
                     )
                 )
-        
+
         for zone in list(self.inside_zones.keys()):
             if zone not in inside_this_time:
                 try:

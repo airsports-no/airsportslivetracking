@@ -206,7 +206,7 @@ class Contestant(models.Model):
     def landing_time(self) -> datetime.datetime:
         try:
             if self.navigation_task.route.landing_gates:
-                return self.gate_times[self.navigation_task.route.landing_gates.name]
+                return self.gate_times[self.navigation_task.route.landing_gates[0].name]
             return self.gate_times[self.navigation_task.route.waypoints[-1].name] + datetime.timedelta(
                 minutes=self.navigation_task.minutes_to_landing
             )

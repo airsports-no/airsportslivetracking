@@ -340,20 +340,18 @@ class GateCalculator(Calculator):
 
         p_x = getattr(last_position, "projected_x", None)
         p_y = getattr(last_position, "projected_y", None)
+        if p_x is None or p_y is None:
+            raise ValueError(f"Position at {last_position.time} is missing projected coordinates")
 
         if state.in_range_of_gate is not None:
             if state.in_range_of_gate in already_handled_gates:
                 return
 
-            if p_x is not None and state.in_range_of_gate.center_x is not None:
-                dist_sq = (p_x - state.in_range_of_gate.center_x) ** 2 + (p_y - state.in_range_of_gate.center_y) ** 2
-                is_outside = dist_sq > state.in_range_of_gate.outside_distance**2
-            else:
-                distance_to_gate = calculate_distance_lat_lon(
-                    (last_position.latitude, last_position.longitude),
-                    (state.in_range_of_gate.latitude, state.in_range_of_gate.longitude),
-                )
-                is_outside = distance_to_gate > state.in_range_of_gate.outside_distance
+            if state.in_range_of_gate.center_x is None:
+                state.in_range_of_gate.pre_project(state.projector)
+
+            dist_sq = (p_x - state.in_range_of_gate.center_x) ** 2 + (p_y - state.in_range_of_gate.center_y) ** 2
+            is_outside = dist_sq > state.in_range_of_gate.outside_distance**2
 
             if is_outside:
                 if (
@@ -375,21 +373,17 @@ class GateCalculator(Calculator):
             if next_gate.type not in ("secret", "sp", "fp", "tp"):
                 return
 
-            # Throttle distance check if far away
-            if p_x is not None and next_gate.center_x is not None:
-                dist_sq = (p_x - next_gate.center_x) ** 2 + (p_y - next_gate.center_y) ** 2
-                # If further than 5km, only check every 5 seconds
-                if dist_sq > 5000**2 and now < self.last_estimation_time + datetime.timedelta(seconds=4):
-                    return
+            if next_gate.center_x is None:
+                next_gate.pre_project(state.projector)
 
-                if dist_sq < next_gate.inside_distance**2:
-                    events.append(InRangeUpdatedEvent(next_gate, last_position))
-            else:
-                distance_to_gate = calculate_distance_lat_lon(
-                    (last_position.latitude, last_position.longitude), (next_gate.latitude, next_gate.longitude)
-                )
-                if distance_to_gate < next_gate.inside_distance:
-                    events.append(InRangeUpdatedEvent(next_gate, last_position))
+            # Throttle distance check if far away
+            dist_sq = (p_x - next_gate.center_x) ** 2 + (p_y - next_gate.center_y) ** 2
+            # If further than 5km, only check every 5 seconds
+            if dist_sq > 5000**2 and now < self.last_estimation_time + datetime.timedelta(seconds=4):
+                return
+
+            if dist_sq < next_gate.inside_distance**2:
+                events.append(InRangeUpdatedEvent(next_gate, last_position))
 
     def passed_finishpoint(self, event: FinishLinePassedEvent):
         # When finish point is passed, all outstanding regular gates should be marked as missed

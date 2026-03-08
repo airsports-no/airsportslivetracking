@@ -104,6 +104,7 @@ class TestANRPerLeg(TransactionTestCase):
             member1=Person.objects.create(
                 first_name="Mister",
                 last_name="Pilot",
+                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp()),
             )
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
@@ -223,9 +224,7 @@ class TestANRPerLeg(TransactionTestCase):
             "SP: 9.0 points outside corridor (3 s)",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 41.0 points outside corridor (228 s) (capped)",  # Missed TP 2
-            "SP: 0.0 points outside corridor (0 s)",  # Missed TP 3, but already at maximum penalty, so no additional points
-            "SP: 0.0 points outside corridor (0 s)",  # Missed FP, but already at maximum penalty, so no additional points
+            "SP: 41.0 points outside corridor (227 s) (capped)",  # Missed TP 2
             "FP: 200.0 points missing gate\nplanned: 14:18:11\nactual: --",
             "Landing 1: 0.0 points missing landing gate\nplanned: 15:59:00\nactual: --",
         ]
@@ -369,6 +368,7 @@ class TestANR(TransactionTestCase):
             member1=Person.objects.create(
                 first_name="Mister",
                 last_name="Pilot",
+                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp()),
             )
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
@@ -470,6 +470,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             member1=Person.objects.create(
                 first_name="Mister",
                 last_name="Pilot",
+                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp()),
             )
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)
@@ -492,6 +493,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             self.route.waypoints,
             self.route,
             Queue(),
+            projector=self.navigation_task.get_projector()
         )
         self.calculator.enroute = True
         self.calculator.update_score = Mock()
@@ -501,17 +503,24 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position.latitude = 59.939
         position.longitude = 11.062
         position.time = datetime.datetime(2020, 1, 1, 0, 0)
+        
+        projector = self.navigation_task.get_projector()
+        p = projector.project_point(position.latitude, position.longitude)
+        position.projected_x = p.projected_x
+        position.projected_y = p.projected_y
+        
         from display.calculators.calculator import GatekeeperState
 
         state = GatekeeperState(
             last_gate=None,
             outstanding_gates=self.route.waypoints,
             in_range_of_gate=None,
-            projector=None,
+            projector=projector,
             takeoff_gate=None,
             landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
+            enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
@@ -524,17 +533,24 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position.latitude = 60.5
         position.longitude = 11
         position.time = datetime.datetime(2020, 1, 1, 0, 0)
+        
+        projector = self.navigation_task.get_projector()
+        p = projector.project_point(position.latitude, position.longitude)
+        position.projected_x = p.projected_x
+        position.projected_y = p.projected_y
+        
         from display.calculators.calculator import GatekeeperState
 
         state = GatekeeperState(
             last_gate=None,
             outstanding_gates=self.route.waypoints,
             in_range_of_gate=None,
-            projector=None,
+            projector=projector,
             takeoff_gate=None,
             landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
+            enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
@@ -547,18 +563,31 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.assertEqual(call.score, 0)
 
     def test_outside_2_seconds_enroute(self, *args):
+        projector = self.navigation_task.get_projector()
+        
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11
         position.time = datetime.datetime(2020, 1, 1, 0, 0)
+        p1 = projector.project_point(position.latitude, position.longitude)
+        position.projected_x = p1.projected_x
+        position.projected_y = p1.projected_y
+        
         position2 = Mock()
         position2.latitude = 60.5
         position2.longitude = 11
         position2.time = datetime.datetime(2020, 1, 1, 0, 0, 1)
+        p2 = projector.project_point(position2.latitude, position2.longitude)
+        position2.projected_x = p2.projected_x
+        position2.projected_y = p2.projected_y
+        
         position3 = Mock()
         position3.latitude = 59.939
         position3.longitude = 11.062
         position3.time = datetime.datetime(2020, 1, 1, 0, 0, 3)
+        p3 = projector.project_point(position3.latitude, position3.longitude)
+        position3.projected_x = p3.projected_x
+        position3.projected_y = p3.projected_y
 
         gate = Mock()
         from display.calculators.calculator import GatekeeperState
@@ -567,11 +596,12 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             last_gate=None,
             outstanding_gates=self.route.waypoints,
             in_range_of_gate=None,
-            projector=None,
+            projector=projector,
             takeoff_gate=None,
             landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
+            enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
@@ -596,18 +626,31 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.assertEqual(calls[1].score_type, "outside_corridor")
 
     def test_outside_20_seconds_enroute(self, *args):
+        projector = self.navigation_task.get_projector()
+        
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11
         position.time = datetime.datetime(2020, 1, 1, 0, 0)
+        p1 = projector.project_point(position.latitude, position.longitude)
+        position.projected_x = p1.projected_x
+        position.projected_y = p1.projected_y
+        
         position2 = Mock()
         position2.latitude = 60.5
         position2.longitude = 11
         position2.time = datetime.datetime(2020, 1, 1, 0, 0, 20)
+        p2 = projector.project_point(position2.latitude, position2.longitude)
+        position2.projected_x = p2.projected_x
+        position2.projected_y = p2.projected_y
+        
         position3 = Mock()
         position3.latitude = 59.939
         position3.longitude = 11.062
         position3.time = datetime.datetime(2020, 1, 1, 0, 0, 21)
+        p3 = projector.project_point(position3.latitude, position3.longitude)
+        position3.projected_x = p3.projected_x
+        position3.projected_y = p3.projected_y
 
         gate = Mock()
         from display.calculators.calculator import GatekeeperState
@@ -616,11 +659,12 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             last_gate=None,
             outstanding_gates=self.route.waypoints,
             in_range_of_gate=None,
-            projector=None,
+            projector=projector,
             takeoff_gate=None,
             landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
+            enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
@@ -645,18 +689,31 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.assertEqual(calls[1].score, 45.0)
 
     def test_outside_20_seconds_until_finish(self, *args):
+        projector = self.navigation_task.get_projector()
+        
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11
         position.time = datetime.datetime(2020, 1, 1, 0, 0)
+        p1 = projector.project_point(position.latitude, position.longitude)
+        position.projected_x = p1.projected_x
+        position.projected_y = p1.projected_y
+        
         position2 = Mock()
         position2.latitude = 60.5
         position2.longitude = 11
         position2.time = datetime.datetime(2020, 1, 1, 0, 0, 1)
+        p2 = projector.project_point(position2.latitude, position2.longitude)
+        position2.projected_x = p2.projected_x
+        position2.projected_y = p2.projected_y
+        
         position3 = Mock()
         position3.latitude = 59.939
         position3.longitude = 11.062
         position3.time = datetime.datetime(2020, 1, 1, 0, 0, 21)
+        p3 = projector.project_point(position3.latitude, position3.longitude)
+        position3.projected_x = p3.projected_x
+        position3.projected_y = p3.projected_y
 
         from display.calculators.calculator import GatekeeperState, FinishLinePassedEvent
 
@@ -664,11 +721,12 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             last_gate=None,
             outstanding_gates=self.route.waypoints,
             in_range_of_gate=None,
-            projector=None,
+            projector=projector,
             takeoff_gate=None,
             landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
+            enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
@@ -691,18 +749,31 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.assertEqual(calls[1].score, 45.0)
 
     def test_outside_20_seconds_outside_route(self, *args):
+        projector = self.navigation_task.get_projector()
+        
         position = Mock()
         position.latitude = 60.5
         position.longitude = 11
         position.time = datetime.datetime(2020, 1, 1, 0, 0)
+        p1 = projector.project_point(position.latitude, position.longitude)
+        position.projected_x = p1.projected_x
+        position.projected_y = p1.projected_y
+        
         position2 = Mock()
         position2.latitude = 60.5
         position2.longitude = 11
         position2.time = datetime.datetime(2020, 1, 1, 0, 0, 1)
+        p2 = projector.project_point(position2.latitude, position2.longitude)
+        position2.projected_x = p2.projected_x
+        position2.projected_y = p2.projected_y
+        
         position3 = Mock()
         position3.latitude = 59.939
         position3.longitude = 11.062
         position3.time = datetime.datetime(2020, 1, 1, 0, 0, 21)
+        p3 = projector.project_point(position3.latitude, position3.longitude)
+        position3.projected_x = p3.projected_x
+        position3.projected_y = p3.projected_y
 
         from display.calculators.calculator import GatekeeperState
 
@@ -710,11 +781,12 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             last_gate=None,
             outstanding_gates=self.route.waypoints,
             in_range_of_gate=None,
-            projector=None,
+            projector=projector,
             takeoff_gate=None,
             landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
+            enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
@@ -773,6 +845,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
             member1=Person.objects.create(
                 first_name="Mister",
                 last_name="Pilot",
+                email="mister_{}_{}@pilot.com".format(self.__class__.__name__, datetime.datetime.now().timestamp()),
             )
         )
         self.team = Team.objects.create(crew=crew, aeroplane=self.aeroplane)

@@ -14,6 +14,7 @@ from display.calculators.calculator import (
     GatekeeperState
 )
 from display.models.contestant_utility_models import ContestantReceivedPosition
+from display.utilities.coordinate_utilities import Projector
 
 class TestGatekeeperUnit(TestCase):
     def setUp(self):
@@ -33,16 +34,25 @@ class TestGatekeeperUnit(TestCase):
         
         self.score_processing_queue = MagicMock()
         
+        # Initialize a real projector for deterministic coordinate math in tests
+        self.projector = Projector(60, 11)
+        
         with patch("display.calculators.gatekeeper.WebsocketFacade"):
             # Mocking calculate_missing_gate_times to avoid DB issues
             self.contestant.calculate_missing_gate_times.return_value = {}
-            self.gatekeeper = Gatekeeper(self.contestant, self.score_processing_queue, [])
+            self.gatekeeper = Gatekeeper(self.contestant, self.score_processing_queue, [], projector=self.projector)
 
     def create_position(self, lat, lon, time):
         pos = MagicMock(spec=ContestantReceivedPosition)
         pos.latitude = float(lat)
         pos.longitude = float(lon)
         pos.time = time
+        
+        # Calculate accurate projected coordinates
+        proj = self.projector.project_point(pos.latitude, pos.longitude)
+        pos.projected_x = proj.projected_x
+        pos.projected_y = proj.projected_y
+        
         return pos
 
     def test_handle_gate_passed_event(self):

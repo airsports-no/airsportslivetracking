@@ -120,40 +120,49 @@ class Gate:
             # Fast path: check distance to gate center
             # Threshold is gate radius + 500m buffer for aircraft movement between points
             last_pos = track[-1]
-            if hasattr(last_pos, "projected_x") and self.center_x is not None:
-                dist_sq = (last_pos.projected_x - self.center_x) ** 2 + (last_pos.projected_y - self.center_y) ** 2
-                threshold = self.gate_radius + 500
-                if dist_sq > threshold**2:
-                    return None
+            if self.center_x is None:
+                raise ValueError(f"Gate {self.name} is not projected")
+            
+            p_x = getattr(last_pos, "projected_x", None)
+            p_y = getattr(last_pos, "projected_y", None)
+            if p_x is None or p_y is None:
+                raise ValueError(f"Position at {last_pos.time} is missing projected coordinates")
+
+            dist_sq = (p_x - self.center_x) ** 2 + (p_y - self.center_y) ** 2
+            threshold = self.gate_radius + 500
+            if dist_sq > threshold**2:
+                return None
 
             return get_intersect_time(
                 projector,
                 track[-3],
                 track[-1],
-                self.projected_gate_line[0] if self.projected_gate_line else self.gate_line[0],
-                self.projected_gate_line[1] if self.projected_gate_line else self.gate_line[1],
+                self.projected_gate_line[0],
+                self.projected_gate_line[1],
             )
         return None
 
     def get_gate_infinite_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
         if len(track) > 2:
+            if not self.projected_gate_line_infinite:
+                raise ValueError(f"Gate {self.name} infinite line is not projected")
             return get_intersect_time(
                 projector,
                 track[-3],
                 track[-1],
-                self.projected_gate_line_infinite[0] if self.projected_gate_line_infinite else self.gate_line_infinite[0],
-                self.projected_gate_line_infinite[1] if self.projected_gate_line_infinite else self.gate_line_infinite[1],
+                self.projected_gate_line_infinite[0],
+                self.projected_gate_line_infinite[1],
             )
         return None
 
     def get_gate_extended_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
-        if len(track) > 2 and (self.projected_gate_line_extended or self.gate_line_extended):
+        if len(track) > 2 and self.projected_gate_line_extended:
             return get_intersect_time(
                 projector,
                 track[-3],
                 track[-1],
-                self.projected_gate_line_extended[0] if self.projected_gate_line_extended else self.gate_line_extended[0],
-                self.projected_gate_line_extended[1] if self.projected_gate_line_extended else self.gate_line_extended[1],
+                self.projected_gate_line_extended[0],
+                self.projected_gate_line_extended[1],
             )
         return None
 
@@ -161,17 +170,20 @@ class Gate:
         """
         Calculates the distance from the current position to the nearest point of the gate line.
         """
-        if self.projected_gate_line and projected_x is not None and projected_y is not None:
-            return euclidean_point_to_line_distance(
-                self.projected_gate_line[0].projected_x,
-                self.projected_gate_line[0].projected_y,
-                self.projected_gate_line[1].projected_x,
-                self.projected_gate_line[1].projected_y,
-                projected_x,
-                projected_y,
-            )
+        if projected_x is None or projected_y is None:
+            raise ValueError(f"Missing projected coordinates for distance check to gate {self.name}")
+        
+        if self.projected_gate_line is None:
+            raise ValueError(f"Gate {self.name} is not projected")
 
-        return point_to_line_distance(*self.gate_line[0], *self.gate_line[1], latitude, longitude)
+        return euclidean_point_to_line_distance(
+            self.projected_gate_line[0].projected_x,
+            self.projected_gate_line[0].projected_y,
+            self.projected_gate_line[1].projected_x,
+            self.projected_gate_line[1].projected_y,
+            projected_x,
+            projected_y,
+        )
 
 
 class MultiGate:
