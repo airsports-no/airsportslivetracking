@@ -96,7 +96,7 @@ services:
     image: mysql
     container_name: mysql
     restart: always
-    command: --max_allowed_packet=325058560
+    command: --max_allowed_packet=325058560 --max_connections=500
     # command: 
     #    - --innodb_flush_log_at_trx_commit=2
     #    - --innodb_doublewrite=0
