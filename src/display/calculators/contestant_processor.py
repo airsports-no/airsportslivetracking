@@ -115,11 +115,10 @@ class ContestantProcessor:
             threading.Event()
         )  # Used to prevent the calculator from terminating while we are waiting for initial data if it starts after-the-fact.
 
-        if self.live_processing:
-            post_slack_competition_message(
-                str(self.contestant.navigation_task),
-                f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
-            )
+        post_slack_competition_message(
+            str(self.contestant.navigation_task),
+            f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
+        )
         self.websocket_facade.transmit_delete_contestant(self.contestant)
         self.websocket_facade.transmit_contestant(self.contestant)
 
@@ -362,8 +361,9 @@ class ContestantProcessor:
                 self.gatekeeper.calculate_score(position)
 
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
-        if positions_to_save:
-            ContestantReceivedPosition.objects.bulk_create(positions_to_save)
+            # Save positions before we start processing the next round
+            if positions_to_save:
+                ContestantReceivedPosition.objects.bulk_create(positions_to_save)
 
         if number_of_positions > 0:
             self.gatekeeper.finished_processing()
