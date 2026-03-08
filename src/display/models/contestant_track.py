@@ -1,5 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
+from django.db.models import F
 
 
 class ContestantTrack(models.Model):
@@ -68,7 +69,6 @@ class ContestantTrack(models.Model):
 
     def increment_score(self, score_increment):
         from display.models import TeamTestScore
-        from django.db.models import F
 
         if score_increment != 0:
             # Atomic update of ContestantTrack score field in the database.
