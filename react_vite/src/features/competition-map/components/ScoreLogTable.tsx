@@ -14,7 +14,7 @@ export default function ScoreLogTable({ scoreLog, contestantName, onClose }: Pro
   }
   return (
     <div className="overflow-y-auto max-h-[40vh] sm:max-h-96">
-        <div className="flex justify-between items-center p-2 bg-base-200 sticky top-0 z-20">
+        <div className="flex justify-between items-center p-2 bg-base-200 sticky top-0 z-1">
             <h3 className="font-bold">Score Log for {contestantName}</h3>
             <button onClick={onClose} className="btn btn-sm btn-ghost">
                 <X size={20} />
