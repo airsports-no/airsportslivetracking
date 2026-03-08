@@ -409,25 +409,6 @@ class Gatekeeper:
         """
         Perform anything required after the contestant has finished processing.
         """
-        # Sequentially fire missed gate events for all gates that were never reached.
-        # This ensures that final penalties (like corridor excursions) are finalized
-        # when the finish point is missed at the end of the track.
-        if len(self.track) > 0:
-            last_pos = self.track[-1]
-            # Use a copy since handle_event -> pop_gate modifies outstanding_gates
-            for gate in list(self.outstanding_gates):
-                idx = self.gates.index(gate)
-                # Assign millisecond offsets for deterministic log ordering
-                if gate.type == "fp":
-                    offset_ms = len(self.gates) + 1
-                else:
-                    offset_ms = idx
-                
-                trigger_time = last_pos.time + datetime.timedelta(milliseconds=offset_ms)
-                prev_gate = self.gates[idx - 1] if idx > 0 else None
-                
-                self.handle_event(GateMissedEvent(prev_gate, gate, last_pos, event_time=trigger_time))
-
         for calculator in self.calculators:
             if hasattr(calculator, "finalise"):
                 calculator.finalise(self.track)
