@@ -227,6 +227,7 @@ DATABASES = {
         "USER": MYSQL_USER,
         "PASSWORD": MYSQL_PASSWORD,
         "HOST": MYSQL_HOST,
+        "CONN_MAX_AGE": 60,
     }
 }
 
