@@ -440,13 +440,13 @@ export default function CompetitionMapPage() {
                     <Sliders size={12} />
                     Settings
                   </div>
-                  <ul tabIndex={0} className="dropdown-content z-[11] menu p-2 shadow bg-base-100 rounded-box w-52">
+                  <ul tabIndex={0} className="dropdown-content z-[11] menu p-2 shadow bg-base-100 rounded-box w-64">
                     <li>
-                      <label className="label cursor-pointer">
-                        <span className="label-text">Show Background Map</span>
+                      <label className="label cursor-pointer py-1">
+                        <span className="label-text text-xs text-left">Show Background Map</span>
                         <input 
                           type="checkbox" 
-                          className="toggle toggle-primary" 
+                          className="toggle toggle-primary toggle-xs" 
                           checked={userShowBackgroundMap} 
                           onChange={(e) => setUserShowBackgroundMap(e.target.checked)}
                           disabled={!staticNavTaskData?.display_background_map}
@@ -454,11 +454,11 @@ export default function CompetitionMapPage() {
                       </label>
                     </li>
                     <li>
-                      <label className="label cursor-pointer">
-                        <span className="label-text">Show Secret Gates</span>
+                      <label className="label cursor-pointer py-1">
+                        <span className="label-text text-xs text-left">Show Secret Gates</span>
                         <input 
                           type="checkbox" 
-                          className="toggle toggle-primary" 
+                          className="toggle toggle-primary toggle-xs" 
                           checked={userShowSecrets} 
                           onChange={(e) => setUserShowSecrets(e.target.checked)}
                           disabled={!staticNavTaskData?.display_secrets}
@@ -466,22 +466,11 @@ export default function CompetitionMapPage() {
                       </label>
                     </li>
                     <li>
-                      <label className="label cursor-pointer">
-                        <span className="label-text">Show Penalties Only</span>
+                      <label className="label cursor-pointer py-1">
+                        <span className="label-text text-xs text-left">Permanent Annotations</span>
                         <input
                           type="checkbox"
-                          className="toggle toggle-primary"
-                          checked={showPenaltiesOnly}
-                          onChange={(e) => setShowPenaltiesOnly(e.target.checked)}
-                        />
-                      </label>
-                    </li>
-                    <li>
-                      <label className="label cursor-pointer">
-                        <span className="label-text">Permanent Annotations</span>
-                        <input
-                          type="checkbox"
-                          className="toggle toggle-primary"
+                          className="toggle toggle-primary toggle-xs"
                           checked={permanentAnnotations}
                           onChange={(e) => setPermanentAnnotations(e.target.checked)}
                         />
