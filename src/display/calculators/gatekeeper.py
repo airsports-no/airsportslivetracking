@@ -287,7 +287,17 @@ class Gatekeeper:
         """
         Update state based on event and notify all calculators.
         """
-        if isinstance(event, GatePassedEvent):
+        if isinstance(event, StartingLinePassedEvent):
+            event.gate.pass_infinite_gate(event.intersection_time, event.position)
+
+            if not self.enroute:
+                self.enroute = True
+                logger.info(f"{self.contestant}: Switching to enroute after starting line crossing")
+
+            for calculator in self.calculators:
+                calculator.on_starting_line_passed(event)
+
+        elif isinstance(event, GatePassedEvent):
             event.gate.pass_gate(event.intersection_time, event.position)
             self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             if event.gate in self.outstanding_gates:
