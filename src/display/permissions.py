@@ -133,7 +133,7 @@ class NavigationTaskPublicPutDeletePermissions(permissions.BasePermission):
         return True
 
     def has_object_permission(self, request, view, obj):
-        if request.method in ["GET", "PUT", "DELETE"]:
+        if request.method in ["GET", "PUT", "POST", "DELETE"]:
             return obj.is_public and obj.contest.is_public
         return False
 

@@ -379,14 +379,10 @@ class ContestViewSet(ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         public_only = request.query_params.get("public_only", "false").lower() == "true"
-        user_id = (
-            "global"
-            if public_only
-            else (request.user.id if request.user.is_authenticated else "anon")
-        )
+        user_id = "global" if public_only else (request.user.id if request.user.is_authenticated else "anon")
         params = request.query_params.dict()
         sorted_params = json.dumps(params, sort_keys=True)
-        params_hash = hashlib.md5(sorted_params.encode('utf-8')).hexdigest()
+        params_hash = hashlib.md5(sorted_params.encode("utf-8")).hexdigest()
 
         version = cache.get("contest_list_version", 1)
         cache_key = f"contest_list_v{version}_u{user_id}_{params_hash}"
@@ -546,26 +542,28 @@ class ContestViewSet(ModelViewSet):
         Download contest results as CSV
         """
         contest = self.get_object()
-        
-        tasks = contest.task_set.all().order_by('index')
+
+        tasks = contest.task_set.all().order_by("index")
         tests_by_task = {}
         for task in tasks:
-            tests_by_task[task.id] = list(task.tasktest_set.all().order_by('index'))
-            
-        summaries = contest.contestsummary_set.select_related('team', 'team__crew__member1', 'team__crew__member2').order_by('points')
-        
+            tests_by_task[task.id] = list(task.tasktest_set.all().order_by("index"))
+
+        summaries = contest.contestsummary_set.select_related(
+            "team", "team__crew__member1", "team__crew__member2"
+        ).order_by("points")
+
         if contest.summary_score_sorting_direction == Contest.DESCENDING:
-             summaries = summaries.order_by('-points')
+            summaries = summaries.order_by("-points")
         else:
-             summaries = summaries.order_by('points')
-             
-        headers = ['Rank', 'Crew', 'Total Score']
-        
+            summaries = summaries.order_by("points")
+
+        headers = ["Rank", "Crew", "Total Score"]
+
         for task in tasks:
             headers.append(f"Task: {task.heading}")
             for test in tests_by_task[task.id]:
                 headers.append(f"Test: {test.heading}")
-                
+
         response = HttpResponse(
             content_type="text/csv",
             headers={"Content-Disposition": f'attachment; filename="{contest.name}_results.csv"'},
@@ -573,10 +571,10 @@ class ContestViewSet(ModelViewSet):
 
         writer = csv.writer(response)
         writer.writerow(headers)
-        
+
         task_summaries = TaskSummary.objects.filter(task__contest=contest)
         test_scores = TeamTestScore.objects.filter(task_test__task__contest=contest)
-        
+
         task_points = {(s.team_id, s.task_id): s.points for s in task_summaries}
         test_points = {(s.team_id, s.task_test_id): s.points for s in test_scores}
 
@@ -585,27 +583,27 @@ class ContestViewSet(ModelViewSet):
             team = summary.team
             parts = []
             if team and team.crew:
-                 m1 = team.crew.member1
-                 m2 = team.crew.member2
-                 if m1:
-                     parts.append(f"{m1.first_name} {m1.last_name}")
-                 if m2:
-                     parts.append(f"{m2.first_name} {m2.last_name}")
+                m1 = team.crew.member1
+                m2 = team.crew.member2
+                if m1:
+                    parts.append(f"{m1.first_name} {m1.last_name}")
+                if m2:
+                    parts.append(f"{m2.first_name} {m2.last_name}")
             crew_name = " / ".join(parts) if parts else "N/A"
-            
+
             row = [rank, crew_name, summary.points]
-            
+
             for task in tasks:
-                t_points = task_points.get((team.id, task.id), '-')
+                t_points = task_points.get((team.id, task.id), "-")
                 row.append(t_points)
-                
+
                 for test in tests_by_task[task.id]:
-                    tt_points = test_points.get((team.id, test.id), '-')
+                    tt_points = test_points.get((team.id, test.id), "-")
                     row.append(tt_points)
-            
+
             writer.writerow(row)
             rank += 1
-            
+
         return response
 
     @action(["GET"], detail=True)
@@ -735,7 +733,7 @@ class ContestViewSet(ModelViewSet):
 class TeamViewSet(ModelViewSet):
     queryset = Team.objects.all()
     serializer_class = TeamNestedSerialiser
-    permission_classes = [permissions.IsAuthenticated & OrganiserPermission]
+    permission_classes = [permissions.IsAuthenticated]
 
     http_method_names = ["post", "put", "get"]
 
@@ -929,6 +927,8 @@ class NavigationTaskViewSet(ModelViewSet):
             )
             logger.debug("Created contestant")
             final_time = contestant.get_final_gate_time()
+            logger.debug(f"Final gate time is {final_time}")
+
             if final_time is None:
                 final_time = starting_point_time
             if adaptive_start:
@@ -1158,7 +1158,10 @@ class ContestantViewSet(ModelViewSet):
         position_data = contestant.get_track()
         pagination = MyCursorPagination()
         page = pagination.paginate_queryset(
-            position_data.values("time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"), request
+            position_data.values(
+                "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
+            ),
+            request,
         )
         if page is not None:
             if len(page):
