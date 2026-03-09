@@ -329,6 +329,11 @@ class NavigationTaskForm(forms.ModelForm):
         instance = getattr(self, "instance", None)
         if instance and instance.pk:
             self.fields["original_scorecard"].disabled = True
+
+        datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
+        self.fields["start_time"].widget = datetime_widget
+        self.fields["finish_time"].widget = datetime_widget
+
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset(
@@ -383,8 +388,9 @@ class ContestForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["start_time"].widget = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
-        self.fields["finish_time"].widget = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
+        datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
+        self.fields["start_time"].widget = datetime_widget
+        self.fields["finish_time"].widget = datetime_widget
         self.helper = FormHelper()
         self.helper.form_class = "form"
         self.helper.attrs = {"enctype": "multipart/form-data"}
@@ -410,14 +416,6 @@ class ContestForm(forms.ModelForm):
             Fieldset("Result service", "summary_score_sorting_direction", "autosum_scores"),
             ButtonHolder(Submit("submit", "Submit")),
         )
-
-    def clean_start_time(self):
-        start_time = self.cleaned_data["start_time"]
-        return start_time.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    def clean_finish_time(self):
-        finish_time = self.cleaned_data["finish_time"]
-        return finish_time.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(hours=23, minutes=59)
 
     def clean(self):
         cleaned_data = super().clean()

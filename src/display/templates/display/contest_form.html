@@ -44,6 +44,14 @@
                 console.error("Could not determine browser timezone", e);
             }
         }
+
+        // Ensure datetime fields strip seconds if present in initial values
+        ['id_start_time', 'id_finish_time'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el.value && el.value.length > 16) {
+                el.value = el.value.substring(0, 16);
+            }
+        });
     });
 </script>
 {% endblock %}
