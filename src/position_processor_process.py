@@ -311,11 +311,18 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_q
         # print(device_time)
         try:
             contestant_tuples = cached_find_contestant(device_name, device_time)
-        except OperationalError:
-            logger.warning(
-                f"Error when fetchingFor person for app_tracking_id '{device_name}'. Attempting to reconnect"
-            )
-            connection.connect()
+        except OperationalError as e:
+            if e.args[0] == 1040:  # Too many connections
+                logger.error("MySQL: Too many connections. Waiting 2 seconds...")
+                time.sleep(2)
+            else:
+                logger.warning(
+                    f"Error when fetching person for app_tracking_id '{device_name}'. Attempting to reconnect: {e}"
+                )
+                try:
+                    connection.connect()
+                except:
+                    pass
             contestant_tuples = []
         if contestant_tuples:
             for contestant, is_simulator in contestant_tuples:
