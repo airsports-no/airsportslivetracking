@@ -1,5 +1,6 @@
 import os
 import datetime
+from pprint import pprint
 from unittest.mock import patch
 
 import dateutil
@@ -500,6 +501,7 @@ class TestHamar23March2021(TransactionTestCase):
         strings = [
             item.string for item in ScoreLogEntry.objects.filter(contestant=self.contestant).order_by("time", "pk")
         ]
+        pprint(strings)
         self.assertListEqual(expected_strings, strings)
 
         self.assertEqual(216, contestant_track.score)  # 15 points more than website

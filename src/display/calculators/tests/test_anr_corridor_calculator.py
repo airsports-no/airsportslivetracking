@@ -228,7 +228,7 @@ class TestANRPerLeg(TransactionTestCase):
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 14:00:00\nactual: --",
             "SP: 200.0 points passing gate (-71535748 s)\nplanned: 14:07:00\nactual: 14:04:32",
             "SP: 0.0 points exiting corridor",
-            "TP 1: 0.0 points missed TP 1 while outside corridor. Leg penalty: 48.0. Total excursion: 48.0",
+            "TP 1: 0.0 points missed TP 1 while outside corridor. Excursion penalty so far: 48.0",
             "SP: 57.0 points outside corridor (24 s). Leg scores: [SP: 48.0, TP 1: 9.0]. Total: 57.0",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",

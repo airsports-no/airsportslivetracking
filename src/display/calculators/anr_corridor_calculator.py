@@ -115,6 +115,16 @@ class AnrCorridorCalculator(Calculator):
         # Secret gate: only visible if BOTH checks are disabled
         return not gate.gate_check and not gate.time_check
 
+    def _should_transition_leg(self, gate: Gate) -> bool:
+        """
+        Determines if a gate crossing should start a new scoring leg.
+        - For ANR: Every gate is a leg boundary (usually turns).
+        - For others: Only standard waypoints (non-secret) are boundaries.
+        """
+        if any("anr_corridor" in t for t in self.scorecard.task_type):
+            return True
+        return gate.type != SECRETPOINT
+
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]) -> Tuple[float, float]:
         """
         Danger level ranges from 0 to 100 where 100 is outside the corridor, and all other numbers represent half seconds
@@ -209,12 +219,38 @@ class AnrCorridorCalculator(Calculator):
     def on_gate_missed(self, event: GateMissedEvent):
         # Detect gate crossing while outside to advance/finalize leg
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
-            logger.info(
-                f"{self.contestant}: Finalizing leg {self.crossed_outside_gate} because {event.gate} was missed. Max per leg: {self.corridor_maximum_penalty_is_per_leg}"
-            )
+            # Determine time and current leg status
+            current_time = event.event_time or event.position.time
+            leg_incremental, _, capped = self._calculate_current_leg_penalty(current_time)
+            cap_str = " (capped)" if capped else ""
+
+            # 1. Informational logging
+            # Include detailed messages for visible gates (non-secret, or secret with no checks)
+            if self._is_gate_visible(event.gate):
+                self.update_score(
+                    UpdateScoreMessage(
+                        current_time,
+                        event.gate,
+                        0,
+                        f"missed {event.gate.name} while outside corridor. Excursion penalty so far: {self.excursion_accumulated_score + leg_incremental}{cap_str}",
+                        event.position.latitude,
+                        event.position.longitude,
+                        INFORMATION,
+                        self.OUTSIDE_CORRIDOR_PENALTY_TYPE,
+                    )
+                )
+
+            # 2. Leg transition (Scoring boundary)
             if self.corridor_maximum_penalty_is_per_leg:
-                # Accumulate penalty for the leg we just left
-                current_time = event.event_time or event.position.time
+                # Per the design: only visible/non-secret gates trigger a scoring leg transition
+                if not self._should_transition_leg(event.gate):
+                    return
+
+                logger.info(
+                    f"{self.contestant}: Finalizing scoring leg {self.crossed_outside_gate} because {event.gate} was missed."
+                )
+                
+                # Re-calculate finalized values for transition
                 leg_incremental, leg_seconds, is_capped = self._calculate_current_leg_penalty(current_time)
                 
                 # Update persistent leg totals
@@ -230,24 +266,8 @@ class AnrCorridorCalculator(Calculator):
                     self.excursion_any_leg_capped = True
                 
                 # Record details for the final consolidated message
-                cap_str = " (capped)" if is_capped else ""
                 display_name = gate_name if (last_leg and self._is_gate_visible(last_leg)) else "Secret"
                 self.excursion_leg_details.append(f"{display_name}: {leg_incremental}{cap_str}")
-                
-                # Emit informative log message ONLY if the target gate is visible
-                if self._is_gate_visible(event.gate):
-                    self.update_score(
-                        UpdateScoreMessage(
-                            current_time,
-                            event.gate,
-                            0,
-                            f"missed {event.gate.name} while outside corridor. Leg penalty: {leg_incremental}{cap_str}. Total excursion: {self.excursion_accumulated_score}",
-                            event.position.latitude,
-                            event.position.longitude,
-                            INFORMATION,
-                            self.OUTSIDE_CORRIDOR_PENALTY_TYPE,
-                        )
-                    )
 
                 if not self.has_passed_finish_point and event.gate.type != "fp":
                     # Restart penalty tracking for the new leg internally.
@@ -263,12 +283,37 @@ class AnrCorridorCalculator(Calculator):
     def on_gate_passed(self, event: "GatePassedEvent"):
         # Detect gate crossing while outside to advance/finalize leg
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
-            logger.info(
-                f"{self.contestant}: Finalizing leg {self.crossed_outside_gate} because {event.gate} was passed"
-            )
+            # Determine time and current leg status
+            current_time = event.intersection_time
+            leg_incremental, _, capped = self._calculate_current_leg_penalty(current_time)
+            cap_str = " (capped)" if capped else ""
+
+            # 1. Informational logging
+            if self._is_gate_visible(event.gate):
+                self.update_score(
+                    UpdateScoreMessage(
+                        current_time,
+                        event.gate,
+                        0,
+                        f"passed {event.gate.name} while outside corridor. Excursion penalty so far: {self.excursion_accumulated_score + leg_incremental}{cap_str}",
+                        event.position.latitude,
+                        event.position.longitude,
+                        INFORMATION,
+                        self.OUTSIDE_CORRIDOR_PENALTY_TYPE,
+                    )
+                )
+
+            # 2. Leg transition (Scoring boundary)
             if self.corridor_maximum_penalty_is_per_leg:
-                # Accumulate penalty for the leg we just left
-                current_time = event.intersection_time
+                # Per the design: only visible/non-secret gates trigger a scoring leg transition
+                if not self._should_transition_leg(event.gate):
+                    return
+
+                logger.info(
+                    f"{self.contestant}: Finalizing scoring leg {self.crossed_outside_gate} because {event.gate} was passed"
+                )
+                
+                # Re-calculate finalized values for transition
                 leg_incremental, leg_seconds, is_capped = self._calculate_current_leg_penalty(current_time)
                 
                 # Update persistent leg totals
@@ -284,24 +329,8 @@ class AnrCorridorCalculator(Calculator):
                     self.excursion_any_leg_capped = True
 
                 # Record details for the final consolidated message
-                cap_str = " (capped)" if is_capped else ""
                 display_name = gate_name if (last_leg and self._is_gate_visible(last_leg)) else "Secret"
                 self.excursion_leg_details.append(f"{display_name}: {leg_incremental}{cap_str}")
-                
-                # Emit informative log message ONLY if the target gate is visible
-                if self._is_gate_visible(event.gate):
-                    self.update_score(
-                        UpdateScoreMessage(
-                            current_time,
-                            event.gate,
-                            0,
-                            f"passed {event.gate.name} while outside corridor. Leg penalty: {leg_incremental}{cap_str}. Total excursion: {self.excursion_accumulated_score}",
-                            event.position.latitude,
-                            event.position.longitude,
-                            INFORMATION,
-                            self.OUTSIDE_CORRIDOR_PENALTY_TYPE,
-                        )
-                    )
 
                 if not self.has_passed_finish_point and event.gate.type != "fp":
                     # Restart penalty tracking for the new leg internally.
