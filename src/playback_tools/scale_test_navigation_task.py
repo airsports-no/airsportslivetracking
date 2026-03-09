@@ -13,7 +13,7 @@ import requests
 
 
 if __name__ == "__main__":
-    sys.path.append("../")
+    sys.path.append("/workspace/src")
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
 
@@ -73,6 +73,14 @@ if __name__ == "__main__":
         default=False,
         help="Introduce random delays during the playback",
     )
+    argparser.add_argument(
+        "-s",
+        "--speed",
+        type=float,
+        default=1.0,
+        action="store",
+        help="Playback speed factor (e.g. 2.0 for double speed)",
+    )
 
     argparser.add_argument(
         "-c",
@@ -131,7 +139,8 @@ def send_data_thread(contestant, positions):
                 data["speed"],
                 data["course"],
             )
-        time.sleep(1)
+        # Adjust sleep interval based on speed to ensure high-speed playback is smooth
+        time.sleep(1.0 / max(arguments.speed, 1.0))
     logger.info(f"Finished sending positions for {contestant}, requesting calculator termination")
     contestant.blocking_request_calculator_termination()
     logger.info(f"Completed sending positions for {contestant}")
@@ -142,16 +151,17 @@ def load_data_traccar(tracks: List[Tuple[Contestant, List[dict]]], real_time: bo
         threading.Thread(target=send_data_thread, args=(contestant, positions)).start()
 
 
-def get_retimed_track(start_time, old_contestant: Contestant) -> List[dict]:
+def get_retimed_track(start_time, old_contestant: Contestant, speed_factor: float = 1.0) -> List[dict]:
     # existing_track = old_contestant.get_traccar_track()
     existing_track = [
         p.to_traccar(old_contestant.tracker_device_id, index) for index, p in enumerate(old_contestant.get_track())
     ]
     expected_starting_point_time = old_contestant.starting_point_time
     # Assumes start time is in the future, after expected starting point time
-    time_difference = start_time - expected_starting_point_time
     for item in existing_track:
-        item["device_time"] += time_difference
+        offset = item["device_time"] - expected_starting_point_time
+        # Scale the offset by the speed factor
+        item["device_time"] = start_time + datetime.timedelta(seconds=offset.total_seconds() / speed_factor)
 
     return [item for item in existing_track if item["device_time"] > start_time - datetime.timedelta(minutes=1)]
 
@@ -177,10 +187,10 @@ def create_contestants(
     while current_contestant_index < number_of_contestants:
         logger.info(f"Creating contestant number {current_contestant_index}")
         current_old_contestant = existing_contestants[existing_contestant_index]
+        contestant_email = f"test{current_contestant_index}@internal.contestant com"
         if keep_names:
             team = current_old_contestant.team
         else:
-            contestant_email = f"test{current_contestant_index}@internal.contestant com"
             person, _ = Person.objects.get_or_create(
                 email=contestant_email,
                 defaults={"first_name": "Test", "last_name": f"Person {current_contestant_index}"},
@@ -225,7 +235,9 @@ def create_contestants(
         created_contestants.append(
             (
                 contestant_object,
-                get_retimed_track(start_time + current_contestant_index * start_interval, current_old_contestant),
+                get_retimed_track(
+                    start_time + current_contestant_index * start_interval, current_old_contestant, arguments.speed
+                ),
             )
         )
         current_contestant_index += 1
