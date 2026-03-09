@@ -16,15 +16,15 @@
 
 <script type="text/javascript">
     document.addEventListener('DOMContentLoaded', function () {
-        const startTime = document.getElementById('id_start_time');
-        if (startTime) {
-            startTime.type = 'datetime-local';
-        }
-        
-        const finishTime = document.getElementById('id_finish_time');
-        if (finishTime) {
-            finishTime.type = 'datetime-local';
-        }
+        // Ensure datetime fields strip seconds if present in initial values
+        ['id_start_time', 'id_finish_time'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (el.value && el.value.length > 16) {
+                    el.value = el.value.substring(0, 16);
+                }
+            }
+        });
     });
 </script>
 {% endblock %}
