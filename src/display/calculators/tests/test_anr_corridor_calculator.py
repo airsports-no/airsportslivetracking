@@ -318,15 +318,16 @@ class TestANRPerLeg(TransactionTestCase):
         pprint(strings)
         expected = [
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 15:05:00\nactual: --",
-            "SP: 200.0 points passing gate (-3296 s)\nplanned: 15:12:00\nactual: 14:17:04",
-            "TP 1: 0.0 points passing gate (no time check) (-57 s)\nplanned: 14:19:00\nactual: 14:18:03",
-            "TP 2: 0.0 points passing gate (no time check) (-168 s)\nplanned: 14:22:34\nactual: 14:19:46",
-            "TP 3: 0.0 points passing gate (no time check) (-221 s)\nplanned: 14:24:32\nactual: 14:20:51",
+            "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 9.0 points passing gate (+4 s)\nplanned: 14:17:00\nactual: 14:17:04",
+            "TP 1: 0.0 points passing gate (no time check) (-57 s)\n" "planned: 14:19:00\n" "actual: 14:18:03",
+            "TP 2: 0.0 points passing gate (no time check) (-168 s)\n" "planned: 14:22:34\n" "actual: 14:19:46",
+            "TP 3: 0.0 points passing gate (no time check) (-221 s)\n" "planned: 14:24:32\n" "actual: 14:20:51",
             "FP: 200.0 points passing gate (-320 s)\nplanned: 14:28:10\nactual: 14:22:51",
             "Landing 1: 0.0 points missing landing gate\nplanned: 17:04:00\nactual: --",
         ]
         self.assertListEqual(expected, strings)
-        self.assertEqual(400.0, contestant_track.score)
+        self.assertEqual(209.0, contestant_track.score)
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -429,7 +430,7 @@ class TestANR(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         # Verify score is correct
-        self.assertEqual(476.0, contestant_track.score)
+        self.assertEqual(458.0, contestant_track.score)
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
