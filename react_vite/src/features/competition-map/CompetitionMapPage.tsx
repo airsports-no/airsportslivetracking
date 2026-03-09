@@ -18,8 +18,8 @@ import TeamPresentation from './components/TeamPresentation';
 import ClockDisplay from './components/ClockDisplay';
 import Disclaimer from './components/Disclaimer';
 import TaskInfoModal from './TaskInfoModal';
-import { ChevronUp, ChevronDown } from 'lucide-react';
-import { reverse } from '../../urls';
+import { ChevronUp, ChevronDown, Trophy, Info, Settings, Calendar, Sliders } from 'lucide-react';
+import { reverse, generatePath } from '../../urls';
 import './CompetitionMap.css';
 import { NavigationTask } from './types';
 
@@ -474,83 +474,103 @@ export default function CompetitionMapPage() {
             </div>
 
 
-            <div className="flex justify-start items-center mt-2 flex-wrap gap-2">
-              <div className="join">
-                <button className={`btn btn-xs join-item ${mode === 'realtime' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}>Realtime</button>
-                <button className={`btn btn-xs join-item ${mode === 'playback' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'playback') { setMode('playback'); setSelectedContestantId(null); } }}>Playback</button>
+            <div className="flex flex-col gap-2 mt-2">
+              <div className="flex justify-start items-center flex-wrap gap-2">
+                <div className="join">
+                  <button className={`btn btn-xs join-item ${mode === 'realtime' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}>Realtime</button>
+                  <button className={`btn btn-xs join-item ${mode === 'playback' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'playback') { setMode('playback'); setSelectedContestantId(null); } }}>Playback</button>
+                </div>
+
+                <label className="label cursor-pointer text-xs p-0 ml-2">
+                  <span className="label-text mr-1 text-xs">Full Trails</span>
+                  <input 
+                    type="checkbox" 
+                    className="toggle toggle-xs" 
+                    checked={showFullTrails} 
+                    onChange={e => {
+                      setShowFullTrails(e.target.checked);
+                      hasAutoEnabledTrailsRef.current = true;
+                    }} 
+                  />
+                </label>
               </div>
 
-              <label className="label cursor-pointer text-xs p-0">
-                <span className="label-text mr-1">Full Trails</span>
-                <input 
-                  type="checkbox" 
-                  className="toggle toggle-xs" 
-                  checked={showFullTrails} 
-                  onChange={e => {
-                    setShowFullTrails(e.target.checked);
-                    hasAutoEnabledTrailsRef.current = true;
-                  }} 
-                />
-              </label>
-
-              <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline">Task Info</button>
-              {staticNavTaskData?.user_has_change_permission && (
-                <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline">Manage</a>
-              )}
-              {staticNavTaskData?.allow_self_management && (
-                <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline">Schedule</Link>
-              )}
-              {/* Settings Dropdown */}
-              <div className="dropdown">
-                <div tabIndex={0} role="button" className="btn btn-xs btn-outline">Settings</div>
-                <ul tabIndex={0} className="dropdown-content z-[11] menu p-2 shadow bg-base-100 rounded-box w-52">
-                  <li>
-                    <label className="label cursor-pointer">
-                      <span className="label-text">Show Background Map</span>
-                      <input 
-                        type="checkbox" 
-                        className="toggle toggle-primary" 
-                        checked={userShowBackgroundMap} 
-                        onChange={(e) => setUserShowBackgroundMap(e.target.checked)}
-                        disabled={!staticNavTaskData?.display_background_map}
-                      />
-                    </label>
-                  </li>
-                  <li>
-                    <label className="label cursor-pointer">
-                      <span className="label-text">Show Secret Gates</span>
-                      <input 
-                        type="checkbox" 
-                        className="toggle toggle-primary" 
-                        checked={userShowSecrets} 
-                        onChange={(e) => setUserShowSecrets(e.target.checked)}
-                        disabled={!staticNavTaskData?.display_secrets}
-                      />
-                    </label>
-                  </li>
-                  <li>
-                    <label className="label cursor-pointer">
-                      <span className="label-text">Show Penalties Only</span>
-                      <input
-                        type="checkbox"
-                        className="toggle toggle-primary"
-                        checked={showPenaltiesOnly}
-                        onChange={(e) => setShowPenaltiesOnly(e.target.checked)}
-                      />
-                    </label>
-                  </li>
-                  <li>
-                    <label className="label cursor-pointer">
-                      <span className="label-text">Permanent Annotations</span>
-                      <input
-                        type="checkbox"
-                        className="toggle toggle-primary"
-                        checked={permanentAnnotations}
-                        onChange={(e) => setPermanentAnnotations(e.target.checked)}
-                      />
-                    </label>
-                  </li>
-                </ul>
+              <div className="flex justify-start items-center flex-wrap gap-2">
+                <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline gap-1">
+                  <Info size={12} />
+                  Task Info
+                </button>
+                <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestIdNum })} className="btn btn-xs btn-outline gap-1">
+                  <Trophy size={12} />
+                  Contest
+                </Link>
+                {staticNavTaskData?.user_has_change_permission && (
+                  <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline gap-1">
+                    <Settings size={12} />
+                    Manage
+                  </a>
+                )}
+                {staticNavTaskData?.allow_self_management && (
+                  <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline gap-1">
+                    <Calendar size={12} />
+                    Schedule
+                  </Link>
+                )}
+                {/* Settings Dropdown */}
+                <div className="dropdown">
+                  <div tabIndex={0} role="button" className="btn btn-xs btn-outline gap-1">
+                    <Sliders size={12} />
+                    Settings
+                  </div>
+                  <ul tabIndex={0} className="dropdown-content z-[11] menu p-2 shadow bg-base-100 rounded-box w-64">
+                    <li>
+                      <label className="label cursor-pointer py-1">
+                        <span className="label-text text-xs text-left">Show Background Map</span>
+                        <input 
+                          type="checkbox" 
+                          className="toggle toggle-primary toggle-xs" 
+                          checked={userShowBackgroundMap} 
+                          onChange={(e) => setUserShowBackgroundMap(e.target.checked)}
+                          disabled={!staticNavTaskData?.display_background_map}
+                        />
+                      </label>
+                    </li>
+                    <li>
+                      <label className="label cursor-pointer py-1">
+                        <span className="label-text text-xs text-left">Show Secret Gates</span>
+                        <input 
+                          type="checkbox" 
+                          className="toggle toggle-primary toggle-xs" 
+                          checked={userShowSecrets} 
+                          onChange={(e) => setUserShowSecrets(e.target.checked)}
+                          disabled={!staticNavTaskData?.display_secrets}
+                        />
+                      </label>
+                    </li>
+                    <li>
+                      <label className="label cursor-pointer py-1">
+                        <span className="label-text text-xs text-left">Show Penalties Only</span>
+                        <input
+                          type="checkbox"
+                          className="toggle toggle-primary toggle-xs"
+                          checked={showPenaltiesOnly}
+                          onChange={(e) => setShowPenaltiesOnly(e.target.checked)}
+                        />
+                      </label>
+                    </li>
+                    <li>
+                      <label className="label cursor-pointer py-1">
+                        <span className="label-text text-xs text-left">Permanent Annotations</span>
+                        <input
+                          type="checkbox"
+                          className="toggle toggle-primary toggle-xs"
+                          checked={permanentAnnotations}
+                          onChange={(e) => setPermanentAnnotations(e.target.checked)}
+                        />
+                      </label>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
 

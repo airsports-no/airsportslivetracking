@@ -733,7 +733,7 @@ class ContestViewSet(ModelViewSet):
 class TeamViewSet(ModelViewSet):
     queryset = Team.objects.all()
     serializer_class = TeamNestedSerialiser
-    permission_classes = [permissions.IsAuthenticated & OrganiserPermission]
+    permission_classes = [permissions.IsAuthenticated]
 
     http_method_names = ["post", "put", "get"]
 
@@ -927,7 +927,7 @@ class NavigationTaskViewSet(ModelViewSet):
             )
             logger.debug("Created contestant")
             final_time = contestant.get_final_gate_time()
-            logger.debug(f"Finall gate time is {final_time}")
+            logger.debug(f"Final gate time is {final_time}")
 
             if final_time is None:
                 final_time = starting_point_time
