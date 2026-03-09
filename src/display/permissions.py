@@ -295,3 +295,17 @@ class RoutePermissions(permissions.BasePermission):
         if request.method in ["DELETE"]:
             return request.user.has_perm("delete_route", obj.navigation_task)
         return False
+
+
+class TeamPermissions(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in SAFE_METHODS:
+            return request.user.is_authenticated
+        if request.method == "POST":
+            return request.user.has_perm("display.add_contest")
+        return request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True
+        return request.user.has_perm("display.change_contest") or request.user.has_perm("display.change_contest", obj)

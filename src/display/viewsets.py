@@ -71,6 +71,7 @@ from display.permissions import (
     TaskContestPermissions,
     TaskTestContestPublicPermissions,
     TaskTestContestPermissions,
+    TeamPermissions,
 )
 from display.serialisers import (
     ContestantTrackSerialiser,
@@ -733,7 +734,7 @@ class ContestViewSet(ModelViewSet):
 class TeamViewSet(ModelViewSet):
     queryset = Team.objects.all()
     serializer_class = TeamNestedSerialiser
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated & TeamPermissions]
 
     http_method_names = ["post", "put", "get"]
 

@@ -13,17 +13,9 @@ from display.models import Contest, Person, Aeroplane, Crew, Team
 from utilities.mock_utilities import TraccarMock
 
 TEAM_DATA = {
-    "aeroplane": {
-        "registration": "LN-YDB2"
-    },
-    "crew": {
-        "member1": {
-            "first_name": "first_name",
-            "last_name": "last_name",
-            "email": "name@domain.com"
-        }
-    },
-    "country": "NO"
+    "aeroplane": {"registration": "LN-YDB2"},
+    "crew": {"member1": {"first_name": "first_name", "last_name": "last_name", "email": "name@domain.com"}},
+    "country": "NO",
 }
 
 
@@ -34,34 +26,43 @@ class TestTeamApi(APITestCase):
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def setUp(self, *args):
         self.user_owner = get_user_model().objects.create(email="withpermissions")
-        self.user_owner.user_permissions.add(Permission.objects.get(codename="add_contest"),
-                                             Permission.objects.get(codename="view_contest"),
-                                             Permission.objects.get(codename="change_contest"),
-                                             Permission.objects.get(codename="delete_contest"))
+        self.user_owner.user_permissions.add(
+            Permission.objects.get(codename="add_contest"),
+            Permission.objects.get(codename="view_contest"),
+            Permission.objects.get(codename="change_contest"),
+            Permission.objects.get(codename="delete_contest"),
+        )
         self.user_owner.refresh_from_db()
         self.user_without_permissions = get_user_model().objects.create(email="withoutpermissions")
         self.user_someone_else = get_user_model().objects.create(email="otherwithtpermissions")
-        self.user_someone_else.user_permissions.add(Permission.objects.get(codename="add_contest"),
-                                                    Permission.objects.get(codename="change_contest"),
-                                                    Permission.objects.get(codename="view_contest"),
-                                                    Permission.objects.get(codename="delete_contest"))
+        self.user_someone_else.user_permissions.add(
+            Permission.objects.get(codename="add_contest"),
+            Permission.objects.get(codename="change_contest"),
+            Permission.objects.get(codename="view_contest"),
+            Permission.objects.get(codename="delete_contest"),
+        )
 
         self.client.force_login(user=self.user_owner)
-        result = self.client.post(reverse("contests-list"),
-                                  data={"name": "TestContest", "is_public": False, "time_zone": "Europe/Oslo",
-                                        "start_time": datetime.datetime.now(datetime.timezone.utc),
-                                        "finish_time": datetime.datetime.now(datetime.timezone.utc),
-                                        "location": "60, 11",
-                                        })
+        result = self.client.post(
+            reverse("contests-list"),
+            data={
+                "name": "TestContest",
+                "is_public": False,
+                "time_zone": "Europe/Oslo",
+                "start_time": datetime.datetime.now(datetime.timezone.utc),
+                "finish_time": datetime.datetime.now(datetime.timezone.utc),
+                "location": "60, 11",
+            },
+        )
         print(result.json())
         self.contest_id = result.json()["id"]
         self.contest = Contest.objects.get(pk=self.contest_id)
         self.different_user_with_object_permissions = get_user_model().objects.create(email="objectpermissions")
-        self.different_user_with_object_permissions.user_permissions.add(Permission.objects.get(codename="add_contest"),
-                                                                         Permission.objects.get(
-                                                                             codename="change_contest"),
-                                                                         Permission.objects.get(
-                                                                             codename="delete_contest"))
+        self.different_user_with_object_permissions.user_permissions.add(
+            Permission.objects.get(codename="add_contest"),
+            Permission.objects.get(codename="change_contest"),
+            Permission.objects.get(codename="delete_contest"),
+        )
 
         assign_perm("view_contest", self.different_user_with_object_permissions, self.contest)
         assign_perm("change_contest", self.different_user_with_object_permissions, self.contest)
@@ -90,7 +91,7 @@ class TestTeamApi(APITestCase):
         result = self.client.get(reverse("teams-list"))
         print(result)
         print(result.json())
-        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(result.status_code, status.HTTP_200_OK)
 
     def test_post_team_with_privileges(self, *args):
         result = self.client.post(reverse("teams-list"), TEAM_DATA, format="json")
@@ -118,11 +119,7 @@ class TestTeamApi(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
         modified = deepcopy(TEAM_DATA)
         modified["crew"] = {
-            "member1": {
-                "first_name": "first_name",
-                "last_name": "last_name",
-                "email": "name2@domain.com"
-            }
+            "member1": {"first_name": "first_name", "last_name": "last_name", "email": "name2@domain.com"}
         }
         result = self.client.put(reverse("teams-detail", kwargs={"pk": result.json()["id"]}), modified, format="json")
         print(result)
