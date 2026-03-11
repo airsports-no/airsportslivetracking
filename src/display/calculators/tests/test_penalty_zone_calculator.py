@@ -3,7 +3,7 @@ from unittest.mock import Mock, call
 
 from django.test import TransactionTestCase
 
-from display.calculators.calculator import GatekeeperState
+from display.calculators.calculator import OrchestratorState
 from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Prohibited, Route
@@ -26,7 +26,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         self.contestant.navigation_task.route.waypoints = [waypoint]
         
         self.projector = Projector(60, 11)
-        self.calculator = PenaltyZoneCalculator(self.contestant, get_default_scorecard(), [], self.route, Mock(), projector=self.projector)
+        self.calculator = PenaltyZoneCalculator(self.contestant, get_default_scorecard(), self.route, Mock(), projector=self.projector)
         self.calculator.scorecard.penalty_zone_grace_time = 3
         self.calculator.scorecard.penalty_zone_penalty_per_second = 3
         self.calculator.scorecard.penalty_zone_maximum = 200
@@ -44,7 +44,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
 
     def test_maximum_score_is_reset_between_entries(self):
         position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, tzinfo=datetime.timezone.utc))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
         self.calculator.calculate_outside_route([position], state)
 
@@ -99,7 +99,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
 
     def test_inside_enroute(self):
         position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
         self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_called_with(
@@ -117,7 +117,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
 
     def test_inside_outside_route(self):
         position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_called_with(
@@ -135,7 +135,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
 
     def test_in_and_out_within_grace_time_enroute(self):
         position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_called_with(
@@ -152,7 +152,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         )
 
         position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_called_with(
@@ -169,7 +169,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         )
 
     def test_in_and_out_beyond_grace_time_enroute(self):
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
 
         for index in range(0, 30, 3):
@@ -203,7 +203,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         self.calculator.update_score.assert_has_calls(expected_calls)
 
         position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 10, tzinfo=datetime.timezone.utc))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
 
         self.calculator.calculate_outside_route([position], state)
@@ -222,14 +222,14 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
 
     def test_outside_enroute(self):
         position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, second=0, tzinfo=datetime.timezone.utc))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
         self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_not_called()
 
     def test_outside_outside_route(self):
         position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, second=0, tzinfo=datetime.timezone.utc))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_not_called()

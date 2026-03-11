@@ -5,8 +5,8 @@ from typing import List, Optional, Tuple
 
 from display.calculators.calculator import (
     Calculator,
-    GatekeeperState,
-    GatekeeperEvent,
+    OrchestratorState,
+    OrchestratorEvent,
     PokerGatePassedEvent,
     GateMissedEvent,
     FinishLinePassedEvent,
@@ -23,18 +23,67 @@ class PokerCalculator(Calculator):
     """ """
 
     def calculate_outside_route(
-        self, track: List[ContestantReceivedPosition], state: GatekeeperState
-    ) -> List[GatekeeperEvent]:
-        return []
+        self, track: List[ContestantReceivedPosition], state: OrchestratorState
+    ) -> List[OrchestratorEvent]:
+        return self.check_polygons(track[-1], state)
+
+    def finalise(self, track: List[ContestantReceivedPosition]):
+        pass
 
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]) -> Tuple[float, float]:
         return 0, 0
+
+    def get_last_non_secret_gate(self, last_gate: "Gate") -> Optional["Gate"]:
+        from display.utilities.gate_definitions import SECRETPOINT
+        
+        # If no last_gate provided, try to find the first one from our list
+        gate_to_start_from = last_gate
+        if gate_to_start_from is None:
+            if hasattr(self, "gates") and self.gates:
+                gate_to_start_from = self.gates[0]
+            else:
+                return None
+
+        started = False
+        for gate in reversed(self.gates):
+            if not started and gate == gate_to_start_from:
+                started = True
+            if started and gate.type != SECRETPOINT:
+                return gate
+        
+        return gate_to_start_from
+
+    def create_gates(self) -> List["Gate"]:
+        """
+        Helper function to create gates from the waypoints defined in a route
+        """
+        from display.calculators.positions_and_gates import Gate
+        from display.utilities.route_building_utilities import calculate_extended_gate
+
+        waypoints = self.contestant.navigation_task.route.waypoints
+        expected_times = self.contestant.gate_times
+        gates = []
+        for item in waypoints:  # type: Waypoint
+            # Dummy gates are not part of the actual route
+            if item.type != "dummy":
+                gates.append(
+                    Gate(
+                        item,
+                        expected_times[item.name],
+                        calculate_extended_gate(item, self.scorecard),
+                    )
+                )
+        return gates
+
+    def initiate_gates(self):
+        self.gates = self.create_gates()
+        for gate in self.gates:
+            gate.pre_project(self.projector)
 
     def __init__(
         self,
         contestant: "Contestant",
         scorecard: "Scorecard",
-        gates: List["Gate"],
         route: "Route",
         score_processing_queue: Queue,
         live_processing: bool = True,
@@ -43,12 +92,12 @@ class PokerCalculator(Calculator):
         super().__init__(
             contestant,
             scorecard,
-            gates,
             route,
             score_processing_queue,
             live_processing=live_processing,
             projector=projector,
         )
+        self.initiate_gates()
 
         self.gate_polygons = []
         if len(self.gates) > 0:
@@ -69,11 +118,11 @@ class PokerCalculator(Calculator):
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
         return self.check_polygons(track[-1], state)
 
-    def check_polygons(self, position: ContestantReceivedPosition, state: GatekeeperState) -> List[GatekeeperEvent]:
+    def check_polygons(self, position: ContestantReceivedPosition, state: OrchestratorState) -> List[OrchestratorEvent]:
         p_x = getattr(position, "projected_x", None)
         p_y = getattr(position, "projected_y", None)
 

@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 from django.test import TransactionTestCase
 
-from display.calculators.calculator import GatekeeperState
+from display.calculators.calculator import OrchestratorState
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Prohibited, Route
@@ -26,7 +26,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         self.contestant.navigation_task.route.waypoints = [waypoint]
         
         self.projector = Projector(60, 11)
-        self.calculator = ProhibitedZoneCalculator(self.contestant, get_default_scorecard(), [], self.route, Mock(), projector=self.projector)
+        self.calculator = ProhibitedZoneCalculator(self.contestant, get_default_scorecard(), self.route, Mock(), projector=self.projector)
         self.calculator.update_score = Mock()
 
     def create_position(self, lat, lon, time):
@@ -41,7 +41,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
 
     def test_inside_enroute_before_grace_time(self):
         position = self.create_position(60.5, 11.5, datetime.datetime(2023, 6, 22, 12))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
         self.calculator.calculate_enroute([position], state)
         position = self.create_position(60.5, 11.5, datetime.datetime(2023, 6, 22, 12, 0, 3))
@@ -49,7 +49,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
 
     def test_inside_enroute_after_grace_time(self):
         position = self.create_position(60.5, 11.5, datetime.datetime(2023, 6, 22, 12))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
 
         self.calculator.calculate_enroute([position], state)
@@ -71,7 +71,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
 
     def test_outside_enroute(self):
         position = self.create_position(59.5, 11.5, datetime.datetime(2023, 6, 22, 12))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
         self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_not_called()
@@ -81,7 +81,7 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
 
     def test_outside_outside_route(self):
         position = self.create_position(59.5, 11.5, datetime.datetime(2023, 6, 22, 12))
-        state = Mock(GatekeeperState)
+        state = Mock(OrchestratorState)
         state.last_gate = Mock()
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_not_called()

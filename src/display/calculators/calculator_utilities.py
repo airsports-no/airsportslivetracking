@@ -2,7 +2,7 @@ import numpy as np
 from shapely.geometry import Polygon, Point, LineString
 
 import datetime
-from typing import Optional, List, Tuple, Dict
+from typing import Optional, List, Tuple, Dict, TYPE_CHECKING
 
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import (
@@ -84,6 +84,60 @@ def project_position(
     distance = 2 * circle_radius * np.sin(np.deg2rad(total_angle / 2))  # nm
     projected_heading = course + total_angle  # degrees
     return project_position_lat_lon((latitude, longitude), projected_heading, distance * 1852)
+
+
+if TYPE_CHECKING:
+    from display.utilities.coordinate_utilities import Projector
+
+
+def time_to_intersection(
+    track: List[ContestantReceivedPosition],
+    projector: "Projector",
+    gate_line: Tuple[Tuple[float, float], Tuple[float, float]],
+) -> Optional[datetime.datetime]:
+    """
+    Returns the time the track intersects the gate line, or None if no intersection is found.
+    """
+    if len(track) < 2:
+        return None
+
+    p1 = track[-2]
+    p2 = track[-1]
+
+    # Use projected coordinates if available, otherwise project them
+    if p1.projected_x is None or p1.projected_y is None:
+        proj1 = projector.project_point(p1.latitude, p1.longitude)
+        p1_x, p1_y = proj1.projected_x, proj1.projected_y
+    else:
+        p1_x, p1_y = p1.projected_x, p1.projected_y
+
+    if p2.projected_x is None or p2.projected_y is None:
+        proj2 = projector.project_point(p2.latitude, p2.longitude)
+        p2_x, p2_y = proj2.projected_x, proj2.projected_y
+    else:
+        p2_x, p2_y = p2.projected_x, p2.projected_y
+
+    # Project gate line
+    g1_proj = projector.project_point(gate_line[0][0], gate_line[0][1])
+    g2_proj = projector.project_point(gate_line[1][0], gate_line[1][1])
+    g1_x, g1_y = g1_proj.projected_x, g1_proj.projected_y
+    g2_x, g2_y = g2_proj.projected_x, g2_proj.projected_y
+
+    # Line intersection math
+    denom = (p2_x - p1_x) * (g2_y - g1_y) - (p2_y - p1_y) * (g2_x - g1_x)
+    if denom == 0:
+        return None
+
+    ua = ((g2_x - g1_x) * (p1_y - g1_y) - (g2_y - g1_y) * (p1_x - g1_x)) / denom
+    ub = ((p2_x - p1_x) * (p1_y - g1_y) - (p2_y - p1_y) * (p1_x - g1_x)) / denom
+
+    if 0 <= ua <= 1 and 0 <= ub <= 1:
+        # Intersection found between p1 and p2
+        seconds_diff = (p2.time - p1.time).total_seconds()
+        intersection_time = p1.time + datetime.timedelta(seconds=ua * seconds_diff)
+        return intersection_time
+
+    return None
 
 
 class PolygonHelper:

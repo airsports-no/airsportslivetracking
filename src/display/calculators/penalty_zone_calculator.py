@@ -5,8 +5,8 @@ from typing import List, Optional
 
 from display.calculators.calculator import (
     Calculator,
-    GatekeeperState,
-    GatekeeperEvent,
+    OrchestratorState,
+    OrchestratorEvent,
     GateMissedEvent,
     FinishLinePassedEvent,
 )
@@ -30,7 +30,6 @@ class PenaltyZoneCalculator(Calculator):
         self,
         contestant: "Contestant",
         scorecard: "Scorecard",
-        gates: List["Gate"],
         route: "Route",
         score_processing_queue: Queue,
         live_processing: bool = True,
@@ -39,29 +38,26 @@ class PenaltyZoneCalculator(Calculator):
         super().__init__(
             contestant,
             scorecard,
-            gates,
             route,
             score_processing_queue,
             live_processing=live_processing,
             projector=projector,
         )
-        self.inside_zones = set()
-        self.running_penalty = {}
-        self.gates = gates
-        self.crossed_outside_time = None
-        self.last_outside_penalty = None
-        self.crossed_outside_position = None
-
-        self.polygon_helper = PolygonHelper(projector=self.projector)
-        self.polygons = []  # List of (zone_pk, polygon)
-        self.zone_map = {}
         self.entered_polygon_times = {}
         self.entered_polygon_positions = {}
+        self.polygon_helper = PolygonHelper(projector=self.projector)
+        self.polygons = []  # List of (zone_pk, polygon)
+        self.running_penalty = {}
+        self.zone_map = {}
         zones = route.prohibited_set.filter(type="penalty")
+        logger.info(f"{self.contestant}: Found {len(zones)} penalty zones for route {route.pk}")
         for zone in zones:
             self.zone_map[zone.pk] = zone
             poly = self.polygon_helper.build_polygon(zone.path)
             self.polygons.append((zone.pk, poly))
+            logger.info(
+                f"{self.contestant}: Loaded penalty zone {zone.name} (pk={zone.pk}) with {len(zone.path)} points"
+            )
 
     def on_gate_missed(self, event: GateMissedEvent):
         pass
@@ -72,9 +68,9 @@ class PenaltyZoneCalculator(Calculator):
     def calculate_outside_route(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
-        self.check_inside_prohibited_zone(track, state.last_gate)
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
+        self.check_inside_prohibited_zone(track, state.last_visible_gate)
         return []
 
     def _calculate_danger_level(self, track: List[ContestantReceivedPosition]) -> float:
@@ -95,12 +91,12 @@ class PenaltyZoneCalculator(Calculator):
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
-        self.check_inside_prohibited_zone(track, state.last_gate)
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
+        self.check_inside_prohibited_zone(track, state.last_visible_gate)
         return []
 
-    def check_inside_prohibited_zone(self, track: List[ContestantReceivedPosition], last_gate: Optional["Gate"]):
+    def check_inside_prohibited_zone(self, track: List[ContestantReceivedPosition], last_visible_gate: Optional["Gate"]):
         position = track[-1]
         zone_pks_the_position_was_already_inside = list(self.entered_polygon_times.keys())
 
@@ -114,6 +110,16 @@ class PenaltyZoneCalculator(Calculator):
                 self.entered_polygon_times[zone_pk] = position.time
                 self.entered_polygon_positions[zone_pk] = (position.latitude, position.longitude)
 
+        # Helper to get scoring gate context
+        def get_scoring_gate(lv_gate):
+            if lv_gate:
+                return lv_gate
+            # Fallback to first non-dummy waypoint
+            waypoints = self.route.waypoints
+            if waypoints:
+                return next((w for w in waypoints if w.type != "dummy"), waypoints[0])
+            return None
+
         for zone_pk, start_time in dict(self.entered_polygon_times).items():
             self.running_penalty[zone_pk] = self.scorecard.calculate_penalty_zone_score(start_time, position.time)
             if zone_pk not in zone_pks_the_position_is_currently_inside:
@@ -121,7 +127,7 @@ class PenaltyZoneCalculator(Calculator):
                 self.update_score(
                     UpdateScoreMessage(
                         position.time,
-                        self.get_last_non_secret_gate(last_gate or self.gates[0]),
+                        get_scoring_gate(last_visible_gate),
                         self.running_penalty[zone_pk],
                         "inside penalty zone {} ({}s)".format(
                             self.zone_map[zone_pk].name, int((position.time - start_time).total_seconds())
@@ -135,14 +141,17 @@ class PenaltyZoneCalculator(Calculator):
                 # Clear information about being inside the zone
                 del self.entered_polygon_times[zone_pk]
                 del self.entered_polygon_positions[zone_pk]
-                del self.running_penalty[zone_pk]
+                try:
+                    del self.running_penalty[zone_pk]
+                except KeyError:
+                    pass
             elif zone_pk not in zone_pks_the_position_was_already_inside:
                 # Entering the penalty zone
                 entry_latitude, entry_longitude = self.entered_polygon_positions[zone_pk]
                 self.update_score(
                     UpdateScoreMessage(
                         position.time,
-                        self.get_last_non_secret_gate(last_gate or self.gates[0]),
+                        get_scoring_gate(last_visible_gate),
                         0,
                         "entering penalty zone {}".format(self.zone_map[zone_pk].name),
                         entry_latitude,
@@ -151,3 +160,5 @@ class PenaltyZoneCalculator(Calculator):
                         self.INSIDE_PENALTY_ZONE_PENALTY_TYPE,
                     )
                 )
+    def finalise(self, track: List[ContestantReceivedPosition]):
+        pass

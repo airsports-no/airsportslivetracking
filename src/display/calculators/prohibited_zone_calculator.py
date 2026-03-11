@@ -6,8 +6,8 @@ from typing import List, Optional
 
 from display.calculators.calculator import (
     Calculator,
-    GatekeeperState,
-    GatekeeperEvent,
+    OrchestratorState,
+    OrchestratorEvent,
     GateMissedEvent,
     FinishLinePassedEvent,
 )
@@ -31,7 +31,6 @@ class ProhibitedZoneCalculator(Calculator):
         self,
         contestant: "Contestant",
         scorecard: "Scorecard",
-        gates: List["Gate"],
         route: "Route",
         score_processing_queue: Queue,
         live_processing: bool = True,
@@ -40,7 +39,6 @@ class ProhibitedZoneCalculator(Calculator):
         super().__init__(
             contestant,
             scorecard,
-            gates,
             route,
             score_processing_queue,
             live_processing=live_processing,
@@ -49,7 +47,6 @@ class ProhibitedZoneCalculator(Calculator):
         self.inside_zones = {}
         self.inside_positions = {}
         self.zones_scored = set()
-        self.gates = gates
         self.crossed_outside_time = None
         self.last_outside_penalty = None
         self.crossed_outside_position = None
@@ -78,9 +75,9 @@ class ProhibitedZoneCalculator(Calculator):
     def calculate_outside_route(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
-        self.check_inside_prohibited_zone(track, state.last_gate)
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
+        self.check_inside_prohibited_zone(track, state.last_visible_gate)
         return []
 
     def _calculate_danger_level(self, track: List[ContestantReceivedPosition]) -> float:
@@ -101,12 +98,12 @@ class ProhibitedZoneCalculator(Calculator):
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
-        self.check_inside_prohibited_zone(track, state.last_gate)
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
+        self.check_inside_prohibited_zone(track, state.last_visible_gate)
         return []
 
-    def check_inside_prohibited_zone(self, track: List[ContestantReceivedPosition], last_gate: Optional["Gate"]):
+    def check_inside_prohibited_zone(self, track: List[ContestantReceivedPosition], last_visible_gate: Optional["Gate"]):
         position = track[-1]
         p_x = getattr(position, "projected_x", None)
         p_y = getattr(position, "projected_y", None)
@@ -129,10 +126,24 @@ class ProhibitedZoneCalculator(Calculator):
                 self.running_penalty[zone_pk] = penalty
                 zone_name = self.zone_map[zone_pk].name
                 entry_latitude, entry_longitude = self.inside_positions[zone_pk]
+                
+                # Use last_visible_gate for scoring, fallback to first waypoint if None
+                gate_for_scoring = last_visible_gate
+                if gate_for_scoring is None:
+                    # Try to find first waypoint from route
+                    waypoints = self.route.waypoints
+                    if waypoints:
+                        # Find first non-dummy waypoint
+                        first_wp = next((w for w in waypoints if w.type != "dummy"), waypoints[0])
+                        # Create a temporary Gate object for scoring if needed
+                        # Or ideally, calculators should just pass the waypoint object if they don't have Gates
+                        # But scoring engine expects a Gate or Waypoint with .name and .type
+                        gate_for_scoring = first_wp
+
                 self.update_score(
                     UpdateScoreMessage(
                         position.time,
-                        last_gate or self.gates[0],
+                        gate_for_scoring,
                         penalty,
                         "entered prohibited zone {}".format(zone_name),
                         entry_latitude,
@@ -155,3 +166,5 @@ class ProhibitedZoneCalculator(Calculator):
                     self.zones_scored.remove(zone)
                 except KeyError:
                     pass
+    def finalise(self, track: List[ContestantReceivedPosition]):
+        pass

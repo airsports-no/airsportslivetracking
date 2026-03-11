@@ -5,8 +5,8 @@ from typing import List, Optional
 
 from display.calculators.calculator import (
     Calculator,
-    GatekeeperState,
-    GatekeeperEvent,
+    OrchestratorState,
+    OrchestratorEvent,
     GatePassedEvent,
     GateMissedEvent,
     TakeoffPassedEvent,
@@ -17,6 +17,7 @@ from display.calculators.calculator import (
     EstimationUpdatedEvent,
     InRangeUpdatedEvent,
     FinishLinePassedEvent,
+    NextGateExpectedEvent,
 )
 from display.calculators.positions_and_gates import Gate, round_seconds
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -24,6 +25,7 @@ from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.models import ANOMALY, INFORMATION
 from websocket_channels import WebsocketFacade
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon, calculate_speed_between_points
+from display.utilities.route_building_utilities import calculate_extended_gate
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +43,6 @@ class GateCalculator(Calculator):
         self,
         contestant,
         scorecard,
-        gates,
         route,
         score_processing_queue,
         live_processing=True,
@@ -50,17 +51,45 @@ class GateCalculator(Calculator):
         super().__init__(
             contestant,
             scorecard,
-            gates,
             route,
             score_processing_queue,
             live_processing=live_processing,
             projector=projector,
         )
+        self.initiate_gates()
+        self.outstanding_gates = list(self.gates)
         self.websocket_facade = WebsocketFacade()
         self.last_backwards = None
         self.has_scored_adaptive_start = False
         self.scored_gates = set()
         self.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+
+    def create_gates(self) -> List[Gate]:
+        """
+        Helper function to create gates from the waypoints defined in a route
+        """
+        waypoints = self.contestant.navigation_task.route.waypoints
+        expected_times = self.contestant.gate_times
+        gates = []
+        for item in waypoints:  # type: Waypoint
+            # Dummy gates are not part of the actual route
+            if item.type != "dummy":
+                gates.append(
+                    Gate(
+                        item,
+                        expected_times[item.name],
+                        calculate_extended_gate(item, self.scorecard),
+                    )
+                )
+        return gates
+
+    def initiate_gates(self):
+        self.gates = self.create_gates()
+        for gate in self.gates:
+            gate.pre_project(self.projector)
+
+    def _get_next_gate(self) -> Optional[Gate]:
+        return self.outstanding_gates[0] if self.outstanding_gates else None
 
     def update_gate_score(
         self,
@@ -96,6 +125,7 @@ class GateCalculator(Calculator):
                 actual=actual,
             )
         )
+
 
     def transmit_actual_crossing(self, gate: Gate, position: ContestantReceivedPosition):
         """
@@ -140,14 +170,19 @@ class GateCalculator(Calculator):
         return self.contestant.air_speed
 
     def estimate_crossing_time_of_next_timed_gate(
-        self, track: List[ContestantReceivedPosition], state: GatekeeperState
+        self, track: List[ContestantReceivedPosition], state: OrchestratorState
     ) -> Optional[EstimationUpdatedEvent]:
-        if len(state.outstanding_gates) == 0:
+        # OrchestratorState.next_gate is updated by our events
+        if state.next_gate is None:
             return None
 
+        # Find next TIMED gate starting from next_gate
         next_timed_gate = None
-        for gate in state.outstanding_gates:
-            if gate.time_check:
+        started = False
+        for gate in self.gates:
+            if not started and gate == state.next_gate:
+                started = True
+            if started and gate.time_check:
                 next_timed_gate = gate
                 break
 
@@ -184,8 +219,8 @@ class GateCalculator(Calculator):
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
         events = self.check_intersections(track, state)
 
         # Performance estimation every 5 seconds
@@ -218,26 +253,24 @@ class GateCalculator(Calculator):
     def calculate_outside_route(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
-        return self.check_intersections(track, state)
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
+        events = self.check_intersections(track, state)
+        # Emit initial next gate if none known yet
+        if state.next_gate is None and self.outstanding_gates:
+            events.append(NextGateExpectedEvent(self.outstanding_gates[0], track[-1]))
+        return events
 
     def check_intersections(
-        self, track: List[ContestantReceivedPosition], state: GatekeeperState
-    ) -> List[GatekeeperEvent]:
+        self, track: List[ContestantReceivedPosition], state: OrchestratorState
+    ) -> List[OrchestratorEvent]:
         """
-        Detection logic using GatekeeperState.
+        Detection logic using OrchestratorState.
         """
         events = []
-        # Check takeoff if exists
-        if state.takeoff_gate is not None and not state.takeoff_gate.has_been_passed():
-            intersection_time = state.takeoff_gate.get_gate_intersection_time(state.projector, track)
-            if intersection_time:
-                intersected_gate = state.takeoff_gate.intersected_gate
-                events.append(TakeoffPassedEvent(intersected_gate, track[-1], intersection_time))
 
-        # Handle crossing the starting line
-        if len(state.outstanding_gates) == len(self.gates):  # No gates passed yet
+        # Handle crossing the starting line if we are looking for it
+        if state.next_gate and state.next_gate == self.gates[0]:
             starting_line = self.gates[0]
             intersection_time = starting_line.get_gate_extended_intersection_time(state.projector, track)
             if intersection_time and not starting_line.is_passed_in_correct_direction_track(track):
@@ -251,19 +284,10 @@ class GateCalculator(Calculator):
                 if intersection_time and starting_line.is_passed_in_correct_direction_track(track):
                     self.contestant.terminate_concurrent_contestants(intersection_time)
                     starting_line.pass_infinite_gate(intersection_time, track[-1])
-                    # Miss takeoff if not already crossed - must happen BEFORE starting line is passed
-                    if state.takeoff_gate is not None and not state.takeoff_gate.has_been_passed():
-                        events.append(
-                            GateMissedEvent(
-                                None,
-                                state.takeoff_gate.gates[0],
-                                track[-1],
-                                event_time=intersection_time - datetime.timedelta(seconds=1),
-                            )
-                        )
-
                     # Signal starting line crossing (sets enroute, handles adaptive start)
                     events.append(StartingLinePassedEvent(starting_line, track[-1], intersection_time))
+                    self.outstanding_gates.pop(0)
+                    events.append(NextGateExpectedEvent(self._get_next_gate(), track[-1]))
 
                     if self.contestant.adaptive_start:
                         events.append(AdaptiveStartEvent(round_seconds(intersection_time), track[-1]))
@@ -271,7 +295,8 @@ class GateCalculator(Calculator):
         # Look for crossing of any future gates
         crossed_gate_index = -1
         passed_intersection_time = None
-        for i, intersected_gate in enumerate(state.outstanding_gates):
+        # Use our own outstanding_gates list which is always up to date within this call
+        for i, intersected_gate in enumerate(self.outstanding_gates):
             intersection_time = intersected_gate.get_gate_intersection_time(state.projector, track)
             if intersection_time and intersected_gate.is_passed_in_correct_direction_track(track):
                 crossed_gate_index = i
@@ -281,7 +306,7 @@ class GateCalculator(Calculator):
         if crossed_gate_index != -1:
             # Mark preceding as missed
             for j in range(crossed_gate_index):
-                gate = state.outstanding_gates[j]
+                gate = self.outstanding_gates[j]
                 if not gate.has_been_passed():
                     # Find previous gate for context
                     current_idx_in_all = self.gates.index(gate)
@@ -289,14 +314,18 @@ class GateCalculator(Calculator):
                     events.append(GateMissedEvent(prev_gate, gate, track[-1], event_time=passed_intersection_time))
 
             # Mark this one as passed
-            gate = state.outstanding_gates[crossed_gate_index]
+            gate = self.outstanding_gates[crossed_gate_index]
             current_idx_in_all = self.gates.index(gate)
             prev_gate = self.gates[current_idx_in_all - 1] if current_idx_in_all > 0 else None
             events.append(GatePassedEvent(gate, track[-1], passed_intersection_time, previous_gate=prev_gate))
 
+            # Pop gates from our internal list and emit next expected gate
+            del self.outstanding_gates[:crossed_gate_index + 1]
+            events.append(NextGateExpectedEvent(self._get_next_gate(), track[-1]))
+
         # Proactive missed gate detection (only for the first outstanding gate if not just passed)
-        if len(state.outstanding_gates) > 0:
-            gate = state.outstanding_gates[0]
+        if len(self.outstanding_gates) > 0:
+            gate = self.outstanding_gates[0]
 
             # Skip if we just added a GatePassedEvent for this specific gate
             if not (crossed_gate_index == 0):
@@ -318,22 +347,18 @@ class GateCalculator(Calculator):
                         current_idx_in_all = self.gates.index(gate)
                         prev_gate = self.gates[current_idx_in_all - 1] if current_idx_in_all > 0 else None
                         events.append(GateMissedEvent(prev_gate, gate, gate.infinite_passing_position))
+                        # Pop and emit next
+                        self.outstanding_gates.pop(0)
+                        events.append(NextGateExpectedEvent(self._get_next_gate(), track[-1]))
+        
         self.check_gate_in_range(track, state, events)
-
-        # Handle landing gate
-        if state.has_passed_finishpoint:
-            if state.landing_gate is not None and not state.landing_gate.has_been_passed():
-                intersection_time = state.landing_gate.get_gate_intersection_time(state.projector, track)
-                if intersection_time:
-                    intersected_gate = state.landing_gate.intersected_gate
-                    events.append(LandingPassedEvent(intersected_gate, track[-1], intersection_time))
 
         return events
 
     def check_gate_in_range(
-        self, track: List[ContestantReceivedPosition], state: GatekeeperState, events: List[GatekeeperEvent]
+        self, track: List[ContestantReceivedPosition], state: OrchestratorState, events: List[OrchestratorEvent]
     ):
-        if len(state.outstanding_gates) == 0 or len(track) == 0:
+        if len(self.outstanding_gates) == 0 or len(track) == 0:
             return
         last_position = track[-1]
         now = last_position.time
@@ -367,9 +392,15 @@ class GateCalculator(Calculator):
                     current_idx_in_all = self.gates.index(state.in_range_of_gate)
                     prev_gate = self.gates[current_idx_in_all - 1] if current_idx_in_all > 0 else None
                     events.append(GateMissedEvent(prev_gate, state.in_range_of_gate, last_position))
+                    
+                    # If this was our expected next gate, pop it
+                    if self.outstanding_gates and self.outstanding_gates[0] == state.in_range_of_gate:
+                        self.outstanding_gates.pop(0)
+                        events.append(NextGateExpectedEvent(self._get_next_gate(), last_position))
+
                 events.append(InRangeUpdatedEvent(None, last_position))
         else:
-            next_gate = state.outstanding_gates[0]
+            next_gate = self.outstanding_gates[0]
             if next_gate in already_handled_gates:
                 return
 
@@ -396,56 +427,31 @@ class GateCalculator(Calculator):
                 gate.missed = True
                 self.on_gate_missed(GateMissedEvent(prev, gate, event.position))
             prev = gate
+        self.outstanding_gates = []
 
     def finalise(self, track: List[ContestantReceivedPosition]):
         # Catch any remaining missed gates at the very end of processing
-        from display.utilities.route_building_utilities import calculate_extended_gate
-
-        # Check main route waypoints (SP, TP, FP)
         for gate in self.gates:
             if not gate.has_been_passed() and not gate.missed and (gate.name, GATE_SCORE_TYPE) not in self.scored_gates:
                 gate.missed = True
                 self.on_gate_missed(GateMissedEvent(None, gate, track[-1] if track else None))
-
-        for tg in self.route.takeoff_gates:
-            if (tg.name, GATE_SCORE_TYPE) in self.scored_gates:
-                continue
-            expected_time = self.contestant.gate_times.get(tg.name)
-            g = Gate(tg, expected_time, calculate_extended_gate(tg, self.scorecard))
-            if tg.name not in self.contestant.gate_times_actual:
-                g.missed = True
-                self.on_gate_missed(GateMissedEvent(None, g, track[-1] if track else None))
-
-        for lg in self.route.landing_gates:
-            if (lg.name, GATE_SCORE_TYPE) in self.scored_gates:
-                continue
-            expected_time = self.contestant.gate_times.get(lg.name)
-            g = Gate(lg, expected_time, calculate_extended_gate(lg, self.scorecard))
-            if lg.name not in self.contestant.gate_times_actual:
-                g.missed = True
-                self.on_gate_missed(GateMissedEvent(None, g, track[-1] if track else None))
+        self.outstanding_gates = []
 
     def on_gate_missed(self, event: GateMissedEvent):
+        if event.gate not in self.gates:
+            return
+
         # Add a small offset based on gate name/order to ensure deterministic ordering if multiple gates are missed at once
         event_time = event.event_time or (event.position.time if event.position else event.gate.expected_time)
         if not event.event_time and event_time:
             # Add 1ms per gate in the route to ensure they stay in order
-            if event.gate in self.gates:
-                gate_index = self.gates.index(event.gate)
-            elif event.gate.type == "to":
-                gate_index = -1
-            else:  # ldg or other
-                gate_index = len(self.gates) + 1
+            gate_index = self.gates.index(event.gate)
             event_time += datetime.timedelta(milliseconds=gate_index)
 
         logger.info(f"{self.contestant}: Scoring missed gate {event.gate}")
         if event.gate.gate_check:
             score = self.scorecard.get_gate_timing_score_for_gate_type(event.gate.type, event.gate.expected_time, None)
             message = "missing gate"
-            if event.gate.type == "to":
-                message = "missing takeoff gate"
-            elif event.gate.type == "ldg":
-                message = "missing landing gate"
 
             self.update_gate_score(
                 event.position,
@@ -460,6 +466,9 @@ class GateCalculator(Calculator):
             )
 
     def on_gate_passed(self, event: GatePassedEvent):
+        if event.gate not in self.gates:
+            return
+
         logger.info(f"{self.contestant}: Scoring passed gate {event.gate}")
         passing_time = event.gate.passing_time or event.gate.infinite_passing_time or event.position.time
         passing_position = event.gate.infinite_passing_position or event.position
@@ -467,10 +476,6 @@ class GateCalculator(Calculator):
         self.contestant.contestanttrack.update_last_gate(event.gate.name, time_difference)
 
         message = "passing gate"
-        if event.gate.type == "to":
-            message = "passing takeoff gate"
-        elif event.gate.type == "ldg":
-            message = GATE_SCORE_TYPE
 
         if event.gate.time_check:
             gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
@@ -499,41 +504,11 @@ class GateCalculator(Calculator):
                 passing_time,
             )
 
-    def on_takeoff_passed(self, event: TakeoffPassedEvent):
-        logger.info(f"{self.contestant}: Scoring takeoff gate {event.gate}")
-        gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
-            event.gate.type, event.gate.expected_time, event.gate.passing_time
-        )
-        passing_position = event.gate.infinite_passing_position or event.position
-        self.transmit_actual_crossing(event.gate, passing_position)
-        self.update_gate_score(
-            passing_position,
-            event.gate,
-            gate_score,
-            GATE_SCORE_TYPE,
-            "passing takeoff gate",
-            ANOMALY,
-            event.gate.expected_time,
-            event.gate.passing_time,
-        )
-
     def on_landing_passed(self, event: LandingPassedEvent):
-        logger.info(f"{self.contestant}: Scoring landing gate {event.gate}")
-        gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
-            event.gate.type, event.gate.expected_time, event.gate.passing_time
-        )
-        passing_position = event.gate.infinite_passing_position or event.position
-        self.transmit_actual_crossing(event.gate, passing_position)
-        self.update_gate_score(
-            passing_position,
-            event.gate,
-            gate_score,
-            GATE_SCORE_TYPE,
-            GATE_SCORE_TYPE,
-            ANOMALY,
-            event.gate.expected_time,
-            event.gate.passing_time,
-        )
+        pass
+
+    def on_takeoff_passed(self, event: TakeoffPassedEvent):
+        pass
 
     def on_starting_line_passed(self, event: StartingLinePassedEvent):
         logger.info(f"{self.contestant}: Scoring starting line {event.gate}")
@@ -552,6 +527,17 @@ class GateCalculator(Calculator):
                 INFORMATION,
                 actual=entry_time,
             )
+
+    def on_adaptive_start(self, event: AdaptiveStartEvent):
+        """
+        Update expected times for gates based on adaptive start time.
+        """
+        new_start_time = event.intersection_time
+        gate_times = self.contestant.calculate_missing_gate_times({}, new_start_time)
+        
+        for gate in self.gates:
+            if gate.name in gate_times:
+                gate.expected_time = gate_times[gate.name]
 
     def on_starting_line_extended_passed_wrong_direction(self, event: StartingLineExtendedPassedWrongDirectionEvent):
         logger.info(f"{self.contestant}: Scoring starting line wrong direction {event.gate}")

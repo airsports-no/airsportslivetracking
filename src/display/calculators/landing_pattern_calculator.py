@@ -3,7 +3,7 @@ import logging
 from queue import Queue
 from typing import List, Optional
 
-from display.calculators.calculator import Calculator, GatekeeperState, GatekeeperEvent, GatePassedEvent, LandingPassedEvent, GateMissedEvent, FinishLinePassedEvent
+from display.calculators.calculator import Calculator, OrchestratorState, OrchestratorEvent, GatePassedEvent, LandingPassedEvent, GateMissedEvent, FinishLinePassedEvent
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_utility_models import ContestantReceivedPosition
@@ -19,11 +19,37 @@ class LandingPatternCalculator(Calculator):
     Each round awards 1 point.
     """
 
+    def create_gates(self) -> List["Gate"]:
+        """
+        Helper function to create gates from the waypoints defined in a route
+        """
+        from display.calculators.positions_and_gates import Gate
+        from display.utilities.route_building_utilities import calculate_extended_gate
+
+        waypoints = self.contestant.navigation_task.route.waypoints
+        expected_times = self.contestant.gate_times
+        gates = []
+        for item in waypoints:  # type: Waypoint
+            # Dummy gates are not part of the actual route
+            if item.type != "dummy":
+                gates.append(
+                    Gate(
+                        item,
+                        expected_times[item.name],
+                        calculate_extended_gate(item, self.scorecard),
+                    )
+                )
+        return gates
+
+    def initiate_gates(self):
+        self.gates = self.create_gates()
+        for gate in self.gates:
+            gate.pre_project(self.projector)
+
     def __init__(
         self,
         contestant,
         scorecard,
-        gates,
         route,
         score_processing_queue,
         live_processing=True,
@@ -32,12 +58,12 @@ class LandingPatternCalculator(Calculator):
         super().__init__(
             contestant,
             scorecard,
-            gates,
             route,
             score_processing_queue,
             live_processing=live_processing,
             projector=projector,
         )
+        self.initiate_gates()
         self.last_intersection = None
         # Initialize projector if landing gates exist, else fallback to provided or origin.
         if self.projector:
@@ -51,28 +77,33 @@ class LandingPatternCalculator(Calculator):
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
         return self.check_intersections(track, state)
 
     def calculate_outside_route(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
         return self.check_intersections(track, state)
 
-    def check_intersections(self, track: List[ContestantReceivedPosition], state: GatekeeperState) -> List[GatekeeperEvent]:
+    def check_intersections(self, track: List[ContestantReceivedPosition], state: OrchestratorState) -> List[OrchestratorEvent]:
         events = []
-        if state.landing_gate is not None and len(state.landing_gate.gates) > 0:
-            intersection_time = state.landing_gate.get_gate_intersection_time(self.projector, track)
+        # LandingPatternCalculator should ideally manage its own landing multi-gate 
+        # or just check against route landing gates directly.
+        if self.route.landing_gates and len(self.route.landing_gates) > 0:
+            from display.calculators.calculator_utilities import time_to_intersection
+            # For simplicity, check first landing gate
+            gate = self.route.landing_gates[0]
+            intersection_time = time_to_intersection(track, self.projector, gate.gate_line)
             if intersection_time:
                 self.contestant.contestanttrack.updates_current_state("Tracking")
                 if self.last_intersection is None or intersection_time > self.last_intersection + datetime.timedelta(
                     seconds=30
                 ):
                     self.last_intersection = intersection_time
-                    events.append(LandingPassedEvent(state.landing_gate.intersected_gate, track[-1], intersection_time))
+                    events.append(LandingPassedEvent(gate, track[-1], intersection_time))
         return events
 
     def passed_finishpoint(self, event: FinishLinePassedEvent):
@@ -95,3 +126,5 @@ class LandingPatternCalculator(Calculator):
                 "landing_line",
             )
         )
+    def finalise(self, track: List[ContestantReceivedPosition]):
+        pass

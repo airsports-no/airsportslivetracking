@@ -115,14 +115,16 @@ class Gate:
             )
         return False
 
-    def get_gate_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
+    def get_gate_intersection_time(
+        self, projector: Projector, track: List[ContestantReceivedPosition]
+    ) -> Optional[datetime]:
         if len(track) > 2:
             # Fast path: check distance to gate center
             # Threshold is gate radius + 500m buffer for aircraft movement between points
             last_pos = track[-1]
             if self.center_x is None:
                 raise ValueError(f"Gate {self.name} is not projected")
-            
+
             p_x = getattr(last_pos, "projected_x", None)
             p_y = getattr(last_pos, "projected_y", None)
             if p_x is None or p_y is None:
@@ -142,7 +144,9 @@ class Gate:
             )
         return None
 
-    def get_gate_infinite_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
+    def get_gate_infinite_intersection_time(
+        self, projector: Projector, track: List[ContestantReceivedPosition]
+    ) -> Optional[datetime]:
         if len(track) > 2:
             if not self.projected_gate_line_infinite:
                 raise ValueError(f"Gate {self.name} infinite line is not projected")
@@ -155,7 +159,9 @@ class Gate:
             )
         return None
 
-    def get_gate_extended_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
+    def get_gate_extended_intersection_time(
+        self, projector: Projector, track: List[ContestantReceivedPosition]
+    ) -> Optional[datetime]:
         if len(track) > 2 and self.projected_gate_line_extended:
             return get_intersect_time(
                 projector,
@@ -172,7 +178,7 @@ class Gate:
         """
         if projected_x is None or projected_y is None:
             raise ValueError(f"Missing projected coordinates for distance check to gate {self.name}")
-        
+
         if self.projected_gate_line is None:
             raise ValueError(f"Gate {self.name} is not projected")
 
@@ -188,9 +194,9 @@ class Gate:
 
 class MultiGate:
     def __init__(self, gates: List[Gate]):
-        self.gates = gates
-        self.intersected_gate = None
-        self.missed = False
+        self.gates: list[Gate] = gates
+        self.intersected_gate: Gate | None = None
+        self.missed: bool = False
 
     def pass_gate(self, passing_time: datetime, position: ContestantReceivedPosition):
         assert self.intersected_gate is not None, "Setting passing time when the multi gate has not had an intersection"
@@ -210,7 +216,9 @@ class MultiGate:
         for gate in self.gates:
             gate.expected_time = expected_time
 
-    def get_gate_intersection_time(self, projector: Projector, track: List[ContestantReceivedPosition]) -> Optional[datetime]:
+    def get_gate_intersection_time(
+        self, projector: Projector, track: List[ContestantReceivedPosition]
+    ) -> Optional[datetime]:
         for gate in self.gates:
             intersection_time = gate.get_gate_intersection_time(projector, track)
             if intersection_time is not None:
@@ -230,7 +238,11 @@ def round_seconds(stamp: datetime) -> datetime:
 
 
 def get_intersect_time(
-    projector: Projector, track_segment_start: ContestantReceivedPosition, track_segment_finish: ContestantReceivedPosition, gate_start, gate_finish
+    projector: Projector,
+    track_segment_start: ContestantReceivedPosition,
+    track_segment_finish: ContestantReceivedPosition,
+    gate_start,
+    gate_finish,
 ) -> Optional[datetime]:
     # intersection = line_intersect(track_segment_start.longitude, track_segment_start.latitude,
     #                               track_segment_finish.longitude,

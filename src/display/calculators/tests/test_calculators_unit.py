@@ -3,7 +3,7 @@ import numpy as np
 from unittest.mock import Mock, patch, MagicMock, call
 from django.test import TestCase
 from display.calculators.calculator import (
-    GatekeeperState,
+    OrchestratorState,
     GatePassedEvent,
     GateMissedEvent,
     TakeoffPassedEvent,
@@ -19,7 +19,7 @@ from display.calculators.poker_calculator import PokerCalculator
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
 from display.models.contestant_utility_models import ContestantReceivedPosition
-from shapely.geometry import Polygon
+from display.utilities.coordinate_utilities import Projector
 
 
 class CalculatorUnitTestBase(TestCase):
@@ -27,22 +27,36 @@ class CalculatorUnitTestBase(TestCase):
         self.contestant = MagicMock()
         self.contestant.air_speed = 70
 
+        # Patch Gate.pre_project globally for all tests in this file
+        self.pre_project_patcher = patch("display.calculators.positions_and_gates.Gate.pre_project")
+        self.mock_pre_project = self.pre_project_patcher.start()
+        
         self.route = MagicMock()
         self.contestant.navigation_task.route = self.route
 
-        # Mocking waypoints as a list to be subscriptable
+        # Use MagicMock for waypoints to avoid read-only property issues with real Waypoint objects
         self.waypoint1 = MagicMock()
         self.waypoint1.latitude = 60.0
         self.waypoint1.longitude = 11.0
         self.waypoint1.name = "WP1"
         self.waypoint1.type = "sp"
-        self.waypoint1.bearing = 0
-        self.waypoint1.bearing_from_previous = 0
         self.waypoint1.width = 100.0
         self.waypoint1.gate_line = ((60.0, 11.0), (60.0, 11.1))
+        self.waypoint1.gate_line_infinite = ((60.0, 11.0), (60.0, 11.1))
+        self.waypoint1.gate_line_extended = ((60.0, 11.0), (60.0, 11.1))
+        self.waypoint1.bearing = 0
+        self.waypoint1.center_x = 0.0
+        self.waypoint1.center_y = 0.0
+        self.waypoint1.inside_distance = 500
+        self.waypoint1.outside_distance = 1000
+        self.waypoint1.gate_check = True
+        self.waypoint1.time_check = True
+        self.waypoint1.is_procedure_turn = False
+        self.waypoint1.is_steep_turn = False
         self.waypoint1.infinite_passing_time = None
         self.waypoint1.passing_time = None
         self.waypoint1.missed = False
+
         self.route.waypoints = [self.waypoint1]
         self.route.corridor_polygon = [
             {"lat": 60.0, "lng": 11.0},
@@ -55,12 +69,13 @@ class CalculatorUnitTestBase(TestCase):
         self.scorecard = MagicMock()
         self.scorecard.get_extended_gate_width_for_gate_type.return_value = 200.0
         self.contestant.navigation_task.scorecard = self.scorecard
+        self.contestant.gate_times = {"WP1": datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)}
 
-        self.gates = [self.waypoint1]  # Provide a default gate to avoid IndexError
         self.score_processing_queue = MagicMock()
-        from display.utilities.coordinate_utilities import Projector
-
         self.projector = Projector(60, 11)
+
+    def tearDown(self):
+        self.pre_project_patcher.stop()
 
     def create_position(self, lat, lon, time):
         if time.tzinfo is None:
@@ -69,7 +84,6 @@ class CalculatorUnitTestBase(TestCase):
         pos.latitude = float(lat)
         pos.longitude = float(lon)
         pos.time = time
-
         # Calculate projected coordinates
         proj = self.projector.project_point(pos.latitude, pos.longitude)
         pos.projected_x = proj.projected_x
@@ -81,49 +95,27 @@ class CalculatorUnitTestBase(TestCase):
 class TestGateCalculator(CalculatorUnitTestBase):
     def setUp(self):
         super().setUp()
-        self.calculator = GateCalculator(
-            self.contestant,
-            self.scorecard,
-            self.gates,
-            self.route,
-            self.score_processing_queue,
-            live_processing=False,
-            projector=self.projector,
-        )
-
-    def test_calculate_enroute_takeoff(self):
-        # Mock takeoff gate
-        takeoff_gate = MagicMock()
-        takeoff_gate.has_been_passed.return_value = False
-        takeoff_gate.intersected_gate = MagicMock()
-        takeoff_gate.intersected_gate.name = "Takeoff 1"
-
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=[],
-            in_range_of_gate=None,
-            projector=self.projector,
-            takeoff_gate=takeoff_gate,
-            landing_gate=None,
-            has_passed_finishpoint=False,
-            recalculation_completed=True,
-        )
-
-        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        track = [pos, pos]  # Need at least 2 for some calculations
-
-        # Intersection time found
-        takeoff_gate.get_gate_intersection_time.return_value = pos.time
-
-        events = self.calculator.calculate_enroute(track, state)
-
-        self.assertTrue(any(isinstance(e, TakeoffPassedEvent) for e in events))
+        with patch("display.calculators.gate_calculator.calculate_extended_gate"):
+            with patch("display.calculators.positions_and_gates.Gate.pre_project"):
+                self.calculator = GateCalculator(
+                    self.contestant,
+                    self.scorecard,
+                    self.route,
+                    self.score_processing_queue,
+                    live_processing=False,
+                    projector=self.projector,
+                )
+                # Manually set up gates for unit tests
+                self.calculator.gates = [self.waypoint1]
 
     def test_calculate_enroute_gate_passed(self):
         gate = MagicMock()
         gate.name = "TP 1"
         gate.latitude = 60.0
         gate.longitude = 11.0
+        gate.center_x = 0.0
+        gate.center_y = 0.0
+        gate.type = "tp"
         gate.is_passed_in_correct_direction_track.return_value = True
         gate.has_been_passed.return_value = False
         gate.infinite_passing_time = None
@@ -132,14 +124,13 @@ class TestGateCalculator(CalculatorUnitTestBase):
         gate.time_check = False
 
         self.calculator.gates = [gate]
+        self.calculator.outstanding_gates = [gate]
 
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=[gate],
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=None,
+            
             in_range_of_gate=None,
             projector=self.projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
@@ -157,19 +148,24 @@ class TestGateCalculator(CalculatorUnitTestBase):
         gate = MagicMock()
         gate.name = "SP"
         gate.type = "sp"
+        gate.center_x = 0.0
+        gate.center_y = 0.0
+        gate.inside_distance = 500
+        gate.outside_distance = 1000
         gate.is_passed_in_correct_direction_track.return_value = True
         gate.has_infinite_been_passed.return_value = False
 
         self.calculator.gates = [gate]
+        self.calculator.outstanding_gates = [gate]
         self.contestant.adaptive_start = True
 
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=[gate],
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=gate,
+            
             in_range_of_gate=None,
             projector=self.projector,
-            takeoff_gate=None,
-            landing_gate=None,
+            
+            
             has_passed_finishpoint=False,
             recalculation_completed=False,
         )
@@ -190,17 +186,22 @@ class TestGateCalculator(CalculatorUnitTestBase):
         gate = MagicMock()
         gate.name = "SP"
         gate.type = "sp"
+        gate.center_x = 0.0
+        gate.center_y = 0.0
+        gate.inside_distance = 500
+        gate.outside_distance = 1000
         gate.is_passed_in_correct_direction_track.return_value = False
 
         self.calculator.gates = [gate]
+        self.calculator.outstanding_gates = [gate]
 
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=[gate],
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=gate,
+            
             in_range_of_gate=None,
             projector=self.projector,
-            takeoff_gate=None,
-            landing_gate=None,
+            
+            
             has_passed_finishpoint=False,
             recalculation_completed=False,
         )
@@ -220,6 +221,9 @@ class TestGateCalculator(CalculatorUnitTestBase):
     def test_calculate_enroute_gate_missed(self):
         gate1 = MagicMock()
         gate1.name = "TP 1"
+        gate1.center_x = 0.0
+        gate1.center_y = 0.0
+        gate1.type = "tp"
         gate1.has_been_passed.return_value = False
         gate1.infinite_passing_time = None
         gate1.passing_time = None
@@ -227,6 +231,9 @@ class TestGateCalculator(CalculatorUnitTestBase):
 
         gate2 = MagicMock()
         gate2.name = "TP 2"
+        gate2.center_x = 0.0
+        gate2.center_y = 0.0
+        gate2.type = "tp"
         gate2.is_passed_in_correct_direction_track.return_value = True
         gate2.has_been_passed.return_value = False
         gate2.infinite_passing_time = None
@@ -234,14 +241,12 @@ class TestGateCalculator(CalculatorUnitTestBase):
         gate2.missed = False
 
         self.calculator.gates = [gate1, gate2]
-
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=[gate1, gate2],
+        self.calculator.outstanding_gates = [gate1, gate2]
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=None,
+            
             in_range_of_gate=None,
             projector=self.projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
@@ -274,15 +279,16 @@ class TestGateCalculator(CalculatorUnitTestBase):
         gate.center_y = 0.0
         gate.gate_radius = 50.0
 
+        self.calculator.gates = [gate]
+        self.calculator.outstanding_gates = [gate]
+
         mock_dist.return_value = 500.0  # 500m < 1km
 
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=[gate],
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=None,
+            
             in_range_of_gate=None,
             projector=self.projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
@@ -316,7 +322,6 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
         self.calculator = AnrCorridorCalculator(
             self.contestant,
             self.scorecard,
-            self.gates,
             self.route,
             self.score_processing_queue,
             live_processing=False,
@@ -330,13 +335,12 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
         self.calculator._check_inside_polygon = MagicMock(return_value=True)
 
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        state = GatekeeperState(
+        state = OrchestratorState(
             last_gate=MagicMock(),
-            outstanding_gates=[],
+            last_visible_gate=MagicMock(), next_gate=None,
+            
             in_range_of_gate=None,
             projector=self.projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
@@ -354,13 +358,11 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
         last_gate.type = "sp"
 
         pos = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 10, 0))
-        state = GatekeeperState(
-            last_gate=last_gate,
-            outstanding_gates=[],
+        state = OrchestratorState(
+            last_gate=last_gate, last_visible_gate=last_gate, next_gate=None,
+            
             in_range_of_gate=None,
             projector=self.projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
@@ -415,7 +417,7 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
                 self.calculator.is_first_leg_of_excursion = False  # Second leg of excursion
 
                 mock_update.reset_mock()
-                # Simulate the event that Gatekeeper would trigger when gate is passed
+                # Simulate the event that Orchestrator would trigger when gate is passed
                 self.calculator.on_gate_passed(GatePassedEvent(gate2, pos, pos.time, previous_gate=None))
 
                 # Now we expect 1 informational message about the leg we just passed
@@ -423,7 +425,7 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
                 info_msg = mock_update.call_args_list[0][0][0]
                 self.assertEqual(info_msg.annotation_type, "information")
                 self.assertIn("passed TP1", info_msg.message)
-                
+
                 # But internal accumulation should have happened
                 self.assertGreater(self.calculator.excursion_accumulated_score, 0)
 
@@ -456,6 +458,7 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
             pos10 = self.create_position(0, 0, t10)
             self.calculator.check_outside_corridor([pos10], gate1)
 
+
             # Expectation: 10s outside, 5s grace -> 5s penalty. 5 * 10 = 50 points.
             self.assertEqual(self.calculator.accumulated_score, 50.0)
 
@@ -464,7 +467,7 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
             pos15 = self.create_position(0, 0, t15)
 
             with patch.object(self.calculator, "update_score") as mock_update:
-                # Simulate the event that Gatekeeper would trigger when gate is passed
+                # Simulate the event that Orchestrator would trigger when gate is passed
                 self.calculator.on_gate_passed(GatePassedEvent(gate2, pos15, pos15.time, previous_gate=None))
 
                 # Leg 1 finalized internally. 15s outside, 5s grace = 10s penalty = 100 points -> capped to 50.
@@ -473,7 +476,7 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
                 # accumulated_score is reset for the new leg
                 self.assertEqual(self.calculator.accumulated_score, 0)
                 self.assertFalse(self.calculator.is_first_leg_of_excursion)
-                
+
                 # We expect 1 informational message about passing gate2 while outside
                 self.assertEqual(len(mock_update.call_args_list), 1)
                 self.assertEqual(mock_update.call_args_list[0][0][0].annotation_type, "information")
@@ -495,7 +498,7 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
                 # One consolidated message at the end. Total excursion should be 2 calls (1 info + 1 anomaly)
                 self.assertEqual(len(mock_update.call_args_list), 2)
                 final_msg = mock_update.call_args_list[1][0][0]
-                
+
                 # Leg 1: 15s total -> 10s penalty -> 50 points (capped)
                 # Leg 2: 11s total (T15 to T26) -> 11s penalty -> 50 points (capped)
                 # Total: 100 points, 25 seconds (T26 - 1s = T25 endpoint)
@@ -518,7 +521,6 @@ class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
         self.calculator = BacktrackingAndProcedureTurnsCalculator(
             self.contestant,
             self.scorecard,
-            self.gates,
             self.route,
             self.score_processing_queue,
             live_processing=False,
@@ -538,21 +540,20 @@ class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
         pos1 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         pos2 = self.create_position(60.1, 11, datetime.datetime(2020, 1, 1, 10, 1))  # Heading North (0)
 
-        state = GatekeeperState(
-            last_gate=last_gate,
-            outstanding_gates=[],
+        state = OrchestratorState(
+            last_gate=last_gate, last_visible_gate=last_gate, next_gate=None,
+            
             in_range_of_gate=None,
             projector=self.projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
 
         self.calculator.tracking_state = self.calculator.TRACKING
-        self.calculator.calculate_enroute([pos1, pos2], state)
+        self.calculator.detect_circling([pos1, pos2], state.last_visible_gate, state.in_range_of_gate)
 
         self.assertEqual(self.calculator.tracking_state, self.calculator.TRACKING)
+
 
     def test_calculate_enroute_backtracking(self):
         last_gate = MagicMock()
@@ -573,25 +574,27 @@ class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
         # Force state to TRACKING to allow backtracking detection
         self.calculator.tracking_state = self.calculator.TRACKING
 
-        state = GatekeeperState(
-            last_gate=last_gate,
-            outstanding_gates=[],
-            in_range_of_gate=None,
+        state = OrchestratorState(
+            last_gate=last_gate, last_visible_gate=last_gate, next_gate=None,
+            in_range_of_gate=last_gate,
             projector=self.projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
 
         # One call to start backtracking (temporary)
-        self.calculator.calculate_enroute([pos1, pos2], state)
+        self.calculator.calculate_track_score(
+            [pos1, pos2], state.last_visible_gate, state.in_range_of_gate, state.next_gate
+        )
         self.assertEqual(self.calculator.tracking_state, self.calculator.BACKTRACKING_TEMPORARY)
 
         # Fast forward time to exceed grace period
         pos3 = self.create_position(59.9, 11, datetime.datetime(2020, 1, 1, 10, 15))
-        self.calculator.calculate_enroute([pos1, pos2, pos3], state)
+        self.calculator.calculate_track_score(
+            [pos1, pos2, pos3], state.last_visible_gate, state.in_range_of_gate, state.next_gate
+        )
         self.assertEqual(self.calculator.tracking_state, self.calculator.BACKTRACKING)
+
 
 
 class TestLandingPatternCalculator(CalculatorUnitTestBase):
@@ -601,11 +604,11 @@ class TestLandingPatternCalculator(CalculatorUnitTestBase):
         self.route.landing_gates = [MagicMock()]
         self.route.landing_gates[0].latitude = 60.0
         self.route.landing_gates[0].longitude = 11.0
+        self.route.landing_gates[0].gate_line = ((60.0, 11.0), (60.0, 11.1))
 
         self.calculator = LandingPatternCalculator(
             self.contestant,
             self.scorecard,
-            self.gates,
             self.route,
             self.score_processing_queue,
             live_processing=False,
@@ -617,21 +620,22 @@ class TestLandingPatternCalculator(CalculatorUnitTestBase):
         landing_gate.gates = [MagicMock()]
         landing_gate.intersected_gate = MagicMock()
 
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=[],
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=None,
+            
             in_range_of_gate=None,
             projector=self.projector,
-            takeoff_gate=None,
-            landing_gate=landing_gate,
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
 
-        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        landing_gate.get_gate_intersection_time.return_value = pos.time
+        pos1 = self.create_position(59.9, 11, datetime.datetime(2020, 1, 1, 9, 59))
+        pos2 = self.create_position(60.1, 11, datetime.datetime(2020, 1, 1, 10, 1))
+        track = [pos1, pos2]
+        landing_gate.get_gate_intersection_time.return_value = pos2.time
 
-        events = self.calculator.calculate_outside_route([pos], state)
+        with patch("display.calculators.calculator_utilities.time_to_intersection", return_value=pos2.time):
+            events = self.calculator.calculate_outside_route(track, state)
 
         self.assertTrue(any(isinstance(e, LandingPassedEvent) for e in events))
 
@@ -644,7 +648,6 @@ class TestPokerCalculator(CalculatorUnitTestBase):
         gate.name = "Poker 1"
         gate.waypoint.latitude = 60.0
         gate.waypoint.longitude = 11.0
-        self.gates = [gate]
         # Make the mock prohibited_set.filter return something subscriptable
         self.route.prohibited_set.filter.return_value = [MagicMock(name="Poker 1", path=[])]
         # Explicitly set return value for filter since we accessed it by name before
@@ -653,7 +656,6 @@ class TestPokerCalculator(CalculatorUnitTestBase):
         self.calculator = PokerCalculator(
             self.contestant,
             self.scorecard,
-            self.gates,
             self.route,
             self.score_processing_queue,
             live_processing=False,
@@ -663,19 +665,19 @@ class TestPokerCalculator(CalculatorUnitTestBase):
         self.calculator.polygon_helper = MagicMock()
 
     def test_check_polygons_passed(self):
-        # We need to re-initialize sorted_polygons because it was built during __init__ with mocked filter
-        # Or better, just make sure __init__ worked.
-        self.calculator.sorted_polygons = [("Poker 1", MagicMock(), 0)]
+        # We need to re-initialize gate_polygons because it was built during __init__ with mocked filter
+        gate = MagicMock()
+        gate.name = "Poker 1"
+        self.calculator.gates = [gate]
+        self.calculator.gate_polygons = [("Poker 1", MagicMock())]
         self.calculator.polygon_helper.check_inside_polygons.return_value = ["Poker 1"]
 
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=[],
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=None,
+            
             in_range_of_gate=None,
             projector=self.projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
@@ -698,7 +700,6 @@ class TestProhibitedZoneCalculator(CalculatorUnitTestBase):
         self.calculator = ProhibitedZoneCalculator(
             self.contestant,
             self.scorecard,
-            self.gates,
             self.route,
             self.score_processing_queue,
             live_processing=False,
@@ -730,7 +731,6 @@ class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
         self.calculator = PenaltyZoneCalculator(
             self.contestant,
             self.scorecard,
-            self.gates,
             self.route,
             self.score_processing_queue,
             live_processing=False,
@@ -759,6 +759,3 @@ class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
         self.calculator.check_inside_prohibited_zone([pos1, pos2, pos3], None)
 
         self.assertNotIn(1, self.calculator.entered_polygon_times)
-
-
-from display.calculators.gatekeeper import Gatekeeper

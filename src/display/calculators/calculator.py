@@ -19,26 +19,28 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class GatekeeperState:
+class OrchestratorState:
     last_gate: Optional["Gate"]
-    outstanding_gates: List["Gate"]
+    last_visible_gate: Optional["Gate"]
+    next_gate: Optional["Gate"]
     in_range_of_gate: Optional["Gate"]
     projector: "Projector"
-    takeoff_gate: Optional["MultiGate"]
-    landing_gate: Optional["MultiGate"]
     has_passed_finishpoint: bool
     recalculation_completed: bool
     enroute: bool = True
+    has_any_gate_passed: bool = False
+    has_all_gates_passed: bool = False
+    has_landed: bool = False
     estimated_next_timed_gate: Optional["Gate"] = None
     estimated_crossing_time: Optional[datetime.datetime] = None
 
 
-class GatekeeperEvent:
+class OrchestratorEvent:
     def __init__(self, position: ContestantReceivedPosition):
         self.position = position
 
 
-class GateMissedEvent(GatekeeperEvent):
+class GateMissedEvent(OrchestratorEvent):
     def __init__(
         self,
         previous_gate: Optional["Gate"],
@@ -52,21 +54,35 @@ class GateMissedEvent(GatekeeperEvent):
         self.event_time = event_time
 
 
-class TakeoffPassedEvent(GatekeeperEvent):
-    def __init__(self, gate: "Gate", position: ContestantReceivedPosition, intersection_time: datetime.datetime):
+class TakeoffPassedEvent(OrchestratorEvent):
+    def __init__(
+        self,
+        gate: "Gate",
+        position: ContestantReceivedPosition,
+        intersection_time: datetime.datetime,
+        previous_gate: Optional["Gate"] = None,
+    ):
         super().__init__(position)
         self.gate = gate
         self.intersection_time = intersection_time
+        self.previous_gate = previous_gate
 
 
-class LandingPassedEvent(GatekeeperEvent):
-    def __init__(self, gate: "Gate", position: ContestantReceivedPosition, intersection_time: datetime.datetime):
+class LandingPassedEvent(OrchestratorEvent):
+    def __init__(
+        self,
+        gate: "Gate",
+        position: ContestantReceivedPosition,
+        intersection_time: datetime.datetime,
+        previous_gate: Optional["Gate"] = None,
+    ):
         super().__init__(position)
         self.gate = gate
         self.intersection_time = intersection_time
+        self.previous_gate = previous_gate
 
 
-class GatePassedEvent(GatekeeperEvent):
+class GatePassedEvent(OrchestratorEvent):
     def __init__(
         self,
         gate: "Gate",
@@ -90,38 +106,44 @@ class StartingLinePassedEvent(GatePassedEvent):
         super().__init__(gate, position, intersection_time, previous_gate=None)
 
 
-class StartingLineExtendedPassedWrongDirectionEvent(GatekeeperEvent):
+class StartingLineExtendedPassedWrongDirectionEvent(OrchestratorEvent):
     def __init__(self, gate: "Gate", position: ContestantReceivedPosition):
         super().__init__(position)
         self.gate = gate
 
 
-class PokerGatePassedEvent(GatekeeperEvent):
+class PokerGatePassedEvent(OrchestratorEvent):
     def __init__(self, gate: "Gate", position: ContestantReceivedPosition):
         super().__init__(position)
         self.gate = gate
 
 
-class AdaptiveStartEvent(GatekeeperEvent):
+class AdaptiveStartEvent(OrchestratorEvent):
     def __init__(self, intersection_time: datetime.datetime, position: ContestantReceivedPosition):
         super().__init__(position)
         self.intersection_time = intersection_time
 
 
-class EstimationUpdatedEvent(GatekeeperEvent):
+class EstimationUpdatedEvent(OrchestratorEvent):
     def __init__(self, gate: "Gate", estimated_time: datetime.datetime, position: ContestantReceivedPosition):
         super().__init__(position)
         self.gate = gate
         self.estimated_time = estimated_time
 
 
-class InRangeUpdatedEvent(GatekeeperEvent):
+class InRangeUpdatedEvent(OrchestratorEvent):
     def __init__(self, gate: Optional["Gate"], position: ContestantReceivedPosition):
         super().__init__(position)
         self.gate = gate
 
 
-class FinishLinePassedEvent(GatekeeperEvent):
+class NextGateExpectedEvent(OrchestratorEvent):
+    def __init__(self, gate: Optional["Gate"], position: Optional[ContestantReceivedPosition] = None):
+        super().__init__(position)
+        self.gate = gate
+
+
+class FinishLinePassedEvent(OrchestratorEvent):
     def __init__(
         self, last_gate: "Gate", track: List[ContestantReceivedPosition], event_time: Optional[datetime.datetime] = None
     ):
@@ -140,7 +162,6 @@ class Calculator(ABC):
         self,
         contestant: "Contestant",
         scorecard: "Scorecard",
-        gates: List["Gate"],
         route: "Route",
         score_processing_queue: Queue,
         live_processing: bool = True,
@@ -148,7 +169,6 @@ class Calculator(ABC):
     ):
         self.contestant = contestant
         self.scorecard = scorecard
-        self.gates = gates
         self.route = route
         self.score_processing_queue = score_processing_queue
         self.live_processing = live_processing
@@ -164,31 +184,22 @@ class Calculator(ABC):
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]) -> Tuple[float, float]:
         return 0, 0
 
-    def get_last_non_secret_gate(self, last_gate: "Gate") -> Optional["Gate"]:
-        started = False
-        for gate in reversed(self.gates):
-            if not started and gate == last_gate:
-                started = True
-            if started and gate.type != SECRETPOINT:
-                return gate
-        # Assume that the first gate is never secret.
-        try:
-            return self.gates[0]
-        except IndexError:
-            return last_gate
+    @abstractmethod
+    def finalise(self, track: List[ContestantReceivedPosition]):
+        pass
 
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
         return []
 
     def calculate_outside_route(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
         return []
 
     def passed_finishpoint(self, event: FinishLinePassedEvent):
@@ -213,4 +224,10 @@ class Calculator(ABC):
         pass
 
     def on_poker_gate_passed(self, event: PokerGatePassedEvent):
+        pass
+
+    def on_adaptive_start(self, event: AdaptiveStartEvent):
+        pass
+
+    def on_next_gate_expected(self, event: NextGateExpectedEvent):
         pass

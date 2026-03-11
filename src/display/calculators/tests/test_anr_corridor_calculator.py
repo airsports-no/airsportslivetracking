@@ -11,10 +11,10 @@ from django.test import TransactionTestCase
 
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.backtracking_and_procedure_turns import BacktrackingAndProcedureTurnsCalculator
-from display.calculators.calculator import GatekeeperState, FinishLinePassedEvent
+from display.calculators.calculator import OrchestratorState, FinishLinePassedEvent
 from display.calculators.contestant_processor import ContestantProcessor
 from display.calculators.gate_calculator import GateCalculator
-from display.calculators.gatekeeper import Gatekeeper
+from display.calculators.orchestrator import Orchestrator
 from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 from display.models import (
@@ -136,17 +136,19 @@ class TestANRPerLeg(TransactionTestCase):
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 20:30:00\nactual: --",
             "SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53",
             "SP: 0.0 points exiting corridor",
-            "SP: 50.0 points outside corridor (39 s). Leg scores: [SP: 50.0 (capped)]. Total: 50.0 (capped)",
+            "SP: 0.0 points missed SP while outside corridor. Excursion penalty so far: 42.0",
+            "SP: 50.0 points outside corridor (39 s). Leg scores: [SP: 42.0, SP: 8.0 (capped)]. Total: 50.0 (capped)",
             "TP 1: 0.0 points passing gate (no time check) (-406 s)\nplanned: 20:39:00\nactual: 20:32:14",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 50.0 points outside corridor (116 s). Leg scores: [TP 1: 50.0 (capped)]. Total: 50.0 (capped)",
+            "SP: 0.0 points outside corridor (116 s). Leg scores: [SP: 0.0 (capped)]. Total: 0.0 (capped)",
             "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
             "Landing 1: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --",
         ]
 
         self.assertListEqual(a, strings)
-        self.assertEqual(700.0, contestant_track.score)
+        # 200 (SP) + 50 (Excursion 1) + 200 (Backtrack) + 0 (Excursion 2) + 200 (FP) = 650
+        self.assertEqual(650.0, contestant_track.score)
 
     def test_anr_score_per_leg_enabled(self, *args):
         # This test validates that when per-leg scoring is ON, the maximum penalty applies to each leg individually.
@@ -177,17 +179,16 @@ class TestANRPerLeg(TransactionTestCase):
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
 
-        # In consolidated mode, we expect a single message for the excursion that sums the capped per-leg penalties.
-        # kjeller_anr_bad has an excursion spanning two legs, both capped at 50.
         expected_string = [
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 20:30:00\nactual: --",
             "SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53",
             "SP: 0.0 points exiting corridor",
-            "SP: 50.0 points outside corridor (39 s). Leg scores: [SP: 50.0 (capped)]. Total: 50.0 (capped)",
+            "SP: 0.0 points missed SP while outside corridor. Excursion penalty so far: 42.0",
+            "SP: 50.0 points outside corridor (39 s). Leg scores: [SP: 42.0, SP: 8.0 (capped)]. Total: 50.0 (capped)",
             "TP 1: 0.0 points passing gate (no time check) (-406 s)\nplanned: 20:39:00\nactual: 20:32:14",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 50.0 points outside corridor (116 s). Leg scores: [TP 1: 50.0 (capped)]. Total: 50.0 (capped)",
+            "SP: 0.0 points outside corridor (116 s). Leg scores: [SP: 0.0 (capped)]. Total: 0.0 (capped)",
             "FP: 200.0 points passing gate (-780 s)\nplanned: 20:48:11\nactual: 20:35:11",
             "Landing 1: 0.0 points missing landing gate\nplanned: 22:29:00\nactual: --",
         ]
@@ -196,7 +197,7 @@ class TestANRPerLeg(TransactionTestCase):
 
         # Verify total score
         contestant_track.refresh_from_db()
-        self.assertEqual(700.0, contestant_track.score)
+        self.assertEqual(650.0, contestant_track.score)
 
     def test_anr_miss_multiple_finish(self, *args):
         track = load_track_points_traccar_csv(
@@ -229,18 +230,19 @@ class TestANRPerLeg(TransactionTestCase):
             "SP: 200.0 points passing gate (-71535748 s)\nplanned: 14:07:00\nactual: 14:04:32",
             "SP: 0.0 points exiting corridor",
             "TP 1: 0.0 points missed TP 1 while outside corridor. Excursion penalty so far: 48.0",
-            "SP: 57.0 points outside corridor (24 s). Leg scores: [SP: 48.0, TP 1: 9.0]. Total: 57.0",
+            "SP: 50.0 points outside corridor (24 s). Leg scores: [SP: 48.0, SP: 2.0 (capped)]. Total: 50.0 (capped)",
             "SP: 0.0 points exiting corridor",
             "SP: 200.0 points backtracking",
-            "SP: 41.0 points outside corridor (227 s). Leg scores: [TP 1: 41.0 (capped)]. Total: 41.0 (capped)",
-            "FP: 200.0 points missing gate\nplanned: 14:18:11\nactual: --",
+            "SP: 0.0 points outside corridor (227 s). Leg scores: [SP: 0.0 (capped)]. Total: 0.0 (capped)",
             "Landing 1: 0.0 points missing landing gate\nplanned: 15:59:00\nactual: --",
+            "FP: 200.0 points missing gate\nplanned: 14:18:11\nactual: --",
         ]
         self.assertListEqual(
             final_list,
             strings,
         )
-        self.assertEqual(698.0, contestant_track.score)
+        # 200 (SP) + 50 (Excursion 1) + 200 (Backtrack) + 0 (Excursion 2) + 200 (FP) = 650
+        self.assertEqual(650.0, contestant_track.score)
 
     def test_manually_terminate_calculator(self, *args):
         cache.clear()
@@ -317,17 +319,18 @@ class TestANRPerLeg(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
         pprint(strings)
         expected = [
-            "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 15:05:00\nactual: --",
             "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
-            "SP: 9.0 points passing gate (+4 s)\nplanned: 14:17:00\nactual: 14:17:04",
-            "TP 1: 0.0 points passing gate (no time check) (-57 s)\n" "planned: 14:19:00\n" "actual: 14:18:03",
-            "TP 2: 0.0 points passing gate (no time check) (-168 s)\n" "planned: 14:22:34\n" "actual: 14:19:46",
-            "TP 3: 0.0 points passing gate (no time check) (-221 s)\n" "planned: 14:24:32\n" "actual: 14:20:51",
-            "FP: 200.0 points passing gate (-320 s)\nplanned: 14:28:10\nactual: 14:22:51",
+            "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 15:05:00\nactual: --",
+            "SP: 200.0 points passing gate (-3296 s)\nplanned: 15:12:00\nactual: 14:17:04",
+            "TP 1: 0.0 points passing gate (no time check) (-60 s)\nplanned: 14:19:04\nactual: 14:18:04",
+            "TP 2: 0.0 points passing gate (no time check) (-172 s)\nplanned: 14:22:38\nactual: 14:19:46",
+            "SP: 200.0 points backtracking",
+            "TP 3: 0.0 points passing gate (no time check) (-224 s)\nplanned: 14:24:36\nactual: 14:20:52",
+            "FP: 200.0 points passing gate (-324 s)\nplanned: 14:28:14\nactual: 14:22:51",
             "Landing 1: 0.0 points missing landing gate\nplanned: 17:04:00\nactual: --",
         ]
         self.assertListEqual(expected, strings)
-        self.assertEqual(209.0, contestant_track.score)
+        self.assertEqual(600.0, contestant_track.score)
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -403,7 +406,7 @@ class TestANR(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         # Verify score is correct
-        self.assertEqual(476.0, contestant_track.score)
+        self.assertEqual(676.0, contestant_track.score)
 
     def test_track_adaptive_start(self, *args):
         track = load_track_points_traccar_csv(
@@ -430,7 +433,7 @@ class TestANR(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         # Verify score is correct
-        self.assertEqual(458.0, contestant_track.score)
+        self.assertEqual(676.0, contestant_track.score)
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -496,7 +499,6 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.calculator = AnrCorridorCalculator(
             self.contestant,
             self.navigation_task.scorecard,
-            self.route.waypoints,
             self.route,
             Queue(),
             projector=self.navigation_task.get_projector(),
@@ -515,21 +517,20 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position.projected_x = p.projected_x
         position.projected_y = p.projected_y
 
-        from display.calculators.calculator import GatekeeperState
+        from display.calculators.calculator import OrchestratorState
 
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=self.route.waypoints,
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=None,
+            
             in_range_of_gate=None,
             projector=projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
             enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
+
 
         self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_not_called()
@@ -545,21 +546,20 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position.projected_x = p.projected_x
         position.projected_y = p.projected_y
 
-        from display.calculators.calculator import GatekeeperState
+        from display.calculators.calculator import OrchestratorState
 
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=self.route.waypoints,
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=None,
+            
             in_range_of_gate=None,
             projector=projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
             enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
+
 
         self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_called_once()
@@ -596,21 +596,20 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position3.projected_y = p3.projected_y
 
         gate = Mock()
-        from display.calculators.calculator import GatekeeperState
+        from display.calculators.calculator import OrchestratorState
 
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=self.route.waypoints,
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=None,
+            
             in_range_of_gate=None,
             projector=projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
             enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
+
 
         self.calculator.calculate_enroute([position], state)
         self.calculator.calculate_enroute([position, position2], state)
@@ -659,21 +658,20 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position3.projected_y = p3.projected_y
 
         gate = Mock()
-        from display.calculators.calculator import GatekeeperState
+        from display.calculators.calculator import OrchestratorState
 
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=self.route.waypoints,
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=None,
+            
             in_range_of_gate=None,
             projector=projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
             enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
+
 
         self.calculator.calculate_enroute([position], state)
         # Position 2 at T=20 keeps it outside
@@ -721,21 +719,20 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position3.projected_x = p3.projected_x
         position3.projected_y = p3.projected_y
 
-        from display.calculators.calculator import GatekeeperState, FinishLinePassedEvent
+        from display.calculators.calculator import OrchestratorState, FinishLinePassedEvent
 
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=self.route.waypoints,
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=None,
+            
             in_range_of_gate=None,
             projector=projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
             enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
+
 
         self.calculator.calculate_enroute([position], state)
         self.calculator.calculate_enroute([position, position2], state)
@@ -781,21 +778,20 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         position3.projected_x = p3.projected_x
         position3.projected_y = p3.projected_y
 
-        from display.calculators.calculator import GatekeeperState
+        from display.calculators.calculator import OrchestratorState
 
-        state = GatekeeperState(
-            last_gate=None,
-            outstanding_gates=self.route.waypoints,
+        state = OrchestratorState(
+            last_gate=None, last_visible_gate=None, next_gate=None,
+            
             in_range_of_gate=None,
             projector=projector,
-            takeoff_gate=None,
-            landing_gate=None,
             has_passed_finishpoint=False,
             recalculation_completed=True,
             enroute=True,
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
+
 
         self.calculator.calculate_enroute([position], state)
         self.calculator.calculate_enroute([position, position2], state)
@@ -882,17 +878,22 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         expected_strings = [
             "SP: 200.0 points entered prohibited zone enbr",
             "SP: 200.0 points passing gate (-407 s)\nplanned: 13:52:00\nactual: 13:45:13",
+            "SP: 200.0 points circling start",
             "SP: 0.0 points exiting corridor",
             "SP: 102.0 points outside corridor (39 s). Leg scores: [SP: 102.0]. Total: 102.0",
-            "TP 1: 0.0 points passing gate (no time check) (-337 s)\nplanned: 13:54:41\nactual: 13:49:04",
+            "SP: 0.0 points circling finished",
+            "TP 1: 0.0 points passing gate (no time check) (-336 s)\nplanned: 13:54:41\nactual: 13:49:05",
+            "SP: 200.0 points backtracking (capped)",
             "TP 2: 0.0 points passing gate (no time check) (-324 s)\nplanned: 13:57:39\nactual: 13:52:15",
             "TP 3: 0.0 points passing gate (no time check) (-307 s)\nplanned: 13:59:26\nactual: 13:54:19",
-            "TP 4: 0.0 points passing gate (no time check) (-296 s)\nplanned: 14:03:46\nactual: 13:58:50",
+            "TP 4: 0.0 points passing gate (no time check) (-295 s)\nplanned: 14:03:46\nactual: 13:58:51",
             "FP: 200.0 points missing gate\nplanned: 14:17:24\nactual: --",
         ]
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
-        print(strings)
+        print(f"DEBUG: {self._testMethodName} strings:")
+        pprint(strings)
         self.assertListEqual(expected_strings, strings)
         self.contestant.contestanttrack.refresh_from_db()
-        # 200 (Zone) + 200 (SP) + 102 (Corridor) + 200 (FP) = 702
-        self.assertEqual(702.0, self.contestant.contestanttrack.score)
+        print(f"DEBUG: {self._testMethodName} score: {self.contestant.contestanttrack.score}")
+        # 200 (Zone) + 200 (SP) + 200 (Circling) + 102 (Corridor) + 200 (Backtracking) + 200 (FP) = 1102
+        self.assertEqual(1102.0, self.contestant.contestanttrack.score)

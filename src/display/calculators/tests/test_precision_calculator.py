@@ -75,7 +75,7 @@ def load_track_points(filename):
 @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 @patch("display.calculators.contestant_processor.WebsocketFacade")
-@patch("display.calculators.gatekeeper.WebsocketFacade")
+@patch("display.calculators.orchestrator.WebsocketFacade")
 @patch("display.calculators.gate_calculator.WebsocketFacade")
 class TestFullTrack(TransactionTestCase):
     @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)

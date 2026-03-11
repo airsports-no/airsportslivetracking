@@ -64,7 +64,7 @@ class ContestantProcessor:
     """
     The ContestantProcessor is the main class for tracking contestants during flight. It is responsible for processing positions
     received from the Traccar service, interpolating missing positions on the track, and storing these to the database.
-    It provides methods for updating the contestants score. It instantiates a Gatekeeper which is responsible for
+    It provides methods for updating the contestants score. It instantiates an Orchestrator which is responsible for
     scoring the contestants track.
     """
 
@@ -124,7 +124,7 @@ class ContestantProcessor:
 
         self.score_thread = threading.Thread(target=self.score_updater_thread, daemon=True)
         self.score_thread.start()
-        self.gatekeeper = calculator_factory(
+        self.orchestrator = calculator_factory(
             self.contestant,
             self.score_processing_queue,
             live_processing=self.live_processing,
@@ -140,8 +140,12 @@ class ContestantProcessor:
                 if score is None:
                     self.score_processing_queue.task_done()
                     break
-                self.update_score_from_thread(score)
-                self.score_processing_queue.task_done()
+                try:
+                    self.update_score_from_thread(score)
+                except Exception:
+                    logger.exception("Failed processing score message in thread")
+                finally:
+                    self.score_processing_queue.task_done()
             except Empty:
                 continue
         logger.info(f"{self.contestant}: score_updater_thread exiting")
@@ -238,13 +242,13 @@ class ContestantProcessor:
 
     def run(self):
         """
-        The main run function of the gatekeeper. This method reads incoming positions that have been optionally delayed
+        The main run function of the orchestrator. This method reads incoming positions that have been optionally delayed
         by the timed queue, interpolates any missing positions, calculates the score given the new position data, and
         pushes the updated positions to the front end. The function terminates when self.track_terminated == True.
         """
         calculator_is_alive(self.contestant.pk, 30)
         logger.info(
-            "Started gatekeeper for contestant {} {}-{}".format(
+            "Started orchestrator for contestant {} {}-{}".format(
                 self.contestant, self.contestant.takeoff_time, self.contestant.finished_by_time
             )
         )
@@ -358,7 +362,7 @@ class ContestantProcessor:
                 positions_to_save = []
 
             for position in all_positions:
-                self.gatekeeper.calculate_score(position)
+                self.orchestrator.calculate_score(position)
 
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
 
@@ -366,7 +370,7 @@ class ContestantProcessor:
             ContestantReceivedPosition.objects.bulk_create(positions_to_save)
 
         if number_of_positions > 0:
-            self.gatekeeper.finished_processing()
+            self.orchestrator.finished_processing()
 
         self.contestant_track.set_calculator_finished()
         # Drain the position queue efficiently
@@ -388,7 +392,7 @@ class ContestantProcessor:
         """
         now = datetime.datetime.now(datetime.timezone.utc)
         if self.live_processing and not self.track_terminated:
-            if self.gatekeeper.has_the_contestant_passed_a_gate_and_landed():
+            if self.orchestrator.has_the_contestant_passed_a_gate_and_landed():
                 if self.contestant.finished_by_time + self.delay > now:
                     self.contestant.finished_by_time = now
                     self.contestant.save(update_fields=["finished_by_time"])
@@ -415,10 +419,7 @@ class ContestantProcessor:
         if not self.track_terminated:
             termination_time = self.is_termination_commanded()
             if termination_time:
-                last_gate = self.gatekeeper.get_last_gate()
-                # If we haven't even passed SP, or just passed it, attribute to SP as per user example
-                if not self.gatekeeper.any_gate_passed():
-                    last_gate = self.gatekeeper.gates[0]
+                last_gate = self.orchestrator.get_last_gate()
 
                 self.score_processing_queue.put_nowait(
                     UpdateScoreMessage(

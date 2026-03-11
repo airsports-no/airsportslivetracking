@@ -8,7 +8,7 @@ import dateutil.parser
 from django.test import TransactionTestCase
 
 from display.calculators.contestant_processor import ContestantProcessor
-from display.calculators.gatekeeper import Gatekeeper
+from display.calculators.orchestrator import Orchestrator
 from display.calculators.gate_calculator import GateCalculator
 from display.models import Aeroplane, NavigationTask, Contest, Crew, Contestant, Person, Team, EditableRoute
 from display.models.contestant_utility_models import ContestantReceivedPosition
@@ -223,7 +223,7 @@ class TestCrossingEstimate(TransactionTestCase):
         )
 
     def test_crossing_estimate(self, *args):
-        gatekeeper = Gatekeeper(self.contestant, Queue(), [GateCalculator])
+        orchestrator = Orchestrator(self.contestant, Queue(), [GateCalculator])
         # The SP gate is at lon 9.481223867089488. Correct direction is WEST (decreasing longitude).
         start_position = ContestantReceivedPosition(
             contestant=self.contestant,
@@ -258,10 +258,10 @@ class TestCrossingEstimate(TransactionTestCase):
             speed=70,
             course=270,
         )
-        gatekeeper.calculate_score(start_position)
-        gatekeeper.calculate_score(next_position)
-        gatekeeper.calculate_score(enroute_position)
-        gatekeeper.calculate_score(enroute_position_2)
+        orchestrator.calculate_score(start_position)
+        orchestrator.calculate_score(next_position)
+        orchestrator.calculate_score(enroute_position)
+        orchestrator.calculate_score(enroute_position_2)
         # Verify state
-        state = gatekeeper.get_state()
+        state = orchestrator.get_state()
         self.assertIsNotNone(state.estimated_crossing_time)

@@ -9,11 +9,12 @@ from shapely.geometry import Polygon, Point
 
 from display.calculators.calculator import (
     Calculator,
-    GatekeeperState,
-    GatekeeperEvent,
+    OrchestratorState,
+    OrchestratorEvent,
     FinishLinePassedEvent,
     GateMissedEvent,
     GatePassedEvent,
+    AdaptiveStartEvent,
 )
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Gate
@@ -44,8 +45,8 @@ class AnrCorridorCalculator(Calculator):
     def calculate_outside_route(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
         self.enroute = False
         self.accumulated_score = 0
         return []
@@ -58,7 +59,6 @@ class AnrCorridorCalculator(Calculator):
         self,
         contestant: "Contestant",
         scorecard: "Scorecard",
-        gates: List["Gate"],
         route: "Route",
         score_processing_queue: Queue,
         live_processing: bool = True,
@@ -67,7 +67,6 @@ class AnrCorridorCalculator(Calculator):
         super().__init__(
             contestant,
             scorecard,
-            gates,
             route,
             score_processing_queue,
             live_processing=live_processing,
@@ -78,7 +77,7 @@ class AnrCorridorCalculator(Calculator):
         self.crossed_outside_time = None
         self.has_passed_finish_point = False
         self.last_outside_penalty = None
-        self.last_gate_missed_position = None
+        self.last_visible_gate_missed_position = None
         self.previous_last_gate = None
         self.crossed_outside_position = None
         self.crossed_outside_gate = None
@@ -209,12 +208,13 @@ class AnrCorridorCalculator(Calculator):
     def calculate_enroute(
         self,
         track: List[ContestantReceivedPosition],
-        state: GatekeeperState,
-    ) -> List[GatekeeperEvent]:
-        self.enroute = state.enroute
-        if state.enroute:
-            self.check_outside_corridor(track, state.last_gate)
+        state: OrchestratorState,
+    ) -> List[OrchestratorEvent]:
+        if not self.enroute:
+            self.enroute = True
+        self.check_outside_corridor(track, state.last_visible_gate)
         return []
+
 
     def on_gate_missed(self, event: GateMissedEvent):
         # Detect gate crossing while outside to advance/finalize leg
@@ -254,7 +254,7 @@ class AnrCorridorCalculator(Calculator):
                 leg_incremental, leg_seconds, is_capped = self._calculate_current_leg_penalty(current_time)
                 
                 # Update persistent leg totals
-                last_leg = event.previous_gate if event.previous_gate else self.crossed_outside_gate
+                last_leg = self.crossed_outside_gate
                 gate_name = last_leg.name if last_leg else "Unknown"
                 self.leg_penalties[gate_name] = self.leg_penalties.get(gate_name, 0.0) + leg_incremental
                 self.leg_seconds[gate_name] = self.leg_seconds.get(gate_name, 0.0) + leg_seconds
@@ -270,15 +270,16 @@ class AnrCorridorCalculator(Calculator):
                 self.excursion_leg_details.append(f"{display_name}: {leg_incremental}{cap_str}")
 
                 if not self.has_passed_finish_point and event.gate.type != "fp":
-                    # Restart penalty tracking for the new leg internally.
+                    # Restart penalty tracking for the new segment internally.
+                    # We do NOT update crossed_outside_gate here because the gate was MISSED,
+                    # so it is not a "visible" gate. We stay relative to the previous visible gate.
                     self.corridor_state = self.OUTSIDE_CORRIDOR
                     self.previous_corridor_state = self.OUTSIDE_CORRIDOR
                     self.current_leg_outside_start_time = current_time
                     self.is_first_leg_of_excursion = False
-                    self.crossed_outside_gate = event.gate
                     self.accumulated_score = 0
-            else:
-                self.crossed_outside_gate = event.gate
+            # Note: We do NOT update self.crossed_outside_gate = event.gate in the else branch either
+            # because a missed gate should not become the reference for corridor scoring.
 
     def on_gate_passed(self, event: "GatePassedEvent"):
         # Detect gate crossing while outside to advance/finalize leg
@@ -317,7 +318,7 @@ class AnrCorridorCalculator(Calculator):
                 leg_incremental, leg_seconds, is_capped = self._calculate_current_leg_penalty(current_time)
                 
                 # Update persistent leg totals
-                last_leg = event.previous_gate if event.previous_gate else self.crossed_outside_gate
+                last_leg = self.crossed_outside_gate
                 gate_name = last_leg.name if last_leg else "Unknown"
                 self.leg_penalties[gate_name] = self.leg_penalties.get(gate_name, 0.0) + leg_incremental
                 self.leg_seconds[gate_name] = self.leg_seconds.get(gate_name, 0.0) + leg_seconds
@@ -380,15 +381,21 @@ class AnrCorridorCalculator(Calculator):
     def check_and_apply_outside_penalty(
         self,
         position: ContestantReceivedPosition,
-        last_gate: Gate,
+        last_visible_gate: Gate,
         current_time: Optional[datetime.datetime] = None,
     ):
         if self.crossed_outside_time is None:
             return
 
-        # Use first waypoint as a fallback if last_gate is None
-        scoring_gate = self.get_last_non_secret_gate(last_gate) if last_gate else self.gates[0]
-        gate_name = last_gate.name if last_gate else scoring_gate.name
+        # Use last_visible_gate for scoring attribution
+        scoring_gate = last_visible_gate
+        if scoring_gate is None:
+            # Fallback to first non-dummy waypoint
+            waypoints = self.route.waypoints
+            if waypoints:
+                scoring_gate = next((w for w in waypoints if w.type != "dummy"), waypoints[0])
+        
+        gate_name = scoring_gate.name if scoring_gate else "Unknown"
 
         # For consolidated reports, we use the base score type
         score_type = self.OUTSIDE_CORRIDOR_PENALTY_TYPE
@@ -411,8 +418,8 @@ class AnrCorridorCalculator(Calculator):
         leg_incremental, leg_seconds, is_capped = self._calculate_current_leg_penalty(current_time)
         self.accumulated_score = leg_incremental
 
-        entry_lat = self.crossed_outside_position.latitude if self.crossed_outside_position else position.latitude
-        entry_lon = self.crossed_outside_position.longitude if self.crossed_outside_position else position.longitude
+        entry_lat = self.crossed_outside_position[0] if self.crossed_outside_position else position.latitude
+        entry_lon = self.crossed_outside_position[1] if self.crossed_outside_position else position.longitude
 
         # Transition handling
         if self.corridor_state == self.OUTSIDE_CORRIDOR and self.previous_corridor_state == self.INSIDE_CORRIDOR:
@@ -431,7 +438,7 @@ class AnrCorridorCalculator(Calculator):
             )
         elif self.corridor_state == self.INSIDE_CORRIDOR and self.previous_corridor_state == self.OUTSIDE_CORRIDOR:
             # Update persistent totals for the final leg of the excursion
-            gate_id = last_gate.name if last_gate else "Unknown"
+            gate_id = last_visible_gate.name if last_visible_gate else "Unknown"
             self.leg_penalties[gate_id] = self.leg_penalties.get(gate_id, 0.0) + leg_incremental
             self.leg_seconds[gate_id] = self.leg_seconds.get(gate_id, 0.0) + leg_seconds
             
@@ -444,7 +451,7 @@ class AnrCorridorCalculator(Calculator):
             
             # Construct the detailed list of leg scores for this excursion
             leg_cap_str = " (capped)" if is_capped else ""
-            display_name = gate_id if self._is_gate_visible(last_gate or scoring_gate) else "Secret"
+            display_name = gate_id if self._is_gate_visible(last_visible_gate or scoring_gate) else "Secret"
             all_leg_details = self.excursion_leg_details + [f"{display_name}: {leg_incremental}{leg_cap_str}"]
             leg_scores_list_str = ", ".join(all_leg_details)
             
@@ -484,7 +491,7 @@ class AnrCorridorCalculator(Calculator):
                 self.corridor_state = self.INSIDE_CORRIDOR
                 self.check_and_apply_outside_penalty(position, self.crossed_outside_gate or self.previous_last_gate)
 
-    def check_outside_corridor(self, track: List[ContestantReceivedPosition], last_gate: "Gate"):
+    def check_outside_corridor(self, track: List[ContestantReceivedPosition], last_visible_gate: "Gate"):
         if self.has_passed_finish_point:
             return
 
@@ -495,10 +502,10 @@ class AnrCorridorCalculator(Calculator):
         if not is_inside:
             if self.corridor_state == self.INSIDE_CORRIDOR:
                 logger.info("{} {}: Heading outside of corridor".format(self.contestant, position.time))
-                self.crossed_outside_position = position
+                self.crossed_outside_position = (position.latitude, position.longitude)
                 self.corridor_state = self.OUTSIDE_CORRIDOR
                 self.crossed_outside_time = position.time
-                self.crossed_outside_gate = last_gate
+                self.crossed_outside_gate = last_visible_gate
                 self.current_leg_outside_start_time = position.time
                 self.is_first_leg_of_excursion = True
                 
@@ -507,11 +514,11 @@ class AnrCorridorCalculator(Calculator):
                 self.excursion_total_outside_seconds = 0.0
                 self.excursion_any_leg_capped = False
                 self.excursion_leg_details = []
-            self.check_and_apply_outside_penalty(position, last_gate)
+            self.check_and_apply_outside_penalty(position, last_visible_gate)
         elif self.corridor_state == self.OUTSIDE_CORRIDOR:
             logger.info("{} {}: Back inside the corridor".format(self.contestant, position.time))
             self.corridor_state = self.INSIDE_CORRIDOR
-            self.check_and_apply_outside_penalty(position, last_gate)
+            self.check_and_apply_outside_penalty(position, last_visible_gate)
 
             # Reset state for next excursion
             self.crossed_outside_position = None
@@ -519,4 +526,7 @@ class AnrCorridorCalculator(Calculator):
             self.current_leg_outside_start_time = None
             self.is_first_leg_of_excursion = True
 
-        self.previous_last_gate = last_gate
+        self.previous_last_gate = last_visible_gate
+
+    def on_adaptive_start(self, event: AdaptiveStartEvent):
+        pass

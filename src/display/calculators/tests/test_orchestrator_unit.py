@@ -1,7 +1,7 @@
 import datetime
 from unittest.mock import Mock, patch, MagicMock, call
 from django.test import TestCase
-from display.calculators.gatekeeper import Gatekeeper
+from display.calculators.orchestrator import Orchestrator
 from display.calculators.calculator import (
     GatePassedEvent,
     GateMissedEvent,
@@ -11,12 +11,12 @@ from display.calculators.calculator import (
     AdaptiveStartEvent,
     EstimationUpdatedEvent,
     InRangeUpdatedEvent,
-    GatekeeperState
+    OrchestratorState
 )
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import Projector
 
-class TestGatekeeperUnit(TestCase):
+class TestOrchestratorUnit(TestCase):
     def setUp(self):
         self.contestant = MagicMock()
         self.contestant.pk = 123
@@ -37,10 +37,10 @@ class TestGatekeeperUnit(TestCase):
         # Initialize a real projector for deterministic coordinate math in tests
         self.projector = Projector(60, 11)
         
-        with patch("display.calculators.gatekeeper.WebsocketFacade"):
+        with patch("display.calculators.orchestrator.WebsocketFacade"):
             # Mocking calculate_missing_gate_times to avoid DB issues
             self.contestant.calculate_missing_gate_times.return_value = {}
-            self.gatekeeper = Gatekeeper(self.contestant, self.score_processing_queue, [], projector=self.projector)
+            self.orchestrator = Orchestrator(self.contestant, self.score_processing_queue, [], projector=self.projector)
 
     def create_position(self, lat, lon, time):
         pos = MagicMock(spec=ContestantReceivedPosition)
@@ -58,111 +58,111 @@ class TestGatekeeperUnit(TestCase):
     def test_handle_gate_passed_event(self):
         gate = MagicMock()
         gate.type = "tp"
-        self.gatekeeper.outstanding_gates = [gate]
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = GatePassedEvent(gate, pos, pos.time, previous_gate=None)
         
-        self.gatekeeper.handle_event(event)
+        self.orchestrator.handle_event(event)
         
-        self.assertEqual(self.gatekeeper.last_gate, gate)
-        self.assertNotIn(gate, self.gatekeeper.outstanding_gates)
-        self.assertTrue(gate.pass_gate.called)
+        self.assertEqual(self.orchestrator.last_gate, gate)
+        self.assertTrue(self.orchestrator.enroute)
 
     def test_handle_gate_missed_event(self):
         gate = MagicMock()
         gate.type = "tp"
-        self.gatekeeper.outstanding_gates = [gate]
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = GateMissedEvent(None, gate, pos)
         
-        self.gatekeeper.handle_event(event)
+        self.orchestrator.handle_event(event)
         
-        self.assertNotIn(gate, self.gatekeeper.outstanding_gates)
-        self.assertTrue(gate.missed)
+        self.assertEqual(self.orchestrator.last_gate, gate)
+        self.assertTrue(self.orchestrator.enroute)
 
     def test_handle_takeoff_passed_event(self):
         gate = MagicMock()
-        takeoff_gate = MagicMock()
-        self.gatekeeper.takeoff_gate = takeoff_gate
+        
+        # Mock a calculator
+        calc = MagicMock()
+        self.orchestrator.calculators = [calc]
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = TakeoffPassedEvent(gate, pos, pos.time)
         
-        self.gatekeeper.handle_event(event)
+        self.orchestrator.handle_event(event)
         
-        self.assertTrue(gate.pass_gate.called)
-        self.assertTrue(takeoff_gate.pass_gate.called)
+        calc.on_takeoff_passed.assert_called_with(event)
+        self.assertEqual(self.orchestrator.last_gate, gate)
 
     def test_handle_landing_passed_event(self):
         gate = MagicMock()
-        landing_gate = MagicMock()
-        self.gatekeeper.landing_gate = landing_gate
+        
+        # Mock a calculator
+        calc = MagicMock()
+        self.orchestrator.calculators = [calc]
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = LandingPassedEvent(gate, pos, pos.time)
         
-        self.gatekeeper.handle_event(event)
+        self.orchestrator.handle_event(event)
         
-        self.assertTrue(gate.pass_gate.called)
-        self.assertTrue(landing_gate.pass_gate.called)
+        calc.on_landing_passed.assert_called_with(event)
+        self.assertEqual(self.orchestrator.last_gate, gate)
+        self.assertTrue(self.orchestrator.has_landed)
 
     def test_handle_starting_line_passed_event(self):
         gate = MagicMock()
         gate.type = "sp"
-        self.gatekeeper.outstanding_gates = [gate]
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = StartingLinePassedEvent(gate, pos, pos.time)
         
-        self.gatekeeper.handle_event(event)
+        self.orchestrator.handle_event(event)
         
-        self.assertTrue(gate.pass_infinite_gate.called)
-        # last_gate is no longer updated by StartingLinePassedEvent as requested
-        self.assertIsNone(self.gatekeeper.last_gate)
+        # last_gate is now updated by StartingLinePassedEvent
+        self.assertEqual(self.orchestrator.last_gate, gate)
         # But enroute should be True
-        self.assertTrue(self.gatekeeper.enroute)
-        # and gate is still in outstanding_gates (not popped)
-        self.assertIn(gate, self.gatekeeper.outstanding_gates)
+        self.assertTrue(self.orchestrator.enroute)
 
     def test_handle_adaptive_start_event(self):
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = AdaptiveStartEvent(pos.time, pos)
         
-        with patch.object(self.gatekeeper, 'recalculate_gates_times_from_start_time') as mock_recalc:
-            self.gatekeeper.handle_event(event)
-            mock_recalc.assert_called_with(pos.time)
+        calc = MagicMock()
+        self.orchestrator.calculators = [calc]
+        
+        self.orchestrator.handle_event(event)
+        self.assertTrue(self.orchestrator.recalculation_completed)
+        calc.on_adaptive_start.assert_called_with(event)
 
     def test_handle_estimation_updated_event(self):
         gate = MagicMock()
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = EstimationUpdatedEvent(gate, pos.time, pos)
         
-        self.gatekeeper.handle_event(event)
+        self.orchestrator.handle_event(event)
         
-        self.assertEqual(self.gatekeeper.estimated_next_timed_gate, gate)
-        self.assertEqual(self.gatekeeper.estimated_crossing_time, pos.time)
+        self.assertEqual(self.orchestrator.estimated_next_timed_gate, gate)
+        self.assertEqual(self.orchestrator.estimated_crossing_time, pos.time)
 
     def test_handle_in_range_updated_event(self):
         gate = MagicMock()
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = InRangeUpdatedEvent(gate, pos)
         
-        self.gatekeeper.handle_event(event)
+        self.orchestrator.handle_event(event)
         
-        self.assertEqual(self.gatekeeper.in_range_of_gate, gate)
+        self.assertEqual(self.orchestrator.in_range_of_gate, gate)
 
     def test_handle_finish_point_passed_triggers_passed_finishpoint(self):
         gate = MagicMock()
         gate.type = "fp"
-        self.gatekeeper.outstanding_gates = [gate]
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = GatePassedEvent(gate, pos, pos.time, previous_gate=None)
         
-        with patch.object(self.gatekeeper, 'passed_finishpoint') as mock_passed:
-            self.gatekeeper.handle_event(event)
+        with patch.object(self.orchestrator, 'passed_finishpoint') as mock_passed:
+            self.orchestrator.handle_event(event)
             mock_passed.assert_called_once()
 
     def test_calculate_score_ordering_between_calculators(self):
@@ -172,17 +172,18 @@ class TestGatekeeperUnit(TestCase):
         calc1.get_danger_level_and_accumulated_score.return_value = (0, 0)
         calc2.get_danger_level_and_accumulated_score.return_value = (0, 0)
         
-        self.gatekeeper.calculators = [calc1, calc2]
+        self.orchestrator.calculators = [calc1, calc2]
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         
         event1 = MagicMock(spec=GatePassedEvent)
         event2 = MagicMock(spec=InRangeUpdatedEvent)
         
+        # Ensure they are different types or handled by correct methods
         calc1.calculate_outside_route.return_value = [event1]
         calc2.calculate_outside_route.return_value = [event2]
         
-        with patch.object(self.gatekeeper, 'handle_event') as mock_handle:
-            self.gatekeeper.calculate_score(pos)
+        with patch.object(self.orchestrator, 'handle_event') as mock_handle:
+            self.orchestrator.calculate_score(pos)
             
             # Verify events handled in calculator order
             expected_calls = [call(event1), call(event2)]
@@ -195,19 +196,17 @@ class TestGatekeeperUnit(TestCase):
         calc1.get_danger_level_and_accumulated_score.return_value = (0, 0)
         calc2.get_danger_level_and_accumulated_score.return_value = (0, 0)
         
-        self.gatekeeper.calculators = [calc1, calc2]
-        self.gatekeeper.enroute = True
+        self.orchestrator.calculators = [calc1, calc2]
+        self.orchestrator.enroute = True
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         
         gate = MagicMock()
         event1 = GatePassedEvent(gate, pos, pos.time, previous_gate=None)
         calc1.calculate_enroute.return_value = [event1]
         
-        self.gatekeeper.calculate_score(pos)
+        self.orchestrator.calculate_score(pos)
         
         # calc2 should have been called with the updated state (last_gate = gate)
-        # We check the second call to calculate_enroute (first was for calc1)
-        # However, calc2 is a MagicMock, so we check call_args
         state_passed_to_calc2 = calc2.calculate_enroute.call_args[0][1]
         self.assertEqual(state_passed_to_calc2.last_gate, gate)
 
@@ -215,7 +214,7 @@ class TestGatekeeperUnit(TestCase):
         # Events from a single calculator should be handled in the order they are returned
         calc = MagicMock()
         calc.get_danger_level_and_accumulated_score.return_value = (0, 0)
-        self.gatekeeper.calculators = [calc]
+        self.orchestrator.calculators = [calc]
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         
@@ -223,8 +222,8 @@ class TestGatekeeperUnit(TestCase):
         event2 = MagicMock(spec=GatePassedEvent)
         calc.calculate_outside_route.return_value = [event1, event2]
         
-        with patch.object(self.gatekeeper, 'handle_event') as mock_handle:
-            self.gatekeeper.calculate_score(pos)
+        with patch.object(self.orchestrator, 'handle_event') as mock_handle:
+            self.orchestrator.calculate_score(pos)
             
             expected_calls = [call(event1), call(event2)]
             mock_handle.assert_has_calls(expected_calls)
