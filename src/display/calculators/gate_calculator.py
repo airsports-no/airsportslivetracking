@@ -73,7 +73,8 @@ class GateCalculator(Calculator):
         gates = []
         for item in waypoints:  # type: Waypoint
             # Dummy gates are not part of the actual route
-            if item.type != "dummy":
+            # Takeoff and Landing gates are handled by TakeoffAndLandingGateCalculator
+            if item.type not in ("dummy", "to", "ldg"):
                 gates.append(
                     Gate(
                         item,
@@ -449,6 +450,8 @@ class GateCalculator(Calculator):
             event_time += datetime.timedelta(milliseconds=gate_index)
 
         logger.info(f"{self.contestant}: Scoring missed gate {event.gate}")
+        event.gate.missed = True
+        
         if event.gate.gate_check:
             score = self.scorecard.get_gate_timing_score_for_gate_type(event.gate.type, event.gate.expected_time, None)
             message = "missing gate"
@@ -470,8 +473,12 @@ class GateCalculator(Calculator):
             return
 
         logger.info(f"{self.contestant}: Scoring passed gate {event.gate}")
-        passing_time = event.gate.passing_time or event.gate.infinite_passing_time or event.position.time
+        passing_time = event.intersection_time or event.gate.passing_time or event.gate.infinite_passing_time or event.position.time
         passing_position = event.gate.infinite_passing_position or event.position
+        
+        # Mark the gate as passed internally
+        event.gate.pass_gate(passing_time, passing_position)
+        
         time_difference = (passing_time - event.gate.expected_time).total_seconds()
         self.contestant.contestanttrack.update_last_gate(event.gate.name, time_difference)
 

@@ -198,7 +198,9 @@ class MultiGate:
         self.intersected_gate: Gate | None = None
         self.missed: bool = False
 
-    def pass_gate(self, passing_time: datetime, position: ContestantReceivedPosition):
+    def pass_gate(self, passing_time: datetime, position: ContestantReceivedPosition, gate: Optional[Gate] = None):
+        if gate is not None:
+            self.intersected_gate = gate
         assert self.intersected_gate is not None, "Setting passing time when the multi gate has not had an intersection"
         self.intersected_gate.passing_time = passing_time
         self.intersected_gate.extended_passing_time = passing_time

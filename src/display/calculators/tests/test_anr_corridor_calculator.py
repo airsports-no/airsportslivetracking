@@ -27,6 +27,7 @@ from display.models import (
     Team,
     EditableRoute,
     ContestantTrack,
+    ScoreLogEntry,
 )
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.calculators.calculator_utilities import load_track_points_traccar_csv
@@ -136,7 +137,6 @@ class TestANRPerLeg(TransactionTestCase):
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 20:30:00\nactual: --",
             "SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53",
             "SP: 0.0 points exiting corridor",
-            "SP: 0.0 points missed SP while outside corridor. Excursion penalty so far: 42.0",
             "SP: 50.0 points outside corridor (39 s). Leg scores: [SP: 42.0, SP: 8.0 (capped)]. Total: 50.0 (capped)",
             "TP 1: 0.0 points passing gate (no time check) (-406 s)\nplanned: 20:39:00\nactual: 20:32:14",
             "SP: 0.0 points exiting corridor",
@@ -147,7 +147,6 @@ class TestANRPerLeg(TransactionTestCase):
         ]
 
         self.assertListEqual(a, strings)
-        # 200 (SP) + 50 (Excursion 1) + 200 (Backtrack) + 0 (Excursion 2) + 200 (FP) = 650
         self.assertEqual(650.0, contestant_track.score)
 
     def test_anr_score_per_leg_enabled(self, *args):
@@ -183,7 +182,6 @@ class TestANRPerLeg(TransactionTestCase):
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 20:30:00\nactual: --",
             "SP: 200.0 points passing gate (-367 s)\nplanned: 20:37:00\nactual: 20:30:53",
             "SP: 0.0 points exiting corridor",
-            "SP: 0.0 points missed SP while outside corridor. Excursion penalty so far: 42.0",
             "SP: 50.0 points outside corridor (39 s). Leg scores: [SP: 42.0, SP: 8.0 (capped)]. Total: 50.0 (capped)",
             "TP 1: 0.0 points passing gate (no time check) (-406 s)\nplanned: 20:39:00\nactual: 20:32:14",
             "SP: 0.0 points exiting corridor",
@@ -241,7 +239,6 @@ class TestANRPerLeg(TransactionTestCase):
             final_list,
             strings,
         )
-        # 200 (SP) + 50 (Excursion 1) + 200 (Backtrack) + 0 (Excursion 2) + 200 (FP) = 650
         self.assertEqual(650.0, contestant_track.score)
 
     def test_manually_terminate_calculator(self, *args):
@@ -322,11 +319,11 @@ class TestANRPerLeg(TransactionTestCase):
             "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 15:05:00\nactual: --",
             "SP: 200.0 points passing gate (-3296 s)\nplanned: 15:12:00\nactual: 14:17:04",
-            "TP 1: 0.0 points passing gate (no time check) (-60 s)\nplanned: 14:19:04\nactual: 14:18:04",
-            "TP 2: 0.0 points passing gate (no time check) (-172 s)\nplanned: 14:22:38\nactual: 14:19:46",
+            "TP 1: 0.0 points passing gate (no time check) (-61 s)\nplanned: 14:19:04\nactual: 14:18:03",
+            "TP 2: 0.0 points passing gate (no time check) (-173 s)\nplanned: 14:22:38\nactual: 14:19:45",
             "SP: 200.0 points backtracking",
-            "TP 3: 0.0 points passing gate (no time check) (-224 s)\nplanned: 14:24:36\nactual: 14:20:52",
-            "FP: 200.0 points passing gate (-324 s)\nplanned: 14:28:14\nactual: 14:22:51",
+            "TP 3: 0.0 points passing gate (no time check) (-225 s)\nplanned: 14:24:36\nactual: 14:20:51",
+            "FP: 200.0 points passing gate (-325 s)\nplanned: 14:28:14\nactual: 14:22:49",
             "Landing 1: 0.0 points missing landing gate\nplanned: 17:04:00\nactual: --",
         ]
         self.assertListEqual(expected, strings)
@@ -878,15 +875,13 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         expected_strings = [
             "SP: 200.0 points entered prohibited zone enbr",
             "SP: 200.0 points passing gate (-407 s)\nplanned: 13:52:00\nactual: 13:45:13",
-            "SP: 200.0 points circling start",
             "SP: 0.0 points exiting corridor",
             "SP: 102.0 points outside corridor (39 s). Leg scores: [SP: 102.0]. Total: 102.0",
-            "SP: 0.0 points circling finished",
-            "TP 1: 0.0 points passing gate (no time check) (-336 s)\nplanned: 13:54:41\nactual: 13:49:05",
-            "SP: 200.0 points backtracking (capped)",
+            "TP 1: 0.0 points passing gate (no time check) (-337 s)\nplanned: 13:54:41\nactual: 13:49:04",
+            "SP: 200.0 points backtracking",
             "TP 2: 0.0 points passing gate (no time check) (-324 s)\nplanned: 13:57:39\nactual: 13:52:15",
             "TP 3: 0.0 points passing gate (no time check) (-307 s)\nplanned: 13:59:26\nactual: 13:54:19",
-            "TP 4: 0.0 points passing gate (no time check) (-295 s)\nplanned: 14:03:46\nactual: 13:58:51",
+            "TP 4: 0.0 points passing gate (no time check) (-296 s)\nplanned: 14:03:46\nactual: 13:58:50",
             "FP: 200.0 points missing gate\nplanned: 14:17:24\nactual: --",
         ]
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
@@ -895,5 +890,5 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         self.assertListEqual(expected_strings, strings)
         self.contestant.contestanttrack.refresh_from_db()
         print(f"DEBUG: {self._testMethodName} score: {self.contestant.contestanttrack.score}")
-        # 200 (Zone) + 200 (SP) + 200 (Circling) + 102 (Corridor) + 200 (Backtracking) + 200 (FP) = 1102
-        self.assertEqual(1102.0, self.contestant.contestanttrack.score)
+        # 200 (Zone) + 200 (SP) + 102 (Corridor) + 200 (Backtracking) + 200 (FP) = 902
+        self.assertEqual(902.0, self.contestant.contestanttrack.score)

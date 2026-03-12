@@ -601,7 +601,8 @@ class TestLandingPatternCalculator(CalculatorUnitTestBase):
     @patch("display.calculators.landing_pattern_calculator.Projector")
     def setUp(self, mock_projector):
         super().setUp()
-        self.route.landing_gates = [MagicMock()]
+        self.waypoint1.type = "ldg"
+        self.route.landing_gates = [self.waypoint1]
         self.route.landing_gates[0].latitude = 60.0
         self.route.landing_gates[0].longitude = 11.0
         self.route.landing_gates[0].gate_line = ((60.0, 11.0), (60.0, 11.1))
@@ -619,7 +620,7 @@ class TestLandingPatternCalculator(CalculatorUnitTestBase):
         landing_gate = MagicMock()
         landing_gate.gates = [MagicMock()]
         landing_gate.intersected_gate = MagicMock()
-
+        
         state = OrchestratorState(
             last_gate=None, last_visible_gate=None, next_gate=None,
             
@@ -632,9 +633,8 @@ class TestLandingPatternCalculator(CalculatorUnitTestBase):
         pos1 = self.create_position(59.9, 11, datetime.datetime(2020, 1, 1, 9, 59))
         pos2 = self.create_position(60.1, 11, datetime.datetime(2020, 1, 1, 10, 1))
         track = [pos1, pos2]
-        landing_gate.get_gate_intersection_time.return_value = pos2.time
-
-        with patch("display.calculators.calculator_utilities.time_to_intersection", return_value=pos2.time):
+        
+        with patch("display.calculators.positions_and_gates.Gate.get_gate_intersection_time", return_value=pos2.time):
             events = self.calculator.calculate_outside_route(track, state)
 
         self.assertTrue(any(isinstance(e, LandingPassedEvent) for e in events))

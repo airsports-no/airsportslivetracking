@@ -190,7 +190,7 @@ class TestFullTrack(TransactionTestCase):
         for s in strings:
             print(s)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(1800.0, contestant_track.score)
+        self.assertEqual(2000.0, contestant_track.score)
 
     def test_missed_procedure_turn(self, *args):
         positions = load_track_points(os.path.join(TEST_DATA_DIR, "jorgen_missed_procedure_turn.gpx"))
@@ -303,15 +303,16 @@ class Test2017WPFC(TransactionTestCase):
             "TP7: 30.0 points passing gate (+12 s)\nplanned: 09:38:47\nactual: 09:38:59",
             "SC14: 15.0 points passing gate (+7 s)\nplanned: 09:41:46\nactual: 09:41:53",
             "FP: 18.0 points passing gate (+8 s)\nplanned: 09:46:03\nactual: 09:46:11",
-            "LDG: 0.0 points gate_score (-2300 s)\nplanned: 10:29:00\nactual: 09:50:40",
+            "LDG: 0.0 points passed landing gate (-2300 s)\nplanned: 10:29:00\nactual: 09:50:40",
+            "LDG: 0.0 points passed landing line",
         ]
         strings = [
             item.string for item in ScoreLogEntry.objects.filter(contestant=self.contestant).order_by("time", "pk")
         ]
         self.assertListEqual(expected_strings, strings)
         self.assertEqual(
-            1065, contestant_track.score  # 1152,
-        )  # Should be 1071, a difference of 78. Mostly caused by timing differences, I think.
+            1065, contestant_track.score
+        )
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -491,12 +492,12 @@ class TestHamar23March2021(TransactionTestCase):
         expected_strings = [
             "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
             "SP: 6.0 points passing gate (-4 s)\nplanned: 14:38:00\nactual: 14:37:56",
-            "TP 1: 36.0 points passing gate (-14 s)\nplanned: 14:41:26\nactual: 14:41:12",
-            "TP 2: 21.0 points passing gate (+9 s)\nplanned: 14:46:41\nactual: 14:46:50",
-            "TP 3: 63.0 points passing gate (+23 s)\nplanned: 14:50:41\nactual: 14:51:04",
-            "TP 4: 42.0 points passing gate (+16 s)\nplanned: 14:58:23\nactual: 14:58:39",
-            "TP 5: 12.0 points passing gate (-6 s)\nplanned: 15:02:07\nactual: 15:02:02",
-            "FP: 36.0 points passing gate (-14 s)\nplanned: 15:09:16\nactual: 15:09:03",
+            "TP 1: 24.0 points passing gate (-10 s)\nplanned: 14:41:22\nactual: 14:41:12",
+            "TP 2: 33.0 points passing gate (+13 s)\nplanned: 14:46:37\nactual: 14:46:50",
+            "TP 3: 75.0 points passing gate (+27 s)\nplanned: 14:50:37\nactual: 14:51:04",
+            "TP 4: 54.0 points passing gate (+20 s)\nplanned: 14:58:19\nactual: 14:58:39",
+            "TP 5: 0.0 points passing gate (-2 s)\nplanned: 15:02:03\nactual: 15:02:02",
+            "FP: 24.0 points passing gate (-10 s)\nplanned: 15:09:12\nactual: 15:09:03",
         ]
         strings = [
             item.string for item in ScoreLogEntry.objects.filter(contestant=self.contestant).order_by("time", "pk")
@@ -504,7 +505,7 @@ class TestHamar23March2021(TransactionTestCase):
         pprint(strings)
         self.assertListEqual(expected_strings, strings)
 
-        self.assertEqual(216, contestant_track.score)  # 15 points more than website
+        self.assertEqual(216, contestant_track.score)
 
     def test_vjoycar(self, *args):
         track = load_track_points_traccar_csv(load_traccar_track(os.path.join(TEST_DATA_DIR, "vjoycarhamar.csv")))
@@ -528,12 +529,12 @@ class TestHamar23March2021(TransactionTestCase):
         expected_strings = [
             "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
             "SP: 3.0 points passing gate (-3 s)\nplanned: 14:38:00\nactual: 14:37:57",
-            "TP 1: 33.0 points passing gate (-13 s)\nplanned: 14:41:26\nactual: 14:41:13",
-            "TP 2: 21.0 points passing gate (+9 s)\nplanned: 14:46:41\nactual: 14:46:50",
-            "TP 3: 63.0 points passing gate (+23 s)\nplanned: 14:50:41\nactual: 14:51:04",
-            "TP 4: 45.0 points passing gate (+17 s)\nplanned: 14:58:23\nactual: 14:58:40",
-            "TP 5: 15.0 points passing gate (-7 s)\nplanned: 15:02:07\nactual: 15:02:01",
-            "FP: 33.0 points passing gate (-13 s)\nplanned: 15:09:16\nactual: 15:09:04",
+            "TP 1: 24.0 points passing gate (-10 s)\nplanned: 14:41:23\nactual: 14:41:13",
+            "TP 2: 30.0 points passing gate (+12 s)\nplanned: 14:46:38\nactual: 14:46:50",
+            "TP 3: 72.0 points passing gate (+26 s)\nplanned: 14:50:38\nactual: 14:51:04",
+            "TP 4: 54.0 points passing gate (+20 s)\nplanned: 14:58:20\nactual: 14:58:40",
+            "TP 5: 6.0 points passing gate (-4 s)\nplanned: 15:02:04\nactual: 15:02:01",
+            "FP: 24.0 points passing gate (-10 s)\nplanned: 15:09:13\nactual: 15:09:04",
         ]
         strings = [
             item.string for item in ScoreLogEntry.objects.filter(contestant=self.contestant).order_by("time", "pk")
@@ -564,19 +565,19 @@ class TestHamar23March2021(TransactionTestCase):
         expected_strings = [
             "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
             "SP: 6.0 points passing gate (-4 s)\nplanned: 14:38:00\nactual: 14:37:56",
-            "TP 1: 36.0 points passing gate (-14 s)\nplanned: 14:41:26\nactual: 14:41:12",
-            "TP 2: 24.0 points passing gate (+10 s)\nplanned: 14:46:41\nactual: 14:46:51",
-            "TP 3: 63.0 points passing gate (+23 s)\nplanned: 14:50:41\nactual: 14:51:04",
-            "TP 4: 42.0 points passing gate (+16 s)\nplanned: 14:58:23\nactual: 14:58:39",
-            "TP 5: 9.0 points passing gate (-5 s)\nplanned: 15:02:07\nactual: 15:02:03",
-            "FP: 33.0 points passing gate (-13 s)\nplanned: 15:09:16\nactual: 15:09:04",
+            "TP 1: 24.0 points passing gate (-10 s)\nplanned: 14:41:22\nactual: 14:41:12",
+            "TP 2: 36.0 points passing gate (+14 s)\nplanned: 14:46:37\nactual: 14:46:51",
+            "TP 3: 75.0 points passing gate (+27 s)\nplanned: 14:50:37\nactual: 14:51:04",
+            "TP 4: 54.0 points passing gate (+20 s)\nplanned: 14:58:19\nactual: 14:58:39",
+            "TP 5: 0.0 points passing gate (-1 s)\nplanned: 15:02:03\nactual: 15:02:03",
+            "FP: 21.0 points passing gate (-9 s)\nplanned: 15:09:12\nactual: 15:09:04",
         ]
         strings = [
             item.string for item in ScoreLogEntry.objects.filter(contestant=self.contestant).order_by("time", "pk")
         ]
         self.assertListEqual(expected_strings, strings)
 
-        self.assertEqual(213, contestant_track.score)
+        self.assertEqual(216, contestant_track.score)
 
     def test_kolaf_trackar(self, *args):
         track = load_track_points_traccar_csv(load_traccar_track(os.path.join(TEST_DATA_DIR, "kolaf_hamar.csv")))
@@ -600,12 +601,12 @@ class TestHamar23March2021(TransactionTestCase):
         expected_strings = [
             "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
             "SP: 6.0 points passing gate (-4 s)\nplanned: 14:38:00\nactual: 14:37:56",
-            "TP 1: 33.0 points passing gate (-13 s)\nplanned: 14:41:26\nactual: 14:41:13",
-            "TP 2: 24.0 points passing gate (+10 s)\nplanned: 14:46:41\nactual: 14:46:51",
-            "TP 3: 63.0 points passing gate (+23 s)\nplanned: 14:50:41\nactual: 14:51:04",
-            "TP 4: 42.0 points passing gate (+16 s)\nplanned: 14:58:23\nactual: 14:58:39",
-            "TP 5: 12.0 points passing gate (-6 s)\nplanned: 15:02:07\nactual: 15:02:02",
-            "FP: 33.0 points passing gate (-13 s)\nplanned: 15:09:16\nactual: 15:09:04",
+            "TP 1: 21.0 points passing gate (-9 s)\nplanned: 14:41:22\nactual: 14:41:13",
+            "TP 2: 36.0 points passing gate (+14 s)\nplanned: 14:46:37\nactual: 14:46:51",
+            "TP 3: 75.0 points passing gate (+27 s)\nplanned: 14:50:37\nactual: 14:51:04",
+            "TP 4: 54.0 points passing gate (+20 s)\nplanned: 14:58:19\nactual: 14:58:39",
+            "TP 5: 0.0 points passing gate (-2 s)\nplanned: 15:02:03\nactual: 15:02:02",
+            "FP: 21.0 points passing gate (-9 s)\nplanned: 15:09:12\nactual: 15:09:04",
         ]
         strings = [
             item.string for item in ScoreLogEntry.objects.filter(contestant=self.contestant).order_by("time", "pk")

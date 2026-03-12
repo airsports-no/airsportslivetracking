@@ -176,6 +176,10 @@ class Orchestrator:
             self.last_gate = event.gate
             self.last_visible_gate = event.gate # SP is always visible
             
+            # Clear in_range if this is the gate we were in range of
+            if self.in_range_of_gate == event.gate:
+                self.in_range_of_gate = None
+                
             if not self.enroute:
                 self.enroute = True
                 logger.info(f"{self.contestant}: Switching to enroute after starting line crossing")
@@ -193,6 +197,11 @@ class Orchestrator:
             self.last_gate = event.gate
             if event.gate.type != SECRETPOINT:
                 self.last_visible_gate = event.gate
+            
+            # Clear in_range if this is the gate we were in range of
+            if self.in_range_of_gate == event.gate:
+                self.in_range_of_gate = None
+                
             self.update_enroute()
 
             for calculator in self.calculators:
@@ -207,6 +216,11 @@ class Orchestrator:
             self.last_gate = event.gate
             if event.gate.type != SECRETPOINT:
                 self.last_visible_gate = event.gate
+            
+            # Clear in_range if this is the gate we were in range of
+            if self.in_range_of_gate == event.gate:
+                self.in_range_of_gate = None
+                
             self.update_enroute()
 
             for calculator in self.calculators:

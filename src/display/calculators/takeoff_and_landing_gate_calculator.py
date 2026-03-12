@@ -133,7 +133,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
             return
         self.scored_takeoff = True
         if self.takeoff_gate:
-            self.takeoff_gate.pass_gate(event.intersection_time, event.position)
+            self.takeoff_gate.pass_gate(event.intersection_time, event.position, gate=event.gate)
         logger.info(f"{self.contestant}: Scoring takeoff gate {event.gate}")
         gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
             event.gate.type, event.gate.expected_time, event.intersection_time
@@ -159,7 +159,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
             return
         self.scored_landing = True
         if self.landing_gate:
-            self.landing_gate.pass_gate(event.intersection_time, event.position)
+            self.landing_gate.pass_gate(event.intersection_time, event.position, gate=event.gate)
         logger.info(f"{self.contestant}: Scoring landing gate {event.gate}")
         gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
             event.gate.type, event.gate.expected_time, event.intersection_time

@@ -31,7 +31,8 @@ class LandingPatternCalculator(Calculator):
         gates = []
         for item in waypoints:  # type: Waypoint
             # Dummy gates are not part of the actual route
-            if item.type != "dummy":
+            # Only use landing gates for landing pattern rounds
+            if item.type == "ldg":
                 gates.append(
                     Gate(
                         item,
@@ -92,11 +93,10 @@ class LandingPatternCalculator(Calculator):
         events = []
         # LandingPatternCalculator should ideally manage its own landing multi-gate 
         # or just check against route landing gates directly.
-        if self.route.landing_gates and len(self.route.landing_gates) > 0:
-            from display.calculators.calculator_utilities import time_to_intersection
+        if self.gates and len(self.gates) > 0:
             # For simplicity, check first landing gate
-            gate = self.route.landing_gates[0]
-            intersection_time = time_to_intersection(track, self.projector, gate.gate_line)
+            gate = self.gates[0]
+            intersection_time = gate.get_gate_intersection_time(state.projector, track)
             if intersection_time:
                 self.contestant.contestanttrack.updates_current_state("Tracking")
                 if self.last_intersection is None or intersection_time > self.last_intersection + datetime.timedelta(
@@ -116,9 +116,9 @@ class LandingPatternCalculator(Calculator):
         logger.info(f"{self.contestant}: Scoring landing pattern round via gate {event.gate}")
         self.update_score(
             UpdateScoreMessage(
-                event.position.time,
+                event.intersection_time,
                 event.gate,
-                1,
+                0.0,
                 "passed landing line",
                 event.position.latitude,
                 event.position.longitude,
@@ -126,5 +126,6 @@ class LandingPatternCalculator(Calculator):
                 "landing_line",
             )
         )
+
     def finalise(self, track: List[ContestantReceivedPosition]):
         pass
