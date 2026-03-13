@@ -28,6 +28,7 @@ from display.calculators.calculator import (
 )
 from display.utilities.coordinate_utilities import Projector
 from display.utilities.gate_definitions import SECRETPOINT
+from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
 
 from display.models import Contestant
 
@@ -195,7 +196,7 @@ class Orchestrator:
             self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             self.previous_last_gate = self.last_gate
             self.last_gate = event.gate
-            if event.gate.type != SECRETPOINT:
+            if event.gate.type != SECRETPOINT or self.scorecard.calculator == ANR_CORRIDOR:
                 self.last_visible_gate = event.gate
             
             # Clear in_range if this is the gate we were in range of
@@ -214,7 +215,7 @@ class Orchestrator:
             self.has_any_gate_passed = True
             self.previous_last_gate = self.last_gate
             self.last_gate = event.gate
-            if event.gate.type != SECRETPOINT:
+            if event.gate.type != SECRETPOINT or self.scorecard.calculator == ANR_CORRIDOR:
                 self.last_visible_gate = event.gate
             
             # Clear in_range if this is the gate we were in range of
