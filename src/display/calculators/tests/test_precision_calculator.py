@@ -304,7 +304,6 @@ class Test2017WPFC(TransactionTestCase):
             "SC14: 15.0 points passing gate (+7 s)\nplanned: 09:41:46\nactual: 09:41:53",
             "FP: 18.0 points passing gate (+8 s)\nplanned: 09:46:03\nactual: 09:46:11",
             "LDG: 0.0 points passed landing gate (-2300 s)\nplanned: 10:29:00\nactual: 09:50:40",
-            "LDG: 0.0 points passed landing line",
         ]
         strings = [
             item.string for item in ScoreLogEntry.objects.filter(contestant=self.contestant).order_by("time", "pk")

@@ -38,7 +38,6 @@ def calculator_factory(
                 [
                     GateCalculator,
                     TakeoffAndLandingGateCalculator,
-                    LandingPatternCalculator,
                     BacktrackingAndProcedureTurnsCalculator,
                     ProhibitedZoneCalculator,
                     PenaltyZoneCalculator,
@@ -57,7 +56,6 @@ def calculator_factory(
                 [
                     GateCalculator,
                     TakeoffAndLandingGateCalculator,
-                    LandingPatternCalculator,
                     BacktrackingAndProcedureTurnsCalculator,
                     AnrCorridorCalculator,
                     ProhibitedZoneCalculator,
