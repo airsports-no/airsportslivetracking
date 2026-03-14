@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from display.calculators.positions_and_gates import Gate
 from display.models.contest import Contest
 from display.models.contestant import Contestant
 from display.models.editable_route import EditableRoute
