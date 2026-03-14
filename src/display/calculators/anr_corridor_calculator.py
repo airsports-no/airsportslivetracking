@@ -22,6 +22,7 @@ from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Contestant, Scorecard, Route, INFORMATION, ANOMALY
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.gate_definitions import SECRETPOINT
+from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ class AnrCorridorCalculator(Calculator):
         self.corridor_maximum_penalty_is_per_leg = self.scorecard.corridor_maximum_penalty_is_per_leg
         self.current_leg_outside_start_time = None
         self.is_first_leg_of_excursion = True
-        
+
         self.polygon_helper = PolygonHelper(self.projector)
         self._bounds_cache = {}
         self.track_polygon = self.build_polygon()
@@ -102,8 +103,8 @@ class AnrCorridorCalculator(Calculator):
         self.excursion_leg_details = []
 
         # Persistent leg tracking across multiple excursions
-        self.leg_penalties = {} # gate_name -> current total capped penalty for this leg
-        self.leg_seconds = {}   # gate_name -> current total seconds outside for this leg
+        self.leg_penalties = {}  # gate_name -> current total capped penalty for this leg
+        self.leg_seconds = {}  # gate_name -> current total seconds outside for this leg
 
     def _is_gate_visible(self, gate: Gate) -> bool:
         """
@@ -120,7 +121,7 @@ class AnrCorridorCalculator(Calculator):
         - For ANR: Every gate is a leg boundary (usually turns).
         - For others: Only standard waypoints (non-secret) are boundaries.
         """
-        if any("anr_corridor" in t for t in self.scorecard.task_type):
+        if self.scorecard.calculator == ANR_CORRIDOR:
             return True
         return gate.type != SECRETPOINT
 
@@ -133,10 +134,12 @@ class AnrCorridorCalculator(Calculator):
         LOOKAHEAD_SECONDS = 30
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
             # Live score should show total excursion penalty so far
-            current_leg_incremental, _, _ = self._calculate_current_leg_penalty(datetime.datetime.now(datetime.timezone.utc) if self.live_processing else track[-1].time)
-            
+            current_leg_incremental, _, _ = self._calculate_current_leg_penalty(
+                datetime.datetime.now(datetime.timezone.utc) if self.live_processing else track[-1].time
+            )
+
             return 100, self.excursion_accumulated_score + current_leg_incremental
-            
+
         distance_danger = 0
         shortest_time = get_shortest_intersection_time(
             track, self.polygon_helper, [("test", self.track_polygon)], LOOKAHEAD_SECONDS, from_inside=True
@@ -148,7 +151,7 @@ class AnrCorridorCalculator(Calculator):
 
             p_x = getattr(position, "projected_x", None)
             p_y = getattr(position, "projected_y", None)
-            
+
             if p_x is None or p_y is None:
                 raise ValueError(f"Position at {position.time} is missing projected coordinates")
 
@@ -215,7 +218,6 @@ class AnrCorridorCalculator(Calculator):
         self.check_outside_corridor(track, state.last_visible_gate)
         return []
 
-
     def on_gate_missed(self, event: GateMissedEvent):
         # Detect gate crossing while outside to advance/finalize leg
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
@@ -249,22 +251,22 @@ class AnrCorridorCalculator(Calculator):
                 logger.info(
                     f"{self.contestant}: Finalizing scoring leg {self.crossed_outside_gate} because {event.gate} was missed."
                 )
-                
+
                 # Re-calculate finalized values for transition
                 leg_incremental, leg_seconds, is_capped = self._calculate_current_leg_penalty(current_time)
-                
+
                 # Update persistent leg totals
                 last_leg = self.crossed_outside_gate
                 gate_name = last_leg.name if last_leg else "Unknown"
                 self.leg_penalties[gate_name] = self.leg_penalties.get(gate_name, 0.0) + leg_incremental
                 self.leg_seconds[gate_name] = self.leg_seconds.get(gate_name, 0.0) + leg_seconds
-                
+
                 # Update excursion totals
                 self.excursion_accumulated_score += leg_incremental
                 self.excursion_total_outside_seconds += leg_seconds
                 if is_capped:
                     self.excursion_any_leg_capped = True
-                
+
                 # Record details for the final consolidated message
                 display_name = gate_name if (last_leg and self._is_gate_visible(last_leg)) else "Secret"
                 self.excursion_leg_details.append(f"{display_name}: {leg_incremental}{cap_str}")
@@ -312,16 +314,16 @@ class AnrCorridorCalculator(Calculator):
                 logger.info(
                     f"{self.contestant}: Finalizing scoring leg {self.crossed_outside_gate} because {event.gate} was passed"
                 )
-                
+
                 # Re-calculate finalized values for transition
                 leg_incremental, leg_seconds, is_capped = self._calculate_current_leg_penalty(current_time)
-                
+
                 # Update persistent leg totals
                 last_leg = self.crossed_outside_gate
                 gate_name = last_leg.name if last_leg else "Unknown"
                 self.leg_penalties[gate_name] = self.leg_penalties.get(gate_name, 0.0) + leg_incremental
                 self.leg_seconds[gate_name] = self.leg_seconds.get(gate_name, 0.0) + leg_seconds
-                
+
                 # Update excursion totals
                 self.excursion_accumulated_score += leg_incremental
                 self.excursion_total_outside_seconds += leg_seconds
@@ -352,30 +354,30 @@ class AnrCorridorCalculator(Calculator):
         start_time_ref = self.current_leg_outside_start_time or self.crossed_outside_time
         if start_time_ref is None:
             return 0.0, 0.0, False
-            
+
         outside_time_this_segment = (current_time - start_time_ref).total_seconds()
         if outside_time_this_segment < 0:
             outside_time_this_segment = 0
-            
+
         if self.is_first_leg_of_excursion:
             penalty_time = np.round(max(0.0, outside_time_this_segment - self.corridor_grace_time))
         else:
             # No grace time for subsequent legs of the same excursion
             penalty_time = np.round(outside_time_this_segment)
-            
+
         raw_penalty = self.scorecard.corridor_outside_penalty * penalty_time
         capped = False
-        
+
         if self.corridor_maximum_penalty_is_per_leg:
             gate_name = self.crossed_outside_gate.name if self.crossed_outside_gate else "Unknown"
             already_paid = self.leg_penalties.get(gate_name, 0.0)
-            
+
             if self.scorecard.corridor_maximum_penalty > 0:
                 headroom = max(0.0, self.scorecard.corridor_maximum_penalty - already_paid)
                 if raw_penalty >= headroom:
                     raw_penalty = headroom
                     capped = True
-            
+
         return float(raw_penalty), outside_time_this_segment, capped
 
     def check_and_apply_outside_penalty(
@@ -394,7 +396,7 @@ class AnrCorridorCalculator(Calculator):
             waypoints = self.route.waypoints
             if waypoints:
                 scoring_gate = next((w for w in waypoints if w.type != "dummy"), waypoints[0])
-        
+
         gate_name = scoring_gate.name if scoring_gate else "Unknown"
 
         # For consolidated reports, we use the base score type
@@ -441,20 +443,20 @@ class AnrCorridorCalculator(Calculator):
             gate_id = last_visible_gate.name if last_visible_gate else "Unknown"
             self.leg_penalties[gate_id] = self.leg_penalties.get(gate_id, 0.0) + leg_incremental
             self.leg_seconds[gate_id] = self.leg_seconds.get(gate_id, 0.0) + leg_seconds
-            
+
             # Consolidate and emit the final excursion penalty
             final_score = self.excursion_accumulated_score + leg_incremental
             final_time = self.excursion_total_outside_seconds + leg_seconds
-            
+
             any_capped = self.excursion_any_leg_capped or is_capped
             cap_str = " (capped)" if any_capped else ""
-            
+
             # Construct the detailed list of leg scores for this excursion
             leg_cap_str = " (capped)" if is_capped else ""
             display_name = gate_id if self._is_gate_visible(last_visible_gate or scoring_gate) else "Secret"
             all_leg_details = self.excursion_leg_details + [f"{display_name}: {leg_incremental}{leg_cap_str}"]
             leg_scores_list_str = ", ".join(all_leg_details)
-            
+
             message = "outside corridor ({} s)".format(int(np.round(final_time)))
             if self.corridor_maximum_penalty_is_per_leg:
                 message += f". Leg scores: [{leg_scores_list_str}]. Total: {final_score}{cap_str}"
@@ -473,7 +475,9 @@ class AnrCorridorCalculator(Calculator):
                     score_type,
                     # We don't provide maximum_score here because we already applied per-leg caps internally
                     # and if per-leg is off, accumulated_score already handles the global cap.
-                    maximum_score=None if self.corridor_maximum_penalty_is_per_leg else self.scorecard.corridor_maximum_penalty,
+                    maximum_score=(
+                        None if self.corridor_maximum_penalty_is_per_leg else self.scorecard.corridor_maximum_penalty
+                    ),
                 )
             )
             # Reset excursion state
@@ -508,7 +512,7 @@ class AnrCorridorCalculator(Calculator):
                 self.crossed_outside_gate = last_visible_gate
                 self.current_leg_outside_start_time = position.time
                 self.is_first_leg_of_excursion = True
-                
+
                 # Start of a new excursion
                 self.excursion_accumulated_score = 0.0
                 self.excursion_total_outside_seconds = 0.0
