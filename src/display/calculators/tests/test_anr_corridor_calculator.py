@@ -867,21 +867,22 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
             contestant_number=1,
             minutes_to_starting_point=7,
             air_speed=speed,
-            adaptive_start=False,
+            adaptive_start=True,
             wind_direction=160,
             wind_speed=0,
         )
         calculator_runner(self.contestant, track)
         expected_strings = [
             "SP: 200.0 points entered prohibited zone enbr",
-            "SP: 200.0 points passing gate (-407 s)\nplanned: 13:52:00\nactual: 13:45:13",
+            "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 36.0 points passing gate (+13 s)\nplanned: 13:45:00\nactual: 13:45:13",
             "SP: 0.0 points exiting corridor",
-            "SP: 102.0 points outside corridor (39 s). Leg scores: [SP: 102.0]. Total: 102.0",
-            "TP 1: 0.0 points passing gate (no time check) (-337 s)\nplanned: 13:54:41\nactual: 13:49:04",
-            "TP 2: 0.0 points passing gate (no time check) (-324 s)\nplanned: 13:57:39\nactual: 13:52:15",
-            "TP 3: 0.0 points passing gate (no time check) (-307 s)\nplanned: 13:59:26\nactual: 13:54:19",
-            "TP 4: 0.0 points passing gate (no time check) (-296 s)\nplanned: 14:03:46\nactual: 13:58:50",
-            "FP: 200.0 points missing gate\nplanned: 14:17:24\nactual: --",
+            "SP: 102.0 points outside corridor (39 s). Leg scores: [SP: 102.0]. Total: " "102.0",
+            "TP 1: 0.0 points passing gate (no time check) (+83 s)\n" "planned: 13:47:41\n" "actual: 13:49:04",
+            "TP 2: 0.0 points passing gate (no time check) (+96 s)\n" "planned: 13:50:39\n" "actual: 13:52:15",
+            "TP 3: 0.0 points passing gate (no time check) (+113 s)\n" "planned: 13:52:26\n" "actual: 13:54:19",
+            "TP 4: 0.0 points passing gate (no time check) (+124 s)\n" "planned: 13:56:45\n" "actual: 13:58:50",
+            "FP: 200.0 points missing gate\nplanned: 14:10:23\nactual: --",
         ]
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
         print(f"DEBUG: {self._testMethodName} strings:")
@@ -890,4 +891,4 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         self.contestant.contestanttrack.refresh_from_db()
         print(f"DEBUG: {self._testMethodName} score: {self.contestant.contestanttrack.score}")
         # 200 (Zone) + 200 (SP) + 102 (Corridor) + 200 (FP) = 702
-        self.assertEqual(702.0, self.contestant.contestanttrack.score)
+        self.assertEqual(538.0, self.contestant.contestanttrack.score)
