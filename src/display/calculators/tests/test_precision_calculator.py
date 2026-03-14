@@ -309,9 +309,7 @@ class Test2017WPFC(TransactionTestCase):
             item.string for item in ScoreLogEntry.objects.filter(contestant=self.contestant).order_by("time", "pk")
         ]
         self.assertListEqual(expected_strings, strings)
-        self.assertEqual(
-            1065, contestant_track.score
-        )
+        self.assertEqual(1065, contestant_track.score)
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -491,12 +489,12 @@ class TestHamar23March2021(TransactionTestCase):
         expected_strings = [
             "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
             "SP: 6.0 points passing gate (-4 s)\nplanned: 14:38:00\nactual: 14:37:56",
-            "TP 1: 24.0 points passing gate (-10 s)\nplanned: 14:41:22\nactual: 14:41:12",
-            "TP 2: 33.0 points passing gate (+13 s)\nplanned: 14:46:37\nactual: 14:46:50",
-            "TP 3: 75.0 points passing gate (+27 s)\nplanned: 14:50:37\nactual: 14:51:04",
-            "TP 4: 54.0 points passing gate (+20 s)\nplanned: 14:58:19\nactual: 14:58:39",
-            "TP 5: 0.0 points passing gate (-2 s)\nplanned: 15:02:03\nactual: 15:02:02",
-            "FP: 24.0 points passing gate (-10 s)\nplanned: 15:09:12\nactual: 15:09:03",
+            "TP 1: 36.0 points passing gate (-14 s)\nplanned: 14:41:26\nactual: 14:41:12",
+            "TP 2: 21.0 points passing gate (+9 s)\nplanned: 14:46:41\nactual: 14:46:50",
+            "TP 3: 63.0 points passing gate (+23 s)\nplanned: 14:50:41\nactual: 14:51:04",
+            "TP 4: 42.0 points passing gate (+16 s)\nplanned: 14:58:23\nactual: 14:58:39",
+            "TP 5: 12.0 points passing gate (-6 s)\nplanned: 15:02:07\nactual: 15:02:02",
+            "FP: 36.0 points passing gate (-14 s)\nplanned: 15:09:16\nactual: 15:09:03",
         ]
         strings = [
             item.string for item in ScoreLogEntry.objects.filter(contestant=self.contestant).order_by("time", "pk")

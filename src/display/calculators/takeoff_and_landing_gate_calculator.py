@@ -50,7 +50,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
             projector=projector,
         )
         self.initiate_takeoff_and_landing_gates()
-            
+
         self.scored_takeoff = False
         self.scored_landing = False
         self.websocket_facade = WebsocketFacade()
@@ -108,7 +108,9 @@ class TakeoffAndLandingGateCalculator(Calculator):
     ) -> List[OrchestratorEvent]:
         return self._check_gates(track, state)
 
-    def _check_gates(self, track: List[ContestantReceivedPosition], state: OrchestratorState) -> List[OrchestratorEvent]:
+    def _check_gates(
+        self, track: List[ContestantReceivedPosition], state: OrchestratorState
+    ) -> List[OrchestratorEvent]:
         events = []
         # Check takeoff if exists
         if self.takeoff_gate is not None and not self.scored_takeoff:
@@ -185,13 +187,13 @@ class TakeoffAndLandingGateCalculator(Calculator):
         if not self.scored_takeoff and self.takeoff_gate and event.gate.type != "to":
             if event.gate.type in ("sp", "tp", "fp", "secret"):
                 logger.info(f"{self.contestant}: Missing takeoff gate because {event.gate} was missed")
-                self._miss_takeoff(event.event_time or event.position.time, event.position)
+                # Use 1 second before to ensure it appears before the gate miss in the log
+                self._miss_takeoff(event.position.time - datetime.timedelta(seconds=5), event.position)
 
-        # We only care if it's a takeoff or landing gate being missed
+        # We only care if it's a takeoff gate being missed here.
+        # Landing gate miss is handled in finalise or by actual gate miss.
         if event.gate.type == "to":
             self._miss_takeoff(event.event_time or event.position.time, event.position)
-        elif event.gate.type == "ldg":
-            self._miss_landing(event.event_time or event.position.time, event.position)
 
     def on_gate_passed(self, event: GatePassedEvent):
         # Proactively miss takeoff gate if any route gate is passed
@@ -199,14 +201,14 @@ class TakeoffAndLandingGateCalculator(Calculator):
             if event.gate.type in ("sp", "tp", "fp", "secret"):
                 logger.info(f"{self.contestant}: Missing takeoff gate because {event.gate} was passed")
                 # Use 1 second before to ensure it appears before the gate pass in the log
-                self._miss_takeoff(event.intersection_time - datetime.timedelta(seconds=1), event.position)
+                self._miss_takeoff(event.intersection_time - datetime.timedelta(seconds=5), event.position)
 
     def on_starting_line_passed(self, event: StartingLinePassedEvent):
         # Proactively miss takeoff gate if starting line is passed
         if self.takeoff_gate and not self.scored_takeoff:
             logger.info(f"{self.contestant}: Missing takeoff gate because starting line was passed")
             # Use 1 second before to ensure it appears before the starting line crossing in the log
-            self._miss_takeoff(event.intersection_time - datetime.timedelta(seconds=1), event.position)
+            self._miss_takeoff(event.intersection_time - datetime.timedelta(seconds=5), event.position)
 
     def on_adaptive_start(self, event: AdaptiveStartEvent):
         """
@@ -214,12 +216,12 @@ class TakeoffAndLandingGateCalculator(Calculator):
         """
         new_start_time = event.intersection_time
         gate_times = self.contestant.calculate_missing_gate_times({}, new_start_time)
-        
+
         if self.takeoff_gate:
             for gate in self.takeoff_gate.gates:
                 if gate.name in gate_times:
                     gate.expected_time = gate_times[gate.name]
-                    
+
         if self.landing_gate:
             for gate in self.landing_gate.gates:
                 if gate.name in gate_times:
@@ -230,10 +232,10 @@ class TakeoffAndLandingGateCalculator(Calculator):
         if self.scored_takeoff or not self.takeoff_gate:
             return
         self.scored_takeoff = True
-        
+
         # Use first physical gate as representative for the MultiGate miss
         g = self.takeoff_gate.gates[0]
-        
+
         score = self.scorecard.get_gate_timing_score_for_gate_type("to", g.expected_time, None)
         self.update_score(
             UpdateScoreMessage(
@@ -255,10 +257,10 @@ class TakeoffAndLandingGateCalculator(Calculator):
         if self.scored_landing or not self.landing_gate:
             return
         self.scored_landing = True
-        
+
         # Use first physical gate as representative for the MultiGate miss
         g = self.landing_gate.gates[0]
-        
+
         score = self.scorecard.get_gate_timing_score_for_gate_type("ldg", g.expected_time, None)
         self.update_score(
             UpdateScoreMessage(
@@ -279,10 +281,20 @@ class TakeoffAndLandingGateCalculator(Calculator):
         # MultiGate logic: if none passed, one miss penalty
         if not self.scored_takeoff and self.takeoff_gate:
             # Trigger miss for the first takeoff gate as representative of the MultiGate
-            self._miss_takeoff(track[-1].time if track else None, track[-1] if track else None)
+            # Use 1 second before to ensure it appears before the rest of finalise in the log
+            self._miss_takeoff(
+                (track[-1].time if track else datetime.datetime.now(datetime.timezone.utc))
+                - datetime.timedelta(seconds=1),
+                track[-1] if track else None,
+            )
 
         if not self.scored_landing and self.landing_gate:
-            self._miss_landing(track[-1].time if track else None, track[-1] if track else None)
+            # Use 1 second after to ensure it appears after the rest of finalise in the log
+            self._miss_landing(
+                (track[-1].time if track else datetime.datetime.now(datetime.timezone.utc))
+                + datetime.timedelta(seconds=1),
+                track[-1] if track else None,
+            )
 
     def transmit_actual_crossing(self, gate: Gate, position: ContestantReceivedPosition):
         """

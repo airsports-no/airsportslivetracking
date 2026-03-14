@@ -19,6 +19,7 @@ from display.calculators.calculator import (
     FinishLinePassedEvent,
     NextGateExpectedEvent,
 )
+from display.calculators.calculator_utilities import round_time_minute
 from display.calculators.positions_and_gates import Gate, round_seconds
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_utility_models import ContestantReceivedPosition
@@ -126,7 +127,6 @@ class GateCalculator(Calculator):
                 actual=actual,
             )
         )
-
 
     def transmit_actual_crossing(self, gate: Gate, position: ContestantReceivedPosition):
         """
@@ -287,11 +287,13 @@ class GateCalculator(Calculator):
                     starting_line.pass_infinite_gate(intersection_time, track[-1])
                     # Signal starting line crossing (sets enroute, handles adaptive start)
                     events.append(StartingLinePassedEvent(starting_line, track[-1], intersection_time))
-                    self.outstanding_gates.pop(0)
-                    events.append(NextGateExpectedEvent(self._get_next_gate(), track[-1]))
 
                     if self.contestant.adaptive_start:
-                        events.append(AdaptiveStartEvent(round_seconds(intersection_time), track[-1]))
+                        adaptive_event = AdaptiveStartEvent(intersection_time, track[-1])
+                        events.append(adaptive_event)
+                        # Ensure we recalculate immediately so the same tick logic uses new times
+                        # (e.g. for scoring the same starting gate timing)
+                        self.on_adaptive_start(adaptive_event)
 
         # Look for crossing of any future gates
         crossed_gate_index = -1
@@ -321,7 +323,7 @@ class GateCalculator(Calculator):
             events.append(GatePassedEvent(gate, track[-1], passed_intersection_time, previous_gate=prev_gate))
 
             # Pop gates from our internal list and emit next expected gate
-            del self.outstanding_gates[:crossed_gate_index + 1]
+            del self.outstanding_gates[: crossed_gate_index + 1]
             events.append(NextGateExpectedEvent(self._get_next_gate(), track[-1]))
 
         # Proactive missed gate detection (only for the first outstanding gate if not just passed)
@@ -351,7 +353,7 @@ class GateCalculator(Calculator):
                         # Pop and emit next
                         self.outstanding_gates.pop(0)
                         events.append(NextGateExpectedEvent(self._get_next_gate(), track[-1]))
-        
+
         self.check_gate_in_range(track, state, events)
 
         return events
@@ -393,7 +395,7 @@ class GateCalculator(Calculator):
                     current_idx_in_all = self.gates.index(state.in_range_of_gate)
                     prev_gate = self.gates[current_idx_in_all - 1] if current_idx_in_all > 0 else None
                     events.append(GateMissedEvent(prev_gate, state.in_range_of_gate, last_position))
-                    
+
                     # If this was our expected next gate, pop it
                     if self.outstanding_gates and self.outstanding_gates[0] == state.in_range_of_gate:
                         self.outstanding_gates.pop(0)
@@ -451,7 +453,7 @@ class GateCalculator(Calculator):
 
         logger.info(f"{self.contestant}: Scoring missed gate {event.gate}")
         event.gate.missed = True
-        
+
         if event.gate.gate_check:
             score = self.scorecard.get_gate_timing_score_for_gate_type(event.gate.type, event.gate.expected_time, None)
             message = "missing gate"
@@ -473,12 +475,17 @@ class GateCalculator(Calculator):
             return
 
         logger.info(f"{self.contestant}: Scoring passed gate {event.gate}")
-        passing_time = event.intersection_time or event.gate.passing_time or event.gate.infinite_passing_time or event.position.time
+        passing_time = (
+            event.intersection_time
+            or event.gate.passing_time
+            or event.gate.infinite_passing_time
+            or event.position.time
+        )
         passing_position = event.gate.infinite_passing_position or event.position
-        
+
         # Mark the gate as passed internally
         event.gate.pass_gate(passing_time, passing_position)
-        
+
         time_difference = (passing_time - event.gate.expected_time).total_seconds()
         self.contestant.contestanttrack.update_last_gate(event.gate.name, time_difference)
 
@@ -540,8 +547,8 @@ class GateCalculator(Calculator):
         Update expected times for gates based on adaptive start time.
         """
         new_start_time = event.intersection_time
-        gate_times = self.contestant.calculate_missing_gate_times({}, new_start_time)
-        
+        gate_times = self.contestant.calculate_missing_gate_times({}, round_time_minute(new_start_time))
+
         for gate in self.gates:
             if gate.name in gate_times:
                 gate.expected_time = gate_times[gate.name]

@@ -271,15 +271,14 @@ class AnrCorridorCalculator(Calculator):
 
                 if not self.has_passed_finish_point and event.gate.type != "fp":
                     # Restart penalty tracking for the new segment internally.
-                    # We do NOT update crossed_outside_gate here because the gate was MISSED,
-                    # so it is not a "visible" gate. We stay relative to the previous visible gate.
                     self.corridor_state = self.OUTSIDE_CORRIDOR
                     self.previous_corridor_state = self.OUTSIDE_CORRIDOR
                     self.current_leg_outside_start_time = current_time
                     self.is_first_leg_of_excursion = False
+                    self.crossed_outside_gate = event.gate
                     self.accumulated_score = 0
-            # Note: We do NOT update self.crossed_outside_gate = event.gate in the else branch either
-            # because a missed gate should not become the reference for corridor scoring.
+            else:
+                self.crossed_outside_gate = event.gate
 
     def on_gate_passed(self, event: "GatePassedEvent"):
         # Detect gate crossing while outside to advance/finalize leg
@@ -331,7 +330,8 @@ class AnrCorridorCalculator(Calculator):
 
                 # Record details for the final consolidated message
                 display_name = gate_name if (last_leg and self._is_gate_visible(last_leg)) else "Secret"
-                self.excursion_leg_details.append(f"{display_name}: {leg_incremental}{cap_str}")
+                leg_cap_str = " (capped)" if is_capped else ""
+                self.excursion_leg_details.append(f"{display_name}: {leg_incremental}{leg_cap_str}")
 
                 if not self.has_passed_finish_point and event.gate.type != "fp":
                     # Restart penalty tracking for the new leg internally.

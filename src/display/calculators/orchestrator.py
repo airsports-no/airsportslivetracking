@@ -175,12 +175,12 @@ class Orchestrator:
             self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             self.previous_last_gate = self.last_gate
             self.last_gate = event.gate
-            self.last_visible_gate = event.gate # SP is always visible
-            
+            self.last_visible_gate = event.gate  # SP is always visible
+
             # Clear in_range if this is the gate we were in range of
             if self.in_range_of_gate == event.gate:
                 self.in_range_of_gate = None
-                
+
             if not self.enroute:
                 self.enroute = True
                 logger.info(f"{self.contestant}: Switching to enroute after starting line crossing")
@@ -189,7 +189,12 @@ class Orchestrator:
 
             for calculator in self.calculators:
                 calculator.on_starting_line_passed(event)
-                calculator.on_gate_passed(event)
+
+        elif isinstance(event, AdaptiveStartEvent):
+            self.recalculation_completed = True
+            self.websocket_facade.transmit_contestant(self.contestant)
+            for calculator in self.calculators:
+                calculator.on_adaptive_start(event)
 
         elif isinstance(event, GatePassedEvent):
             self.has_any_gate_passed = True
@@ -198,11 +203,11 @@ class Orchestrator:
             self.last_gate = event.gate
             if event.gate.type != SECRETPOINT or self.scorecard.calculator == ANR_CORRIDOR:
                 self.last_visible_gate = event.gate
-            
+
             # Clear in_range if this is the gate we were in range of
             if self.in_range_of_gate == event.gate:
                 self.in_range_of_gate = None
-                
+
             self.update_enroute()
 
             for calculator in self.calculators:
@@ -217,11 +222,11 @@ class Orchestrator:
             self.last_gate = event.gate
             if event.gate.type != SECRETPOINT or self.scorecard.calculator == ANR_CORRIDOR:
                 self.last_visible_gate = event.gate
-            
+
             # Clear in_range if this is the gate we were in range of
             if self.in_range_of_gate == event.gate:
                 self.in_range_of_gate = None
-                
+
             self.update_enroute()
 
             for calculator in self.calculators:
@@ -244,12 +249,6 @@ class Orchestrator:
             self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             for calculator in self.calculators:
                 calculator.on_landing_passed(event)
-
-        elif isinstance(event, AdaptiveStartEvent):
-            self.recalculation_completed = True
-            self.websocket_facade.transmit_contestant(self.contestant)
-            for calculator in self.calculators:
-                calculator.on_adaptive_start(event)
 
         elif isinstance(event, StartingLineExtendedPassedWrongDirectionEvent):
             for calculator in self.calculators:

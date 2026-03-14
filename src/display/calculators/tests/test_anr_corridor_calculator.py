@@ -228,12 +228,12 @@ class TestANRPerLeg(TransactionTestCase):
             "SP: 200.0 points passing gate (-71535748 s)\nplanned: 14:07:00\nactual: 14:04:32",
             "SP: 0.0 points exiting corridor",
             "TP 1: 0.0 points missed TP 1 while outside corridor. Excursion penalty so far: 48.0",
-            "TP 1: 50.0 points outside corridor (24 s). Leg scores: [SP: 48.0, TP 1: 2.0 (capped)]. Total: 50.0 (capped)",
+            "TP 1: 57.0 points outside corridor (24 s). Leg scores: [SP: 48.0, TP 1: 9.0]. Total: 57.0",
             "TP 1: 0.0 points exiting corridor",
             "TP 1: 200.0 points backtracking",
-            "TP 1: 48.0 points outside corridor (227 s). Leg scores: [TP 1: 48.0 (capped)]. Total: 48.0 (capped)",
-            "Landing 1: 0.0 points missing landing gate\nplanned: 15:59:00\nactual: --",
+            "TP 1: 41.0 points outside corridor (227 s). Leg scores: [TP 1: 41.0 (capped)]. Total: 41.0 (capped)",
             "FP: 200.0 points missing gate\nplanned: 14:18:11\nactual: --",
+            "Landing 1: 0.0 points missing landing gate\nplanned: 15:59:00\nactual: --",
         ]
         self.assertListEqual(
             final_list,
@@ -291,7 +291,9 @@ class TestANRPerLeg(TransactionTestCase):
         self.assertGreater(entry.time, start_time - datetime.timedelta(minutes=1))
 
     def test_anr_miss_start_and_finish(self, *args):
-        track = load_track_points_traccar_csv(load_traccar_track(os.path.join(TEST_DATA_DIR, "anr_miss_start_and_finish.csv")))
+        track = load_track_points_traccar_csv(
+            load_traccar_track(os.path.join(TEST_DATA_DIR, "anr_miss_start_and_finish.csv"))
+        )
         start_time, speed = (
             datetime.datetime(2021, 3, 16, 14, 5, tzinfo=datetime.timezone.utc),
             70,
@@ -315,17 +317,17 @@ class TestANRPerLeg(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
         pprint(strings)
         expected = [
-            "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 15:05:00\nactual: --",
-            "SP: 200.0 points passing gate (-3296 s)\nplanned: 15:12:00\nactual: 14:17:04",
-            "TP 1: 0.0 points passing gate (no time check) (-61 s)\nplanned: 14:19:04\nactual: 14:18:03",
-            "TP 2: 0.0 points passing gate (no time check) (-172 s)\nplanned: 14:22:38\nactual: 14:19:46",
-            "TP 3: 0.0 points passing gate (no time check) (-225 s)\nplanned: 14:24:36\nactual: 14:20:51",
-            "FP: 200.0 points passing gate (-324 s)\nplanned: 14:28:14\nactual: 14:22:51",
+            "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 9.0 points passing gate (+4 s)\nplanned: 14:17:00\nactual: 14:17:04",
+            "TP 1: 0.0 points passing gate (no time check) (-57 s)\n" "planned: 14:19:00\n" "actual: 14:18:03",
+            "TP 2: 0.0 points passing gate (no time check) (-168 s)\n" "planned: 14:22:34\n" "actual: 14:19:46",
+            "TP 3: 0.0 points passing gate (no time check) (-221 s)\n" "planned: 14:24:32\n" "actual: 14:20:51",
+            "FP: 200.0 points passing gate (-320 s)\nplanned: 14:28:10\nactual: 14:22:51",
             "Landing 1: 0.0 points missing landing gate\nplanned: 17:04:00\nactual: --",
         ]
         self.assertListEqual(expected, strings)
-        self.assertEqual(400.0, contestant_track.score)
+        self.assertEqual(209.0, contestant_track.score)
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -428,7 +430,7 @@ class TestANR(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         # Verify score is correct
-        self.assertEqual(476.0, contestant_track.score)
+        self.assertEqual(458.0, contestant_track.score)
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -515,8 +517,9 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         from display.calculators.calculator import OrchestratorState
 
         state = OrchestratorState(
-            last_gate=None, last_visible_gate=None, next_gate=None,
-            
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
             in_range_of_gate=None,
             projector=projector,
             has_passed_finishpoint=False,
@@ -525,7 +528,6 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
-
 
         self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_not_called()
@@ -544,8 +546,9 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         from display.calculators.calculator import OrchestratorState
 
         state = OrchestratorState(
-            last_gate=None, last_visible_gate=None, next_gate=None,
-            
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
             in_range_of_gate=None,
             projector=projector,
             has_passed_finishpoint=False,
@@ -554,7 +557,6 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
-
 
         self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_called_once()
@@ -594,8 +596,9 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         from display.calculators.calculator import OrchestratorState
 
         state = OrchestratorState(
-            last_gate=None, last_visible_gate=None, next_gate=None,
-            
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
             in_range_of_gate=None,
             projector=projector,
             has_passed_finishpoint=False,
@@ -604,7 +607,6 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
-
 
         self.calculator.calculate_enroute([position], state)
         self.calculator.calculate_enroute([position, position2], state)
@@ -656,8 +658,9 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         from display.calculators.calculator import OrchestratorState
 
         state = OrchestratorState(
-            last_gate=None, last_visible_gate=None, next_gate=None,
-            
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
             in_range_of_gate=None,
             projector=projector,
             has_passed_finishpoint=False,
@@ -666,7 +669,6 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
-
 
         self.calculator.calculate_enroute([position], state)
         # Position 2 at T=20 keeps it outside
@@ -717,8 +719,9 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         from display.calculators.calculator import OrchestratorState, FinishLinePassedEvent
 
         state = OrchestratorState(
-            last_gate=None, last_visible_gate=None, next_gate=None,
-            
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
             in_range_of_gate=None,
             projector=projector,
             has_passed_finishpoint=False,
@@ -727,7 +730,6 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
-
 
         self.calculator.calculate_enroute([position], state)
         self.calculator.calculate_enroute([position, position2], state)
@@ -776,8 +778,9 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         from display.calculators.calculator import OrchestratorState
 
         state = OrchestratorState(
-            last_gate=None, last_visible_gate=None, next_gate=None,
-            
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
             in_range_of_gate=None,
             projector=projector,
             has_passed_finishpoint=False,
@@ -786,7 +789,6 @@ class TestAnrCorridorCalculator(TransactionTestCase):
             estimated_next_timed_gate=None,
             estimated_crossing_time=None,
         )
-
 
         self.calculator.calculate_enroute([position], state)
         self.calculator.calculate_enroute([position, position2], state)

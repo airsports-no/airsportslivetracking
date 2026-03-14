@@ -966,10 +966,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         """
         from display.models import ActualGateTime
 
-        try:
-            ActualGateTime.objects.create(gate=gate_name, time=passing_time, contestant=self)
-        except IntegrityError:
-            logger.exception(f"Contestant has already passed gate {gate_name}")
+        ActualGateTime.objects.update_or_create(
+            gate=gate_name, contestant=self, defaults={"time": passing_time}
+        )
 
     def record_score_by_gate(self, gate_name: str, score: float):
         """
