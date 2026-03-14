@@ -1,4 +1,5 @@
 import datetime
+from unittest.mock import patch
 
 from django.test import TestCase
 
@@ -8,10 +9,14 @@ from display.models.contestant import Contestant
 from display.models.editable_route import EditableRoute
 from display.models.navigation_task import NavigationTask
 from display.models.team_structure import Aeroplane, Crew, Person, Team
+from utilities.mock_utilities import TraccarMock
 
 
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
+@patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestGateTimeCalculation(TestCase):
-    def test_gate_time_calculation(self):
+    def test_gate_time_calculation(self, *args):
         editable_route = EditableRoute.objects.create(
             name="Test Route",
             route={
