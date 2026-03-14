@@ -273,7 +273,7 @@ class TestANRPerLeg(TransactionTestCase):
                 "latitude": i["latitude"],
                 "longitude": i["longitude"],
                 "altitude": i.get("altitude", 0),
-                "speed": i.get("speed", 0),
+                "speed": 20,  # Ensure speed > 10 to avoid proactive termination
                 "time": i["time"],
                 "server_time": i["time"],
             }

@@ -111,6 +111,7 @@ class ContestantProcessor:
         self.timed_queue = TimedQueue()
         self.projector = self.contestant.navigation_task.get_projector()
         self.delay = datetime.timedelta(minutes=self.contestant.navigation_task.calculation_delay_minutes)
+        self.consecutive_low_speed_positions = 0
         self.finished_loading_initial_positions = (
             threading.Event()
         )  # Used to prevent the calculator from terminating while we are waiting for initial data if it starts after-the-fact.
@@ -363,6 +364,23 @@ class ContestantProcessor:
 
             for position in all_positions:
                 self.orchestrator.calculate_score(position)
+
+                # Proactive termination check based on speed
+                if self.live_processing and self.orchestrator.has_any_gate_passed and not self.track_terminated:
+                    if position.speed < 10:  # knots
+                        self.consecutive_low_speed_positions += 1
+                    else:
+                        self.consecutive_low_speed_positions = 0
+
+                    if self.consecutive_low_speed_positions >= 60:  # 1 minute at 1Hz
+                        logger.info(
+                            f"{self.contestant}: Inferred landing due to {self.consecutive_low_speed_positions} consecutive low speed positions. Terminating."
+                        )
+                        self.notify_termination()
+                        break
+
+            if self.track_terminated:
+                break
 
             self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
 
