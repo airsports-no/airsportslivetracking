@@ -772,7 +772,9 @@ def plot_anr_corridor_track(
         ys, xs = np.array(waypoint.gate_line).T
         bearing = waypoint_bearing(waypoint, index)
 
-        if waypoint.type not in (SECRETPOINT,):
+        if waypoint.type not in (SECRETPOINT,) or (
+            contestant and contestant.navigation_task.scorecard.calculator == ANR_CORRIDOR
+        ):
             plot_waypoint_name(
                 route,
                 waypoint,
