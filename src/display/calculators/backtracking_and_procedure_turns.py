@@ -19,6 +19,7 @@ from display.utilities.coordinate_utilities import (
     get_heading_difference,
     bearing_difference,
     calculate_distance_lat_lon,
+    euclidean_point_to_line_distance,
 )
 from display.models import Contestant, Scorecard, Route, ANOMALY, INFORMATION
 
@@ -89,7 +90,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             gate.pre_project(self.projector)
 
     def get_last_non_secret_gate(self, last_visible_gate: "Gate") -> Optional["Gate"]:
-        from display.utilities.gate_definitions import SECRETPOINT
+        from display.utilities.gate_definitions import SECRETPOINT, TURNPOINT
 
         # If no last_visible_gate provided, try to find the first one from our list
         gate_to_start_from = last_visible_gate
@@ -135,17 +136,10 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.current_procedure_turn_start_time = None
         self.backtracking_start_time = None
         self.backtracked_on_current_leg = False
-        self.circling_lookback = datetime.timedelta(seconds=90)
-        self.non_circling_lookback = datetime.timedelta(seconds=30)
-        self.earliest_circle_check = None
-        self.circling = False
-        self.circling_start_time = None
         self.last_bearing = None
         self.last_visible_gate = None
         self.last_gate_previous_round = None
         self.last_leg_name = None
-        self.current_last_gate = None
-        self.gate_bearings = []  # type: list[tuple[int,float]]
         self.was_backtracked_on_leg_leading_to_last_gate = False
         # Put into separate parameter so that we can change this when finalising in order to terminate any ongoing
         # backtracking
@@ -160,20 +154,18 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.contestant.contestanttrack.updates_current_state(self.TRACKING_MAP[tracking_state])
 
     def on_gate_passed(self, event: GatePassedEvent):
-        from display.utilities.gate_definitions import SECRETPOINT
+        from display.utilities.gate_definitions import SECRETPOINT, TURNPOINT
 
         if event.gate.type != SECRETPOINT:
             self.last_visible_gate = event.gate
-        self.last_gate_previous_round = event.gate
         if self.tracking_state == self.FAILED_PROCEDURE_TURN:
             self.update_tracking_state(self.TRACKING)
 
     def on_gate_missed(self, event: GateMissedEvent):
-        from display.utilities.gate_definitions import SECRETPOINT
+        from display.utilities.gate_definitions import SECRETPOINT, TURNPOINT
 
         if event.gate.type != SECRETPOINT:
             self.last_visible_gate = event.gate
-        self.last_gate_previous_round = event.gate
         if self.tracking_state == self.FAILED_PROCEDURE_TURN:
             self.update_tracking_state(self.TRACKING)
         self.backtracking_start_time = None
@@ -185,11 +177,9 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         track: List[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
-        # Perform circling detection
-        self.detect_circling(track, state.last_visible_gate, state.in_range_of_gate)
-
         # Need to do the track score first since this might declare the remaining gates as missed if we are done
         # with the track. We can then calculate gate score and consider the missed gates.
+        # This also ensures we enter PROCEDURE_TURN state.
         self.calculate_track_score(
             track,
             state.last_visible_gate,
@@ -203,7 +193,12 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         track: List[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
-        self.detect_circling(track, state.last_visible_gate)
+        self.calculate_track_score(
+            track,
+            state.last_visible_gate,
+            state.in_range_of_gate,
+            state.next_gate,
+        )
         return []
 
     def update_current_leg(self, current_leg):
@@ -213,141 +208,6 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             self.last_leg_name = leg_name
 
     TIME_FORMAT = "%H:%M:%S"
-
-    def get_bearing_for_index(self, index: int) -> Optional[float]:
-        for bearing_index, bearing in reversed(self.gate_bearings):
-            if bearing_index <= index:
-                return bearing
-        return None
-
-    def detect_circling(
-        self,
-        track: List[ContestantReceivedPosition],
-        last_visible_gate: "Gate",
-        in_range_of_gate: Optional["Gate"] = None,
-    ):
-        """
-        Only detect circling inside range of gates, otherwise we deal with backtracking
-
-        :param track:
-        :param last_visible_gate:
-        :param in_range_of_gate:
-        :return:
-        """
-        if last_visible_gate != self.current_last_gate:
-            self.current_last_gate = last_visible_gate
-            if last_visible_gate:
-                self.gate_bearings.append((len(track) - 1, last_visible_gate.bearing))
-        next_position = track[-1]
-        now = next_position.time
-        if (
-            self.earliest_circle_check is None
-            or last_visible_gate is None
-            or self.tracking_state in (self.BACKTRACKING, self.PROCEDURE_TURN)
-            or in_range_of_gate is None
-        ):  # Why the last one?
-            self.mark_circling_finished_if_ongoing(last_visible_gate, now, next_position)
-            self.earliest_circle_check = now
-            return
-        found_circling = False
-        current_position_index = len(track) - 2
-        current_position = track[current_position_index]
-        difference = 0
-        next_bearing = None
-        bearings = []
-        bearing_differences = []
-        accumulated_differences = []
-        next_track_bearing = self.get_bearing_for_index(len(track) - 1)
-
-        track_turn = 0
-        while (
-            current_position_index > 0
-            and current_position.time > now - self.circling_lookback
-            and current_position.time > self.earliest_circle_check
-        ):
-            current_position_index -= 1
-            current_bearing = bearing_between(current_position, next_position)
-            bearings.append(current_bearing)
-            if next_bearing is not None:
-                current_difference = bearing_difference(current_bearing, next_bearing)
-                bearing_differences.append(current_difference)
-                difference += current_difference
-            accumulated_differences.append(difference)
-            next_bearing = current_bearing
-            next_position = current_position
-            current_position = track[current_position_index]
-            current_track_bearing = self.get_bearing_for_index(current_position_index)
-            if (
-                current_track_bearing != next_track_bearing
-                and current_track_bearing is not None
-                and next_track_bearing is not None
-            ):
-                track_turn += bearing_difference(current_track_bearing, next_track_bearing)
-            next_track_bearing = current_track_bearing
-
-            if track_turn > 0 and difference > 0 or track_turn < 0 and difference < 0:
-                # If we are turning in the same direction of the turn, add the size of the turn to the turn limit
-                turn_limit = 180 + abs(track_turn)  # TODO: Increase turn limit?
-            else:
-                # Otherwise we set the limit to 180 in order to catch procedure turns where they should not be
-                turn_limit = 180
-
-            if abs(difference) > turn_limit:
-                found_circling = True
-                if self.circling_start_time is None:
-                    self.circling_start_time = now
-                if (now - self.circling_start_time).total_seconds() > 5 and not self.circling:
-                    self.circling = True
-                    self.backtracked_on_current_leg = True
-                    logger.info(
-                        "{} {}: Detected circling more than 180° the past {} + 5 seconds".format(
-                            self.contestant, now, (now - current_position.time).total_seconds()
-                        )
-                    )
-                    logger.info(
-                        f"Positions: {[(item.time, item.latitude, item.longitude, item.course) for item in track[current_position_index:]]}"
-                    )
-                    logger.info(f"Bearings: {bearings}")
-                    logger.info(f"Bearing differences: {bearing_differences}")
-                    logger.info(f"Accumulated bearing differences: {accumulated_differences}")
-                    self.update_score(
-                        UpdateScoreMessage(
-                            next_position.time,
-                            self.get_last_non_secret_gate(last_visible_gate),
-                            self.scorecard.backtracking_penalty,
-                            "circling start",
-                            next_position.latitude,
-                            next_position.longitude,
-                            ANOMALY,
-                            self.BACKTRACKING_SCORE_TYPE,
-                            maximum_score=self.scorecard.backtracking_maximum_penalty,
-                        )
-                    )
-
-                break
-        # logger.info(f"{now}: {difference}")
-        if not found_circling:
-            # No longer circling, market reset if we were circling
-            self.mark_circling_finished_if_ongoing(last_visible_gate, now, track[-1])
-
-    def mark_circling_finished_if_ongoing(self, last_visible_gate, now, current_position):
-        self.circling_start_time = None
-        if self.circling:
-            self.earliest_circle_check = now
-            self.previous_gate_bearing = None
-            self.update_score(
-                UpdateScoreMessage(
-                    current_position.time,
-                    self.get_last_non_secret_gate(last_visible_gate),
-                    0,
-                    "circling finished",
-                    current_position.latitude,
-                    current_position.longitude,
-                    INFORMATION,
-                    self.BACKTRACKING_SCORE_TYPE,
-                )
-            )
-            self.circling = False
 
     def passed_finishpoint(self, event: FinishLinePassedEvent):
         self.backtracking_limit = 360
@@ -384,8 +244,14 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         # Determine if we just transitioned to a new leg
         just_passed_gate = last_visible_gate != self.last_gate_previous_round
 
-        # Note: self.was_backtracked_on_leg_leading_to_last_gate and related flags
-        # are now updated in on_gate_passed and on_gate_missed handlers.
+        # Reset backtracking state if we just transitioned
+        if just_passed_gate:
+            if self.tracking_state in (self.FAILED_PROCEDURE_TURN, self.BACKTRACKING, self.BACKTRACKING_TEMPORARY):
+                self.update_tracking_state(self.TRACKING)
+            self.backtracking_start_time = None
+            self.was_backtracked_on_leg_leading_to_last_gate = self.backtracked_on_current_leg
+            self.backtracked_on_current_leg = False
+            self.last_gate_previous_round = last_visible_gate
 
         self.update_current_leg(last_visible_gate)
         first_position = track[start_index]
@@ -393,7 +259,8 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         bearing_difference = abs(get_heading_difference(bearing, last_visible_gate.bearing))
 
         if (
-            last_visible_gate.is_procedure_turn
+            just_passed_gate
+            and last_visible_gate.is_procedure_turn
             and not last_visible_gate.missed
             and last_visible_gate.has_extended_been_passed()
             and self.tracking_state not in (self.FAILED_PROCEDURE_TURN, self.PROCEDURE_TURN)
@@ -411,6 +278,8 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 self.current_procedure_turn_bearing_difference += 360
 
             self.current_procedure_turn_start_time = last_position.time
+            logger.info("{}: Procedure turn started for gate {}".format(self.contestant, last_visible_gate.name))
+
         if self.tracking_state == self.PROCEDURE_TURN:
             if self.last_bearing:
                 self.current_procedure_turn_slices.append(get_heading_difference(self.last_bearing, bearing))
@@ -420,12 +289,16 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                     logger.info("{}: Procedure turn completed successfully".format(self.contestant))
                 if (
                     abs(total_turn - self.current_procedure_turn_bearing_difference) < 60
+                    and self.current_procedure_turn_start_time is not None
                     and (last_position.time - self.current_procedure_turn_start_time).total_seconds() > 180
                 ):
                     self.update_tracking_state(self.TRACKING)
                     logger.info("{}: Procedure turn completed successfully".format(self.contestant))
 
-                if (last_position.time - self.current_procedure_turn_start_time).total_seconds() > 180:
+                if (
+                    self.current_procedure_turn_start_time is not None
+                    and (last_position.time - self.current_procedure_turn_start_time).total_seconds() > 180
+                ):
                     if abs(total_turn - self.current_procedure_turn_bearing_difference) >= 60:
                         self.update_tracking_state(self.FAILED_PROCEDURE_TURN)
                         if self.was_backtracked_on_leg_leading_to_last_gate:
@@ -453,7 +326,13 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         else:
             backtracking = False
             reference_gate = in_range_of_gate or last_visible_gate
-            if bearing_difference > self.backtracking_limit:
+
+            # Suppress backtracking check entirely if we just passed a PT gate and haven't transitioned state yet
+            # (In case recalculate_track_score is called before detect_circling in the same tick)
+            is_new_pt_gate = just_passed_gate and last_visible_gate.is_procedure_turn and not last_visible_gate.missed
+
+            if not is_new_pt_gate and bearing_difference > self.backtracking_limit:
+
                 # Check if we are near the gate we just passed
                 # To avoid penalties during slow turns or maneuvering near the gate
                 if (
@@ -481,17 +360,6 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 if distance_to_gate_sq < grace_zone**2:
                     pass  # Ignore backtracking within grace zone of the gate
                 else:
-                    # logger.info(
-                    #     "{} {}: Bearing difference of {}° exceeds backtracking limit of {}° outside of grace zone of gate {} ({} NM, limit {} NM), starting backtracking checks".format(
-                    #         self.contestant,
-                    #         last_position.time,
-                    #         bearing_difference,
-                    #         self.backtracking_limit,
-                    #         reference_gate.name,
-                    #         distance_to_gate_sq**0.5 / 1852,
-                    #         grace_zone / 1852,
-                    #     )
-                    # )
                     backtracking = True
                     if in_range_of_gate is not None and in_range_of_gate != last_visible_gate:
                         pass
@@ -588,12 +456,12 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                                 ),
                             )
                         )
-                if self.tracking_state == self.BACKTRACKING_TEMPORARY:
+                if self.tracking_state == self.BACKTRACKING_TEMPORARY and self.backtracking_start_time is not None:
                     if (
                         last_position.time - self.backtracking_start_time
                     ).total_seconds() >= self.scorecard.backtracking_grace_time_seconds:
                         self.update_tracking_state(self.BACKTRACKING)
-                        if not self.backtracked_on_current_leg:
+                        if not self.backtracked_on_current_leg and self.tracking_state != self.PROCEDURE_TURN:
                             logger.info(
                                 f"BACKTRACK_SCORE_TRIGGER: {self.contestant} {last_position.time} - Triggering penalty for {last_visible_gate.name}"
                             )
@@ -620,7 +488,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                                     (last_position.time - self.backtracking_start_time).total_seconds(),
                                 )
                             )
-                elif self.tracking_state == self.BACKTRACKING_TEMPORARY:
+                elif self.tracking_state == self.BACKTRACKING_TEMPORARY and self.backtracking_start_time is not None:
                     logger.info(
                         "{} {}: Resumed tracking within time limits ({} seconds), so no penalty".format(
                             self.contestant,
@@ -636,7 +504,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                             last_position.time - self.backtracking_start_time
                         ).total_seconds() >= self.scorecard.backtracking_grace_time_seconds:
                             self.update_tracking_state(self.BACKTRACKING)
-                            if not self.backtracked_on_current_leg:
+                            if not self.backtracked_on_current_leg and self.tracking_state != self.PROCEDURE_TURN:
                                 self.backtracked_on_current_leg = True
                                 self.update_score(
                                     UpdateScoreMessage(

@@ -20,17 +20,18 @@ logger = logging.getLogger(__name__)
 
 OUTPUT_FILE = "inferred_corridor_widths.json"
 
+
 def generate():
     tasks = NavigationTask.objects.all()
     widths = {}
-    
+
     print(f"Analyzing {tasks.count()} tasks for inferred widths...")
-    
+
     for task in tasks:
-        if task.scorecard.calculator == ANR_CORRIDOR:
+        if task.scorecard and task.scorecard.calculator == ANR_CORRIDOR:
             # Default to stored width
             width = task.route.corridor_width
-            
+
             # Try to infer from finish point gate
             for waypoint in task.route.waypoints:
                 if waypoint.type == FINISHPOINT:
@@ -40,15 +41,16 @@ def generate():
                         inferred_width = round(dist_m / 1852.0, 1)
                         if abs(inferred_width - width) > 0.001:
                             print(f"  Task {task.id}: Inferred {inferred_width} NM (stored {width} NM)")
-                        width = inferred_width
+                        width = width
                     break
-            
+
             widths[str(task.id)] = width
 
-    with open(OUTPUT_FILE, "w") as f:
-        json.dump(widths, f, indent=2)
-    
+    # with open(OUTPUT_FILE, "w") as f:
+    #     json.dump(widths, f, indent=2)
+
     print(f"Generated {len(widths)} entries in {OUTPUT_FILE}")
+
 
 if __name__ == "__main__":
     generate()
