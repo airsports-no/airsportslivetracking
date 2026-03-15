@@ -185,12 +185,11 @@ class TestFullTrack(TransactionTestCase):
     def test_correct_scoring_bad_track_precision(self, *args):
         positions = load_track_points(os.path.join(TEST_DATA_DIR, "Steinar.gpx"))
         calculator_runner(self.contestant, positions)
-        # TODO: Should be 1800?
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
         for s in strings:
             print(s)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(2000.0, contestant_track.score)
+        self.assertEqual(1800.0, contestant_track.score)
 
     def test_missed_procedure_turn(self, *args):
         positions = load_track_points(os.path.join(TEST_DATA_DIR, "jorgen_missed_procedure_turn.gpx"))
