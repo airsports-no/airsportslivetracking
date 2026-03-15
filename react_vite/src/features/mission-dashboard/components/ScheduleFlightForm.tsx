@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
 import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamPayload, ScheduleFlightPayload, MyContestTeam, Team } from '../types';
 import * as api from '../api';
 import { useMissionDashboardStore } from '../store';
@@ -249,7 +250,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                         </label>
                         <label className="form-control w-full">
                             <div className="label"><span className="label-text">Aircraft Registration</span></div>
-                            <Select
+                            <CreatableSelect
                                 options={aircrafts.map(a => ({ value: a.registration, label: a.registration }))}
                                 value={aircraft ? { value: aircraft, label: aircraft } : null}
                                 onChange={selectedOption => setAircraft(selectedOption ? selectedOption.value : '')}
@@ -264,7 +265,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                         </label>
                         <label className="form-control w-full">
                             <div className="label"><span className="label-text">Club</span></div>
-                            <Select
+                            <CreatableSelect
                                 options={clubs.map(c => ({ value: c.name, label: c.name }))}
                                 value={club ? { value: club, label: club } : null}
                                 onChange={selectedOption => setClub(selectedOption ? selectedOption.value : '')}
