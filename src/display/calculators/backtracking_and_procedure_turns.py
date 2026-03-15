@@ -393,8 +393,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         bearing_difference = abs(get_heading_difference(bearing, last_visible_gate.bearing))
 
         if (
-            just_passed_gate
-            and last_visible_gate.is_procedure_turn
+            last_visible_gate.is_procedure_turn
             and not last_visible_gate.missed
             and last_visible_gate.has_extended_been_passed()
             and self.tracking_state not in (self.FAILED_PROCEDURE_TURN, self.PROCEDURE_TURN)
