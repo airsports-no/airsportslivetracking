@@ -106,7 +106,7 @@ def delete_existing_clones():
 
 def clone_contest(original_contest):
     new_contest = Contest.objects.create(
-        name=f"{CLONE_PREFIX}{original_contest.name}_{datetime.datetime.now().timestamp()}",
+        name=f"{CLONE_PREFIX}{original_contest.name}_{datetime.datetime.now().timestamp()}"[:100],
         time_zone=original_contest.time_zone,
         location=original_contest.location,
         start_time=original_contest.start_time,

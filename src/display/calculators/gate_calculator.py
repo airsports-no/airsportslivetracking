@@ -57,6 +57,7 @@ class GateCalculator(Calculator):
             live_processing=live_processing,
             projector=projector,
         )
+        self.starting_line: Gate = None
         self.initiate_gates()
         self.outstanding_gates = list(self.gates)
         self.websocket_facade = WebsocketFacade()
@@ -83,12 +84,16 @@ class GateCalculator(Calculator):
                         calculate_extended_gate(item, self.scorecard),
                     )
                 )
+        self.starting_line = Gate(
+            waypoints[0], expected_times[waypoints[0].name], calculate_extended_gate(waypoints[0], self.scorecard)
+        )
         return gates
 
     def initiate_gates(self):
         self.gates = self.create_gates()
         for gate in self.gates:
             gate.pre_project(self.projector)
+        self.starting_line.pre_project(self.projector)
 
     def _get_next_gate(self) -> Optional[Gate]:
         return self.outstanding_gates[0] if self.outstanding_gates else None
@@ -272,21 +277,20 @@ class GateCalculator(Calculator):
 
         # Handle crossing the starting line if we are looking for it
         if state.next_gate and state.next_gate == self.gates[0]:
-            starting_line = self.gates[0]
-            intersection_time = starting_line.get_gate_extended_intersection_time(state.projector, track)
-            if intersection_time and not starting_line.is_passed_in_correct_direction_track(track):
+            intersection_time = self.starting_line.get_gate_extended_intersection_time(state.projector, track)
+            if intersection_time and not self.starting_line.is_passed_in_correct_direction_track(track):
                 if self.last_backwards is None or intersection_time > self.last_backwards + datetime.timedelta(
                     seconds=15
                 ):
                     self.last_backwards = intersection_time
-                    events.append(StartingLineExtendedPassedWrongDirectionEvent(starting_line, track[-1]))
-            elif not starting_line.has_infinite_been_passed():
-                intersection_time = starting_line.get_gate_infinite_intersection_time(state.projector, track)
-                if intersection_time and starting_line.is_passed_in_correct_direction_track(track):
+                    events.append(StartingLineExtendedPassedWrongDirectionEvent(self.starting_line, track[-1]))
+            elif not self.starting_line.has_infinite_been_passed():
+                intersection_time = self.starting_line.get_gate_infinite_intersection_time(state.projector, track)
+                if intersection_time and self.starting_line.is_passed_in_correct_direction_track(track):
                     self.contestant.terminate_concurrent_contestants(intersection_time)
-                    starting_line.pass_infinite_gate(intersection_time, track[-1])
+                    self.starting_line.pass_infinite_gate(intersection_time, track[-1])
                     # Signal starting line crossing (sets enroute, handles adaptive start)
-                    events.append(StartingLinePassedEvent(starting_line, track[-1], intersection_time))
+                    events.append(StartingLinePassedEvent(self.starting_line, track[-1], intersection_time))
 
                     if self.contestant.adaptive_start:
                         adaptive_event = AdaptiveStartEvent(intersection_time, track[-1])
@@ -312,6 +316,9 @@ class GateCalculator(Calculator):
                 gate = self.outstanding_gates[j]
                 if not gate.has_been_passed():
                     # Find previous gate for context
+                    logger.info(
+                        f"{self.contestant}: Detected missed gate {gate} due to crossing later gate {self.outstanding_gates[crossed_gate_index]}"
+                    )
                     current_idx_in_all = self.gates.index(gate)
                     prev_gate = self.gates[current_idx_in_all - 1] if current_idx_in_all > 0 else None
                     events.append(GateMissedEvent(prev_gate, gate, track[-1], event_time=passed_intersection_time))
@@ -333,7 +340,11 @@ class GateCalculator(Calculator):
             # Skip if we just added a GatePassedEvent for this specific gate
             if not (crossed_gate_index == 0):
                 # 1. Check for infinite line crossing if not already detected
-                if not gate.has_infinite_been_passed():
+                if (
+                    not gate.has_infinite_been_passed()
+                    and self.starting_line.has_infinite_been_passed()
+                    and (state.in_range_of_gate == gate or gate != self.gates[0])
+                ):
                     inf_time = gate.get_gate_infinite_intersection_time(state.projector, track)
                     if inf_time and gate.is_passed_in_correct_direction_track(track):
                         gate.pass_infinite_gate(inf_time, track[-1])
@@ -349,6 +360,9 @@ class GateCalculator(Calculator):
                         # Find previous gate for context
                         current_idx_in_all = self.gates.index(gate)
                         prev_gate = self.gates[current_idx_in_all - 1] if current_idx_in_all > 0 else None
+                        logger.info(
+                            f"{self.contestant}: Detected missed gate {gate} due to passing infinite line over 2 seconds ago without normal crossing"
+                        )
                         events.append(GateMissedEvent(prev_gate, gate, gate.infinite_passing_position))
                         # Pop and emit next
                         self.outstanding_gates.pop(0)
@@ -394,6 +408,9 @@ class GateCalculator(Calculator):
                     # Find previous gate for context
                     current_idx_in_all = self.gates.index(state.in_range_of_gate)
                     prev_gate = self.gates[current_idx_in_all - 1] if current_idx_in_all > 0 else None
+                    logger.info(
+                        f"{self.contestant}: Detected missed gate {state.in_range_of_gate} due to going out of range without passing"
+                    )
                     events.append(GateMissedEvent(prev_gate, state.in_range_of_gate, last_position))
 
                     # If this was our expected next gate, pop it
