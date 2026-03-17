@@ -158,6 +158,7 @@ class TestGateCalculator(CalculatorUnitTestBase):
         gate.has_infinite_been_passed.return_value = False
 
         self.calculator.gates = [gate]
+        self.calculator.starting_line = gate
         self.calculator.outstanding_gates = [gate]
         self.contestant.adaptive_start = True
 
@@ -194,6 +195,7 @@ class TestGateCalculator(CalculatorUnitTestBase):
         gate.is_passed_in_correct_direction_track.return_value = False
 
         self.calculator.gates = [gate]
+        self.calculator.starting_line = gate
         self.calculator.outstanding_gates = [gate]
 
         state = OrchestratorState(
