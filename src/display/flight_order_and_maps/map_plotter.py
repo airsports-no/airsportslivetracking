@@ -270,7 +270,8 @@ class MyGoogleWTS(GoogleWTS):
         else:
             url = self._image_url(tile)
             try:
-                response = requests.get(url, headers={"User-Agent": self.user_agent}, timeout=1)
+                headers = {"User-Agent": self.user_agent, "Referer": "https://airsports.no/"}
+                response = requests.get(url, headers=headers, timeout=1)
                 im_data = io.BytesIO(response.content)
                 img = Image.open(im_data)
 
@@ -332,7 +333,8 @@ class FlightContest(MyGoogleWTS):
 
         url = self._image_url(tile)
         try:
-            request = Request(url, headers={"User-Agent": self.user_agent})
+            headers = {"User-Agent": self.user_agent, "Referer": "https://airsports.no/"}
+            request = Request(url, headers=headers)
             fh = urlopen(request)
             im_data = six.BytesIO(fh.read())
             fh.close()
@@ -1083,7 +1085,7 @@ def plot_precision_track(
 #     x, y = np.meshgrid(np.arange(nx), np.arange(ny)) * transform
 def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
     plt.figure(figsize=(3, 3))
-    imagery = OSM()
+    imagery = OSM(user_agent="airsports.no, support@airsports.no")
     ax = plt.axes(projection=imagery.crs)
     editable_track = editable_route.get_feature_type("route_path")
     print(editable_track)
@@ -1175,7 +1177,7 @@ def plot_route(
     else:
         if map_source == "osm":
             imagery = OSM(user_agent="airsports.no, support@airsports.no")  # Does not like zoom level greater than 12
-            attribution = "openstreetmap.org"
+            attribution = "© OpenStreetMap contributors"
         elif map_source == "fc":
             imagery = FlightContest(desired_tile_form="RGBA")
             attribution = "FlightContest"
@@ -1184,7 +1186,7 @@ def plot_route(
             attribution = "maptiler.com"
         elif map_source == "cyclosm":
             imagery = OSM(user_agent="airsports.no, support@airsports.no")  # Does not like zoom level greater than 12
-            attribution = "openstreetmap.org"
+            attribution = "© OpenStreetMap contributors"
             # imagery = CyclOSM(desired_tile_form="RGBA", user_agent="airsports.no, support@airsports.no")
             # attribution = "openstreetmap.org CycleOSM"
         else:
@@ -1470,7 +1472,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
     :param positions: List of (latitude, longitude) pairs
     :return:
     """
-    imagery = OSM()
+    imagery = OSM(user_agent="airsports.no, support@airsports.no")
     ax = plt.axes(projection=imagery.crs)
     ax.add_image(imagery, 7)
     ax.set_aspect("auto")

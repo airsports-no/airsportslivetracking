@@ -210,7 +210,7 @@ export default function CompetitionMapPage() {
 
     if (staticNavTaskData?.display_background_map && userShowBackgroundMap) {
         const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             opacity: 0.6
         }).addTo(map);
         tileLayerRef.current = osm;
@@ -649,7 +649,7 @@ export default function CompetitionMapPage() {
           </div>
         ) : (
           contestDetails?.logo && (
-            <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24 sm:bottom-20' : 'bottom-2'}`}>
+            <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-28 sm:bottom-24' : 'bottom-5'}`}>
                 <div className="bg-base-100/80 backdrop-blur-sm p-2 rounded-lg shadow-lg">
                     <img src={contestDetails.logo} alt={`${contestDetails.name} logo`} className="max-h-32 max-w-xs" />
                 </div>
