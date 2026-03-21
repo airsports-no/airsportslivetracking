@@ -150,11 +150,14 @@ redis:
   architecture: standalone
   enabled: true
   master:
+    nodeSelector:
+      cloud.google.com/compute-class: Scale-Out
     disableCommands: []
     resources:
       requests:
         cpu: 400m
         memory: 0.8Gi
+
 
   auth:
     enabled: false  # Default true
