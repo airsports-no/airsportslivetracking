@@ -44,7 +44,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
           <div className="card-body p-3">
             <h3 className="card-title text-sm text-info-content border-b border-info/20 pb-1 mb-1">Secret Points</h3>
             <p className="text-xs mb-2">
-              Click leg line in "View" mode.
+              Click leg line in "View" mode. If you want a regular turning point, change the point type to "Waypoint" in the sidebar after selecting the point.
             </p>
             <div className="bg-base-100 p-2 rounded border border-info/20 text-xs w-full">
               <strong className="text-error">Constraint: </strong> 
