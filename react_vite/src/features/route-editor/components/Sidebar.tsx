@@ -43,6 +43,7 @@ interface SidebarProps {
   setRouteName: (name: string) => void;
   isAuthenticated: boolean;
   isDirty: boolean;
+  totalLength: number;
 }
 
 
@@ -73,7 +74,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   routeName,
   setRouteName,
   isAuthenticated,
-  isDirty
+  isDirty,
+  totalLength
 }) => {
 
   const renderContent = () => {
@@ -196,6 +198,29 @@ const Sidebar: React.FC<SidebarProps> = ({
           placeholder="Route Name"
           className="input input-bordered w-full mb-4 text-lg font-bold"
         />
+
+        <div className="flex flex-col mb-6 p-4 bg-base-200/50 rounded-xl border border-base-300">
+          <div className="flex items-baseline justify-between mb-2">
+            <span className="text-sm font-bold text-gray-500 uppercase">Total Route Length</span>
+              <span className="text-sm font-bold font-black text-primary">{(totalLength / 1852).toFixed(2)}</span>
+              <span className="text-sm font-bold opacity-70">NM</span>
+          </div>
+          
+          {/* <div className="grid grid-cols-3 gap-2 mt-1">
+            <div className="flex flex-col items-center p-2 rounded-lg bg-base-100 border border-base-300/50 shadow-sm">
+              <span className="text-[10px] font-bold text-gray-500 uppercase">ANR</span>
+              <span className="text-xs font-mono font-bold text-primary">15-35</span>
+            </div>
+            <div className="flex flex-col items-center p-2 rounded-lg bg-base-100 border border-base-300/50 shadow-sm">
+              <span className="text-[10px] font-bold text-gray-500 uppercase">Rally</span>
+              <span className="text-xs font-mono font-bold text-primary">80-120</span>
+            </div>
+            <div className="flex flex-col items-center p-2 rounded-lg bg-base-100 border border-base-300/50 shadow-sm">
+              <span className="text-[10px] font-bold text-gray-500 uppercase">Prec</span>
+              <span className="text-xs font-mono font-bold text-primary">60-100</span>
+            </div>
+          </div> */}
+        </div>
 
         {renderContent()}
       </div>

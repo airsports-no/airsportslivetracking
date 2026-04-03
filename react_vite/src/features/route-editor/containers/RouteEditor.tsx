@@ -11,7 +11,8 @@ import {
   getDestinationPoint,
   isCollinear,
   getDistanceFromLine,
-  toRad
+  toRad,
+  getQuadraticBezierPoints
 } from '../../../utils/geoUtils';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { Map } from 'leaflet';
@@ -49,6 +50,23 @@ export default function RouteEditor() {
   const [maxObsDist, setMaxObsDist] = useState(926); // Default 0.5 NM
   const [hideLabels, setHideLabels] = useState(false);
   
+  // --- CALCULATE TOTAL LENGTH ---
+  const totalLength = useMemo(() => {
+    let dist = 0;
+    for (let i = 0; i < routePoints.length - 1; i++) {
+      const p1 = routePoints[i];
+      const p2 = routePoints[i + 1];
+      if (p2.segmentType === 'curved' && p2.controlLat && p2.controlLng) {
+        const curvePoints = getQuadraticBezierPoints(p1, p2, { lat: p2.controlLat, lng: p2.controlLng });
+        for (let j = 0; j < curvePoints.length - 1; j++) {
+          dist += getDistance(curvePoints[j], curvePoints[j + 1]);
+        }
+      } else {
+        dist += getDistance(p1, p2);
+      }
+    }
+    return dist;
+  }, [routePoints]);
 
   const modeRef = useRef(mode);
   const [mapInstance, setMapInstance] = useState<Map | null>(null);
@@ -800,6 +818,7 @@ export default function RouteEditor() {
           }}
           isAuthenticated={document.configuration.isAuthenticated}
           isDirty={isDirty}
+          totalLength={totalLength}
         />
       </div>
 
