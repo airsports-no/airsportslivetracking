@@ -3,6 +3,8 @@ import logging
 from multiprocessing import Queue
 from typing import List, Optional, Tuple
 
+from display.calculators.calculator_utilities import round_time_minute
+
 from display.calculators.calculator import (
     Calculator,
     OrchestratorState,
@@ -215,7 +217,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
         Update expected times for takeoff and landing gates based on adaptive start time.
         """
         new_start_time = event.intersection_time
-        gate_times = self.contestant.calculate_missing_gate_times({}, new_start_time)
+        gate_times = self.contestant.calculate_missing_gate_times({}, round_time_minute(new_start_time))
 
         if self.takeoff_gate:
             for gate in self.takeoff_gate.gates:
