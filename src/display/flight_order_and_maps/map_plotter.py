@@ -765,6 +765,8 @@ def plot_anr_corridor_track(
 ):
     gate_colour = get_contrasting_anr_gate_colour(colour)
     polygon_track = [(item["lat"], item["lng"]) for item in route.corridor_polygon]
+    if polygon_track and polygon_track[0] != polygon_track[-1]:
+        polygon_track.append(polygon_track[0])
     path = np.array(polygon_track)
     ys, xs = path.T
     plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)

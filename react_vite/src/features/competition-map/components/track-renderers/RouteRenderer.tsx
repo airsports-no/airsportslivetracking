@@ -144,8 +144,8 @@ function renderAirsportsRoute(map: L.Map, route: RouteData, isAnr: boolean, navT
     
     if (route.corridor_polygon) {
         const polygon = route.corridor_polygon.map((p: any) => [p.lat, p.lng] as [number, number]);
-        // The polygon is not closed in the new API response, so we don't need to close it manually.
-        layers.push(L.polyline(polygon, { color: "blue" }).addTo(map));
+        // Use L.polygon instead of L.polyline to ensure the corridor is closed
+        layers.push(L.polygon(polygon, { color: "blue", fill: false, weight: 2 }).addTo(map));
     }
 
     const filterWaypoints = () => {
