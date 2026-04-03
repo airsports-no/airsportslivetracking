@@ -794,6 +794,16 @@ def download_navigation_task_orders(request, pk):
     return redirect("navigationtask_flightordersprogress", pk=pk)
 
 
+def old_tracking_map_redirect(request, pk):
+    """
+    Redirects old tracking map URLs to the new ones for backward compatibility.
+    Old URL: /display/task/<nav_task_id>/map/
+    New URL: /competition-map/<contest_id>/<nav_task_id>
+    """
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    return redirect(navigation_task.tracking_link, permanent=True)
+
+
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def get_navigation_task_map(request, pk):
     """
