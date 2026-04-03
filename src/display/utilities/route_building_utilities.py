@@ -489,16 +489,15 @@ def create_anr_corridor_route_from_waypoint_list(
 
     if corridor_width is not None:
         # Set fixed gate length for SP and FP in ANR to 0.6 NM
-        # Or should it be 0.3 NM beyond each corridor line?
-        anr_gate_width_nm = 0.6  # + corrido_width
+        anr_gate_width_nm = 0.6
         sp = waypoint_list[0]
         fp = waypoint_list[-1]
 
-        sp_line = extend_line(sp.gate_line[0], sp.gate_line[1], anr_gate_width_nm)
+        sp_line = extend_line(sp.gate_line[0], sp.gate_line[1], anr_gate_width_nm - sp.width)
         if sp_line:
             sp.gate_line = [list(sp_line[0]), list(sp_line[1])]
 
-        fp_line = extend_line(fp.gate_line[0], fp.gate_line[1], anr_gate_width_nm)
+        fp_line = extend_line(fp.gate_line[0], fp.gate_line[1], anr_gate_width_nm - fp.width)
         if fp_line:
             fp.gate_line = [list(fp_line[0]), list(fp_line[1])]
 
