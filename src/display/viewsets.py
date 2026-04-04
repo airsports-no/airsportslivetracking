@@ -937,7 +937,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 wind_direction=serialiser.validated_data["wind_direction"],
             )
             logger.debug("Created contestant")
-            final_time = contestant.get_final_gate_time()
+            final_time = takeoff_time + contestant.flight_duration
             logger.debug(f"Final gate time is {final_time}")
 
             if final_time is None:

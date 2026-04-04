@@ -228,7 +228,7 @@ class TestGateTimeCalculation(TestCase):
             tracker_device_id="Test contestant",
             contestant_number=1,
             minutes_to_starting_point=7,
-            adaptive_start=True,
+            adaptive_start=False,
             air_speed=speed,
             wind_direction=340,
             wind_speed=15,

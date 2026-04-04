@@ -100,7 +100,7 @@ class TestContestantGatesCalculation(APITestCase):
         self.assertTrue(contestant.adaptive_start)
         self.assertEqual(datetime.datetime(2021, 5, 13, 7, 0, tzinfo=datetime.timezone.utc), contestant.takeoff_time)
         self.assertEqual(
-            datetime.datetime(2021, 5, 13, 9, 24, 52, tzinfo=datetime.timezone.utc), contestant.finished_by_time
+            datetime.datetime(2021, 5, 13, 9, 44, 52, tzinfo=datetime.timezone.utc), contestant.finished_by_time
         )
 
     def test_self_management_signup_without_permissions(self, *args):

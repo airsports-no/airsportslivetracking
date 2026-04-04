@@ -169,18 +169,20 @@ class Contestant(models.Model):
         return self.emailmaplink_set.all().exists()
 
     @property
-    def starting_point_time(self) -> datetime.datetime:
+    def starting_point_time(self) -> datetime.datetime | None:
         """
         The calculated passing time for the first waypoint in the track (assumed to be the starting point).
         """
         try:
             return self.gate_times[self.navigation_task.route.waypoints[0].name]
         except (KeyError, IndexError):
-            return self.takeoff_time + datetime.timedelta(minutes=self.navigation_task.minutes_to_starting_point)
+            return None
 
     @property
-    def starting_point_time_local(self) -> datetime.datetime:
-        return self.starting_point_time.astimezone(self.navigation_task.contest.time_zone)
+    def starting_point_time_local(self) -> datetime.datetime | None:
+        if self.starting_point_time:
+            return self.starting_point_time.astimezone(self.navigation_task.contest.time_zone)
+        return None
 
     @property
     def tracker_start_time_local(self) -> datetime.datetime:
@@ -201,6 +203,17 @@ class Contestant(models.Model):
     def final_gate_time_local(self) -> Optional[datetime.datetime]:
         dt = self.get_final_gate_time()
         return dt.astimezone(self.navigation_task.contest.time_zone) if dt else None
+
+    @property
+    def flight_duration(self) -> Optional[datetime.timedelta]:
+        if (final_gate_time := self.get_final_gate_time()) and self.starting_point_time:
+            return (
+                final_gate_time
+                - self.starting_point_time
+                + datetime.timedelta(minutes=self.minutes_to_starting_point)
+                + datetime.timedelta(minutes=self.navigation_task.minutes_to_landing)
+            )
+        return None
 
     @property
     def landing_time(self) -> datetime.datetime:
