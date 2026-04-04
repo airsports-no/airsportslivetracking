@@ -418,7 +418,6 @@ class ContestViewSet(ModelViewSet):
                 get_objects_for_user(
                     user,
                     "display.change_contest",
-                    with_superuser=False,
                     klass=Contest,
                     accept_global_perms=False,
                 )
@@ -728,6 +727,17 @@ class ContestViewSet(ModelViewSet):
             context["exclude_teams"] = self.request.query_params.get("exclude_teams", "false").lower() == "true"
             if self.request.user.is_authenticated:
                 context["user_person"] = Person.objects.filter(email=self.request.user.email).first()
+                context["editable_contest_ids"] = set(
+                    get_objects_for_user(self.request.user, "display.change_contest", klass=Contest).values_list(
+                        "id", flat=True
+                    )
+                )
+                context["registered_contest_ids"] = set(
+                    ContestTeam.objects.filter(
+                        Q(team__crew__member1__email=self.request.user.email)
+                        | Q(team__crew__member2__email=self.request.user.email)
+                    ).values_list("contest_id", flat=True)
+                )
         return context
 
 
