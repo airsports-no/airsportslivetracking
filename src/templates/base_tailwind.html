@@ -73,9 +73,9 @@
     </script>
 </head>
 <body class="flex flex-col h-screen overflow-x-hidden">
-<header class="flex-none relative" style="z-index: 1000;">
+<header class="flex-none relative" style="z-index: 5000;">
     {% if not skip_nav %}
-        <div class="navbar bg-neutral text-neutral-content min-h-[64px]">
+        <div class="navbar bg-neutral text-neutral-content min-h-[64px] relative z-[5000]">
             <div class="navbar-start">
                 <a class="btn btn-ghost text-xl" href="/">
                     <img class="h-8" src="{% static 'img/airsports_live_tracking_white.png' %}" alt="AirSports">
@@ -93,7 +93,7 @@
                             <li>
                                 <details>
                                     <summary>Management</summary>
-                                    <ul class="p-2 bg-neutral rounded-t-none z-50">
+                                    <ul class="p-2 bg-neutral rounded-t-none z-[5001]">
                                         <li><a href="{% fe_url 'MISSION_DASHBOARD' %}?tab=editorContests">My contests</a></li>
                                         <li><a href="{% url 'useruploadedmap_list' %}">My maps</a></li>
                                         <li><a href="{% fe_url 'ROUTE_EDITOR_LIST' %}">Route editor</a></li>
@@ -120,7 +120,7 @@
                             <li>
                                 <details>
                                     <summary>Profile</summary>
-                                    <ul class="p-2 bg-neutral rounded-t-none z-50 right-0">
+                                    <ul class="p-2 bg-neutral rounded-t-none z-[5001] right-0">
                                         <li>{{ user.email }}</li>
                                         <li><a href="{% url 'password_change' %}?next=/">Change password</a></li>
                                         {% if perms.display.change_contest %}
