@@ -18,7 +18,7 @@ import TeamPresentation from './components/TeamPresentation';
 import ClockDisplay from './components/ClockDisplay';
 import Disclaimer from './components/Disclaimer';
 import TaskInfoModal from './TaskInfoModal';
-import { ChevronUp, ChevronDown, Trophy, Info, Settings, Calendar, Sliders } from 'lucide-react';
+import { ChevronUp, ChevronDown, Trophy, Info, Settings, Calendar, Sliders, Activity, PlayCircle } from 'lucide-react';
 import { reverse, generatePath } from '../../urls';
 import './CompetitionMap.css';
 import { NavigationTask } from './types';
@@ -39,7 +39,7 @@ export default function CompetitionMapPage() {
   const [userShowSecrets, setUserShowSecrets] = useState(true);
   const [showPenaltiesOnly, setShowPenaltiesOnly] = useState(false);
   const [hasMapBeenFitted, setHasMapBeenFitted] = useState(false); // New state for initial map fit
-  const [isRankingCollapsed, setIsRankingCollapsed] = useState(false);
+  const [isRankingCollapsed, setIsRankingCollapsed] = useState(() => window.innerWidth < 640);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [permanentAnnotations, setPermanentAnnotations] = useState(false);
   const [contestDetails, setContestDetails] = useState<any | null>(null);
@@ -464,7 +464,7 @@ export default function CompetitionMapPage() {
         {/* The toast display will now be placed relative to this flex-1 relative container */}
 
 
-        <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-[1000] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)]">
+        <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-[1100] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-56 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)]">
           <div className="p-2 border-b border-base-300">
             <div className="flex justify-between items-center">
               <h2 className="font-bold text-lg truncate" title={staticNavTaskData?.name}>{staticNavTaskData?.name ?? 'Loading...'}</h2>
@@ -477,12 +477,18 @@ export default function CompetitionMapPage() {
             <div className="flex flex-col gap-2 mt-2">
               <div className="flex justify-start items-center flex-wrap gap-2">
                 <div className="join">
-                  <button className={`btn btn-xs join-item ${mode === 'realtime' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}>Realtime</button>
-                  <button className={`btn btn-xs join-item ${mode === 'playback' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'playback') { setMode('playback'); setSelectedContestantId(null); } }}>Playback</button>
+                  <button className={`btn btn-xs join-item ${mode === 'realtime' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}>
+                    <Activity size={12} />
+                    <span className="hidden sm:inline ml-1">Realtime</span>
+                  </button>
+                  <button className={`btn btn-xs join-item ${mode === 'playback' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'playback') { setMode('playback'); setSelectedContestantId(null); } }}>
+                    <PlayCircle size={12} />
+                    <span className="hidden sm:inline ml-1">Playback</span>
+                  </button>
                 </div>
 
                 <label className="label cursor-pointer text-xs p-0 ml-2">
-                  <span className="label-text mr-1 text-xs">Full Trails</span>
+                  <span className="label-text mr-1 text-xs hidden sm:inline">Full Trails</span>
                   <input 
                     type="checkbox" 
                     className="toggle toggle-xs" 
@@ -496,33 +502,33 @@ export default function CompetitionMapPage() {
               </div>
 
               <div className="flex justify-start items-center flex-wrap gap-2">
-                <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline gap-1">
+                <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline gap-1" title="Task Info">
                   <Info size={12} />
-                  Task Info
+                  <span className="hidden sm:inline">Task Info</span>
                 </button>
-                <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestIdNum })} className="btn btn-xs btn-outline gap-1">
+                <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestIdNum })} className="btn btn-xs btn-outline gap-1" title="Contest">
                   <Trophy size={12} />
-                  Contest
+                  <span className="hidden sm:inline">Contest</span>
                 </Link>
                 {staticNavTaskData?.user_has_change_permission && (
-                  <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline gap-1">
+                  <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline gap-1" title="Manage">
                     <Settings size={12} />
-                    Manage
+                    <span className="hidden sm:inline">Manage</span>
                   </a>
                 )}
                 {staticNavTaskData?.allow_self_management && (
-                  <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline gap-1">
+                  <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline gap-1" title="Schedule">
                     <Calendar size={12} />
-                    Schedule
+                    <span className="hidden sm:inline">Schedule</span>
                   </Link>
                 )}
                 {/* Settings Dropdown */}
                 <div className="dropdown">
-                  <div tabIndex={0} role="button" className="btn btn-xs btn-outline gap-1">
+                  <div tabIndex={0} role="button" className="btn btn-xs btn-outline gap-1" title="Settings">
                     <Sliders size={12} />
-                    Settings
+                    <span className="hidden sm:inline">Settings</span>
                   </div>
-                  <ul tabIndex={0} className="dropdown-content z-[11] menu p-2 shadow bg-base-100 rounded-box w-64">
+                  <ul tabIndex={0} className="dropdown-content z-[50] menu p-2 shadow bg-base-100 rounded-box w-64">
                     <li>
                       <label className="label cursor-pointer py-1">
                         <span className="label-text text-xs text-left">Show Background Map</span>

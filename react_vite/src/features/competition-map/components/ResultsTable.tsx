@@ -34,12 +34,12 @@ function formatCountdown(totalSeconds: number): string {
 export default function ResultsTable({ rows, selectedId, onRowClick, dividerIndex = -1 }: Props) {
   return (
     <div className="overflow-y-auto max-h-[40vh] sm:max-h-96">
-      <table className="table table-zebra table-sm w-full">
+      <table className="table table-zebra table-xs sm:table-sm w-full">
         <thead className="sticky top-0 bg-base-200 z-10">
           <tr>
-            <th>Rank</th>
-            <th>Contestant</th>
-            <th>Score</th>
+            <th className="w-8 px-1 text-center">#</th>
+            <th className="px-2">Contestant</th>
+            <th className="px-1 text-right">Score</th>
           </tr>
         </thead>
         <tbody>
@@ -59,9 +59,9 @@ export default function ResultsTable({ rows, selectedId, onRowClick, dividerInde
                     ${selectedId === r.id ? 'bg-primary/20 font-bold' : ''}
                 `}
               >
-                <td style={{borderLeft: `4px solid ${r.color ?? 'transparent'}`}}>{idx + 1}</td>
-                <td className="max-w-[100px] sm:max-w-[150px] md:max-w-none truncate">{r.name}</td>
-                <td>
+                <td className="w-8 px-1 text-center" style={{borderLeft: `4px solid ${r.color ?? 'transparent'}`}}>{idx + 1}</td>
+                <td className="max-w-[80px] sm:max-w-[150px] md:max-w-none truncate px-2">{r.name}</td>
+                <td className="px-1 text-right tabular-nums">
                     {r.countdown && r.countdown > 0 ? (
                         formatCountdown(r.countdown)
                     ) : (

@@ -19,8 +19,8 @@ const ClockDisplay: React.FC<Props> = ({ time, timeZone = 'UTC' }) => {
         .find(part => part.type === 'timeZoneName')?.value;
     
     return (
-        <div className="font-mono bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg py-0.5 px-2 sm:py-1 sm:px-3 text-xs sm:text-base">
-            {formattedTime} {timeZoneName}
+        <div className="font-mono bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg py-0.5 px-1.5 sm:py-1 sm:px-3 text-[10px] sm:text-base">
+            {formattedTime} <span className="hidden xs:inline">{timeZoneName}</span>
         </div>
     );
 };
