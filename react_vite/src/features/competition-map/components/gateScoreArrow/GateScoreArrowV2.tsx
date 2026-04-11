@@ -40,7 +40,15 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     const [finished, setFinished] = useState<{ [key: number]: boolean }>({});
     const frozenTimeRef = useRef<number | null>(null);
 
-    // ... rest of the component
+    const debugMode = true; // Toggle this to force display for placement work
+    const displayData = currentArrowData || (debugMode ? {
+        waypoint_name: "DEBUG GATE",
+        seconds_to_planned_crossing: -15,
+        estimated_crossing_offset: 5,
+        estimated_score: 50,
+        final: false,
+        missed: false
+    } : undefined);
 
     // Helper functions (converted from class methods)
     const getWaypointType = (waypointName: string) => {
@@ -55,10 +63,11 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     };
 
     const getRule = (ruleName: string) => {
-        if (!currentArrowData?.waypoint_name || !navigationTask.scorecard) return 0;
+        const waypointName = displayData?.waypoint_name;
+        if (!waypointName || !navigationTask.scorecard) return 0;
 
         try {
-            const waypointType = getWaypointType(currentArrowData.waypoint_name);
+            const waypointType = getWaypointType(waypointName);
             if (!waypointType) return 0;
 
             const gateScore = navigationTask.scorecard.gatescore_set.find((gate: GateScoreRule) => {
@@ -107,7 +116,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
         }
     }, [gateArrowData, currentArrowData, contestant, finished, navigationTask]);
 
-    if (!currentArrowData || finished[contestant.id]) {
+    if (!displayData || finished[contestant.id]) {
         return null;
     }
 
@@ -115,11 +124,11 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
         <div className={"gate-score-arrow"} ref={containerRef}>
             <div className="flex justify-between items-start p-1">
                 <div className={"gate-score-next-gate"}>
-                    NEXT GATE: {currentArrowData.waypoint_name}
+                    NEXT GATE: {displayData.waypoint_name}
                 </div>
                 <GateCountdownTimer
-                    secondsToPlannedCrossing={currentArrowData.seconds_to_planned_crossing}
-                    crossingOffsetEstimate={currentArrowData.estimated_crossing_offset}
+                    secondsToPlannedCrossing={displayData.seconds_to_planned_crossing}
+                    crossingOffsetEstimate={displayData.estimated_crossing_offset}
                 />
             </div>
             <div className={"gate-arrow-shadow"}>
@@ -130,11 +139,11 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                     maximumTimingPenalty={getMaximumTimingPenalty()}
                     gracePeriodBefore={getGracePeriodBefore()}
                     gracePeriodAfter={getGracePeriodAfter()}
-                    crossingOffsetEstimate={currentArrowData.estimated_crossing_offset}
-                    estimatedScore={currentArrowData.estimated_score}
+                    crossingOffsetEstimate={displayData.estimated_crossing_offset}
+                    estimatedScore={displayData.estimated_score}
                     contestantId={contestant.id}
-                    final={currentArrowData.final}
-                    missed={currentArrowData.missed}
+                    final={displayData.final}
+                    missed={displayData.missed}
                 />
             </div>
         </div>

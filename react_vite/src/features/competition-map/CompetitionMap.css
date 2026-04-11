@@ -3,7 +3,33 @@
     filter: grayscale(30%) brightness(1.1) contrast(0.9);
 }
 
-/* Ensure tracks are always on top and distinct */
+/* Ensure tracks are always on top and distinct but below info overlays */
 .plane-icon {
-    z-index: 1000 !important;
+    z-index: 900 !important;
+}
+
+@media (orientation: landscape) {
+    .team-presentation-container {
+        max-width: 50% !important;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    .ranking-container {
+        width: 14rem !important; 
+    }
+    
+    .ranking-container .overflow-y-auto {
+        max-height: 30vh !important;
+    }
+
+    /* Collapse button text to icons on small landscape too */
+    .ranking-container .btn span {
+        display: none !important;
+    }
+    
+    .ranking-container .btn {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
 }

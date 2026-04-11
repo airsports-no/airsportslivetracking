@@ -464,7 +464,7 @@ export default function CompetitionMapPage() {
         {/* The toast display will now be placed relative to this flex-1 relative container */}
 
 
-        <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-[1100] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-56 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)]">
+        <div className="ranking-container absolute top-2 left-2 sm:top-4 sm:left-4 z-[1100] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-56 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)]">
           <div className="p-2 border-b border-base-300">
             <div className="flex justify-between items-center">
               <h2 className="font-bold text-lg truncate" title={staticNavTaskData?.name}>{staticNavTaskData?.name ?? 'Loading...'}</h2>
@@ -640,8 +640,9 @@ export default function CompetitionMapPage() {
 
         {selectedContestant ? (
           // Container for TeamPresentation and GateScoreArrowV2
-          <div ref={teamPresentationContainerRef} className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24 sm:bottom-20' : 'bottom-2'} w-11/12 md:w-3/4 lg:w-2/3 max-w-5xl`}> {/* Responsive container */}
+          <div ref={teamPresentationContainerRef} className={`team-presentation-container absolute right-4 z-[1100] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24 sm:bottom-20' : 'bottom-2'} w-11/12 md:w-3/4 lg:w-2/3 max-w-5xl`}> {/* Responsive container */}
             <div className="flex items-end gap-4 justify-end">
+
               <TeamPresentation
                 key={selectedContestant.id}
                 scale={teamPresentationScale}
