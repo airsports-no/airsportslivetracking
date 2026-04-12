@@ -641,9 +641,8 @@ export default function CompetitionMapPage() {
 
         {selectedContestant ? (
           // Container for TeamPresentation and GateScoreArrowV2
-          <div ref={teamPresentationContainerRef} className={`team-presentation-container absolute right-4 z-[1100] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24 sm:bottom-20' : 'bottom-2'} w-11/12 md:w-3/4 lg:w-2/3 max-w-5xl`}> {/* Responsive container */}
-            <div className="flex items-end gap-4 justify-end">
-
+          <div ref={teamPresentationContainerRef} className={`team-presentation-container absolute right-4 z-[1100] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24 sm:bottom-20' : 'bottom-2'} w-11/12 md:w-3/4 lg:w-2/3 max-w-5xl pointer-events-none`}> {/* Responsive container */}
+            <div className="flex items-end gap-4 justify-end pointer-events-none">
               <TeamPresentation
                 key={selectedContestant.id}
                 scale={teamPresentationScale}
@@ -657,8 +656,8 @@ export default function CompetitionMapPage() {
           </div>
         ) : (
           contestDetails?.logo && (
-            <div className={`absolute right-4 z-[1000] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-28 sm:bottom-24' : 'bottom-5'}`}>
-                <div className="bg-base-100/80 backdrop-blur-sm p-2 rounded-lg shadow-lg">
+            <div className={`absolute right-4 z-[1100] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-28 sm:bottom-24' : 'bottom-5'} pointer-events-none`}>
+                <div className="bg-base-100/80 backdrop-blur-sm p-2 rounded-lg shadow-lg pointer-events-auto">
                     <img src={contestDetails.logo} alt={`${contestDetails.name} logo`} className="max-h-32 max-w-xs" />
                 </div>
             </div>
