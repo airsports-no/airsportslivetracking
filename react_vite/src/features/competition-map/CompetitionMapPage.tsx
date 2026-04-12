@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 
 import useMapInit from '../route-editor/components/map/useMapInit';
 import { useCompetitionData } from './hooks/useCompetitionData';
@@ -28,6 +28,7 @@ import { NavigationTask } from './types';
 
 export default function CompetitionMapPage() {
   const { contestId, navigationTaskId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const contestIdNum = Number(contestId ?? 632);
   const navigationTaskIdNum = Number(navigationTaskId ?? 2129);
 
@@ -84,10 +85,20 @@ export default function CompetitionMapPage() {
     error: navTaskError,
   } = useCompetitionData(contestIdNum, navigationTaskIdNum, mode, showToast); // Pass showToast
 
+  const selectedIds = useMemo(() => {
+    const param = searchParams.get('contestantIds');
+    if (!param) return null;
+    return new Set(param.split(',').map(Number));
+  }, [searchParams]);
 
-  const sortedContestants = useMemo(() => {
+  const allSortedContestants = useMemo(() => {
     return Object.values(contestantsById).sort((a, b) => a.id - b.id);
   }, [contestantsById]);
+
+  const sortedContestants = useMemo(() => {
+    if (!selectedIds) return allSortedContestants;
+    return allSortedContestants.filter(c => selectedIds.has(c.id));
+  }, [allSortedContestants, selectedIds]);
 
   const selectedContestant = useMemo(() => {
     if (!selectedContestantId || !staticNavTaskData) return null; // Still needs staticNavTaskData for general check
@@ -318,6 +329,34 @@ export default function CompetitionMapPage() {
     permanentAnnotations,
     showPenaltiesOnly,
   });
+
+  const toggleContestantFilter = (id: number) => {
+    const currentIds = selectedIds ? Array.from(selectedIds) : allSortedContestants.map(c => c.id);
+    let nextIds;
+    if (currentIds.includes(id)) {
+        nextIds = currentIds.filter(i => i !== id);
+    } else {
+        nextIds = [...currentIds, id];
+    }
+    
+    // If all are selected, just remove the param
+    if (nextIds.length === allSortedContestants.length) {
+        searchParams.delete('contestantIds');
+    } else {
+        searchParams.set('contestantIds', nextIds.join(','));
+    }
+    setSearchParams(searchParams);
+  };
+
+  const selectAllContestants = () => {
+    searchParams.delete('contestantIds');
+    setSearchParams(searchParams);
+  };
+
+  const selectNoneContestants = () => {
+    searchParams.set('contestantIds', '0'); // Use 0 to indicate empty but filtered
+    setSearchParams(searchParams);
+  };
 
 
 
@@ -577,6 +616,31 @@ export default function CompetitionMapPage() {
                         />
                       </label>
                     </li>
+                    <div className="divider my-1"></div>
+                    <div className="px-2 pb-1 flex justify-between items-center">
+                        <span className="text-[10px] font-bold uppercase opacity-50">Filter Contestants</span>
+                        <div className="flex gap-2">
+                            <button onClick={selectAllContestants} className="text-[10px] link">All</button>
+                            <button onClick={selectNoneContestants} className="text-[10px] link">None</button>
+                        </div>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto px-1">
+                        {allSortedContestants.map(c => (
+                            <li key={c.id}>
+                                <label className="label cursor-pointer py-0.5 justify-start gap-2">
+                                    <input 
+                                        type="checkbox" 
+                                        className="checkbox checkbox-primary checkbox-xs" 
+                                        checked={!selectedIds || selectedIds.has(c.id)}
+                                        onChange={() => toggleContestantFilter(c.id)}
+                                    />
+                                    <span className="label-text text-[10px] truncate">
+                                        #{c.contestant_number} {c.team?.crew?.member1?.first_name} {c.team?.crew?.member1?.last_name}
+                                    </span>
+                                </label>
+                            </li>
+                        ))}
+                    </div>
                   </ul>
                 </div>
             </div>
