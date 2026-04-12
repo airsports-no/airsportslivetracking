@@ -801,7 +801,11 @@ def old_tracking_map_redirect(request, pk):
     New URL: /competition-map/<contest_id>/<nav_task_id>
     """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    return redirect(navigation_task.tracking_link, permanent=True)
+    target_url = navigation_task.tracking_link
+    query_string = request.META.get("QUERY_STRING")
+    if query_string:
+        target_url = f"{target_url}?{query_string}"
+    return redirect(target_url, permanent=True)
 
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
