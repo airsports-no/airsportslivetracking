@@ -465,17 +465,16 @@ export default function CompetitionMapPage() {
 
 
         <div className="ranking-container absolute top-2 left-2 sm:top-4 sm:left-4 z-[1100] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-56 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)]">
-          <div className="p-2 border-b border-base-300">
+          <div className="p-1 sm:p-2 border-b border-base-300">
             <div className="flex justify-between items-center">
-              <h2 className="font-bold text-lg truncate" title={staticNavTaskData?.name}>{staticNavTaskData?.name ?? 'Loading...'}</h2>
-              <button onClick={() => setIsRankingCollapsed(!isRankingCollapsed)} className="btn btn-ghost btn-sm btn-square">
-                {isRankingCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+              <h2 className="font-bold text-sm sm:text-lg truncate" title={staticNavTaskData?.name}>{staticNavTaskData?.name ?? 'Loading...'}</h2>
+              <button onClick={() => setIsRankingCollapsed(!isRankingCollapsed)} className="btn btn-ghost btn-xs sm:btn-sm btn-square">
+                {isRankingCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
               </button>
             </div>
 
 
-            <div className="flex flex-col gap-2 mt-2">
-              <div className="flex justify-start items-center flex-wrap gap-2">
+            <div className="flex items-center flex-wrap gap-1 sm:gap-2 mt-1 sm:mt-2">
                 <div className="join">
                   <button className={`btn btn-xs join-item ${mode === 'realtime' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}>
                     <Activity size={12} />
@@ -487,8 +486,8 @@ export default function CompetitionMapPage() {
                   </button>
                 </div>
 
-                <label className="label cursor-pointer text-xs p-0 ml-2">
-                  <span className="label-text mr-1 text-xs hidden sm:inline">Full Trails</span>
+                <label className="label cursor-pointer text-xs p-0">
+                  <span className="full-trails-text label-text mr-1 text-[10px] sm:text-xs hidden sm:inline">Full Trails</span>
                   <input 
                     type="checkbox" 
                     className="toggle toggle-xs" 
@@ -499,32 +498,30 @@ export default function CompetitionMapPage() {
                     }} 
                   />
                 </label>
-              </div>
 
-              <div className="flex justify-start items-center flex-wrap gap-2">
-                <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline gap-1" title="Task Info">
+                <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Task Info">
                   <Info size={12} />
                   <span className="hidden sm:inline">Task Info</span>
                 </button>
-                <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestIdNum })} className="btn btn-xs btn-outline gap-1" title="Contest">
+                <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestIdNum })} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Contest">
                   <Trophy size={12} />
                   <span className="hidden sm:inline">Contest</span>
                 </Link>
                 {staticNavTaskData?.user_has_change_permission && (
-                  <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline gap-1" title="Manage">
+                  <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Manage">
                     <Settings size={12} />
                     <span className="hidden sm:inline">Manage</span>
                   </a>
                 )}
                 {staticNavTaskData?.allow_self_management && (
-                  <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline gap-1" title="Schedule">
+                  <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Schedule">
                     <Calendar size={12} />
                     <span className="hidden sm:inline">Schedule</span>
                   </Link>
                 )}
                 {/* Settings Dropdown */}
                 <div className="dropdown">
-                  <div tabIndex={0} role="button" className="btn btn-xs btn-outline gap-1" title="Settings">
+                  <div tabIndex={0} role="button" className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Settings">
                     <Sliders size={12} />
                     <span className="hidden sm:inline">Settings</span>
                   </div>
@@ -577,7 +574,6 @@ export default function CompetitionMapPage() {
                     </li>
                   </ul>
                 </div>
-              </div>
             </div>
 
             {mode === 'realtime' && staticNavTaskData?.calculation_delay_minutes !== undefined && staticNavTaskData.calculation_delay_minutes > 0 && (

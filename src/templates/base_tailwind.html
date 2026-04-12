@@ -75,18 +75,19 @@
 <body class="flex flex-col h-screen overflow-x-hidden">
 <header class="flex-none relative" style="z-index: 5000;">
     {% if not skip_nav %}
-        <div class="navbar bg-neutral text-neutral-content min-h-[64px] relative z-[5000]">
+        <div class="navbar bg-neutral text-neutral-content min-h-[32px] sm:min-h-[32px] relative z-[5000] py-0 px-2">
             <div class="navbar-start">
-                <a class="btn btn-ghost text-xl" href="/">
-                    <img class="h-8" src="{% static 'img/airsports_live_tracking_white.png' %}" alt="AirSports">
+                <a class="btn btn-ghost text-xl h-8 min-h-0 py-0 px-2" href="/">
+                    <img class="h-4 sm:h-8" src="{% static 'img/airsports_live_tracking_white.png' %}" alt="AirSports">
                 </a>
             </div>
             <div class="navbar-end">
                 <div class="flex-none lg:hidden">
-                    <button id="menu-toggle" class="btn btn-square btn-ghost">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    <button id="menu-toggle" class="btn btn-square btn-ghost h-8 w-8 min-h-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-4 h-4 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                     </button>
                 </div>
+
                 <div id="main-menu" class="hidden lg:flex lg:items-center lg:w-auto">
                     <ul class="menu menu-horizontal px-1">
                         {% if perms.display.add_contest %}
@@ -163,7 +164,7 @@
         menuToggle.addEventListener('click', function() {
             if (mainMenu.classList.contains('hidden')) {
                 mainMenu.classList.remove('hidden');
-                mainMenu.classList.add('block', 'absolute', 'top-16', 'left-0', 'w-full', 'bg-neutral', 'shadow-lg', 'py-2');
+                mainMenu.classList.add('block', 'absolute', 'top-8', 'left-0', 'w-full', 'bg-neutral', 'shadow-lg', 'py-2');
                 mainMenu.querySelector('ul').classList.remove('menu-horizontal');
                 mainMenu.querySelector('ul').classList.add('menu-vertical');
 
