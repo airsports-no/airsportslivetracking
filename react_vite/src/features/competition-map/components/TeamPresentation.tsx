@@ -20,16 +20,16 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
     const isPoker = navigationTask?.scorecard.task_type.includes("poker");
 
     return (
-        <div className={`flex ${isPoker ? 'flex-col' : 'flex-col sm:flex-row'} items-end gap-2 sm:gap-4 pointer-events-auto`} style={{ transform: `scale(${scale})`, transformOrigin: 'bottom right' }}>
+        <div className={`flex ${isPoker ? 'flex-col' : 'flex-col sm:flex-row'} items-end gap-2 sm:gap-4 pointer-events-none`} style={{ transform: `scale(${scale})`, transformOrigin: 'bottom right' }}>
             {isPoker ? (
                 contestant.playing_cards && contestant.playing_cards.length > 0 && (
-                    <div className="mb-4 self-center sm:self-center">
+                    <div className="mb-4 self-center sm:self-center pointer-events-auto">
                         <PlayingCards playingCards={contestant.playing_cards} />
                     </div>
                 )
             ) : (
                 navigationTask && (
-                    <div className="flex-shrink-0 hidden sm:block" style={{ width: '512px' }}>
+                    <div className="flex-shrink-0 hidden sm:block pointer-events-auto" style={{ width: '512px' }}>
                         <GateScoreArrowV2
                             contestant={contestant}
                             navigationTask={navigationTask}
@@ -38,7 +38,7 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
                     </div>
                 )
             )}
-            <div className="flex items-end gap-2 sm:gap-4 relative z-20">
+            <div className="flex items-end gap-2 sm:gap-4 relative z-20 pointer-events-auto">
                 {/* Main Content Box: Score and Crew Info */}
                 <div className="bg-base-100/80 backdrop-blur-md shadow-lg rounded-lg p-2 sm:p-3 w-auto"> 
                     <div className="flex items-center gap-3 sm:gap-4">

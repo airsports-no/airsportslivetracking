@@ -40,7 +40,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     const [finished, setFinished] = useState<{ [key: number]: boolean }>({});
     const frozenTimeRef = useRef<number | null>(null);
 
-    const debugMode = true; // Toggle this to force display for placement work
+    const debugMode = false; // Toggle this to force display for placement work
     const displayData = currentArrowData || (debugMode ? {
         waypoint_name: "DEBUG GATE",
         seconds_to_planned_crossing: -15,
