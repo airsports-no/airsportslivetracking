@@ -18,7 +18,7 @@ import TeamPresentation from './components/TeamPresentation';
 import ClockDisplay from './components/ClockDisplay';
 import Disclaimer from './components/Disclaimer';
 import TaskInfoModal from './TaskInfoModal';
-import { ChevronUp, ChevronDown, Trophy, Info, Settings, Calendar, Sliders, Activity, PlayCircle } from 'lucide-react';
+import { ChevronUp, ChevronDown, Trophy, Info, Settings, Calendar, Sliders, Activity, PlayCircle, Route } from 'lucide-react';
 import { reverse, generatePath } from '../../urls';
 import './CompetitionMap.css';
 import { NavigationTask } from './types';
@@ -474,30 +474,35 @@ export default function CompetitionMapPage() {
             </div>
 
 
-            <div className="flex items-center flex-wrap gap-1 sm:gap-2 mt-1 sm:mt-2">
-                <div className="join">
-                  <button className={`btn btn-xs join-item ${mode === 'realtime' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}>
-                    <Activity size={12} />
-                    <span className="hidden sm:inline ml-1">Realtime</span>
-                  </button>
-                  <button className={`btn btn-xs join-item ${mode === 'playback' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { if (mode !== 'playback') { setMode('playback'); setSelectedContestantId(null); } }}>
-                    <PlayCircle size={12} />
-                    <span className="hidden sm:inline ml-1">Playback</span>
-                  </button>
-                </div>
+            <div className="flex items-center flex-wrap gap-0.5 sm:gap-2 mt-1 sm:mt-2">
+                <button 
+                  className={`btn btn-xs ${mode === 'realtime' ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
+                  onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}
+                  title="Realtime"
+                >
+                  <Activity size={12} />
+                  <span className="hidden sm:inline">Realtime</span>
+                </button>
+                <button 
+                  className={`btn btn-xs ${mode === 'playback' ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
+                  onClick={() => { if (mode !== 'playback') { setMode('playback'); setSelectedContestantId(null); } }}
+                  title="Playback"
+                >
+                  <PlayCircle size={12} />
+                  <span className="hidden sm:inline">Playback</span>
+                </button>
 
-                <label className="label cursor-pointer text-xs p-0">
-                  <span className="full-trails-text label-text mr-1 text-[10px] sm:text-xs hidden sm:inline">Full Trails</span>
-                  <input 
-                    type="checkbox" 
-                    className="toggle toggle-xs" 
-                    checked={showFullTrails} 
-                    onChange={e => {
-                      setShowFullTrails(e.target.checked);
-                      hasAutoEnabledTrailsRef.current = true;
-                    }} 
-                  />
-                </label>
+                <button 
+                  className={`btn btn-xs ${showFullTrails ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
+                  onClick={() => {
+                    setShowFullTrails(!showFullTrails);
+                    hasAutoEnabledTrailsRef.current = true;
+                  }}
+                  title="Full Trails"
+                >
+                  <Route size={12} />
+                  <span className="full-trails-text hidden sm:inline">Full Trails</span>
+                </button>
 
                 <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Task Info">
                   <Info size={12} />

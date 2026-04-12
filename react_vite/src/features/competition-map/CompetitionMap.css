@@ -16,7 +16,7 @@
 
 @media (orientation: landscape) and (max-height: 500px) {
     .ranking-container {
-        width: 14rem !important; 
+        width: 16rem !important; /* Increased from 14rem to prevent button wrapping */
     }
     
     .ranking-container .overflow-y-auto {
