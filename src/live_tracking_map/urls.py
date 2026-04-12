@@ -36,5 +36,9 @@ urlpatterns = [
     path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("api/v1/reverse-urls/", cache_page(3600)(urls_json), name="js_reverse"),
     path("api/v1/", include(api.urlpatters)),
+    path(
+        "global/contest_details/<int:pk>/",
+        RedirectView.as_view(url="/mission-dashboard/%(pk)s/", permanent=True, query_string=True),
+    ),
     re_path(r"^.?", FrontEndView.as_view(), name="frontend"),
 ]
