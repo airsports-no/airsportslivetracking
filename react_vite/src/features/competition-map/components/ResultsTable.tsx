@@ -33,7 +33,7 @@ function formatCountdown(totalSeconds: number): string {
 
 export default function ResultsTable({ rows, selectedId, onRowClick, dividerIndex = -1 }: Props) {
   return (
-    <div className="overflow-y-auto max-h-[40vh] sm:max-h-96">
+    <div className="results-table-scroll-area overflow-y-auto max-h-[40vh] sm:max-h-96">
       <table className="table table-zebra table-xs sm:table-sm w-full">
         <thead className="sticky top-0 bg-base-200 z-10">
           <tr>

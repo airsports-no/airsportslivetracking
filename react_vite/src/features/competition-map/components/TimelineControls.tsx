@@ -33,7 +33,7 @@ export default function TimelineControls({
     };
 
     return (
-        <div className="absolute bottom-0 left-0 right-0 z-[1000] p-2 sm:p-4 bg-base-200/80 backdrop-blur-sm">
+        <div className="absolute bottom-0 left-0 right-0 z-[1100] p-2 sm:p-4 bg-base-200/80 backdrop-blur-sm">
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                 <div className="flex items-center gap-1 sm:gap-2 order-1">
                     <button onClick={onJumpToStart} className="btn btn-xs sm:btn-sm btn-ghost">

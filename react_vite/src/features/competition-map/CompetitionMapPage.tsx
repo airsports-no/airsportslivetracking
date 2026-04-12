@@ -87,8 +87,9 @@ export default function CompetitionMapPage() {
 
   const selectedIds = useMemo(() => {
     const param = searchParams.get('contestantIds');
-    if (!param) return null;
-    return new Set(param.split(',').map(Number));
+    if (param === null) return null;
+    if (param === '') return new Set<number>();
+    return new Set(param.split(',').filter(s => s !== '').map(Number));
   }, [searchParams]);
 
   const allSortedContestants = useMemo(() => {
@@ -354,7 +355,7 @@ export default function CompetitionMapPage() {
   };
 
   const selectNoneContestants = () => {
-    searchParams.set('contestantIds', '0'); // Use 0 to indicate empty but filtered
+    searchParams.set('contestantIds', ''); 
     setSearchParams(searchParams);
   };
 
@@ -489,12 +490,12 @@ export default function CompetitionMapPage() {
           onMapFit={setHasMapBeenFitted}
         />
 
-        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1000]">
+        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1100]">
           <ClockDisplay time={currentTime} timeZone={staticNavTaskData?.time_zone} />
         </div>
         
         {mode === 'realtime' && wsStatus === 'disconnected' && (
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] bg-error text-error-content p-2 rounded-lg shadow-md text-center max-w-xs">
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1100] bg-error text-error-content p-2 rounded-lg shadow-md text-center max-w-xs">
                 <h3 className="font-bold text-base">Offline</h3>
                 <p className="text-sm">Connection lost. Attempting to reconnect...</p>
             </div>
@@ -514,62 +515,13 @@ export default function CompetitionMapPage() {
 
 
             <div className="flex items-center flex-wrap gap-0.5 sm:gap-2 mt-1 sm:mt-2">
-                <button 
-                  className={`btn btn-xs ${mode === 'realtime' ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
-                  onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}
-                  title="Realtime"
-                >
-                  <Activity size={12} />
-                  <span className="hidden sm:inline">Realtime</span>
-                </button>
-                <button 
-                  className={`btn btn-xs ${mode === 'playback' ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
-                  onClick={() => { if (mode !== 'playback') { setMode('playback'); setSelectedContestantId(null); } }}
-                  title="Playback"
-                >
-                  <PlayCircle size={12} />
-                  <span className="hidden sm:inline">Playback</span>
-                </button>
-
-                <button 
-                  className={`btn btn-xs ${showFullTrails ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
-                  onClick={() => {
-                    setShowFullTrails(!showFullTrails);
-                    hasAutoEnabledTrailsRef.current = true;
-                  }}
-                  title="Full Trails"
-                >
-                  <Route size={12} />
-                  <span className="full-trails-text hidden sm:inline">Full Trails</span>
-                </button>
-
-                <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Task Info">
-                  <Info size={12} />
-                  <span className="hidden sm:inline">Task Info</span>
-                </button>
-                <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestIdNum })} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Contest">
-                  <Trophy size={12} />
-                  <span className="hidden sm:inline">Contest</span>
-                </Link>
-                {staticNavTaskData?.user_has_change_permission && (
-                  <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Manage">
-                    <Settings size={12} />
-                    <span className="hidden sm:inline">Manage</span>
-                  </a>
-                )}
-                {staticNavTaskData?.allow_self_management && (
-                  <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Schedule">
-                    <Calendar size={12} />
-                    <span className="hidden sm:inline">Schedule</span>
-                  </Link>
-                )}
                 {/* Settings Dropdown */}
                 <div className="dropdown">
                   <div tabIndex={0} role="button" className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Settings">
                     <Sliders size={12} />
                     <span className="hidden sm:inline">Settings</span>
                   </div>
-                  <ul tabIndex={0} className="dropdown-content z-[50] menu p-2 shadow bg-base-100 rounded-box w-64">
+                  <ul tabIndex={0} className="dropdown-content z-[50] menu p-2 shadow bg-base-100 rounded-box w-64 max-h-[65vh] overflow-y-auto flex-nowrap">
                     <li>
                       <label className="label cursor-pointer py-1">
                         <span className="label-text text-xs text-left">Show Background Map</span>
@@ -624,7 +576,7 @@ export default function CompetitionMapPage() {
                             <button onClick={selectNoneContestants} className="text-[10px] link">None</button>
                         </div>
                     </div>
-                    <div className="max-h-48 overflow-y-auto px-1">
+                    <div className="px-1">
                         {allSortedContestants.map(c => (
                             <li key={c.id}>
                                 <label className="label cursor-pointer py-0.5 justify-start gap-2">
@@ -643,6 +595,56 @@ export default function CompetitionMapPage() {
                     </div>
                   </ul>
                 </div>
+
+                <button 
+                  className={`btn btn-xs ${mode === 'realtime' ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
+                  onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}
+                  title="Realtime"
+                >
+                  <Activity size={12} />
+                  <span className="hidden sm:inline">Realtime</span>
+                </button>
+                <button 
+                  className={`btn btn-xs ${mode === 'playback' ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
+                  onClick={() => { if (mode !== 'playback') { setMode('playback'); setSelectedContestantId(null); } }}
+                  title="Playback"
+                >
+                  <PlayCircle size={12} />
+                  <span className="hidden sm:inline">Playback</span>
+                </button>
+
+                <button 
+                  className={`btn btn-xs ${showFullTrails ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
+                  onClick={() => {
+                    setShowFullTrails(!showFullTrails);
+                    hasAutoEnabledTrailsRef.current = true;
+                  }}
+                  title="Full Trails"
+                >
+                  <Route size={12} />
+                  <span className="full-trails-text hidden sm:inline">Full Trails</span>
+                </button>
+
+                <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Task Info">
+                  <Info size={12} />
+                  <span className="hidden sm:inline">Task Info</span>
+                </button>
+                <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestIdNum })} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Contest">
+                  <Trophy size={12} />
+                  <span className="hidden sm:inline">Contest</span>
+                </Link>
+                {staticNavTaskData?.user_has_change_permission && (
+                  <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Manage">
+                    <Settings size={12} />
+                    <span className="hidden sm:inline">Manage</span>
+                  </a>
+                )}
+                {staticNavTaskData?.allow_self_management && (
+                  <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Schedule">
+                    <Calendar size={12} />
+                    <span className="hidden sm:inline">Schedule</span>
+                  </Link>
+                )}
             </div>
 
             {mode === 'realtime' && staticNavTaskData?.calculation_delay_minutes !== undefined && staticNavTaskData.calculation_delay_minutes > 0 && (

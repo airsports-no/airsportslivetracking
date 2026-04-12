@@ -22,12 +22,12 @@ const Disclaimer = () => {
 
     return (
         <>
-            <a href="#" className="absolute bottom-4 left-4 z-[1000] text-xs link link-hover" onClick={openModal}>
+            <a href="#" className="absolute bottom-4 left-4 z-[1100] text-xs link link-hover" onClick={openModal}>
                 Terms and Conditions
             </a>
 
             {isOpen && (
-                <dialog id="disclaimer_modal" className="modal modal-open z-[2000]" onClick={closeModal}>
+                <dialog id="disclaimer_modal" className="modal modal-open z-[6000]" onClick={closeModal}>
                     <div className="modal-box w-11/12 max-w-5xl relative my-8" onClick={e => e.stopPropagation()}>
                         {/* Top close button */}
                         <form method="dialog">

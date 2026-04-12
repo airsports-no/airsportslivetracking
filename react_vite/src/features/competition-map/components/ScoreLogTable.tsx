@@ -13,7 +13,7 @@ export default function ScoreLogTable({ scoreLog, contestantName, onClose }: Pro
     return null;
   }
   return (
-    <div className="overflow-y-auto max-h-[40vh] sm:max-h-96">
+    <div className="score-log-scroll-area overflow-y-auto max-h-[40vh] sm:max-h-96">
       <table className="table table-zebra table-xs w-full">
         <thead className="sticky top-0 bg-base-200 z-10">
           <tr>

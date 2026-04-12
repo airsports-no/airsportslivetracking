@@ -19,8 +19,13 @@
         width: 16rem !important; /* Increased from 14rem to prevent button wrapping */
     }
     
-    .ranking-container .overflow-y-auto {
-        max-height: 40vh !important;
+    .ranking-container .results-table-scroll-area,
+    .ranking-container .score-log-scroll-area {
+        max-height: 25vh !important; /* Limit table height only, not dropdown */
+    }
+
+    .ranking-container .dropdown-content {
+        max-height: 55vh !important; /* Explicitly limit dropdown height on short screens */
     }
 
     /* Collapse button text to icons on small landscape too */
