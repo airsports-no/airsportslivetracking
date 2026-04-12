@@ -58,8 +58,8 @@ const TaskInfoModal: React.FC<Props> = ({ isOpen, onClose }) => {
     }
 
     return (
-        <dialog className="modal modal-open z-[2000]" onClick={onClose}>
-            <div className="modal-box w-11/12 max-w-4xl relative my-12 sm:my-20" onClick={e => e.stopPropagation()}>
+        <dialog className="modal modal-open z-[6000]" onClick={onClose}>
+            <div className="modal-box w-11/12 max-w-4xl top-[16px] relative max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <form method="dialog">
                     <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onClick={onClose}>✕</button>
                 </form>
