@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Toolbar from '../components/Toolbar';
 import MapCanvas from '../components/MapCanvas';
 import { fetchRoute, saveRoute } from '../api';
 import { RouteData, SavePayload } from '../types';
+import { generatePath } from '../../../urls';
 import {
   getDistance,
   getBearing,
@@ -38,6 +39,7 @@ export default function RouteEditor() {
   const [selectionType, setSelectionType] = useState<SelectionType | null>(null);
   const [routeId, setRouteId] = useState<string | null>(null);
   const { routeId: paramRouteId } = useParams<{ routeId: string }>();
+  const navigate = useNavigate();
   const [routeName, setRouteName] = useState("");
   const [isDirty, setIsDirty] = useState(false);
 
@@ -700,7 +702,7 @@ export default function RouteEditor() {
       if (!routeId && result.id) {
         setRouteId(result.id.toString());
         // Optionally update URL
-        window.history.pushState({}, '', document.configuration.editRouteViewUrl(result.id));
+        navigate(generatePath('ROUTE_EDITOR_EDIT', { routeId: result.id }), { replace: true });
       }
     } catch (e) {
       console.error(e);
