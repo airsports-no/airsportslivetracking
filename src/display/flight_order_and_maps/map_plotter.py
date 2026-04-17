@@ -777,7 +777,9 @@ def plot_anr_corridor_track(
         bearing = waypoint_bearing(waypoint, index)
 
         if waypoint.type not in (SECRETPOINT,) or (
-            contestant and contestant.navigation_task.scorecard.calculator == ANR_CORRIDOR
+            contestant
+            and contestant.navigation_task.scorecard.calculator == ANR_CORRIDOR
+            and (waypoint.time_check or waypoint.gate_check)
         ):
             plot_waypoint_name(
                 route,
@@ -830,7 +832,7 @@ def maybe_plot_leg_bearing_anr(
     colour: str,
 ):
     next_index = index + 1
-    if next_index >= len(track):
+    if next_index >= len(track) or track[next_index].end_curved:
         return
     if (
         track[next_index].type not in (UNKNOWN_LEG, DUMMY) and track[next_index].distance_previous / 1852 > 1
@@ -855,6 +857,8 @@ def maybe_plot_leg_bearing(
         next_index = index + 1
         accumulated_distance = 0
         while next_index < len(track):
+            if track[next_index].end_curved:
+                break
             if (
                 abs(
                     bearing_difference(
@@ -907,6 +911,8 @@ def plot_minute_marks(
     :return:
     """
     next_waypoint = track[index + 1]
+    if next_waypoint.end_curved:
+        return
     gate_start_time = contestant.gate_times.get(waypoint.name)
     if waypoint.is_procedure_turn:
         gate_start_time += datetime.timedelta(minutes=1)

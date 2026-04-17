@@ -586,7 +586,10 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                         accumulated_distance += waypoint.distance_previous
                     if (
                         waypoint.type not in ("secret", "dummy", "ul")
-                        or contestant.navigation_task.scorecard.calculator == ANR_CORRIDOR
+                        or (
+                            contestant.navigation_task.scorecard.calculator == ANR_CORRIDOR
+                            and (waypoint.time_check or waypoint.gate_check)
+                        )
                     ):
                         bearing = waypoint.bearing_from_previous
                         wind_correction_angle = calculate_wind_correction_angle(
