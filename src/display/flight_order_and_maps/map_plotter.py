@@ -779,7 +779,7 @@ def plot_anr_corridor_track(
         if waypoint.type not in (SECRETPOINT,) or (
             contestant
             and contestant.navigation_task.scorecard.calculator == ANR_CORRIDOR
-            and (waypoint.time_check or waypoint.gate_check)
+            and not waypoint.on_curved_segment
         ):
             plot_waypoint_name(
                 route,
@@ -832,7 +832,7 @@ def maybe_plot_leg_bearing_anr(
     colour: str,
 ):
     next_index = index + 1
-    if next_index >= len(track) or track[next_index].end_curved:
+    if next_index >= len(track) or waypoint.on_curved_segment:
         return
     if (
         track[next_index].type not in (UNKNOWN_LEG, DUMMY) and track[next_index].distance_previous / 1852 > 1
@@ -852,13 +852,11 @@ def maybe_plot_leg_bearing_anr(
 def maybe_plot_leg_bearing(
     waypoint: Waypoint, index: int, track: List[Waypoint], contestant: Contestant, character_offset: int, font_size: int
 ):
-    if waypoint.type != SECRETPOINT:
+    if waypoint.type != SECRETPOINT and not waypoint.on_curved_segment:
         # Only plot bearing if there is a straight line between one not secret gate and the next
         next_index = index + 1
         accumulated_distance = 0
         while next_index < len(track):
-            if track[next_index].end_curved:
-                break
             if (
                 abs(
                     bearing_difference(
@@ -911,8 +909,6 @@ def plot_minute_marks(
     :return:
     """
     next_waypoint = track[index + 1]
-    if next_waypoint.end_curved:
-        return
     gate_start_time = contestant.gate_times.get(waypoint.name)
     if waypoint.is_procedure_turn:
         gate_start_time += datetime.timedelta(minutes=1)

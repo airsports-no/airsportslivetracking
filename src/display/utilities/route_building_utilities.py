@@ -282,6 +282,7 @@ def build_waypoint(
     control_latitude=None,
     control_longitude=None,
     end_curved: bool = False,
+    on_curved_segment: bool = False,
 ) -> Waypoint:
     waypoint = Waypoint(name)
     waypoint.latitude = latitude
@@ -295,6 +296,7 @@ def build_waypoint(
     waypoint.time_check = time_check
     waypoint.gate_check = gate_check
     waypoint.end_curved = end_curved
+    waypoint.on_curved_segment = on_curved_segment
     return waypoint
 
 
