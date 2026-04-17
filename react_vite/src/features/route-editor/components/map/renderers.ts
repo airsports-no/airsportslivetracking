@@ -134,11 +134,11 @@ export const drawRouteLine = (
 
       const mid = L.latLng((p1.lat + p2.lat) / 2, (p1.lng + p2.lng) / 2);
       const ghost = L.circleMarker(mid, {
-        radius: 4,
+        radius: 7,
         color: '#3b82f6',
         fillColor: '#3b82f6',
-        opacity: 0.4,
-        fillOpacity: 0.2,
+        opacity: 0.7,
+        fillOpacity: 0.5,
         weight: 1,
         className: 'cursor-copy'
       }).addTo(map);
