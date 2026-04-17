@@ -279,6 +279,10 @@ export default function useDragHandlers({
         setSelectedId(id);
         setSelectionType('point');
         setMode('view');
+      } else if (type === 'poly_body' || type === 'poly_vertex') {
+        setSelectedId(polyId);
+        setSelectionType('polygon');
+        setMode('view');
       }
     }
     

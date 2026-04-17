@@ -732,10 +732,10 @@ export default function RouteEditor() {
             // Set type and name
             if (index === 0) {
                 newPoint.type = 'sp';
-                newPoint.name = 'Start';
+                newPoint.name = 'SP';
             } else if (index === reversedPoints.length - 1) {
                 newPoint.type = 'fp';
-                newPoint.name = 'Finish';
+                newPoint.name = 'FP';
             } else {
                 if (newPoint.type !== 'secret') {
                     newPoint.type = 'tp';
@@ -758,20 +758,39 @@ export default function RouteEditor() {
             return newPoint;
         });
 
-        // Re-number intermediate waypoints to maintain consistency
-        let wpCounter = 1;
-        const finalPoints = newPoints.map(p => {
-            if (p.type === 'tp' && p.name.startsWith('WP')) {
-                return { ...p, name: `WP ${wpCounter++}` };
-            }
-            if (p.type === 'tp') {
-              wpCounter++;
-            }
-            return p;
-        });
-
-        return finalPoints;
+        return renumberPoints(newPoints);
     });
+  }, []);
+
+  const renumberPoints = (points: RoutePoint[]) => {
+    let wpCounter = 0;
+    let secretCounter = 1;
+
+    return points.map((p, index) => {
+      const newPoint = { ...p };
+      if (index === 0) {
+        newPoint.type = 'sp';
+        newPoint.name = 'SP';
+        wpCounter = 0;
+        secretCounter = 1;
+      } else if (index === points.length - 1) {
+        newPoint.type = 'fp';
+        newPoint.name = 'FP';
+      } else if (p.type === 'secret') {
+        newPoint.name = `Secret ${wpCounter}.${secretCounter++}`;
+      } else {
+        wpCounter++;
+        newPoint.name = `WP ${wpCounter}`;
+        newPoint.type = 'tp';
+        secretCounter = 1;
+      }
+      return newPoint;
+    });
+  };
+
+  const handleRenumberWaypoints = useCallback(() => {
+    setIsDirty(true);
+    setRoutePoints(prev => renumberPoints(prev));
   }, []);
 
 
@@ -808,6 +827,7 @@ export default function RouteEditor() {
           movePointOrder={movePointOrder}
           handleSave={handleSave}
           handleReverseRoute={handleReverseRoute}
+          handleRenumberWaypoints={handleRenumberWaypoints}
           maxObsDist={maxObsDist}
           setMaxObsDist={(val) => {
             setMaxObsDist(val);

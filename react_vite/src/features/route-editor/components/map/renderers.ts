@@ -368,42 +368,41 @@ export const drawPolygons = (
       if (mode !== 'view') return;
       L.DomEvent.stopPropagation(e.originalEvent);
 
-      // If not already selected, select it
-      if (selectedId !== poly.id) {
+      // If already selected, check if we clicked near an edge to add a vertex
+      if (selectedId === poly.id) {
+        const clickPt = { lat: e.latlng.lat, lng: e.latlng.lng };
+        let bestIndex = -1;
+        let minDistance = Infinity;
+
+        for (let i = 0; i < poly.points.length; i++) {
+          const p1 = poly.points[i];
+          const p2 = poly.points[(i + 1) % poly.points.length];
+          const dist = getDistanceFromLine(clickPt, p1, p2);
+          if (dist < minDistance) {
+            minDistance = dist;
+            bestIndex = i;
+          }
+        }
+
+        if (bestIndex !== -1 && minDistance < 50) { // 50 meters tolerance
+          const p1 = poly.points[bestIndex];
+          const p2 = poly.points[(bestIndex + 1) % poly.points.length];
+          
+          const bearing = getBearing(p1, p2);
+          const dist = getDistance(p1, clickPt);
+          const newLoc = getDestinationPoint(p1, dist, bearing);
+
+          setPolygons(prev => prev.map(p => {
+            if (p.id !== poly.id) return p;
+            const newPoints = [...p.points];
+            newPoints.splice(bestIndex + 1, 0, { lat: newLoc.lat, lng: newLoc.lng } as any);
+            return { ...p, points: newPoints };
+          }));
+        }
+      } else {
+        // If not already selected, select it
         setSelectedId(poly.id);
         setSelectionType('polygon');
-        return;
-      }
-
-      // If already selected, check if we clicked near an edge to add a vertex
-      const clickPt = { lat: e.latlng.lat, lng: e.latlng.lng };
-      let bestIndex = -1;
-      let minDistance = Infinity;
-
-      for (let i = 0; i < poly.points.length; i++) {
-        const p1 = poly.points[i];
-        const p2 = poly.points[(i + 1) % poly.points.length];
-        const dist = getDistanceFromLine(clickPt, p1, p2);
-        if (dist < minDistance) {
-          minDistance = dist;
-          bestIndex = i;
-        }
-      }
-
-      if (bestIndex !== -1 && minDistance < 50) { // 50 meters tolerance
-        const p1 = poly.points[bestIndex];
-        const p2 = poly.points[(bestIndex + 1) % poly.points.length];
-        
-        const bearing = getBearing(p1, p2);
-        const dist = getDistance(p1, clickPt);
-        const newLoc = getDestinationPoint(p1, dist, bearing);
-
-        setPolygons(prev => prev.map(p => {
-          if (p.id !== poly.id) return p;
-          const newPoints = [...p.points];
-          newPoints.splice(bestIndex + 1, 0, { lat: newLoc.lat, lng: newLoc.lng } as any);
-          return { ...p, points: newPoints };
-        }));
       }
     });
 
