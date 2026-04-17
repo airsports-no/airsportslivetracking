@@ -36,7 +36,8 @@ interface SidebarProps {
   deleteSelected: () => void;
   movePointOrder: (direction: "up" | "down") => void;
   handleSave: () => void;
-  handleReverseRoute: () => void; // Added new prop
+  handleReverseRoute: () => void;
+  handleRenumberWaypoints: () => void;
   maxObsDist: number;
   setMaxObsDist: (dist: number) => void;
   routeName: string;
@@ -68,7 +69,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   deleteSelected,
   movePointOrder,
   handleSave,
-  handleReverseRoute, // Destructured new prop
+  handleReverseRoute,
+  handleRenumberWaypoints,
   maxObsDist,
   setMaxObsDist,
   routeName,
@@ -252,8 +254,16 @@ const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={handleReverseRoute}
                 className="btn btn-neutral btn-sm flex-1"
+                title="Reverse Route"
               >
-                <RefreshCcw size={14} /> <span>Reverse Route</span>
+                <RefreshCcw size={14} /> <span>Reverse</span>
+              </button>
+              <button
+                onClick={handleRenumberWaypoints}
+                className="btn btn-neutral btn-sm flex-1"
+                title="Renumber Waypoints"
+              >
+                <RefreshCcw size={14} /> <span>Renumber</span>
               </button>
               <button
                 onClick={() => { setSelectedId(null); setSelectionType('settings'); }}

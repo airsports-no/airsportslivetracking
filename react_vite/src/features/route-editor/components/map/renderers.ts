@@ -19,7 +19,20 @@ export const clearLayers = (markersRef: React.MutableRefObject<{ [key: string]: 
   routeLineRef.current = null;
 };
 
-export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRef: React.MutableRefObject<L.Polyline | null>, polylinesRef: React.MutableRefObject<L.Layer[]>, mode: Mode, setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>, setSelectedId: (id: string | null) => void, setSelectionType: (type: SelectionType | null) => void, hideLabels: boolean) => {
+export const drawRouteLine = (
+  map: L.Map, 
+  routePoints: RoutePoint[], 
+  routeLineRef: React.MutableRefObject<L.Polyline | null>, 
+  polylinesRef: React.MutableRefObject<L.Layer[]>, 
+  mode: Mode, 
+  setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>, 
+  setSelectedId: (id: string | null) => void, 
+  setSelectionType: (type: SelectionType | null) => void, 
+  hideLabels: boolean,
+  dragRef: React.MutableRefObject<any>,
+  handleDragMove: (e: L.LeafletMouseEvent) => void,
+  handleDragEnd: (e: L.LeafletMouseEvent) => void
+) => {
   if (routePoints.length <= 1) return;
 
   const latlngs: L.LatLng[] = [];
@@ -37,7 +50,11 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
     }
   });
 
-  const polyline = L.polyline(latlngs, { color: '#3b82f6', weight: 4 }).addTo(map);
+  const polyline = L.polyline(latlngs, { 
+    color: '#3b82f6', 
+    weight: 4,
+    className: mode === 'view' ? 'cursor-crosshair' : '' 
+  }).addTo(map);
 
   // Handle clicks on the line (to add Secret Points)
   polyline.on('click', (e: L.LeafletMouseEvent) => {
@@ -102,8 +119,67 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
         next.splice(bestIndex + 1, 0, newPoint);
         return next;
       });
+
+      setSelectedId(newPoint.id);
+      setSelectionType('point');
     }
   });
+
+  // Draw Ghost Points
+  if (mode === 'view') {
+    for (let i = 0; i < routePoints.length - 1; i++) {
+      const p1 = routePoints[i];
+      const p2 = routePoints[i + 1];
+      if (p2.segmentType === 'curved') continue; // Skip curved segments for now to keep it simple
+
+      const mid = L.latLng((p1.lat + p2.lat) / 2, (p1.lng + p2.lng) / 2);
+      const ghost = L.circleMarker(mid, {
+        radius: 7,
+        color: '#3b82f6',
+        fillColor: '#3b82f6',
+        opacity: 0.7,
+        fillOpacity: 0.5,
+        weight: 1,
+        className: 'cursor-copy'
+      }).addTo(map);
+
+      ghost.on('mousedown', (e: L.LeafletMouseEvent) => {
+        L.DomEvent.stopPropagation(e.originalEvent);
+        
+        const newPoint: RoutePoint = {
+          id: crypto.randomUUID(),
+          lat: mid.lat,
+          lng: mid.lng,
+          name: `Point ${routePoints.length + 1}`,
+          type: 'tp',
+          width: p1.width,
+          isTiming: true,
+          isPassing: true,
+          segmentType: 'straight'
+        };
+
+        const nextPoints = [...routePoints];
+        nextPoints.splice(i + 1, 0, newPoint);
+
+        setRoutePoints(nextPoints);
+        
+        // Start dragging immediately
+        map.dragging.disable();
+        dragRef.current = {
+          type: 'point',
+          id: newPoint.id,
+          index: i + 1,
+          startLatLng: e.latlng,
+          initialPoints: nextPoints,
+          hasMoved: true
+        };
+        map.on('mousemove', handleDragMove);
+        map.on('mouseup', handleDragEnd);
+      });
+
+      polylinesRef.current.push(ghost);
+    }
+  }
 
   routeLineRef.current = polyline;
   polylinesRef.current.push(polyline);
@@ -131,7 +207,7 @@ export const drawRouteLine = (map: L.Map, routePoints: RoutePoint[], routeLineRe
       const labelMarker = L.marker([mid.lat, mid.lng], {
         icon: L.divIcon({
           className: 'bg-transparent',
-          html: `<div class="transform -translate-x-1/2 -translate-y-1/2 bg-white/75 backdrop-blur-[1px] px-1 rounded border border-slate-300 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap pointer-events-none w-max">${nm} NM</div>`
+          html: `<div class="transform -translate-x-1/2 -translate-y-[calc(50%+12px)] bg-white/75 backdrop-blur-[1px] px-1 rounded border border-slate-300 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap pointer-events-none w-max">${nm} NM</div>`
         }),
         interactive: false
       }).addTo(map);
@@ -252,7 +328,22 @@ export const drawGates = (map: L.Map, gates: Gate[], polylinesRef: React.Mutable
   });
 };
 
-export const drawPolygons = (map: L.Map, polygons: Polygon[], mode: Mode, selectedId: string | null, selectionType: SelectionType | null, markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, dragRef: React.MutableRefObject<any>, handleDragMove: (e: L.LeafletMouseEvent) => void, handleDragEnd: (e: L.LeafletMouseEvent) => void, setSelectedId: (id: string | null) => void, setSelectionType: (type: SelectionType | null) => void, setMode: (mode: Mode) => void, hideLabels: boolean) => {
+export const drawPolygons = (
+  map: L.Map, 
+  polygons: Polygon[], 
+  mode: Mode, 
+  selectedId: string | null, 
+  selectionType: SelectionType | null, 
+  markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, 
+  dragRef: React.MutableRefObject<any>, 
+  handleDragMove: (e: L.LeafletMouseEvent) => void, 
+  handleDragEnd: (e: L.LeafletMouseEvent) => void, 
+  setSelectedId: (id: string | null) => void, 
+  setSelectionType: (type: SelectionType | null) => void, 
+  setMode: (mode: Mode) => void, 
+  hideLabels: boolean,
+  setPolygons: React.Dispatch<React.SetStateAction<Polygon[]>>
+) => {
   polygons.forEach(poly => {
     let color = '#3b82f6';
     if (poly.type === 'prohibited') color = '#ef4444';
@@ -264,7 +355,7 @@ export const drawPolygons = (map: L.Map, polygons: Polygon[], mode: Mode, select
       weight: 2,
       fillColor: color,
       fillOpacity: 0.2,
-      className: 'cursor-move'
+      className: mode === 'view' ? 'cursor-move' : ''
     }).addTo(map);
 
     polygonLayer.bindTooltip(poly.name, {
@@ -273,11 +364,46 @@ export const drawPolygons = (map: L.Map, polygons: Polygon[], mode: Mode, select
       className: `bg-transparent border-0 shadow-none font-bold `
     });
 
-    polygonLayer.on('click', (e) => {
-      L.DomEvent.stopPropagation(e);
-      setSelectedId(poly.id);
-      setSelectionType('polygon');
-      setMode('view');
+    polygonLayer.on('click', (e: L.LeafletMouseEvent) => {
+      if (mode !== 'view') return;
+      L.DomEvent.stopPropagation(e.originalEvent);
+
+      // If already selected, check if we clicked near an edge to add a vertex
+      if (selectedId === poly.id) {
+        const clickPt = { lat: e.latlng.lat, lng: e.latlng.lng };
+        let bestIndex = -1;
+        let minDistance = Infinity;
+
+        for (let i = 0; i < poly.points.length; i++) {
+          const p1 = poly.points[i];
+          const p2 = poly.points[(i + 1) % poly.points.length];
+          const dist = getDistanceFromLine(clickPt, p1, p2);
+          if (dist < minDistance) {
+            minDistance = dist;
+            bestIndex = i;
+          }
+        }
+
+        if (bestIndex !== -1 && minDistance < 50) { // 50 meters tolerance
+          const p1 = poly.points[bestIndex];
+          const p2 = poly.points[(bestIndex + 1) % poly.points.length];
+          
+          const bearing = getBearing(p1, p2);
+          const dist = getDistance(p1, clickPt);
+          const newLoc = getDestinationPoint(p1, dist, bearing);
+
+          setPolygons(prev => prev.map(p => {
+            if (p.id !== poly.id) return p;
+            const newPoints = [...p.points];
+            newPoints.splice(bestIndex + 1, 0, { lat: newLoc.lat, lng: newLoc.lng } as any);
+            return { ...p, points: newPoints };
+          }));
+        }
+      } else {
+        // If not already selected, select it
+        setSelectedId(poly.id);
+        setSelectionType('polygon');
+      }
     });
 
     // Body Drag
@@ -322,6 +448,51 @@ export const drawPolygons = (map: L.Map, polygons: Polygon[], mode: Mode, select
           map.on('mouseup', handleDragEnd);
         });
       });
+
+      // Ghost Points for Polygon Segments
+      if (mode === 'view') {
+        poly.points.forEach((pt, idx) => {
+          const nextPt = poly.points[(idx + 1) % poly.points.length];
+          const mid = L.latLng((pt.lat + nextPt.lat) / 2, (pt.lng + nextPt.lng) / 2);
+
+          const ghost = L.circleMarker(mid, {
+            radius: 4,
+            color: 'white',
+            fillColor: color,
+            opacity: 0.6,
+            fillOpacity: 0.4,
+            weight: 1,
+            className: 'cursor-copy'
+          }).addTo(map);
+
+          ghost.on('mousedown', (e: L.LeafletMouseEvent) => {
+            L.DomEvent.stopPropagation(e.originalEvent);
+
+            const nextPoints = [...poly.points];
+            nextPoints.splice(idx + 1, 0, { lat: mid.lat, lng: mid.lng } as any);
+
+            setPolygons(prev => prev.map(p => {
+              if (p.id !== poly.id) return p;
+              return { ...p, points: nextPoints };
+            }));
+
+            // Start dragging immediately
+            map.dragging.disable();
+            dragRef.current = {
+              type: 'poly_vertex',
+              polyId: poly.id,
+              vertexIndex: idx + 1,
+              startLatLng: e.latlng,
+              initialPoints: nextPoints,
+              hasMoved: true
+            };
+            map.on('mousemove', handleDragMove);
+            map.on('mouseup', handleDragEnd);
+          });
+
+          markersRef.current[`poly-ghost-${poly.id}-${idx}`] = ghost;
+        });
+      }
     }
   });
 };
