@@ -314,7 +314,20 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     }
 
     // --- RENDERER: DRAW ROUTE LINE ---
-    Renderers.drawRouteLine(map, routePoints, routeLineRef, polylinesRef, mode, setRoutePoints, setSelectedId, setSelectionType, hideLabels);
+    Renderers.drawRouteLine(
+      map, 
+      routePoints, 
+      routeLineRef, 
+      polylinesRef, 
+      mode, 
+      setRoutePoints, 
+      setSelectedId, 
+      setSelectionType, 
+      hideLabels,
+      dragRef,
+      handleDragMove,
+      handleDragEnd
+    );
 
     // --- RENDERER: DRAW POINTS ---
     Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels);
@@ -354,7 +367,22 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     });
 
     // --- RENDERER: POLYGONS ---
-    Renderers.drawPolygons(map, polygons, mode, selectedId, selectionType, markersRef, dragRef, handleDragMove, handleDragEnd, setSelectedId, setSelectionType, setMode, hideLabels);
+    Renderers.drawPolygons(
+      map, 
+      polygons, 
+      mode, 
+      selectedId, 
+      selectionType, 
+      markersRef, 
+      dragRef, 
+      handleDragMove, 
+      handleDragEnd, 
+      setSelectedId, 
+      setSelectionType, 
+      setMode, 
+      hideLabels,
+      setPolygons
+    );
 
     // --- RENDERER: TEMP POLYGON ---
     if (tempPolygonPoints.length > 0) {

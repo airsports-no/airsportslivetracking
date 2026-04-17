@@ -128,11 +128,17 @@ export default function useDragHandlers({
 
         const polyLayer = markersRef.current[`poly-${polyId}`] as L.Polygon;
         if (polyLayer) {
-          const latlngs = polyLayer.getLatLngs() as L.LatLng[][];
-          if (latlngs[0] && Array.isArray(latlngs[0])) {
-             latlngs[0][vertexIndex] = e.latlng;
-             polyLayer.setLatLngs(latlngs);
+          const latlngs = polyLayer.getLatLngs() as any;
+          // Handle nested arrays in Leaflet latlngs
+          const ring = Array.isArray(latlngs[0]) ? latlngs[0] : latlngs;
+          
+          if (vertexIndex < ring.length) {
+            ring[vertexIndex] = e.latlng;
+          } else {
+            // New vertex from ghost point, not yet in layer
+            ring.splice(vertexIndex, 0, e.latlng);
           }
+          polyLayer.setLatLngs(latlngs);
         }
       } else if (type === 'poly_body') {
         const latDiff = e.latlng.lat - startLatLng.lat;
