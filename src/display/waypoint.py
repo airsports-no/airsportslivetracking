@@ -23,6 +23,7 @@ class Waypoint:
         self.gate_check = False
         self.planning_test = False
         self.end_curved = False
+        self.on_curved_segment = False
         self.type = ""
         self.distance_next = -1  # meters type: float
         self.distance_previous = -1  # meters type: float
@@ -31,8 +32,8 @@ class Waypoint:
         self.is_procedure_turn = False
         self.is_steep_turn = False
 
-        self.control_latitude: float|None = None
-        self.control_longitude: float|None = None
+        self.control_latitude: float | None = None
+        self.control_longitude: float | None = None
 
         self.inside_distance = 0
         self.outside_distance = 0

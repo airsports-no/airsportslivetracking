@@ -277,7 +277,9 @@ class EditableRoute(models.Model):
                             w = prev_width + (curr_width - prev_width) * t
 
                         waypoint_list.append(
-                            build_waypoint(f"Curve {index}.{i}", p_lat, p_lon, "secret", w, False, False)
+                            build_waypoint(
+                                f"Curve {index}.{i}", p_lat, p_lon, "secret", w, False, False, on_curved_segment=True
+                            )
                         )
 
             # Add the current waypoint
