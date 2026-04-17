@@ -151,9 +151,9 @@ export const drawRouteLine = (
           lat: mid.lat,
           lng: mid.lng,
           name: `Point ${routePoints.length + 1}`,
-          type: 'secret',
+          type: 'tp',
           width: p1.width,
-          isTiming: false,
+          isTiming: true,
           isPassing: true,
           segmentType: 'straight'
         };
@@ -207,7 +207,7 @@ export const drawRouteLine = (
       const labelMarker = L.marker([mid.lat, mid.lng], {
         icon: L.divIcon({
           className: 'bg-transparent',
-          html: `<div class="transform -translate-x-1/2 -translate-y-1/2 bg-white/75 backdrop-blur-[1px] px-1 rounded border border-slate-300 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap pointer-events-none w-max">${nm} NM</div>`
+          html: `<div class="transform -translate-x-1/2 -translate-y-[calc(50%+12px)] bg-white/75 backdrop-blur-[1px] px-1 rounded border border-slate-300 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap pointer-events-none w-max">${nm} NM</div>`
         }),
         interactive: false
       }).addTo(map);
