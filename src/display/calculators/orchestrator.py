@@ -186,12 +186,21 @@ class Orchestrator:
                 logger.info(f"{self.contestant}: Switching to enroute after starting line crossing")
 
             self.update_enroute()
+            self.websocket_facade.transmit_contestant(self.contestant)
 
             for calculator in self.calculators:
                 calculator.on_starting_line_passed(event)
 
         elif isinstance(event, AdaptiveStartEvent):
             self.recalculation_completed = True
+            # Update the contestant model with the recalculated gate times so they are persisted and used for future lookups
+            self.contestant.predefined_gate_times = event.gate_times
+
+            # Use update() to bypass signals that might reset gate times and bypass clean() checks
+            Contestant.objects.filter(pk=self.contestant.pk).update(
+                predefined_gate_times=self.contestant.predefined_gate_times,
+            )
+
             self.websocket_facade.transmit_contestant(self.contestant)
             for calculator in self.calculators:
                 calculator.on_adaptive_start(event)
@@ -210,6 +219,7 @@ class Orchestrator:
                 self.in_range_of_gate = None
 
             self.update_enroute()
+            self.websocket_facade.transmit_contestant(self.contestant)
 
             for calculator in self.calculators:
                 calculator.on_gate_passed(event)

@@ -10,13 +10,23 @@ from django.conf import settings
 from redis import StrictRedis
 
 if TYPE_CHECKING:
-    from display.models import Contestant, ContestantReceivedPosition, ScoreLogEntry, TrackAnnotation, GateCumulativeScore, ContestantTrack, Contest, MyUser
+    from display.models import (
+        Contestant,
+        ContestantReceivedPosition,
+        ScoreLogEntry,
+        TrackAnnotation,
+        GateCumulativeScore,
+        ContestantTrack,
+        Contest,
+        MyUser,
+    )
 
 REDIS_HOST = getattr(settings, "REDIS_HOST", "localhost")
 REDIS_PORT = getattr(settings, "REDIS_PORT", 6379)
 REDIS_GLOBAL_POSITIONS_KEY = getattr(settings, "REDIS_GLOBAL_POSITIONS_KEY", "global_positions")
 
 ANOMALY = "anomaly"
+
 
 class DateTimeEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -171,6 +181,8 @@ def serialize_contestant(c: "Contestant") -> dict:
         "takeoff_time": c.takeoff_time,
         "finished_by_time": c.finished_by_time,
         "adaptive_start": c.adaptive_start,
+        "gate_times": c.gate_times,
+        "has_crossed_starting_line": c.has_crossed_starting_line,
     }
 
 
@@ -199,6 +211,8 @@ def generate_contestant_data_block(
         data["playing_cards"] = playing_cards
     if gate_times is not None:
         data["gate_times"] = gate_times
+    elif contestant.adaptive_start:
+        data["gate_times"] = contestant.gate_times
     if gate_distance_and_estimate is not None:
         data["gate_distance_and_estimate"] = gate_distance_and_estimate
     if danger_level is not None:
@@ -471,6 +485,7 @@ class WebsocketFacade:
     def transmit_teams(self, contest: "Contest"):
         from display.models import Team
         from display.serialisers import TeamNestedSerialiser
+
         teams = Team.objects.filter(contestteam__contest=contest)
         serialiser = TeamNestedSerialiser(teams, many=True)
         data = {
@@ -482,6 +497,7 @@ class WebsocketFacade:
     def transmit_tasks(self, contest: "Contest"):
         from display.models import Task
         from display.serialisers import TaskSerialiser
+
         tasks = Task.objects.filter(contest=contest)
         data = {
             "type": "contestresults",
@@ -495,6 +511,7 @@ class WebsocketFacade:
     def transmit_tests(self, contest: "Contest"):
         from display.models import TaskTest
         from display.serialisers import TaskTestSerialiser
+
         tests = TaskTest.objects.filter(task__contest=contest)
         data = {
             "type": "contestresults",
@@ -507,13 +524,13 @@ class WebsocketFacade:
 
     def transmit_contest_results(self, user: Optional["MyUser"], contest: "Contest"):
         from display.serialisers import ContestResultsDetailsSerialiser
-        
+
         # Check permissions safely
         if user is not None:
             contest.permission_change_contest = user.has_perm("display.change_contest", contest)
         else:
             contest.permission_change_contest = False
-            
+
         serialiser = ContestResultsDetailsSerialiser(contest)
 
         data = {

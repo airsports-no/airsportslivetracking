@@ -119,9 +119,15 @@ class PokerGatePassedEvent(OrchestratorEvent):
 
 
 class AdaptiveStartEvent(OrchestratorEvent):
-    def __init__(self, intersection_time: datetime.datetime, position: ContestantReceivedPosition):
+    def __init__(
+        self,
+        intersection_time: datetime.datetime,
+        position: ContestantReceivedPosition,
+        gate_times: Optional[dict] = None,
+    ):
         super().__init__(position)
         self.intersection_time = intersection_time
+        self.gate_times = gate_times
 
 
 class EstimationUpdatedEvent(OrchestratorEvent):

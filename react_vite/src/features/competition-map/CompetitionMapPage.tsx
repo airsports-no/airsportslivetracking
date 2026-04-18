@@ -383,7 +383,8 @@ export default function CompetitionMapPage() {
           }
 
           let countdown = null;
-          if (state === 'Waiting...' && !c.adaptive_start && startGateName && c.gate_times?.[startGateName]) {
+          const shouldShowCountdown = !c.adaptive_start || c.has_crossed_starting_line;
+          if (state === 'Waiting...' && shouldShowCountdown && startGateName && c.gate_times?.[startGateName]) {
               const startTime = new Date(c.gate_times[startGateName]);
               const diffSeconds = (startTime.getTime() - currentTime.getTime()) / 1000;
               if (diffSeconds > 0) {
@@ -404,7 +405,8 @@ export default function CompetitionMapPage() {
 
       return allContestantsData.map((c, index) => {
         let countdown = null;
-        if (c.contestanttrack?.current_state === 'Waiting...' && !c.adaptive_start && startGateName && c.gate_times?.[startGateName]) {
+        const shouldShowCountdown = !c.adaptive_start || c.has_crossed_starting_line;
+        if (c.contestanttrack?.current_state === 'Waiting...' && shouldShowCountdown && startGateName && c.gate_times?.[startGateName]) {
             const startTime = new Date(c.gate_times[startGateName]);
             const diffSeconds = (startTime.getTime() - currentTime.getTime()) / 1000;
             if (diffSeconds > 0) {

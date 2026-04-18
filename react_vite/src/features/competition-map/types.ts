@@ -163,6 +163,7 @@ export interface Contestant {
   takeoff_time: string;
   finished_by_time: string;
   adaptive_start?: boolean;
+  has_crossed_starting_line: boolean;
   latest_emaillink?: { url: string; created_at: string };
   overlap_warnings?: string[];
   overlapping_tasks?: {

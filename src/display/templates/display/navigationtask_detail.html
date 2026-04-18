@@ -407,7 +407,7 @@
                                 <td>
                                     <div class="text-[10px] leading-tight space-y-0.5 whitespace-nowrap">
                                         <div><span class="opacity-50">Trk:</span> {{ contestant.tracker_start_time|date:"H:i:s" }}</div>
-                                        <div><span class="opacity-50">T/O:</span> {% if contestant.adaptive_start %}Adap.{% else %}{{ contestant.takeoff_time|date:"H:i:s" }}{% endif %}</div>
+                                        <div><span class="opacity-50">T/O:</span> {% if contestant.adaptive_start %}{% if contestant.has_crossed_starting_line %}{{ contestant.takeoff_time|date:"H:i:s" }}{% else %}Adap.{% endif %}{% else %}{{ contestant.takeoff_time|date:"H:i:s" }}{% endif %}</div>
                                         <div><span class="opacity-50">Fin:</span> {{ contestant.finished_by_time|date:"H:i:s" }}</div>
                                     </div>
                                 </td>

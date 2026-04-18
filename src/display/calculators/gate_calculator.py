@@ -302,7 +302,9 @@ class GateCalculator(Calculator):
                         # (e.g. for scoring the same starting gate timing)
                         self.on_adaptive_start(adaptive_event)
 
-        # Look for crossing of any future gates
+
+                # Look for crossing of any future gates
+
         crossed_gate_index = -1
         passed_intersection_time = None
         # Use our own outstanding_gates list which is always up to date within this call
@@ -566,8 +568,11 @@ class GateCalculator(Calculator):
         """
         Update expected times for gates based on adaptive start time.
         """
-        new_start_time = event.intersection_time
-        gate_times = self.contestant.calculate_missing_gate_times({}, round_time_minute(new_start_time))
+        if not event.gate_times:
+            new_start_time = event.intersection_time
+            event.gate_times = self.contestant.calculate_missing_gate_times({}, round_time_minute(new_start_time))
+
+        gate_times = event.gate_times
 
         for gate in self.gates:
             if gate.name in gate_times:

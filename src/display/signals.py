@@ -252,6 +252,7 @@ def validate_contestant(sender, instance: Contestant, **kwargs):
     instance.clean()
 
 
+@receiver(pre_save, sender=Contest)
 @receiver(pre_save, sender=Contestant)
 def delete_flight_order_and_gate_times_if_changed(sender, instance: Contestant, **kwargs):
     if instance.pk:
