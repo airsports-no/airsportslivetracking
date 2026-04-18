@@ -139,7 +139,10 @@ def calculate_speed_between_points(
     time2: datetime.datetime,
 ) -> float:
     distance = calculate_distance_lat_lon(start, finish) / 1852  # nm
-    hours = (time2 - time1).total_seconds() / 3600
+    delta_time = (time2 - time1).total_seconds()
+    if delta_time == 0:
+        return 0.0
+    hours = delta_time / 3600
     return distance / hours
 
 

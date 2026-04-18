@@ -200,11 +200,11 @@ def insert_gpx_file(contestant_object: "Contestant", file):
     positions = []
     index = 0
     previous_point = None
-    try:
-        for track in gpx.tracks:
-            for segment in track.segments:
-                for point in segment.points:
-                    if point.time:
+    for track in gpx.tracks:
+        for segment in track.segments:
+            for point in segment.points:
+                if point.time:
+                    try:
                         speed = 0.0
                         course = 0.0
                         if previous_point:
@@ -235,8 +235,8 @@ def insert_gpx_file(contestant_object: "Contestant", file):
                         if len(positions) > 2:
                             previous_point = positions[-2]
                         index += 1
-    except:
-        logger.exception("Something bad happened when building position list")
+                    except Exception as e:
+                        logger.warning(f"Skipping point {index} due to error: {e}")
     try:
         contestant_object.contestantuploadedtrack.delete()
         logger.debug("Deleted existing uploaded track")
