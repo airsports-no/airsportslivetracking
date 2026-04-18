@@ -367,7 +367,7 @@ class ContestantProcessor:
 
                 # Proactive termination check based on speed
                 if self.live_processing and self.orchestrator.has_any_gate_passed and not self.track_terminated:
-                    if position.speed < 10:  # knots
+                    if position.speed < 6:  # knots
                         self.consecutive_low_speed_positions += 1
                     else:
                         self.consecutive_low_speed_positions = 0
