@@ -559,6 +559,9 @@ export default function RouteEditor() {
     if (routePoints.length >= 3) {
       for (let i = 1; i < routePoints.length - 1; i++) {
         const p = routePoints[i];
+
+        if (p.name.startsWith('Curve')) continue;
+
         const prev = routePoints[i - 1];
         const next = routePoints[i + 1];
 
