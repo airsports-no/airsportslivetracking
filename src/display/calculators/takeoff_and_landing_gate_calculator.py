@@ -67,6 +67,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
                         calculate_extended_gate(takeoff_gate, self.scorecard),
                     )
                     for takeoff_gate in self.route.takeoff_gates
+                    if not getattr(takeoff_gate, "on_curved_segment", False)
                 ]
             )
             if len(self.route.takeoff_gates) > 0
@@ -85,6 +86,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
                         calculate_extended_gate(landing_gate, self.scorecard),
                     )
                     for landing_gate in self.route.landing_gates
+                    if not getattr(landing_gate, "on_curved_segment", False)
                 ]
             )
             if len(self.route.landing_gates) > 0

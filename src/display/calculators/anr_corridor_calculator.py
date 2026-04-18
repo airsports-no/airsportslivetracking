@@ -110,6 +110,8 @@ class AnrCorridorCalculator(Calculator):
         """
         A gate is visible if it's not a secret point, OR if it's secret but has no time/gate checks.
         """
+        if getattr(gate.waypoint, "on_curved_segment", False):
+            return False
         if gate.type != SECRETPOINT:
             return True
         # Secret gate: only visible if BOTH checks are disabled
@@ -121,6 +123,8 @@ class AnrCorridorCalculator(Calculator):
         - For ANR: Every gate is a leg boundary (usually turns).
         - For others: Only standard waypoints (non-secret) are boundaries.
         """
+        if getattr(gate.waypoint, "on_curved_segment", False):
+            return False
         if self.scorecard.calculator == ANR_CORRIDOR:
             return True
         return gate.type != SECRETPOINT
@@ -391,11 +395,14 @@ class AnrCorridorCalculator(Calculator):
 
         # Use last_visible_gate for scoring attribution
         scoring_gate = last_visible_gate
+        if scoring_gate and getattr(scoring_gate.waypoint, "on_curved_segment", False):
+            scoring_gate = None
+
         if scoring_gate is None:
             # Fallback to first non-dummy waypoint
             waypoints = self.route.waypoints
             if waypoints:
-                scoring_gate = next((w for w in waypoints if w.type != "dummy"), waypoints[0])
+                scoring_gate = next((w for w in waypoints if w.type != "dummy" and not getattr(w, "on_curved_segment", False)), waypoints[0])
 
         gate_name = scoring_gate.name if scoring_gate else "Unknown"
 

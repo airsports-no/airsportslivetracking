@@ -74,7 +74,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         gates = []
         for item in waypoints:  # type: Waypoint
             # Dummy gates are not part of the actual route
-            if item.type != "dummy":
+            if item.type != "dummy" and not getattr(item, "on_curved_segment", False):
                 gates.append(
                     Gate(
                         item,

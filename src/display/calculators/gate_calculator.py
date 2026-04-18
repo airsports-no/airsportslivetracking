@@ -76,7 +76,7 @@ class GateCalculator(Calculator):
         for item in waypoints:  # type: Waypoint
             # Dummy gates are not part of the actual route
             # Takeoff and Landing gates are handled by TakeoffAndLandingGateCalculator
-            if item.type not in ("dummy", "to", "ldg"):
+            if item.type not in ("dummy", "to", "ldg") and not getattr(item, "on_curved_segment", False):
                 gates.append(
                     Gate(
                         item,
@@ -84,9 +84,12 @@ class GateCalculator(Calculator):
                         calculate_extended_gate(item, self.scorecard),
                     )
                 )
-        self.starting_line = Gate(
-            waypoints[0], expected_times[waypoints[0].name], calculate_extended_gate(waypoints[0], self.scorecard)
-        )
+        if gates:
+            self.starting_line = gates[0]
+        else:
+            self.starting_line = Gate(
+                waypoints[0], expected_times[waypoints[0].name], calculate_extended_gate(waypoints[0], self.scorecard)
+            )
         return gates
 
     def initiate_gates(self):

@@ -32,7 +32,7 @@ class LandingPatternCalculator(Calculator):
         for item in waypoints:  # type: Waypoint
             # Dummy gates are not part of the actual route
             # Only use landing gates for landing pattern rounds
-            if item.type == "ldg":
+            if item.type == "ldg" and not getattr(item, "on_curved_segment", False):
                 gates.append(
                     Gate(
                         item,
