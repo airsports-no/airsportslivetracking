@@ -1441,14 +1441,9 @@ class ContestantRecalculateWithStartTimeView(GuardianPermissionRequiredMixin, Fo
         # Calculate new times
         takeoff_time = starting_point_time - datetime.timedelta(minutes=nt.minutes_to_starting_point)
         tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
-
-        # Initial estimate for finished_by_time
-        # We can use route length and airspeed if available, else just a buffer
-        route_length_nm = nt.route.route_length_nm
-        airspeed = self.contestant.air_speed or 70
-        estimated_flight_time_minutes = (route_length_nm / airspeed * 60) if airspeed > 0 else 60
-        finished_by_time = starting_point_time + datetime.timedelta(
-            minutes=estimated_flight_time_minutes + nt.minutes_to_landing + 30
+        finished_by_time = starting_point_time + self.contestant.flight_duration
+        logger.info(
+            f"Recalculating contestant {self.contestant.pk} with new starting point time {starting_point_time}, takeoff time {takeoff_time}, tracker start time {tracker_start_time} and finished by time {finished_by_time}"
         )
 
         with transaction.atomic():
@@ -1478,7 +1473,6 @@ class ContestantRecalculateWithStartTimeView(GuardianPermissionRequiredMixin, Fo
                 competition_class_shortform=self.contestant.competition_class_shortform,
                 schedule_locked=self.contestant.schedule_locked,
             )
-            new_contestant.finished_by_time = new_contestant.landing_time
             # Move positions to new contestant
             positions = ContestantReceivedPosition.objects.filter(contestant=self.contestant)
             positions.update(contestant=new_contestant)
