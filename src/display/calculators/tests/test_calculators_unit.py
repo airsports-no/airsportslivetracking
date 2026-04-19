@@ -54,6 +54,7 @@ class CalculatorUnitTestBase(TestCase):
         self.waypoint1.time_check = True
         self.waypoint1.is_procedure_turn = False
         self.waypoint1.is_steep_turn = False
+        self.waypoint1.on_curved_segment = False
         self.waypoint1.infinite_passing_time = None
         self.waypoint1.passing_time = None
         self.waypoint1.missed = False
