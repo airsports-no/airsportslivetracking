@@ -52,14 +52,24 @@ class RedisQueue:
                 if item is None:
                     raise RedisEmpty
             else:
-                item = self.redis_handle.blpop([self.queue_name], timeout=timeout)
+                try:
+                    item = self.redis_handle.blpop([self.queue_name], timeout=timeout)
+                except redis.exceptions.ConnectionError:
+                    logger.error(f"Redis connection error while popping from {self.queue_name}")
+                    return None
+                
                 if item is None:
                     raise RedisEmpty
                 q, item = item
             try:
-                return pickle.loads(item)
-            except:
-                logger.exception("Failed decoding queued item pop")
+                val = pickle.loads(item)
+                if val is None:
+                    logger.info(f"RedisQueue {self.queue_name} received None sentinel")
+                return val
+            except Exception:
+                logger.exception(f"Failed decoding queued item pop from {self.queue_name}. Item length: {len(item) if item else 'None'}")
+                return None
+        logger.error(f"RedisQueue {self.queue_name} has no redis_handle")
         return None
 
     def peek(self) -> Any:

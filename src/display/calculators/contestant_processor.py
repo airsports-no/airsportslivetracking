@@ -520,7 +520,8 @@ class ContestantProcessor:
                         self.finished_loading_initial_positions.set()
                     self.timed_queue.put(position_data, release_time)
                 else:
-                    logger.info(f"{self.contestant}: Delayed position queuer received None")
+                    # RedisQueue.pop() returns None on connection/decoding errors OR if it receives pickle.dumps(None)
+                    logger.info(f"{self.contestant}: Delayed position queuer received None (Sentinel or Error) from {self.position_queue.queue_name}")
                     self.timed_queue.close()
                     if not receiving:
                         self.finished_loading_initial_positions.set()
