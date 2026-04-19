@@ -292,7 +292,7 @@ if os.environ.get("MODE") == "dev" or IS_UNIT_TESTING:
 
 TEMPORARY_FOLDER = "/tmp"
 
-STATICFILES_DIRS = [os.path.join(BASE_DIR, "static"), "/assets", "/assets_vite"]
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static"), "/assets_vite"]
 
 LOGGING = LOG_CONFIGURATION
 
