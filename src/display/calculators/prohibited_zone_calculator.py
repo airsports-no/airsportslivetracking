@@ -129,14 +129,8 @@ class ProhibitedZoneCalculator(Calculator):
                 
                 # Use last_visible_gate for scoring, fallback to first waypoint if None
                 gate_for_scoring = last_visible_gate
-                if gate_for_scoring:
-                    # If it's a Gate object, use its is_visible property
-                    if hasattr(gate_for_scoring, "is_visible"):
-                        if not gate_for_scoring.is_visible:
-                            gate_for_scoring = None
-                    # If it's a Waypoint object (fallback), check on_curved_segment
-                    elif gate_for_scoring.on_curved_segment:
-                        gate_for_scoring = None
+                if gate_for_scoring and not gate_for_scoring.is_visible:
+                    gate_for_scoring = None
 
                 if gate_for_scoring is None:
                     # Try to find first waypoint from route
@@ -144,7 +138,7 @@ class ProhibitedZoneCalculator(Calculator):
                     if waypoints:
                         # Find first non-dummy waypoint
                         gate_for_scoring = next(
-                            (w for w in waypoints if w.type != "dummy" and not w.on_curved_segment),
+                            (w for w in waypoints if w.type != "dummy" and w.is_visible),
                             waypoints[0],
                         )
 
