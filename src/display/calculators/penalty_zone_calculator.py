@@ -112,12 +112,22 @@ class PenaltyZoneCalculator(Calculator):
 
         # Helper to get scoring gate context
         def get_scoring_gate(lv_gate):
-            if lv_gate and not getattr(lv_gate.waypoint, "on_curved_segment", False):
-                return lv_gate
+            if lv_gate:
+                # If it's a Gate object, use its is_visible property
+                if hasattr(lv_gate, "is_visible"):
+                    if lv_gate.is_visible:
+                        return lv_gate
+                # If it's a Waypoint object (fallback), check on_curved_segment
+                elif not lv_gate.on_curved_segment:
+                    return lv_gate
+
             # Fallback to first non-dummy waypoint
             waypoints = self.route.waypoints
             if waypoints:
-                return next((w for w in waypoints if w.type != "dummy" and not getattr(w, "on_curved_segment", False)), waypoints[0])
+                return next(
+                    (w for w in waypoints if w.type != "dummy" and not w.on_curved_segment),
+                    waypoints[0],
+                )
             return None
 
         for zone_pk, start_time in dict(self.entered_polygon_times).items():

@@ -46,6 +46,8 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, tzinfo=datetime.timezone.utc))
         state = Mock(OrchestratorState)
         state.last_visible_gate = Mock()
+        state.last_visible_gate.is_visible = True
+        state.last_visible_gate.waypoint.on_curved_segment = False
         self.calculator.calculate_outside_route([position], state)
 
         self.calculator.update_score.assert_called_with(
@@ -101,6 +103,8 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc))
         state = Mock(OrchestratorState)
         state.last_visible_gate = Mock()
+        state.last_visible_gate.is_visible = True
+        state.last_visible_gate.waypoint.on_curved_segment = False
         self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_called_with(
             UpdateScoreMessage(
@@ -119,6 +123,8 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc))
         state = Mock(OrchestratorState)
         state.last_visible_gate = Mock()
+        state.last_visible_gate.is_visible = True
+        state.last_visible_gate.waypoint.on_curved_segment = False
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_called_with(
             UpdateScoreMessage(
@@ -137,6 +143,8 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc))
         state = Mock(OrchestratorState)
         state.last_visible_gate = Mock()
+        state.last_visible_gate.is_visible = True
+        state.last_visible_gate.waypoint.on_curved_segment = False
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_called_with(
             UpdateScoreMessage(
@@ -154,6 +162,8 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc))
         state = Mock(OrchestratorState)
         state.last_visible_gate = Mock()
+        state.last_visible_gate.is_visible = True
+        state.last_visible_gate.waypoint.on_curved_segment = False
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_called_with(
             UpdateScoreMessage(
@@ -171,6 +181,8 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
     def test_in_and_out_beyond_grace_time_enroute(self):
         state = Mock(OrchestratorState)
         state.last_visible_gate = Mock()
+        state.last_visible_gate.is_visible = True
+        state.last_visible_gate.waypoint.on_curved_segment = False
 
         for index in range(0, 30, 3):
             position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, second=index, tzinfo=datetime.timezone.utc))
@@ -205,6 +217,8 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 10, tzinfo=datetime.timezone.utc))
         state = Mock(OrchestratorState)
         state.last_visible_gate = Mock()
+        state.last_visible_gate.is_visible = True
+        state.last_visible_gate.waypoint.on_curved_segment = False
 
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_called_with(
@@ -224,6 +238,8 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, second=0, tzinfo=datetime.timezone.utc))
         state = Mock(OrchestratorState)
         state.last_visible_gate = Mock()
+        state.last_visible_gate.is_visible = True
+        state.last_visible_gate.waypoint.on_curved_segment = False
         self.calculator.calculate_enroute([position], state)
         self.calculator.update_score.assert_not_called()
 
@@ -231,5 +247,7 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         position = self.create_position(59.5, 11.5, datetime.datetime(2020, 1, 1, second=0, tzinfo=datetime.timezone.utc))
         state = Mock(OrchestratorState)
         state.last_visible_gate = Mock()
+        state.last_visible_gate.is_visible = True
+        state.last_visible_gate.waypoint.on_curved_segment = False
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_not_called()
