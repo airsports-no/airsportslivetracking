@@ -58,6 +58,7 @@ class TestOrchestratorUnit(TestCase):
     def test_handle_gate_passed_event(self):
         gate = MagicMock()
         gate.type = "tp"
+        gate.waypoint.on_curved_segment = False
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = GatePassedEvent(gate, pos, pos.time, previous_gate=None)
@@ -70,6 +71,7 @@ class TestOrchestratorUnit(TestCase):
     def test_handle_gate_missed_event(self):
         gate = MagicMock()
         gate.type = "tp"
+        gate.waypoint.on_curved_segment = False
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = GateMissedEvent(None, gate, pos)
@@ -81,6 +83,7 @@ class TestOrchestratorUnit(TestCase):
 
     def test_handle_takeoff_passed_event(self):
         gate = MagicMock()
+        gate.waypoint.on_curved_segment = False
         
         # Mock a calculator
         calc = MagicMock()
@@ -96,6 +99,7 @@ class TestOrchestratorUnit(TestCase):
 
     def test_handle_landing_passed_event(self):
         gate = MagicMock()
+        gate.waypoint.on_curved_segment = False
         
         # Mock a calculator
         calc = MagicMock()
@@ -113,6 +117,7 @@ class TestOrchestratorUnit(TestCase):
     def test_handle_starting_line_passed_event(self):
         gate = MagicMock()
         gate.type = "sp"
+        gate.waypoint.on_curved_segment = False
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = StartingLinePassedEvent(gate, pos, pos.time)
@@ -157,6 +162,7 @@ class TestOrchestratorUnit(TestCase):
     def test_handle_finish_point_passed_triggers_passed_finishpoint(self):
         gate = MagicMock()
         gate.type = "fp"
+        gate.waypoint.on_curved_segment = False
         
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = GatePassedEvent(gate, pos, pos.time, previous_gate=None)
@@ -201,6 +207,7 @@ class TestOrchestratorUnit(TestCase):
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         
         gate = MagicMock()
+        gate.waypoint.on_curved_segment = False
         event1 = GatePassedEvent(gate, pos, pos.time, previous_gate=None)
         calc1.calculate_enroute.return_value = [event1]
         
