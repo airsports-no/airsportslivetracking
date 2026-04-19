@@ -114,7 +114,7 @@ class TestContestantProcessorAutoTerminate(TestCase):
                         else:
                             processor.consecutive_low_speed_positions = 0
                         if processor.consecutive_low_speed_positions >= 60:
-                            processor.notify_termination()
+                            processor.notify_termination("Inferred landing")
                             break
                 if processor.track_terminated:
                     break
@@ -171,7 +171,7 @@ class TestContestantProcessorAutoTerminate(TestCase):
                         else:
                             processor.consecutive_low_speed_positions = 0
                         if processor.consecutive_low_speed_positions >= 60:
-                            processor.notify_termination()
+                            processor.notify_termination("Inferred landing")
                             break
                 if processor.track_terminated:
                     break
@@ -229,7 +229,7 @@ class TestContestantProcessorAutoTerminate(TestCase):
                         else:
                             processor.consecutive_low_speed_positions = 0
                         if processor.consecutive_low_speed_positions >= 60:
-                            processor.notify_termination()
+                            processor.notify_termination("Inferred landing")
                             break
                 if processor.track_terminated:
                     break

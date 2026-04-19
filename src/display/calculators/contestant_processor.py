@@ -257,7 +257,7 @@ class ContestantProcessor:
         # Check if termination is already requested
         if self.is_termination_commanded():
             logger.info(f"{self.contestant}: Termination request received before processing started")
-            self.notify_termination()
+            self.notify_termination("Termination requested before processing started")
             return
         self.queuer_thread = threading.Thread(target=self.enqueue_positions_thread, daemon=True)
         self.queuer_thread.start()
@@ -269,7 +269,7 @@ class ContestantProcessor:
         # Check for termination again after wait
         if self.is_termination_commanded():
             logger.info(f"{self.contestant}: Termination request received after initial positions wait")
-            self.notify_termination()
+            self.notify_termination("Termination requested after initial positions wait")
             return
         self.last_status_check = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         positions_to_save = []
@@ -292,7 +292,7 @@ class ContestantProcessor:
                 if now - self.last_status_check > datetime.timedelta(seconds=5):
                     data = self.timed_queue.peek()
                     if data is None or data["device_time"] > now:
-                        self.notify_termination()
+                        self.notify_termination("Finished by time exceeded")
                         break
             if now - self.last_contestant_refresh > CONTESTANT_REFRESH_INTERVAL:
                 self.refresh_scores()
@@ -316,7 +316,7 @@ class ContestantProcessor:
                 if positions_to_save:
                     ContestantReceivedPosition.objects.bulk_create(positions_to_save)
                     positions_to_save = []
-                self.notify_termination()
+                self.notify_termination("End of position list")
                 continue
 
             if self.track_terminated:
@@ -377,7 +377,9 @@ class ContestantProcessor:
                         logger.info(
                             f"{self.contestant}: Inferred landing due to {self.consecutive_low_speed_positions} consecutive low speed positions. Terminating."
                         )
-                        self.notify_termination()
+                        self.notify_termination(
+                            f"Inferred landing due to {self.consecutive_low_speed_positions} consecutive low speed positions"
+                        )
                         break
 
             if self.track_terminated:
@@ -419,14 +421,14 @@ class ContestantProcessor:
                         f"Contestant {self.contestant} has passed a gate and apparently landed, triggering calculator termination"
                     )
             if now > self.contestant.finished_by_time + self.delay:
-                self.notify_termination()
+                self.notify_termination("Finished by time exceeded (should_i_terminate)")
 
-    def notify_termination(self):
+    def notify_termination(self, reason: str = ""):
         """
         Trigger termination of the run function.
         """
         stack_trace = "".join(traceback.format_stack())
-        logger.info(f"{self.contestant}: Setting termination flag. Stack trace:\n{stack_trace}")
+        logger.info(f"{self.contestant}: Setting termination flag. Reason: {reason}. Stack trace:\n{stack_trace}")
         self.contestant_track.set_calculator_finished()
         self.track_terminated = True
         self.timed_queue.close()
@@ -454,7 +456,7 @@ class ContestantProcessor:
                         planned=last_gate.expected_time,
                     )
                 )
-                self.notify_termination()
+                self.notify_termination("Manually terminated")
 
     def is_termination_commanded(self) -> Optional[datetime.datetime]:
         """
