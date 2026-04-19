@@ -2,6 +2,7 @@ import datetime
 import logging
 import threading
 import time
+import traceback
 from queue import Queue
 from typing import List, Optional, Tuple, Dict
 
@@ -424,7 +425,8 @@ class ContestantProcessor:
         """
         Trigger termination of the run function.
         """
-        logger.info(f"{self.contestant}: Setting termination flag")
+        stack_trace = "".join(traceback.format_stack())
+        logger.info(f"{self.contestant}: Setting termination flag. Stack trace:\n{stack_trace}")
         self.contestant_track.set_calculator_finished()
         self.track_terminated = True
         self.timed_queue.close()
