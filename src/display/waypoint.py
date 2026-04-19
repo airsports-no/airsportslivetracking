@@ -66,6 +66,14 @@ class Waypoint:
             )
         return []
 
+    @property
+    def is_visible(self) -> bool:
+        from display.utilities.gate_definitions import ANR_TP, TURNPOINT, STARTINGPOINT, FINISHPOINT
+
+        if self.on_curved_segment:
+            return False
+        return self.type in (TURNPOINT, STARTINGPOINT, FINISHPOINT, ANR_TP)
+
     def __str__(self):
         return "{}: {}, {}, {}".format(self.name, self.latitude, self.longitude, self.elevation)
 
