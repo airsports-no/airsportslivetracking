@@ -129,19 +129,24 @@ class ProhibitedZoneCalculator(Calculator):
                 
                 # Use last_visible_gate for scoring, fallback to first waypoint if None
                 gate_for_scoring = last_visible_gate
-                if gate_for_scoring and getattr(gate_for_scoring.waypoint, "on_curved_segment", False):
-                    gate_for_scoring = None
-                
+                if gate_for_scoring:
+                    # If it's a Gate object, use its is_visible property
+                    if hasattr(gate_for_scoring, "is_visible"):
+                        if not gate_for_scoring.is_visible:
+                            gate_for_scoring = None
+                    # If it's a Waypoint object (fallback), check on_curved_segment
+                    elif gate_for_scoring.on_curved_segment:
+                        gate_for_scoring = None
+
                 if gate_for_scoring is None:
                     # Try to find first waypoint from route
                     waypoints = self.route.waypoints
                     if waypoints:
                         # Find first non-dummy waypoint
-                        first_wp = next((w for w in waypoints if w.type != "dummy" and not getattr(w, "on_curved_segment", False)), waypoints[0])
-                        # Create a temporary Gate object for scoring if needed
-                        # Or ideally, calculators should just pass the waypoint object if they don't have Gates
-                        # But scoring engine expects a Gate or Waypoint with .name and .type
-                        gate_for_scoring = first_wp
+                        gate_for_scoring = next(
+                            (w for w in waypoints if w.type != "dummy" and not w.on_curved_segment),
+                            waypoints[0],
+                        )
 
                 self.update_score(
                     UpdateScoreMessage(
