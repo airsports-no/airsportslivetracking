@@ -293,10 +293,11 @@ export function useMapLayers({
         if (selectedContestantId) {
             const allAnnotations = annotationsByContestant[selectedContestantId] ?? [];
             const allLogs = scoreLogByContestant[selectedContestantId] ?? [];
+            const isAnrTask = navTask.scorecard.task_type.includes('anr_corridor');
 
             const visibleAnnotations = allAnnotations.filter(ann =>
                 new Date(ann.time) <= currentTime &&
-                (ann.gate_type !== 'secret' || (navTask.display_secrets && userShowSecrets))
+                (ann.gate_type !== 'secret' || isAnrTask || (navTask.display_secrets && userShowSecrets))
             );
 
             visibleAnnotations.forEach(ann => {
