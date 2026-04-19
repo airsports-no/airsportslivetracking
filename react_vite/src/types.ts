@@ -22,7 +22,7 @@ export interface LatLng {
 export interface RoutePoint extends LatLng {
   id: string;
   name: string;
-  type: "sp" | "tp" | "secret" | "fp";
+  type: "sp" | "tp" | "secret" | "fp" | "anrtp";
   segmentType: "straight" | "curved";
   controlLat?: number;
   controlLng?: number;

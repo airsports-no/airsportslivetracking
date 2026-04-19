@@ -49,6 +49,14 @@ class Gate:
         self.maybe_missed_position = None
         self.expected_time = expected_time
 
+    @property
+    def is_visible(self) -> bool:
+        from display.utilities.gate_definitions import ANR_TP, TURNPOINT, STARTINGPOINT, FINISHPOINT
+
+        if self.waypoint.on_curved_segment:
+            return False
+        return self.type in (TURNPOINT, STARTINGPOINT, FINISHPOINT, ANR_TP)
+
         self.projected_gate_line = None
         self.projected_gate_line_infinite = None
         self.projected_gate_line_extended = None

@@ -67,6 +67,7 @@ from display.utilities.coordinate_utilities import (
 from display.flight_order_and_maps.map_constants import A3
 from display.utilities.gate_definitions import (
     SECRETPOINT,
+    ANR_TP,
     UNKNOWN_LEG,
     DUMMY,
     TURNPOINT,
@@ -685,6 +686,8 @@ def plot_waypoint_name(
     colour: str,
     character_padding: int = 2,
 ):
+    if waypoint.on_curved_segment:
+        return
     waypoint_name = "{}".format(waypoint.name)
     timing = ""
     if contestant is not None and annotations:
@@ -776,7 +779,7 @@ def plot_anr_corridor_track(
         ys, xs = np.array(waypoint.gate_line).T
         bearing = waypoint_bearing(waypoint, index)
 
-        if waypoint.type not in (SECRETPOINT,) or (
+        if waypoint.type not in (SECRETPOINT, ANR_TP) or (
             contestant
             and contestant.navigation_task.scorecard.calculator == ANR_CORRIDOR
             and not waypoint.on_curved_segment
@@ -793,7 +796,7 @@ def plot_anr_corridor_track(
                 character_padding=1,
             )
         center_track.append((waypoint.latitude, waypoint.longitude))
-        if waypoint.type not in (SECRETPOINT,):
+        if waypoint.type not in (SECRETPOINT, ANR_TP):
             is_sp_fp = waypoint.type in (STARTINGPOINT, FINISHPOINT)
             plt.plot(
                 xs,
@@ -991,6 +994,7 @@ def plot_precision_track(
             INTERMEDIARY_STARTINGPOINT,
             INTERMEDIARY_FINISHPOINT,
             SECRETPOINT,
+            ANR_TP,
             DUMMY,
             UNKNOWN_LEG,
         ):
@@ -998,7 +1002,7 @@ def plot_precision_track(
             if waypoint.type == UNKNOWN_LEG and next_waypoint and next_waypoint.type != DUMMY:
                 continue
             # Secret checkpoints on unknown legs should not be displayed
-            if on_unknown_leg and waypoint.type == SECRETPOINT:
+            if on_unknown_leg and waypoint.type in (SECRETPOINT, ANR_TP):
                 continue
             tracks[-1].append(waypoint)
         previous_waypoint = waypoint
@@ -1006,7 +1010,7 @@ def plot_precision_track(
     for track in tracks:  # type: List[Waypoint]
         line = []
         for index, waypoint in enumerate(track):  # type: int, Waypoint
-            if waypoint.type not in (SECRETPOINT, UNKNOWN_LEG, DUMMY):
+            if waypoint.type not in (SECRETPOINT, ANR_TP, UNKNOWN_LEG, DUMMY):
                 bearing = waypoint_bearing(waypoint, index)
                 ys, xs = np.array(waypoint.gate_line).T
                 if not waypoints_only:

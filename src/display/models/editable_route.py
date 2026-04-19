@@ -24,7 +24,7 @@ from display.utilities.editable_route_utilities import (
     create_gate_polygon,
     get_quadratic_bezier_points,
 )
-from display.utilities.gate_definitions import DUMMY, UNKNOWN_LEG, STARTINGPOINT, FINISHPOINT
+from display.utilities.gate_definitions import DUMMY, UNKNOWN_LEG, STARTINGPOINT, FINISHPOINT, SECRETPOINT
 from display.utilities.navigation_task_type_definitions import (
     NAVIGATION_TASK_TYPES,
     PRECISION,
@@ -204,6 +204,7 @@ class EditableRoute(models.Model):
         self,
         precision_mode: bool = False,
         force_secret_type: bool = False,
+        force_anrtp_type: bool = False,
         override_timing_passing_false: bool = False,
         corridor_width: float | None = None,
     ) -> list[Waypoint]:
@@ -215,12 +216,14 @@ class EditableRoute(models.Model):
         :type precision_mode: bool
         :param force_secret_type: Description
         :type force_secret_type: bool
+        :param force_anrtp_type: Description
         :param override_timing_passing_false: Description
         :param corridor_width: Width of the corridor in nautical miles
         :return: Description
         :rtype: list[Any]
         """
         from display.utilities.route_building_utilities import build_waypoint
+        from display.utilities.gate_definitions import ANR_TP
 
         track_waypoints = self.get_ordered_track_waypoints()
         if not track_waypoints:
@@ -235,7 +238,10 @@ class EditableRoute(models.Model):
             width = corridor_width if corridor_width else props["width"] / 1852
 
             # Determine type
-            point_type = "secret" if force_secret_type else props["pointType"]
+            if force_anrtp_type:
+                point_type = ANR_TP
+            else:
+                point_type = SECRETPOINT if force_secret_type else props["pointType"]
 
             # Determine timing/passing
             if override_timing_passing_false:
@@ -322,7 +328,7 @@ class EditableRoute(models.Model):
 
         self.validate_valid_corridor_route("ANR")
         waypoint_list = self._create_waypoint_list(
-            force_secret_type=True, override_timing_passing_false=True, corridor_width=corridor_width
+            force_anrtp_type=True, override_timing_passing_false=True, corridor_width=corridor_width
         )
         if not waypoint_list:
             return None

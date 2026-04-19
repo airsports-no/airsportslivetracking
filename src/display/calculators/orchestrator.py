@@ -27,8 +27,6 @@ from display.calculators.calculator import (
     NextGateExpectedEvent,
 )
 from display.utilities.coordinate_utilities import Projector
-from display.utilities.gate_definitions import SECRETPOINT
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
 
 from display.models import Contestant
 
@@ -208,10 +206,10 @@ class Orchestrator:
         elif isinstance(event, GatePassedEvent):
             self.has_any_gate_passed = True
             self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
-            if not getattr(event.gate.waypoint, "on_curved_segment", False):
+            if not event.gate.waypoint.on_curved_segment:
                 self.previous_last_gate = self.last_gate
                 self.last_gate = event.gate
-                if event.gate.type != SECRETPOINT or self.scorecard.calculator == ANR_CORRIDOR:
+                if event.gate.is_visible:
                     self.last_visible_gate = event.gate
 
             # Clear in_range if this is the gate we were in range of
@@ -229,10 +227,10 @@ class Orchestrator:
 
         elif isinstance(event, GateMissedEvent):
             self.has_any_gate_passed = True
-            if not getattr(event.gate.waypoint, "on_curved_segment", False):
+            if not event.gate.waypoint.on_curved_segment:
                 self.previous_last_gate = self.last_gate
                 self.last_gate = event.gate
-                if event.gate.type != SECRETPOINT or self.scorecard.calculator == ANR_CORRIDOR:
+                if event.gate.is_visible:
                     self.last_visible_gate = event.gate
 
             # Clear in_range if this is the gate we were in range of
@@ -249,7 +247,7 @@ class Orchestrator:
 
         elif isinstance(event, TakeoffPassedEvent):
             self.has_any_gate_passed = True
-            if not getattr(event.gate.waypoint, "on_curved_segment", False):
+            if not event.gate.waypoint.on_curved_segment:
                 self.last_gate = event.gate
             self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             for calculator in self.calculators:
@@ -258,7 +256,7 @@ class Orchestrator:
         elif isinstance(event, LandingPassedEvent):
             self.has_any_gate_passed = True
             self.has_landed = True
-            if not getattr(event.gate.waypoint, "on_curved_segment", False):
+            if not event.gate.waypoint.on_curved_segment:
                 self.last_gate = event.gate
             self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             for calculator in self.calculators:

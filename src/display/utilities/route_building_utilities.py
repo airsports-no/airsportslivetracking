@@ -21,7 +21,7 @@ from display.utilities.coordinate_utilities import (
     point_to_line_segment_distance,
 )
 from display.models import Route, Scorecard, Prohibited
-from display.utilities.gate_definitions import STARTINGPOINT, FINISHPOINT
+from display.utilities.gate_definitions import ANR_TP, STARTINGPOINT, FINISHPOINT, TURNPOINT
 
 from display.waypoint import Waypoint
 
@@ -592,7 +592,7 @@ def get_distance_to_other_gates(gate: Waypoint, waypoints: List[Waypoint]) -> Di
 
 
 def insert_gate_ranges(waypoints: List[Waypoint]):
-    turning_points = [item for item in waypoints if item.type in ("sp", "fp", "tp")]
+    turning_points = [item for item in waypoints if item.type in (STARTINGPOINT, FINISHPOINT, TURNPOINT, ANR_TP)]
     for main_gate in turning_points:
         distances = list(get_distance_to_other_gates(main_gate, turning_points).values())
         minimum_distance = min(min(distances) / 3, 4000)

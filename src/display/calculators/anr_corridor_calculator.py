@@ -21,8 +21,6 @@ from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Contestant, Scorecard, Route, INFORMATION, ANOMALY
 from display.models.contestant_utility_models import ContestantReceivedPosition
-from display.utilities.gate_definitions import SECRETPOINT
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
 
 logger = logging.getLogger(__name__)
 
@@ -105,29 +103,6 @@ class AnrCorridorCalculator(Calculator):
         # Persistent leg tracking across multiple excursions
         self.leg_penalties = {}  # gate_name -> current total capped penalty for this leg
         self.leg_seconds = {}  # gate_name -> current total seconds outside for this leg
-
-    def _is_gate_visible(self, gate: Gate) -> bool:
-        """
-        A gate is visible if it's not a secret point, OR if it's secret but has no time/gate checks.
-        """
-        if getattr(gate.waypoint, "on_curved_segment", False):
-            return False
-        if gate.type != SECRETPOINT:
-            return True
-        # Secret gate: only visible if BOTH checks are disabled
-        return not gate.gate_check and not gate.time_check
-
-    def _should_transition_leg(self, gate: Gate) -> bool:
-        """
-        Determines if a gate crossing should start a new scoring leg.
-        - For ANR: Every gate is a leg boundary (usually turns).
-        - For others: Only standard waypoints (non-secret) are boundaries.
-        """
-        if getattr(gate.waypoint, "on_curved_segment", False):
-            return False
-        if self.scorecard.calculator == ANR_CORRIDOR:
-            return True
-        return gate.type != SECRETPOINT
 
     def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]) -> Tuple[float, float]:
         """
@@ -232,7 +207,7 @@ class AnrCorridorCalculator(Calculator):
 
             # 1. Informational logging
             # Include detailed messages for visible gates (non-secret, or secret with no checks)
-            if self._is_gate_visible(event.gate):
+            if event.gate.is_visible:
                 self.update_score(
                     UpdateScoreMessage(
                         current_time,
@@ -249,7 +224,7 @@ class AnrCorridorCalculator(Calculator):
             # 2. Leg transition (Scoring boundary)
             if self.corridor_maximum_penalty_is_per_leg:
                 # Per the design: only visible/non-secret gates trigger a scoring leg transition
-                if not self._should_transition_leg(event.gate):
+                if not event.gate.is_visible:
                     return
 
                 logger.info(
@@ -272,7 +247,7 @@ class AnrCorridorCalculator(Calculator):
                     self.excursion_any_leg_capped = True
 
                 # Record details for the final consolidated message
-                display_name = gate_name if (last_leg and self._is_gate_visible(last_leg)) else "Secret"
+                display_name = gate_name if (last_leg and last_leg.is_visible) else "Secret"
                 self.excursion_leg_details.append(f"{display_name}: {leg_incremental}{cap_str}")
 
                 if not self.has_passed_finish_point and event.gate.type != "fp":
@@ -295,7 +270,7 @@ class AnrCorridorCalculator(Calculator):
             cap_str = " (capped)" if capped else ""
 
             # 1. Informational logging
-            if self._is_gate_visible(event.gate):
+            if event.gate.is_visible:
                 self.update_score(
                     UpdateScoreMessage(
                         current_time,
@@ -312,7 +287,7 @@ class AnrCorridorCalculator(Calculator):
             # 2. Leg transition (Scoring boundary)
             if self.corridor_maximum_penalty_is_per_leg:
                 # Per the design: only visible/non-secret gates trigger a scoring leg transition
-                if not self._should_transition_leg(event.gate):
+                if not event.gate.is_visible:
                     return
 
                 logger.info(
@@ -335,7 +310,7 @@ class AnrCorridorCalculator(Calculator):
                     self.excursion_any_leg_capped = True
 
                 # Record details for the final consolidated message
-                display_name = gate_name if (last_leg and self._is_gate_visible(last_leg)) else "Secret"
+                display_name = gate_name if (last_leg and last_leg.is_visible) else "Secret"
                 leg_cap_str = " (capped)" if is_capped else ""
                 self.excursion_leg_details.append(f"{display_name}: {leg_incremental}{leg_cap_str}")
 
@@ -395,14 +370,17 @@ class AnrCorridorCalculator(Calculator):
 
         # Use last_visible_gate for scoring attribution
         scoring_gate = last_visible_gate
-        if scoring_gate and getattr(scoring_gate.waypoint, "on_curved_segment", False):
+        if scoring_gate and scoring_gate.waypoint.on_curved_segment:
             scoring_gate = None
 
         if scoring_gate is None:
             # Fallback to first non-dummy waypoint
             waypoints = self.route.waypoints
             if waypoints:
-                scoring_gate = next((w for w in waypoints if w.type != "dummy" and not getattr(w, "on_curved_segment", False)), waypoints[0])
+                scoring_gate = next(
+                    (w for w in waypoints if w.type != "dummy" and not w.on_curved_segment),
+                    waypoints[0],
+                )
 
         gate_name = scoring_gate.name if scoring_gate else "Unknown"
 
@@ -460,7 +438,8 @@ class AnrCorridorCalculator(Calculator):
 
             # Construct the detailed list of leg scores for this excursion
             leg_cap_str = " (capped)" if is_capped else ""
-            display_name = gate_id if self._is_gate_visible(last_visible_gate or scoring_gate) else "Secret"
+            display_gate = last_visible_gate or scoring_gate
+            display_name = gate_id if (display_gate and display_gate.is_visible) else "Secret"
             all_leg_details = self.excursion_leg_details + [f"{display_name}: {leg_incremental}{leg_cap_str}"]
             leg_scores_list_str = ", ".join(all_leg_details)
 

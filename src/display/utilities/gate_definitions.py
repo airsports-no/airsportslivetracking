@@ -2,6 +2,7 @@ TURNPOINT = "tp"
 STARTINGPOINT = "sp"
 FINISHPOINT = "fp"
 SECRETPOINT = "secret"
+ANR_TP = "anrtp"
 TAKEOFF_GATE = "to"
 LANDING_GATE = "ldg"
 DUMMY = "dummy"
@@ -13,6 +14,7 @@ GATE_TYPES = (
     (STARTINGPOINT, "Starting Point"),
     (FINISHPOINT, "Finish Point"),
     (SECRETPOINT, "Secret Point"),
+    (ANR_TP, "ANR Turning Point"),
     (TAKEOFF_GATE, "Takeoff Gate"),
     (LANDING_GATE, "Landing Gate"),
     (INTERMEDIARY_STARTINGPOINT, "Intermediary Starting Point"),

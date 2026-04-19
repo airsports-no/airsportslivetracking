@@ -974,17 +974,21 @@ class NavigationTaskViewSet(ModelViewSet):
     )
     def delete_self_managed_contestant(self, request, *args, **kwargs):
         navigation_task: NavigationTask = self.get_object()
-
-        my_contestant = get_object_or_404(navigation_task.contestant_set, pk=kwargs["contestant_id"])
-        if not my_contestant.contestanttrack.calculator_started or my_contestant.take_off_time > datetime.datetime.now(
-            datetime.timezone.utc
-        ):
-            my_contestant.delete()
-        else:
-            my_contestant.finished_by_time = datetime.datetime.now(datetime.timezone.utc)
-            my_contestant.save()
-            my_contestant.request_calculator_termination()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        try:
+            my_contestant = get_object_or_404(navigation_task.contestant_set, pk=kwargs["contestant_id"])
+            if (
+                not my_contestant.contestanttrack.calculator_started
+                or my_contestant.take_off_time > datetime.datetime.now(datetime.timezone.utc)
+            ):
+                my_contestant.delete()
+            else:
+                my_contestant.finished_by_time = datetime.datetime.now(datetime.timezone.utc)
+                my_contestant.save()
+                my_contestant.request_calculator_termination()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            logger.exception("Failed deleting self managed contestant")
+            raise e
 
     @action(detail=True, methods=["put"])
     def share(self, request, *args, **kwargs):
