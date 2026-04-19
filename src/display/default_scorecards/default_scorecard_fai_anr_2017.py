@@ -7,6 +7,7 @@ from display.models import (
     Scorecard,
 )
 from display.utilities.gate_definitions import (
+    ANR_TP,
     FINISHPOINT,
     TAKEOFF_GATE,
     LANDING_GATE,
@@ -131,6 +132,14 @@ def get_default_scorecard():
     regular_gate_score, _ = GateScore.objects.update_or_create(
         scorecard=scorecard,
         gate_type=SECRETPOINT,
+        defaults={
+            "backtracking_before_gate_grace_period_nm": 0.5,
+        },
+    )
+
+    GateScore.objects.update_or_create(
+        scorecard=scorecard,
+        gate_type=ANR_TP,
         defaults={
             "backtracking_before_gate_grace_period_nm": 0.5,
         },
