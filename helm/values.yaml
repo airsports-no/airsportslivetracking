@@ -149,8 +149,9 @@ externalRedis:
 redis:
   enabled: true
   
-  # redis-ha configuration
-  replicas: 3 # Standard HA setup: 1 Master + 2 Replicas
+  # Reduced to 1 replica to save cost in GKE Autopilot
+  replicas: 2
+  
   
   image:
     repository: redis
@@ -251,8 +252,6 @@ wordpress:
       host: 10.95.241.3
       name: bitnami_wordpress
       username: bn_wordpress
-      existingSecret: "airsportsrelease-wordpress-database"
-      existingSecretPasswordKey: "database-password"
   
   # GKE Autopilot Affinity
   affinity:
