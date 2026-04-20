@@ -33,7 +33,7 @@ dependencies:
     repository: https://dandydeveloper.github.io/charts
     condition: redis.enabled
   - name: wordpress
-    version: 1.2.5 # Latest stable HelmForge version as of April 2026
+    version: 1.3.5
     repository: https://repo.helmforge.dev
     condition: wordpress.enabled
 
