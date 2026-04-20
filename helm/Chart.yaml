@@ -27,9 +27,9 @@ dependencies:
     version: ~14.0.0
     repository: https://charts.bitnami.com/bitnami
     condition: mysql.enabled
-  - name: redis
-    version: ~22.0.0
-    repository: https://charts.bitnami.com/bitnami
+  - name: redis-ha
+    version: 4.29.1 # Stable 2026 version
+    repository: https://dandydeveloper.github.io/charts
     condition: redis.enabled
   - name: wordpress
     version: 1.2.5 # Latest stable HelmForge version as of April 2026

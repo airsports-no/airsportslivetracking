@@ -147,23 +147,51 @@ externalRedis:
   port: 6379
 
 redis:
-  architecture: standalone
   enabled: true
-  master:
-    nodeSelector:
-      cloud.google.com/compute-class: Scale-Out
-    disableCommands: []
+  
+  # redis-ha configuration
+  replicas: 3 # Standard HA setup: 1 Master + 2 Replicas
+  
+  image:
+    repository: redis
+    tag: 7.2-alpine # Official versioned tag
+  
+  auth: false # Keeping consistent with your original "auth: enabled: false"
+  
+  # Persistence for scoring state
+  persistentVolume:
+    enabled: true
+    size: 5Gi
+    storageClass: standard-rwo
+
+  # GKE Autopilot Resource Alignment
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  
+  # Sentinel nodes are small but critical for failover
+  sentinel:
     resources:
       requests:
-        cpu: 400m
-        memory: 0.8Gi
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 100m
+        memory: 256Mi
 
-
-  auth:
-    enabled: false  # Default true
-    password: simplepassword
-  image:
-    repository: bitnamilegacy/redis
+  haproxy:
+    enabled: true # Provides a single stable endpoint for the app
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
 
 wordpress:
   enabled: true
