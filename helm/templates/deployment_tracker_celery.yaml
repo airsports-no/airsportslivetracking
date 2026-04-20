@@ -5,7 +5,7 @@ metadata:
     service: tracker-celery
   name: tracker-celery
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       service: tracker-celery
@@ -39,10 +39,10 @@ spec:
         resources:
           requests:
             cpu: 1000m
-            memory: 4Gi
+            memory: 2.5Gi
           limits:
             cpu: 1000m
-            memory: 4Gi
+            memory: 2.5Gi
         volumeMounts:
           - mountPath: /secret
             readOnly: true
