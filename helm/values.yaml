@@ -241,15 +241,25 @@ wordpress:
     tablePrefix: "wp_"
     debug: true
     configExtra: |
-      // Standard HTTPS offloading fix
-      if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https') {
+      // Robust HTTPS offloading detection
+      if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) {
           $_SERVER['HTTPS'] = 'on';
       }
-      // Prevent 301 redirects for Google Cloud Health Checks
-      // By pretending it's already HTTPS, WP won't try to redirect the health checker
-      if (isset($_SERVER['HTTP_USER_AGENT']) && strpos($_SERVER['HTTP_USER_AGENT'], 'GoogleHC') !== false) {
-          $_SERVER['HTTPS'] = 'on';
-          $_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
+      // Force HTTPS for all regular requests to avoid mixed content
+      if (isset($_SERVER['HTTP_HOST']) && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on')) {
+          // But skip for health checks to avoid 301 loop on LB
+          $isHealthCheck = false;
+          if (isset($_SERVER['HTTP_USER_AGENT'])) {
+              if (strpos($_SERVER['HTTP_USER_AGENT'], 'GoogleHC') !== false || strpos($_SERVER['HTTP_USER_AGENT'], 'kube-probe') !== false) {
+                  $isHealthCheck = true;
+              }
+          }
+          if (!$isHealthCheck) {
+              header('Location: https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], true, 301);
+              exit;
+          } else {
+              $_SERVER['HTTPS'] = 'on'; // Pretend for health check success
+          }
       }
 
   # External Database Configuration (HelmForge style)
@@ -282,6 +292,12 @@ wordpress:
       memory: 512Mi
 
   terminationGracePeriodSeconds: 25
+
+  # Probes: Use install.php which returns 200 even before setup
+  readinessProbe:
+    path: /wp-admin/install.php
+  livenessProbe:
+    path: /wp-admin/install.php
 
   # Persistent Storage
   persistence:
