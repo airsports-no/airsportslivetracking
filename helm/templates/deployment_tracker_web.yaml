@@ -5,7 +5,6 @@ metadata:
     service: tracker-web
   name: tracker-web
 spec:
-  replicas: 1
   selector:
     matchLabels:
       service: tracker-web

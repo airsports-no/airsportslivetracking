@@ -5,7 +5,6 @@ metadata:
     service: tracker-celery
   name: tracker-celery
 spec:
-  replicas: 2
   selector:
     matchLabels:
       service: tracker-celery
