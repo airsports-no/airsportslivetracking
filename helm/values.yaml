@@ -165,91 +165,56 @@ redis:
     storageClass: standard-rwo
 
   # GKE Autopilot Resource Alignment & Redis Configuration
-  # We provide configuration under both 'redis' (alias) and 'redis-ha' (original name)
-  # to ensure it is picked up regardless of alias resolution.
+  # Note: Since the redis-ha subchart is aliased as 'redis', its values
+  # are provided under the top-level 'redis:' key.
+  # The subchart itself has a 'redis:' key for the main server config.
   redis:
-    disableCommands: ["NONE"]
-    redis:
-      disableCommands: ["NONE"]
-      resources:
-        requests:
-          cpu: 500m
-          memory: 512Mi
-        limits:
-          cpu: 500m
-          memory: 512Mi
-      terminationGracePeriodSeconds: 25
-    init:
-      resources:
-        requests:
-          cpu: 500m
-          memory: 128Mi
-        limits:
-          cpu: 500m
-          memory: 128Mi
-    splitBrainDetection:
-      resources:
-        requests:
-          cpu: 500m
-          memory: 128Mi
-        limits:
-          cpu: 500m
-          memory: 128Mi
-    sentinel:
-      resources:
-        requests:
-          cpu: 500m
-          memory: 256Mi
-        limits:
-          cpu: 500m
-          memory: 256Mi
-    haproxy:
-      enabled: true
-      resources:
-        requests:
-          cpu: 500m
-          memory: 128Mi
-        limits:
-          cpu: 500m
-          memory: 128Mi
-      init:
-        resources:
-          requests:
-            cpu: 500m
-            memory: 128Mi
-          limits:
-            cpu: 500m
-            memory: 128Mi
-    haproxy:
-      enabled: true
-      resources:
-        requests:
-          cpu: 500m
-          memory: 128Mi
-        limits:
-          cpu: 500m
-          memory: 128Mi
-      init:
-        resources:
-          requests:
-            cpu: 500m
-            memory: 128Mi
-          limits:
-            cpu: 500m
-            memory: 128Mi
+    disableCommands: []
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    terminationGracePeriodSeconds: 25
 
-  # Duplicate configuration for robustness
-  redis-ha:
-    disableCommands: ["NONE"]
-    redis:
-      disableCommands: ["NONE"]
-      resources:
-        requests:
-          cpu: 500m
-          memory: 512Mi
-        limits:
-          cpu: 500m
-          memory: 512Mi
+  init:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 128Mi
+
+  splitBrainDetection:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 128Mi
+
+  sentinel:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+  haproxy:
+    enabled: true
+    resources:
+      requests:
+        cpu: 500m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 128Mi
     init:
       resources:
         requests:
@@ -258,39 +223,6 @@ redis:
         limits:
           cpu: 500m
           memory: 128Mi
-    splitBrainDetection:
-      resources:
-        requests:
-          cpu: 500m
-          memory: 128Mi
-        limits:
-          cpu: 500m
-          memory: 128Mi
-    sentinel:
-      resources:
-        requests:
-          cpu: 500m
-          memory: 256Mi
-        limits:
-          cpu: 500m
-          memory: 256Mi
-    haproxy:
-      enabled: true
-      resources:
-        requests:
-          cpu: 500m
-          memory: 128Mi
-        limits:
-          cpu: 500m
-          memory: 128Mi
-      init:
-        resources:
-          requests:
-            cpu: 500m
-            memory: 128Mi
-          limits:
-            cpu: 500m
-            memory: 128Mi
 
 wordpress:
   enabled: true
