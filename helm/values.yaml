@@ -165,13 +165,16 @@ redis:
     storageClass: standard-rwo
 
   # GKE Autopilot Resource Alignment
-  resources:
-    requests:
-      cpu: 500m
-      memory: 512Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
+  # Note: redis.redis corresponds to the 'redis' key within the redis-ha subchart
+  redis:
+    disableCommands: []
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
   
   terminationGracePeriodSeconds: 25
   
