@@ -979,7 +979,7 @@ class NavigationTaskViewSet(ModelViewSet):
             my_contestant = get_object_or_404(navigation_task.contestant_set, pk=kwargs["contestant_id"])
             if (
                 not my_contestant.contestanttrack.calculator_started
-                or my_contestant.take_off_time > datetime.datetime.now(datetime.timezone.utc)
+                or my_contestant.takeoff_time > datetime.datetime.now(datetime.timezone.utc)
             ):
                 my_contestant.delete()
             else:
@@ -1282,48 +1282,55 @@ class ContestantViewSet(ModelViewSet):
 
     def _stream_track_json(self, ct, position_queryset):
         encoder = DjangoJSONEncoder()
-        yield '{"id":' + json.dumps(ct.id) + \
-              ',"score":' + json.dumps(float(ct.score)) + \
-              ',"current_state":' + json.dumps(ct.current_state) + \
-              ',"current_leg":' + json.dumps(ct.current_leg) + \
-              ',"last_gate":' + json.dumps(ct.last_gate) + \
-              ',"last_gate_time_offset":' + json.dumps(ct.last_gate_time_offset) + \
-              ',"passed_starting_gate":' + json.dumps(ct.passed_starting_gate) + \
-              ',"passed_finish_gate":' + json.dumps(ct.passed_finish_gate) + \
-              ',"calculator_finished":' + json.dumps(ct.calculator_finished) + \
-              ',"calculator_started":' + json.dumps(ct.calculator_started) + \
-              ',"contestant":' + json.dumps(ct.contestant_id) + \
-              ',"track":['
+        yield '{"id":' + json.dumps(ct.id) + ',"score":' + json.dumps(
+            float(ct.score)
+        ) + ',"current_state":' + json.dumps(ct.current_state) + ',"current_leg":' + json.dumps(
+            ct.current_leg
+        ) + ',"last_gate":' + json.dumps(
+            ct.last_gate
+        ) + ',"last_gate_time_offset":' + json.dumps(
+            ct.last_gate_time_offset
+        ) + ',"passed_starting_gate":' + json.dumps(
+            ct.passed_starting_gate
+        ) + ',"passed_finish_gate":' + json.dumps(
+            ct.passed_finish_gate
+        ) + ',"calculator_finished":' + json.dumps(
+            ct.calculator_finished
+        ) + ',"calculator_started":' + json.dumps(
+            ct.calculator_started
+        ) + ',"contestant":' + json.dumps(
+            ct.contestant_id
+        ) + ',"track":['
 
         first = True
         for pos in position_queryset.iterator():
             if not first:
-                yield ','
+                yield ","
             yield encoder.encode(pos)
             first = False
-        yield ']}'
+        yield "]}"
 
     def _stream_positions_json(self, position_queryset, contestant):
         encoder = DjangoJSONEncoder()
-        yield '['
+        yield "["
 
         first = True
         pending_pos = None
         for pos in position_queryset.iterator():
             if pending_pos:
                 if not first:
-                    yield ','
+                    yield ","
                 yield encoder.encode(pending_pos)
                 first = False
             pending_pos = pos
 
         if pending_pos:
             if not first:
-                yield ','
+                yield ","
             pending_pos["progress"] = contestant.calculate_progress(pending_pos["time"], ignore_finished=True)
             yield encoder.encode(pending_pos)
 
-        yield ']'
+        yield "]"
 
     @action(detail=True, methods=["get"])
     def score(self, request, pk=None, **kwargs):
@@ -1366,8 +1373,7 @@ class ContestantViewSet(ModelViewSet):
                 "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
             )
             response = StreamingHttpResponse(
-                self._stream_positions_json(positions_qs, contestant),
-                content_type="application/json"
+                self._stream_positions_json(positions_qs, contestant), content_type="application/json"
             )
 
         return response
@@ -1384,11 +1390,8 @@ class ContestantViewSet(ModelViewSet):
         positions_qs = position_data.values(
             "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
         )
-        
-        response = StreamingHttpResponse(
-            self._stream_track_json(ct, positions_qs),
-            content_type="application/json"
-        )
+
+        response = StreamingHttpResponse(self._stream_track_json(ct, positions_qs), content_type="application/json")
         return response
 
     @action(detail=True, methods=["post"])
