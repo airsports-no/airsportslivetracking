@@ -235,6 +235,15 @@ wordpress:
   image:
     tag: "6.7-apache"
   
+  # WordPress Setup Configuration
+  wordpress:
+    siteUrl: "https://home.airsports.no"
+    siteTitle: "Air Sports Live Tracking"
+    adminUser: kolaf
+    adminEmail: frankose@ifi.uio.no
+    tablePrefix: "wp_"
+    debug: true
+
   # External Database Configuration (HelmForge style)
   database:
     mode: external
@@ -243,24 +252,7 @@ wordpress:
       name: bitnami_wordpress
       username: bn_wordpress
       existingSecret: "airsportsrelease-wordpress-database"
-    # Note: Password should be provided via secret or --set wordpress.database.external.password
-  
-  # Admin User
-  admin:
-    user: kolaf
-    email: frankose@ifi.uio.no
-  
-  # Blog Settings
-  site:
-    name: "Air Sports Live Tracking"
-  
-  # SMTP Configuration (HelmForge style)
-  smtp:
-    enabled: true
-    host: pro.turbo-smtp.com
-    port: 587
-    user: e1a92a30e397f335217d
-    # Note: Password should be provided via secret
+      existingSecretPasswordKey: "database-password"
   
   # GKE Autopilot Affinity
   affinity:
@@ -288,7 +280,7 @@ wordpress:
   persistence:
     enabled: true
     size: 10Gi
-    mountPath: /var/www/html/wp-content # Official image path
+    # mountPath is hardcoded to /var/www/html in this chart
 
   # MySQL subchart for WordPress is disabled as we use an external database
   mysql:
