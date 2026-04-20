@@ -164,59 +164,21 @@ redis:
     size: 5Gi
     storageClass: standard-rwo
 
-  # GKE Autopilot Resource Alignment
-  # Note: redis.redis corresponds to the 'redis' key within the redis-ha subchart
+  # GKE Autopilot Resource Alignment & Redis Configuration
+  # We provide configuration under both 'redis' (alias) and 'redis-ha' (original name)
+  # to ensure it is picked up regardless of alias resolution.
   redis:
-    disableCommands: []
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
-  
-  terminationGracePeriodSeconds: 25
-  
-  init:
-    resources:
-      requests:
-        cpu: 500m
-        memory: 128Mi
-      limits:
-        cpu: 500m
-        memory: 128Mi
-  
-  splitBrainDetection:
-    resources:
-      requests:
-        cpu: 500m
-        memory: 128Mi
-      limits:
-        cpu: 500m
-        memory: 128Mi
-
-  # Sentinel nodes are small but critical for failover
-  sentinel:
-    terminationGracePeriodSeconds: 25
-    resources:
-      requests:
-        cpu: 500m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 256Mi
-
-  haproxy:
-    enabled: true # Provides a single stable endpoint for the app
-    terminationGracePeriodSeconds: 25
-    resources:
-      requests:
-        cpu: 500m
-        memory: 128Mi
-      limits:
-        cpu: 500m
-        memory: 128Mi
+    disableCommands: ["NONE"]
+    redis:
+      disableCommands: ["NONE"]
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      terminationGracePeriodSeconds: 25
     init:
       resources:
         requests:
@@ -225,6 +187,110 @@ redis:
         limits:
           cpu: 500m
           memory: 128Mi
+    splitBrainDetection:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 128Mi
+    sentinel:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+    haproxy:
+      enabled: true
+      resources:
+        requests:
+          cpu: 500m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 128Mi
+      init:
+        resources:
+          requests:
+            cpu: 500m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
+    haproxy:
+      enabled: true
+      resources:
+        requests:
+          cpu: 500m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 128Mi
+      init:
+        resources:
+          requests:
+            cpu: 500m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
+
+  # Duplicate configuration for robustness
+  redis-ha:
+    disableCommands: ["NONE"]
+    redis:
+      disableCommands: ["NONE"]
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+    init:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 128Mi
+    splitBrainDetection:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 128Mi
+    sentinel:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+    haproxy:
+      enabled: true
+      resources:
+        requests:
+          cpu: 500m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 128Mi
+      init:
+        resources:
+          requests:
+            cpu: 500m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
 
 wordpress:
   enabled: true
@@ -292,7 +358,7 @@ wordpress:
   # MySQL subchart for WordPress (used if external database is not reachable or as fallback)
   mysql:
     enabled: true
-    primary:
+    standalone:
       resources:
         requests:
           cpu: 500m
