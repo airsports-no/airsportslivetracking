@@ -241,6 +241,9 @@ wordpress:
   wordpressLastName: Sem-Jacobsen
   wordpressBlogName: Air Sports Live Tracking
 
+  smtpHost: pro.turbo-smtp.com
+  smtpPort: "587"
+  smtpUser: e1a92a30e397f335217d
   image:
     repository: bitnamilegacy/wordpress
 
