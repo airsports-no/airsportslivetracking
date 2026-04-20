@@ -11,7 +11,8 @@ from django.core.files.base import ContentFile
 from django.core.paginator import InvalidPage
 from django.db import transaction
 from django.db.models import Q, Count
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, StreamingHttpResponse
+from django.core.serializers.json import DjangoJSONEncoder
 from django.utils.cache import add_never_cache_headers, patch_response_headers
 from guardian.shortcuts import get_objects_for_user
 from rest_framework import status, permissions, mixins
@@ -1279,6 +1280,98 @@ class ContestantViewSet(ModelViewSet):
 
         return response
 
+    def _stream_track_json(self, ct, position_queryset):
+        encoder = DjangoJSONEncoder()
+        yield '{"id":' + json.dumps(ct.id) + \
+              ',"score":' + json.dumps(float(ct.score)) + \
+              ',"current_state":' + json.dumps(ct.current_state) + \
+              ',"current_leg":' + json.dumps(ct.current_leg) + \
+              ',"last_gate":' + json.dumps(ct.last_gate) + \
+              ',"last_gate_time_offset":' + json.dumps(ct.last_gate_time_offset) + \
+              ',"passed_starting_gate":' + json.dumps(ct.passed_starting_gate) + \
+              ',"passed_finish_gate":' + json.dumps(ct.passed_finish_gate) + \
+              ',"calculator_finished":' + json.dumps(ct.calculator_finished) + \
+              ',"calculator_started":' + json.dumps(ct.calculator_started) + \
+              ',"contestant":' + json.dumps(ct.contestant_id) + \
+              ',"track":['
+
+        first = True
+        for pos in position_queryset.iterator():
+            if not first:
+                yield ','
+            yield encoder.encode(pos)
+            first = False
+        yield ']}'
+
+    def _stream_positions_json(self, position_queryset, contestant):
+        encoder = DjangoJSONEncoder()
+        yield '['
+
+        first = True
+        pending_pos = None
+        for pos in position_queryset.iterator():
+            if pending_pos:
+                if not first:
+                    yield ','
+                yield encoder.encode(pending_pos)
+                first = False
+            pending_pos = pos
+
+        if pending_pos:
+            if not first:
+                yield ','
+            pending_pos["progress"] = contestant.calculate_progress(pending_pos["time"], ignore_finished=True)
+            yield encoder.encode(pending_pos)
+
+        yield ']'
+
+    @action(detail=True, methods=["get"])
+    def score(self, request, pk=None, **kwargs):
+        """
+        Returns the score for the contestant
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        return Response(generate_score_data(contestant.pk))
+
+    @action(detail=True, methods=["get"])
+    def paginated_track_data(self, request, *args, **kwargs):
+        contestant: Contestant = (
+            self.get_object()
+        )  # This is important, this is where the object permissions are checked
+        position_data = contestant.get_track()
+        pagination = MyCursorPagination()
+        page = pagination.paginate_queryset(
+            position_data.values(
+                "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
+            ),
+            request,
+        )
+        if page is not None:
+            if len(page):
+                page[-1]["progress"] = contestant.calculate_progress(page[-1]["time"], ignore_finished=True)
+            result = pagination.get_paginated_response(page)
+            response = Response(result.data)
+            if (
+                pagination.get_next_link() is None
+                and hasattr(contestant, "contestanttrack")
+                and not contestant.contestanttrack.calculator_finished
+            ):
+                add_never_cache_headers(response)
+            else:
+                patch_response_headers(response, 60 * 60 * 24 * 31)
+        else:
+            # Manually serialize the positions to avoid PositionSerialiser overhead
+            # Use streaming to avoid memory spikes
+            positions_qs = position_data.values(
+                "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
+            )
+            response = StreamingHttpResponse(
+                self._stream_positions_json(positions_qs, contestant),
+                content_type="application/json"
+            )
+
+        return response
+
     @action(detail=True, methods=["get"])
     def track(self, request, pk=None, **kwargs):
         """
@@ -1288,28 +1381,15 @@ class ContestantViewSet(ModelViewSet):
         ct = contestant.contestanttrack
 
         position_data = contestant.get_track()
-        # Manually construct the response to avoid nested PositionSerialiser overhead
-        positions = list(
-            position_data.values(
-                "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
-            )
+        positions_qs = position_data.values(
+            "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
         )
-
-        data = {
-            "id": ct.id,
-            "score": ct.score,
-            "current_state": ct.current_state,
-            "current_leg": ct.current_leg,
-            "last_gate": ct.last_gate,
-            "last_gate_time_offset": ct.last_gate_time_offset,
-            "passed_starting_gate": ct.passed_starting_gate,
-            "passed_finish_gate": ct.passed_finish_gate,
-            "calculator_finished": ct.calculator_finished,
-            "calculator_started": ct.calculator_started,
-            "contestant": ct.contestant_id,
-            "track": positions,
-        }
-        return Response(data)
+        
+        response = StreamingHttpResponse(
+            self._stream_track_json(ct, positions_qs),
+            content_type="application/json"
+        )
+        return response
 
     @action(detail=True, methods=["post"])
     def gpx_track(self, request, pk=None, **kwargs):
