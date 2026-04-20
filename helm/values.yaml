@@ -252,6 +252,7 @@ wordpress:
       host: 10.95.241.3
       name: bitnami_wordpress
       username: bn_wordpress
+      password: wordpress
   
   # GKE Autopilot Affinity
   affinity:
