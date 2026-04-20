@@ -35,10 +35,10 @@ spec:
         resources:
           requests:
             cpu: 600m
-            memory: 0.6Gi  # Uses 231 Mi
+            memory: 1Gi
           limits:
             cpu: 600m
-            memory: 0.6Gi
+            memory: 1Gi
         name: tracker-processor
 #        env:
 #          - name: K8S_TOKEN

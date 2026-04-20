@@ -50,11 +50,11 @@ spec:
               name: pw-secrets
         resources:
           requests:
-            cpu: 500m
-            memory: 3Gi  # Uses 160Mi
+            cpu: 1000m
+            memory: 2Gi
           limits:
-            cpu: 500m
-            memory: 3Gi
+            cpu: 1000m
+            memory: 2Gi
         volumeMounts:
           - mountPath: /secret
             readOnly: true

@@ -8,15 +8,17 @@ spec:
     kind: Deployment
     name: tracker-daphne
   minReplicas: 2
-  maxReplicas: 15
+  maxReplicas: 10
   metrics:
   - type: Resource
     resource:
-      name: cpu
+      name: memory
       target:
         type: Utilization
-        averageUtilization: 40
+        averageUtilization: 70
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
+    scaleDown:
+      stabilizationWindowSeconds: 600 # Very slow scale down (10 mins) to protect long-lived tracking sessions
     

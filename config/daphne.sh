@@ -16,6 +16,11 @@ export PYTHONPATH=$DJANGODIR:$PYTHONPATH
 # RUNDIR=$(dirname $SOCKFILE)
 # test -d $RUNDIR || mkdir -p $RUNDIR
 
-# Start your Django Unicorn
-# Programs meant to be run under supervisor should not daemonize themselves (do not use --daemon)
-exec daphne -b 0.0.0.0 -p 8003 ${DJANGO_ASGI_MODULE}:application
+# Start Daphne
+exec daphne \
+  -b 0.0.0.0 \
+  -p 8003 \
+  --proxy-headers \
+  --websocket_timeout 3600 \
+  --websocket_connect_timeout 60 \
+  ${DJANGO_ASGI_MODULE}:application
