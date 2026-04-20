@@ -535,8 +535,7 @@ def import_route(request):
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_map(request, pk):
     """
-    Generates the navigation map for specific contestants with optional annotation. My generation is controlled through
-    a form, and the resulting file is downloaded as a PDF.
+    Triggers async generation of the navigation map for specific contestants.
     """
     contestant = get_object_or_404(Contestant, pk=pk)
     redirect_url = reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
@@ -544,49 +543,40 @@ def get_contestant_map(request, pk):
         form = ContestantMapForm(request.POST, redirect_url=redirect_url)
         form.fields["user_map_source"].queryset = contestant.navigation_task.get_available_user_maps()
         if form.is_valid():
-            margin = 10
-            try:
-                map_image = plot_route(
-                    contestant.navigation_task,
-                    form.cleaned_data["size"],
-                    zoom_level=int(form.cleaned_data["zoom_level"]),
-                    landscape=form.cleaned_data["orientation"] == LANDSCAPE,
-                    contestant=contestant,
-                    annotations=form.cleaned_data["include_annotations"],
-                    waypoints_only=not form.cleaned_data["plot_track_between_waypoints"],
-                    dpi=form.cleaned_data["dpi"],
-                    scale=int(form.cleaned_data["scale"]),
-                    map_source=form.cleaned_data["map_source"],
-                    user_map_source=form.cleaned_data["user_map_source"],
-                    line_width=float(form.cleaned_data["line_width"]),
-                    minute_mark_line_width=float(form.cleaned_data["minute_mark_line_width"]),
-                    colour=form.cleaned_data["colour"],
-                    include_meridians_and_parallels_lines=form.cleaned_data["include_meridians_and_parallels_lines"],
-                    margins_mm=margin,
-                )
-            except MemoryEstimationExceededError as e:
-                messages.error(request, str(e))
-                return render(
-                    request,
-                    "display/map_form.html",
-                    {
-                        "form": form,
-                        "redirect": redirect_url,
-                        "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
-                    },
-                )
-            # noinspection PyTypeChecker
-            pdf = embed_map_in_pdf(
-                "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
-                map_image.read(),
-                10 * A4_WIDTH - 2 * margin if form.cleaned_data["size"] == A4 else 10 * A3_WIDTH - 2 * margin,
-                10 * A4_HEIGHT - 2 * margin if form.cleaned_data["size"] == A4 else 10 * A3_HEIGHT - 2 * margin,
-                form.cleaned_data["orientation"] == LANDSCAPE,
+            map_params = {
+                "size": form.cleaned_data["size"],
+                "zoom_level": int(form.cleaned_data["zoom_level"]),
+                "landscape": form.cleaned_data["orientation"] == LANDSCAPE,
+                "annotations": form.cleaned_data["include_annotations"],
+                "waypoints_only": not form.cleaned_data["plot_track_between_waypoints"],
+                "dpi": form.cleaned_data["dpi"],
+                "scale": int(form.cleaned_data["scale"]),
+                "map_source": form.cleaned_data["map_source"],
+                "user_map_source_id": form.cleaned_data["user_map_source"].pk if form.cleaned_data["user_map_source"] else None,
+                "line_width": float(form.cleaned_data["line_width"]),
+                "minute_mark_line_width": float(form.cleaned_data["minute_mark_line_width"]),
+                "colour": form.cleaned_data["colour"],
+                "include_meridians_and_parallels_lines": form.cleaned_data["include_meridians_and_parallels_lines"],
+                "margin": 10,
+            }
+            
+            # Clear any old result
+            cache_key = f"map_gen_result_{contestant.navigation_task.pk}_{contestant.pk}_{request.user.id}"
+            cache.delete(cache_key)
+            
+            from display.tasks import generate_map_async
+            generate_map_async.delay(
+                contestant.navigation_task.pk, 
+                contestant.pk, 
+                map_params, 
+                request.user.id
             )
-
-            response = HttpResponse(pdf, content_type="application/pdf")
-            response["Content-Disposition"] = "attachment; filename=map.pdf"
-            return response
+            
+            return redirect(reverse("map_generation_status", kwargs={
+                "task_id": contestant.navigation_task.pk,
+                "contestant_id": contestant.pk
+            }))
+            
     else:
         configuration = contestant.navigation_task.flightorderconfiguration
         form = ContestantMapForm(
@@ -665,41 +655,44 @@ def get_contestant_processing_statistics(request, pk):
 
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_default_map(request, pk):
+    """
+    Triggers async generation of the default navigation map for specific contestants.
+    """
     contestant = get_object_or_404(Contestant, pk=pk)
     configuration = contestant.navigation_task.flightorderconfiguration
-    margin = 10
-    try:
-        map_image = plot_route(
-            contestant.navigation_task,
-            configuration.document_size,
-            zoom_level=configuration.map_zoom_level,
-            landscape=configuration.map_orientation == LANDSCAPE,
-            contestant=contestant,
-            annotations=configuration.map_include_annotations,
-            waypoints_only=not configuration.map_plot_track_between_waypoints,
-            dpi=configuration.map_dpi,
-            scale=configuration.map_scale,
-            map_source=configuration.map_source,
-            user_map_source=configuration.map_user_source,
-            line_width=configuration.map_line_width,
-            colour=configuration.map_line_colour,
-            include_meridians_and_parallels_lines=configuration.map_include_meridians_and_parallels_lines,
-            margins_mm=margin,
-        )
-    except MemoryEstimationExceededError as e:
-        messages.error(request, str(e))
-        return redirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
-    # noinspection PyTypeChecker
-    pdf = embed_map_in_pdf(
-        "a4paper" if configuration.document_size == A4 else "a3paper",
-        map_image.read(),
-        10 * A4_WIDTH - 2 * margin if configuration.document_size == A4 else 10 * A3_WIDTH - 2 * margin,
-        10 * A4_HEIGHT - 2 * margin if configuration.document_size == A4 else 10 * A3_HEIGHT - 2 * margin,
-        configuration.map_orientation == LANDSCAPE,
+    
+    map_params = {
+        "size": configuration.document_size,
+        "zoom_level": configuration.map_zoom_level,
+        "landscape": configuration.map_orientation == LANDSCAPE,
+        "annotations": configuration.map_include_annotations,
+        "waypoints_only": not configuration.map_plot_track_between_waypoints,
+        "dpi": configuration.map_dpi,
+        "scale": configuration.map_scale,
+        "map_source": configuration.map_source,
+        "user_map_source_id": configuration.map_user_source.pk if configuration.map_user_source else None,
+        "line_width": configuration.map_line_width,
+        "colour": configuration.map_line_colour,
+        "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
+        "margin": 10,
+    }
+    
+    # Clear any old result
+    cache_key = f"map_gen_result_{contestant.navigation_task.pk}_{contestant.pk}_{request.user.id}"
+    cache.delete(cache_key)
+    
+    from display.tasks import generate_map_async
+    generate_map_async.delay(
+        contestant.navigation_task.pk, 
+        contestant.pk, 
+        map_params, 
+        request.user.id
     )
-    response = HttpResponse(pdf, content_type="application/pdf")
-    response["Content-Disposition"] = "attachment; filename=map.pdf"
-    return response
+    
+    return redirect(reverse("map_generation_status", kwargs={
+        "task_id": contestant.navigation_task.pk,
+        "contestant_id": contestant.pk
+    }))
 
 
 def get_contestant_email_flight_orders_link(request, key):
@@ -811,8 +804,7 @@ def old_tracking_map_redirect(request, pk):
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def get_navigation_task_map(request, pk):
     """
-    Render a form and handle POST for generating the navigation task map pdf. This is a generic map For the navigation
-    task and cannot contain contestants specific annotations.
+    Triggers async generation of the navigation task map pdf.
     """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     redirect_url = reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
@@ -820,47 +812,39 @@ def get_navigation_task_map(request, pk):
         form = MapForm(request.POST, redirect_url=redirect_url)
         form.fields["user_map_source"].queryset = navigation_task.get_available_user_maps()
         if form.is_valid():
-            margin = 10
-            try:
-                map_image = plot_route(
-                    navigation_task,
-                    form.cleaned_data["size"],
-                    zoom_level=form.cleaned_data["zoom_level"],
-                    landscape=form.cleaned_data["orientation"] == LANDSCAPE,
-                    waypoints_only=not form.cleaned_data["plot_track_between_waypoints"],
-                    dpi=form.cleaned_data["dpi"],
-                    scale=int(form.cleaned_data["scale"]),
-                    map_source=form.cleaned_data["map_source"],
-                    user_map_source=form.cleaned_data["user_map_source"],
-                    line_width=float(form.cleaned_data["line_width"]),
-                    colour=form.cleaned_data["colour"],
-                    margins_mm=margin,
-                    include_meridians_and_parallels_lines=form.cleaned_data["include_meridians_and_parallels_lines"],
-                )
-            except MemoryEstimationExceededError as e:
-                messages.error(request, str(e))
-                return render(
-                    request,
-                    "display/map_form.html",
-                    {
-                        "form": form,
-                        "redirect": redirect_url,
-                        "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
-                    },
-                )
-            # noinspection PyTypeChecker
-            pdf = embed_map_in_pdf(
-                "a4paper" if form.cleaned_data["size"] == A4 else "a3paper",
-                map_image.read(),
-                10 * A4_WIDTH - 2 * margin if form.cleaned_data["size"] == A4 else 10 * A3_WIDTH - 2 * margin,
-                10 * A4_HEIGHT - 2 * margin if form.cleaned_data["size"] == A4 else 10 * A3_HEIGHT - 2 * margin,
-                form.cleaned_data["orientation"] == LANDSCAPE,
+            map_params = {
+                "size": form.cleaned_data["size"],
+                "zoom_level": form.cleaned_data["zoom_level"],
+                "landscape": form.cleaned_data["orientation"] == LANDSCAPE,
+                "annotations": False, # Generic map has no contestant annotations
+                "waypoints_only": not form.cleaned_data["plot_track_between_waypoints"],
+                "dpi": form.cleaned_data["dpi"],
+                "scale": int(form.cleaned_data["scale"]),
+                "map_source": form.cleaned_data["map_source"],
+                "user_map_source_id": form.cleaned_data["user_map_source"].pk if form.cleaned_data["user_map_source"] else None,
+                "line_width": float(form.cleaned_data["line_width"]),
+                "colour": form.cleaned_data["colour"],
+                "include_meridians_and_parallels_lines": form.cleaned_data["include_meridians_and_parallels_lines"],
+                "margin": 10,
+            }
+            
+            # Clear any old result
+            cache_key = f"map_gen_result_{navigation_task.pk}_None_{request.user.id}"
+            cache.delete(cache_key)
+            
+            from display.tasks import generate_map_async
+            generate_map_async.delay(
+                navigation_task.pk, 
+                None, 
+                map_params, 
+                request.user.id
             )
-
-            response = HttpResponse(pdf, content_type="application/pdf")
-
-            response["Content-Disposition"] = "attachment; filename=map.pdf"
-            return response
+            
+            return redirect(reverse("map_generation_status", kwargs={
+                "task_id": navigation_task.pk,
+                "contestant_id": 0 # Use 0 to represent None in URL
+            }))
+            
     else:
         configuration = navigation_task.flightorderconfiguration
         form = MapForm(

@@ -1,0 +1,69 @@
+{% extends "base_tailwind.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-10 p-6 bg-base-100 rounded-lg shadow">
+    <h1 class="text-2xl font-bold mb-4">Map Generation</h1>
+    <p class="mb-2"><strong>Task:</strong> {{ navigation_task.name }}</p>
+    {% if contestant %}
+    <p class="mb-6"><strong>Contestant:</strong> {{ contestant }}</p>
+    {% endif %}
+    
+    <p class="mb-6">Please wait while your map is being generated. This may take a minute.</p>
+    
+    <div id="status-container" class="flex flex-col items-center">
+        <span id="loading-spinner" class="loading loading-spinner loading-lg text-primary mb-4"></span>
+        <div id="result-message" class="hidden text-center">
+            <p id="success-message" class="text-success mb-4 font-bold">Map generation complete!</p>
+            <p id="error-message" class="text-error mb-4"></p>
+            <a id="download-link" href="#" class="btn btn-primary">Download Map</a>
+        </div>
+    </div>
+
+    <div class="mt-8 border-t pt-4">
+        <a href="{% url 'navigationtask_detail' navigation_task.pk %}" class="btn btn-ghost">Back to Navigation Task</a>
+    </div>
+</div>
+
+<script>
+    const checkUrl = "{{ check_url }}";
+    const statusContainer = document.getElementById('status-container');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const resultMessage = document.getElementById('result-message');
+    const successMessage = document.getElementById('success-message');
+    const errorMessage = document.getElementById('error-message');
+    const downloadLink = document.getElementById('download-link');
+
+    function checkStatus() {
+        fetch(checkUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'complete') {
+                    loadingSpinner.classList.add('hidden');
+                    resultMessage.classList.remove('hidden');
+                    successMessage.classList.remove('hidden');
+                    errorMessage.classList.add('hidden');
+                    downloadLink.href = data.url;
+                    downloadLink.classList.remove('hidden');
+                    // Automatically trigger download
+                    window.location.href = data.url;
+                } else if (data.status === 'error') {
+                    loadingSpinner.classList.add('hidden');
+                    resultMessage.classList.remove('hidden');
+                    successMessage.classList.add('hidden');
+                    errorMessage.classList.remove('hidden');
+                    errorMessage.innerText = "Error: " + data.message;
+                    downloadLink.classList.add('hidden');
+                } else {
+                    // Still pending, check again in 2 seconds
+                    setTimeout(checkStatus, 2000);
+                }
+            })
+            .catch(error => {
+                console.error('Error checking status:', error);
+                setTimeout(checkStatus, 5000);
+            });
+    }
+
+    checkStatus();
+</script>
+{% endblock %}
