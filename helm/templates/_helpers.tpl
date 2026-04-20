@@ -40,10 +40,12 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "live_tracking.redisPassword" }}
-{{- if .Values.redis.enabled }}
-{{- .Values.redis.auth.password }}
+{{- if and .Values.redis.enabled (kindIs "map" .Values.redis.auth) }}
+{{- .Values.redis.auth.password | default "" }}
+{{- else if not .Values.redis.enabled }}
+{{- .Values.externalRedis.password | default "" }}
 {{- else }}
-{{- .Values.externalRedis.password }}
+{{- "" }}
 {{- end }}
 {{- end }}
 
