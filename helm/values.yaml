@@ -227,26 +227,45 @@ redis:
 
 wordpress:
   enabled: true
-  wordpressUsername: kolaf
-  mariadb:
-    enabled: false
+  
+  # Override name to avoid spec.selector immutability error on upgrade
+  # This creates a new deployment instead of patching the existing one.
+  fullnameOverride: "airsportsrelease-wordpress-v2"
 
-  externalDatabase:
-    host: 10.95.241.3
-    database: bitnami_wordpress
-    user: bn_wordpress
-
-  wordpressEmail: frankose@ifi.uio.no
-  wordpressFirstName: Frank Olaf
-  wordpressLastName: Sem-Jacobsen
-  wordpressBlogName: Air Sports Live Tracking
-
-  smtpHost: pro.turbo-smtp.com
-  smtpPort: "587"
-  smtpUser: e1a92a30e397f335217d
+  # HelmForge uses the official WordPress image by default
   image:
-    repository: bitnamilegacy/wordpress
+    tag: "6.7-apache"
+  
+  # WordPress Setup Configuration
+  wordpress:
+    siteUrl: "https://home.airsports.no"
+    siteTitle: "Air Sports Live Tracking"
+    adminUser: kolaf
+    adminEmail: frankose@ifi.uio.no
+    tablePrefix: "wp_"
+    debug: true
+    configExtra: |
+      // Standard HTTPS offloading fix
+      if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https') {
+          $_SERVER['HTTPS'] = 'on';
+      }
+      // Prevent 301 redirects for Google Cloud Health Checks
+      // By pretending it's already HTTPS, WP won't try to redirect the health checker
+      if (isset($_SERVER['HTTP_USER_AGENT']) && strpos($_SERVER['HTTP_USER_AGENT'], 'GoogleHC') !== false) {
+          $_SERVER['HTTPS'] = 'on';
+          $_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
+      }
 
+  # External Database Configuration (HelmForge style)
+  database:
+    mode: external
+    external:
+      host: 10.95.241.3
+      name: bitnami_wordpress
+      username: bn_wordpress
+      # password is provided via secret values file (e.g. private_values.yaml)
+  
+  # GKE Autopilot Affinity
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -257,30 +276,35 @@ wordpress:
                 values:
                   - "true"
 
-
-  extraVolumeMounts:
-    - name: php-ini
-      #subPath: conf.d
-      mountPath: /opt/bitnami/php/etc/conf.d
-
-  extraVolumes:
-    - name: php-ini
-      configMap:
-        name: php-ini
-  allowOverrideNone: false
-
+  # GKE Autopilot Resource Alignment
   resources:
     requests:
-      cpu: 200m
-      memory: 400Mi
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
+  terminationGracePeriodSeconds: 25
 
-  # ConfigMap with custom wordpress-htaccess.conf file (requires allowOverrideNone to true)
-  customHTAccessCM: prod-wordpress-cm
-  service:
-    type: ClusterIP
-  ingress:
+  # Persistent Storage
+  persistence:
+    enabled: true
+    size: 10Gi
+    # mountPath is hardcoded to /var/www/html in this chart
+
+  # MySQL subchart for WordPress is disabled as we use an external database
+  mysql:
     enabled: false
+
+  # PHP configuration (php.ini)
+  php:
+    ini: |
+      upload_max_filesize = 512M
+      post_max_size = 512M
+      memory_limit = 512M
+      max_execution_time = 300
+      max_input_time = 300
 
 
 mysql:
