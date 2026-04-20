@@ -26,7 +26,7 @@ exec gunicorn \
   --threads $NUM_THREADS \
   --timeout 30 \
   --bind=:8003 \
-  --log-level debug \
+  --log-level warning \
   --max-requests 1000 \
   --max-requests-jitter 50 \
   --forwarded-allow-ips="*" \
