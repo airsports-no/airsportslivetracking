@@ -245,12 +245,15 @@ wordpress:
     tablePrefix: "wp_"
     debug: true
     configExtra: |
+      // Standard HTTPS offloading fix
       if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https') {
           $_SERVER['HTTPS'] = 'on';
       }
       // Prevent 301 redirects for Google Cloud Health Checks
-      if (strpos($_SERVER['HTTP_USER_AGENT'], 'GoogleHC') !== false || $_SERVER['REMOTE_ADDR'] == '127.0.0.1') {
-          $_SERVER['HTTPS'] = 'off';
+      // By pretending it's already HTTPS, WP won't try to redirect the health checker
+      if (isset($_SERVER['HTTP_USER_AGENT']) && strpos($_SERVER['HTTP_USER_AGENT'], 'GoogleHC') !== false) {
+          $_SERVER['HTTPS'] = 'on';
+          $_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
       }
 
   # External Database Configuration (HelmForge style)
