@@ -4,6 +4,7 @@ metadata:
   name: tracker-daphne-service
   annotations:
     cloud.google.com/backend-config: '{"default": "websocket-backend"}'
+    cloud.google.com/neg: '{"ingress": true}'
 spec:
   ports:
   - port: 80

@@ -765,6 +765,7 @@ metadata:
   name: traccar-service
   annotations:
     cloud.google.com/backend-config: '{"default": "traccar-client-config"}'
+    cloud.google.com/neg: '{"ingress": true}'
 spec:
   type: ClusterIP
   ports:
