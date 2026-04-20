@@ -232,6 +232,10 @@ wordpress:
   # This creates a new deployment instead of patching the existing one.
   fullnameOverride: "airsportsrelease-wordpress-v2"
 
+  service:
+    annotations:
+      cloud.google.com/neg: '{"ingress": true}'
+
   # WordPress Setup Configuration
   wordpress:
     siteUrl: "https://home.airsports.no"
