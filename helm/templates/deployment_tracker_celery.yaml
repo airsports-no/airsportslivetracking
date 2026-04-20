@@ -15,6 +15,10 @@ spec:
         date: "{{ now | unixEpoch }}"
     spec:
       terminationGracePeriodSeconds: 25
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 200
+        fsGroup: 200
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
