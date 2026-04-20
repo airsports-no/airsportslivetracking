@@ -2208,3 +2208,42 @@ def fly_master_data_post(request):
         data = request.POST["data"]
         process_flymaster_file.apply_async((data,))
     return HttpResponse("OK", status=status.HTTP_200_OK)
+
+
+class MapGenerationStatusView(LoginRequiredMixin, TemplateView):
+    template_name = "display/map_generation_status.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        task_id = self.kwargs.get("task_id")
+        contestant_id = self.kwargs.get("contestant_id")
+        if contestant_id == 0:
+            contestant_id = "None"
+            
+        context["task_id"] = task_id
+        context["contestant_id"] = contestant_id
+        
+        # We use '0' in the URL to represent None for contestant_id
+        c_id_for_url = self.kwargs.get("contestant_id")
+        
+        context["check_url"] = reverse("check_map_generation_status", kwargs={
+            "task_id": task_id,
+            "contestant_id": c_id_for_url
+        })
+        
+        task = get_object_or_404(NavigationTask, pk=task_id)
+        context["navigation_task"] = task
+        if c_id_for_url != 0:
+            context["contestant"] = get_object_or_404(Contestant, pk=c_id_for_url)
+            
+        return context
+
+@login_required
+def check_map_generation_status(request, task_id, contestant_id):
+    user_id = request.user.id
+    c_id = None if contestant_id == 0 else contestant_id
+    cache_key = f"map_gen_result_{task_id}_{c_id}_{user_id}"
+    result = cache.get(cache_key)
+    if result:
+        return JsonResponse(result)
+    return JsonResponse({"status": "pending"})
