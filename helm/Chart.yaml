@@ -32,7 +32,7 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
     condition: redis.enabled
   - name: wordpress
-    version: ~26.0.0
-    repository: https://charts.bitnami.com/bitnami
+    version: 1.2.5 # Latest stable HelmForge version as of April 2026
+    repository: https://repo.helmforge.dev
     condition: wordpress.enabled
 

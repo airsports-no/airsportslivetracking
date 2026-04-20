@@ -167,26 +167,36 @@ redis:
 
 wordpress:
   enabled: true
-  wordpressUsername: kolaf
-  mariadb:
-    enabled: false
-
-  externalDatabase:
-    host: 10.95.241.3
-    database: bitnami_wordpress
-    user: bn_wordpress
-
-  wordpressEmail: frankose@ifi.uio.no
-  wordpressFirstName: Frank Olaf
-  wordpressLastName: Sem-Jacobsen
-  wordpressBlogName: Air Sports Live Tracking
-
-  smtpHost: pro.turbo-smtp.com
-  smtpPort: "587"
-  smtpUser: e1a92a30e397f335217d
+  
+  # HelmForge uses the official WordPress image by default
   image:
-    repository: bitnamilegacy/wordpress
-
+    tag: "6.7-apache"
+  
+  # External Database Configuration (HelmForge style)
+  database:
+    host: 10.95.241.3
+    name: bitnami_wordpress
+    user: bn_wordpress
+    # Note: Password should be provided via secret or --set wordpress.database.password
+  
+  # Admin User
+  admin:
+    user: kolaf
+    email: frankose@ifi.uio.no
+  
+  # Blog Settings
+  site:
+    name: "Air Sports Live Tracking"
+  
+  # SMTP Configuration (HelmForge style)
+  smtp:
+    enabled: true
+    host: pro.turbo-smtp.com
+    port: 587
+    user: e1a92a30e397f335217d
+    # Note: Password should be provided via secret
+  
+  # GKE Autopilot Affinity
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -197,30 +207,28 @@ wordpress:
                 values:
                   - "true"
 
-
-  extraVolumeMounts:
-    - name: php-ini
-      #subPath: conf.d
-      mountPath: /opt/bitnami/php/etc/conf.d
-
-  extraVolumes:
-    - name: php-ini
-      configMap:
-        name: php-ini
-  allowOverrideNone: false
-
+  # Resource Optimization for Autopilot
   resources:
     requests:
-      cpu: 200m
-      memory: 400Mi
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
 
+  # Persistent Storage
+  persistence:
+    enabled: true
+    size: 10Gi
+    mountPath: /var/www/html/wp-content # Official image path
 
-  # ConfigMap with custom wordpress-htaccess.conf file (requires allowOverrideNone to true)
-  customHTAccessCM: prod-wordpress-cm
-  service:
-    type: ClusterIP
-  ingress:
-    enabled: false
+  # Custom PHP configuration
+  # HelmForge supports direct php.ini snippets
+  customPhpConfig: |
+    max_file_uploads = 512M
+    post_max_size = 512M
+    max_execution_time = 300
+    max_input_time = 300
 
 
 mysql:
