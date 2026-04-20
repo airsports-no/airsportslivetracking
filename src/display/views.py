@@ -572,10 +572,12 @@ def get_contestant_map(request, pk):
                 request.user.id
             )
             
-            return redirect(reverse("map_generation_status", kwargs={
+            redirect_url_status = reverse("map_generation_status", kwargs={
                 "task_id": contestant.navigation_task.pk,
                 "contestant_id": contestant.pk
-            }))
+            })
+            logger.info(f"Redirecting contestant map to: {redirect_url_status}")
+            return redirect(redirect_url_status)
             
     else:
         configuration = contestant.navigation_task.flightorderconfiguration
@@ -689,10 +691,12 @@ def get_contestant_default_map(request, pk):
         request.user.id
     )
     
-    return redirect(reverse("map_generation_status", kwargs={
+    redirect_url_status = reverse("map_generation_status", kwargs={
         "task_id": contestant.navigation_task.pk,
         "contestant_id": contestant.pk
-    }))
+    })
+    logger.info(f"Redirecting default contestant map to: {redirect_url_status}")
+    return redirect(redirect_url_status)
 
 
 def get_contestant_email_flight_orders_link(request, key):
@@ -840,10 +844,12 @@ def get_navigation_task_map(request, pk):
                 request.user.id
             )
             
-            return redirect(reverse("map_generation_status", kwargs={
+            redirect_url_status = reverse("map_generation_status", kwargs={
                 "task_id": navigation_task.pk,
                 "contestant_id": 0 # Use 0 to represent None in URL
-            }))
+            })
+            logger.info(f"Redirecting task map to: {redirect_url_status}")
+            return redirect(redirect_url_status)
             
     else:
         configuration = navigation_task.flightorderconfiguration

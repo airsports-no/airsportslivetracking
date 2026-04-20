@@ -35,10 +35,20 @@ urlpatterns = [
     path("api/schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("api/v1/reverse-urls/", cache_page(3600)(urls_json), name="js_reverse"),
-    path("api/v1/", include(api.urlpatters)),
+    path("api/v1/", include(api.urlpatterns)),
     path(
         "global/contest_details/<int:pk>/",
         RedirectView.as_view(url="/mission-dashboard/%(pk)s/", permanent=True, query_string=True),
     ),
+]
+
+from django.conf import settings
+from django.conf.urls.static import static
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+urlpatterns += [
     re_path(r"^.?", FrontEndView.as_view(), name="frontend"),
 ]

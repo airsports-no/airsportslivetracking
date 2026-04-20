@@ -50,7 +50,7 @@ router.register(r"editableroutes", EditableRouteViewSet, basename="editableroute
 # results_details_router = routers.NestedSimpleRouter(router, r'contestresults', lookup='contest')
 # results_details_router.register(r'details', ContestResultsDetailsViewSet, basename="contestresultsdetails")
 
-urlpatters = [
+urlpatterns = [
     path("", include(router.urls)),
     path("", include(navigation_task_router.urls)),
     path("", include(contestant_router.urls)),

@@ -283,11 +283,13 @@ if os.environ.get("MODE") == "dev" or IS_UNIT_TESTING:
         "OPTIONS": {"location": "/tmp/media", "base_url": "/media/"},
     }
     MEDIA_ROOT_URL = "/media/"
+
     STORAGES["staticfiles"] = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
         "OPTIONS": {"location": "/static", "base_url": "/static/"},
     }
     STATIC_URL = "/static/"
+    STATIC_ROOT = "/static"
 
 
 TEMPORARY_FOLDER = "/tmp"
