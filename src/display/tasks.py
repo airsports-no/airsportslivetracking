@@ -4,6 +4,7 @@ from typing import Optional
 
 import redis_lock
 from django.core.cache import cache
+from django.core.files.base import ContentFile
 from django.db import connections
 from celery.schedules import crontab
 from django.core.exceptions import ObjectDoesNotExist
