@@ -2202,7 +2202,7 @@ def firebase_token_login(request):
         user, decoded_token = firebase_authenticator.authenticate_credentials(token)
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     except drf_exceptions.AuthenticationFailed as e:
-        logger.exception("Firebase login with token from app failed")
+        logger.warning("Firebase login with token from app failed: %s", e)
         messages.error(request, f"Login failed: {e}")
     return redirect("/")
 
