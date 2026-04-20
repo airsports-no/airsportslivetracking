@@ -305,10 +305,13 @@ wordpress:
   
   # External Database Configuration (HelmForge style)
   database:
-    host: 10.95.241.3
-    name: bitnami_wordpress
-    user: bn_wordpress
-    # Note: Password should be provided via secret or --set wordpress.database.password
+    mode: external
+    external:
+      host: 10.95.241.3
+      name: bitnami_wordpress
+      username: bn_wordpress
+      existingSecret: "airsportsrelease-wordpress-database"
+    # Note: Password should be provided via secret or --set wordpress.database.external.password
   
   # Admin User
   admin:
@@ -355,26 +358,18 @@ wordpress:
     size: 10Gi
     mountPath: /var/www/html/wp-content # Official image path
 
-  # MySQL subchart for WordPress (used if external database is not reachable or as fallback)
+  # MySQL subchart for WordPress is disabled as we use an external database
   mysql:
-    enabled: true
-    standalone:
-      resources:
-        requests:
-          cpu: 500m
-          memory: 512Mi
-        limits:
-          cpu: 500m
-          memory: 512Mi
-      terminationGracePeriodSeconds: 25
+    enabled: false
 
-  # Custom PHP configuration
-  # HelmForge supports direct php.ini snippets
-  customPhpConfig: |
-    max_file_uploads = 512M
-    post_max_size = 512M
-    max_execution_time = 300
-    max_input_time = 300
+  # PHP configuration (php.ini)
+  php:
+    ini: |
+      upload_max_filesize = 512M
+      post_max_size = 512M
+      memory_limit = 512M
+      max_execution_time = 300
+      max_input_time = 300
 
 
 mysql:
