@@ -51,7 +51,7 @@ spec:
         resources:
           requests:
             cpu: 1000m
-            memory: 5Gi  # Uses 160Mi
+            memory: 2Gi  # Uses 160Mi
           limits:
             memory: 5Gi
         volumeMounts:
