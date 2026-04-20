@@ -167,31 +167,48 @@ redis:
   # GKE Autopilot Resource Alignment
   resources:
     requests:
-      cpu: 250m
+      cpu: 500m
       memory: 512Mi
     limits:
-      cpu: 250m
+      cpu: 500m
       memory: 512Mi
+  
+  init:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 128Mi
   
   # Sentinel nodes are small but critical for failover
   sentinel:
     resources:
       requests:
-        cpu: 100m
+        cpu: 500m
         memory: 256Mi
       limits:
-        cpu: 100m
+        cpu: 500m
         memory: 256Mi
 
   haproxy:
     enabled: true # Provides a single stable endpoint for the app
     resources:
       requests:
-        cpu: 100m
+        cpu: 500m
         memory: 128Mi
       limits:
-        cpu: 100m
+        cpu: 500m
         memory: 128Mi
+    init:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 128Mi
 
 wordpress:
   enabled: true
