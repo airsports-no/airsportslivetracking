@@ -232,10 +232,6 @@ wordpress:
   # This creates a new deployment instead of patching the existing one.
   fullnameOverride: "airsportsrelease-wordpress-v2"
 
-  # HelmForge uses the official WordPress image by default
-  image:
-    tag: "6.7-apache"
-  
   # WordPress Setup Configuration
   wordpress:
     siteUrl: "https://home.airsports.no"
