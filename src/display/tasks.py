@@ -1,5 +1,4 @@
 import datetime
-import json
 import logging
 from typing import Optional
 
@@ -19,6 +18,7 @@ from display.flight_order_and_maps.map_plotter import plot_route
 from django.core.files.storage import default_storage
 from django.utils.text import slugify
 
+from display.models.contestant import Contestant
 from display.models.flymaster_data import FlymasterData
 from live_tracking_map.celery import app
 from live_tracking_map.settings import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
