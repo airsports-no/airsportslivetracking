@@ -94,7 +94,7 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
-          serviceName: airsportsrelease-wordpress
+          serviceName: airsportsrelease-wordpress-v2
           servicePort: 80
     - host: traccarclient.airsports.no
       paths:
@@ -173,6 +173,8 @@ redis:
       cpu: 500m
       memory: 512Mi
   
+  terminationGracePeriodSeconds: 25
+  
   init:
     resources:
       requests:
@@ -182,8 +184,18 @@ redis:
         cpu: 500m
         memory: 128Mi
   
+  splitBrainDetection:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 128Mi
+
   # Sentinel nodes are small but critical for failover
   sentinel:
+    terminationGracePeriodSeconds: 25
     resources:
       requests:
         cpu: 500m
@@ -194,6 +206,7 @@ redis:
 
   haproxy:
     enabled: true # Provides a single stable endpoint for the app
+    terminationGracePeriodSeconds: 25
     resources:
       requests:
         cpu: 500m
@@ -213,6 +226,10 @@ redis:
 wordpress:
   enabled: true
   
+  # Override name to avoid spec.selector immutability error on upgrade
+  # This creates a new deployment instead of patching the existing one.
+  fullnameOverride: "airsportsrelease-wordpress-v2"
+
   # HelmForge uses the official WordPress image by default
   image:
     tag: "6.7-apache"
@@ -252,20 +269,35 @@ wordpress:
                 values:
                   - "true"
 
-  # Resource Optimization for Autopilot
+  # GKE Autopilot Resource Alignment
   resources:
     requests:
-      cpu: 250m
+      cpu: 500m
       memory: 512Mi
     limits:
-      cpu: 250m
+      cpu: 500m
       memory: 512Mi
+
+  terminationGracePeriodSeconds: 25
 
   # Persistent Storage
   persistence:
     enabled: true
     size: 10Gi
     mountPath: /var/www/html/wp-content # Official image path
+
+  # MySQL subchart for WordPress (used if external database is not reachable or as fallback)
+  mysql:
+    enabled: true
+    primary:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      terminationGracePeriodSeconds: 25
 
   # Custom PHP configuration
   # HelmForge supports direct php.ini snippets
@@ -285,6 +317,10 @@ mysql:
       create: true
     resources:
       requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 500m
         memory: 2Gi
 #      limits:
 #        memory: 8Gi

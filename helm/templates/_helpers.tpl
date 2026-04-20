@@ -33,7 +33,7 @@ If release name contains chart name it will be used as a full name.
 
 {{- define "live_tracking.redisHost" }}
 {{- if .Values.redis.enabled }}
-{{- printf "%s-redis-ha-haproxy" .Release.Name }}
+{{- printf "%s-redis-haproxy" .Release.Name }}
 {{- else }}
 {{- .Values.externalRedis.host }}
 {{- end }}

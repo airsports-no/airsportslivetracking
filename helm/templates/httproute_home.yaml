@@ -10,5 +10,5 @@ spec:
   - "home.airsports.no"
   rules:
   - backendRefs:
-    - name: airsportsrelease-wordpress
+    - name: airsportsrelease-wordpress-v2
       port: 80
