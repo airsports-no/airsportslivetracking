@@ -17,11 +17,10 @@ To host a contest, you need **Organizer** status. This is **automatically approv
 1.  Access the **Contest Management Dashboard** by selecting **"My contests"** from the Management menu.
 2.  Click **"Create New Contest"**.
 3.  **Name & Location:** Provide a descriptive name and geolocation.
-4.  **Visibility:**
-    *   `is_public = false`: Private setup mode. Only visible to you.
-    *   `is_public = true` & `is_featured = false`: Unlisted. Accessible via a direct link.
-    *   `is_public = true` & `is_featured = true`: Publicly listed on the global map.
-
+4.  **Sharing:**
+    *   **Private:** Only visible to the creator.
+    *   **Unlisted:** Accessible via a direct link.
+    *   **Public:** Publicly listed on the global map.
 ---
 
 ## 2. Creating Navigation Tasks

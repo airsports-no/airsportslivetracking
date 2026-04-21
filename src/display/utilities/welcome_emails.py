@@ -1,7 +1,5 @@
 from django.template import Template, Context
-
-from wordpress_facade import get_page, WELCOME_EMAIL_PAGE, EMAIL_SIGNATURE_PAGE, CONTEST_CREATION_EMAIL_PAGE, \
-    DELETION_EMAIL_PAGE
+from .email_templates import WELCOME_EMAIL, CONTEST_CREATION_EMAIL, DELETION_EMAIL, EMAIL_SIGNATURE
 
 HEADER = """
 <html><body style='font-family: "Calibri", Arial, sans-serif;'>
@@ -12,24 +10,18 @@ FOOTER = """
 
 
 def render_welcome_email(person: "Person") -> str:
-    welcome = get_page(WELCOME_EMAIL_PAGE).get("content", {}).get("rendered", "")
-    signature = get_page(EMAIL_SIGNATURE_PAGE).get("content", {}).get("rendered", "")
-    template = Template(HEADER + welcome + signature + FOOTER)
+    template = Template(HEADER + WELCOME_EMAIL + EMAIL_SIGNATURE + FOOTER)
     context = Context({"person": person})
     return template.render(context)
 
 
 def render_contest_creation_email(person: "Person") -> str:
-    welcome = get_page(CONTEST_CREATION_EMAIL_PAGE).get("content", {}).get("rendered", "")
-    signature = get_page(EMAIL_SIGNATURE_PAGE).get("content", {}).get("rendered", "")
-    template = Template(HEADER + welcome + signature + FOOTER)
+    template = Template(HEADER + CONTEST_CREATION_EMAIL + EMAIL_SIGNATURE + FOOTER)
     context = Context({"person": person})
     return template.render(context)
 
 
 def render_deletion_email():
-    deletion = get_page(DELETION_EMAIL_PAGE).get("content", {}).get("rendered", "")
-    signature = get_page(EMAIL_SIGNATURE_PAGE).get("content", {}).get("rendered", "")
-    template = Template(HEADER + deletion + signature + FOOTER)
+    template = Template(HEADER + DELETION_EMAIL + EMAIL_SIGNATURE + FOOTER)
     context = Context()
     return template.render(context)

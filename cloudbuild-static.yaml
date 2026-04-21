@@ -11,17 +11,18 @@ steps:
   args: ['run', 'build']
   dir: 'airsports_static'
 
-# 3. Deploy to Firebase using npx (No custom builder required)
+# 3. Deploy to Firebase using a specific site ID
 - name: 'node:22'
   entrypoint: 'bash'
   args: 
     - '-c'
     - |
-      npx firebase-tools deploy --project ${_FIREBASE_PROJECT_ID} --only hosting
+      npx firebase-tools deploy --project ${_FIREBASE_PROJECT_ID} --only hosting:${_FIREBASE_SITE_ID}
   dir: 'airsports_static'
 
 substitutions:
-  _FIREBASE_PROJECT_ID: 'YOUR_NEW_FIREBASE_PROJECT_ID'
+  _FIREBASE_PROJECT_ID: 'YOUR_PROJECT_ID'
+  _FIREBASE_SITE_ID: 'YOUR_SITE_ID'
 
 options:
   logging: CLOUD_LOGGING_ONLY

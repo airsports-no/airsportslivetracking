@@ -44,3 +44,4 @@ src/static/output.css
 firebase-admin
 manifest.json*
 scraper_venv/
+*.cache
