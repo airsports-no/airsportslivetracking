@@ -19,6 +19,7 @@ metadata:
   name: tracker-daphne-service-ingress
   annotations:
     cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "websocket-backend"}'
 spec:
   ports:
   - port: 80
@@ -34,6 +35,7 @@ metadata:
   name: traccar-service-ingress
   annotations:
     cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "traccar-client-config"}'
 spec:
   ports:
   - port: 8082
@@ -54,6 +56,7 @@ metadata:
   name: airsportsrelease-wordpress-v2-ingress
   annotations:
     cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "wordpress-backend-config"}'
 spec:
   ports:
   - port: 80
@@ -71,6 +74,7 @@ metadata:
   name: mbtiles-service-ingress
   annotations:
     cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "mbtiles-backend-config"}'
 spec:
   ports:
   - port: 80
