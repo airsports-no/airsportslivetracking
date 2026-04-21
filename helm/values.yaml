@@ -94,7 +94,7 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
-          serviceName: airsportsrelease-wordpress-v2-ingress
+          serviceName: wp-v2-ingress
           servicePort: 80
     - host: traccarclient.airsports.no
       paths:

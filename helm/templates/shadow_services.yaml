@@ -53,7 +53,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: airsportsrelease-wordpress-v2-ingress
+  name: wp-v2-ingress
   annotations:
     cloud.google.com/neg: '{"ingress": true}'
     cloud.google.com/backend-config: '{"default": "wordpress-backend-config"}'

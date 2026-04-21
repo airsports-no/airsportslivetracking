@@ -5,6 +5,6 @@ metadata:
 spec:
   healthCheck:
     checkIntervalSec: 15
-    port: 80
+    port: 8000
     requestPath: /services/
     type: HTTP
