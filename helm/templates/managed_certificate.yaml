@@ -6,6 +6,7 @@ metadata:
 spec:
   domains:
     - home.airsports.no
+    - home.gcloud.airsports.no
     - airsports.no
     - www.airsports.no
     - traccar.airsports.no
