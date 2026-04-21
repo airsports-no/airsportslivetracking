@@ -54,9 +54,6 @@ metadata:
   name: airsportsrelease-wordpress-v2-ingress
   annotations:
     cloud.google.com/neg: '{"ingress": true}'
-    # We use a BackendConfig here only if we're sure it won't be seen by Gateway.
-    # But since this service is NOT in an HTTPRoute, it's safe!
-    cloud.google.com/backend-config: '{"default": "wordpress-backend-config"}'
 spec:
   ports:
   - port: 80

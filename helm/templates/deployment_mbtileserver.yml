@@ -44,6 +44,9 @@ spec:
       containers:
         - name: mbtiles
           image: ghcr.io/consbio/mbtileserver:latest
+          ports:
+            - containerPort: 8000
+              name: http
           command: ["/mbtileserver",  "--enable-reload-signal"]
           resources:
             requests:
