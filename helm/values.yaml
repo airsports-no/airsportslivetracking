@@ -241,6 +241,8 @@ wordpress:
     tablePrefix: "wp_"
     debug: true
     configExtra: |
+      define('WP_HOME', 'https://home.airsports.no');
+      define('WP_SITEURL', 'https://home.airsports.no');
       // Robust HTTPS offloading detection
       if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) {
           $_SERVER['HTTPS'] = 'on';
