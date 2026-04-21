@@ -8,3 +8,6 @@ spec:
     port: 80
     requestPath: /wp-admin/install.php
     type: HTTP
+    healthyThreshold: 1
+    unhealthyThreshold: 3
+    timeoutSec: 5
