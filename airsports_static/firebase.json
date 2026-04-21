@@ -1,6 +1,7 @@
 {
   "hosting": {
     "public": "dist",
+    "site": "airsports-info-1747b",
     "ignore": [
       "firebase.json",
       "**/.*",
