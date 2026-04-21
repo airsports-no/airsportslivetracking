@@ -68,45 +68,45 @@ ingress:
       paths:
         - path: /ws/
           pathType: Prefix
-          serviceName: tracker-daphne-service
+          serviceName: tracker-daphne-service-ingress
           servicePort: 80
         - path: /
           pathType: Prefix
-          serviceName: tracker-web-service
+          serviceName: tracker-web-service-ingress
           servicePort: 80
     - host: www.airsports.no
       paths:
         - path: /ws/
           pathType: Prefix
-          serviceName: tracker-daphne-service
+          serviceName: tracker-daphne-service-ingress
           servicePort: 80
         - path: /
           pathType: Prefix
-          serviceName: tracker-web-service
+          serviceName: tracker-web-service-ingress
           servicePort: 80
     - host: traccar.airsports.no
       paths:
         - path: /
           pathType: Prefix
-          serviceName: traccar-service
+          serviceName: traccar-service-ingress
           servicePort: 8082
     - host: home.airsports.no
       paths:
         - path: /
           pathType: Prefix
-          serviceName: airsportsrelease-wordpress-v2
+          serviceName: airsportsrelease-wordpress-v2-ingress
           servicePort: 80
     - host: traccarclient.airsports.no
       paths:
         - path: /
           pathType: Prefix
-          serviceName: traccar-service
+          serviceName: traccar-service-ingress
           servicePort: 5055
     - host: mbtiles.airsports.no
       paths:
         - path: /
           pathType: Prefix
-          serviceName: mbtiles-service
+          serviceName: mbtiles-service-ingress
           servicePort: 80
 
 resources: {}
@@ -231,11 +231,6 @@ wordpress:
   # Override name to avoid spec.selector immutability error on upgrade
   # This creates a new deployment instead of patching the existing one.
   fullnameOverride: "airsportsrelease-wordpress-v2"
-
-  service:
-    annotations:
-      cloud.google.com/neg: '{"ingress": true}'
-      cloud.google.com/backend-config: '{"default": "wordpress-backend-config"}'
 
   # WordPress Setup Configuration
   wordpress:
