@@ -309,6 +309,10 @@ wordpress:
   mysql:
     enabled: false
 
+  # Disable NetworkPolicy as it blocks Load Balancer health checks
+  networkPolicy:
+    enabled: false
+
   # PHP configuration (php.ini)
   php:
     ini: |

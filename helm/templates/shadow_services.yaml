@@ -60,7 +60,7 @@ metadata:
 spec:
   ports:
   - port: 80
-    targetPort: http
+    targetPort: 80
     protocol: TCP
   selector:
     app.kubernetes.io/component: wordpress
