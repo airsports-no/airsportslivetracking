@@ -1,0 +1,27 @@
+steps:
+# 1. Install dependencies
+- name: 'node:22'
+  entrypoint: 'npm'
+  args: ['install']
+  dir: 'airsports_static'
+
+# 2. Build the Astro site
+- name: 'node:22'
+  entrypoint: 'npm'
+  args: ['run', 'build']
+  dir: 'airsports_static'
+
+# 3. Deploy to Firebase using npx (No custom builder required)
+- name: 'node:22'
+  entrypoint: 'bash'
+  args: 
+    - '-c'
+    - |
+      npx firebase-tools deploy --project ${_FIREBASE_PROJECT_ID} --only hosting
+  dir: 'airsports_static'
+
+substitutions:
+  _FIREBASE_PROJECT_ID: 'YOUR_NEW_FIREBASE_PROJECT_ID'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

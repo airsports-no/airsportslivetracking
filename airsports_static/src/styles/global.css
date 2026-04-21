@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-lexend: "Lexend", sans-serif;
+}
+
+/* Custom Markdown Content Styles - Modern & Aviation Inspired */
+.prose-custom h1 { @apply text-4xl md:text-5xl font-extrabold mb-10 text-slate-900 tracking-tight font-lexend italic uppercase; }
+.prose-custom h2 { @apply text-2xl md:text-3xl font-bold mt-16 mb-6 text-slate-800 border-b-2 border-slate-100 pb-3 font-lexend italic uppercase tracking-tight; }
+.prose-custom h3 { @apply text-xl font-bold mt-10 mb-4 text-slate-800 font-lexend uppercase tracking-wide; }
+.prose-custom p { @apply mb-6 text-slate-600 leading-relaxed text-base md:text-lg font-medium; }
+.prose-custom ul { @apply mb-8 space-y-3 text-slate-600 list-none; }
+.prose-custom ul li { @apply relative pl-8 before:content-[''] before:absolute before:left-0 before:top-2 before:w-5 before:h-5 before:bg-blue-50 before:rounded-lg before:border before:border-blue-200 after:content-['✓'] after:absolute after:left-1 after:top-1.5 after:text-[10px] after:text-blue-600 after:font-bold; }
+.prose-custom ol { @apply list-decimal list-inside mb-8 space-y-3 text-slate-600 font-medium; }
+.prose-custom img { @apply rounded-[2rem] shadow-2xl my-12 border-4 border-white ring-1 ring-slate-200 mx-auto transform hover:scale-[1.01] transition-transform duration-500; }
+.prose-custom code { @apply bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg text-sm font-mono font-bold border border-blue-100; }
+.prose-custom blockquote { @apply border-l-4 border-blue-600 bg-blue-50/50 p-8 rounded-r-3xl italic text-slate-700 my-10 font-medium text-lg shadow-sm; }
+.prose-custom hr { @apply border-slate-200 my-16 opacity-50; }
+
+/* Dashboard-like utility classes */
+.doc-card { @apply bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50; }

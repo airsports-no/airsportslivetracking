@@ -11,7 +11,7 @@ ASLT can be run locally using the docker-compose.yml file, and it is designed to
 A user manual for content creators is available [here](documentation/Airsports%20Live%20Tracking%20user%20manual.pdf). It is a bit outdated and contributions are welcome. An additional user manual for the results service can be downloaded [here](documentation/Using%20the%20Air%20Sports%20Live%20Tracking%20results%20service.docx). Both these documents should preferably be moved to the wiki for easy maintenance and improved availability.
 
 ## API
-The API is documented using [swagger](https://airsports.no/docs/). This [guide](documentation/AirSports%20third%20party%20contest%20tool%20API.docx) provides a brief overview of how to use the api to create new navigation tasks and manage contestants.
+The API is documented using [swagger](https://airsports.no/api/schema/swagger-ui/). This [guide](documentation/AirSports%20third%20party%20contest%20tool%20API.docx) provides a brief overview of how to use the api to create new navigation tasks and manage contestants.
 
 ## Tracking
 ASLT uses the [traccar.org](traccar.org) open source tracking server for receiving position reports from users. This allows for support of a wide range of hardware and software trackers.

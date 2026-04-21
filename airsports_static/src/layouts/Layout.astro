@@ -1,0 +1,112 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content="Air Sports Live Tracking - Professional competition flying platform" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/png" href="/img/airsports_no_text.png" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title} | Air Sports Live Tracking</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Lexend:wght@400;700&display=swap" rel="stylesheet">
+	</head>
+	<body class="bg-slate-50 text-slate-900 font-sans">
+        <nav class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-20 items-center">
+                    <div class="flex items-center gap-4">
+                        <a href="/" class="flex items-center gap-3 group">
+                            <img src="/img/airsports_no_text.png" alt="ASLT Logo" class="h-10 w-auto group-hover:rotate-12 transition-transform duration-300" />
+                            <div class="flex flex-col leading-tight">
+                                <span class="text-[#2563EB] font-bold text-xl tracking-tighter font-lexend italic">AIR SPORTS</span>
+                                <span class="text-slate-500 font-medium text-[10px] uppercase tracking-[0.2em]">Live Tracking</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="hidden md:flex items-center space-x-6 lg:space-x-8">
+                        <a href="/" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Home</a>
+                        <a href="/docs/01_Introduction" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Guides</a>
+                        <a href="/faq" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">FAQ</a>
+                        <a href="/developers" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Developers</a>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="text-slate-400 hover:text-slate-600 hidden sm:block transition-colors" title="Join our Slack">
+                            <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.528 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.528 0 0 1 2.521-2.52 2.528 2.528 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52h-2.521zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm6.331-1.271a2.528 2.528 0 0 1 2.521-2.522A2.528 2.528 0 0 1 20.208 5.042a2.528 2.528 0 0 1-2.521 2.52h-2.521v-2.52zm-1.271 0a2.528 2.528 0 0 1-2.521 2.522 2.528 2.528 0 0 1-2.521-2.522V2.522A2.528 2.528 0 0 1 11.373 0a2.528 2.528 0 0 1 2.521 2.522v6.312zM15.165 18.958a2.528 2.528 0 0 1 2.522 2.521A2.528 2.528 0 0 1 15.165 24a2.528 2.528 0 0 1-2.522-2.521v-2.52h2.522zm0-1.271a2.528 2.528 0 0 1-2.522-2.521 2.528 2.528 0 0 1 2.522-2.521h6.313A2.528 2.528 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.52h-6.313z"/></svg>
+                        </a>
+                        <a href="https://airsports.no" class="bg-[#2563EB] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 text-sm active:scale-95 uppercase tracking-wider">
+                            Airsports Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+		<slot />
+
+        <footer class="bg-[#0F172A] text-slate-400 py-20 mt-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-16">
+                    <div class="col-span-1 md:col-span-2">
+                        <img src="/img/airsports_live_tracking_white.png" alt="ASLT Logo White" class="h-12 w-auto mb-8 opacity-90" />
+                        <p class="text-base leading-relaxed max-w-md text-slate-400">
+                            The world's leading open-source scoring platform for aircraft competitions. Modernizing air sports through real-time technology and non-profit dedication.
+                        </p>
+                        <div class="flex gap-6 mt-8">
+                            <a href="https://github.com/airsports-no/airsportslivetracking" class="text-slate-500 hover:text-white transition-colors flex items-center gap-2">
+                                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.298 24 12c0-6.627-5.373-12-12-12"/></svg>
+                                GitHub
+                            </a>
+                            <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="text-slate-500 hover:text-white transition-colors flex items-center gap-2">
+                                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.528 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.528 0 0 1 2.521-2.52 2.528 2.528 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52h-2.521zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm6.331-1.271a2.528 2.528 0 0 1 2.521-2.522A2.528 2.528 0 0 1 20.208 5.042a2.528 2.528 0 0 1-2.521 2.52h-2.521v-2.52zm-1.271 0a2.528 2.528 0 0 1-2.521 2.522 2.528 2.528 0 0 1-2.521-2.522V2.522A2.528 2.528 0 0 1 11.373 0a2.528 2.528 0 0 1 2.521 2.522v6.312zM15.165 18.958a2.528 2.528 0 0 1 2.522 2.521A2.528 2.528 0 0 1 15.165 24a2.528 2.528 0 0 1-2.522-2.521v-2.52h2.522zm0-1.271a2.528 2.528 0 0 1-2.522-2.521 2.528 2.528 0 0 1 2.522-2.521h6.313A2.528 2.528 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.52h-6.313z"/></svg>
+                                Slack
+                            </a>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-bold mb-6 uppercase tracking-[0.2em] text-xs">Resources</h4>
+                        <ul class="space-y-3 text-sm font-medium">
+                            <li><a href="/docs/01_Introduction" class="hover:text-white transition-colors uppercase tracking-wider">User Guides</a></li>
+                            <li><a href="/faq" class="hover:text-white transition-colors uppercase tracking-wider">FAQ</a></li>
+                            <li><a href="/developers" class="hover:text-white transition-colors uppercase tracking-wider">Developer Portal</a></li>
+                            <li><a href="https://airsports.no/api/schema/swagger-ui/" class="hover:text-white transition-colors uppercase tracking-wider text-blue-400">API Docs</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-bold mb-6 uppercase tracking-[0.2em] text-xs">Project</h4>
+                        <ul class="space-y-3 text-sm font-medium">
+                            <li><a href="/terms" class="hover:text-white transition-colors uppercase tracking-wider">Terms of Service</a></li>
+                        </ul>
+                        <p class="mt-12 text-sm italic font-lexend text-orange-400">“Competition flying made easy.”</p>
+                    </div>
+                </div>
+                <div class="border-t border-slate-800 mt-20 pt-10 text-[10px] flex flex-col md:flex-row justify-between items-center gap-4 text-slate-500 uppercase tracking-widest font-semibold">
+                    <p>© 2024 Air Sports Live Tracking. Open Source (MIT).</p>
+                    <p>Primary Server Status: <span class="text-green-500 ml-1 underline decoration-green-500/30 underline-offset-4 decoration-2 italic uppercase">Operational</span></p>
+                </div>
+            </div>
+        </footer>
+	</body>
+</html>
+
+<style is:global>
+	:root {
+		--accent: 37, 99, 235;
+	}
+    body {
+        font-family: 'Inter', sans-serif;
+    }
+    h1, h2, h3, h4 {
+        font-family: 'Lexend', sans-serif;
+    }
+</style>

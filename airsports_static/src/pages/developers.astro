@@ -1,0 +1,132 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Developers">
+    <div class="bg-slate-900 text-white py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 class="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">Open Source <span class="text-blue-400 font-mono">Development</span></h1>
+            <p class="text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed">
+                Air Sports Live Tracking is built by the community, for the community. 
+                Join us in modernizing air sports technology.
+            </p>
+            <div class="mt-10 flex justify-center gap-6">
+                <a href="https://github.com/airsports-no/airsportslivetracking" class="bg-white text-slate-900 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-100 transition-all">
+                    GitHub Repository
+                </a>
+                <a href="https://airsports.no/api/schema/swagger-ui/" class="bg-slate-800 text-white border border-slate-700 px-6 py-3 rounded-xl font-bold hover:bg-slate-700 transition-all">
+                    API Documentation (Swagger)
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-16">
+            <div class="lg:col-span-2 space-y-12">
+                <section>
+                    <h2 class="text-3xl font-bold mb-6 flex items-center gap-3">
+                        <span class="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-sm italic">01</span>
+                        Technology Stack
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h4 class="font-bold text-slate-900 mb-2">Backend</h4>
+                            <p class="text-sm text-slate-600">Django 5, Python 3.12, and Daphne for high-performance WebSocket handling.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h4 class="font-bold text-slate-900 mb-2">Frontend</h4>
+                            <p class="text-sm text-slate-600">Modern React with Vite, styled with Tailwind CSS for a responsive experience.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h4 class="font-bold text-slate-900 mb-2">Real-time</h4>
+                            <p class="text-sm text-slate-600">Redis and Django Channels for live position processing and scoreboard updates.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h4 class="font-bold text-slate-900 mb-2">Deployment</h4>
+                            <p class="text-sm text-slate-600">Kubernetes (GKE) managed with Helm, with local support via Docker Compose.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="text-3xl font-bold mb-6 flex items-center gap-3">
+                        <span class="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-sm italic">02</span>
+                        Quick Start
+                    </h2>
+                    <div class="prose prose-slate max-w-none">
+                        <p class="text-slate-600 mb-6">
+                            To quickly get started with development, build the dev container in VS Code. This sets up the full environment, starts watchers for frontend resources, and launches the development servers.
+                        </p>
+                        <div class="bg-slate-900 rounded-2xl p-6 overflow-hidden shadow-2xl">
+                            <div class="flex gap-2 mb-4">
+                                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                            </div>
+                            <code class="text-blue-400 text-sm block mb-2"># Clone and build</code>
+                            <code class="text-slate-100 text-sm block mb-4">$ git clone https://github.com/airsports-no/airsportslivetracking.git</code>
+                            <code class="text-blue-400 text-sm block mb-2"># Start the environment</code>
+                            <code class="text-slate-100 text-sm block">$ docker compose up tracker_daphne</code>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="text-3xl font-bold mb-6 flex items-center gap-3">
+                        <span class="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-sm italic">03</span>
+                        Architecture
+                    </h2>
+                    <ul class="space-y-6">
+                        <li class="flex gap-4">
+                            <div class="text-blue-600 font-bold">Daphne</div>
+                            <div>
+                                <p class="text-slate-600"><strong class="text-slate-900">Web Server:</strong> Services both HTTP and WebSocket traffic for real-time map updates.</p>
+                            </div>
+                        </li>
+                        <li class="flex gap-4">
+                            <div class="text-blue-600 font-bold">Celery</div>
+                            <div>
+                                <p class="text-slate-600"><strong class="text-slate-900">Batch Processing:</strong> Handles heavy tasks like track recalculation and flight order PDF generation.</p>
+                            </div>
+                        </li>
+                        <li class="flex gap-4">
+                            <div class="text-blue-600 font-bold">Processor</div>
+                            <div>
+                                <p class="text-slate-600"><strong class="text-slate-900">Position Ingestion:</strong> Interfaces with Traccar to receive reports and execute scoring logic.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </section>
+            </div>
+
+            <div class="space-y-8">
+                <div class="bg-blue-600 rounded-3xl p-8 text-white shadow-xl shadow-blue-200">
+                    <h3 class="text-xl font-bold mb-4">Want to contribute?</h3>
+                    <p class="text-blue-100 text-sm mb-6 leading-relaxed">
+                        We welcome contributions in documentation, translations, new task types, and UI improvements.
+                    </p>
+                    <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="block text-center bg-white text-blue-600 py-3 rounded-xl font-bold hover:bg-blue-50 transition-all">
+                        Join Slack Channel
+                    </a>
+                </div>
+
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
+                    <h3 class="text-xl font-bold mb-4 text-slate-900">Tracking Support</h3>
+                    <p class="text-sm text-slate-600 mb-4">
+                        ASLT uses the <a href="https://traccar.org" class="text-blue-600 font-bold">traccar.org</a> engine, allowing support for a wide range of hardware and software trackers.
+                    </p>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg italic font-medium uppercase tracking-wider">Supported Networks</div>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-2 py-1 bg-slate-100 rounded text-xs font-bold text-slate-600">OGN</span>
+                            <span class="px-2 py-1 bg-slate-100 rounded text-xs font-bold text-slate-600">SafeSky</span>
+                            <span class="px-2 py-1 bg-slate-100 rounded text-xs font-bold text-slate-600">Flymaster</span>
+                            <span class="px-2 py-1 bg-slate-100 rounded text-xs font-bold text-slate-600">SkyDemon</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</Layout>
