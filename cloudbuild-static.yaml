@@ -11,14 +11,19 @@ steps:
   args: ['run', 'build']
   dir: 'airsports_static'
 
-# 3. Deploy to Firebase using a specific site ID
+# 3. Verify build output
+- name: 'node:22'
+  entrypoint: 'ls'
+  args: ['-R', 'airsports_static/dist']
+
+# 4. Deploy to Firebase using root config
 - name: 'node:22'
   entrypoint: 'bash'
   args: 
     - '-c'
     - |
-      npx firebase-tools deploy --project ${_FIREBASE_PROJECT_ID} --only hosting:${_FIREBASE_SITE_ID}
-  dir: 'airsports_static'
+      npm install -g firebase-tools
+      firebase deploy --project ${_FIREBASE_PROJECT_ID} --only hosting:${_FIREBASE_SITE_ID} --config firebase-static.json --non-interactive
 
 substitutions:
   _FIREBASE_PROJECT_ID: 'YOUR_PROJECT_ID'

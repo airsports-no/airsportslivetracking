@@ -10,86 +10,153 @@ const faqs = [
     {
         id: "SUBSCRIPTION",
         question: "Subscription does not work?",
-        answer: "The app’s subscription is managed by Apple Store or Google Play. If you get a new phone, restoring is simple if your account has an active subscription. Manage your subscription within your Apple Store or Google Play account to check its status or cancel it. If problems persist, try reinstalling the app."
+        answer: "The app’s subscription is managed by Apple Store or Google Play. Manage your subscription within your Apple Store or Google Play account to check its status or cancel it. If problems persist, try reinstalling the app."
     },
     {
         id: "ENTER",
         question: "How do I enter a competition?",
-        answer: "First register to the competition. Open the Air Sports Live Tracking APP, go to the global map, find your competition. Select Manage crew, enter details, and schedule flight. You will receive a Flight Order with maps and photos after a few minutes."
+        answer: "First register to the competition. Open the Air Sports Live Tracking APP, go to the global map, find your competition. Select Manage crew and enter your flight details, crew, speed, etc. Now you can select “Schedule flight” for the task you want to fly. You will automatically receive a Flight Order with maps, photos and flight info after a few minutes."
+    },
+    {
+        id: "MasterTime",
+        question: "Master Time (Tracker Synchronization)",
+        answer: "For iPhone users, the master time is displayed in the app as 'Local Time'. For Android users, you must use either Atomic or GPS time as master time. We recommend synchronizing your system clock with Time.is."
+    },
+    {
+        id: "ADAPTIVE",
+        question: "Unknown departure? – Select Adaptive Start",
+        answer: "If adaptive start is selected, you can cross the 'Start Gate' at any time between one hour before and one hour after the selected starting point time. The scoring and timing will start when you cross the Start Gate, and will be measured from the nearest whole minute according to the master time."
     },
     {
         id: "DISAPPEARS",
         question: "My track/aircraft disappears from the map when I fly",
-        answer: "Some phones stop battery access to apps in background mode. Make sure the app has 'Allow background activity' and 'Always allow location' enabled in your phone settings. Common on Huawei and OnePlus devices."
+        answer: "Some mobile phones stop battery access to apps in background mode. Ensure that the Air Sports Live Tracking app has access to battery also in background mode ('Don't Optimize' or 'Unrestricted'). Also, ensure the app has 'Always Allow' location access. Known issue for Huawei and OnePlus."
+    },
+    {
+        id: "FREEZES",
+        question: "My aircraft stops and freezes position in a competition",
+        answer: "If your aircraft stops, you are likely outside of your 'tracker time'. All participants are given a window adapted to your scheduled flight time. If you fly outside this frame, tracking will stop."
+    },
+    {
+        id: "EXPORT",
+        question: "Export your track from the APP to Google Earth",
+        answer: "Your tracks are in the top right of the app. Export the desired LAP to your computer and change the file extension from .TXT to .GPX. This allows you to open the file in Google Earth or SkyDemon."
+    },
+    {
+        id: "RECALCULATE",
+        question: "Recalculate team track/score (Organizer access)",
+        answer: "If a participant has incorrect wind, speed, or task data, organizers can update the parameters and select 'Recalculate original'. This re-processes the raw GPS track against the new rules without requiring a re-flight."
+    },
+    {
+        id: "MAKE",
+        question: "I want to make my own competition/contests",
+        answer: "To create your own tasks, you must have organizer access. This is automatically approved for registered users—simply click 'Become an Organizer' in the management menu, or email support@airsports.no briefly describing your intent."
+    },
+    {
+        id: "MAPS",
+        question: "Can I add my own maps for navigation?",
+        answer: "We support custom maps in georeferenced raster formats (GeoTIFF/MBTiles). Map licensing must allow for distribution via airsports.no. Contact support for manual processing assistance."
     },
     {
         id: "COMPETITIONS",
         question: "What kind of competitions are supported?",
-        answer: "We support Precision Flying, Air Navigation Race (ANR), Air Sports Race, Danger Zone Race, Pilot Poker Run, and Landing Competitions."
+        answer: "We support Precision Flying, Air Navigation Race (ANR), Air Sports Race (ANR with time control gates), Danger Zone Race, Pilot Poker Run, and Landing Competitions."
+    },
+    {
+        id: "NOTFOUND",
+        question: "Page Not Found – Contest / Task not found",
+        answer: "This happens if the contest address is non-existent or the contest is private. Recheck your URL and verify with the administrator that the contest is public or that you have viewing permissions."
+    },
+    {
+        id: "FLIGHTORDER",
+        question: "Flight Order – Map explanation",
+        answer: "The Flight Order PDF contains your takeoff time, start gate time, and digital rendering of your route. It tell you when to cross the start gate relative to the master time. It can be downloaded or sent via email."
     },
     {
         id: "MSFS2020",
-        question: "Live tracking in Microsoft Flight Simulator 2020",
-        answer: "You can fly competitions in MSFS2020! With a small add-on program, you can connect the simulator to Air Sports Live Tracking for training or virtual events."
+        question: "Live tracking in Microsoft Flight Simulator 2020 & 2024",
+        answer: "You can compete in virtual tasks! With our dedicated simulator client, you can connect your simulator to the ASLT scoring engine for training or virtual competitions. Tested successfully with both MSFS 2020 and MSFS 2024."
     }
 ];
 ---
 
 <Layout title="FAQ">
-    <div class="max-w-4xl mx-auto px-4 py-20">
-        <h1 class="text-4xl font-extrabold text-slate-900 mb-4">Frequently Asked Questions</h1>
-        <p class="text-slate-600 mb-12 text-lg">Everything you need to know about getting started and troubleshooting.</p>
+    <div class="max-w-4xl mx-auto px-4 py-24">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 font-lexend italic uppercase mb-6 tracking-tight">Frequently Asked Questions</h1>
+        <p class="text-slate-600 mb-16 text-lg font-medium leading-relaxed max-w-2xl">Everything you need to know about tracking, scoring, and organizing events.</p>
         
         <div class="space-y-4">
             {faqs.map(faq => (
-                <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow" id={faq.id}>
-                    <button class="w-full text-left p-6 flex justify-between items-center group">
-                        <span class="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{faq.question}</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
+                <div class="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:border-blue-100 transition-all duration-300" id={faq.id}>
+                    <button class="w-full text-left p-8 flex justify-between items-center group cursor-pointer">
+                        <span class="font-bold text-slate-800 group-hover:text-blue-600 transition-colors font-lexend uppercase italic tracking-tight">{faq.question}</span>
+                        <div class="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform duration-300 transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
                     </button>
-                    <div class="px-6 pb-6 text-slate-600 leading-relaxed border-t border-slate-50 pt-4 hidden">
-                        {faq.answer}
+                    <div class="px-8 pb-8 text-slate-600 leading-relaxed font-medium text-base border-t border-slate-50 pt-6 hidden">
+                        <div class="prose-custom">
+                            {faq.answer}
+                        </div>
                     </div>
                 </div>
             ))}
         </div>
 
-        <div class="mt-20 p-8 bg-blue-50 rounded-3xl border border-blue-100 text-center">
-            <h3 class="text-xl font-bold text-blue-900 mb-2">Still have questions?</h3>
-            <p class="text-blue-700 mb-6 text-sm">We're here to help you get in the air.</p>
-            <a href="mailto:support@airsports.no" class="inline-block bg-blue-600 text-white px-6 py-2 rounded-full font-bold hover:bg-blue-700 transition-colors">
-                Contact Support
-            </a>
+        <div class="mt-24 p-12 bg-blue-600 rounded-[3rem] text-center shadow-2xl shadow-blue-200 relative overflow-hidden">
+            <div class="absolute inset-0 opacity-10 pointer-events-none transform -rotate-12 scale-150">
+                 <img src="/img/airsports_no_text_white.png" alt="" class="w-96 h-auto" />
+            </div>
+            <div class="relative z-10">
+                <h3 class="text-2xl font-bold text-white mb-4 font-lexend italic uppercase">Still have questions?</h3>
+                <p class="text-blue-100 mb-8 max-w-md mx-auto">Our community is active and ready to help you get in the air.</p>
+                <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="inline-block bg-white text-blue-600 px-10 py-4 rounded-2xl font-bold hover:bg-blue-50 transition-all uppercase tracking-widest text-xs">
+                    Join Slack Community
+                </a>
+            </div>
         </div>
     </div>
 
     <script>
-        // Simple accordion logic
+        // Enhanced accordion logic
         document.querySelectorAll('button').forEach(button => {
             button.addEventListener('click', () => {
+                const container = button.parentElement;
                 const content = button.nextElementSibling;
+                const svg = button.querySelector('svg');
                 const isHidden = content.classList.contains('hidden');
                 
                 // Close all others
-                document.querySelectorAll('div.text-slate-600').forEach(c => c.classList.add('hidden'));
+                document.querySelectorAll('div.text-slate-600').forEach(c => {
+                    if (c !== content) {
+                        c.classList.add('hidden');
+                        c.parentElement.querySelector('svg').classList.remove('rotate-180');
+                        c.parentElement.classList.remove('border-blue-200', 'shadow-blue-100');
+                    }
+                });
                 
                 if (isHidden) {
                     content.classList.remove('hidden');
+                    svg.classList.add('rotate-180');
+                    container.classList.add('border-blue-200', 'shadow-blue-100');
+                } else {
+                    content.classList.add('hidden');
+                    svg.classList.remove('rotate-180');
+                    container.classList.remove('border-blue-200', 'shadow-blue-100');
                 }
             });
         });
 
-        // Handle anchor links
+        // Handle anchor links for specific FAQ sharing
         if (window.location.hash) {
             const id = window.location.hash.substring(1);
             const el = document.getElementById(id);
             if (el) {
                 const btn = el.querySelector('button');
-                const content = el.querySelector('div.text-slate-600');
-                content.classList.remove('hidden');
-                el.scrollIntoView();
+                btn.click();
+                setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 100);
             }
         }
     </script>

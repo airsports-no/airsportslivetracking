@@ -1,0 +1,13 @@
+{
+  "hosting": {
+    "public": "airsports_static/dist",
+    "site": "airsports-info-1747b",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "cleanUrls": true,
+    "trailingSlash": "ignore"
+  }
+}
