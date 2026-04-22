@@ -6,18 +6,83 @@
   --font-lexend: "Lexend", sans-serif;
 }
 
-/* Custom Markdown Content Styles - Modern & Aviation Inspired */
-.prose-custom h1 { @apply text-4xl md:text-5xl font-extrabold mb-10 text-slate-900 tracking-tight font-lexend italic uppercase; }
-.prose-custom h2 { @apply text-2xl md:text-3xl font-bold mt-16 mb-6 text-slate-800 border-b-2 border-slate-100 pb-3 font-lexend italic uppercase tracking-tight; }
-.prose-custom h3 { @apply text-xl font-bold mt-10 mb-4 text-slate-800 font-lexend uppercase tracking-wide; }
-.prose-custom p { @apply mb-6 text-slate-600 leading-relaxed text-base md:text-lg font-medium; }
-.prose-custom ul { @apply mb-8 space-y-3 text-slate-600 list-none; }
-.prose-custom ul li { @apply relative pl-8 before:content-[''] before:absolute before:left-0 before:top-2 before:w-5 before:h-5 before:bg-blue-50 before:rounded-lg before:border before:border-blue-200 after:content-['✓'] after:absolute after:left-1 after:top-1.5 after:text-[10px] after:text-blue-600 after:font-bold; }
-.prose-custom ol { @apply list-decimal list-inside mb-8 space-y-3 text-slate-600 font-medium; }
-.prose-custom img { @apply rounded-[2rem] shadow-2xl my-12 border-4 border-white ring-1 ring-slate-200 mx-auto transform hover:scale-[1.01] transition-transform duration-500; }
-.prose-custom code { @apply bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg text-sm font-mono font-bold border border-blue-100; }
-.prose-custom blockquote { @apply border-l-4 border-blue-600 bg-blue-50/50 p-8 rounded-r-3xl italic text-slate-700 my-10 font-medium text-lg shadow-sm; }
-.prose-custom hr { @apply border-slate-200 my-16 opacity-50; }
+/* Custom Documentation Styles - Using standard CSS to ensure build stability */
+.prose-custom {
+    color: #475569; /* slate-600 */
+}
 
-/* Dashboard-like utility classes */
-.doc-card { @apply bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50; }
+.prose-custom h1 {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 2.5rem;
+    color: #0f172a; /* slate-900 */
+    font-family: "Lexend", sans-serif;
+    font-style: italic;
+    text-transform: uppercase;
+}
+
+.prose-custom h2 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+    font-weight: 700;
+    margin-top: 4rem;
+    margin-bottom: 1.5rem;
+    color: #1e293b; /* slate-800 */
+    border-bottom: 2px solid #f1f5f9; /* slate-100 */
+    padding-bottom: 0.75rem;
+    font-family: "Lexend", sans-serif;
+    font-style: italic;
+    text-transform: uppercase;
+}
+
+.prose-custom p {
+    margin-bottom: 1.5rem;
+    line-height: 1.75;
+    font-size: 1.125rem;
+}
+
+.prose-custom ul {
+    margin-bottom: 2rem;
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.prose-custom ul li {
+    position: relative;
+    padding-left: 2rem;
+    margin-bottom: 0.75rem;
+}
+
+.prose-custom ul li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #2563eb; /* blue-600 */
+    font-weight: bold;
+}
+
+.prose-custom img {
+    border-radius: 2rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    margin: 3rem auto;
+    border: 4px solid white;
+}
+
+.prose-custom blockquote {
+    border-left: 4px solid #2563eb;
+    background-color: rgba(37, 99, 235, 0.05);
+    padding: 2rem;
+    border-top-right-radius: 1.5rem;
+    border-bottom-right-radius: 1.5rem;
+    font-style: italic;
+    margin: 2.5rem 0;
+}
+
+.prose-custom code {
+    background-color: #eff6ff; /* blue-50 */
+    color: #1d4ed8; /* blue-700 */
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.5rem;
+    font-family: monospace;
+}
