@@ -37,7 +37,6 @@ assets_vite
 src/static/css/tailwindcss
 src/static/css/output.css
 nohup.out
-*.mjs
 manifest.json
 .env.*
 src/static/output.css
