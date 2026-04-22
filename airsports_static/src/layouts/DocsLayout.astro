@@ -1,5 +1,7 @@
 ---
 import Layout from './Layout.astro';
+import { Image } from 'astro:assets';
+import logoNoText from '../assets/img/airsports_no_text.png';
 
 const { frontmatter, url } = Astro.props;
 
@@ -68,7 +70,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, "");
                     <div class="bg-white rounded-[3rem] p-8 md:p-16 border border-slate-100 shadow-2xl shadow-slate-200/40 relative overflow-hidden">
                         <!-- Decorative Watermark -->
                         <div class="absolute -top-20 -right-20 opacity-[0.03] pointer-events-none select-none transform rotate-12">
-                            <img src="/img/airsports_no_text.png" alt="" class="w-96 h-auto" />
+                            <Image src={logoNoText} alt="" class="w-96 h-auto" width={400} height={400} />
                         </div>
 
                         <div class="relative z-10">

@@ -1,5 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { Image } from 'astro:assets';
+import nordic2025 from '../assets/img/nordic2025.png';
+import dashboard from '../assets/img/dashboard.png';
+import routeEditor from '../assets/img/route_editor.png';
+import task from '../assets/img/task.png';
+import logoNoTextWhite from '../assets/img/airsports_no_text_white.png';
 ---
 
 <Layout title="Home">
@@ -8,7 +14,7 @@ import Layout from '../layouts/Layout.astro';
         <div class="relative overflow-hidden bg-slate-900 text-white pt-24 pb-40">
             <!-- Background Image with Opacity -->
             <div class="absolute inset-0 z-0">
-                <img src="/img/nordic2025.png" alt="" class="w-full h-full object-cover opacity-40 mix-blend-luminosity" />
+                <Image src={nordic2025} alt="" class="w-full h-full object-cover opacity-40 mix-blend-luminosity" width={1920} height={1080} />
                 <div class="absolute inset-0 bg-gradient-to-b from-[#2563EB]/80 via-[#2563EB]/40 to-slate-900/90"></div>
             </div>
             
@@ -109,14 +115,14 @@ import Layout from '../layouts/Layout.astro';
                         </li>
                     </ul>
                 </div>
-                <div class="order-1 lg:order-2 bg-slate-100 p-4 rounded-[3rem] shadow-3xl transform rotate-1 hover:rotate-0 transition-transform duration-500 overflow-hidden border border-slate-200">
-                    <img src="/img/dashboard.png" alt="ASLT Dashboard" class="rounded-[2rem] shadow-inner w-full h-auto" />
+                <div class="order-1 lg:order-2 bg-slate-100 p-4 rounded-[3rem] shadow-3xl transform rotate-1 hover:rotate-0 transition-all duration-500 overflow-hidden border border-slate-200 hover:scale-[1.03] cursor-zoom-in group/img">
+                    <Image src={dashboard} alt="ASLT Dashboard" class="rounded-[2rem] shadow-inner w-full h-auto lightbox-trigger" width={1000} height={600} data-full-src={dashboard.src} />
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-                <div class="bg-slate-100 p-4 rounded-[3rem] shadow-3xl transform -rotate-1 hover:rotate-0 transition-transform duration-500 overflow-hidden border border-slate-200">
-                    <img src="/img/route_editor.png" alt="ASLT Route Editor" class="rounded-[2rem] shadow-inner w-full h-auto" />
+                <div class="bg-slate-100 p-4 rounded-[3rem] shadow-3xl transform -rotate-1 hover:rotate-0 transition-all duration-500 overflow-hidden border border-slate-200 hover:scale-[1.03] cursor-zoom-in group/img">
+                    <Image src={routeEditor} alt="ASLT Route Editor" class="rounded-[2rem] shadow-inner w-full h-auto lightbox-trigger" width={1000} height={600} data-full-src={routeEditor.src} />
                 </div>
                 <div>
                     <h3 class="text-3xl font-bold mb-6 font-lexend italic text-slate-800 uppercase">Intelligent Route Editor</h3>
@@ -152,8 +158,8 @@ import Layout from '../layouts/Layout.astro';
                         </li>
                     </ul>
                 </div>
-                <div class="order-1 lg:order-2 bg-slate-100 p-4 rounded-[3rem] shadow-3xl transform rotate-1 hover:rotate-0 transition-transform duration-500 overflow-hidden border border-slate-200">
-                    <img src="/img/task.png" alt="ASLT Live Competition Map" class="rounded-[2rem] shadow-inner w-full h-auto" />
+                <div class="order-1 lg:order-2 bg-slate-100 p-4 rounded-[3rem] shadow-3xl transform rotate-1 hover:rotate-0 transition-all duration-500 overflow-hidden border border-slate-200 hover:scale-[1.03] cursor-zoom-in group/img">
+                    <Image src={task} alt="ASLT Live Competition Map" class="rounded-[2rem] shadow-inner w-full h-auto lightbox-trigger" width={1000} height={600} data-full-src={task.src} />
                 </div>
             </div>
         </div>
@@ -195,7 +201,7 @@ import Layout from '../layouts/Layout.astro';
                     <div class="relative">
                         <div class="bg-gradient-to-tr from-blue-600 to-indigo-800 rounded-[4rem] aspect-square shadow-3xl transform rotate-2 relative overflow-hidden border-8 border-white">
                             <div class="absolute inset-0 flex items-center justify-center opacity-10 transform -rotate-2 scale-150">
-                                <img src="/img/airsports_no_text_white.png" alt="Watermark" class="w-full h-auto" />
+                                <Image src={logoNoTextWhite} alt="Watermark" class="w-full h-auto" width={600} height={600} />
                             </div>
                             <div class="absolute inset-12 flex flex-col justify-end text-white transform -rotate-2">
                                 <p class="text-4xl font-extrabold leading-tight mb-6 font-lexend italic uppercase tracking-tighter">Supporting MSFS 2020 & 2024</p>
@@ -319,5 +325,63 @@ import Layout from '../layouts/Layout.astro';
                 </div>
             </div>
         </div>
+
+        <!-- Lightbox Modal -->
+        <div id="lightbox" class="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4 md:p-12">
+            <button id="close-lightbox" class="absolute top-8 right-8 text-white/50 hover:text-white transition-colors p-2 z-[110]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <div class="relative w-full h-full flex items-center justify-center lightbox-content">
+                <img id="lightbox-img" src="" alt="Enlarged view" class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl transition-transform duration-500 scale-95" />
+            </div>
+        </div>
+
+        <script>
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
+            const closeBtn = document.getElementById('close-lightbox');
+            const triggers = document.querySelectorAll('.lightbox-trigger');
+
+            triggers.forEach(trigger => {
+                trigger.parentElement?.addEventListener('click', () => {
+                    const fullSrc = trigger.getAttribute('data-full-src');
+                    if (fullSrc && lightbox && lightboxImg) {
+                        lightboxImg.src = fullSrc;
+                        lightbox.classList.remove('opacity-0', 'pointer-events-none');
+                        setTimeout(() => {
+                            lightboxImg.classList.remove('scale-95');
+                            lightboxImg.classList.add('scale-100');
+                        }, 10);
+                        document.body.style.overflow = 'hidden';
+                    }
+                });
+            });
+
+            const closeLightbox = () => {
+                if (lightbox && lightboxImg) {
+                    lightboxImg.classList.add('scale-95');
+                    lightboxImg.classList.remove('scale-100');
+                    lightbox.classList.add('opacity-0', 'pointer-events-none');
+                    document.body.style.overflow = '';
+                    setTimeout(() => {
+                        lightboxImg.src = '';
+                    }, 300);
+                }
+            };
+
+            closeBtn?.addEventListener('click', closeLightbox);
+            lightbox?.addEventListener('click', (e) => {
+                if (e.target === lightbox || (e.target as HTMLElement).classList.contains('lightbox-content')) {
+                    closeLightbox();
+                }
+            });
+
+            // Close on escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeLightbox();
+            });
+        </script>
 	</main>
 </Layout>

@@ -1,5 +1,8 @@
 ---
 import '../styles/global.css';
+import { Image } from 'astro:assets';
+import logoNoText from '../assets/img/airsports_no_text.png';
+import logoWhite from '../assets/img/airsports_live_tracking_white.png';
 
 interface Props {
 	title: string;
@@ -12,7 +15,7 @@ const { title } = Astro.props;
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-        <!-- Build Version: 2026-04-22-V7 -->
+        <!-- Build Version: 2026-04-22-V9 -->
 		<meta name="description" content="Air Sports Live Tracking - Professional competition flying platform" />
 		<meta name="viewport" content="width=device-width" />
 		<link rel="icon" type="image/png" href="/img/airsports_no_text.png" />
@@ -28,7 +31,7 @@ const { title } = Astro.props;
                 <div class="flex justify-between h-20 items-center">
                     <div class="flex items-center gap-4">
                         <a href="/" class="flex items-center gap-3 group">
-                            <img src="/img/airsports_no_text.png" alt="ASLT Logo" class="h-10 w-auto group-hover:rotate-12 transition-transform duration-300" />
+                            <Image src={logoNoText} alt="ASLT Logo" class="h-10 w-auto group-hover:rotate-12 transition-transform duration-300" width={40} height={40} />
                             <div class="flex flex-col leading-tight">
                                 <span class="text-[#2563EB] font-bold text-xl tracking-tighter font-lexend italic">AIR SPORTS</span>
                                 <span class="text-slate-500 font-medium text-[10px] uppercase tracking-[0.2em]">Live Tracking</span>
@@ -60,7 +63,7 @@ const { title } = Astro.props;
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-16">
                     <div class="col-span-1 md:col-span-2">
-                        <img src="/img/airsports_live_tracking_white.png" alt="ASLT Logo White" class="h-12 w-auto mb-8 opacity-90" />
+                        <Image src={logoWhite} alt="ASLT Logo White" class="h-12 w-auto mb-8 opacity-90" width={200} height={48} />
                         <p class="text-base leading-relaxed max-w-md text-slate-400">
                             The world's leading open-source scoring platform for aircraft competitions. Modernizing air sports through real-time technology and non-profit dedication.
                         </p>
