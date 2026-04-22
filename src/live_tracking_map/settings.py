@@ -202,6 +202,10 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Full API for Airsports tracker",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "SECURITY_NAME_MAPPING": {
+        "rest_framework.authentication.TokenAuthentication": "tokenAuth",
+        "drf_firebase_auth.authentication.FirebaseAuthentication": "firebaseAuth",
+    },
 }
 if os.environ.get("MODE") != "dev":
     REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(

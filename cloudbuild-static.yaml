@@ -1,18 +1,18 @@
 steps:
-# 1. Build and Deploy from the subdirectory
-- name: 'node:22'
-  entrypoint: 'bash'
+# Match the terminal workflow exactly
+- name: "node:22"
+  entrypoint: "bash"
   args: 
-    - '-c'
+    - "-c"
     - |
-      npm install
+      npm ci
       npm run build
-      npx firebase-tools deploy --project ${_FIREBASE_PROJECT_ID} --only hosting:${_FIREBASE_SITE_ID} --non-interactive
-  dir: 'airsports_static'
+      ls -lh dist/_astro/*.css
+      npx firebase-tools deploy --project ${_FIREBASE_PROJECT_ID} --non-interactive
+  dir: "airsports_static"
 
 substitutions:
-  _FIREBASE_PROJECT_ID: 'YOUR_PROJECT_ID'
-  _FIREBASE_SITE_ID: 'airsports-info-1747b'
+  _FIREBASE_PROJECT_ID: "airsports-613ce"
 
 options:
   logging: CLOUD_LOGGING_ONLY

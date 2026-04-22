@@ -22,6 +22,8 @@ class ContestantTrack(models.Model):
     calculator_started = models.BooleanField(default=False)
 
     def reset(self):
+        from display.models import TeamTestScore
+
         self.score = self.contestant.navigation_task.scorecard.initial_score
         self.current_state = "Waiting..."
         self.current_leg = ""
@@ -32,6 +34,14 @@ class ContestantTrack(models.Model):
         self.calculator_finished = False
         self.calculator_started = False
         self.save()
+
+        # Also reset the task test score if it exists to avoid double-counting on restarts
+        if hasattr(self.contestant.navigation_task, "tasktest"):
+            TeamTestScore.objects.filter(
+                team=self.contestant.team,
+                task_test=self.contestant.navigation_task.tasktest,
+            ).update(points=self.score)
+
         self.__push_change()
 
     @property

@@ -74,10 +74,11 @@ class ContestantProcessor:
         contestant: "Contestant",
         live_processing: bool = True,
         queue_name_override: str | None = None,
+        recalculate: bool = False,
     ):
         calculator_is_alive(contestant.pk, 30)
         super().__init__()
-        logger.info(f"{contestant}: Created contestant processor")
+        logger.info(f"{contestant}: Created contestant processor (recalculate={recalculate})")
         self.contestant = contestant
         self.contestant.live_processing = live_processing
         self.live_processing = live_processing
@@ -88,19 +89,38 @@ class ContestantProcessor:
         self.track_terminated = False
         self.contestant_track: ContestantTrack = contestant.contestanttrack
 
-        # Reset scoring only once
-        self.contestant.reset_track_and_score()
-        self.contestant_track.refresh_from_db()
-        self.score = self.contestant_track.score
+        # Idempotent restart logic: Only reset if there is no existing data or recalculate is requested.
+        # If data exists, we are likely a pod restart and should catch up silently.
+        existing_positions = self.contestant.contestantreceivedposition_set.all().order_by("time")
+        if existing_positions.exists() and not recalculate:
+            logger.info(f"{self.contestant}: Existing positions found, performing idempotent restart")
+            self.latest_recorded_time = existing_positions.last().time
+            self.contestant_track.refresh_from_db()
+            # We don't reset the track_version or delete positions here
+        else:
+            if recalculate:
+                logger.info(f"{self.contestant}: Recalculate requested, performing clean start")
+            else:
+                logger.info(f"{self.contestant}: No existing positions, performing clean start")
+            self.latest_recorded_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+            self.contestant.reset_track_and_score()
+            self.contestant.contestantreceivedposition_set.all().delete()
+            self.contestant.track_version += 1
+            self.contestant.save(update_fields=["track_version"])
+
+        self.suppress_side_effects = False # Will be toggled in run()
+        
+        # We always start local scoring from the initial score because we replay the full track 
+        # from the beginning (tracker_start_time). During catch-up (latest_recorded_time > min), 
+        # suppress_side_effects ensures we don't double-count in the database.
+        self.score = self.contestant.navigation_task.scorecard.initial_score
 
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.score_processing_queue = Queue()
         self.last_termination_check = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.termination_requested_cached = None
         self.process_event = threading.Event()
-        self.contestant.contestantreceivedposition_set.all().delete()
-        self.contestant.track_version += 1
-        self.contestant.save(update_fields=["track_version"])
+        
         self.contestant_track.set_calculator_started()
         self.scorecard = self.contestant.navigation_task.scorecard
         self.scorecard.refresh_from_db()
@@ -117,12 +137,13 @@ class ContestantProcessor:
             threading.Event()
         )  # Used to prevent the calculator from terminating while we are waiting for initial data if it starts after-the-fact.
 
-        post_slack_competition_message(
-            str(self.contestant.navigation_task),
-            f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
-        )
-        self.websocket_facade.transmit_delete_contestant(self.contestant)
-        self.websocket_facade.transmit_contestant(self.contestant)
+        if self.latest_recorded_time == datetime.datetime.min.replace(tzinfo=datetime.timezone.utc):
+            post_slack_competition_message(
+                str(self.contestant.navigation_task),
+                f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
+            )
+            self.websocket_facade.transmit_delete_contestant(self.contestant)
+            self.websocket_facade.transmit_contestant(self.contestant)
 
         self.score_thread = threading.Thread(target=self.score_updater_thread, daemon=True)
         self.score_thread.start()
@@ -287,15 +308,9 @@ class ContestantProcessor:
                 self.should_i_terminate()
                 self.last_status_check = now
 
-            if self.live_processing and now > self.contestant.finished_by_time + self.delay:
-                # Only peek every 5 seconds to reduce Redis overhead
-                if now - self.last_status_check > datetime.timedelta(seconds=5):
-                    data = self.timed_queue.peek()
-                    if data is None or data["device_time"] > now:
-                        self.notify_termination("Finished by time exceeded")
-                        break
             if now - self.last_contestant_refresh > CONTESTANT_REFRESH_INTERVAL:
-                self.refresh_scores()
+                if not self.suppress_side_effects:
+                    self.refresh_scores()
                 try:
                     self.contestant.refresh_from_db()
                 except ObjectDoesNotExist:
@@ -355,7 +370,8 @@ class ContestantProcessor:
 
                 for position in self.interpolate_track(self.previous_position, p):
                     position.websocket_transmitted_time = datetime.datetime.now(datetime.timezone.utc)
-                    positions_to_save.append(position)
+                    if position.time > self.latest_recorded_time:
+                        positions_to_save.append(position)
                     all_positions.append(position)
                 self.previous_position = p
 
@@ -364,6 +380,13 @@ class ContestantProcessor:
                 positions_to_save = []
 
             for position in all_positions:
+                # Toggle silent mode based on position time
+                was_suppressing = self.suppress_side_effects
+                self.suppress_side_effects = position.time <= self.latest_recorded_time
+                
+                if was_suppressing and not self.suppress_side_effects:
+                    logger.info(f"{self.contestant}: Silent catch-up completed at {position.time}, resuming active scoring")
+
                 self.orchestrator.calculate_score(position)
 
                 # Proactive termination check based on speed
@@ -385,7 +408,8 @@ class ContestantProcessor:
             if self.track_terminated:
                 break
 
-            self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
+            if not self.suppress_side_effects:
+                self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
 
         if positions_to_save:
             ContestantReceivedPosition.objects.bulk_create(positions_to_save)
@@ -409,7 +433,8 @@ class ContestantProcessor:
 
     def should_i_terminate(self):
         """
-        Check if the time has passed the finished by time and terminate the  processor if this is the case
+        Check if the time has passed the finished by time and terminate the  processor if this is the case.
+        We only terminate if the timed_queue is empty to allow catch-up processing.
         """
         now = datetime.datetime.now(datetime.timezone.utc)
         if self.live_processing and not self.track_terminated:
@@ -421,7 +446,10 @@ class ContestantProcessor:
                         f"Contestant {self.contestant} has passed a gate and apparently landed, triggering calculator termination"
                     )
             if now > self.contestant.finished_by_time + self.delay:
-                self.notify_termination("Finished by time exceeded (should_i_terminate)")
+                if self.timed_queue.empty() and self.position_queue.empty():
+                    self.notify_termination("Finished by time exceeded (should_i_terminate)")
+                else:
+                    logger.debug(f"{self.contestant}: Time exceeded, but waiting for {self.timed_queue.qsize()} queued positions and {self.position_queue.size} Redis positions to be processed")
 
     def notify_termination(self, reason: str = ""):
         """
@@ -479,6 +507,7 @@ class ContestantProcessor:
         logger.info(
             f"{self.contestant}: Starting delayed position queuer with {self.position_queue.size} waiting messages. Track terminated is {self.track_terminated}"
         )
+        receiving = False
         if self.live_processing and self.contestant.tracking_service == TrackingService.TRACCAR:
             device_ids = self.traccar.get_device_ids_for_contestant(self.contestant)
             current_time = datetime.datetime.now(datetime.timezone.utc)
@@ -496,6 +525,10 @@ class ContestantProcessor:
                 logger.info(
                     f"{self.contestant}: Fetched {len(positions_to_use)} historic positions at start of calculator"
                 )
+                if len(positions_to_use) > 0:
+                    receiving = True
+                    self.finished_loading_initial_positions.set()
+
                 now = datetime.datetime.now(datetime.timezone.utc)
                 for position in positions_to_use:
                     self.timed_queue.put(position, position["device_time"] + self.delay)
@@ -504,12 +537,25 @@ class ContestantProcessor:
         elif self.live_processing and self.contestant.tracking_service == TrackingService.FLY_MASTER:
             existing_data = self.contestant.get_flymaster_track()
             now = datetime.datetime.now(datetime.timezone.utc)
+            if len(existing_data) > 0:
+                receiving = True
+                self.finished_loading_initial_positions.set()
             for position in existing_data:
                 self.timed_queue.put(position, position["device_time"] + self.delay)
 
-        receiving = False
-
         while not self.track_terminated:
+            # Hard limit for live processing: stop ingesting data if we are way past the finished_by_time.
+            # This prevents a runaway device from keeping the calculator alive forever.
+            now = datetime.datetime.now(datetime.timezone.utc)
+            if self.live_processing and now > self.contestant.finished_by_time + self.delay + datetime.timedelta(minutes=5):
+                # If we are catching up, don't stop yet if we still have data in the queue
+                if self.position_queue.empty():
+                    logger.info(f"{self.contestant}: Hard limit reached in enqueue_positions_thread, stopping ingestion")
+                    self.timed_queue.close()
+                    break
+                else:
+                    logger.debug(f"{self.contestant}: Hard limit reached, but still processing {self.position_queue.size} positions from queue")
+
             try:
                 position_data = self.position_queue.pop(True, timeout=1)
                 if position_data is not None:
@@ -594,10 +640,15 @@ class ContestantProcessor:
                 return
 
         gate_score = self.gate_scores[gate_name]
-        gate_score.points += score
-        gate_score.save(update_fields=["points"])
+        if not self.suppress_side_effects:
+            gate_score.points += score
+            gate_score.save(update_fields=["points"])
 
         self.score += score
+
+        if self.suppress_side_effects:
+            return
+
         entry = ScoreLogEntry.create_and_push(
             contestant=self.contestant,
             time=update_score_message.time,

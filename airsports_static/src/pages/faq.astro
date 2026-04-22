@@ -15,7 +15,7 @@ const faqs = [
     {
         id: "ENTER",
         question: "How do I enter a competition?",
-        answer: "First register to the competition. Open the Air Sports Live Tracking APP, go to the global map, find your competition. Select Manage crew and enter your flight details, crew, speed, etc. Now you can select “Schedule flight” for the task you want to fly. You will automatically receive a Flight Order with maps, photos and flight info after a few minutes."
+        answer: "First register to the competition. Open the Air Sports Live Tracking APP, go to the global map, find your competition. Select Manage crew and enter your flight details, crew, speed, etc. Now you can select “Schedule flight” for the task you want to fly. You will automatically receive an Flight Order with maps, photos and flight info after a few minutes."
     },
     {
         id: "MasterTime",
@@ -88,15 +88,15 @@ const faqs = [
         <div class="space-y-4">
             {faqs.map(faq => (
                 <div class="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:border-blue-100 transition-all duration-300" id={faq.id}>
-                    <button class="w-full text-left p-8 flex justify-between items-center group cursor-pointer">
-                        <span class="font-bold text-slate-800 group-hover:text-blue-600 transition-colors font-lexend uppercase italic tracking-tight">{faq.question}</span>
-                        <div class="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all">
+                    <button class="faq-button w-full text-left p-8 flex justify-between items-center group cursor-pointer outline-none">
+                        <span class="font-bold text-slate-800 group-hover:text-[#2563EB] transition-colors font-lexend uppercase italic tracking-tight">{faq.question}</span>
+                        <div class="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center group-hover:bg-[#2563EB] group-hover:text-white transition-all">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform duration-300 transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" />
                             </svg>
                         </div>
                     </button>
-                    <div class="px-8 pb-8 text-slate-600 leading-relaxed font-medium text-base border-t border-slate-50 pt-6 hidden">
+                    <div class="faq-content px-8 pb-8 text-slate-600 leading-relaxed font-medium text-base border-t border-slate-50 pt-6 hidden">
                         <div class="prose-custom">
                             {faq.answer}
                         </div>
@@ -105,14 +105,14 @@ const faqs = [
             ))}
         </div>
 
-        <div class="mt-24 p-12 bg-blue-600 rounded-[3rem] text-center shadow-2xl shadow-blue-200 relative overflow-hidden">
+        <div class="mt-24 p-12 bg-[#2563EB] rounded-[3rem] text-center shadow-2xl shadow-blue-200 relative overflow-hidden text-white">
             <div class="absolute inset-0 opacity-10 pointer-events-none transform -rotate-12 scale-150">
                  <img src="/img/airsports_no_text_white.png" alt="" class="w-96 h-auto" />
             </div>
             <div class="relative z-10">
-                <h3 class="text-2xl font-bold text-white mb-4 font-lexend italic uppercase">Still have questions?</h3>
-                <p class="text-blue-100 mb-8 max-w-md mx-auto">Our community is active and ready to help you get in the air.</p>
-                <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="inline-block bg-white text-blue-600 px-10 py-4 rounded-2xl font-bold hover:bg-blue-50 transition-all uppercase tracking-widest text-xs">
+                <h3 class="text-2xl font-bold mb-4 font-lexend italic uppercase">Still have questions?</h3>
+                <p class="text-blue-100 mb-8 max-w-md mx-auto font-medium">Our community is active and ready to help you get in the air.</p>
+                <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="inline-block bg-white text-[#2563EB] px-10 py-4 rounded-2xl font-bold hover:bg-blue-50 transition-all uppercase tracking-widest text-xs">
                     Join Slack Community
                 </a>
             </div>
@@ -120,44 +120,7 @@ const faqs = [
     </div>
 
     <script>
-        // Enhanced accordion logic
-        document.querySelectorAll('button').forEach(button => {
-            button.addEventListener('click', () => {
-                const container = button.parentElement;
-                const content = button.nextElementSibling;
-                const svg = button.querySelector('svg');
-                const isHidden = content.classList.contains('hidden');
-                
-                // Close all others
-                document.querySelectorAll('div.text-slate-600').forEach(c => {
-                    if (c !== content) {
-                        c.classList.add('hidden');
-                        c.parentElement.querySelector('svg').classList.remove('rotate-180');
-                        c.parentElement.classList.remove('border-blue-200', 'shadow-blue-100');
-                    }
-                });
-                
-                if (isHidden) {
-                    content.classList.remove('hidden');
-                    svg.classList.add('rotate-180');
-                    container.classList.add('border-blue-200', 'shadow-blue-100');
-                } else {
-                    content.classList.add('hidden');
-                    svg.classList.remove('rotate-180');
-                    container.classList.remove('border-blue-200', 'shadow-blue-100');
-                }
-            });
-        });
-
-        // Handle anchor links for specific FAQ sharing
-        if (window.location.hash) {
-            const id = window.location.hash.substring(1);
-            const el = document.getElementById(id);
-            if (el) {
-                const btn = el.querySelector('button');
-                btn.click();
-                setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 100);
-            }
-        }
+        import { initFaq } from '../scripts/faq.js';
+        initFaq();
     </script>
 </Layout>

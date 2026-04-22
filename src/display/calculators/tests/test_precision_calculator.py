@@ -37,7 +37,7 @@ TEST_DATA_DIR = os.path.dirname(__file__)
 
 def calculator_runner(contestant, track):
     q = RedisQueue(contestant.pk)
-    contestant_processor = ContestantProcessor(contestant, live_processing=False)
+    contestant_processor = ContestantProcessor(contestant, live_processing=False, recalculate=True)
     for i in track:
         i["id"] = 0
         i["deviceId"] = ""

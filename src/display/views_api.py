@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, OpenApiTypes
 
 from guardian.decorators import permission_required as guardian_permission_required
 from display.tasks import (
@@ -20,16 +21,19 @@ from display.serialisers import (
     PersonSignUpSerialiser,
 )
 from display.utilities.calculator_running_utilities import is_calculator_running
+from display.utilities.country_code_utilities import get_country_code_from_location
 from display.views import get_navigation_task_orders_status_object
 
 
+@extend_schema(responses={200: OpenApiTypes.STR})
 @api_view(["POST"])
 def get_country_from_location(request):
     latitude = float(request.data.get("latitude"))
     longitude = float(request.data.get("longitude"))
-    return Response(get_country_from_location(latitude, longitude))
+    return Response(get_country_code_from_location(latitude, longitude))
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_aeroplane(request):
@@ -46,6 +50,7 @@ def auto_complete_aeroplane(request):
         return Response(serialiser.data)
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_club(request):
@@ -62,6 +67,7 @@ def auto_complete_club(request):
         return Response(serialiser.data)
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_phone(request):
@@ -78,6 +84,7 @@ def auto_complete_person_phone(request):
         return Response(serialiser.data)
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_id(request):
@@ -94,6 +101,7 @@ def auto_complete_person_id(request):
         return Response(serialiser.data)
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_first_name(request):
@@ -116,6 +124,7 @@ def auto_complete_person_first_name(request):
         return Response(serialiser.data)
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_last_name(request):
@@ -138,6 +147,7 @@ def auto_complete_person_last_name(request):
         return Response(serialiser.data)
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
 def auto_complete_person_email(request):
@@ -154,12 +164,14 @@ def auto_complete_person_email(request):
         return Response(serialiser.data)
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_persons_for_signup(request):
     return Response(PersonSignUpSerialiser(Person.objects.exclude(email=request.user.email), many=True).data)
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def clear_flight_order_generation_cache(request, pk):
@@ -169,6 +181,7 @@ def clear_flight_order_generation_cache(request, pk):
     return Response({})
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def generate_navigation_task_orders(request, pk):
@@ -199,6 +212,7 @@ def generate_navigation_task_orders(request, pk):
     return Response(get_navigation_task_orders_status_object(pk))
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def broadcast_navigation_task_orders(request, pk):
@@ -224,12 +238,14 @@ def broadcast_navigation_task_orders(request, pk):
     return Response(get_navigation_task_orders_status_object(pk))
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def get_broadcast_navigation_task_orders_status(request, pk):
     return Response(get_navigation_task_orders_status_object(pk))
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def get_running_calculators(request, pk):
@@ -244,6 +260,7 @@ def get_running_calculators(request, pk):
     return Response(status_list)
 
 
+@extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def get_contestant_schedule(request, pk):
