@@ -1,33 +1,18 @@
 steps:
-# 1. Install dependencies
-- name: 'node:22'
-  entrypoint: 'npm'
-  args: ['install']
-  dir: 'airsports_static'
-
-# 2. Build the Astro site
-- name: 'node:22'
-  entrypoint: 'npm'
-  args: ['run', 'build']
-  dir: 'airsports_static'
-
-# 3. Verify build output
-- name: 'node:22'
-  entrypoint: 'ls'
-  args: ['-R', 'airsports_static/dist']
-
-# 4. Deploy to Firebase using root config
+# 1. Build and Deploy from the subdirectory
 - name: 'node:22'
   entrypoint: 'bash'
   args: 
     - '-c'
     - |
-      npm install -g firebase-tools
-      firebase deploy --project ${_FIREBASE_PROJECT_ID} --only hosting:${_FIREBASE_SITE_ID} --config firebase-static.json --non-interactive
+      npm install
+      npm run build
+      npx firebase-tools deploy --project ${_FIREBASE_PROJECT_ID} --only hosting:${_FIREBASE_SITE_ID} --non-interactive
+  dir: 'airsports_static'
 
 substitutions:
   _FIREBASE_PROJECT_ID: 'YOUR_PROJECT_ID'
-  _FIREBASE_SITE_ID: 'YOUR_SITE_ID'
+  _FIREBASE_SITE_ID: 'airsports-info-1747b'
 
 options:
   logging: CLOUD_LOGGING_ONLY
