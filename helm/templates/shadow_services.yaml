@@ -53,24 +53,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: wp-v2-ingress
-  annotations:
-    cloud.google.com/neg: '{"ingress": true}'
-    cloud.google.com/backend-config: '{"default": "wordpress-backend-config"}'
-spec:
-  ports:
-  - port: 80
-    targetPort: 80
-    protocol: TCP
-  selector:
-    app.kubernetes.io/component: wordpress
-    app.kubernetes.io/instance: airsportsrelease
-    app.kubernetes.io/name: wordpress
-  type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
   name: mbtiles-service-ingress
   annotations:
     cloud.google.com/neg: '{"ingress": true}'

@@ -2171,7 +2171,7 @@ def add_user_useruploadedmap_permissions(request, pk):
 
 class WelcomeEmailExample(SuperuserRequiredMixin, View):
     """
-    The welcome e-mail is generated based on text written in wordpress. This renders an example email.
+    Renders an example welcome e-mail.
     """
 
     def get(self, request, *args, **kwargs):
@@ -2181,7 +2181,7 @@ class WelcomeEmailExample(SuperuserRequiredMixin, View):
 
 class ContestCreationEmailExample(SuperuserRequiredMixin, View):
     """
-    The contest creation e-mail is generated based on text written in wordpress. This renders an example email.
+    Renders an example contest creation e-mail.
     """
 
     def get(self, request, *args, **kwargs):

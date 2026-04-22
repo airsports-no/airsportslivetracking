@@ -2,8 +2,8 @@
 import Layout from '../layouts/Layout.astro';
 
 const videos = [
-    { title: "How to create a contest", id: "4ZPlDVjXabs" },
-    { title: "How to register for a contest", id: "mkVcg9KxRho" },
+    { title: "How to create a contest", id: "4ZPlDVjXabs", anchor: "CreateContest" },
+    { title: "How to register for a contest", id: "mkVcg9KxRho", anchor: "SelfRegistration" },
 ];
 ---
 
@@ -14,7 +14,7 @@ const videos = [
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
             {videos.map(video => (
-                <div class="group">
+                <div class="group" id={video.anchor}>
                     <div class="aspect-video bg-slate-200 rounded-3xl overflow-hidden shadow-lg group-hover:shadow-xl transition-all mb-6 relative">
                         <iframe 
                             class="absolute inset-0 w-full h-full"

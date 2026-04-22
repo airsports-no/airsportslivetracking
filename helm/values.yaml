@@ -90,18 +90,6 @@ ingress:
           pathType: Prefix
           serviceName: traccar-service-ingress
           servicePort: 8082
-    - host: home.airsports.no
-      paths:
-        - path: /
-          pathType: Prefix
-          serviceName: wp-v2-ingress
-          servicePort: 80
-    - host: home.gcloud.airsports.no
-      paths:
-        - path: /
-          pathType: Prefix
-          serviceName: wp-v2-ingress
-          servicePort: 80
     - host: traccarclient.airsports.no
       paths:
         - path: /
@@ -147,6 +135,12 @@ traccar:
 
 externalMysql:
   host: 10.95.241.3
+
+smtp:
+  host: pro.turbo-smtp.com
+  port: 587
+  user: e1a92a30e397f335217d
+  # password is provided via secret values file (e.g. private_values.yaml)
 
 externalRedis:
 #  host: 10.95.241.11
@@ -231,108 +225,6 @@ redis:
         limits:
           cpu: 500m
           memory: 128Mi
-
-wordpress:
-  enabled: true
-  
-  # Override name to avoid spec.selector immutability error on upgrade
-  # This creates a new deployment instead of patching the existing one.
-  fullnameOverride: "airsportsrelease-wordpress-v2"
-
-  # WordPress Setup Configuration
-  wordpress:
-    siteUrl: "https://home.airsports.no"
-    siteTitle: "Air Sports Live Tracking"
-    adminUser: kolaf
-    adminEmail: frankose@ifi.uio.no
-    tablePrefix: "wp_"
-    debug: true
-    configExtra: |
-      if (isset($_SERVER['HTTP_HOST'])) {
-          define('WP_HOME', 'https://' . $_SERVER['HTTP_HOST']);
-          define('WP_SITEURL', 'https://' . $_SERVER['HTTP_HOST']);
-      }
-      // Robust HTTPS offloading detection
-      if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) {
-          $_SERVER['HTTPS'] = 'on';
-      }
-      // Force HTTPS for all regular requests to avoid mixed content
-      if (isset($_SERVER['HTTP_HOST']) && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on')) {
-          // But skip for health checks to avoid 301 loop on LB
-          $isHealthCheck = false;
-          if (isset($_SERVER['HTTP_USER_AGENT'])) {
-              if (strpos($_SERVER['HTTP_USER_AGENT'], 'GoogleHC') !== false || strpos($_SERVER['HTTP_USER_AGENT'], 'kube-probe') !== false) {
-                  $isHealthCheck = true;
-              }
-          }
-          if (!$isHealthCheck) {
-              header('Location: https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], true, 301);
-              exit;
-          } else {
-              $_SERVER['HTTPS'] = 'on'; // Pretend for health check success
-          }
-      }
-
-  # External Database Configuration (HelmForge style)
-  database:
-    mode: external
-    external:
-      host: 10.95.241.3
-      name: bitnami_wordpress
-      username: bn_wordpress
-      # password is provided via secret values file (e.g. private_values.yaml)
-  
-  # GKE Autopilot Affinity
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-          - matchExpressions:
-              - key: cloud.google.com/gke-spot
-                operator: In
-                values:
-                  - "true"
-
-  # GKE Autopilot Resource Alignment
-  resources:
-    requests:
-      cpu: 500m
-      memory: 512Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
-
-  terminationGracePeriodSeconds: 25
-
-  # Probes: Use install.php which returns 200 even before setup
-  readinessProbe:
-    path: /wp-admin/install.php
-  livenessProbe:
-    path: /wp-admin/install.php
-
-  # Persistent Storage
-  persistence:
-    enabled: true
-    size: 10Gi
-    # mountPath is hardcoded to /var/www/html in this chart
-
-  # MySQL subchart for WordPress is disabled as we use an external database
-  mysql:
-    enabled: false
-
-  # Disable NetworkPolicy as it blocks Load Balancer health checks
-  networkPolicy:
-    enabled: false
-
-  # PHP configuration (php.ini)
-  php:
-    ini: |
-      upload_max_filesize = 512M
-      post_max_size = 512M
-      memory_limit = 512M
-      max_execution_time = 300
-      max_input_time = 300
-
 
 mysql:
   enabled: false
@@ -420,5 +312,4 @@ mysql:
 
       GRANT ALL PRIVILEGES ON traccar.* To 'traccar'@'%';
       GRANT ALL PRIVILEGES ON tracker.* To 'tracker'@'%';
-      GRANT ALL PRIVILEGES ON bitnami_wordpress.* To 'bn_wordpress'@'%';
       FLUSH PRIVILEGES;

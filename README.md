@@ -47,8 +47,7 @@ to build all required images.
  - redis (caching and interprocess communication)
  - traccar (local traccar.org server)
 
-The helm chart used for production employment has a few additional dependencies:
-- wordpress: Hosts home.airsports.no. This should eventually be moved through a separate stand-alone chart.
+The helm chart used for production employment has an additional dependency:
 - mbtils: Basic tile server used to serve certain maps to the navigation map generation process.
 
 These additional dependencies are not required for executing locally and are therefore not part of docker-compose.yml.
