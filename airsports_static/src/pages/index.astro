@@ -116,23 +116,44 @@ import Layout from '../layouts/Layout.astro';
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                 <div class="bg-slate-100 p-4 rounded-[3rem] shadow-3xl transform -rotate-1 hover:rotate-0 transition-transform duration-500 overflow-hidden border border-slate-200">
-                    <img src="/img/task.png" alt="ASLT Task Editor" class="rounded-[2rem] shadow-inner w-full h-auto" />
+                    <img src="/img/route_editor.png" alt="ASLT Route Editor" class="rounded-[2rem] shadow-inner w-full h-auto" />
                 </div>
                 <div>
                     <h3 class="text-3xl font-bold mb-6 font-lexend italic text-slate-800 uppercase">Intelligent Route Editor</h3>
                     <p class="text-lg text-slate-600 mb-8 leading-relaxed font-medium">
-                        Design complex navigation tasks with ease. Our integrated editor supports custom georeferenced maps, secret gates, and precision-timed waypoints.
+                        Design complex navigation tasks with ease. Our integrated editor supports AIP chart overlays, custom georeferenced maps, secret gates, and precision-timed waypoints.
                     </p>
                     <ul class="space-y-4 font-bold text-slate-700 uppercase tracking-tight text-sm italic">
                         <li class="flex items-start gap-4">
                             <span class="text-orange-600">01</span>
-                            <span>Draw corridors and prohibited zones directly on FAI-standard maps.</span>
+                            <span>Draw corridors and prohibited zones directly on aeronautical charts.</span>
                         </li>
                         <li class="flex items-start gap-4">
                             <span class="text-orange-600">02</span>
                             <span>Automatically generate high-resolution PDF Flight Orders for pilots.</span>
                         </li>
                     </ul>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32">
+                <div class="order-2 lg:order-1">
+                    <h3 class="text-3xl font-bold mb-6 font-lexend italic text-slate-800 uppercase">Live Competition Map</h3>
+                    <p class="text-lg text-slate-600 mb-8 leading-relaxed font-medium">
+                        Experience the thrill of the race as it happens. Our live competition map provides spectators and organizers with a real-time view of every contestant, complete with trail breadcrumbs and instant penalty notifications.
+                    </p>
+                    <ul class="space-y-4 font-bold text-slate-700 uppercase tracking-tight text-sm italic">
+                        <li class="flex items-start gap-4">
+                            <span class="text-indigo-600">01</span>
+                            <span>High-fidelity tracking with low-latency WebSocket updates.</span>
+                        </li>
+                        <li class="flex items-start gap-4">
+                            <span class="text-indigo-600">02</span>
+                            <span>Visual confirmation of gate crossings and corridor compliance.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="order-1 lg:order-2 bg-slate-100 p-4 rounded-[3rem] shadow-3xl transform rotate-1 hover:rotate-0 transition-transform duration-500 overflow-hidden border border-slate-200">
+                    <img src="/img/task.png" alt="ASLT Live Competition Map" class="rounded-[2rem] shadow-inner w-full h-auto" />
                 </div>
             </div>
         </div>
@@ -183,6 +204,27 @@ import Layout from '../layouts/Layout.astro';
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Video Tutorials CTA -->
+        <div class="py-24 bg-indigo-900 text-white relative overflow-hidden">
+            <div class="absolute inset-0 opacity-10">
+                <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <path d="M0 100 L100 0 L100 100 Z" fill="currentColor" />
+                </svg>
+            </div>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+                <h2 class="text-4xl font-extrabold mb-6 font-lexend italic uppercase tracking-tight">New to the platform?</h2>
+                <p class="text-xl text-indigo-100 mb-10 max-w-2xl mx-auto font-medium">
+                    Watch our step-by-step video tutorials to get started with competition management and registration.
+                </p>
+                <a href="/tutorials" class="inline-flex items-center gap-3 bg-white text-indigo-900 px-10 py-4 rounded-2xl font-extrabold hover:bg-indigo-50 transition-all shadow-xl active:scale-95 uppercase tracking-wider">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                    Watch Video Tutorials
+                </a>
             </div>
         </div>
 
