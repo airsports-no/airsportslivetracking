@@ -111,6 +111,7 @@ class TestIdempotentRestart(TransactionTestCase):
         processor = ContestantProcessor(self.contestant, live_processing=False)
         with patch.object(processor.orchestrator, "finished_processing"):
             processor.run()
+        processor.score_processing_queue.join()
 
         # Capture state after first run
         score_after_first = ContestantTrack.objects.get(contestant=self.contestant).score
@@ -142,6 +143,7 @@ class TestIdempotentRestart(TransactionTestCase):
         mock_slack.assert_not_called()
 
         processor_restart.run()
+        processor_restart.score_processing_queue.join()
 
         # 4. Verifications
         # Verify final state
@@ -175,6 +177,7 @@ class TestIdempotentRestart(TransactionTestCase):
 
         processor = ContestantProcessor(self.contestant, live_processing=False)
         processor.run()
+        processor.score_processing_queue.join()
 
         # 2. Perform recalculate
         # This should wipe existing data and start over
@@ -189,6 +192,7 @@ class TestIdempotentRestart(TransactionTestCase):
         self.assertEqual(ScoreLogEntry.objects.filter(contestant=self.contestant).count(), 0)
 
         processor_recalc.run()
+        processor_recalc.score_processing_queue.join()
 
         # Verify final state is correct (not double counted)
         final_track = ContestantTrack.objects.get(contestant=self.contestant)
