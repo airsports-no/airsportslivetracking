@@ -19,6 +19,7 @@ from django.core.files.storage import default_storage
 from django.utils.text import slugify
 
 from display.models.contestant import Contestant
+from display.models.email_map_link import EmailMapLink
 from display.models.flymaster_data import FlymasterData
 from live_tracking_map.celery import app
 from live_tracking_map.settings import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
