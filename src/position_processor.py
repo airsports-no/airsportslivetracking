@@ -132,6 +132,7 @@ if __name__ == "__main__":
     ).start()
 
     probes.readiness(True)
+    cache.set(LAST_DEBUG_KEY, time.time(), 10 * DEBUG_INTERVAL)
     check_connection()
     print_messages_debug()
     failed_connecting_count = 0
