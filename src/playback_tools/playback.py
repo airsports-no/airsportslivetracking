@@ -123,7 +123,7 @@ def recalculate_live_contestant(contestant: "Contestant"):
         q.append(None)
         logger.debug(f"Loaded {len(track)} positions")
         cancel_termination_request(contestant.pk)
-        contestant_processor = ContestantProcessor(contestant, live_processing=False, queue_name_override=queue_name)
+        contestant_processor = ContestantProcessor(contestant, live_processing=False, queue_name_override=queue_name, recalculate=True)
         contestant_processor.run()
         while not q.empty():
             q.pop()
@@ -164,7 +164,7 @@ def recalculate_from_existing_positions_sync(contestant: "Contestant"):
         # But we already read them into memory (or at least the QuerySet was evaluated if we iterated).
         # Actually, let's be safe and evaluate the list.
         
-        contestant_processor = ContestantProcessor(contestant, live_processing=False, queue_name_override=queue_name)
+        contestant_processor = ContestantProcessor(contestant, live_processing=False, queue_name_override=queue_name, recalculate=True)
         contestant_processor.run()
         
         while not q.empty():
@@ -258,7 +258,7 @@ def insert_gpx_file(contestant_object: "Contestant", file):
         q.append(i)
     q.append(None)
     cancel_termination_request(contestant_object.pk)
-    contestant_processor = ContestantProcessor(contestant_object, live_processing=False, queue_name_override=queue_name)
+    contestant_processor = ContestantProcessor(contestant_object, live_processing=False, queue_name_override=queue_name, recalculate=True)
     contestant_processor.run()
     while not q.empty():
         q.pop()

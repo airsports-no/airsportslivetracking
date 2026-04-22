@@ -14,6 +14,14 @@ class TimedQueue:
         self._queue = []
         self._closed = False
 
+    def empty(self):
+        with self._lock:
+            return len(self._queue) == 0
+
+    def qsize(self):
+        with self._lock:
+            return len(self._queue)
+
     def close(self):
         self._closed = True
         self._ready_event.set()

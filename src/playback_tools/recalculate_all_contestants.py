@@ -84,7 +84,7 @@ def recalculate_contestant(contestant):
     try:
         # Create and run processor
         # live_processing=False ensures it doesn't try to fetch more data from external services
-        processor = ContestantProcessor(contestant, live_processing=False, queue_name_override=queue_name)
+        processor = ContestantProcessor(contestant, live_processing=False, queue_name_override=queue_name, recalculate=True)
         processor.run()
         logger.info(f"Successfully recalculated {contestant}")
     except Exception as e:
