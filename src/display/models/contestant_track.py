@@ -2,6 +2,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import F
 
+from display.utilities.db_retry import retry_on_lock_timeout
+
 
 class ContestantTrack(models.Model):
     """
@@ -78,24 +80,20 @@ class ContestantTrack(models.Model):
             self.__push_change()
 
     def increment_score(self, score_increment):
-        from display.models import TeamTestScore
-
         if score_increment != 0:
             # Atomic update of ContestantTrack score field in the database.
             # We use .update() to avoid the overhead of retrieving the entire object and to be resilient if it was deleted.
-            updated_count = type(self).objects.filter(pk=self.pk).update(score=F("score") + score_increment)
+            updated_count = self._atomic_increment_track_score(score_increment)
 
             if updated_count > 0:
-                # Update task test score if it exists. TeamTestScore has signals for the leaderboard,
-                # so we use .save() with an F expression to keep it atomic while triggering summary updates.
+                # TeamTestScore has signals for the leaderboard, so we use .save() with an F
+                # expression to keep it atomic while triggering summary updates.
                 if hasattr(self.contestant.navigation_task, "tasktest"):
-                    tts, created = TeamTestScore.objects.get_or_create(
-                        team=self.contestant.team,
-                        task_test=self.contestant.navigation_task.tasktest,
-                        defaults={"points": 0},
+                    self._atomic_increment_team_test_score(
+                        self.contestant.team,
+                        self.contestant.navigation_task.tasktest,
+                        score_increment,
                     )
-                    tts.points = F("points") + score_increment
-                    tts.save(update_fields=["points"])
 
                 # Update the instance score locally so that __push_change() sends the most up-to-date information.
                 # Note: This might be slightly different from DB ground truth if there were concurrent updates,
@@ -103,6 +101,23 @@ class ContestantTrack(models.Model):
                 if not isinstance(self.score, F):
                     self.score += score_increment
                 self.__push_change()
+
+    @retry_on_lock_timeout()
+    def _atomic_increment_track_score(self, score_increment) -> int:
+        return type(self).objects.filter(pk=self.pk).update(score=F("score") + score_increment)
+
+    @staticmethod
+    @retry_on_lock_timeout()
+    def _atomic_increment_team_test_score(team, task_test, score_increment) -> None:
+        from display.models import TeamTestScore
+
+        tts, _ = TeamTestScore.objects.get_or_create(
+            team=team,
+            task_test=task_test,
+            defaults={"points": 0},
+        )
+        tts.points = F("points") + score_increment
+        tts.save(update_fields=["points"])
 
     def updates_current_state(self, state: str):
         if self.current_state != state:
