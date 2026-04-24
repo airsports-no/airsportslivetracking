@@ -1,8 +1,9 @@
 from io import BytesIO
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, PropertyMock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db.models.fields.files import FieldFile
 from django.test import TestCase
 
 from display.models.user_uploaded_map import UserUploadedMap
@@ -79,8 +80,8 @@ class GetLocalFilePathStreamingTests(TestCase):
         from display.models import user_uploaded_map as module
         module.LOCAL_MAP_FILE_CACHE.pop(f"user_map_{instance.map_file.name}", None)
 
-        with patch.object(instance.map_file, "chunks", wraps=instance.map_file.chunks) as chunks_mock, \
-             patch.object(instance.map_file, "read", wraps=instance.map_file.read) as read_mock:
+        with patch.object(instance.map_file, "chunks", return_value=[b"fake bytes"]) as chunks_mock, \
+             patch.object(FieldFile, "read", new_callable=PropertyMock) as read_mock:
             path = instance.get_local_file_path()
             self.addCleanup(instance.clear_local_file_path)
 
