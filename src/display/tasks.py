@@ -1,5 +1,6 @@
 import datetime
 import logging
+import os
 from typing import Optional
 
 import redis_lock
@@ -238,6 +239,47 @@ def delete_old_flight_orders():
     EmailMapLink.objects.filter(
         contestant__finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=5)
     ).delete()
+
+
+@app.task
+def process_user_uploaded_map(map_id: int):
+    """
+    Generate the thumbnail and detect the zoom range for a newly uploaded or updated UserUploadedMap.
+
+    Heavy mbtiles processing (streaming the file locally, stitching tiles into a thumbnail image) is run
+    out-of-band to avoid blocking the gunicorn request worker and exceeding its memory/timeout limits.
+    """
+    from display.models import UserUploadedMap
+
+    try:
+        instance = UserUploadedMap.objects.get(pk=map_id)
+    except UserUploadedMap.DoesNotExist:
+        logger.warning(f"UserUploadedMap {map_id} no longer exists, skipping processing")
+        return
+
+    try:
+        instance.clear_local_file_path()
+        content, minimum_zoom, maximum_zoom = instance.create_thumbnail()
+        filename = os.path.split(instance.map_file.name)[1] + "_thumbnail.png"
+        instance.thumbnail.save(filename, ContentFile(content.getvalue()), save=False)
+        instance.minimum_zoom_level = minimum_zoom
+        instance.maximum_zoom_level = maximum_zoom
+        if not minimum_zoom <= instance.default_zoom_level <= maximum_zoom:
+            clamped = max(minimum_zoom, min(instance.default_zoom_level, maximum_zoom))
+            logger.warning(
+                f"Clamping default_zoom_level for UserUploadedMap {map_id} from "
+                f"{instance.default_zoom_level} to {clamped} (map supports [{minimum_zoom}, {maximum_zoom}])"
+            )
+            instance.default_zoom_level = clamped
+        instance.processing_status = UserUploadedMap.PROCESSING_READY
+        instance.processing_error = ""
+        instance.save()
+    except Exception as ex:
+        logger.exception(f"Failed processing UserUploadedMap {map_id}")
+        UserUploadedMap.objects.filter(pk=map_id).update(
+            processing_status=UserUploadedMap.PROCESSING_FAILED,
+            processing_error=f"Failed reading mbtiles file: {ex}",
+        )
 
 
 @app.task

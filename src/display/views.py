@@ -123,6 +123,7 @@ from display.contestant_scheduling.schedule_contestants import schedule_and_crea
 from display.tasks import (
     import_gpx_track,
     process_flymaster_file,
+    process_user_uploaded_map,
     recalculate_existing_positions,
     recalculate_live_data_for_contestant,
 )
@@ -1983,31 +1984,16 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         instance = form.save()  # type: UserUploadedMap
-        try:
-            filename = os.path.split(instance.map_file.name)[1] + "_thumbnail.png"
-            content, minimum_zoom, maximum_zoom = instance.create_thumbnail()
-            instance.thumbnail.save(
-                filename,
-                ContentFile(content.getvalue()),
-                save=True,
-            )
-            instance.minimum_zoom_level = minimum_zoom
-            instance.maximum_zoom_level = maximum_zoom
-            if not minimum_zoom <= instance.default_zoom_level <= maximum_zoom:
-                form.add_error(
-                    "default_zoom_level",
-                    f"The selected default zoom level {instance.default_zoom_level} is not in the range supported by the map: [{minimum_zoom}, {maximum_zoom}]",
-                )
-                return super().form_invalid(form)
-            instance.save()
-        except Exception as ex:
-            logger.exception("Failed creating thumbnail")
-            form.add_error("map_file", f"Failed reading mbtiles file: {ex}")
-            return super().form_invalid(form)
+        instance.processing_status = UserUploadedMap.PROCESSING_PENDING
+        instance.processing_error = ""
+        instance.save(update_fields=["processing_status", "processing_error"])
+
         assign_perm("delete_useruploadedmap", self.request.user, instance)
         assign_perm("view_useruploadedmap", self.request.user, instance)
         assign_perm("add_useruploadedmap", self.request.user, instance)
         assign_perm("change_useruploadedmap", self.request.user, instance)
+
+        transaction.on_commit(lambda: process_user_uploaded_map.delay(instance.pk))
 
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())
@@ -2024,27 +2010,11 @@ class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
     def form_valid(self, form):
         instance = form.save()  # type: UserUploadedMap
         instance.clear_local_file_path()
-        try:
-            content, minimum_zoom, maximum_zoom = instance.create_thumbnail()
-            filename = os.path.split(instance.map_file.name)[1] + "_thumbnail.png"
-            instance.thumbnail.save(
-                filename,
-                ContentFile(content.getvalue()),
-                save=True,
-            )
-            instance.minimum_zoom_level = minimum_zoom
-            instance.maximum_zoom_level = maximum_zoom
-            if not minimum_zoom <= instance.default_zoom_level <= maximum_zoom:
-                form.add_error(
-                    "default_zoom_level",
-                    f"The selected default zoom level {instance.default_zoom_level} is not in the range supported by the map: [{minimum_zoom}, {maximum_zoom}]",
-                )
-                return super().form_invalid(form)
-            instance.save()
-        except Exception as ex:
-            logger.exception("Failed creating thumbnail")
-            form.add_error("map_file", f"Failed reading mbtiles file: {ex}")
-            return super().form_invalid(form)
+        instance.processing_status = UserUploadedMap.PROCESSING_PENDING
+        instance.processing_error = ""
+        instance.save(update_fields=["processing_status", "processing_error"])
+
+        transaction.on_commit(lambda: process_user_uploaded_map.delay(instance.pk))
 
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())

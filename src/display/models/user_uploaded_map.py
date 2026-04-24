@@ -29,6 +29,15 @@ class UserUploadedMap(models.Model):
     A user uploaded map contains a mbtiles file that conserve tiles to be used as map backgrounds for navigation maps
     (flight orders) created by users with access to the user uploaded map object.
     """
+    PROCESSING_PENDING = "pending"
+    PROCESSING_READY = "ready"
+    PROCESSING_FAILED = "failed"
+    PROCESSING_STATUS_CHOICES = (
+        (PROCESSING_PENDING, "Pending"),
+        (PROCESSING_READY, "Ready"),
+        (PROCESSING_FAILED, "Failed"),
+    )
+
     user = models.ForeignKey("MyUser", on_delete=models.CASCADE)
     name = models.CharField(max_length=500)
     map_file = models.FileField(
@@ -51,6 +60,12 @@ class UserUploadedMap(models.Model):
         help_text="A short attribution text for the map source material (source and time of retrieval), e.g. 'Contains data from kartverket.no, 07/2023",
         max_length=100,
     )
+    processing_status = models.CharField(
+        max_length=16,
+        choices=PROCESSING_STATUS_CHOICES,
+        default=PROCESSING_PENDING,
+    )
+    processing_error = models.TextField(blank=True, default="")
 
     def __str__(self):
         return self.name
@@ -62,15 +77,20 @@ class UserUploadedMap(models.Model):
         """
         Maps are stored in Google file storage. However, matplotlib/cartopy requires the files to be available locally.
         This function ensures that the file has been copied to the local file system and returns the path to it.
+        Streams the file in chunks to avoid loading the entire (up to 100MB) mbtiles into memory at once.
         """
         key = f"user_map_{self.map_file.name}"
         if temporary_path := LOCAL_MAP_FILE_CACHE.get(key):
             return temporary_path
-        else:
-            with NamedTemporaryFile(delete=False) as temporary_map:
-                temporary_map.write(self.map_file.read())
-                LOCAL_MAP_FILE_CACHE[key] = temporary_map.name
-                return temporary_map.name
+        with NamedTemporaryFile(delete=False) as temporary_map:
+            self.map_file.open("rb")
+            try:
+                for chunk in self.map_file.chunks():
+                    temporary_map.write(chunk)
+            finally:
+                self.map_file.close()
+            LOCAL_MAP_FILE_CACHE[key] = temporary_map.name
+            return temporary_map.name
 
     def clear_local_file_path(self):
         """
