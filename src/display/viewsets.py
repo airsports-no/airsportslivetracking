@@ -8,20 +8,18 @@ import csv
 
 from django.core.cache import cache
 from django.core.files.base import ContentFile
-from django.core.paginator import InvalidPage
 from django.db import transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Prefetch
 from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils.cache import add_never_cache_headers, patch_response_headers
 from guardian.shortcuts import get_objects_for_user
-from rest_framework import status, permissions, mixins
+from rest_framework import status, permissions
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination, CursorPagination
+from rest_framework.pagination import CursorPagination
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
-from rest_framework.exceptions import NotFound
 import rest_framework.exceptions as drf_exceptions
 from urllib import parse
 
@@ -378,14 +376,14 @@ class ContestViewSet(ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         version = cache.get("contest_list_version", 1)
-        
+
         # ETag based on global version and object ID
         etag = f'"{version}-contest-{instance.pk}"'
-        if request.META.get('HTTP_IF_NONE_MATCH') == etag:
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         response = super().retrieve(request, *args, **kwargs)
-        
+
         response["ETag"] = etag
         if instance.is_public and instance.is_featured:
             response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
@@ -405,17 +403,17 @@ class ContestViewSet(ModelViewSet):
         params_hash = hashlib.md5(sorted_params.encode("utf-8")).hexdigest()
 
         version = cache.get("contest_list_version", 1)
-        
+
         # 1. ETag check (Browser/CDN level validation)
         # The ETag represents a specific version of a specific query
         etag = f'"{version}-{params_hash}"'
-        if request.META.get('HTTP_IF_NONE_MATCH') == etag:
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         # 2. Django-level cache check
         cache_key = f"contest_list_v{version}_u{user_id}_{params_hash}"
         cached_data = cache.get(cache_key)
-        
+
         if cached_data:
             response = Response(cached_data)
         else:
@@ -452,12 +450,7 @@ class ContestViewSet(ModelViewSet):
         elif user.is_authenticated:
             # Authenticated users can see public contests OR contests they have permissions for.
             queryset = (
-                get_objects_for_user(
-                    user, 
-                    "display.view_contest", 
-                    klass=queryset, 
-                    accept_global_perms=False
-                ) 
+                get_objects_for_user(user, "display.view_contest", klass=queryset, accept_global_perms=False)
                 | Contest.objects.filter(is_public=True, is_featured=True)
             ).distinct()
         else:
@@ -504,7 +497,7 @@ class ContestViewSet(ModelViewSet):
     def ongoing_navigation(self, request, *args, **kwargs):
         version = cache.get("contest_list_version", 1)
         etag = f'"{version}-ongoing"'
-        if request.META.get('HTTP_IF_NONE_MATCH') == etag:
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         # Synchronize with OngoingNavigationSerialiser definition of 'active'
@@ -543,7 +536,7 @@ class ContestViewSet(ModelViewSet):
         contest = self.get_object()
         version = cache.get("contest_list_version", 1)
         etag = f'"{version}-results-{contest.pk}"'
-        if request.META.get('HTTP_IF_NONE_MATCH') == etag:
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         contest.permission_change_contest = request.user.has_perm("display.change_contest", contest)
@@ -564,7 +557,7 @@ class ContestViewSet(ModelViewSet):
         contest = self.get_object()
         version = cache.get("contest_list_version", 1)
         etag = f'"{version}-results-csv-{contest.pk}"'
-        if request.META.get('HTTP_IF_NONE_MATCH') == etag:
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         tasks = contest.task_set.all().order_by("index")
@@ -758,14 +751,14 @@ class ContestViewSet(ModelViewSet):
                 context["user_person"] = Person.objects.filter(email=self.request.user.email).first()
                 context["editable_contest_ids"] = set(
                     get_objects_for_user(
-                        self.request.user, 
-                        "display.change_contest", 
-                        klass=Contest, 
-                        accept_global_perms=False, 
-                        with_superuser=False
+                        self.request.user,
+                        "display.change_contest",
+                        klass=Contest,
+                        accept_global_perms=False,
+                        with_superuser=False,
                     ).values_list("id", flat=True)
                 )
-                
+
                 context["registered_contest_ids"] = set(
                     ContestTeam.objects.filter(
                         Q(team__crew__member1__email=self.request.user.email)
@@ -835,14 +828,14 @@ class NavigationTaskViewSet(ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         version = cache.get("contest_list_version", 1)
-        
+
         # ETag based on global version and object ID
         etag = f'"{version}-navtask-{instance.pk}"'
-        if request.META.get('HTTP_IF_NONE_MATCH') == etag:
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         response = super().retrieve(request, *args, **kwargs)
-        
+
         response["ETag"] = etag
         if instance.is_public and instance.contest.is_public and instance.is_featured:
             response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
@@ -1296,16 +1289,16 @@ class ContestantViewSet(ModelViewSet):
         Used by the front end to load initial data
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
-        
+
         # ETag based on contestant's track version
         etag = f'"{contestant.pk}-{contestant.track_version}-scores"'
-        if request.META.get('HTTP_IF_NONE_MATCH') == etag:
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         response = Response(generate_score_data(contestant.pk))
         response["ETag"] = etag
 
-        # Cache-Control: 
+        # Cache-Control:
         # If public, cache at edge but revalidate (stale-while-revalidate)
         # If private, don't cache at edge.
         is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
@@ -1326,21 +1319,23 @@ class ContestantViewSet(ModelViewSet):
         # e.g. If count=15, minute_index must be 0, 15, 30, 45...
         if count > 1 and minute_index % count != 0:
             return Response(
-                {"detail": f"Multi-minute slices must be aligned to the count. {minute_index} is not a multiple of {count}."},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "detail": f"Multi-minute slices must be aligned to the count. {minute_index} is not a multiple of {count}."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # ETag includes the count to distinguish between single minutes and chunks
         etag = f'"{contestant.pk}-{contestant.track_version}-{minute_index}-c{count}"'
-        if request.META.get('HTTP_IF_NONE_MATCH') == etag:
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         start_window = datetime.datetime.fromtimestamp(minute_index * 60, tz=datetime.timezone.utc)
         end_window = start_window + datetime.timedelta(seconds=60 * count)
 
-        positions = contestant.contestantreceivedposition_set.filter(time__gte=start_window, time__lt=end_window).values(
-            "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
-        )
+        positions = contestant.contestantreceivedposition_set.filter(
+            time__gte=start_window, time__lt=end_window
+        ).values("time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated")
 
         response = Response(list(positions))
         response["ETag"] = etag
