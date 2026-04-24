@@ -497,10 +497,10 @@ class ContestViewSet(ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def ongoing_navigation(self, request, *args, **kwargs):
-        version = cache.get("contest_list_version", 1)
-        etag = f'"{version}-ongoing"'
-        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
-            return Response(status=status.HTTP_304_NOT_MODIFIED)
+        # version = cache.get("contest_list_version", 1)
+        # etag = f'"{version}-ongoing"'
+        # if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+        #     return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         # Synchronize with OngoingNavigationSerialiser definition of 'active'
         navigation_tasks = (
@@ -508,6 +508,7 @@ class ContestViewSet(ModelViewSet):
             .filter(
                 contestant__contestanttrack__calculator_started=True,
                 contestant__contestanttrack__calculator_finished=False,
+                contestant__finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
             )
             .distinct()
         )
@@ -516,7 +517,8 @@ class ContestViewSet(ModelViewSet):
         active_contestants_prefetch = Prefetch(
             "contestant_set",
             queryset=Contestant.objects.filter(
-                contestanttrack__calculator_started=True, contestanttrack__calculator_finished=False
+                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
+                contestanttrack__calculator_started=True, contestanttrack__calculator_finished=False,
             ).select_related("team__crew__member1", "team__aeroplane", "contestanttrack"),
             to_attr="prefetched_active_contestants",
         )
@@ -525,17 +527,17 @@ class ContestViewSet(ModelViewSet):
 
         data = self.get_serializer_class()(navigation_tasks, many=True, context={"request": self.request}).data
         response = Response(data)
-        response["ETag"] = etag
+        # response["ETag"] = etag
         # This is a public-facing list of live tasks, safe to cache at edge but revalidate often
         response["Cache-Control"] = "public, max-age=30, s-maxage=60, stale-while-revalidate=300"
         return response
 
     @action(detail=False, methods=["get"])
     def todays_navigation(self, request, *args, **kwargs):
-        version = cache.get("contest_list_version", 1)
-        etag = f'"{version}-todays-nav"'
-        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
-            return Response(status=status.HTTP_304_NOT_MODIFIED)
+        # version = cache.get("contest_list_version", 1)
+        # etag = f'"{version}-todays-nav"'
+        # if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+        #     return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         now = datetime.datetime.now(datetime.timezone.utc)
         start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -566,7 +568,7 @@ class ContestViewSet(ModelViewSet):
 
         data = TodaysNavigationSerialiser(navigation_tasks, many=True, context={"request": self.request}).data
         response = Response(data)
-        response["ETag"] = etag
+        # response["ETag"] = etag
         # Cache for 5 minutes, stale-while-revalidate for 1 hour
         response["Cache-Control"] = "public, max-age=300, s-maxage=600, stale-while-revalidate=3600"
         return response

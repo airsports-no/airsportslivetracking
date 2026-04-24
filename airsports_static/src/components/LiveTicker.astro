@@ -44,7 +44,7 @@
             : 'https://airsports.no';
 
         try {
-            const response = await fetch(`${API_BASE}/api/v1/navigationtasks/ongoing_navigation/`);
+            const response = await fetch(`${API_BASE}/api/v1/contests/ongoing_navigation/`);
             if (!response.ok) throw new Error('Failed to fetch');
             const data = await response.json();
 
@@ -62,7 +62,7 @@
             // Create items
             const items = data.map(task => {
                 const item = document.createElement('a');
-                item.href = task.tracking_link;
+                item.href = API_BASE+task.tracking_link;
                 item.target = '_blank';
                 item.className = 'flex items-center gap-3 hover:text-blue-200 transition-colors group';
                 

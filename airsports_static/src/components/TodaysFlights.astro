@@ -49,7 +49,7 @@
         dateDisplay.textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', month: 'short', day: 'numeric' });
 
         try {
-            const response = await fetch(`${API_BASE}/api/v1/navigationtasks/todays_navigation/`);
+            const response = await fetch(`${API_BASE}/api/v1/contests/todays_navigation/`);
             if (!response.ok) throw new Error('Failed to fetch');
             const data = await response.json();
 
@@ -99,7 +99,7 @@
                     </div>
 
                     <div class="relative z-10">
-                        <a href="${task.tracking_link}" target="_blank" class="flex items-center justify-center gap-3 w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-600 hover:shadow-2xl hover:shadow-blue-200 transition-all duration-500 active:scale-95 italic">
+                        <a href="${API_BASE+task.tracking_link}" target="_blank" class="flex items-center justify-center gap-3 w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-600 hover:shadow-2xl hover:shadow-blue-200 transition-all duration-500 active:scale-95 italic">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />

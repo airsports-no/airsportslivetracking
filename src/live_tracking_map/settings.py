@@ -104,6 +104,8 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     "rest_framework",
     "rest_framework.authtoken",
+    "django_filters",
+    "django_use_email_as_username",
     "timezone_field",
     "drf_spectacular",
     "solo",
