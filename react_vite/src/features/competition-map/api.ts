@@ -88,6 +88,22 @@ export async function fetchContestantScoreData(contestId: number, navigationTask
   return res.json();
 }
 
+export async function fetchContestantSlice(contestantId: number, minuteIndex: number, count: number = 1): Promise<any[]> {
+  // Use the new top-level contestant slice API
+  const url = new URL(`/api/v1/contestant/${contestantId}/slice/${minuteIndex}/`, window.location.origin);
+  if (count > 1) {
+    url.searchParams.set('count', count.toString());
+  }
+  const res = await fetch(url.toString(), {
+    headers: { 'Accept': 'application/json' }
+  });
+  if (!res.ok) {
+    const errorMessages = await getErrorMessages(res);
+    throw new Error(`Failed to fetch slice for contestant ${contestantId}: ${errorMessages}`);
+  }
+  return res.json();
+}
+
 export function makeWebSocket(navigationTaskId: number): WebSocket {
   const { host, protocol } = window.location;
   const wsProtocol = protocol === 'https:' ? 'wss' : 'ws';

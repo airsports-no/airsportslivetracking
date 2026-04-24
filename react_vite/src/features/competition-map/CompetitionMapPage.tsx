@@ -672,13 +672,13 @@ export default function CompetitionMapPage() {
             <>
               {progress.total > 0 && progress.loaded < progress.total && (
                 <div className="p-2 border-b border-base-300">
-                    <div className="text-xs font-bold">Loading Contestant Data...</div>
+                    <div className="text-xs font-bold">{progress.message || 'Loading Contestant Data...'}</div>
                     <progress 
                         className="progress progress-primary w-full" 
                         value={progress.loaded} 
                         max={progress.total}
                     ></progress>
-                    <div className="text-xs text-right">{progress.loaded} / {progress.total}</div>
+                    <div className="text-xs text-right">{progress.loaded}%</div>
                 </div>
               )}
 

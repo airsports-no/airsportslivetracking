@@ -554,6 +554,8 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     longitude = serializers.FloatField(read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor")
     contestteam_set = ContestTeamSerialiser(read_only=True, many=True)
+    has_open_tasks = serializers.SerializerMethodField()
+    has_flown_contestants = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -562,6 +564,15 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
 
     def get_is_editor(self, contest):
         return contest.id in self.context.get("editable_contest_ids", set())
+
+    def get_has_open_tasks(self, contest):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return contest.navigationtask_set.filter(
+            allow_self_management=True, start_time__lte=now, finish_time__gte=now
+        ).exists()
+
+    def get_has_flown_contestants(self, contest):
+        return contest.navigationtask_set.filter(contestant__contestanttrack__calculator_started=True).exists()
 
     def validate(self, validated_data):
         try:
@@ -1108,10 +1119,13 @@ class OngoingNavigationSerialiser(serializers.ModelSerializer):
         fields = ("pk", "name", "start_time", "finish_time", "tracking_link", "active_contestants", "contest")
 
     def get_active_contestants(self, navigation_task):
-        future_contestants = navigation_task.contestant_set.filter(
-            contestanttrack__calculator_started=True, contestanttrack__calculator_finished=False
-        )
-        serialiser = ContestantSerialiser(future_contestants, many=True, read_only=True)
+        if hasattr(navigation_task, "prefetched_active_contestants"):
+            active_contestants = navigation_task.prefetched_active_contestants
+        else:
+            active_contestants = navigation_task.contestant_set.filter(
+                contestanttrack__calculator_started=True, contestanttrack__calculator_finished=False
+            )
+        serialiser = ContestantSerialiser(active_contestants, many=True, read_only=True)
         return serialiser.data
 
 

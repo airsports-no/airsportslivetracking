@@ -152,6 +152,7 @@ export interface Contestant {
   team: Team;
   contestanttrack: ContestantTrackSummary;
   contestant_number: number;
+  track_version: number;
   air_speed: number;
   wind_speed: number;
   wind_direction: number;

@@ -197,6 +197,11 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+# API & Cache Versioning
+# SPECTACULAR_SETTINGS["VERSION"] serves as the Application Version.
+# Bumping this version will automatically invalidate ALL CDN and browser caches 
+# for contest lists and details (ETag mismatch). Use this when releasing 
+# code changes that modify API serialization or data structures.
 SPECTACULAR_SETTINGS = {
     "TITLE": "Airsports tracking API",
     "DESCRIPTION": "Full API for Airsports tracker",

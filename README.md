@@ -80,3 +80,19 @@ src/static/css/tailwindcss -i src/static/css/input.css -o src/static/css/output.
 
 ## MSFS 2020 client
 Source code is available at [asltmsfs](https://github.com/airsports-no/asltmsfs).  Binary distribution is available at [Airsports MSFS client](https://drive.google.com/drive/folders/1Nj54XMtQ3HOBNJs_PEudNyfFpeH6Aekk?usp=sharing) together with user documentation. It can be used to compete in Air Sports Live Tracking tasks using Microsoft Flight Simulator 2020. By modifying the traccar server address can also be used to test locally.
+
+# CDN Caching & Invalidation Strategy
+ASLT is optimized for Google Cloud CDN. The caching strategy relies on three levels of invalidation:
+
+1.  **Application Version (Global):**
+    Defined by `SPECTACULAR_SETTINGS["VERSION"]` in `settings.py`. Bumping this version (e.g., `1.0.0` -> `1.0.1`) invalidates **every** list and detail view globally. Use this for deployments that change data structures.
+
+2.  **Data Version (Dashboard/Lists):**
+    Managed via `contest_list_version` in Redis. This version increments automatically via Django signals whenever a `Contest`, `NavigationTask`, or `Contestant` is modified. It surgically invalidates the ETags for all dashboard related requests.
+
+3.  **Track Version (Telemetry):**
+    Stored on the `Contestant` model in the database. The telemetry `/slice/` API uses an ETag derived from `track_version`. If a GPX is uploaded or a track is refreshed, only that specific contestant's telemetry cache is invalidated across the CDN.
+
+**Cache Headers:**
+-   **Public Data:** Uses `stale-while-revalidate`, allowing the CDN to serve data instantly while fetching updates in the background.
+-   **Private Data:** Always marked `private, no-cache` to prevent sensitive data leakage to the CDN edge.

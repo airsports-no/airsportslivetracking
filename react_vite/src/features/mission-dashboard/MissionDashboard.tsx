@@ -175,17 +175,38 @@ const MissionDashboard = () => {
                 fetchPromises.push(fetchMyEditorContestsFromStore(true));
             }
 
-            const oneYearAgo = new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
+            const now = new Date();
+            // Quantize to the 1st of the month to ensure the URL (and thus CDN cache key) 
+            // remains stable for ~30 days.
+            const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1);
             const finishTimeGte = oneYearAgo.toISOString().split('T')[0];
 
-            // Consolidate main contest list fetches. 
-            // Calling it without publicOnly/sharedOnly gets the union of everything visible to the user.
-            // Using clear=true ensures that deleted contests are removed from the store.
-            fetchPromises.push(fetchContestsFromStore({ 
-                finishTimeGte, 
-                excludeTasks: true, 
-                excludeTeams: true 
-            }, true));
+            if (document.configuration.is_superuser) {
+                // Superuser sees everything in one request, respecting time filters
+                fetchPromises.push(fetchContestsFromStore({ 
+                    finishTimeGte, 
+                    excludeTasks: true, 
+                    excludeTeams: true 
+                }, true));
+            } else {
+                // 1. Fetch ALL public contests (highly cacheable by CDN)
+                fetchPromises.push(fetchContestsFromStore({ 
+                    finishTimeGte, 
+                    excludeTasks: true, 
+                    excludeTeams: true,
+                    publicOnly: true
+                }, true));
+
+                // 2. If authenticated, fetch ONLY private contests the user has access to
+                if (document.configuration.isAuthenticated) {
+                    fetchPromises.push(fetchContestsFromStore({ 
+                        finishTimeGte, 
+                        excludeTasks: true, 
+                        excludeTeams: true,
+                        sharedOnly: true
+                    }, false)); // Merge with public contests
+                }
+            }
 
             try {
                 await Promise.allSettled(fetchPromises);
@@ -219,9 +240,6 @@ const MissionDashboard = () => {
             } finally {
                 setLoading(false);
             }
-
-            // Start secondary "full" fetch in background to get tasks/teams for the visible contests
-            fetchContestsFromStore({ finishTimeGte }).catch(console.error);
         };
 
         fetchDashboardData();
@@ -304,7 +322,6 @@ const MissionDashboard = () => {
 
     const textFilteredContests = useMemo(() => {
         if (!contests) return [];
-        const now = new Date();
 
         return contests
             .filter(contest => {
@@ -315,21 +332,8 @@ const MissionDashboard = () => {
                 const contestEndDate = new Date(contest.finish_time).getTime();
                 const dateMatch = !dateRange || (contestEndDate >= dateRange[0] && contestStartDate <= dateRange[1]);
                 
-                // Determine if contest has any navigation tasks open for scheduling
-                const hasOpenTasks = contest.navigationtask_set?.some((task: NavigationTask) => 
-                    task.allow_self_management === true &&
-                    new Date(task.start_time) <= now &&
-                    new Date(task.finish_time) >= now
-                );
-                // Temporarily attach this property to the contest object for filtering and passing to ContestCard
-                (contest as any).hasOpenTasksForScheduling = hasOpenTasks; 
-
-                const openTasksFilterMatch = !showOnlyWithOpenTasks || hasOpenTasks;
-
-                const hasFlownContestants = contest.navigationtask_set?.some((task: NavigationTask) => 
-                    task.flown_contestants_count > 0
-                );
-                const flownContestantsFilterMatch = !showOnlyWithFlownContestants || hasFlownContestants;
+                const openTasksFilterMatch = !showOnlyWithOpenTasks || !!contest.has_open_tasks;
+                const flownContestantsFilterMatch = !showOnlyWithFlownContestants || !!contest.has_flown_contestants;
 
                 return nameMatch && countryMatch && dateMatch && openTasksFilterMatch && flownContestantsFilterMatch;
             });
@@ -499,7 +503,7 @@ const MissionDashboard = () => {
                                     isRegistered={registeredContestIds.has(contest.id)}
                                     hasScheduledFlight={scheduledFlightContestIds.has(contest.id)}
                                     isEditorContest={canManageThisContest}
-                                    hasOpenTasksForScheduling={(contest as any).hasOpenTasksForScheduling} // Pass new prop
+                                    hasOpenTasksForScheduling={contest.has_open_tasks} // Pass new prop
                                     viewLink={viewLink}
                                     manageLink={manageLink}
                                 />

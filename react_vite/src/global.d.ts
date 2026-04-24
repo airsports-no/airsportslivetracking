@@ -5,6 +5,7 @@ declare global {
       isAuthenticated: boolean;
       isOrganizer: boolean;
       STATIC_FILE_LOCATION: string;
+      contest_list_version?: string;
     };
   }
 }
