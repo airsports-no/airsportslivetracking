@@ -7,6 +7,15 @@
             <div class="card bg-base-100 shadow-xl">
                 {% if object.thumbnail %}
                     <figure><img src="{{ object.thumbnail.url }}" alt="{{ object.name }} thumbnail"></figure>
+                {% elif object.processing_status == 'pending' %}
+                    <div class="p-8 text-center text-base-content/70">
+                        <span class="loading loading-spinner loading-md"></span>
+                        <div>Processing mbtiles&hellip; refresh the page in a moment.</div>
+                    </div>
+                {% elif object.processing_status == 'failed' %}
+                    <div class="p-6 text-center text-error text-sm">
+                        Processing failed: {{ object.processing_error }}
+                    </div>
                 {% endif %}
                 <div class="card-body">
                     <h5 class="card-title">{{ object.name }} ({{ object.map_file.size |filesizeformat }})</h5>
