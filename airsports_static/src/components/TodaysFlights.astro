@@ -1,34 +1,28 @@
 ---
 // TodaysFlights.astro
 ---
-<div id="todays-flights-container" class="py-32 hidden bg-slate-50 relative overflow-hidden">
+<div id="todays-flights-container" class="mt-20 pt-16 pb-4 hidden bg-slate-50 border-y border-slate-100 relative overflow-hidden">
     <!-- Decorative background elements -->
-    <div class="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
     <div class="absolute -top-24 -left-24 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply opacity-20 filter blur-3xl"></div>
+    <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-indigo-100 rounded-full mix-blend-multiply opacity-20 filter blur-3xl"></div>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-16">
-            <div>
-                <div class="inline-block px-3 py-1 mb-4 text-[10px] font-black tracking-[0.2em] uppercase bg-blue-100 text-blue-700 rounded-full italic">
-                    Live Schedule
+        <div class="flex flex-col md:flex-row justify-between items-end gap-4 mb-10">
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-3">
+                    <div class="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.4)]"></div>
+                    <p class="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] italic">Live Tracking Active</p>
                 </div>
-                <h2 class="text-4xl md:text-5xl font-extrabold text-slate-900 font-lexend italic uppercase tracking-tight">Today's <span class="text-blue-600">Missions</span></h2>
-                <p class="text-slate-500 font-medium mt-3 text-lg max-w-2xl leading-relaxed">Active and upcoming public navigation tasks scheduled for today.</p>
-            </div>
-            <div class="bg-white px-6 py-4 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 flex items-center gap-4 group hover:scale-105 transition-transform duration-500">
-                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                </div>
-                <div class="flex flex-col">
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Calendar</span>
-                    <span id="current-date-display" class="font-bold text-slate-800 tracking-tight font-lexend italic uppercase"></span>
+                <div class="flex items-baseline gap-4">
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 font-lexend italic uppercase tracking-tight">Today's <span class="text-blue-600">Missions</span></h2>
+                    <span id="current-date-display" class="text-xs font-black text-slate-400 uppercase tracking-widest font-lexend italic"></span>
                 </div>
             </div>
+            <p class="text-slate-500 font-medium text-sm max-w-md leading-relaxed hidden lg:block italic">Scheduled public navigation tasks and live competitor progress.</p>
         </div>
 
-        <div id="todays-tasks-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+        <!-- Horizontal Scroll Container -->
+        <div id="todays-tasks-list" class="flex gap-6 overflow-x-auto pb-4 snap-x custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
             <!-- Content injected via JS -->
         </div>
     </div>
@@ -53,28 +47,31 @@
             if (!response.ok) throw new Error('Failed to fetch');
             const data = await response.json();
 
+            const platformSection = document.getElementById('platform-in-action');
+
             if (!data || data.length === 0) {
                 container.classList.add('hidden');
+                if (platformSection) platformSection.style.paddingTop = '';
                 return;
             }
 
             container.classList.remove('hidden');
+            if (platformSection) platformSection.style.paddingTop = '2rem';
             list.innerHTML = '';
 
             data.forEach(task => {
                 const card = document.createElement('div');
-                card.className = 'group flex flex-col bg-white rounded-[3rem] p-10 shadow-2xl shadow-slate-200/50 border border-slate-100 hover:border-blue-300 hover:shadow-blue-200/40 transition-all duration-700 relative overflow-hidden';
+                card.className = 'snap-start flex-shrink-0 w-[300px] md:w-[420px] bg-white rounded-[3rem] p-10 shadow-2xl shadow-slate-200/60 border border-slate-100 hover:border-blue-300 transition-all duration-500 flex flex-col relative overflow-hidden group';
                 
-                // Sort contestants by takeoff time
                 const sortedContestants = (task.contestants || []).sort((a, b) => new Date(a.takeoff_time).getTime() - new Date(b.takeoff_time).getTime());
 
                 const contestantsHtml = sortedContestants.map(c => {
                     const time = new Date(c.takeoff_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
                     return `
-                    <div class="flex justify-between items-center py-4 border-b border-slate-50 last:border-0 group/row hover:px-2 transition-all duration-300 rounded-xl">
+                    <div class="flex justify-between items-center py-4 border-b border-slate-50 last:border-0 group/row">
                         <div class="flex flex-col min-w-0">
-                            <span class="text-sm font-extrabold text-slate-800 tracking-tight truncate uppercase italic">#${c.contestant_number} ${c.pilot_name}</span>
-                            <span class="text-[9px] text-slate-400 uppercase font-black tracking-[0.15em] mt-0.5">${c.aircraft_registration}</span>
+                            <span class="text-sm font-extrabold text-slate-800 tracking-tight truncate uppercase italic group-hover/row:text-blue-600 transition-colors">#${c.contestant_number} ${c.pilot_name}</span>
+                            <span class="text-[10px] text-slate-400 uppercase font-black tracking-[0.1em] mt-0.5">${c.aircraft_registration}</span>
                         </div>
                         <div class="flex flex-col items-end shrink-0 ml-4">
                              <span class="font-mono text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">${time}</span>
@@ -84,22 +81,22 @@
                 `}).join('');
 
                 card.innerHTML = `
-                    <!-- Decorative Icon -->
-                    <div class="absolute -right-4 -top-4 opacity-[0.03] text-blue-900 pointer-events-none transform rotate-12 group-hover:rotate-0 transition-transform duration-1000">
+                    <!-- Decorative Background Icon -->
+                    <div class="absolute -right-6 -top-6 opacity-[0.03] text-blue-900 pointer-events-none transform rotate-12 group-hover:rotate-0 transition-transform duration-1000">
                         <svg class="w-32 h-32 fill-current" viewBox="0 0 24 24"><path d="M21 16.5C21 16.88 20.79 17.21 20.47 17.38L12.57 21.82C12.41 21.94 12.21 22 12 22C11.79 22 11.59 21.94 11.43 21.82L3.53 17.38C3.21 17.21 3 16.88 3 16.5V7.5C3 7.12 3.21 6.79 3.53 6.62L11.43 2.18C11.59 2.06 11.79 2 12 2C12.21 2 12.41 2.06 12.57 2.18L20.47 6.62C20.79 6.79 21 7.12 21 7.5V16.5Z"/></svg>
                     </div>
 
-                    <div class="mb-10 relative z-10">
-                        <span class="text-[9px] font-black text-blue-600 bg-blue-50/50 px-3 py-1 rounded-full uppercase tracking-[0.2em] italic mb-4 inline-block border border-blue-100/50">${task.contest_name}</span>
-                        <h3 class="text-2xl font-black text-slate-900 font-lexend italic uppercase tracking-tight group-hover:text-blue-600 transition-colors leading-tight">${task.name}</h3>
+                    <div class="mb-8 relative z-10">
+                        <span class="text-[10px] font-black text-blue-600 bg-blue-50/50 px-3 py-1 rounded-full uppercase tracking-[0.2em] italic mb-3 inline-block border border-blue-100/50">${task.contest_name}</span>
+                        <h3 class="text-2xl font-black text-slate-900 font-lexend italic uppercase tracking-tight leading-tight group-hover:text-blue-600 transition-colors">${task.name}</h3>
                     </div>
                     
-                    <div class="flex-1 space-y-1 mb-10 max-h-72 overflow-y-auto pr-2 custom-scrollbar relative z-10">
+                    <div class="flex-1 space-y-1 mb-10 max-h-80 overflow-y-auto pr-2 custom-scrollbar relative z-10">
                         ${contestantsHtml || '<p class="text-xs text-slate-400 italic">No scheduled flights found for today.</p>'}
                     </div>
 
                     <div class="relative z-10">
-                        <a href="${API_BASE+task.tracking_link}" target="_blank" class="flex items-center justify-center gap-3 w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-600 hover:shadow-2xl hover:shadow-blue-200 transition-all duration-500 active:scale-95 italic">
+                        <a href="${API_BASE+task.tracking_link}" target="_blank" class="flex items-center justify-center gap-3 w-full bg-slate-900 text-white py-4 rounded-[1.25rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-600 hover:shadow-xl hover:shadow-blue-200 transition-all duration-500 active:scale-95 italic">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -119,3 +116,26 @@
 
     fetchTodaysFlights();
 </script>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f8fafc;
+        border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #cbd5e1;
+    }
+    
+    #todays-tasks-list {
+        scrollbar-width: thin;
+        scrollbar-color: #e2e8f0 #f8fafc;
+    }
+</style>
