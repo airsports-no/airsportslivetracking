@@ -279,6 +279,8 @@ STORAGES = {
     },
 }
 MEDIA_ROOT_URL = "https://storage.googleapis.com/airsports-data/"
+MEDIA_URL = MEDIA_ROOT_URL
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 STATIC_URL = "https://storage.googleapis.com/airsports-static/"
 # Serve static files locally when developing or testing
 if os.environ.get("MODE") == "dev" or IS_UNIT_TESTING:
@@ -287,6 +289,8 @@ if os.environ.get("MODE") == "dev" or IS_UNIT_TESTING:
         "OPTIONS": {"location": "/tmp/media", "base_url": "/media/"},
     }
     MEDIA_ROOT_URL = "/media/"
+    MEDIA_URL = MEDIA_ROOT_URL
+    MEDIA_ROOT = "/tmp/media"
 
     STORAGES["staticfiles"] = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
