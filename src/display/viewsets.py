@@ -8,20 +8,18 @@ import csv
 
 from django.core.cache import cache
 from django.core.files.base import ContentFile
-from django.core.paginator import InvalidPage
 from django.db import transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Prefetch
 from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils.cache import add_never_cache_headers, patch_response_headers
 from guardian.shortcuts import get_objects_for_user
-from rest_framework import status, permissions, mixins
+from rest_framework import status, permissions
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination, CursorPagination
+from rest_framework.pagination import CursorPagination
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
-from rest_framework.exceptions import NotFound
 import rest_framework.exceptions as drf_exceptions
 from urllib import parse
 
@@ -375,6 +373,24 @@ class ContestViewSet(ModelViewSet):
     lookup_url_kwarg = "pk"
     pagination_class = ContestPagination
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        version = cache.get("contest_list_version", 1)
+
+        # ETag based on global version and object ID
+        etag = f'"{version}-contest-{instance.pk}"'
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
+
+        response = super().retrieve(request, *args, **kwargs)
+
+        response["ETag"] = etag
+        if instance.is_public and instance.is_featured:
+            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+        else:
+            response["Cache-Control"] = "private, no-cache"
+        return response
+
     permission_classes = [ContestPublicPermissions | (permissions.IsAuthenticated & ContestPermissions)]
     filter_backends = [DjangoFilterBackend]
     filterset_class = ContestFilter
@@ -387,15 +403,34 @@ class ContestViewSet(ModelViewSet):
         params_hash = hashlib.md5(sorted_params.encode("utf-8")).hexdigest()
 
         version = cache.get("contest_list_version", 1)
+
+        # 1. ETag check (Browser/CDN level validation)
+        # The ETag represents a specific version of a specific query
+        etag = f'"{version}-{params_hash}"'
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
+
+        # 2. Django-level cache check
         cache_key = f"contest_list_v{version}_u{user_id}_{params_hash}"
-
         cached_data = cache.get(cache_key)
-        if cached_data:
-            return Response(cached_data)
 
-        response = super().list(request, *args, **kwargs)
-        if response.status_code == 200:
-            cache.set(cache_key, response.data, timeout=60 * 60 * 24)
+        if cached_data:
+            response = Response(cached_data)
+        else:
+            response = super().list(request, *args, **kwargs)
+            if response.status_code == 200:
+                cache.set(cache_key, response.data, timeout=60 * 60 * 24)
+
+        # 3. Set Caching Headers
+        response["ETag"] = etag
+        if public_only:
+            # Public data can be cached by CDN and shared between users.
+            # s-maxage=3600: CDN caches for 1 hour
+            # stale-while-revalidate=86400: Serve stale data while fetching fresh in background
+            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+        else:
+            # Private data must NOT be cached by CDN or shared.
+            response["Cache-Control"] = "private, no-cache"
 
         return response
 
@@ -404,83 +439,28 @@ class ContestViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = self.queryset
+        queryset = Contest.objects.all()
 
-        is_editor_filter_param = self.request.query_params.get("is_editor", "false").lower() == "true"
-        public_only = self.request.query_params.get("public_only", "false").lower() == "true"
-        shared_only = self.request.query_params.get("shared_only", "false").lower() == "true"
+        # The actual filtering is now primarily handled by ContestFilter (in filters.py).
+        # This method defines the 'base' visibility for the user.
+        if user.is_superuser:
+            # Superusers can see every contest in the database base queryset.
+            # Filters will still apply on top of this.
+            pass
+        elif user.is_authenticated:
+            # Authenticated users can see public contests OR contests they have permissions for.
+            queryset = (
+                get_objects_for_user(user, "display.view_contest", klass=queryset, accept_global_perms=False)
+                | Contest.objects.filter(is_public=True, is_featured=True)
+            ).distinct()
+        else:
+            # Anonymous users only see public featured contests.
+            queryset = queryset.filter(is_public=True, is_featured=True)
 
-        logger.info(f"ContestViewSet.get_queryset called. is_editor_filter_param: {is_editor_filter_param}")
-
-        if is_editor_filter_param:
-            if not user.is_authenticated:
-                return queryset.none()
-            return (
-                get_objects_for_user(
-                    user,
-                    "display.change_contest",
-                    klass=Contest,
-                    accept_global_perms=False,
-                )
-                .prefetch_related(
-                    "navigationtask_set__route__prohibited_set",
-                    "contestteam_set__team__crew__member1",
-                )
-                .order_by("-start_time")
-            )
-
-        if public_only:
-            return (
-                queryset.filter(is_public=True, is_featured=True)
-                .prefetch_related(
-                    "navigationtask_set__route__prohibited_set",
-                    "contestteam_set__team__crew__member1",
-                )
-                .order_by("-start_time")
-            )
-
-        if shared_only:
-            if not user.is_authenticated:
-                return queryset.none()
-            return (
-                get_objects_for_user(
-                    user,
-                    "display.view_contest",
-                    klass=Contest,
-                    accept_global_perms=False,
-                )
-                .exclude(is_public=True, is_featured=True)
-                .distinct()
-                .prefetch_related(
-                    "navigationtask_set__route__prohibited_set",
-                    "contestteam_set__team__crew__member1",
-                )
-                .order_by("-start_time")
-            )
-
-        # Default behavior for non-editors
-        if user.is_authenticated:
-            return (
-                (
-                    get_objects_for_user(
-                        user,
-                        "display.view_contest",
-                        klass=Contest,
-                        accept_global_perms=False,
-                    )
-                    | queryset.filter(is_public=True, is_featured=True)
-                )
-                .distinct()
-                .prefetch_related(
-                    "navigationtask_set__route__prohibited_set",
-                    "contestteam_set__team__crew__member1",
-                )
-            )
-        else:  # unauthenticated
-            return queryset.filter(is_public=True, is_featured=True).prefetch_related(
-                "navigationtask_set__route__prohibited_set",
-                "contestteam_set__team__crew__member1",
-            )
+        return queryset.prefetch_related(
+            "navigationtask_set__route__prohibited_set",
+            "contestteam_set__team__crew__member1",
+        ).order_by("-start_time")
 
     @action(detail=True, methods=["get"], url_path=r"contest_team_for_team/(?P<team_id>\d+)")
     def contest_team_for_team(self, request, team_id, **kwargs):
@@ -515,17 +495,38 @@ class ContestViewSet(ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def ongoing_navigation(self, request, *args, **kwargs):
+        version = cache.get("contest_list_version", 1)
+        etag = f'"{version}-ongoing"'
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
+
+        # Synchronize with OngoingNavigationSerialiser definition of 'active'
         navigation_tasks = (
             NavigationTask.get_visible_navigation_tasks(self.request.user)
             .filter(
                 contestant__contestanttrack__calculator_started=True,
                 contestant__contestanttrack__calculator_finished=False,
-                contestant__finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
             )
             .distinct()
         )
+
+        # Optimize N+1
+        active_contestants_prefetch = Prefetch(
+            "contestant_set",
+            queryset=Contestant.objects.filter(
+                contestanttrack__calculator_started=True, contestanttrack__calculator_finished=False
+            ).select_related("team__crew__member1", "team__aeroplane", "contestanttrack"),
+            to_attr="prefetched_active_contestants",
+        )
+
+        navigation_tasks = navigation_tasks.prefetch_related("contest", active_contestants_prefetch)
+
         data = self.get_serializer_class()(navigation_tasks, many=True, context={"request": self.request}).data
-        return Response(data)
+        response = Response(data)
+        response["ETag"] = etag
+        # This is a public-facing list of live tasks, safe to cache at edge but revalidate often
+        response["Cache-Control"] = "public, max-age=30, s-maxage=60, stale-while-revalidate=300"
+        return response
 
     @action(detail=True, methods=["get"])
     def results_details(self, request, *args, **kwargs):
@@ -533,9 +534,20 @@ class ContestViewSet(ModelViewSet):
         Retrieve the full list of contest summaries, tasks summaries, and individual test results for the contest
         """
         contest = self.get_object()
+        version = cache.get("contest_list_version", 1)
+        etag = f'"{version}-results-{contest.pk}"'
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
+
         contest.permission_change_contest = request.user.has_perm("display.change_contest", contest)
         serialiser = ContestResultsDetailsSerialiser(contest)
-        return Response(serialiser.data)
+        response = Response(serialiser.data)
+        response["ETag"] = etag
+        if contest.is_public and contest.is_featured:
+            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+        else:
+            response["Cache-Control"] = "private, no-cache"
+        return response
 
     @action(detail=True, methods=["get"])
     def results_csv(self, request, *args, **kwargs):
@@ -543,6 +555,10 @@ class ContestViewSet(ModelViewSet):
         Download contest results as CSV
         """
         contest = self.get_object()
+        version = cache.get("contest_list_version", 1)
+        etag = f'"{version}-results-csv-{contest.pk}"'
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         tasks = contest.task_set.all().order_by("index")
         tests_by_task = {}
@@ -569,6 +585,11 @@ class ContestViewSet(ModelViewSet):
             content_type="text/csv",
             headers={"Content-Disposition": f'attachment; filename="{contest.name}_results.csv"'},
         )
+        response["ETag"] = etag
+        if contest.is_public and contest.is_featured:
+            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+        else:
+            response["Cache-Control"] = "private, no-cache"
 
         writer = csv.writer(response)
         writer.writerow(headers)
@@ -729,10 +750,15 @@ class ContestViewSet(ModelViewSet):
             if self.request.user.is_authenticated:
                 context["user_person"] = Person.objects.filter(email=self.request.user.email).first()
                 context["editable_contest_ids"] = set(
-                    get_objects_for_user(self.request.user, "display.change_contest", klass=Contest).values_list(
-                        "id", flat=True
-                    )
+                    get_objects_for_user(
+                        self.request.user,
+                        "display.change_contest",
+                        klass=Contest,
+                        accept_global_perms=False,
+                        with_superuser=False,
+                    ).values_list("id", flat=True)
                 )
+
                 context["registered_contest_ids"] = set(
                     ContestTeam.objects.filter(
                         Q(team__crew__member1__email=self.request.user.email)
@@ -798,6 +824,24 @@ class NavigationTaskViewSet(ModelViewSet):
     }
     default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
     lookup_url_kwarg = "pk"
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        version = cache.get("contest_list_version", 1)
+
+        # ETag based on global version and object ID
+        etag = f'"{version}-navtask-{instance.pk}"'
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
+
+        response = super().retrieve(request, *args, **kwargs)
+
+        response["ETag"] = etag
+        if instance.is_public and instance.contest.is_public and instance.is_featured:
+            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+        else:
+            response["Cache-Control"] = "private, no-cache"
+        return response
 
     permission_classes = [
         NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)
@@ -1192,19 +1236,24 @@ class ContestantViewSet(ModelViewSet):
             klass=Contest,
             accept_global_perms=False,
         )
-        return Contestant.objects.filter(
+        qs = Contestant.objects.filter(
             Q(navigation_task__contest__in=contests)
             | Q(
                 navigation_task__is_public=True,
                 navigation_task__contest__is_public=True,
             )
-        ).filter(navigation_task_id=navigation_task_id)
+        )
+        if navigation_task_id:
+            qs = qs.filter(navigation_task_id=navigation_task_id)
+        return qs
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
         try:
-            navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
-            context.update({"navigation_task": navigation_task})
+            navigation_task_id = self.kwargs.get("navigationtask_pk")
+            if navigation_task_id:
+                navigation_task = get_object_or_404(NavigationTask, pk=navigation_task_id)
+                context.update({"navigation_task": navigation_task})
         except Http404:
             # This has to be handled where we retrieve the context
             pass
@@ -1240,7 +1289,66 @@ class ContestantViewSet(ModelViewSet):
         Used by the front end to load initial data
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
-        return Response(generate_score_data(contestant.pk))
+
+        # ETag based on contestant's track version
+        etag = f'"{contestant.pk}-{contestant.track_version}-scores"'
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
+
+        response = Response(generate_score_data(contestant.pk))
+        response["ETag"] = etag
+
+        # Cache-Control:
+        # If public, cache at edge but revalidate (stale-while-revalidate)
+        # If private, don't cache at edge.
+        is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
+        if is_public:
+            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+        else:
+            response["Cache-Control"] = "private, no-cache"
+
+        return response
+
+    @action(detail=True, methods=["get"], url_path=r"slice/(?P<minute_index>\d+)")
+    def slice(self, request, minute_index, **kwargs):
+        contestant = self.get_object()
+        minute_index = int(minute_index)
+        count = int(request.query_params.get("count", 1))
+
+        # Enforce alignment for multi-minute chunks to ensure CDN cache hit consistency.
+        # e.g. If count=15, minute_index must be 0, 15, 30, 45...
+        if count > 1 and minute_index % count != 0:
+            return Response(
+                {
+                    "detail": f"Multi-minute slices must be aligned to the count. {minute_index} is not a multiple of {count}."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ETag includes the count to distinguish between single minutes and chunks
+        etag = f'"{contestant.pk}-{contestant.track_version}-{minute_index}-c{count}"'
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
+
+        start_window = datetime.datetime.fromtimestamp(minute_index * 60, tz=datetime.timezone.utc)
+        end_window = start_window + datetime.timedelta(seconds=60 * count)
+
+        positions = contestant.contestantreceivedposition_set.filter(
+            time__gte=start_window, time__lt=end_window
+        ).values("time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated")
+
+        response = Response(list(positions))
+        response["ETag"] = etag
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if end_window < now - datetime.timedelta(minutes=1):
+            # Completed historical chunk - cache for a long time
+            response["Cache-Control"] = "public, max-age=60, s-maxage=31536000, stale-while-revalidate=86400"
+        else:
+            # Active or future chunk - cache for a short time
+            response["Cache-Control"] = "public, max-age=5, must-revalidate"
+
+        return response
 
     @action(detail=True, methods=["get"])
     def paginated_track_data(self, request, *args, **kwargs):

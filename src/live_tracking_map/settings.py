@@ -155,6 +155,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "live_tracking_map.middleware.CDNSafetyMiddleware",
     "live_tracking_map.middleware.HandleKnownExceptionsMiddleware",
     "live_tracking_map.middleware.Log500ErrorsMiddleware",
 ]
@@ -197,6 +198,11 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+# API & Cache Versioning
+# SPECTACULAR_SETTINGS["VERSION"] serves as the Application Version.
+# Bumping this version will automatically invalidate ALL CDN and browser caches 
+# for contest lists and details (ETag mismatch). Use this when releasing 
+# code changes that modify API serialization or data structures.
 SPECTACULAR_SETTINGS = {
     "TITLE": "Airsports tracking API",
     "DESCRIPTION": "Full API for Airsports tracker",
@@ -278,8 +284,10 @@ STORAGES = {
         "OPTIONS": {"bucket_name": "airsports-static", "default_acl": None, "querystring_auth": False},
     },
 }
-MEDIA_ROOT_URL = "https://storage.googleapis.com/airsports-data/"
-STATIC_URL = "https://storage.googleapis.com/airsports-static/"
+MEDIA_ROOT_URL = os.environ.get("MEDIA_URL_BASE", "https://storage.googleapis.com/airsports-data/")
+MEDIA_URL = MEDIA_ROOT_URL
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+STATIC_URL = os.environ.get("STATIC_URL_BASE", "https://storage.googleapis.com/airsports-static/")
 # Serve static files locally when developing or testing
 if os.environ.get("MODE") == "dev" or IS_UNIT_TESTING:
     STORAGES["default"] = {
@@ -287,6 +295,8 @@ if os.environ.get("MODE") == "dev" or IS_UNIT_TESTING:
         "OPTIONS": {"location": "/tmp/media", "base_url": "/media/"},
     }
     MEDIA_ROOT_URL = "/media/"
+    MEDIA_URL = MEDIA_ROOT_URL
+    MEDIA_ROOT = "/tmp/media"
 
     STORAGES["staticfiles"] = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",

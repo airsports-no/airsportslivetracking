@@ -22,6 +22,8 @@ export interface Contest {
     header_image: string;
     logo: string;
     contest_teams: number[];
+    has_open_tasks?: boolean;
+    has_flown_contestants?: boolean;
 }
 
 export interface Route {

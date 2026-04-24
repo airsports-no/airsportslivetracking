@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { fetchNavigationTask, fetchContestantPaginatedTrack, fetchContestantScoreData, makeWebSocket } from '../api';
+import { fetchNavigationTask, fetchContestantPaginatedTrack, fetchContestantScoreData, makeWebSocket, fetchContestantSlice } from '../api';
 import type { Contestant, NavigationTask, TrackPosition, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData, Waypoint } from '../types';
 
 export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback', showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void) {
@@ -10,7 +10,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const [scoreLogByContestant, setScoreLogByContestant] = useState<Record<number, ScoreLogEntry[]>>({});
     const [dangerDataByContestant, setDangerDataByContestant] = useState<Record<number, DangerData>>({});
     const [gateArrowDataByContestant, setGateArrowDataByContestant] = useState<Record<number, GateArrowData>>({});
-    const [progress, setProgress] = useState({ loaded: 0, total: 0 });
+    const [progress, setProgress] = useState({ loaded: 0, total: 0, message: '' });
     const [shouldConnectWs, setShouldConnectWs] = useState(false); // New state
     const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected'>('disconnected');
     const [error, setError] = useState<{ status?: number; message: string } | null>(null);
@@ -210,24 +210,89 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     }, [showToast, updateContestant]);
 
 
-    const fetchAllContestantData = useCallback(async (contestantsToFetch: Contestant[], onProgress: (p: { loaded: number, total: number }) => void) => {
-        const total = contestantsToFetch.length;
-        onProgress({ loaded: 0, total });
-        let loaded = 0;
+    const fetchAllContestantData = useCallback(async (contestantsToFetch: Contestant[], onProgress: (p: { loaded: number, total: number, message?: string }) => void) => {
+        const now = new Date();
+        const chunkSize = 15;
 
-        const contestantPromises = contestantsToFetch.map(async (c) => {
-            try {
-                let cursor: string | null | undefined = undefined;
-                const allPositions: TrackPosition[] = [];
-                while (true) {
-                    const page = await fetchContestantPaginatedTrack(contestIdNum, navigationTaskIdNum, c.id, cursor);
-                    allPositions.push(...page.results);
-                    if (!page.next) break;
-                    cursor = page.next;
+        onProgress({ loaded: 0, total: 100, message: 'Planning track stitching...' });
+
+        // 1. Calculate total expected requests to provide a granular progress bar
+        let totalRequests = 0;
+        const contestantRequestPlans = contestantsToFetch.map(c => {
+            const startTime = new Date(c.takeoff_time);
+            const finishByTime = new Date(c.finished_by_time);
+            const endTime = finishByTime < now ? finishByTime : now;
+            
+            const startMinute = Math.floor(startTime.getTime() / 60000) - 5;
+            const endMinute = Math.ceil(endTime.getTime() / 60000);
+            
+            let requests = 1; // For score data
+            let currentMinute = startMinute;
+            while (currentMinute <= endMinute) {
+                if (currentMinute % chunkSize === 0) {
+                    const chunkEndTime = (currentMinute + chunkSize) * 60000;
+                    if (chunkEndTime < now.getTime() - 60000 && currentMinute + chunkSize <= endMinute) {
+                        currentMinute += chunkSize;
+                    } else {
+                        currentMinute++;
+                    }
+                } else {
+                    currentMinute++;
                 }
-                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id);
+                requests++;
+            }
+            totalRequests += requests;
+            return { startMinute, endMinute };
+        });
+
+        onProgress({ loaded: 0, total: 100, message: 'Initializing telemetry download...' });
+        let loadedRequests = 0;
+
+        const updateProgress = (msg?: string) => {
+            loadedRequests++;
+            const percentage = Math.round((loadedRequests / totalRequests) * 100);
+            onProgress({ 
+                loaded: percentage, 
+                total: 100, 
+                message: msg || `Downloading telemetry: ${percentage}%` 
+            });
+        };
+
+        const contestantPromises = contestantsToFetch.map(async (c, idx) => {
+            try {
+                const { startMinute, endMinute } = contestantRequestPlans[idx];
+                const slicePromises = [];
+                
+                let currentMinute = startMinute;
+                while (currentMinute <= endMinute) {
+                    const nextAligned = Math.ceil((currentMinute + 1) / chunkSize) * chunkSize;
+                    
+                    let p;
+                    if (currentMinute % chunkSize !== 0) {
+                        p = fetchContestantSlice(c.id, currentMinute).finally(() => updateProgress());
+                        currentMinute++;
+                    } else {
+                        const chunkEndTime = (currentMinute + chunkSize) * 60000;
+                        if (chunkEndTime < now.getTime() - 60000 && currentMinute + chunkSize <= endMinute) {
+                            p = fetchContestantSlice(c.id, currentMinute, chunkSize).finally(() => updateProgress());
+                            currentMinute += chunkSize;
+                        } else {
+                            p = fetchContestantSlice(c.id, currentMinute).finally(() => updateProgress());
+                            currentMinute++;
+                        }
+                    }
+                    slicePromises.push(p);
+                }
+                
+                const sliceResults = await Promise.all(slicePromises);
+                const allPositions: TrackPosition[] = sliceResults.flat();
+                
+                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id).finally(() => {
+                    updateProgress(`Processed scores for ${c.team.crew.member1.first_name}`);
+                });
+
                 return {
-                    contestant: { ...c, contestanttrack: scoreData.contestant_track, playing_cards: scoreData.playing_cards }, // Return full contestant object
+                    contestant: { ...c, contestanttrack: scoreData.contestant_track, playing_cards: scoreData.playing_cards },
                     positions: allPositions.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     annotations: scoreData.annotations.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     scoreLogs: scoreData.score_log_entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
@@ -235,9 +300,6 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             } catch (e) {
                 console.error('Failed to fetch data for contestant', c.id, e);
                 return null;
-            } finally {
-                loaded++;
-                onProgress({ loaded, total });
             }
         });
 

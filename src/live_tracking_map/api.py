@@ -22,7 +22,9 @@ from display.viewsets import (
 
 router = routers.DefaultRouter()
 router.register(r"contests", ContestViewSet, basename="contests")
+router.register(r"contestant", ContestantViewSet, basename="all-contestants")
 # router.register(r'navigationtasks', NavigationTaskNestedViewSet, basename="rootnavigationtasks")
+
 # router.register(r'routes', RouteViewSet, basename="routes")
 
 navigation_task_router = routers.NestedSimpleRouter(router, r"contests", lookup="contest")
