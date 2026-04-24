@@ -1,0 +1,132 @@
+{% extends "base_tailwind.html" %}
+{% load tz %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="py-6">
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl font-bold">Batch Update Contestants</h2>
+            <p class="text-base-content/70 mb-6">
+                Navigation Task: <strong>{{ navigation_task.name }}</strong>
+            </p>
+
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="overflow-x-auto mb-8">
+                    <table class="table table-zebra w-full">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>#</th>
+                                <th>Contestant</th>
+                                <th>Takeoff Time</th>
+                                <th>Wind Speed</th>
+                                <th>Wind Dir</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contestant in contestants %}
+                            {% with calculator_started=contestant.contestanttrack.calculator_started %}
+                            <tr {% if calculator_started %}class="opacity-50"{% endif %}>
+                                <td>
+                                    {% if not calculator_started %}
+                                    <input type="checkbox" name="contestant_ids" value="{{ contestant.pk }}" class="checkbox checkbox-primary">
+                                    {% else %}
+                                    <input type="checkbox" disabled class="checkbox opacity-20">
+                                    {% endif %}
+                                </td>
+                                <td>{{ contestant.contestant_number }}</td>
+                                <td>{{ contestant }}</td>
+                                <td>{{ contestant.takeoff_time|date:"H:i" }}</td>
+                                <td>{{ contestant.wind_speed }}</td>
+                                <td>{{ contestant.wind_direction }}°</td>
+                                <td>
+                                    {% if calculator_started %}
+                                    <span class="badge badge-warning badge-sm">Running</span>
+                                    {% else %}
+                                    <span class="badge badge-success badge-sm">Ready</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endwith %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-base-200 p-6 rounded-lg">
+                    <div>
+                        <h3 class="font-bold text-lg mb-4">Operation: Update Wind</h3>
+                        <div class="form-control mb-4">
+                            <label class="label cursor-pointer justify-start gap-4">
+                                {{ form.update_wind }}
+                                <span class="label-text">Apply wind update</span>
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="form-control">
+                                <label class="label"><span class="label-text">Wind Speed (km/h)</span></label>
+                                {{ form.wind_speed }}
+                                {% if form.wind_speed.errors %}
+                                <label class="label"><span class="label-text-alt text-error">{{ form.wind_speed.errors.0 }}</span></label>
+                                {% endif %}
+                            </div>
+                            <div class="form-control">
+                                <label class="label"><span class="label-text">Wind Direction (°)</span></label>
+                                {{ form.wind_direction }}
+                                {% if form.wind_direction.errors %}
+                                <label class="label"><span class="label-text-alt text-error">{{ form.wind_direction.errors.0 }}</span></label>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg mb-4">Operation: Shift Times</h3>
+                        <div class="form-control mb-4">
+                            <label class="label cursor-pointer justify-start gap-4">
+                                {{ form.shift_times }}
+                                <span class="label-text">Apply time shift</span>
+                            </label>
+                        </div>
+                        <div class="form-control">
+                            <label class="label"><span class="label-text">Shift by (minutes)</span></label>
+                            {{ form.time_shift_minutes }}
+                            <span class="label-text-alt text-base-content/50 mt-1">Positive to move later, negative to move earlier.</span>
+                            {% if form.time_shift_minutes.errors %}
+                            <label class="label"><span class="label-text-alt text-error">{{ form.time_shift_minutes.errors.0 }}</span></label>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if form.non_field_errors %}
+                <div class="alert alert-error mt-6">
+                    <div>{{ form.non_field_errors.0 }}</div>
+                </div>
+                {% endif %}
+                
+                {% if form.contestant_ids.errors %}
+                <div class="alert alert-error mt-6">
+                    <div>Please select at least one contestant.</div>
+                </div>
+                {% endif %}
+
+                <div class="card-actions justify-end mt-8 gap-4">
+                    <a href="{% url 'navigationtask_detail' pk=navigation_task.pk %}" class="btn btn-ghost">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Apply Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Style the inputs manually to match DaisyUI if crispy doesn't do it perfectly for non-crispy-managed fields
+    document.querySelectorAll('input[type="number"], input[type="text"]').forEach(el => {
+        el.classList.add('input', 'input-bordered', 'w-full');
+    });
+</script>
+{% endblock %}

@@ -6,6 +6,7 @@ from display.views import (
     renew_token,
     NavigationTaskDetailView,
     ContestantRecalculateWithStartTimeView,
+    BatchContestantUpdateView,
     ContestantUpdateView,
     ContestantCreateView,
     ContestantQuickAddView,
@@ -148,6 +149,11 @@ urlpatterns = [
     path("contest/<int:pk>/update/", ContestUpdateView.as_view(), name="contest_update"),
     path("contest/<int:pk>/share/", share_contest, name="contest_share"),
     path("navigationtask/<int:pk>/", NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
+    path(
+        "navigationtask/<int:navigationtask_pk>/batch_update_contestants/",
+        BatchContestantUpdateView.as_view(),
+        name="batch_update_contestants",
+    ),
     path(
         "navigationtask/<int:pk>/restorescorecard/",
         navigation_task_restore_original_scorecard_view,

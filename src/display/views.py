@@ -1504,7 +1504,62 @@ class ContestantRecalculateWithStartTimeView(GuardianPermissionRequiredMixin, Fo
         return reverse("navigationtask_detail", kwargs={"pk": self.contestant.navigation_task.pk})
 
 
-class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
+from guardian.mixins import GuardianPermissionRequiredMixin
+from .models import NavigationTask, Contestant
+from .forms import BatchContestantUpdateForm
+from datetime import timedelta
+
+class BatchContestantUpdateView(LoginRequiredMixin, GuardianPermissionRequiredMixin, View):
+    template_name = "display/batch_contestant_update.html"
+    permission_required = ("display.change_contest",)
+
+    def get_permission_object(self):
+        return get_object_or_404(NavigationTask, pk=self.kwargs["navigationtask_pk"]).contest
+
+    def get(self, request, navigationtask_pk):
+        navigation_task = get_object_or_404(NavigationTask, pk=navigationtask_pk)
+        contestants = navigation_task.contestant_set.select_related("contestanttrack", "team__crew__member").order_by("takeoff_time")
+        form = BatchContestantUpdateForm(navigation_task=navigation_task)
+        return render(request, self.template_name, {
+            "navigation_task": navigation_task,
+            "contestants": contestants,
+            "form": form,
+        })
+
+    def post(self, request, navigationtask_pk):
+        navigation_task = get_object_or_404(NavigationTask, pk=navigationtask_pk)
+        contestants_qs = navigation_task.contestant_set.select_related("contestanttrack", "team__crew__member").order_by("takeoff_time")
+        form = BatchContestantUpdateForm(request.POST, navigation_task=navigation_task)
+        if form.is_valid():
+            cd = form.cleaned_data
+            ids = [int(i) for i in cd["contestant_ids"]]
+            delta = timedelta(minutes=float(cd["time_shift_minutes"])) if cd.get("shift_times") and cd.get("time_shift_minutes") is not None else None
+            updated = 0
+            for c in navigation_task.contestant_set.select_related("contestanttrack").filter(pk__in=ids):
+                if hasattr(c, "contestanttrack") and c.contestanttrack.calculator_started:
+                    continue
+                if cd.get("update_wind"):
+                    c.wind_speed = cd["wind_speed"]
+                    c.wind_direction = cd["wind_direction"]
+                    c.predefined_gate_times = None
+                if delta is not None:
+                    c.tracker_start_time += delta
+                    c.takeoff_time += delta
+                    c.finished_by_time += delta
+                    c.predefined_gate_times = None
+                c.save()
+                updated += 1
+            messages.success(request, f"Updated {updated} contestant(s).")
+            return redirect("navigationtask_detail", pk=navigationtask_pk)
+        return render(request, self.template_name, {
+            "navigation_task": navigation_task,
+            "contestants": contestants_qs,
+            "form": form,
+        })
     form_class = ContestantForm
     model = Contestant
     permission_required = ("display.change_contest",)

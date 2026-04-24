@@ -82,6 +82,8 @@
                                 <li><a href="{% url 'navigationtask_refresheditableroute' object.pk %}">Reload route</a></li>
                             {% endif %}
                             <li><hr class="my-1 border-base-200"></li>
+                                <li><a href="{% url 'batch_update_contestants' object.pk %}">Batch update contestants</a></li>
+                            <li><hr class="my-1 border-base-200"></li>
                             <li><a href="{% url 'navigationtask_flightorderconfiguration' object.pk %}">Flight order configuration</a></li>
                             <li><hr class="my-1 border-base-200"></li>
                             <li><a href="{% url 'navigationtask_update' object.pk %}">Update</a></li>

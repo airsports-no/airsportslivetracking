@@ -625,6 +625,73 @@ class ContestantQuickAddForm(forms.Form):
         )
 
 
+import datetime
+from django import forms
+from django.db.models import QuerySet
+from crispy_forms.helper import FormHelper
+from crispy_forms.layout import Layout, Fieldset, Submit, HTML, ButtonHolder, Row, Column
+from django.utils.translation import gettext_lazy as _
+from .models import Contestant, ContestTeam, NavigationTask, ContestantTrack
+
+class BatchContestantUpdateForm(forms.Form):
+    contestant_ids = forms.MultipleChoiceField(
+        widget=forms.CheckboxSelectMultiple,
+        required=True,
+        label="Contestants",
+    )
+    update_wind = forms.BooleanField(required=False, label="Update wind speed/direction")
+    wind_speed = forms.FloatField(required=False, min_value=0, max_value=40, label="Wind speed (km/h)")
+    wind_direction = forms.FloatField(required=False, min_value=0, max_value=360, label="Wind direction (°)")
+    shift_times = forms.BooleanField(required=False, label="Shift contestant times")
+    time_shift_minutes = forms.FloatField(required=False, label="Shift by (minutes, use negative to move earlier)")
+
+    def __init__(self, *args, navigation_task=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.navigation_task = navigation_task
+        if navigation_task:
+            choices = []
+            for c in navigation_task.contestant_set.select_related("contestanttrack").order_by("takeoff_time"):
+                calculator_started = hasattr(c, "contestanttrack") and c.contestanttrack.calculator_started
+                if not calculator_started:
+                    choices.append((str(c.pk), str(c)))
+            self.fields["contestant_ids"].choices = choices
+
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                "Select Contestants",
+                "contestant_ids",
+            ),
+            Fieldset(
+                "Operation: Update Wind",
+                "update_wind",
+                Row(
+                    Column("wind_speed", css_class="form-group col-md-6 mb-0"),
+                    Column("wind_direction", css_class="form-group col-md-6 mb-0"),
+                ),
+            ),
+            Fieldset(
+                "Operation: Shift Times",
+                "shift_times",
+                "time_shift_minutes",
+            ),
+            ButtonHolder(Submit("submit", "Apply Changes", css_class="btn-primary")),
+        )
+
+    def clean(self):
+        cd = super().clean()
+        if cd.get("update_wind"):
+            if cd.get("wind_speed") is None:
+                self.add_error("wind_speed", "Wind speed is required when updating wind.")
+            if cd.get("wind_direction") is None:
+                self.add_error("wind_direction", "Wind direction is required when updating wind.")
+        if cd.get("shift_times") and cd.get("time_shift_minutes") is None:
+            self.add_error("time_shift_minutes", "Shift amount is required when shifting times.")
+        if not cd.get("update_wind") and not cd.get("shift_times"):
+            raise forms.ValidationError("Please select at least one operation (update wind or shift times).")
+        return cd
+
+
 class ContestantRecalculateWithStartTimeForm(forms.Form):
     starting_point_time = forms.DateTimeField(
         label="New time at starting point",
