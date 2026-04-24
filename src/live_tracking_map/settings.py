@@ -155,6 +155,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "live_tracking_map.middleware.CDNSafetyMiddleware",
     "live_tracking_map.middleware.HandleKnownExceptionsMiddleware",
     "live_tracking_map.middleware.Log500ErrorsMiddleware",
 ]
@@ -283,10 +284,10 @@ STORAGES = {
         "OPTIONS": {"bucket_name": "airsports-static", "default_acl": None, "querystring_auth": False},
     },
 }
-MEDIA_ROOT_URL = "https://storage.googleapis.com/airsports-data/"
+MEDIA_ROOT_URL = os.environ.get("MEDIA_URL_BASE", "https://storage.googleapis.com/airsports-data/")
 MEDIA_URL = MEDIA_ROOT_URL
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
-STATIC_URL = "https://storage.googleapis.com/airsports-static/"
+STATIC_URL = os.environ.get("STATIC_URL_BASE", "https://storage.googleapis.com/airsports-static/")
 # Serve static files locally when developing or testing
 if os.environ.get("MODE") == "dev" or IS_UNIT_TESTING:
     STORAGES["default"] = {

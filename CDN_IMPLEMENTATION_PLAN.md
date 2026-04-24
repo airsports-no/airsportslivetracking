@@ -11,66 +11,85 @@ The goal is to serve the high-performance Astro homepage at `airsports.no` while
 ### Domain Map
 | Domain | Content | Hosting |
 | :--- | :--- | :--- |
-| `airsports.no` | Marketing & **Application Proxy** | Firebase Hosting + LB |
-| `origin.airsports.no` | Django Backend, Scoring, Admin | GKE |
+| `airsports.no` | Marketing & **Application Proxy** | Google Cloud LB + CDN |
+| `origin.airsports.no` | Django Backend, Scoring, Admin | GKE Ingress (Legacy) |
 
 ### Routing Logic (Load Balancer / Gateway)
-The Global HTTP(S) Load Balancer will act as the primary router. To ensure zero disruption to the existing Django-integrated frontend, the following paths **MUST** be forwarded to the **GKE Backend**:
+The Global HTTP(S) Load Balancer will act as the primary router.
 
-1.  **Core API & Admin:** `/api/*`, `/admin/*`, `/accounts/*`, `/firebase_login/*`
-2.  **Legacy System:** `/display/*` (Includes Flymaster, health checks, and legacy views)
-3.  **Application Modules:** (These handle both React and Django template views)
-    *   `/mission-dashboard/*`
-    *   `/competition-map/*`
-    *   `/routeeditor/*`
-    *   `/schedule-flight/*`
-    *   `/schedule-contestants/*`
+1.  **GKE Backend (Django/React):**
+    *   `/api/*`, `/admin/*`, `/accounts/*`, `/firebase_login/*`
+    *   `/display/*`
+    *   `/mission-dashboard/*`, `/competition-map/*`, `/routeeditor/*`
+    *   `/schedule-flight/*`, `/schedule-contestants/*`
     *   `/upgrade-organizer/*`, `/upgrade-success/*`
-4.  **Assets:** `/static/*`, `/media/*`
-5.  **Default `/*`:** Forward to **Astro Homepage** (Firebase Hosting).
+2.  **Static Assets (GCS Backend Bucket):**
+    *   `/static/*` (Backend: `airsports-static`)
+    *   `/media/*` (Backend: `airsports-data`)
+3.  **Default `/*`:** 
+    *   Forward to **Astro Homepage** (Firebase Hosting).
 
 ---
 
-## 2. CDN Telemetry Architecture (High Load)
+## 2. Completed Application Optimizations (Phase 2) ✅
 
-Instead of a full frontend decoupling, we focus on optimizing the data flow for high-concurrency events.
+The application codebase is now fully CDN-ready. The following has been implemented:
 
-### A. Telemetry Minute-Slicing API
-We will add new endpoints to Django specifically designed for edge caching:
-1.  **Endpoint:** `/api/v1/contestant/<id>/slice/<minute_index>/`
-2.  **Logic:** Returns GPS positions for a specific 60-second window.
-3.  **Caching Strategy:** 
-    *   **Completed Minutes:** `Cache-Control: public, max-age=31536000, immutable`.
-    *   **Active Minute:** `Cache-Control: public, max-age=5, must-revalidate`.
+### A. Telemetry Minute-Slicing & Chunking API
+1.  **Endpoint:** `/api/v1/contestant/<id>/slice/<minute_index>/?count=15`
+2.  **Logic:** Returns GPS positions for a specific window. Supports **aligned 15-minute chunks** to reduce requests by 15x while maintaining CDN cache hit consistency.
+3.  **Surgical Invalidation:** Uses ETags based on `track_version`. Uploading a GPX instantly invalidates all cached slices for that pilot globally.
 
-### B. Dashboard Versioning
-*   Append a version hash `?v=<hash>` to the contest list API.
-*   Bumping the hash in Django instantly invalidates the CDN cache for all users when a contest is updated.
+### B. Dashboard Versioning & ETag Strategy
+1.  **Global Versioning:** Signals automatically increment a `contest_list_version` in Redis on any dashboard change.
+2.  **Clean URLs:** Removed `?v=` hashes from URLs in favor of standard HTTP ETags. This prevents "Thundering Herd" origin hits while allowing instant invalidation.
+
+### C. CDN Safety Middleware
+1.  **Vary Headers:** Every API response now includes `Vary: Authorization, Cookie`. This prevents the CDN from accidentally serving one user's private data to another.
+2.  **Private-by-Default:** Any API endpoint not explicitly optimized for public caching defaults to `private, no-cache`.
 
 ---
 
-## 3. Implementation Phases
+## 3. Infrastructure Implementation Guide (Phase 1 & 3) 🚀
 
-### Phase 1: Infrastructure Setup (Zero Risk)
-1.  Provision a **Google Cloud Load Balancer** with a temporary Static IP.
-2.  Configure the Load Balancer with two backends:
-    *   **Primary:** GKE Cluster (Django).
-    *   **Static:** Firebase Hosting (Astro Site).
-3.  Implement the Path Rules defined in Section 1.
+This phase involves setting up the Google Cloud environment to act as the "Shield" for the backend.
 
-### Phase 2: Application Optimization
-1.  Implement the `/slice/` API in Django.
-2.  Update the React frontend (staying within the Django project) to "stitch" these slices together instead of polling the full track.
-3.  Enable **Cloud CDN** on the Load Balancer for the `/slice/` path.
+### Step 1: Create Global HTTP(S) Load Balancer
+1.  **Frontend Configuration:**
+    *   Create a global IP address (Static).
+    *   Assign a managed SSL certificate for `airsports.no`.
+2.  **Backend Services:**
+    *   **GKE-Backend:** Point to the existing GKE Service (via Network Endpoint Group/NEG).
+    *   **Static-Bucket:** Create a "Backend Bucket" pointing to `airsports-static`.
+    *   **Media-Bucket:** Create a "Backend Bucket" pointing to `airsports-data`.
+    *   **Astro-External:** Configure a "Custom Origin" (Internet NEG) pointing to the Firebase Hosting domain.
 
-### Phase 3: Traffic Cutover
-1.  Point the `airsports.no` DNS record to the new Load Balancer.
-2.  The root domain now serves the Astro homepage, but clicking any app link (e.g., `/mission-dashboard/`) takes the user to the existing Django/React application seamlessly.
+### Step 2: Configure Routing Rules (URL Map)
+Implement the host and path rules:
+*   Rule 1: Path `/static/*` -> `Static-Bucket`
+*   Rule 2: Path `/media/*` -> `Media-Bucket`
+*   Rule 3: All application paths (Section 1) -> `GKE-Backend`
+*   Rule 4: Default `/*` -> `Astro-External`
+
+### Step 3: Enable Cloud CDN
+1.  **Enable CDN** on the following backends:
+    *   `Static-Bucket`: Set "Cache mode" to `FORCE_CACHE_ALL`.
+    *   `GKE-Backend`: Set "Cache mode" to `USE_ORIGIN_HEADERS` (This respects the `stale-while-revalidate` and `ETag` headers we implemented).
+2.  **Telemetry Optimization:** Ensure the CDN allows query strings for the `/slice/` path to handle the `count` parameter.
+
+### Step 4: Testing & Side-by-Side Validation
+1.  **Verification:** Access the app via the new Static IP (using host header override) to ensure it loads from the CDN.
+2.  **Side-by-Side:** The current Ingress (`origin.airsports.no`) will continue to serve absolute GCS URLs, while the new Gateway handles everything via relative paths.
+
+### Step 5: Traffic Cutover
+1.  **DNS Update:** Change the A record for `airsports.no` to point to the new Load Balancer IP.
+2.  **Environment Variables:** Once testing is complete, update GKE environment variables to use relative paths for maximum efficiency:
+    *   `STATIC_URL_BASE=/static/`
+    *   `MEDIA_URL_BASE=/media/`
 
 ---
 
 ## 4. Advantages of this Approach
-*   **No Code Migration:** The React app stays inside Django, using existing authentication, CSRF tokens, and template tags.
-*   **Performance:** The marketing site is lightning fast and offloads all "landing" traffic from GKE.
-*   **Scalability:** High-load telemetry is cached at the edge, allowing the system to handle thousands of spectators during major competitions.
-*   **Compatibility:** All existing mobile app versions and hardware trackers (Flymaster) continue to work without modification.
+*   **Infinite Scalability:** Telemetry and Dashboard lists are served from the edge.
+*   **Security:** `CDNSafetyMiddleware` protects private data.
+*   **UX:** Astro provides a sub-second initial landing experience, while the React app handles complex logic seamlessly behind the proxy.
