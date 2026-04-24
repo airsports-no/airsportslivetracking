@@ -39,6 +39,14 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "secret")
 
 SERVER_ROOT = "https://airsports.no"
 CSRF_TRUSTED_ORIGINS = ["https://*.airsports.no", "http://*.127.0.0.1"]
+CORS_ALLOWED_ORIGINS = [
+    "https://home.airsports.no",
+    "https://airsports.no",
+    "https://airsports-info-1747b.web.app",
+    "https://airsports-info-1747b.firebaseapp.com",
+    "http://localhost:4321",
+    "http://127.0.0.1:4321",
+]
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("MODE") == "dev"
 ALLOWED_HOSTS = ["*"]
@@ -113,6 +121,7 @@ INSTALLED_APPS = [
     "storages",
     "location_field.apps.DefaultConfig",
     "django_js_reverse",
+    "corsheaders",
 ]
 if os.environ.get("MODE") != "dev":
     INSTALLED_APPS.append("drf_firebase_auth")
@@ -147,6 +156,7 @@ DRF_FIREBASE_AUTH = {
 }
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

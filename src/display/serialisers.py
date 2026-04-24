@@ -437,9 +437,44 @@ class RouteSummarySerialiser(serializers.ModelSerializer):
         ]
 
 
+class ContestantTickerSerialiser(serializers.ModelSerializer):
+    pilot_name = serializers.SerializerMethodField()
+    aircraft_registration = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Contestant
+        fields = ("pk", "contestant_number", "pilot_name", "aircraft_registration", "takeoff_time", "finished_by_time")
+
+    def get_pilot_name(self, obj):
+        return f"{obj.team.crew.member1.first_name} {obj.team.crew.member1.last_name}"
+
+    def get_aircraft_registration(self, obj):
+        return obj.team.aeroplane.registration
+
+
+class TodaysNavigationSerialiser(serializers.ModelSerializer):
+    contest_name = serializers.CharField(source="contest.name", read_only=True)
+    contestants = serializers.SerializerMethodField("get_todays_contestants")
+
+    class Meta:
+        model = NavigationTask
+        fields = ("pk", "name", "contest_name", "start_time", "finish_time", "tracking_link", "contestants")
+
+    def get_todays_contestants(self, obj):
+        if hasattr(obj, "prefetched_todays_contestants"):
+            contestants = obj.prefetched_todays_contestants
+        else:
+            now = datetime.datetime.now(datetime.timezone.utc)
+            start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_of_day = start_of_day + datetime.timedelta(days=1)
+            contestants = obj.contestant_set.filter(takeoff_time__gte=start_of_day, takeoff_time__lt=end_of_day)
+        return ContestantTickerSerialiser(contestants, many=True).data
+
+
 class NavigationTasksLightSerialiser(serializers.ModelSerializer):
     route = RouteSummarySerialiser(read_only=True)
     flown_contestants_count = serializers.SerializerMethodField()
+    active_contestants = serializers.SerializerMethodField("get_active_contestants")
     score_sorting_direction = serializers.ReadOnlyField()
 
     class Meta:
@@ -454,11 +489,21 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
             "allow_self_management",
             "route",
             "flown_contestants_count",
+            "active_contestants",
             "score_sorting_direction",
             "is_public",
             "is_featured",
             "planning_time",
         )
+
+    def get_active_contestants(self, obj):
+        if hasattr(obj, "prefetched_active_contestants"):
+            active_contestants = obj.prefetched_active_contestants
+        else:
+            active_contestants = obj.contestant_set.filter(
+                contestanttrack__calculator_started=True, contestanttrack__calculator_finished=False
+            )
+        return ContestantTickerSerialiser(active_contestants, many=True).data
 
     def get_flown_contestants_count(self, obj):
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
@@ -1125,7 +1170,7 @@ class OngoingNavigationSerialiser(serializers.ModelSerializer):
             active_contestants = navigation_task.contestant_set.filter(
                 contestanttrack__calculator_started=True, contestanttrack__calculator_finished=False
             )
-        serialiser = ContestantSerialiser(active_contestants, many=True, read_only=True)
+        serialiser = ContestantTickerSerialiser(active_contestants, many=True, read_only=True)
         return serialiser.data
 
 

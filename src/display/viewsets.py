@@ -85,6 +85,8 @@ from display.serialisers import (
     TeamTestScoreWithoutReferenceSerialiser,
     ContestResultsDetailsSerialiser,
     OngoingNavigationSerialiser,
+    TodaysNavigationSerialiser,
+    ContestantTickerSerialiser,
     SignupSerialiser,
     SharingSerialiser,
     ContestSerialiser,
@@ -526,6 +528,47 @@ class ContestViewSet(ModelViewSet):
         response["ETag"] = etag
         # This is a public-facing list of live tasks, safe to cache at edge but revalidate often
         response["Cache-Control"] = "public, max-age=30, s-maxage=60, stale-while-revalidate=300"
+        return response
+
+    @action(detail=False, methods=["get"])
+    def todays_navigation(self, request, *args, **kwargs):
+        version = cache.get("contest_list_version", 1)
+        etag = f'"{version}-todays-nav"'
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + datetime.timedelta(days=1)
+
+        # Public navigation tasks with contestants scheduled today
+        navigation_tasks = (
+            NavigationTask.objects.filter(
+                is_public=True,
+                contest__is_public=True,
+                contestant__takeoff_time__gte=start_of_day,
+                contestant__takeoff_time__lt=end_of_day,
+            )
+            .distinct()
+            .select_related("contest")
+        )
+
+        # Prefetch today's contestants to avoid N+1
+        todays_contestants_prefetch = Prefetch(
+            "contestant_set",
+            queryset=Contestant.objects.filter(
+                takeoff_time__gte=start_of_day, takeoff_time__lt=end_of_day
+            ).select_related("team__crew__member1", "team__aeroplane"),
+            to_attr="prefetched_todays_contestants",
+        )
+
+        navigation_tasks = navigation_tasks.prefetch_related(todays_contestants_prefetch)
+
+        data = TodaysNavigationSerialiser(navigation_tasks, many=True, context={"request": self.request}).data
+        response = Response(data)
+        response["ETag"] = etag
+        # Cache for 5 minutes, stale-while-revalidate for 1 hour
+        response["Cache-Control"] = "public, max-age=300, s-maxage=600, stale-while-revalidate=3600"
         return response
 
     @action(detail=True, methods=["get"])

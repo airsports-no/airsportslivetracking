@@ -1,0 +1,97 @@
+---
+// LiveTicker.astro
+---
+<div id="live-ticker-container" class="bg-blue-600 text-white py-2 overflow-hidden hidden border-b border-white/10 relative z-40">
+    <div class="max-w-7xl mx-auto px-4 flex items-center">
+        <span class="flex-shrink-0 flex items-center gap-2 font-black text-[10px] uppercase tracking-[0.2em] mr-8 bg-red-500 px-3 py-1 rounded-full shadow-lg shadow-red-900/20 italic">
+            <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+            </span>
+            Live Now
+        </span>
+        <div class="relative flex-1 overflow-hidden h-6">
+            <div id="ticker-content" class="absolute whitespace-nowrap flex gap-12 items-center min-w-full">
+                <!-- Content injected via JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+    .animate-marquee {
+        animation: marquee 40s linear infinite;
+        display: flex;
+        width: max-content;
+    }
+    .animate-marquee:hover {
+        animation-play-state: paused;
+    }
+</style>
+
+<script>
+    async function updateTicker() {
+        const container = document.getElementById('live-ticker-container');
+        const content = document.getElementById('ticker-content');
+        if (!container || !content) return;
+
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:8002' 
+            : 'https://airsports.no';
+
+        try {
+            const response = await fetch(`${API_BASE}/api/v1/navigationtasks/ongoing_navigation/`);
+            if (!response.ok) throw new Error('Failed to fetch');
+            const data = await response.json();
+
+            if (!data || data.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            content.innerHTML = '';
+            content.classList.remove('animate-marquee');
+
+            const fragment = document.createDocumentFragment();
+            
+            // Create items
+            const items = data.map(task => {
+                const item = document.createElement('a');
+                item.href = task.tracking_link;
+                item.target = '_blank';
+                item.className = 'flex items-center gap-3 hover:text-blue-200 transition-colors group';
+                
+                const activeCount = task.active_contestants ? task.active_contestants.length : 0;
+                
+                item.innerHTML = `
+                    <span class="font-bold uppercase italic text-xs tracking-wider">${task.contest.name}: <span class="text-blue-100 group-hover:text-white transition-colors">${task.name}</span></span>
+                    <span class="bg-white/10 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border border-white/10">${activeCount} Active</span>
+                `;
+                return item;
+            });
+
+            // Append items
+            items.forEach(item => fragment.appendChild(item));
+            
+            // Duplicate for seamless loop if content is enough
+            items.forEach(item => fragment.appendChild(item.cloneNode(true)));
+            items.forEach(item => fragment.appendChild(item.cloneNode(true)));
+
+            content.appendChild(fragment);
+            content.classList.add('animate-marquee');
+
+        } catch (e) {
+            console.error('Ticker error:', e);
+            container.classList.add('hidden');
+        }
+    }
+
+    updateTicker();
+    // Update every 2 minutes to reduce load
+    setInterval(updateTicker, 120000);
+</script>
