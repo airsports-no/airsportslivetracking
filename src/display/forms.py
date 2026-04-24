@@ -6,7 +6,6 @@ from typing import Iterable, Optional
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, ButtonHolder, Submit, Fieldset, Field, HTML
 from django import forms
-from django.contrib.gis.forms import OSMWidget, LineStringField
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.utils.safestring import mark_safe
@@ -543,9 +542,7 @@ class ContestantForm(forms.ModelForm):
         self.fields["wind_direction"].initial = self.navigation_task.wind_direction
         self.fields["wind_direction"].initial = self.navigation_task.wind_direction
 
-        datetime_widget = forms.DateTimeInput(
-            attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M"
-        )
+        datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
         self.fields["takeoff_time"].widget = datetime_widget
         self.fields["tracker_start_time"].widget = datetime_widget
         self.fields["finished_by_time"].widget = datetime_widget
@@ -633,6 +630,7 @@ from crispy_forms.layout import Layout, Fieldset, Submit, HTML, ButtonHolder, Ro
 from django.utils.translation import gettext_lazy as _
 from .models import Contestant, ContestTeam, NavigationTask, ContestantTrack
 
+
 class BatchContestantUpdateForm(forms.Form):
     contestant_ids = forms.MultipleChoiceField(
         widget=forms.CheckboxSelectMultiple,
@@ -640,7 +638,7 @@ class BatchContestantUpdateForm(forms.Form):
         label="Contestants",
     )
     update_wind = forms.BooleanField(required=False, label="Update wind speed/direction")
-    wind_speed = forms.FloatField(required=False, min_value=0, max_value=40, label="Wind speed (km/h)")
+    wind_speed = forms.FloatField(required=False, min_value=0, max_value=40, label="Wind speed (knots)")
     wind_direction = forms.FloatField(required=False, min_value=0, max_value=360, label="Wind direction (°)")
     shift_times = forms.BooleanField(required=False, label="Shift contestant times")
     time_shift_minutes = forms.FloatField(required=False, label="Shift by (minutes, use negative to move earlier)")
@@ -708,7 +706,9 @@ class ContestantRecalculateWithStartTimeForm(forms.Form):
                 "Update Starting Point Time and Recalculate",
                 "starting_point_time",
             ),
-            HTML("<p class='text-error font-bold mb-4'>Warning: This will delete the current contestant and create a new one with the same positions but updated timing. All current scores for this contestant will be lost.</p>"),
+            HTML(
+                "<p class='text-error font-bold mb-4'>Warning: This will delete the current contestant and create a new one with the same positions but updated timing. All current scores for this contestant will be lost.</p>"
+            ),
             ButtonHolder(Submit("submit", "Recalculate")),
         )
 

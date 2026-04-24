@@ -1,4 +1,3 @@
-# Trivial change to trigger auto-reload
 import datetime
 import json
 import os
@@ -49,6 +48,7 @@ from django.views.generic import (
 )
 import logging
 
+
 from guardian.decorators import permission_required as guardian_permission_required
 from guardian.mixins import PermissionRequiredMixin as GuardianPermissionRequiredMixin
 from guardian.shortcuts import (
@@ -65,6 +65,7 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_z
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.forms import (
+    BatchContestantUpdateForm,
     ImportContestTeamForm,
     NavigationTaskForm,
     ContestantForm,
@@ -553,33 +554,31 @@ def get_contestant_map(request, pk):
                 "dpi": form.cleaned_data["dpi"],
                 "scale": int(form.cleaned_data["scale"]),
                 "map_source": form.cleaned_data["map_source"],
-                "user_map_source_id": form.cleaned_data["user_map_source"].pk if form.cleaned_data["user_map_source"] else None,
+                "user_map_source_id": (
+                    form.cleaned_data["user_map_source"].pk if form.cleaned_data["user_map_source"] else None
+                ),
                 "line_width": float(form.cleaned_data["line_width"]),
                 "minute_mark_line_width": float(form.cleaned_data["minute_mark_line_width"]),
                 "colour": form.cleaned_data["colour"],
                 "include_meridians_and_parallels_lines": form.cleaned_data["include_meridians_and_parallels_lines"],
                 "margin": 10,
             }
-            
+
             # Clear any old result
             cache_key = f"map_gen_result_{contestant.navigation_task.pk}_{contestant.pk}_{request.user.id}"
             cache.delete(cache_key)
-            
+
             from display.tasks import generate_map_async
-            generate_map_async.delay(
-                contestant.navigation_task.pk, 
-                contestant.pk, 
-                map_params, 
-                request.user.id
+
+            generate_map_async.delay(contestant.navigation_task.pk, contestant.pk, map_params, request.user.id)
+
+            redirect_url_status = reverse(
+                "map_generation_status",
+                kwargs={"task_id": contestant.navigation_task.pk, "contestant_id": contestant.pk},
             )
-            
-            redirect_url_status = reverse("map_generation_status", kwargs={
-                "task_id": contestant.navigation_task.pk,
-                "contestant_id": contestant.pk
-            })
             logger.info(f"Redirecting contestant map to: {redirect_url_status}")
             return redirect(redirect_url_status)
-            
+
     else:
         configuration = contestant.navigation_task.flightorderconfiguration
         form = ContestantMapForm(
@@ -663,7 +662,7 @@ def get_contestant_default_map(request, pk):
     """
     contestant = get_object_or_404(Contestant, pk=pk)
     configuration = contestant.navigation_task.flightorderconfiguration
-    
+
     map_params = {
         "size": configuration.document_size,
         "zoom_level": configuration.map_zoom_level,
@@ -679,23 +678,18 @@ def get_contestant_default_map(request, pk):
         "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
         "margin": 10,
     }
-    
+
     # Clear any old result
     cache_key = f"map_gen_result_{contestant.navigation_task.pk}_{contestant.pk}_{request.user.id}"
     cache.delete(cache_key)
-    
+
     from display.tasks import generate_map_async
-    generate_map_async.delay(
-        contestant.navigation_task.pk, 
-        contestant.pk, 
-        map_params, 
-        request.user.id
+
+    generate_map_async.delay(contestant.navigation_task.pk, contestant.pk, map_params, request.user.id)
+
+    redirect_url_status = reverse(
+        "map_generation_status", kwargs={"task_id": contestant.navigation_task.pk, "contestant_id": contestant.pk}
     )
-    
-    redirect_url_status = reverse("map_generation_status", kwargs={
-        "task_id": contestant.navigation_task.pk,
-        "contestant_id": contestant.pk
-    })
     logger.info(f"Redirecting default contestant map to: {redirect_url_status}")
     return redirect(redirect_url_status)
 
@@ -821,37 +815,35 @@ def get_navigation_task_map(request, pk):
                 "size": form.cleaned_data["size"],
                 "zoom_level": form.cleaned_data["zoom_level"],
                 "landscape": form.cleaned_data["orientation"] == LANDSCAPE,
-                "annotations": False, # Generic map has no contestant annotations
+                "annotations": False,  # Generic map has no contestant annotations
                 "waypoints_only": not form.cleaned_data["plot_track_between_waypoints"],
                 "dpi": form.cleaned_data["dpi"],
                 "scale": int(form.cleaned_data["scale"]),
                 "map_source": form.cleaned_data["map_source"],
-                "user_map_source_id": form.cleaned_data["user_map_source"].pk if form.cleaned_data["user_map_source"] else None,
+                "user_map_source_id": (
+                    form.cleaned_data["user_map_source"].pk if form.cleaned_data["user_map_source"] else None
+                ),
                 "line_width": float(form.cleaned_data["line_width"]),
                 "colour": form.cleaned_data["colour"],
                 "include_meridians_and_parallels_lines": form.cleaned_data["include_meridians_and_parallels_lines"],
                 "margin": 10,
             }
-            
+
             # Clear any old result
             cache_key = f"map_gen_result_{navigation_task.pk}_None_{request.user.id}"
             cache.delete(cache_key)
-            
+
             from display.tasks import generate_map_async
-            generate_map_async.delay(
-                navigation_task.pk, 
-                None, 
-                map_params, 
-                request.user.id
+
+            generate_map_async.delay(navigation_task.pk, None, map_params, request.user.id)
+
+            redirect_url_status = reverse(
+                "map_generation_status",
+                kwargs={"task_id": navigation_task.pk, "contestant_id": 0},  # Use 0 to represent None in URL
             )
-            
-            redirect_url_status = reverse("map_generation_status", kwargs={
-                "task_id": navigation_task.pk,
-                "contestant_id": 0 # Use 0 to represent None in URL
-            })
             logger.info(f"Redirecting task map to: {redirect_url_status}")
             return redirect(redirect_url_status)
-            
+
     else:
         configuration = navigation_task.flightorderconfiguration
         form = MapForm(
@@ -1504,15 +1496,6 @@ class ContestantRecalculateWithStartTimeView(GuardianPermissionRequiredMixin, Fo
         return reverse("navigationtask_detail", kwargs={"pk": self.contestant.navigation_task.pk})
 
 
-from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect, render
-from django.views import View
-from django.contrib.auth.mixins import LoginRequiredMixin
-from guardian.mixins import GuardianPermissionRequiredMixin
-from .models import NavigationTask, Contestant
-from .forms import BatchContestantUpdateForm
-from datetime import timedelta
-
 class BatchContestantUpdateView(LoginRequiredMixin, GuardianPermissionRequiredMixin, View):
     template_name = "display/batch_contestant_update.html"
     permission_required = ("display.change_contest",)
@@ -1522,22 +1505,34 @@ class BatchContestantUpdateView(LoginRequiredMixin, GuardianPermissionRequiredMi
 
     def get(self, request, navigationtask_pk):
         navigation_task = get_object_or_404(NavigationTask, pk=navigationtask_pk)
-        contestants = navigation_task.contestant_set.select_related("contestanttrack", "team__crew__member").order_by("takeoff_time")
+        contestants = navigation_task.contestant_set.select_related(
+            "contestanttrack", "team__crew__member1", "team__crew__member2"
+        ).order_by("takeoff_time")
         form = BatchContestantUpdateForm(navigation_task=navigation_task)
-        return render(request, self.template_name, {
-            "navigation_task": navigation_task,
-            "contestants": contestants,
-            "form": form,
-        })
+        return render(
+            request,
+            self.template_name,
+            {
+                "navigation_task": navigation_task,
+                "contestants": contestants,
+                "form": form,
+            },
+        )
 
     def post(self, request, navigationtask_pk):
         navigation_task = get_object_or_404(NavigationTask, pk=navigationtask_pk)
-        contestants_qs = navigation_task.contestant_set.select_related("contestanttrack", "team__crew__member").order_by("takeoff_time")
+        contestants_qs = navigation_task.contestant_set.select_related(
+            "contestanttrack", "team__crew__member1", "team__crew__member2"
+        ).order_by("takeoff_time")
         form = BatchContestantUpdateForm(request.POST, navigation_task=navigation_task)
         if form.is_valid():
             cd = form.cleaned_data
             ids = [int(i) for i in cd["contestant_ids"]]
-            delta = timedelta(minutes=float(cd["time_shift_minutes"])) if cd.get("shift_times") and cd.get("time_shift_minutes") is not None else None
+            delta = (
+                datetime.timedelta(minutes=float(cd["time_shift_minutes"]))
+                if cd.get("shift_times") and cd.get("time_shift_minutes") is not None
+                else None
+            )
             updated = 0
             for c in navigation_task.contestant_set.select_related("contestanttrack").filter(pk__in=ids):
                 if hasattr(c, "contestanttrack") and c.contestanttrack.calculator_started:
@@ -1555,11 +1550,18 @@ class BatchContestantUpdateView(LoginRequiredMixin, GuardianPermissionRequiredMi
                 updated += 1
             messages.success(request, f"Updated {updated} contestant(s).")
             return redirect("navigationtask_detail", pk=navigationtask_pk)
-        return render(request, self.template_name, {
-            "navigation_task": navigation_task,
-            "contestants": contestants_qs,
-            "form": form,
-        })
+        return render(
+            request,
+            self.template_name,
+            {
+                "navigation_task": navigation_task,
+                "contestants": contestants_qs,
+                "form": form,
+            },
+        )
+
+
+class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     form_class = ContestantForm
     model = Contestant
     permission_required = ("display.change_contest",)
@@ -2250,24 +2252,24 @@ class MapGenerationStatusView(LoginRequiredMixin, TemplateView):
         contestant_id = self.kwargs.get("contestant_id")
         if contestant_id == 0:
             contestant_id = "None"
-            
+
         context["task_id"] = task_id
         context["contestant_id"] = contestant_id
-        
+
         # We use '0' in the URL to represent None for contestant_id
         c_id_for_url = self.kwargs.get("contestant_id")
-        
-        context["check_url"] = reverse("check_map_generation_status", kwargs={
-            "task_id": task_id,
-            "contestant_id": c_id_for_url
-        })
-        
+
+        context["check_url"] = reverse(
+            "check_map_generation_status", kwargs={"task_id": task_id, "contestant_id": c_id_for_url}
+        )
+
         task = get_object_or_404(NavigationTask, pk=task_id)
         context["navigation_task"] = task
         if c_id_for_url != 0:
             context["contestant"] = get_object_or_404(Contestant, pk=c_id_for_url)
-            
+
         return context
+
 
 @login_required
 def check_map_generation_status(request, task_id, contestant_id):

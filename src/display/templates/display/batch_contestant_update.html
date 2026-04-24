@@ -30,9 +30,10 @@
                         <tbody>
                             {% for contestant in contestants %}
                             {% with calculator_started=contestant.contestanttrack.calculator_started %}
+                            {% with calculator_finished=contestant.contestanttrack.calculator_finished %}
                             <tr {% if calculator_started %}class="opacity-50"{% endif %}>
                                 <td>
-                                    {% if not calculator_started %}
+                                    {% if not calculator_started%}
                                     <input type="checkbox" name="contestant_ids" value="{{ contestant.pk }}" class="checkbox checkbox-primary">
                                     {% else %}
                                     <input type="checkbox" disabled class="checkbox opacity-20">
@@ -44,13 +45,16 @@
                                 <td>{{ contestant.wind_speed }}</td>
                                 <td>{{ contestant.wind_direction }}°</td>
                                 <td>
-                                    {% if calculator_started %}
+                                    {% if calculator_started and not calculator_finished %}
                                     <span class="badge badge-warning badge-sm">Running</span>
+                                    {% elif calculator_started and calculator_finished %}
+                                    <span class="badge badge-error badge-sm">Finished</span>
                                     {% else %}
                                     <span class="badge badge-success badge-sm">Ready</span>
                                     {% endif %}
                                 </td>
                             </tr>
+                            {% endwith %}
                             {% endwith %}
                             {% endfor %}
                         </tbody>
@@ -130,3 +134,4 @@
     });
 </script>
 {% endblock %}
+ 
