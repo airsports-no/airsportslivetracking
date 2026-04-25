@@ -163,17 +163,15 @@ export const EditableRouteList = () => {
                 </div>
             </div>
             <div className="relative w-full max-w-5xl shadow-xl rounded-box border border-base-300 bg-base-100 min-h-[200px]">
-                <div className="overflow-x-auto rounded-box">
-                    <ASTable
-                        columns={columns}
-                        data={filteredData}
-                        className=""
-                        showGlobalFilter={false}
-                        initialState={{
-                            sorting: [{ id: "Route", desc: false }]
-                        }}
-                    />
-                </div>
+                <ASTable
+                    columns={columns}
+                    data={filteredData}
+                    className=""
+                    showGlobalFilter={false}
+                    initialState={{
+                        sorting: [{ id: "Route", desc: false }]
+                    }}
+                />
                 {loading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-base-100/50 z-50 text-primary">
                         <Loading />

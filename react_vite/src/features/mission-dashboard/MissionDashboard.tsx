@@ -15,7 +15,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { reverse } from '../../urls';
 
 // Define NavigationTask interface based on likely API response structure
-// This is a minimal definition for the current task's needs.
 interface NavigationTask {
     pk: number;
     name: string;
@@ -24,8 +23,9 @@ interface NavigationTask {
     finish_time: string; // ISO string
     allow_self_management: boolean;
     flown_contestants_count: number;
-    // Add other fields from API if available and relevant for other tasks
 }
+
+const ITEMS_PER_PAGE = 50;
 
 const MissionDashboard = () => {
     const {
@@ -53,14 +53,15 @@ const MissionDashboard = () => {
     const [hasUserInteractedWithMap, setHasUserInteractedWithMap] = useState(false);
     const [oldestContestDate, setOldestContestDate] = useState<Date | null>(null);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [showOnlyWithOpenTasks, setShowOnlyWithOpenTasks] = useState(false); // New state for filtering
+    const [showOnlyWithOpenTasks, setShowOnlyWithOpenTasks] = useState(false);
     const [showOnlyWithFlownContestants, setShowOnlyWithFlownContestants] = useState(false);
     const [dateRange, setDateRange] = useState<[number, number] | null>(null);
     const [sliderRange, setSliderRange] = useState<[number, number] | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
     const location = useLocation();
     const navigate = useNavigate();
 
-    const updateURL = (updates: Record<string, string | string[] | boolean | null>) => {
+    const updateURL = (updates: Record<string, string | string[] | boolean | number | null>) => {
         const params = new URLSearchParams(location.search);
         Object.entries(updates).forEach(([key, value]) => {
             if (value === null || value === '' || value === false || (Array.isArray(value) && value.length === 0)) {
@@ -104,6 +105,14 @@ const MissionDashboard = () => {
             setShowOnlyWithFlownContestants(false);
         }
 
+        const page = params.get('page');
+        if (page !== null) {
+            const p = parseInt(page, 10);
+            if (!isNaN(p) && p !== currentPage) setCurrentPage(p);
+        } else if (currentPage !== 1) {
+            setCurrentPage(1);
+        }
+
         const tab = params.get('tab');
         if (tab && ['allContests', 'upcoming', 'past', 'editorContests'].includes(tab)) {
             let shouldSetActiveTab = true;
@@ -111,7 +120,7 @@ const MissionDashboard = () => {
                 if (['upcoming', 'past', 'editorContests'].includes(tab)) {
                     shouldSetActiveTab = false;
                 }
-            } else { // Authenticated
+            } else {
                 if (tab === 'editorContests' && !document.configuration.isOrganizer) {
                     shouldSetActiveTab = false;
                 }
@@ -133,7 +142,6 @@ const MissionDashboard = () => {
 
         let maxTime = today.getTime();
         if (contests && contests.length > 0) {
-            // Sanity check: only consider contests finishing within the next 2 years
             const validContests = contests.filter(c => new Date(c.finish_time).getTime() <= twoYearsFromNow.getTime());
             if (validContests.length > 0) {
                 const latestFinishTime = Math.max(...validContests.map(c => new Date(c.finish_time).getTime()));
@@ -150,23 +158,21 @@ const MissionDashboard = () => {
             if (!prev) return [oneYearAgo.getTime(), maxTime];
             return [prev[0], maxTime];
         });
-    }, [contests]); // Updated to depend on contests to refresh max time when data arrives
+    }, [contests]);
 
     useLayoutEffect(() => {
         document.querySelector('main')?.scrollTo(0, 0);
-    }, [loading, activeTab]);
+    }, [loading, activeTab, currentPage]);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             const state = useMissionDashboardStore.getState();
-            // Show page loader if no contests are currently loaded.
             if (state.contests.length === 0) {
                 setLoading(true);
             }
 
             const fetchPromises = [];
 
-            // Always fetch ongoing navigation and user-specific data on mount to handle stale state
             fetchPromises.push(fetchOngoingNavigationFromStore(true));
             if (document.configuration.isAuthenticated) {
                 fetchPromises.push(fetchMyFutureFlightsFromStore(true));
@@ -176,38 +182,32 @@ const MissionDashboard = () => {
             }
 
             const now = new Date();
-            // Quantize to the 1st of the month to ensure the URL (and thus CDN cache key) 
-            // remains stable for ~30 days.
             const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1);
             const finishTimeGte = oneYearAgo.toISOString().split('T')[0];
 
             if (document.configuration.is_superuser) {
-                // Superuser sees everything in one request, respecting time filters
                 fetchPromises.push(fetchContestsFromStore({ 
                     finishTimeGte, 
                     excludeTeams: true                }, true));
             } else {
-                // 1. Fetch ALL public contests (highly cacheable by CDN)
                 fetchPromises.push(fetchContestsFromStore({ 
                     finishTimeGte, 
                     excludeTeams: true, 
                     publicOnly: true
                 }, true));
 
-                // 2. If authenticated, fetch ONLY private contests the user has access to
                 if (document.configuration.isAuthenticated) {
                     fetchPromises.push(fetchContestsFromStore({ 
                         finishTimeGte, 
                         excludeTeams: true,
                         sharedOnly: true
-                    }, false)); // Merge with public contests
+                    }, false));
                 }
             }
 
             try {
                 await Promise.allSettled(fetchPromises);
 
-                // Check for missing contests referenced by user data
                 if (document.configuration.isAuthenticated) {
                     const updatedState = useMissionDashboardStore.getState();
                     const loadedContestIds = new Set(updatedState.contests.map(c => c.id));
@@ -227,7 +227,6 @@ const MissionDashboard = () => {
                     const missingContestIds = Array.from(requiredContestIds).filter(id => !loadedContestIds.has(id));
 
                     if (missingContestIds.length > 0) {
-                        // Merge missing ones (don't clear)
                         await fetchContestsFromStore({ pks: missingContestIds });
                     }
                 }
@@ -239,12 +238,12 @@ const MissionDashboard = () => {
         };
 
         fetchDashboardData();
-    // The dependency array includes the fetch actions to adhere to linting rules,
-    // but since they are stable from Zustand, this effect will run only once.
     }, [fetchContestsFromStore, fetchOngoingNavigationFromStore, fetchMyFutureFlightsFromStore, fetchMyContestTeamsFromStore, fetchMyEditorContestsFromStore, fetchMyPreviousFlightsFromStore]);
 
     const handleSliderChange = (newRange: [number, number]) => {
         setDateRange(newRange);
+        setCurrentPage(1);
+        updateURL({ page: 1 });
     };
 
     const handleSliderAfterChange = async (newRange: [number, number]) => {
@@ -268,9 +267,9 @@ const MissionDashboard = () => {
     useEffect(() => {
         const interval = setInterval(() => {
             fetchOngoingNavigationFromStore(true);
-        }, 2 * 60 * 1000); // Every 2 minutes
+        }, 2 * 60 * 1000);
 
-        return () => clearInterval(interval); // Cleanup on unmount
+        return () => clearInterval(interval);
     }, [fetchOngoingNavigationFromStore]);
 
     const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number) => {
@@ -306,7 +305,6 @@ const MissionDashboard = () => {
 
     const scheduledFlightContestIds = useMemo(() => {
         if (!myFutureFlights) return new Set();
-
         return new Set(myFutureFlights.map(flight => flight.contest_id));
     }, [myFutureFlights]);
 
@@ -346,7 +344,20 @@ const MissionDashboard = () => {
         })
     }, [textFilteredContests, mapBounds, hasUserInteractedWithMap]);
 
-    const filteredMyEditorContests = useMemo(() => { // NEW useMemo for My Contests filtering
+    const totalPages = Math.ceil(listFilteredContests.length / ITEMS_PER_PAGE);
+    
+    const paginatedContests = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return listFilteredContests.slice(start, start + ITEMS_PER_PAGE);
+    }, [listFilteredContests, currentPage]);
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+        updateURL({ page });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const filteredMyEditorContests = useMemo(() => {
         if (!myEditorContests) return [];
         return myEditorContests.filter(contest => {
             const nameMatch = nameFilter === '' || contest.name.toLowerCase().includes(nameFilter.toLowerCase());
@@ -425,8 +436,11 @@ const MissionDashboard = () => {
                             placeholder="Filter by name"
                             className="input input-bordered input-sm w-full max-w-[180px]"
                             value={nameFilter}
-                            onChange={(e) => setNameFilter(e.target.value)}
-                            onBlur={() => updateURL({ name: nameFilter })}
+                            onChange={(e) => {
+                                setNameFilter(e.target.value);
+                                setCurrentPage(1);
+                                updateURL({ name: e.target.value, page: 1 });
+                            }}
                         />
                         <Select
                             isMulti
@@ -435,7 +449,8 @@ const MissionDashboard = () => {
                             onChange={(selectedOptions) => {
                                 const countries = selectedOptions ? selectedOptions.map(option => option.value) : [];
                                 setSelectedCountries(countries);
-                                updateURL({ countries });
+                                setCurrentPage(1);
+                                updateURL({ countries, page: 1 });
                             }}
                             className="w-full max-w-[200px] dark:bg-black text-sm"
                             placeholder="Country..."
@@ -451,7 +466,8 @@ const MissionDashboard = () => {
                                     onChange={(e) => {
                                         const openTasks = e.target.checked;
                                         setShowOnlyWithOpenTasks(openTasks);
-                                        updateURL({ openTasks });
+                                        setCurrentPage(1);
+                                        updateURL({ openTasks, page: 1 });
                                     }}
                                 />
                             </label>
@@ -466,7 +482,8 @@ const MissionDashboard = () => {
                                     onChange={(e) => {
                                         const withFlown = e.target.checked;
                                         setShowOnlyWithFlownContestants(withFlown);
-                                        updateURL({ withFlown });
+                                        setCurrentPage(1);
+                                        updateURL({ withFlown, page: 1 });
                                     }}
                                 />
                             </label>
@@ -490,8 +507,9 @@ const MissionDashboard = () => {
                             </div>
                         </div>
                     )}
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {listFilteredContests.map(contest => {
+                        {paginatedContests.map(contest => {
                             const canManageThisContest = contest.is_editor || document.configuration.is_superuser;
                             const viewLink = `/mission-dashboard/${contest.id}`;
                             const manageLink = canManageThisContest ? reverse('contest_details', contest.id) : undefined;
@@ -504,16 +522,54 @@ const MissionDashboard = () => {
                                     isRegistered={registeredContestIds.has(contest.id)}
                                     hasScheduledFlight={scheduledFlightContestIds.has(contest.id)}
                                     isEditorContest={canManageThisContest}
-                                    hasOpenTasksForScheduling={contest.has_open_tasks} // Pass new prop
+                                    hasOpenTasksForScheduling={contest.has_open_tasks}
                                     viewLink={viewLink}
                                     manageLink={manageLink}
                                 />
                             );
                         })}
-                        {listFilteredContests.length === 0 && !loading && (
+                        {paginatedContests.length === 0 && !loading && (
                             <p className="text-center mt-2 sm:mt-4 col-span-full">No contests match your filters.</p>
                         )}
                     </div>
+
+                    {/* Pagination UI */}
+                    {totalPages > 1 && (
+                        <div className="flex justify-center mt-8">
+                            <div className="join shadow-lg">
+                                <button 
+                                    className={`join-item btn ${currentPage === 1 ? 'btn-disabled' : ''}`}
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                >
+                                    «
+                                </button>
+                                {[...Array(totalPages)].map((_, i) => {
+                                    const page = i + 1;
+                                    // Logic to show only a few pages around current page
+                                    if (page === 1 || page === totalPages || (page >= currentPage - 2 && page <= currentPage + 2)) {
+                                        return (
+                                            <button 
+                                                key={page}
+                                                className={`join-item btn ${currentPage === page ? 'btn-active btn-primary' : ''}`}
+                                                onClick={() => handlePageChange(page)}
+                                            >
+                                                {page}
+                                            </button>
+                                        );
+                                    } else if (page === currentPage - 3 || page === currentPage + 3) {
+                                        return <button key={page} className="join-item btn btn-disabled">...</button>;
+                                    }
+                                    return null;
+                                })}
+                                <button 
+                                    className={`join-item btn ${currentPage === totalPages ? 'btn-disabled' : ''}`}
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                >
+                                    »
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
