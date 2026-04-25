@@ -1,3 +1,4 @@
+import datetime
 import logging
 from functools import wraps
 from random import choice
@@ -47,7 +48,7 @@ def invalidate_contest_list_cache(sender, **kwargs):
         version = cache.get("contest_list_version")
         if version is None:
             # Initialize with current timestamp (e.g., 1713960000)
-            new_version = int(timezone.now().timestamp())
+            new_version = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
         else:
             new_version = int(version) + 1
         
@@ -56,7 +57,7 @@ def invalidate_contest_list_cache(sender, **kwargs):
     except Exception as e:
         logger.error(f"Failed to update contest_list_version: {e}")
         # Fallback to current timestamp if increment fails
-        cache.set("contest_list_version", int(timezone.now().timestamp()), timeout=None)
+        cache.set("contest_list_version", int(datetime.datetime.now(datetime.timezone.utc).timestamp()), timeout=None)
 
 
 @receiver(post_save, sender=Contest)
