@@ -5,7 +5,7 @@ metadata:
 spec:
   parentRefs:
   - kind: Gateway
-    name: external-http
+    name: external-http-premium
   hostnames:
   - "mbtiles.airsports.no"
   rules:

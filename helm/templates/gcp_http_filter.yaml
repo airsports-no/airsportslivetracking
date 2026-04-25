@@ -7,4 +7,8 @@ spec:
   cdn:
     enabled: true
     cachePolicy:
+      # USE_ORIGIN_HEADERS is the most secure and compatible mode for this project.
+      # 1. It honors 'private' headers to prevent caching sensitive user data.
+      # 2. It honors 'max-age=0' to force browsers to revalidate via the ETag system.
+      # 3. It honors 's-maxage' to allow long-term CDN caching managed by explicit invalidation.
       cacheMode: USE_ORIGIN_HEADERS

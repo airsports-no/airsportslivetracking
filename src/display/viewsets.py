@@ -458,7 +458,7 @@ class ContestViewSet(ModelViewSet):
 
         response["ETag"] = etag
         if instance.is_public and instance.is_featured:
-            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         else:
             response["Cache-Control"] = "private, no-cache"
         return response
@@ -497,9 +497,9 @@ class ContestViewSet(ModelViewSet):
         response["ETag"] = etag
         if public_only:
             # Public data can be cached by CDN and shared between users.
-            # s-maxage=3600: CDN caches for 1 hour
+            # s-maxage=31536000: CDN caches for 1 year (explicit invalidation)
             # stale-while-revalidate=86400: Serve stale data while fetching fresh in background
-            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         else:
             # Private data must NOT be cached by CDN or shared.
             response["Cache-Control"] = "private, no-cache"
@@ -599,7 +599,7 @@ class ContestViewSet(ModelViewSet):
         response = Response(data)
         # response["ETag"] = etag
         # This is a public-facing list of live tasks, safe to cache at edge but revalidate often
-        response["Cache-Control"] = "public, max-age=30, s-maxage=60, stale-while-revalidate=300"
+        response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=300"
         return response
 
     @action(detail=False, methods=["get"])
@@ -639,8 +639,8 @@ class ContestViewSet(ModelViewSet):
         data = TodaysNavigationSerialiser(navigation_tasks, many=True, context={"request": self.request}).data
         response = Response(data)
         # response["ETag"] = etag
-        # Cache for 5 minutes, stale-while-revalidate for 1 hour
-        response["Cache-Control"] = "public, max-age=300, s-maxage=600, stale-while-revalidate=3600"
+        # Cache for 1 year at edge (explicit invalidation), browser must revalidate
+        response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=3600"
         return response
 
     @action(detail=True, methods=["get"])
@@ -659,7 +659,7 @@ class ContestViewSet(ModelViewSet):
         response = Response(serialiser.data)
         response["ETag"] = etag
         if contest.is_public and contest.is_featured:
-            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         else:
             response["Cache-Control"] = "private, no-cache"
         return response
@@ -702,7 +702,7 @@ class ContestViewSet(ModelViewSet):
         )
         response["ETag"] = etag
         if contest.is_public and contest.is_featured:
-            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         else:
             response["Cache-Control"] = "private, no-cache"
 
@@ -953,7 +953,7 @@ class NavigationTaskViewSet(ModelViewSet):
 
         response["ETag"] = etag
         if instance.is_public and instance.contest.is_public and instance.is_featured:
-            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         else:
             response["Cache-Control"] = "private, no-cache"
         return response
@@ -1418,7 +1418,7 @@ class ContestantViewSet(ModelViewSet):
         # If private, don't cache at edge.
         is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
         if is_public:
-            response["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         else:
             response["Cache-Control"] = "private, no-cache"
 
@@ -1475,9 +1475,9 @@ class ContestantViewSet(ModelViewSet):
             # Private telemetry must never reach the shared CDN cache.
             response["Cache-Control"] = "private, no-cache"
         elif is_finished:
-            response["Cache-Control"] = "public, max-age=60, s-maxage=31536000, stale-while-revalidate=86400"
+            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         else:
-            response["Cache-Control"] = "public, max-age=5, must-revalidate"
+            response["Cache-Control"] = "public, max-age=0, must-revalidate"
 
         return response
 
