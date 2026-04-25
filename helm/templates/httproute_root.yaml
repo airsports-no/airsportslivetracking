@@ -10,13 +10,25 @@ spec:
   - "airsports.no"
   - "www.airsports.no"
   rules:
-  - backendRefs:
+  - filters:
+    - type: ExtensionRef
+      extensionRef:
+        group: networking.gke.io
+        kind: GCPHTTPFilter
+        name: cdn-use-origin-headers
+    backendRefs:
     - name: tracker-daphne-service-gateway
       port: 80
     matches:
     - path:
       value: /ws
-  - backendRefs:
+  - filters:
+    - type: ExtensionRef
+      extensionRef:
+        group: networking.gke.io
+        kind: GCPHTTPFilter
+        name: cdn-use-origin-headers
+    backendRefs:
     - name: tracker-web-service
       port: 80
 ---

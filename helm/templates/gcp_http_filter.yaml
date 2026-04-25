@@ -1,0 +1,10 @@
+apiVersion: networking.gke.io/v1
+kind: GCPHTTPFilter
+metadata:
+  name: cdn-use-origin-headers
+  namespace: default
+spec:
+  cdn:
+    enabled: true
+    cachePolicy:
+      cacheMode: USE_ORIGIN_HEADERS

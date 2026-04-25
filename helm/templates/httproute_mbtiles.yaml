@@ -9,7 +9,13 @@ spec:
   hostnames:
   - "mbtiles.airsports.no"
   rules:
-  - backendRefs:
+  - filters:
+    - type: ExtensionRef
+      extensionRef:
+        group: networking.gke.io
+        kind: GCPHTTPFilter
+        name: cdn-use-origin-headers
+    backendRefs:
     - name: mbtiles-service
       port: 80
 ---

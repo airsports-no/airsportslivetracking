@@ -9,6 +9,12 @@ spec:
   hostnames:
   - "traccarclient.airsports.no"
   rules:
-  - backendRefs:
+  - filters:
+    - type: ExtensionRef
+      extensionRef:
+        group: networking.gke.io
+        kind: GCPHTTPFilter
+        name: cdn-use-origin-headers
+    backendRefs:
     - name: traccar-service-gateway
       port: 5055
