@@ -1607,6 +1607,38 @@ class TaskTestSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class EditableRouteLightSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
+    editors = serializers.SerializerMethodField("get_editors", read_only=True)
+    is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)
+    number_of_waypoints = serializers.IntegerField(read_only=True)
+    route_length = serializers.FloatField(read_only=True)
+
+    def get_editors(self, obj):
+        # Use bulk-fetched map if available in context
+        editors_map = self.context.get("editors_map")
+        if editors_map is not None:
+            editors = editors_map.get(obj.id, [])
+        else:
+            # Fallback to model property if map is missing (e.g. single object retrieve)
+            editors = obj.editors
+        return UserSerialiser(editors, many=True).data
+
+    class Meta:
+        model = EditableRoute
+        fields = (
+            "id",
+            "name",
+            "number_of_waypoints",
+            "route_length",
+            "thumbnail",
+            "editors",
+            "is_editor",
+        )
+
+    def get_is_editor(self, editable_route):
+        return editable_route.id in self.context.get("editable_route_ids", set())
+
+
 class EditableRouteSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     route = serializers.JSONField(
         help_text=f"""
@@ -1694,10 +1726,21 @@ Prohibited, penalty, information, gate zones
     """
     )
     settings = serializers.JSONField()
-    editors = UserSerialiser(many=True, read_only=True)
+    editors = serializers.SerializerMethodField("get_editors", read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)
     number_of_waypoints = serializers.IntegerField(read_only=True)
     route_length = serializers.FloatField(read_only=True)
+
+    def get_editors(self, obj):
+        # Use bulk-fetched map if available in context
+        editors_map = self.context.get("editors_map")
+        if editors_map is not None:
+            editors = editors_map.get(obj.id, [])
+        else:
+            # Fallback to model property if map is missing (e.g. single object retrieve)
+            editors = obj.editors
+        return UserSerialiser(editors, many=True).data
+
     validation_errors = serializers.ListField(child=serializers.CharField(), read_only=True)
 
     class Meta:
@@ -1709,4 +1752,4 @@ Prohibited, penalty, information, gate zones
         return {"change_editableroute": [user], "delete_editableroute": [user], "view_editableroute": [user]}
 
     def get_is_editor(self, editable_route):
-        return "change_editableroute" in get_user_perms(self.context["request"].user, editable_route)
+        return editable_route.id in self.context.get("editable_route_ids", set())

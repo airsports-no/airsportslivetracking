@@ -185,15 +185,12 @@ const MissionDashboard = () => {
                 // Superuser sees everything in one request, respecting time filters
                 fetchPromises.push(fetchContestsFromStore({ 
                     finishTimeGte, 
-                    excludeTasks: true, 
-                    excludeTeams: true 
-                }, true));
+                    excludeTeams: true                }, true));
             } else {
                 // 1. Fetch ALL public contests (highly cacheable by CDN)
                 fetchPromises.push(fetchContestsFromStore({ 
                     finishTimeGte, 
-                    excludeTasks: true, 
-                    excludeTeams: true,
+                    excludeTeams: true, 
                     publicOnly: true
                 }, true));
 
@@ -201,7 +198,6 @@ const MissionDashboard = () => {
                 if (document.configuration.isAuthenticated) {
                     fetchPromises.push(fetchContestsFromStore({ 
                         finishTimeGte, 
-                        excludeTasks: true, 
                         excludeTeams: true,
                         sharedOnly: true
                     }, false)); // Merge with public contests
@@ -360,7 +356,12 @@ const MissionDashboard = () => {
 
     return (
         <div className="container mx-auto p-4">
-            <h1 className="text-4xl font-bold mb-4">Mission Dashboard</h1>
+            <div className="flex justify-between items-center mb-4">
+                <h1 className="text-4xl font-bold">Mission Dashboard</h1>
+                {document.configuration.isOrganizer && (
+                    <a href={reverse("contest_create")} className="btn btn-primary">Create New Contest</a>
+                )}
+            </div>
 
             {error && <div className="alert alert-error">{error}</div>}
             

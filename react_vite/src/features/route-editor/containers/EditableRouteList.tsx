@@ -4,6 +4,7 @@ import { ASTable } from "../components/filteredSearchableTable";
 import { Loading } from "../components/basicComponents";
 import { Route } from "../../../types";
 import { ColumnDef } from "@tanstack/react-table";
+import { MoreVertical, Plus, Copy, Shield, Trash2 } from "lucide-react";
 import { fetchEditableRoutes } from "../api"; // New import
 import { reverse } from "../../../urls";
 import routes from "../../../routes.json";
@@ -89,11 +90,37 @@ export const EditableRouteList = () => {
             header: "Actions",
             id: "actions",
             cell: ({ row }) => (
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                    <a href={reverse("editableroute_createnavigationtask",row.original.id)} className="link link-primary text-xs">Create task</a>
-                    <a href={reverse("editableroute_copy",row.original.id)} className="link link-primary text-xs">Copy</a>
-                    <a href={reverse("editableroute_permissions_list",row.original.id)} className="link link-primary text-xs">Perms</a>
-                    <a href={reverse("editableroute_delete",row.original.id)} className="link link-error text-xs">Del</a>
+                <div className="dropdown dropdown-bottom dropdown-end">
+                    <label tabIndex={0} className="btn btn-ghost btn-xs btn-circle">
+                        <MoreVertical size={16} />
+                    </label>
+                    <ul tabIndex={0} className="dropdown-content z-[100] menu p-2 shadow-2xl bg-base-100 rounded-box w-52 border border-base-300">
+                        <li>
+                            <a href={reverse("editableroute_createnavigationtask", row.original.id)} className="flex items-center gap-3 py-3">
+                                <Plus size={16} className="text-primary" /> 
+                                <span className="font-medium">Create Navigation Task</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href={reverse("editableroute_copy", row.original.id)} className="flex items-center gap-3 py-3">
+                                <Copy size={16} /> 
+                                <span>Duplicate Route</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href={reverse("editableroute_permissions_list", row.original.id)} className="flex items-center gap-3 py-3">
+                                <Shield size={16} /> 
+                                <span>Manage Permissions</span>
+                            </a>
+                        </li>
+                        <div className="divider my-0 opacity-50"></div>
+                        <li>
+                            <a href={reverse("editableroute_delete", row.original.id)} className="flex items-center gap-3 py-3 text-error hover:bg-error/10">
+                                <Trash2 size={16} /> 
+                                <span className="font-medium">Delete Route</span>
+                            </a>
+                        </li>
+                    </ul>
                 </div>
             ),
             enableSorting: false,
@@ -141,6 +168,7 @@ export const EditableRouteList = () => {
                         columns={columns}
                         data={filteredData}
                         className=""
+                        showGlobalFilter={false}
                         initialState={{
                             sorting: [{ id: "Route", desc: false }]
                         }}

@@ -1242,6 +1242,16 @@ class ContestDetailView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, D
     model = Contest
     permission_required = ("display.view_contest",)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.user.is_authenticated:
+            context["user_has_routes"] = (
+                get_objects_for_user(self.request.user, "display.view_editableroute").exists()
+            )
+        else:
+            context["user_has_routes"] = False
+        return context
+
 
 class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     model = Contest

@@ -6,6 +6,9 @@ import hashlib
 import json
 import csv
 
+from django.contrib.contenttypes.models import ContentType
+from guardian.models import UserObjectPermission
+from django.utils import timezone
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -79,6 +82,7 @@ from display.serialisers import (
     ContestTeamManagementSerialiser,
     PersonSerialiser,
     EditableRouteSerialiser,
+    EditableRouteLightSerialiser,
     ContestTeamNestedSerialiser,
     ContestSummaryWithoutReferenceSerialiser,
     TaskSummaryWithoutReferenceSerialiser,
@@ -290,13 +294,67 @@ class EditableRouteViewSet(ModelViewSet):
     permission_classes = [EditableRoutePermission]
     serializer_class = EditableRouteSerialiser
 
+    def get_serializer_class(self):
+        if self.action == "list":
+            return EditableRouteLightSerialiser
+        return super().get_serializer_class()
+
     def get_queryset(self):
-        return get_objects_for_user(
+        queryset = get_objects_for_user(
             self.request.user,
             "display.view_editableroute",
             klass=self.queryset,
             accept_global_perms=False,
         ).order_by("name")
+
+        if self.action == "list":
+            # Defer large JSON fields that are not needed for the list view
+            return queryset.defer("route", "settings")
+        return queryset
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        if self.request.user.is_authenticated:
+            # Optimize is_editor check
+            # For superusers, we use with_superuser=False so they can still distinguish
+            # between routes they are explicitly editors of and all other routes.
+            editable_route_ids = set(
+                get_objects_for_user(
+                    self.request.user,
+                    "display.change_editableroute",
+                    klass=EditableRoute,
+                    accept_global_perms=False,
+                    with_superuser=False,
+                ).values_list("id", flat=True)
+            )
+            context["editable_route_ids"] = editable_route_ids
+
+            # Optimize editors list (Bulk fetch UserObjectPermission)
+            # Only do this for list action to avoid unnecessary overhead in other actions
+            if self.action == "list":
+                try:
+                    queryset = self.get_queryset()
+                    route_ids = [obj.id for obj in queryset]
+                    ct = ContentType.objects.get_for_model(EditableRoute)
+                    
+                    user_perms = UserObjectPermission.objects.filter(
+                        content_type=ct,
+                        object_pk__in=[str(rid) for rid in route_ids],
+                        permission__codename="change_editableroute"
+                    ).select_related('user')
+
+                    editors_map = {}
+                    for up in user_perms:
+                        rid = int(up.object_pk)
+                        if rid not in editors_map:
+                            editors_map[rid] = []
+                        editors_map[rid].append(up.user)
+                    
+                    context["editors_map"] = editors_map
+                except Exception as e:
+                    logger.error(f"Failed to bulk fetch editors: {e}")
+        
+        return context
 
     def perform_update(self, serializer):
         super().perform_update(serializer)
@@ -348,6 +406,18 @@ class MyCursorPagination(CursorPagination):
         )
 
 
+def get_contest_list_version():
+    """
+    Retrieve the current version of the contest list.
+    If it doesn't exist, initialize it with a timestamp to prevent ETag collisions.
+    """
+    version = cache.get("contest_list_version")
+    if version is None:
+        version = int(timezone.now().timestamp())
+        cache.set("contest_list_version", version, timeout=None)
+    return version
+
+
 class ContestPagination(MyCursorPagination):
     page_size = 50
     ordering = ["-start_time", "-finish_time", "id"]
@@ -377,7 +447,7 @@ class ContestViewSet(ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        version = cache.get("contest_list_version", 1)
+        version = get_contest_list_version()
 
         # ETag based on global version and object ID
         etag = f'"{version}-contest-{instance.pk}"'
@@ -404,7 +474,7 @@ class ContestViewSet(ModelViewSet):
         sorted_params = json.dumps(params, sort_keys=True)
         params_hash = hashlib.md5(sorted_params.encode("utf-8")).hexdigest()
 
-        version = cache.get("contest_list_version", 1)
+        version = get_contest_list_version()
 
         # 1. ETag check (Browser/CDN level validation)
         # The ETag represents a specific version of a specific query
@@ -579,7 +649,7 @@ class ContestViewSet(ModelViewSet):
         Retrieve the full list of contest summaries, tasks summaries, and individual test results for the contest
         """
         contest = self.get_object()
-        version = cache.get("contest_list_version", 1)
+        version = get_contest_list_version()
         etag = f'"{version}-results-{contest.pk}"'
         if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
@@ -600,7 +670,7 @@ class ContestViewSet(ModelViewSet):
         Download contest results as CSV
         """
         contest = self.get_object()
-        version = cache.get("contest_list_version", 1)
+        version = get_contest_list_version()
         etag = f'"{version}-results-csv-{contest.pk}"'
         if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
@@ -872,7 +942,7 @@ class NavigationTaskViewSet(ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        version = cache.get("contest_list_version", 1)
+        version = get_contest_list_version()
 
         # ETag based on global version and object ID
         etag = f'"{version}-navtask-{instance.pk}"'

@@ -181,10 +181,11 @@ interface ASTableProps<T> {
     };
     initialState?: any;
     className?: string;
+    showGlobalFilter?: boolean;
 }
 
 // Our table component
-export function ASTable<T>({ columns = [], data = [], rowEvents, initialState, className }: ASTableProps<T>) {
+export function ASTable<T>({ columns = [], data = [], rowEvents, initialState, className, showGlobalFilter = true }: ASTableProps<T>) {
     const [globalFilter, setGlobalFilter] = useState(initialState?.globalFilter || '');
     const [columnVisibility, setColumnVisibility] = useState({});
 
@@ -229,11 +230,13 @@ export function ASTable<T>({ columns = [], data = [], rowEvents, initialState, c
 
     return (
         <div className="flex flex-col w-full">
-            <GlobalFilter
-                globalFilter={globalFilter}
-                setGlobalFilter={setGlobalFilter}
-                count={table.getPreFilteredRowModel().rows.length}
-            />
+            {showGlobalFilter && (
+                <GlobalFilter
+                    globalFilter={globalFilter}
+                    setGlobalFilter={setGlobalFilter}
+                    count={table.getPreFilteredRowModel().rows.length}
+                />
+            )}
             <table className={`table table-zebra w-full ${className || ''}`}>
                 <thead>
                     {table.getHeaderGroups().map(headerGroup => (

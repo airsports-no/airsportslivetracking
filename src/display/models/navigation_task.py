@@ -55,13 +55,13 @@ class NavigationTask(models.Model):
         return "asc"
 
     start_time = models.DateTimeField(
-        help_text="The start time of the navigation test. Not really important, but nice to have"
+        help_text="The start time of the navigation task. Determines the time interval where the navigation task is available for self registration if selected."
     )
     schedule_start_time = models.DateTimeField(
         null=True, blank=True, help_text="The first takeoff time when the contestant scheduler was last run"
     )
     finish_time = models.DateTimeField(
-        help_text="The finish time of the navigation test. Not really important, but nice to have"
+        help_text="The finish time of the navigation task. Determines the time interval where the navigation task is available for self registration if selected."
     )
     is_public = models.BooleanField(
         default=False,

@@ -16,6 +16,7 @@ import { reverse, generatePath } from '../../urls';
 import { useMissionDashboardStore } from './store';
 import { fetchNavigationTask } from '../competition-map/api';
 import { formatDateInterval } from '../../utils';
+
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
     const {

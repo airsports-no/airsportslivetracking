@@ -120,8 +120,42 @@
                             </div>
                         </div>
                     </div>
+                    {% empty %}
+                        {% if "change_contest" in contest_permissions and not user_has_routes %}
+                        <div class="col-span-full">
+                            <div class="bg-base-200 p-8 md:p-12 rounded-3xl text-center border-2 border-dashed border-base-300">
+                                <div class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                                    {% lucide "route" size=32 %}
+                                </div>
+                                <h3 class="text-xl md:text-2xl font-bold mb-4 italic">Ready to host your first task?</h3>
+                                <p class="text-base-content/70 mb-8 max-w-lg mx-auto leading-relaxed">
+                                    Before you can create a <strong>Navigation Task</strong>, you need to define a <strong>Route</strong>. 
+                                    Routes are the geometric building blocks (start, finish, gates) that the scoring engine uses to track contestants.
+                                </p>
+                                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                                    <a href="{% fe_url 'ROUTE_EDITOR_CREATE' %}" class="btn btn-primary btn-lg px-8">
+                                        Create Your First Route
+                                    </a>
+                                    <a href="{% fe_url 'ROUTE_EDITOR_LIST' %}" class="btn btn-outline btn-lg px-8">
+                                        Browse Existing Routes
+                                    </a>
+                                </div>
+                                <div class="mt-8 text-xs opacity-50 max-w-md mx-auto italic">
+                                    Once your route is saved, return here to create a Navigation Task. You can manage and find links to all your routes at the <a href="{% fe_url 'ROUTE_EDITOR_LIST' %}" class="link">Route Management</a> page.
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     {% endfor %}
                 </div>
+                {% if "change_contest" in contest_permissions %}
+                <div class="flex justify-end mt-6">
+                    <a href="{% url 'navigationtaskwizard' object.pk %}" class="btn btn-primary">
+                        {% lucide "plus" size=18 %}
+                        Add New Navigation Task
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

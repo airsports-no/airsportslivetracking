@@ -41,10 +41,22 @@ logger = logging.getLogger(__name__)
 
 def invalidate_contest_list_cache(sender, **kwargs):
     try:
-        version = cache.incr("contest_list_version")
-    except (ValueError, TypeError):
-        version = 2
-    cache.set("contest_list_version", version, timeout=None)
+        # Use a timestamp-based base to ensure that after a cache clear or redeploy,
+        # the version doesn't restart at 1. This prevents ETags from matching
+        # old stale data cached in CDNs or browsers.
+        version = cache.get("contest_list_version")
+        if version is None:
+            # Initialize with current timestamp (e.g., 1713960000)
+            new_version = int(timezone.now().timestamp())
+        else:
+            new_version = int(version) + 1
+        
+        cache.set("contest_list_version", new_version, timeout=None)
+        logger.debug(f"Updated contest_list_version to {new_version} due to change in {sender}")
+    except Exception as e:
+        logger.error(f"Failed to update contest_list_version: {e}")
+        # Fallback to current timestamp if increment fails
+        cache.set("contest_list_version", int(timezone.now().timestamp()), timeout=None)
 
 
 @receiver(post_save, sender=Contest)
