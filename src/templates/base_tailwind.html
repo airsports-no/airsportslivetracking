@@ -111,7 +111,7 @@
                         {% if user.is_authenticated and not perms.display.add_contest %}
                             <li><a href="{% fe_url 'UPGRADE_ORGANIZER' %}" class="text-primary font-bold">Become an Organizer</a></li>
                         {% endif %}
-                        <li><a href="https://home.airsports.no/" target="_blank">FAQ</a></li>
+                        <li><a href="https://home.airsports.no/faq" target="_blank">FAQ</a></li>
                         {% if user.is_superuser and user.is_staff %}
                             <li><a href="/admin/">Admin</a></li>
                         {% endif %}

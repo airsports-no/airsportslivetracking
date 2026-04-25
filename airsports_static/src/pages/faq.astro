@@ -17,7 +17,7 @@ const faqs = [
     {
         id: "ENTER",
         question: "How do I enter a competition?",
-        answer: "First register to the competition. Open the Air Sports Live Tracking APP, go to the global map, find your competition. Select Manage crew and enter your flight details, crew, speed, etc. Now you can select “Schedule flight” for the task you want to fly. You will automatically receive an Flight Order with maps, photos and flight info after a few minutes."
+        answer: "First, find your competition on the Mission Dashboard at airsports.no. Click on the competition card to open its detail page. Select 'Register' to enter your team, aircraft, and crew details. Once registered, you can schedule your flight for a specific task to receive your automated Flight Order with maps and photos."
     },
     {
         id: "MasterTime",
@@ -47,17 +47,17 @@ const faqs = [
     {
         id: "RECALCULATE",
         question: "Recalculate team track/score (Organizer access)",
-        answer: "If a participant has incorrect wind, speed, or task data, organizers can update the parameters and select 'Recalculate original'. This re-processes the raw GPS track against the new rules without requiring a re-flight."
+        answer: "If a participant had incorrect wind, speed, or task data during their flight, organizers can update these parameters in the Contest Management area and select 'Recalculate'. This re-processes the raw GPS telemetry against the corrected rules without requiring a re-flight."
     },
     {
         id: "MAKE",
         question: "I want to make my own competition/contests",
-        answer: "To create your own tasks, you must have organizer access. This is automatically approved for registered users—simply click 'Become an Organizer' in the management menu, or email support@airsports.no briefly describing your intent."
+        answer: "To host your own events, you need organizer access. This is a self-service process: simply log in to your Mission Dashboard and click the 'Become Organizer' button in the top menu. You will instantly receive the privileges to create contests, design routes, and manage tasks."
     },
     {
         id: "MAPS",
         question: "Can I add my own maps for navigation?",
-        answer: "We support custom maps in georeferenced raster formats (GeoTIFF/MBTiles). Map licensing must allow for distribution via airsports.no. Contact support for manual processing assistance."
+        answer: "Yes! We support custom georeferenced background maps (aeronautical charts or custom imagery in mbtiles format) for the printed flight orders. You can upload and manage your maps via the 'My Maps' link in the top menu of the dashboard."
     },
     {
         id: "COMPETITIONS",
@@ -100,7 +100,7 @@ const faqs = [
                     </button>
                     <div class="faq-content px-8 pb-8 text-slate-600 leading-relaxed font-medium text-base border-t border-slate-50 pt-6 hidden">
                         <div class="prose-custom">
-                            {faq.answer}
+                            <Fragment set:html={faq.answer} />
                         </div>
                     </div>
                 </div>

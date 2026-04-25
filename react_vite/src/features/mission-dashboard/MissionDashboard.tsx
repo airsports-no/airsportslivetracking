@@ -25,7 +25,7 @@ interface NavigationTask {
     flown_contestants_count: number;
 }
 
-const ITEMS_PER_PAGE = 50;
+const ITEMS_PER_PAGE = 30;
 
 const MissionDashboard = () => {
     const {
@@ -380,9 +380,17 @@ const MissionDashboard = () => {
                 <h2 className="text-2xl font-bold mb-4">Contest Map</h2>
                 <ContestMap 
                     contests={textFilteredContests} 
-                    onBoundsChanged={setMapBounds} 
+                    onBoundsChanged={(bounds) => {
+                        setMapBounds(bounds);
+                        setCurrentPage(1);
+                        updateURL({ page: 1 });
+                    }} 
                     minZoom={2}
-                    onInteraction={() => setHasUserInteractedWithMap(true)} 
+                    onInteraction={() => {
+                        setHasUserInteractedWithMap(true);
+                        setCurrentPage(1);
+                        updateURL({ page: 1 });
+                    }} 
                 />
             </div>
 

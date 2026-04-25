@@ -13,19 +13,18 @@ The goal is to serve the high-performance Astro homepage at `airsports.no` while
 | :--- | :--- | :--- |
 | `airsports.no` | Marketing & **Application Proxy** | Google Cloud LB + CDN |
 | `app.airsports.no` | **Direct Application Access** | Google Cloud LB + CDN |
-| `origin.airsports.no` | Hidden Django Backend | GKE Ingress (Private) |
 
 ### Routing Logic (Global Load Balancer)
-The Load Balancer acts as the intelligent gateway for both domains.
+The Load Balancer acts as the intelligent gateway for both domains, routing directly to the GKE Backend Service (via NEGs).
 
 #### A. Host: `app.airsports.no` (The App)
 This domain preserves the original ASLT experience where the dashboard is at the root.
-1.  **Paths `/*`:** Forward to **GKE Backend**.
+1.  **Paths `/*`:** Forward to **GKE Backend Service**.
 2.  **Asset Offloading:** `/static/*` and `/media/*` should still be routed to GCS Backend Buckets for performance.
 
 #### B. Host: `airsports.no` (The Portal)
 1.  **Default `/*`:** Forward to **Astro Homepage** (Firebase Hosting).
-2.  **Application Routing:** The following paths are proxied to the **GKE Backend** to ensure a seamless "one-site" feel:
+2.  **Application Routing:** The following paths are proxied to the **GKE Backend Service** to ensure a seamless "one-site" feel:
     *   `/api/*`, `/admin/*`, `/accounts/*`, `/firebase_login/*`
     *   `/display/*`
     *   `/mission-dashboard/*`, `/competition-map/*`, `/routeeditor/*`

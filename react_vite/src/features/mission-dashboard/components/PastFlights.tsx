@@ -9,6 +9,8 @@ import { Loading } from '../../route-editor/components/basicComponents';
 import ContestCard from '../components/ContestCard';
 import TaskScoreDisplay from '../components/TaskScoreDisplay';
 
+const ITEMS_PER_PAGE = 30;
+
 const PastFlights = () => {
     const { myPreviousFlights, contests, fetchMyPreviousFlights, fetchContests } = useMissionDashboardStore();
     const [myContestantIds, setMyContestantIds] = useState<Set<number>>(new Set());
@@ -17,6 +19,7 @@ const PastFlights = () => {
 
     const [nameFilter, setNameFilter] = useState('');
     const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
     
     const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
     const [modalContent, setModalContent] = useState<NavigationTask[] | null>(null);
@@ -98,6 +101,18 @@ const PastFlights = () => {
             });
     }, [pastContests, nameFilter, selectedCountries]);
 
+    const totalPages = Math.ceil(filteredAndSortedContests.length / ITEMS_PER_PAGE);
+
+    const paginatedContests = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredAndSortedContests.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredAndSortedContests, currentPage]);
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     const countryOptions = useMemo(() => {
         if (!pastContests) return [];
         const uniqueCountries = Array.from(new Set(pastContests.map(c => c.country).filter(Boolean))).sort();
@@ -140,20 +155,26 @@ const PastFlights = () => {
                     placeholder="Filter by name"
                     className="input input-bordered input-sm w-full max-w-[180px]"
                     value={nameFilter}
-                    onChange={(e) => setNameFilter(e.target.value)}
+                    onChange={(e) => {
+                        setNameFilter(e.target.value);
+                        setCurrentPage(1);
+                    }}
                 />
                 <Select
                     isMulti
                     options={countryOptions}
                     value={countryOptions.filter(option => selectedCountries.includes(option.value))}
-                    onChange={(selectedOptions) => setSelectedCountries(selectedOptions ? selectedOptions.map(option => option.value) : [])}
+                    onChange={(selectedOptions) => {
+                        setSelectedCountries(selectedOptions ? selectedOptions.map(option => option.value) : []);
+                        setCurrentPage(1);
+                    }}
                     className="w-full max-w-[200px] dark:bg-black text-sm"
                     placeholder="Country..."
                     classNamePrefix="my-react-select"
                 />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredAndSortedContests.map(contest => (
+                {paginatedContests.map(contest => (
                     <div key={contest.id} onClick={() => setSelectedContest(contest)} className="cursor-pointer">
                         <ContestCard
                             contest={contest}
@@ -162,8 +183,46 @@ const PastFlights = () => {
                     </div>
                 ))}
             </div>
+
+            {/* Pagination UI */}
+            {totalPages > 1 && (
+                <div className="flex justify-center mt-8">
+                    <div className="join shadow-lg">
+                        <button 
+                            className={`join-item btn ${currentPage === 1 ? 'btn-disabled' : ''}`}
+                            onClick={() => handlePageChange(currentPage - 1)}
+                        >
+                            «
+                        </button>
+                        {[...Array(totalPages)].map((_, i) => {
+                            const page = i + 1;
+                            if (page === 1 || page === totalPages || (page >= currentPage - 2 && page <= currentPage + 2)) {
+                                return (
+                                    <button 
+                                        key={page}
+                                        className={`join-item btn ${currentPage === page ? 'btn-active btn-primary' : ''}`}
+                                        onClick={() => handlePageChange(page)}
+                                    >
+                                        {page}
+                                    </button>
+                                );
+                            } else if (page === currentPage - 3 || page === currentPage + 3) {
+                                return <button key={page} className="join-item btn btn-disabled">...</button>;
+                            }
+                            return null;
+                        })}
+                        <button 
+                            className={`join-item btn ${currentPage === totalPages ? 'btn-disabled' : ''}`}
+                            onClick={() => handlePageChange(currentPage + 1)}
+                        >
+                            »
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {loading && <Loading />}
-            {!loading && filteredAndSortedContests.length === 0 && (
+            {!loading && paginatedContests.length === 0 && (
                 <p className="text-center mt-2 sm:mt-4">No past flights found.</p>
             )}
         </div>
