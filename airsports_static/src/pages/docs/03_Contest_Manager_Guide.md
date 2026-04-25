@@ -38,7 +38,7 @@ Building a Navigation Task requires:
 2.  **A Scorecard:** The specific competition rules and penalties.
 
 For detailed, step-by-step instructions on designing routes and configuring task parameters, please refer to:
-*   **Guide 04: Route Creation and Task Configuration**
+*   [**Guide 04: Route Creation and Task Configuration**](/docs/04_Route_Creation_and_Tasks)
 
 ---
 
