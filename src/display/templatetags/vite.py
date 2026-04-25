@@ -3,6 +3,9 @@ from django import template
 from django.conf import settings
 from django.utils.safestring import mark_safe
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 register = template.Library()
 
@@ -22,12 +25,14 @@ def vite_js(context, path: str, **kwargs):
         with open(manifest_path) as f:
             manifest = json.load(f)
     except FileNotFoundError:
-        raise Exception(f"Vite manifest not found at {manifest_path}")
+        logger.warning(f"Vite manifest not found at {manifest_path}")
+        return ""
 
     asset_path = manifest.get(path)
 
     if not asset_path:
-        raise Exception(f"Asset not found in Vite manifest: {path}")
+        logger.warning(f"Asset not found in Vite manifest: {path}")
+        return ""
 
     js_file = os.path.join(settings.STATIC_URL, asset_path['file'])
     
@@ -50,7 +55,8 @@ def vite_css(context, path: str, **kwargs):
         with open(manifest_path) as f:
             manifest = json.load(f)
     except FileNotFoundError:
-        raise Exception(f"Vite manifest not found at {manifest_path}")
+        logger.warning(f"Vite manifest not found at {manifest_path}")
+        return ""
 
     html = ""
     css_files = set()
