@@ -12,6 +12,7 @@ import datetime
 from unittest.mock import patch
 
 from django.test import TransactionTestCase
+from guardian.shortcuts import assign_perm
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import (
@@ -20,6 +21,7 @@ from display.models import (
     Contestant,
     ContestantReceivedPosition,
     Crew,
+    MyUser,
     NavigationTask,
     Person,
     Route,
@@ -63,6 +65,9 @@ class CDNCacheHeadersTests(TransactionTestCase):
         )
         aeroplane = Aeroplane.objects.create(registration="LN-TEST")
         person = Person.objects.create(first_name="A", last_name="B", email="a@b.test")
+        user = MyUser.objects.create(email="a@b.test", first_name="A", last_name="B")
+        assign_perm("display.view_contest", user, self.contest)
+        assign_perm("display.change_contest", user, self.contest)
         crew = Crew.objects.create(member1=person)
         team = Team.objects.create(crew=crew, aeroplane=aeroplane)
 
@@ -74,6 +79,8 @@ class CDNCacheHeadersTests(TransactionTestCase):
             tracker_start_time=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
             finished_by_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
         )
+        # Authenticate so private contests are visible to this user (as they are the pilot/owner)
+        self.client.force_login(user)
 
     def tearDown(self):
         self.traccar_patcher.stop()
@@ -186,7 +193,7 @@ class CDNSafetyMiddlewareDefaultsTests(TransactionTestCase):
     def test_unknown_api_path_defaults_to_private_no_cache_with_vary(self):
         # A 404 from /api/... still goes through the middleware.
         response = self.client.get("/api/v1/does-not-exist/")
-        self.assertIn(response.status_code, (404, 401, 403))
+        self.assertEqual(response.status_code, 404)
         cache_control = response["Cache-Control"]
         # 404 falls through the auth-error branch only for 400/401/403, so
         # we only assert the broader "not publicly cacheable" property.

@@ -28,21 +28,34 @@ class CDNSafetyMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
+        # Only apply to API endpoints
         if not request.path.startswith('/api/'):
             return response
 
-        # Default to private for any endpoint that did not set Cache-Control.
+        # 1. Default to private for any endpoint that did not set Cache-Control.
         if 'Cache-Control' not in response:
             response['Cache-Control'] = 'private, no-cache'
 
-        # Auth-error responses must not be cached anywhere.
+        # 2. Auth-error responses must not be cached anywhere.
         if response.status_code in (400, 401, 403):
             response['Cache-Control'] = 'no-store, private'
 
-        # Only fragment the cache by cookie/auth for non-public responses.
-        # Public responses must stay cookie-agnostic to be cache-effective.
-        cache_control = response.get('Cache-Control', '')
-        if 'public' not in cache_control:
+        # 3. Handle Vary header based on cache-control
+        cache_control = response.get('Cache-Control', '').lower()
+        if 'public' in cache_control:
+            # Public responses must stay cookie-agnostic to be cache-effective.
+            # If some other middleware (like SessionMiddleware) added 'Cookie' to Vary,
+            # we must remove it.
+            if response.has_header('Vary'):
+                vary_values = [v.strip() for v in response['Vary'].split(',')]
+                # We want to keep other Vary headers if any, but exclude Cookie and Authorization
+                new_vary = [v for v in vary_values if v.lower() not in ('cookie', 'authorization')]
+                if new_vary:
+                    response['Vary'] = ', '.join(new_vary)
+                else:
+                    del response['Vary']
+        else:
+            # Non-public responses should Vary on auth/cookie to prevent leakage.
             patch_vary_headers(response, ('Authorization', 'Cookie'))
 
         return response

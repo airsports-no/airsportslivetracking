@@ -50,5 +50,5 @@ if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 urlpatterns += [
-    re_path(r"^.?", FrontEndView.as_view(), name="frontend"),
+    re_path(r"^(?!api/).*", FrontEndView.as_view(), name="frontend"),
 ]
