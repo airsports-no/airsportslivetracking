@@ -1428,7 +1428,17 @@ class ContestantViewSet(ModelViewSet):
     def slice(self, request, minute_index, **kwargs):
         contestant = self.get_object()
         minute_index = int(minute_index)
-        count = int(request.query_params.get("count", 1))
+        try:
+            count = int(request.query_params.get("count", 1))
+        except (TypeError, ValueError):
+            return Response({"detail": "count must be an integer."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Cap count to bound the time range scanned per request.
+        if count < 1 or count > 60:
+            return Response(
+                {"detail": "count must be between 1 and 60."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Enforce alignment for multi-minute chunks to ensure CDN cache hit consistency.
         # e.g. If count=15, minute_index must be 0, 15, 30, 45...
@@ -1440,13 +1450,18 @@ class ContestantViewSet(ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ETag includes the count to distinguish between single minutes and chunks
-        etag = f'"{contestant.pk}-{contestant.track_version}-{minute_index}-c{count}"'
-        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
-            return Response(status=status.HTTP_304_NOT_MODIFIED)
-
         start_window = datetime.datetime.fromtimestamp(minute_index * 60, tz=datetime.timezone.utc)
         end_window = start_window + datetime.timedelta(seconds=60 * count)
+        now = datetime.datetime.now(datetime.timezone.utc)
+        is_finished = end_window < now - datetime.timedelta(minutes=1)
+
+        # track_version only bumps on calculator (re)start, not on every position
+        # append. Short-circuiting with 304 is therefore only safe when the
+        # window is in the past — a live slice could otherwise return 304 even
+        # though new positions have arrived since the client's last fetch.
+        etag = f'"{contestant.pk}-{contestant.track_version}-{minute_index}-c{count}"'
+        if is_finished and request.META.get("HTTP_IF_NONE_MATCH") == etag:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         positions = contestant.contestantreceivedposition_set.filter(
             time__gte=start_window, time__lt=end_window
@@ -1455,12 +1470,13 @@ class ContestantViewSet(ModelViewSet):
         response = Response(list(positions))
         response["ETag"] = etag
 
-        now = datetime.datetime.now(datetime.timezone.utc)
-        if end_window < now - datetime.timedelta(minutes=1):
-            # Completed historical chunk - cache for a long time
+        is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
+        if not is_public:
+            # Private telemetry must never reach the shared CDN cache.
+            response["Cache-Control"] = "private, no-cache"
+        elif is_finished:
             response["Cache-Control"] = "public, max-age=60, s-maxage=31536000, stale-while-revalidate=86400"
         else:
-            # Active or future chunk - cache for a short time
             response["Cache-Control"] = "public, max-age=5, must-revalidate"
 
         return response
