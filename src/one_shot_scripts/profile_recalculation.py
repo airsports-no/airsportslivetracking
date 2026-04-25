@@ -148,7 +148,7 @@ def run_recalculation(contestant, positions):
         q.append(data)
     q.append(None)
     
-    processor = ContestantProcessor(contestant, live_processing=False)
+    processor = ContestantProcessor(contestant, live_processing=False, recalculate=True)
     processor.run()
 
 def get_results(contestant):
@@ -231,7 +231,7 @@ def main():
             q_p.append(data)
         q_p.append(None)
         
-        processor_p = ContestantProcessor(new_contestant_p, live_processing=True)
+        processor_p = ContestantProcessor(new_contestant_p, live_processing=True, recalculate=True)
         
         pr = cProfile.Profile()
         pr.enable()

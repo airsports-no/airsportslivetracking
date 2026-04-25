@@ -6,7 +6,7 @@ import cartopy.crs as ccrs
 
 import gpxpy
 
-from datetime_modulo import datetime
+from .datetime_modulo import datetime
 from typing import List, Tuple, Optional
 
 from display.utilities.coordinate_utilities import (

@@ -238,7 +238,7 @@ def run_recalculation(contestant, positions):
         patch("display.signals.get_traccar_instance", return_value=TraccarMock),
         patch("display.calculators.contestant_processor.post_slack_competition_message"),
     ):
-        processor = ContestantProcessor(contestant, live_processing=False)
+        processor = ContestantProcessor(contestant, live_processing=False, recalculate=True)
         processor.run()
 
 

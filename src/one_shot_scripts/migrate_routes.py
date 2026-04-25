@@ -11,7 +11,7 @@ sys.path.append("/workspace/src")
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
 django.setup()
 
-from display.models import NavigationTask
+from display.models import NavigationTask, Scorecard, GateScore
 from display.utilities.navigation_task_type_definitions import (
     PRECISION,
     POKER,
@@ -20,7 +20,7 @@ from display.utilities.navigation_task_type_definitions import (
     AIRSPORT_CHALLENGE,
 )
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
-from display.utilities.gate_definitions import FINISHPOINT
+from display.utilities.gate_definitions import FINISHPOINT, ANR_TP
 
 
 import json
@@ -28,17 +28,35 @@ import json
 WIDTHS_FILE = "inferred_corridor_widths.json"
 
 
+def migrate_scorecards():
+    tasks = NavigationTask.objects.all()
+    print(f"Checking scorecards for {tasks.count()} tasks...")
+    updated_count = 0
+    for task in tasks:
+        scorecard = task.scorecard
+        if not scorecard:
+            continue
+        if scorecard.calculator == ANR_CORRIDOR:
+            if not scorecard.gatescore_set.filter(gate_type=ANR_TP).exists():
+                GateScore.objects.create(
+                    scorecard=scorecard,
+                    gate_type=ANR_TP,
+                    backtracking_before_gate_grace_period_nm=0.5,
+                )
+                print(f"  Added ANR_TP GateScore to scorecard '{scorecard.name}' for task {task.id}")
+                updated_count += 1
+    print(f"Scorecard migration complete. Updated {updated_count} scorecards.")
+
+
 def migrate():
     inferred_widths = {}
-    if os.path.exists(WIDTHS_FILE):
-        with open(WIDTHS_FILE, "r") as f:
-            inferred_widths = json.load(f)
-            print(f"Loaded {len(inferred_widths)} inferred widths from {WIDTHS_FILE}")
-
+    # if os.path.exists(WIDTHS_FILE):
+    #     with open(WIDTHS_FILE, "r") as f:
+    #         inferred_widths = json.load(f)
+    #         print(f"Loaded {len(inferred_widths)} inferred widths from {WIDTHS_FILE}")
     tasks = NavigationTask.objects.filter(editable_route__isnull=False)
     count = tasks.count()
     print(f"Starting migration for {count} navigation tasks...")
-
     modified_count = 0
     for navigation_task in tasks:
         route = None
@@ -52,9 +70,9 @@ def migrate():
                 corridor_width = inferred_widths.get(str(navigation_task.id))
                 if corridor_width is None:
                     corridor_width = navigation_task.route.corridor_width
-
-                print(f"  Migrating ANR task {navigation_task.id} with width {corridor_width} NM")
-
+                print(
+                    f"  Migrating ANR task {navigation_task.id} with width {corridor_width} NM {navigation_task.scorecard.calculator}"
+                )
                 route = navigation_task.editable_route.create_anr_route(
                     navigation_task.route.rounded_corners,
                     corridor_width,
@@ -64,7 +82,6 @@ def migrate():
                 route = navigation_task.editable_route.create_airsports_route(
                     navigation_task.route.rounded_corners, navigation_task.scorecard
                 )
-
             if route:
                 old_route = navigation_task.route
                 navigation_task.route = route
@@ -75,9 +92,9 @@ def migrate():
                     print(f"  Migrated route for task id={navigation_task.id}")
         except Exception as e:
             print(f"Failed to migrate route for NavigationTask id={navigation_task.id}: {e}")
-
     print(f"Migration complete. Total tasks updated: {modified_count}")
 
 
 if __name__ == "__main__":
+    migrate_scorecards()
     migrate()
