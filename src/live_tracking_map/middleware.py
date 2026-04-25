@@ -10,8 +10,17 @@ logger = logging.getLogger(__name__)
 class CDNSafetyMiddleware:
     """
     Ensures that the API is CDN-safe by:
-    1. Forcing 'Vary: Authorization, Cookie' on all API responses.
-    2. Defaulting non-cache-controlled API responses to 'private'.
+    1. Defaulting non-cache-controlled API responses to 'private'.
+    2. Adding 'Vary: Authorization, Cookie' on responses that are not
+       explicitly marked public, so per-user content does not leak through
+       the shared CDN cache.
+    3. Forcing 'no-store' on auth-error responses (400/401/403) so the CDN
+       does not negative-cache an auth failure.
+
+    Vary is intentionally NOT added to public responses: a 'Vary: Cookie'
+    header on a publicly-cacheable endpoint causes the CDN to fragment the
+    cache by cookie, defeating the cache and leaving every spectator hitting
+    the origin.
     """
     def __init__(self, get_response):
         self.get_response = get_response
@@ -19,18 +28,22 @@ class CDNSafetyMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
-        # Only apply to API endpoints
-        if request.path.startswith('/api/'):
-            # 1. Ensure the CDN knows the response depends on auth state
-            patch_vary_headers(response, ('Authorization', 'Cookie'))
+        if not request.path.startswith('/api/'):
+            return response
 
-            # 2. If no Cache-Control is set, default to private to be safe
-            if 'Cache-Control' not in response:
-                response['Cache-Control'] = 'private, no-cache'
-            
-            # 3. Explicitly prevent caching of error responses to avoid auth leaks
-            if response.status_code in (401, 403, 400):
-                response['Cache-Control'] = 'no-store, private'
+        # Default to private for any endpoint that did not set Cache-Control.
+        if 'Cache-Control' not in response:
+            response['Cache-Control'] = 'private, no-cache'
+
+        # Auth-error responses must not be cached anywhere.
+        if response.status_code in (400, 401, 403):
+            response['Cache-Control'] = 'no-store, private'
+
+        # Only fragment the cache by cookie/auth for non-public responses.
+        # Public responses must stay cookie-agnostic to be cache-effective.
+        cache_control = response.get('Cache-Control', '')
+        if 'public' not in cache_control:
+            patch_vary_headers(response, ('Authorization', 'Cookie'))
 
         return response
 
