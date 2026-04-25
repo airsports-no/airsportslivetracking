@@ -273,7 +273,9 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                         currentMinute++;
                     } else {
                         const chunkEndTime = (currentMinute + chunkSize) * 60000;
-                        if (chunkEndTime < now.getTime() - 60000 && currentMinute + chunkSize <= endMinute) {
+                        // Use a 150s grace period (2.5 minutes) before requesting a chunk as a multi-minute slice.
+                        // This ensures the backend has finalized the chunk as immutable (120s window) before we cache it.
+                        if (chunkEndTime < now.getTime() - 150000 && currentMinute + chunkSize <= endMinute) {
                             p = fetchContestantSlice(c.id, currentMinute, chunkSize).finally(() => updateProgress());
                             currentMinute += chunkSize;
                         } else {

@@ -58,6 +58,7 @@ const MissionDashboard = () => {
     const [dateRange, setDateRange] = useState<[number, number] | null>(null);
     const [sliderRange, setSliderRange] = useState<[number, number] | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [myContestsPage, setMyContestsPage] = useState(1);
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -111,6 +112,14 @@ const MissionDashboard = () => {
             if (!isNaN(p) && p !== currentPage) setCurrentPage(p);
         } else if (currentPage !== 1) {
             setCurrentPage(1);
+        }
+
+        const myPage = params.get('myPage');
+        if (myPage !== null) {
+            const p = parseInt(myPage, 10);
+            if (!isNaN(p) && p !== myContestsPage) setMyContestsPage(p);
+        } else if (myContestsPage !== 1) {
+            setMyContestsPage(1);
         }
 
         const tab = params.get('tab');
@@ -364,6 +373,19 @@ const MissionDashboard = () => {
             return nameMatch;
         });
     }, [myEditorContests, nameFilter]);
+
+    const totalMyPages = Math.ceil(filteredMyEditorContests.length / ITEMS_PER_PAGE);
+
+    const paginatedMyEditorContests = useMemo(() => {
+        const start = (myContestsPage - 1) * ITEMS_PER_PAGE;
+        return filteredMyEditorContests.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredMyEditorContests, myContestsPage]);
+
+    const handleMyPageChange = (page: number) => {
+        setMyContestsPage(page);
+        updateURL({ myPage: page });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     return (
         <div className="container mx-auto p-4">
