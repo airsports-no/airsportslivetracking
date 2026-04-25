@@ -60,10 +60,24 @@ def route_bbox_centroid(route: dict) -> Optional[tuple[float, float]]:
             lats.append(lat)
     if not lons:
         return None
+    
+    # Check for impossible latitudes in the raw data
+    has_invalid_lat = any(lat > 90 or lat < -90 for lat in lats)
+    
     return (
         (min(lons) + max(lons)) / 2.0,
         (min(lats) + max(lats)) / 2.0,
     )
+
+
+def has_any_invalid_lat(route: dict) -> bool:
+    """Return True if any coordinate pair has a latitude outside [-90, 90]."""
+    for feature in route.get("features", []) or []:
+        geom = feature.get("geometry") or {}
+        for pair in _iter_coord_pairs(geom):
+            if len(pair) >= 2 and (pair[1] > 90 or pair[1] < -90):
+                return True
+    return False
 
 
 def contest_for_route(route: EditableRoute) -> Optional[ContestRef]:
@@ -143,11 +157,14 @@ class Command(BaseCommand):
         self.stdout.write(header)
 
         for route in qs:
-            centroid = route_bbox_centroid(route.route or {})
+            original_data = route.route or {}
+            centroid = route_bbox_centroid(original_data)
             ref = contest_for_route(route)
+            
+            invalid_lat = has_any_invalid_lat(original_data)
 
             verdict, dist, swapped_dist = self._classify(
-                centroid, ref, threshold_km, ratio
+                centroid, ref, threshold_km, ratio, invalid_lat
             )
             if verdict == "SUSPICIOUS":
                 suspicious.append(route.id)
@@ -178,19 +195,49 @@ class Command(BaseCommand):
         ref: Optional[ContestRef],
         threshold_km: float,
         ratio: float,
+        has_invalid_lat: bool = False,
     ) -> tuple[str, Optional[float], Optional[float]]:
         if centroid is None:
             return "EMPTY_ROUTE", None, None
+        
+        # If any point in the route is invalid, it's definitely suspicious
+        if has_invalid_lat:
+            return "SUSPICIOUS", float("inf"), None
+
         if ref is None:
             return "UNLINKED", None, None
         if ref.latitude is None or ref.longitude is None:
             return "NO_LOCATION", None, None
 
         contest_point = (ref.longitude, ref.latitude)
-        dist = km_between(centroid, contest_point)
-        swapped = (centroid[1], centroid[0])
-        swapped_dist = km_between(swapped, contest_point)
 
-        if dist > threshold_km and swapped_dist * ratio < dist:
+        # Try to calculate original distance.
+        try:
+            dist = km_between(centroid, contest_point)
+        except ValueError:
+            dist = float("inf")
+
+        # Try to calculate swapped distance.
+        try:
+            swapped = (centroid[1], centroid[0])
+            swapped_dist = km_between(swapped, contest_point)
+        except ValueError:
+            swapped_dist = float("inf")
+
+        # Verdict logic:
+        # 1. If original distance is invalid (inf) but swapped is valid, it's definitely suspicious.
+        # 2. If original is very far (> 1000km) and swapped doesn't make it worse (<=), it's suspicious.
+        #    Note: dist == swapped_dist is a strong indicator of mixed coordinate orders.
+        # 3. Standard threshold and ratio check.
+        if dist == float("inf") and swapped_dist != float("inf"):
             return "SUSPICIOUS", dist, swapped_dist
+        
+        if dist > threshold_km:
+            if swapped_dist * ratio < dist:
+                return "SUSPICIOUS", dist, swapped_dist
+            if dist > 1000 and swapped_dist <= dist:
+                # If we're very far and swapping doesn't make it worse, it's suspicious.
+                # This catches routes with a mix of swapped and unswapped points.
+                return "SUSPICIOUS", dist, swapped_dist
+
         return "OK", dist, swapped_dist

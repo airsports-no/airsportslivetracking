@@ -117,15 +117,24 @@ class Command(BaseCommand):
                 json.dump(original, f, indent=2, default=str)
             self.stdout.write(f"  backup: {backup_path}")
 
-            route.route = swapped
-            route.save(update_fields=["route"])
-            route.refresh_from_db()
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"  saved (waypoints={route.number_of_waypoints}, "
-                    f"route_length={route.route_length:.0f})"
+            try:
+                route.route = swapped
+                route.save(update_fields=["route"])
+                route.refresh_from_db()
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"  saved (waypoints={route.number_of_waypoints}, "
+                        f"route_length={route.route_length:.0f})"
+                    )
                 )
-            )
+            except ValueError as e:
+                self.stderr.write(
+                    self.style.ERROR(f"  Error saving or calculating stats for route {rid}: {e}")
+                )
+            except Exception as e:
+                self.stderr.write(
+                    self.style.ERROR(f"  Unexpected error for route {rid}: {e}")
+                )
 
         if dry_run:
             self.stdout.write(self.style.WARNING("Dry run — no changes saved."))
