@@ -634,12 +634,15 @@ const MissionDashboard = () => {
                             placeholder="Filter by name"
                             className="input input-bordered input-sm w-full max-w-[180px]"
                             value={nameFilter}
-                            onChange={(e) => setNameFilter(e.target.value)}
-                            onBlur={() => updateURL({ name: nameFilter })}
+                            onChange={(e) => {
+                                setNameFilter(e.target.value);
+                                setMyContestsPage(1);
+                            }}
+                            onBlur={() => updateURL({ name: nameFilter, myPage: 1 })}
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredMyEditorContests.map(contest => {
+                        {paginatedMyEditorContests.map(contest => {
                             const viewLink = `/mission-dashboard/${contest.id}`;
                             const manageLink = reverse('contest_details', contest.id);
                             return (
@@ -655,10 +658,47 @@ const MissionDashboard = () => {
                                 />
                             );
                         })}
-                        {filteredMyEditorContests.length === 0 && !loading && (
+                        {paginatedMyEditorContests.length === 0 && !loading && (
                             <p className="text-center mt-2 sm:mt-4 col-span-full">No contests match your filters.</p>
                         )}
                     </div>
+
+                    {/* My Contests Pagination UI */}
+                    {totalMyPages > 1 && (
+                        <div className="flex justify-center mt-8">
+                            <div className="join shadow-lg">
+                                <button 
+                                    className={`join-item btn ${myContestsPage === 1 ? 'btn-disabled' : ''}`}
+                                    onClick={() => handleMyPageChange(myContestsPage - 1)}
+                                >
+                                    «
+                                </button>
+                                {[...Array(totalMyPages)].map((_, i) => {
+                                    const page = i + 1;
+                                    if (page === 1 || page === totalMyPages || (page >= myContestsPage - 2 && page <= myContestsPage + 2)) {
+                                        return (
+                                            <button 
+                                                key={page}
+                                                className={`join-item btn ${myContestsPage === page ? 'btn-active btn-primary' : ''}`}
+                                                onClick={() => handleMyPageChange(page)}
+                                            >
+                                                {page}
+                                            </button>
+                                        );
+                                    } else if (page === myContestsPage - 3 || page === myContestsPage + 3) {
+                                        return <button key={page} className="join-item btn btn-disabled">...</button>;
+                                    }
+                                    return null;
+                                })}
+                                <button 
+                                    className={`join-item btn ${myContestsPage === totalMyPages ? 'btn-disabled' : ''}`}
+                                    onClick={() => handleMyPageChange(myContestsPage + 1)}
+                                >
+                                    »
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
