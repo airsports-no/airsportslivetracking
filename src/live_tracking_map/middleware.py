@@ -27,6 +27,10 @@ class CDNSafetyMiddleware:
             # 2. If no Cache-Control is set, default to private to be safe
             if 'Cache-Control' not in response:
                 response['Cache-Control'] = 'private, no-cache'
+            
+            # 3. Explicitly prevent caching of error responses to avoid auth leaks
+            if response.status_code in (401, 403, 400):
+                response['Cache-Control'] = 'no-store, private'
 
         return response
 
