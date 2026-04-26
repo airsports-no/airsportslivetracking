@@ -71,7 +71,8 @@ const MissionDashboard = () => {
                 params.set(key, Array.isArray(value) ? value.join(',') : String(value));
             }
         });
-        navigate({ search: params.toString() }, { replace: false });
+        // Use replace: true so that filter changes don't clutter the history
+        navigate({ search: params.toString() }, { replace: true });
     };
 
     useEffect(() => {
@@ -637,8 +638,8 @@ const MissionDashboard = () => {
                             onChange={(e) => {
                                 setNameFilter(e.target.value);
                                 setMyContestsPage(1);
+                                updateURL({ name: e.target.value, myPage: 1 });
                             }}
-                            onBlur={() => updateURL({ name: nameFilter, myPage: 1 })}
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

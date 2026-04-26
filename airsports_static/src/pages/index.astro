@@ -28,8 +28,8 @@ import TodaysFlights from '../components/TodaysFlights.astro';
                     <span class="text-blue-200">playground</span>
                 </h1>
                 <p class="text-lg sm:text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto mb-14 leading-relaxed font-medium">
-                    Air Sports Live Tracking (ASLT) is an online scoring platform providing 
-                    <span class="text-white border-b-2 border-orange-400 pb-1">real-time visualization</span> and <span class="text-white border-b-2 border-orange-400 pb-1">automated scoring</span> for competitive flying.
+                    The professional platform for <span class="text-white border-b-2 border-blue-400/50 pb-1">Precision Flying</span>, <span class="text-white border-b-2 border-orange-400/50 pb-1">ANR</span>, and <span class="text-white border-b-2 border-indigo-400/50 pb-1">Air Sports Challenge</span>. 
+                    Providing real-time visualization and automated scoring for the next generation of competitive aviation.
                 </p>
                 <div class="flex flex-wrap justify-center gap-6">
                     <a href="https://airsports.no" class="bg-white text-blue-600 px-12 py-5 rounded-2xl font-extrabold text-lg hover:bg-blue-50 transition-all shadow-2xl shadow-blue-900/40 active:scale-95 uppercase tracking-wider">
@@ -42,8 +42,52 @@ import TodaysFlights from '../components/TodaysFlights.astro';
             </div>
         </div>
 
-        <!-- Role-Based Navigation -->
+        <!-- Role-Based Navigation & Precision Highlights -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 relative z-20">
+            <!-- Precision Highlights Bar -->
+            <div class="flex flex-wrap justify-center items-center gap-x-12 gap-y-8 mb-16 px-6 py-8 bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-2xl">
+                <div class="flex items-center gap-4 group">
+                    <div class="w-12 h-12 bg-blue-500/20 text-blue-300 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform border border-blue-500/20 shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-white font-bold text-sm tracking-widest uppercase font-lexend italic">Precision Timing</div>
+                        <div class="text-blue-200/50 text-[10px] uppercase font-bold tracking-widest mt-0.5">Surgical Accuracy</div>
+                    </div>
+                </div>
+
+                <div class="w-px h-8 bg-white/10 hidden md:block"></div>
+
+                <div class="flex items-center gap-4 group">
+                    <div class="w-12 h-12 bg-orange-500/20 text-orange-300 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform border border-orange-500/20 shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A2 2 0 013 15.488V5.111a2 2 0 011.106-1.789l5.447-2.724a2 2 0 011.894 0l5.447 2.724A2 2 0 0118 5.111v10.377a2 2 0 01-1.106 1.789L11.447 19.829a2 2 0 01-1.894 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 1.5v18.5" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-white font-bold text-sm tracking-widest uppercase font-lexend italic">Corridor Discipline</div>
+                        <div class="text-blue-200/50 text-[10px] uppercase font-bold tracking-widest mt-0.5">Hold the Line</div>
+                    </div>
+                </div>
+
+                <div class="w-px h-8 bg-white/10 hidden md:block"></div>
+
+                <div class="flex items-center gap-4 group">
+                    <div class="w-12 h-12 bg-red-500/20 text-red-300 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform border border-red-500/20 shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-white font-bold text-sm tracking-widest uppercase font-lexend italic">Tactical Navigation</div>
+                        <div class="text-blue-200/50 text-[10px] uppercase font-bold tracking-widest mt-0.5">Evade Penalties</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <a href="/docs/02_Contestant_Guide" class="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 group hover:border-blue-200 transition-all">
                     <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mb-10 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner">

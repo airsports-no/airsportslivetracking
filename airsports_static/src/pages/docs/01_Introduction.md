@@ -18,6 +18,14 @@ ASLT was born from a desire to make air sports more transparent, interactive, an
 *   **Accessibility:** An intuitive interface for both pilots and organizers.
 *   **Reliability:** Advanced offline buffering and "Adaptive Start" logic to handle the realities of aviation (variable wind, signal gaps, and pre-flight delays).
 
+## The Art of Precision: Scoring in ASLT
+Flying in an ASLT event is a test of extreme focus and skill. The system monitors your flight against rigorous criteria:
+*   **Precision Timing:** Hit your waypoints within a specific second. Every second early or late counts.
+*   **Corridor Discipline:** Stay within the narrow "Corridor" of your assigned leg. Straying outside triggers immediate penalties.
+*   **Tactical Navigation:** Navigate around dynamically placed **Penalty Zones** and **Prohibited Areas** that test your situational awareness and planning.
+
+Whether you are chasing the perfect second or fighting to stay inside the lines, ASLT brings the thrill of precision competition to every cockpit.
+
 ## Who Should Use This Guide?
 
 This documentation library is organized by user roles to help you find the information you need quickly:
@@ -27,7 +35,7 @@ If you are participating in an event, this guide will show you how to:
 *   Configure your mobile device for maximum tracking reliability.
 *   Register for events and manage your team details.
 *   Understand the "Adaptive Start" and how to use your Flight Order.
-*   *Refer to: `02_Contestant_Guide.md` and `06_Tracking_Devices.md`*
+*   *Refer to: [Contestant Guide](/docs/02_Contestant_Guide) and [Tracking Devices](/docs/06_Tracking_Devices)*
 
 ### 2. The Contest Manager (Organizers & Officials)
 If you are running an event, this guide is your operational manual. It covers:
@@ -35,7 +43,7 @@ If you are running an event, this guide is your operational manual. It covers:
 *   Using the **Flight Scheduler Optimizer** to handle complex logistics (shared aircraft/trackers).
 *   Building routes with the integrated editor and applying specific scorecards.
 *   Managing the **Results Service** for both flying and ground-based tests (landings, theory).
-*   *Refer to: `03_Contest_Manager_Guide.md`, `04_Route_Creation_and_Tasks.md`, `05_Results_Service_Guide.md`, and `07_Competition_Types_and_Scorecards.md`*
+*   *Refer to: [Contest Manager Guide](/docs/03_Contest_Manager_Guide), [Route Creation and Tasks](/docs/04_Route_Creation_and_Tasks), [Results Service Guide](/docs/05_Results_Service_Guide), and [Competition Types and Scorecards](/docs/07_Competition_Types_and_Scorecards)*
 
 ## How to Become an Organizer
 To host a contest, you need **Organizer** status. This is **automatically approved** for all registered users. Simply log in to the platform and click the **"Become an Organizer"** button in the navigation bar. Once activated, the **"Management"** menu will appear, providing access to your contests and tools.
