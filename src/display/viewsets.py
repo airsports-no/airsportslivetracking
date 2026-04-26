@@ -597,9 +597,10 @@ class ContestViewSet(ModelViewSet):
 
         data = self.get_serializer_class()(navigation_tasks, many=True, context={"request": self.request}).data
         response = Response(data)
-        # response["ETag"] = etag
-        # This is a public-facing list of live tasks, safe to cache at edge but revalidate often
-        response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=300"
+        # This is a public-facing list of live tasks. No ETag available.
+        # s-maxage=120: CDN shields origin by caching for 2 minutes.
+        # max-age=0: Browser always checks CDN (no disk cache).
+        response["Cache-Control"] = "public, max-age=0, s-maxage=120"
         return response
 
     @action(detail=False, methods=["get"])
@@ -638,9 +639,10 @@ class ContestViewSet(ModelViewSet):
 
         data = TodaysNavigationSerialiser(navigation_tasks, many=True, context={"request": self.request}).data
         response = Response(data)
-        # response["ETag"] = etag
-        # Cache for 1 year at edge (explicit invalidation), browser must revalidate
-        response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=3600"
+        # Public list scheduled for today. No ETag available.
+        # s-maxage=600: CDN shields origin by caching for 10 minutes.
+        # max-age=0: Browser always checks CDN (no disk cache).
+        response["Cache-Control"] = "public, max-age=0, s-maxage=120"
         return response
 
     @action(detail=True, methods=["get"])
@@ -649,17 +651,16 @@ class ContestViewSet(ModelViewSet):
         Retrieve the full list of contest summaries, tasks summaries, and individual test results for the contest
         """
         contest = self.get_object()
-        version = get_contest_list_version()
-        etag = f'"{version}-results-{contest.pk}"'
-        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
-            return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         contest.permission_change_contest = request.user.has_perm("display.change_contest", contest)
         serialiser = ContestResultsDetailsSerialiser(contest)
         response = Response(serialiser.data)
-        response["ETag"] = etag
+
         if contest.is_public and contest.is_featured:
-            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+            # Results change whenever scoring updates. 
+            # s-maxage=60: CDN shields origin by caching for 1 minute.
+            # max-age=0: Browser always checks CDN (no disk cache).
+            response["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=600"
         else:
             response["Cache-Control"] = "private, no-cache"
         return response
@@ -670,10 +671,6 @@ class ContestViewSet(ModelViewSet):
         Download contest results as CSV
         """
         contest = self.get_object()
-        version = get_contest_list_version()
-        etag = f'"{version}-results-csv-{contest.pk}"'
-        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
-            return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         tasks = contest.task_set.all().order_by("index")
         tests_by_task = {}
@@ -700,9 +697,11 @@ class ContestViewSet(ModelViewSet):
             content_type="text/csv",
             headers={"Content-Disposition": f'attachment; filename="{contest.name}_results.csv"'},
         )
-        response["ETag"] = etag
         if contest.is_public and contest.is_featured:
-            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+            # Results change whenever scoring updates.
+            # s-maxage=60: CDN shields origin by caching for 1 minute.
+            # max-age=0: Browser always checks CDN (no disk cache).
+            response["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=600"
         else:
             response["Cache-Control"] = "private, no-cache"
 
@@ -748,8 +747,18 @@ class ContestViewSet(ModelViewSet):
         """
         Get the list of teams in the contest
         """
-        contest_teams = ContestTeam.objects.filter(contest=pk)
-        return Response(ContestTeamNestedSerialiser(contest_teams, many=True).data)
+        contest = self.get_object()
+        contest_teams = ContestTeam.objects.filter(contest=contest)
+        response = Response(ContestTeamNestedSerialiser(contest_teams, many=True).data)
+        
+        if contest.is_public and contest.is_featured:
+            # Team lists can change during signup/withdrawal.
+            # s-maxage=60: CDN shields origin by caching for 1 minute.
+            # max-age=0: Browser always checks CDN (no disk cache).
+            response["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=600"
+        else:
+            response["Cache-Control"] = "private, no-cache"
+        return response
 
     @action(detail=True, methods=["put"])
     def update_contest_summary(self, request, *args, **kwargs):
@@ -1414,13 +1423,21 @@ class ContestantViewSet(ModelViewSet):
         response["ETag"] = etag
 
         # Cache-Control:
-        # If public, cache at edge but revalidate (stale-while-revalidate)
-        # If private, don't cache at edge.
+        is_finished = hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished
         is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
-        if is_public:
+        
+        if not is_public:
+            response["Cache-Control"] = "private, no-cache"
+        elif is_finished:
+            # Finished scores are static. 
+            # s-maxage=31536000: CDN caches for 1 year (explicit invalidation)
+            # max-age=0: Browser always checks CDN (no disk cache).
             response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         else:
-            response["Cache-Control"] = "private, no-cache"
+            # Live scores change frequently.
+            # s-maxage=30: CDN shields origin by caching for 30 seconds.
+            # max-age=0: Browser always checks CDN (no disk cache).
+            response["Cache-Control"] = "public, max-age=0, s-maxage=30, stale-while-revalidate=60"
 
         return response
 
@@ -1453,7 +1470,7 @@ class ContestantViewSet(ModelViewSet):
         start_window = datetime.datetime.fromtimestamp(minute_index * 60, tz=datetime.timezone.utc)
         end_window = start_window + datetime.timedelta(seconds=60 * count)
         now = datetime.datetime.now(datetime.timezone.utc)
-        is_finished = end_window < now - datetime.timedelta(minutes=1)
+        is_finished = end_window < now - datetime.timedelta(minutes=2)
 
         # track_version only bumps on calculator (re)start, not on every position
         # append. Short-circuiting with 304 is therefore only safe when the
@@ -1475,7 +1492,7 @@ class ContestantViewSet(ModelViewSet):
             # Private telemetry must never reach the shared CDN cache.
             response["Cache-Control"] = "private, no-cache"
         elif is_finished:
-            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+            response["Cache-Control"] = "public, max-age=120, s-maxage=31536000, stale-while-revalidate=86400"
         else:
             response["Cache-Control"] = "public, max-age=0, must-revalidate"
 
@@ -1577,7 +1594,19 @@ class ContestantViewSet(ModelViewSet):
         Returns the score for the contestant
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
-        return Response(generate_score_data(contestant.pk))
+        response = Response(generate_score_data(contestant.pk))
+        
+        is_finished = hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished
+        is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
+        
+        if not is_public:
+            response["Cache-Control"] = "private, no-cache"
+        elif is_finished:
+            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+        else:
+            response["Cache-Control"] = "public, max-age=0, s-maxage=30, stale-while-revalidate=60"
+            
+        return response
 
     @action(detail=True, methods=["get"])
     def paginated_track_data(self, request, *args, **kwargs):
@@ -1631,6 +1660,21 @@ class ContestantViewSet(ModelViewSet):
         )
 
         response = StreamingHttpResponse(self._stream_track_json(ct, positions_qs), content_type="application/json")
+        
+        is_finished = ct.calculator_finished
+        is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
+        
+        if not is_public:
+            response["Cache-Control"] = "private, no-cache"
+        elif is_finished:
+            # Finished tracks are static.
+            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+        else:
+            # Live tracks change as the flight progresses.
+            # s-maxage=10: CDN shields origin by caching for 10 seconds.
+            # max-age=0: Browser always checks CDN (no disk cache).
+            response["Cache-Control"] = "public, max-age=0, s-maxage=10, stale-while-revalidate=60"
+            
         return response
 
     @action(detail=True, methods=["post"])
