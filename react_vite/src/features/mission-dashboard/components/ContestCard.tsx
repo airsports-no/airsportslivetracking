@@ -30,8 +30,8 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                     )}
                 </h2>
                 <p className={`text-sm ${contest.header_image ? 'text-white' : 'text-base-content'}`}>{formatDateInterval(contest.start_time, contest.finish_time)}</p>
-                {contest.navigationtask_set && contest.navigationtask_set.length > 0 && (
-                    <p className={`text-sm ${contest.header_image ? 'text-white' : 'text-base-content'}`}>{contest.navigationtask_set.length} tasks</p>
+                {contest.navigation_task_count > 0 && (
+                    <p className={`text-sm ${contest.header_image ? 'text-white' : 'text-base-content'}`}>{contest.navigation_task_count} tasks</p>
                 )}
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-4 flex justify-between items-end">

@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Q, Prefetch
+from django.db.models import Q, Prefetch, Count
 from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils.cache import add_never_cache_headers, patch_response_headers
@@ -530,6 +530,28 @@ class ContestViewSet(ModelViewSet):
         else:
             # Anonymous users only see public featured contests.
             queryset = queryset.filter(is_public=True, is_featured=True)
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        queryset = queryset.annotate(
+            navigation_task_count=Count("navigationtask", distinct=True),
+            has_open_tasks_count=Count(
+                "navigationtask",
+                filter=Q(
+                    navigationtask__allow_self_management=True,
+                    navigationtask__start_time__lte=now,
+                    navigationtask__finish_time__gte=now,
+                ),
+                distinct=True,
+            ),
+            has_flown_contestants_count=Count(
+                "navigationtask__contestant",
+                filter=Q(navigationtask__contestant__contestanttrack__calculator_started=True),
+                distinct=True,
+            ),
+        )
+
+        if self.action == "list":
+            return queryset.order_by("-start_time")
 
         return queryset.prefetch_related(
             "navigationtask_set__route__prohibited_set",

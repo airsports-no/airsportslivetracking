@@ -79,7 +79,7 @@ export const useMissionDashboardStore = create<MissionDashboardState>((set, get)
         if (!force && get().myEditorContests.length > 0) {
             return;
         }
-        const myEditorContests = await api.fetchContests({ isEditor: true });
+        const myEditorContests = await api.fetchContests({ isEditor: true, excludeTasks: true });
         set({ myEditorContests });
     },
     fetchOngoingNavigation: async (force) => {

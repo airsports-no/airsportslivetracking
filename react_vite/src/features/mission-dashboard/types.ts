@@ -2,6 +2,7 @@ export interface Contest {
     id: number;
     time_zone: string;
     navigationtask_set: NavigationTask[];
+    navigation_task_count: number;
     contest_team_count: number;
     share_string: string;
     country_flag_url: string;

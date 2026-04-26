@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useMemo, useLayoutEffect, useRef } from 'react';
 import Select from 'react-select';
 import { LatLngBounds } from 'leaflet';
 import Slider from 'rc-slider';
@@ -61,8 +61,20 @@ const MissionDashboard = () => {
     const [myContestsPage, setMyContestsPage] = useState(1);
     const location = useLocation();
     const navigate = useNavigate();
+    const isMounted = useRef(true);
+
+    useEffect(() => {
+        isMounted.current = true;
+        return () => {
+            isMounted.current = false;
+        };
+    }, []);
 
     const updateURL = (updates: Record<string, string | string[] | boolean | number | null>) => {
+        if (!isMounted.current) return;
+        // Safety: If we are already navigating away from the dashboard, don't update its URL
+        if (location.pathname !== '/' && location.pathname !== '') return;
+
         const params = new URLSearchParams(location.search);
         Object.entries(updates).forEach(([key, value]) => {
             if (value === null || value === '' || value === false || (Array.isArray(value) && value.length === 0)) {
@@ -198,11 +210,14 @@ const MissionDashboard = () => {
             if (document.configuration.is_superuser) {
                 fetchPromises.push(fetchContestsFromStore({ 
                     finishTimeGte, 
-                    excludeTeams: true                }, true));
+                    excludeTeams: true,
+                    excludeTasks: true
+                }, true));
             } else {
                 fetchPromises.push(fetchContestsFromStore({ 
                     finishTimeGte, 
                     excludeTeams: true, 
+                    excludeTasks: true,
                     publicOnly: true
                 }, true));
 
@@ -210,6 +225,7 @@ const MissionDashboard = () => {
                     fetchPromises.push(fetchContestsFromStore({ 
                         finishTimeGte, 
                         excludeTeams: true,
+                        excludeTasks: true,
                         sharedOnly: true
                     }, false));
                 }
@@ -263,7 +279,8 @@ const MissionDashboard = () => {
             try {
                 await fetchContestsFromStore({
                     finishTimeGte: newStartDate.toISOString().split('T')[0],
-                    startTimeLte: oldestContestDate.toISOString().split('T')[0]
+                    startTimeLte: oldestContestDate.toISOString().split('T')[0],
+                    excludeTasks: true
                 });
                 setOldestContestDate(newStartDate);
             } catch (err) {
@@ -405,8 +422,10 @@ const MissionDashboard = () => {
                     contests={textFilteredContests} 
                     onBoundsChanged={(bounds) => {
                         setMapBounds(bounds);
-                        setCurrentPage(1);
-                        updateURL({ page: 1 });
+                        if (bounds) {
+                            setCurrentPage(1);
+                            updateURL({ page: 1 });
+                        }
                     }} 
                     minZoom={2}
                     onInteraction={() => {

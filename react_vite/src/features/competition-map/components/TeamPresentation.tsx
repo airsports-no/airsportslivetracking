@@ -50,11 +50,11 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
 
                         <div className="avatar">
                             {crew.member1.picture ? (
-                                <div className="w-16 h-20 sm:w-24 sm:h-32 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2 overflow-hidden">
+                                <div className="w-20 h-28 sm:w-32 sm:h-44 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2 overflow-hidden">
                                     <img src={crew.member1.picture} alt={`${crew.member1.first_name} ${crew.member1.last_name}`} className="w-full h-full object-cover object-top" />
                                 </div>
                             ) : (
-                                <div className="placeholder bg-neutral-focus text-neutral-content w-16 h-20 sm:w-24 sm:h-32 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2">
+                                <div className="placeholder bg-neutral-focus text-neutral-content w-20 h-28 sm:w-32 sm:h-44 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2">
                                     <span className="text-xl sm:text-3xl">{(crew.member1.first_name?.[0] || '') + (crew.member1.last_name?.[0] || '')}</span>
                                 </div>
                             )}
@@ -68,11 +68,11 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
                             <>
                                 <div className="avatar ml-2 sm:ml-4">
                                     {crew.member2.picture ? (
-                                        <div className="w-16 h-20 sm:w-24 sm:h-32 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2 overflow-hidden">
+                                        <div className="w-20 h-28 sm:w-32 sm:h-44 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2 overflow-hidden">
                                             <img src={crew.member2.picture} alt={`${crew.member2.first_name} ${crew.member2.last_name}`} className="w-full h-full object-cover object-top" />
                                         </div>
                                     ) : (
-                                        <div className="placeholder bg-neutral-focus text-neutral-content w-16 h-20 sm:w-24 sm:h-32 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2">
+                                        <div className="placeholder bg-neutral-focus text-neutral-content w-20 h-28 sm:w-32 sm:h-44 rounded-lg ring ring-primary ring-offset-base-100 ring-offset-2">
                                             <span className="text-xl sm:text-3xl">{(crew.member2.first_name?.[0] || '') + (crew.member2.last_name?.[0] || '')}</span>
                                         </div>
                                     )}

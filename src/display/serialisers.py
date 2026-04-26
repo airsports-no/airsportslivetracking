@@ -591,6 +591,7 @@ class ContestTeamSerialiser(serializers.ModelSerializer):
 class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, serializers.ModelSerializer):
     time_zone = TimeZoneSerializerField(required=True)
     navigationtask_set = SerializerMethodField("get_visiblenavigationtasks")
+    navigation_task_count = serializers.IntegerField(read_only=True)
     contest_team_count = serializers.IntegerField(read_only=True)
     share_string = serializers.CharField(read_only=True)
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
@@ -612,12 +613,16 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         return contest.id in self.context.get("editable_contest_ids", set())
 
     def get_has_open_tasks(self, contest):
+        if hasattr(contest, "has_open_tasks_count"):
+            return contest.has_open_tasks_count > 0
         now = datetime.datetime.now(datetime.timezone.utc)
         return contest.navigationtask_set.filter(
             allow_self_management=True, start_time__lte=now, finish_time__gte=now
         ).exists()
 
     def get_has_flown_contestants(self, contest):
+        if hasattr(contest, "has_flown_contestants_count"):
+            return contest.has_flown_contestants_count > 0
         return contest.navigationtask_set.filter(contestant__contestanttrack__calculator_started=True).exists()
 
     def validate(self, validated_data):

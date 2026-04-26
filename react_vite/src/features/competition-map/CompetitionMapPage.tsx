@@ -36,6 +36,7 @@ export default function CompetitionMapPage() {
   const initialTimeParam = searchParams.get('time');
   const initialSpeedParam = searchParams.get('speed');
   const autoPlay = searchParams.get('autoplay') === 'true';
+  const rankingExpandedParam = searchParams.get('rankingExpanded');
 
   const initialTime = useMemo(() => {
     if (!initialTimeParam) return null;
@@ -57,7 +58,11 @@ export default function CompetitionMapPage() {
   const [userShowSecrets, setUserShowSecrets] = useState(true);
   const [showPenaltiesOnly, setShowPenaltiesOnly] = useState(false);
   const [hasMapBeenFitted, setHasMapBeenFitted] = useState(false); // New state for initial map fit
-  const [isRankingCollapsed, setIsRankingCollapsed] = useState(() => window.innerWidth < 640);
+  const [isRankingCollapsed, setIsRankingCollapsed] = useState(() => {
+    if (rankingExpandedParam === 'true') return false;
+    if (rankingExpandedParam === 'false') return true;
+    return window.innerWidth < 640;
+  });
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [permanentAnnotations, setPermanentAnnotations] = useState(false);
   const [contestDetails, setContestDetails] = useState<any | null>(null);
