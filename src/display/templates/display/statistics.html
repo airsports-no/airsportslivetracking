@@ -43,6 +43,59 @@
                 </table>
             </div>
 
+            <h2 class="card-title mt-8">Scale & Performance</h2>
+            <div class="overflow-x-auto mt-4">
+                <table class="table table-sm w-full">
+                    <tbody>
+                    <tr>
+                        <td>Total GPS Positions Stored</td>
+                        <td>{{ total_gps_positions }}</td>
+                    </tr>
+                    <tr>
+                        <td>Total Penalties (Anomalies)</td>
+                        <td>{{ total_anomalies }}</td>
+                    </tr>
+                    <tr>
+                        <td>Average Air Speed</td>
+                        <td>{{ average_air_speed|floatformat:1 }} kt</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                <div>
+                    <h2 class="card-title">Top 5 Aircraft Types</h2>
+                    <div class="overflow-x-auto mt-4">
+                        <table class="table table-sm w-full">
+                            <tbody>
+                            {% for item in top_aircraft_types %}
+                                <tr>
+                                    <td>{{ item.type|default:"Unknown" }}</td>
+                                    <td>{{ item.count }}</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h2 class="card-title">Top 5 Most Active Clubs</h2>
+                    <div class="overflow-x-auto mt-4">
+                        <table class="table table-sm w-full">
+                            <tbody>
+                            {% for item in top_clubs %}
+                                <tr>
+                                    <td>{{ item.name }}</td>
+                                    <td>{{ item.count }}</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <h2 class="card-title mt-8">Contests per country</h2>
             <div class="overflow-x-auto mt-4">
                 <table class="table table-sm w-full">

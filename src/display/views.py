@@ -1901,6 +1901,9 @@ class PersonUpdateView(SuperuserRequiredMixin, UpdateView):
     form_class = PersonForm
 
 
+from display.utilities.statistics_utilities import get_system_statistics
+
+
 class StatisticsView(SuperuserRequiredMixin, TemplateView):
     """
     Displays a list of statistics for contestants and competitions registered in the system.
@@ -1910,41 +1913,8 @@ class StatisticsView(SuperuserRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        navigation_task_by_country = defaultdict(lambda: 0)
-        contest_by_country = defaultdict(lambda: 0)
-        for task in NavigationTask.objects.all():
-            navigation_task_by_country[task.country_name] += 1
-        for contest in Contest.objects.all():
-            for code in contest.country_names:
-                contest_by_country[code] += 1
-        started_contestants = Contestant.objects.filter(contestanttrack__calculator_started=True).exclude(
-            contestanttrack__current_state="Waiting..."
-        )
-        person_with_started_contestant = (
-            Person.objects.filter(
-                Q(crewmember_one__team__contestant__in=started_contestants)
-                | Q(crewmember_two__team__contestant__in=started_contestants)
-            )
-            .distinct()
-            .count()
-        )
-        context["number_of_persons_crossed_starting"] = person_with_started_contestant
-        context["number_of_persons"] = Person.objects.all().count()
-        context["number_of_tasks"] = NavigationTask.objects.all().count()
-        context["number_of_contests"] = Contest.objects.all().count()
-        context["number_of_contestants"] = Contestant.objects.all().count()
-        context["number_of_started_contestants"] = Contestant.objects.filter(
-            contestanttrack__calculator_started=True
-        ).count()
-        context["number_of_contestants_crossed_starting"] = started_contestants.count()
-        context["navigation_task_per_country"] = sorted(
-            ((country, count) for country, count in navigation_task_by_country.items()),
-            key=lambda k: k[1],
-            reverse=True,
-        )
-        context["contest_per_country"] = sorted(
-            ((country, count) for country, count in contest_by_country.items()), key=lambda k: k[1], reverse=True
-        )
+        stats = get_system_statistics()
+        context.update(stats)
         return context
 
 
