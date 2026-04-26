@@ -747,8 +747,8 @@ export default function CompetitionMapPage() {
         ) : (
           contestDetails?.logo && (
             <div className={`absolute right-4 z-[1100] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-28 sm:bottom-24' : 'bottom-5'} pointer-events-none`}>
-                <div className="bg-base-100/80 backdrop-blur-sm p-2 rounded-lg shadow-lg pointer-events-auto">
-                    <img src={contestDetails.logo} alt={`${contestDetails.name} logo`} className="max-h-32 max-w-xs" />
+                <div className="bg-base-100/80 backdrop-blur-sm p-1 sm:p-2 rounded-lg shadow-lg pointer-events-auto">
+                    <img src={contestDetails.logo} alt={`${contestDetails.name} logo`} className="max-h-16 sm:max-h-32 max-w-[120px] sm:max-w-xs object-contain" />
                 </div>
             </div>
           )
