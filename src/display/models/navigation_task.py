@@ -1,4 +1,5 @@
 import datetime
+import logging
 import typing
 
 from django.contrib.auth.models import User
@@ -8,6 +9,7 @@ from django.db import models, IntegrityError
 from django.db.models import Q
 from django.urls import reverse
 from geopy import Nominatim
+from geopy.exc import GeopyError
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 
 from display.fields.my_pickled_object_field import MyPickledObjectField
@@ -22,6 +24,8 @@ from display.utilities.navigation_task_type_definitions import (
 
 if typing.TYPE_CHECKING:
     from display.models import UserUploadedMap
+
+logger = logging.getLogger(__name__)
 
 
 class NavigationTask(models.Model):
@@ -120,9 +124,17 @@ class NavigationTask(models.Model):
         task object
         """
         if location := self.route.get_location():
-            geolocator = Nominatim(user_agent="airsports.no")
-            self._nominatim = geolocator.reverse(f"{location[0]},{location[1]}").raw
-            self.save()
+            try:
+                geolocator = Nominatim(user_agent="airsports.no")
+                # Increased timeout to 3 seconds to be less sensitive to network jitter
+                result = geolocator.reverse(f"{location[0]},{location[1]}", timeout=3)
+                if result:
+                    self._nominatim = result.raw
+                    self.save()
+            except (GeopyError, Exception) as e:
+                logger.error(f"Geolocation lookup failed for NavigationTask {self.pk}: {e}")
+                # We don't save anything here so it might retry later, 
+                # but we prevent the 500 error for the current request.
 
     @property
     def country_code(self) -> str:
