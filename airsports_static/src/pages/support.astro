@@ -2,42 +2,81 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Support the Project">
+<Layout title="Support & Community">
 	<main class="pt-20 pb-32">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h1 class="text-4xl md:text-6xl font-extrabold text-slate-900 font-lexend italic mb-8 uppercase">Support & Funding</h1>
-            <p class="text-xl text-slate-600 leading-relaxed font-medium mb-12">
-                Air Sports Live Tracking is a community-driven, non-profit project. Our primary server is provided free of charge at 
-                <a href="https://airsports.no" class="text-blue-600 font-bold underline decoration-blue-600/30">airsports.no</a>. 
-                Your contributions help us maintain high-performance server capacity and develop new features for the global aviation community.
+            <h1 class="text-4xl md:text-6xl font-extrabold text-slate-900 font-lexend italic mb-8 uppercase">Support & Contact</h1>
+            <p class="text-xl text-slate-600 leading-relaxed font-medium mb-16">
+                Need help with a competition, technical issues, or have a general inquiry? Here is how to reach the ASLT community and development team.
             </p>
 
-            <div class="grid grid-cols-1 gap-12">
-                <!-- Bank Details Card -->
-                <div class="bg-white p-12 rounded-[3rem] shadow-3xl border border-slate-200">
-                    <h4 class="font-bold text-xs mb-8 flex items-center gap-3 text-slate-400 uppercase tracking-[0.3em] font-lexend italic">
-                        <span class="w-3 h-3 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.4)]"></span>
-                        Direct Bank Transfer
-                    </h4>
-                    <div class="space-y-6 text-slate-700 font-bold font-mono text-sm tracking-tighter">
-                        <div class="flex justify-between border-b border-slate-50 pb-4">
-                            <span class="text-slate-400 font-lexend uppercase italic text-[10px] tracking-widest">IBAN</span>
-                            <span>NO84 1506 4113 078</span>
-                        </div>
-                        <div class="flex justify-between border-b border-slate-50 pb-4">
-                            <span class="text-slate-400 font-lexend uppercase italic text-[10px] tracking-widest">BIC</span>
-                            <span>DNBANOKKXXX</span>
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <span class="text-slate-400 font-lexend uppercase italic text-[10px] tracking-widest">BANK</span>
-                            <span class="text-right uppercase">DNB BANK ASA, TONSBERG</span>
-                        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-24">
+                <!-- Technical Support -->
+                <div class="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100 group hover:border-blue-200 transition-all">
+                    <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
                     </div>
-                    <div class="mt-10 p-6 bg-orange-50 rounded-2xl border border-orange-100">
-                        <p class="text-[10px] uppercase font-bold tracking-widest text-orange-700 mb-2 italic">Important Note</p>
-                        <p class="text-xs text-orange-800 leading-relaxed font-medium italic">
-                            Please specify the donor name and if you wish to remain anonymous. All donations are published on the home page as a token of our gratitude.
-                        </p>
+                    <h3 class="text-xl font-bold mb-4 text-slate-900 font-lexend italic uppercase">Direct Email</h3>
+                    <p class="text-slate-500 leading-relaxed mb-8 text-sm">
+                        For official inquiries, map processing requests, or account issues.
+                    </p>
+                    <a href="mailto:support@airsports.no" class="text-blue-600 font-bold flex items-center gap-2 text-xs uppercase tracking-widest hover:underline">
+                        support@airsports.no
+                    </a>
+                </div>
+
+                <!-- Slack Community -->
+                <div class="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100 group hover:border-indigo-200 transition-all">
+                    <div class="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-[#4A154B] group-hover:text-white transition-all shadow-inner">
+                        <svg class="w-7 h-7 fill-current" viewBox="0 0 24 24"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.528 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.528 0 0 1 2.521-2.52 2.528 2.528 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52h-2.521zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm6.331-1.271a2.528 2.528 0 0 1 2.521-2.522A2.528 2.528 0 0 1 20.208 5.042a2.528 2.528 0 0 1-2.521 2.52h-2.521v-2.52zm-1.271 0a2.528 2.528 0 0 1-2.521 2.522 2.528 2.528 0 0 1-2.521-2.522V2.522A2.528 2.528 0 0 1 11.373 0a2.528 2.528 0 0 1 2.521 2.522v6.312zM15.165 18.958a2.528 2.528 0 0 1 2.522 2.521A2.528 2.528 0 0 1 15.165 24a2.528 2.528 0 0 1-2.522-2.521v-2.52h2.522zm0-1.271a2.528 2.528 0 0 1-2.522-2.521 2.528 2.528 0 0 1 2.522-2.521h6.313A2.528 2.528 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.52h-6.313z"/></svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-4 text-slate-900 font-lexend italic uppercase">Slack Workspace</h3>
+                    <p class="text-slate-500 leading-relaxed mb-8 text-sm">
+                        Join 400+ pilots and developers for real-time discussion and tactical advice.
+                    </p>
+                    <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="text-indigo-600 font-bold flex items-center gap-2 text-xs uppercase tracking-widest hover:underline">
+                        Join Discussion →
+                    </a>
+                </div>
+            </div>
+
+            <!-- Funding Section -->
+            <div class="border-t border-slate-200 pt-24">
+                <h2 class="text-3xl font-extrabold text-slate-900 font-lexend italic mb-6 uppercase">Funding the Project</h2>
+                <p class="text-lg text-slate-600 leading-relaxed font-medium mb-12">
+                    ASLT is a non-profit project. Contributions help us maintain our servers and ensure high-performance tracking for global competitions.
+                </p>
+
+                <div class="bg-slate-900 p-12 rounded-[3rem] shadow-2xl text-white relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+                    
+                    <h4 class="font-bold text-xs mb-8 flex items-center gap-3 text-orange-400 uppercase tracking-[0.3em] font-lexend italic">
+                        <span class="w-3 h-3 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.4)]"></span>
+                        Bank Details
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                        <div class="space-y-6 text-slate-300 font-bold font-mono text-sm tracking-tighter">
+                            <div class="flex justify-between border-b border-white/5 pb-4">
+                                <span class="text-slate-500 font-lexend uppercase italic text-[10px] tracking-widest">IBAN</span>
+                                <span class="text-white">NO84 1506 4113 078</span>
+                            </div>
+                            <div class="flex justify-between border-b border-white/5 pb-4">
+                                <span class="text-slate-500 font-lexend uppercase italic text-[10px] tracking-widest">BIC</span>
+                                <span class="text-white">DNBANOKKXXX</span>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <span class="text-slate-500 font-lexend uppercase italic text-[10px] tracking-widest">BANK</span>
+                                <span class="text-white uppercase">DNB BANK ASA, TONSBERG</span>
+                            </div>
+                        </div>
+                        <div class="bg-white/5 p-6 rounded-2xl border border-white/10">
+                            <p class="text-[10px] uppercase font-bold tracking-widest text-orange-400 mb-2 italic">Important</p>
+                            <p class="text-xs text-slate-400 leading-relaxed font-medium italic">
+                                "Please write who the donor is and whether you would like to remain anonymous. All donations are published on the home page."
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

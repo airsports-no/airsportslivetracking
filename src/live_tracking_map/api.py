@@ -18,11 +18,13 @@ from display.viewsets import (
     TeamViewSet,
     GetScorecardsViewSet,
     EditableRouteViewSet,
+    NewsletterSubscriberViewSet,
 )
 
 router = routers.DefaultRouter()
 router.register(r"contests", ContestViewSet, basename="contests")
 router.register(r"contestant", ContestantViewSet, basename="all-contestants")
+router.register(r"newsletter", NewsletterSubscriberViewSet, basename="newsletter")
 # router.register(r'navigationtasks', NavigationTaskNestedViewSet, basename="rootnavigationtasks")
 
 # router.register(r'routes', RouteViewSet, basename="routes")

@@ -57,6 +57,7 @@ from display.models import (
     STARTINGPOINT,
     FINISHPOINT,
     GATE_TYPES,
+    NewsletterSubscriber,
 )
 from display.waypoint import Waypoint
 
@@ -1753,3 +1754,8 @@ Prohibited, penalty, information, gate zones
 
     def get_is_editor(self, editable_route):
         return editable_route.id in self.context.get("editable_route_ids", set())
+
+class NewsletterSubscriberSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = NewsletterSubscriber
+        fields = ("email", "created_at")

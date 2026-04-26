@@ -54,6 +54,7 @@ from display.models import (
     ANOMALY,
     Task,
     TaskTest,
+    NewsletterSubscriber,
 )
 from display.permissions import (
     EditableRoutePermission,
@@ -118,6 +119,7 @@ from display.serialisers import (
     TaskTestSerialiser,
     ContestantNestedTeamSerialiser,
     FutureContestantNestedTeamSerialiser,
+    NewsletterSubscriberSerialiser,
 )
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
@@ -1769,3 +1771,9 @@ class TaskTestViewSet(ModelViewSet):
     def get_queryset(self):
         contest_id = self.kwargs.get("contest_pk")
         return TaskTest.objects.filter(task__contest_id=contest_id)
+
+class NewsletterSubscriberViewSet(ModelViewSet):
+    queryset = NewsletterSubscriber.objects.all()
+    serializer_class = NewsletterSubscriberSerialiser
+    permission_classes = [permissions.AllowAny]
+    http_method_names = ["post"]

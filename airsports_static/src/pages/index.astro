@@ -27,15 +27,15 @@ import msfsClientImg from '../assets/img/msfs_client.png';
             
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
                 <div class="inline-block px-4 py-1.5 mb-8 text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-blue-100">
-                    Open Source & Community Driven
+                    Open Source & Global Community
                 </div>
                 <h1 class="text-4xl sm:text-6xl md:text-8xl font-extrabold tracking-tighter mb-8 font-lexend italic text-shadow-lg uppercase leading-tight">
                     Fly the perfect <br/>
                     <span class="text-blue-200">second</span>
                 </h1>
                 <p class="text-lg sm:text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto mb-14 leading-relaxed font-medium">
-                    Fly 120km. Hit every waypoint within 2 seconds. Stick-and-rudder only — no GPS. 
-                    <span class="text-white">This is precision flying, and this is how we score it in real time.</span>
+                    The professional platform for precision navigation and air racing. 
+                    <span class="text-white">Whether you're flying 120km cross-country or competing virtually, we score your performance in real time.</span>
                 </p>
                 <div class="flex flex-wrap justify-center gap-6">
                     <a href="https://airsports.no/competition-map/774/2734?mode=playback&time=2025-07-06T11:45:50&speed=40&autoplay=true" class="bg-orange-500 text-white px-12 py-5 rounded-2xl font-extrabold text-lg hover:bg-orange-600 transition-all shadow-2xl shadow-orange-900/40 active:scale-95 uppercase tracking-wider border-b-4 border-orange-700">
@@ -53,17 +53,17 @@ import msfsClientImg from '../assets/img/msfs_client.png';
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex flex-wrap justify-center md:justify-between items-center gap-8 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-500">
                     <div class="flex items-center gap-3">
-                        <span class="text-2xl font-black text-white font-lexend italic uppercase tracking-tighter">5+</span>
-                        <span class="text-[10px] font-bold text-blue-200 uppercase tracking-[0.2em] leading-tight">National <br/> Federations</span>
-                    </div>
-                    <div class="w-px h-8 bg-white/10 hidden md:block"></div>
-                    <div class="flex items-center gap-3">
-                        <span class="text-2xl font-black text-white font-lexend italic uppercase tracking-tighter">1000s</span>
+                        <span class="text-2xl font-black text-white font-lexend italic uppercase tracking-tighter">5,400+</span>
                         <span class="text-[10px] font-bold text-blue-200 uppercase tracking-[0.2em] leading-tight">Flights <br/> Tracked</span>
                     </div>
                     <div class="w-px h-8 bg-white/10 hidden md:block"></div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl font-black text-white font-lexend italic uppercase tracking-tighter">12</span>
+                        <span class="text-[10px] font-bold text-blue-200 uppercase tracking-[0.2em] leading-tight">Countries <br/> Represented</span>
+                    </div>
+                    <div class="w-px h-8 bg-white/10 hidden md:block"></div>
                     <div class="flex items-center gap-3 text-white/80 font-black text-xs uppercase tracking-widest italic">
-                        Norway • Spain • Sweden • Denmark • Germany
+                        Official Partner of European National Air Sports Federations
                     </div>
                 </div>
             </div>
@@ -238,10 +238,32 @@ import msfsClientImg from '../assets/img/msfs_client.png';
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center px-8 mb-32">
+                <div class="bg-slate-100 p-4 rounded-[3rem] shadow-3xl transform -rotate-1 hover:rotate-0 transition-all duration-500 overflow-hidden border border-slate-200 hover:scale-[1.03] cursor-zoom-in group/img">
+                    <Image src={routeEditor} alt="ASLT Route Editor" class="rounded-[2rem] shadow-inner w-full h-auto lightbox-trigger" width={1000} height={600} data-full-src={routeEditor.src} />
+                </div>
+                <div>
+                    <h3 class="text-3xl font-bold mb-6 font-lexend italic text-slate-800 uppercase">Intelligent Route Editor</h3>
+                    <p class="text-lg text-slate-600 mb-8 leading-relaxed font-medium">
+                        Design complex navigation tasks with ease. Our integrated editor supports AIP chart overlays, custom georeferenced maps, and GDL90 telemetry.
+                    </p>
+                    <ul class="space-y-4 font-bold text-slate-700 uppercase tracking-tight text-sm italic">
+                        <li class="flex items-start gap-4">
+                            <span class="text-orange-600">01</span>
+                            <span>Support for **Garmin GDL90** and OGN telemetry protocols.</span>
+                        </li>
+                        <li class="flex items-start gap-4">
+                            <span class="text-orange-600">02</span>
+                            <span>Automatically generate high-resolution PDF Flight Orders for pilots.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center px-8">
                 <div class="order-2 lg:order-1">
                     <h3 class="text-3xl font-bold mb-6 font-lexend italic text-slate-800 uppercase">Live Competition Map</h3>
                     <p class="text-lg text-slate-600 mb-8 leading-relaxed font-medium">
-                        Experience the thrill of the race as it happens. Our live competition map provides spectators and organizers with a real-time view of every contestant, complete with trail breadcrumbs and instant penalty notifications.
+                        Experience the thrill of the race as it happens. Our live map provides spectators with a real-time view of every contestant and instant penalty notifications.
                     </p>
                     <ul class="space-y-4 font-bold text-slate-700 uppercase tracking-tight text-sm italic">
                         <li class="flex items-start gap-4">
@@ -274,7 +296,7 @@ import msfsClientImg from '../assets/img/msfs_client.png';
                         <h2 class="text-4xl md:text-6xl font-extrabold mb-8 tracking-tighter font-lexend italic uppercase">MSFS 2020 & 2024 <br/> <span class="text-blue-400 text-3xl md:text-5xl">Live Integration</span></h2>
                         <p class="text-xl text-indigo-100 mb-10 leading-relaxed font-medium">
                             Can't fly the real thing yet? Compete virtually with our dedicated high-fidelity simulator client. 
-                            Experience the same precision scoring and real-time tracks used in world championships.
+                            Join **400+ pilots** in our community for scored flights and tactics.
                         </p>
                         <div class="flex flex-wrap gap-6">
                             <a href="/docs/08_MSFS_Integration" class="bg-white text-indigo-900 px-10 py-4 rounded-2xl font-extrabold hover:bg-blue-50 transition-all shadow-xl active:scale-95 uppercase tracking-wider italic">
@@ -297,21 +319,94 @@ import msfsClientImg from '../assets/img/msfs_client.png';
             </div>
         </div>
 
-        <!-- Video Tutorials CTA -->
-        <div class="py-24 bg-slate-900 text-white relative overflow-hidden mb-32">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-                <h2 class="text-4xl font-extrabold mb-6 font-lexend italic uppercase tracking-tight">Master the platform</h2>
-                <p class="text-xl text-slate-400 mb-10 max-w-2xl mx-auto font-medium">
-                    Watch our step-by-step video tutorials to get started with competition management and registration.
-                </p>
-                <a href="/tutorials" class="inline-flex items-center gap-3 bg-white text-slate-900 px-10 py-4 rounded-2xl font-extrabold hover:bg-slate-100 transition-all shadow-xl active:scale-95 uppercase tracking-wider">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                    </svg>
-                    Watch Tutorials
-                </a>
+        <!-- Media & Newsletter Section -->
+        <div class="py-32 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-32">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <!-- Media Hook -->
+                <div class="bg-blue-600 rounded-[3rem] p-12 text-white shadow-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
+                    <h3 class="text-3xl font-extrabold font-lexend italic uppercase mb-6 tracking-tight">For Media & Influencers</h3>
+                    <p class="text-blue-100 text-lg mb-10 font-medium leading-relaxed">
+                        Are you a content creator covering aviation? We have a complete press kit and dedicated support to help you showcase real-time precision flying to your audience.
+                    </p>
+                    <a href="mailto:support@airsports.no?subject=Media Inquiry" class="inline-flex items-center gap-3 bg-white text-blue-600 px-8 py-4 rounded-2xl font-extrabold hover:bg-blue-50 transition-all active:scale-95 uppercase tracking-wider italic">
+                        Request Press Kit
+                    </a>
+                </div>
+
+                <!-- Email Capture -->
+                <div class="bg-slate-900 rounded-[3rem] p-12 text-white shadow-2xl border border-white/5">
+                    <h3 class="text-3xl font-extrabold font-lexend italic uppercase mb-6 tracking-tight">Stay Informed</h3>
+                    <p class="text-slate-400 text-lg mb-10 font-medium leading-relaxed">
+                        Get notified about upcoming international competitions and major platform updates. No spam, just aviation.
+                    </p>
+                    <form id="newsletter-form" class="flex flex-col sm:flex-row gap-4">
+                        <input type="email" id="newsletter-email" required placeholder="Enter your email" class="flex-1 bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-blue-500 transition-colors font-medium" />
+                        <button type="submit" id="newsletter-submit" class="bg-blue-600 text-white px-8 py-4 rounded-2xl font-extrabold hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-wider italic">
+                            Subscribe
+                        </button>
+                    </form>
+                    <div id="newsletter-message" class="mt-4 text-sm font-medium hidden"></div>
+                </div>
             </div>
         </div>
+
+        <script>
+            // ... previous scripts ...
+
+            // Newsletter subscription logic
+            const newsletterForm = document.getElementById('newsletter-form');
+            const newsletterEmail = document.getElementById('newsletter-email') as HTMLInputElement;
+            const newsletterMessage = document.getElementById('newsletter-message');
+            const newsletterSubmit = document.getElementById('newsletter-submit') as HTMLButtonElement;
+
+            if (newsletterForm && newsletterEmail && newsletterMessage && newsletterSubmit) {
+                newsletterForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const email = newsletterEmail.value;
+                    newsletterSubmit.disabled = true;
+                    newsletterSubmit.textContent = 'Subscribing...';
+                    
+                    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                        ? 'http://localhost:8002' 
+                        : 'https://airsports.no';
+
+                    try {
+                        const response = await fetch(`${API_BASE}/api/v1/newsletter/`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ email })
+                        });
+
+                        newsletterMessage.classList.remove('hidden', 'text-green-400', 'text-red-400');
+                        
+                        if (response.ok) {
+                            newsletterMessage.textContent = 'Thanks for subscribing!';
+                            newsletterMessage.classList.add('text-green-400');
+                            newsletterEmail.value = '';
+                        } else {
+                            const data = await response.json();
+                            if (data.email && data.email[0].includes('already exists')) {
+                                newsletterMessage.textContent = 'You are already subscribed!';
+                            } else {
+                                newsletterMessage.textContent = 'Something went wrong. Please try again.';
+                            }
+                            newsletterMessage.classList.add('text-red-400');
+                        }
+                    } catch (err) {
+                        newsletterMessage.textContent = 'Network error. Please try again later.';
+                        newsletterMessage.classList.add('text-red-400');
+                    } finally {
+                        newsletterSubmit.disabled = false;
+                        newsletterSubmit.textContent = 'Subscribe';
+                    }
+                });
+            }
+        </script>
 
         <!-- Vision Section -->
         <div class="py-32 bg-white relative overflow-hidden">
@@ -356,23 +451,23 @@ import msfsClientImg from '../assets/img/msfs_client.png';
                             </h4>
                             <div class="space-y-8">
                                 <div>
-                                    <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Competition Year 2024</h5>
+                                    <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Competition Year 2025</h5>
                                     <ul class="space-y-3">
                                         <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
                                             <span class="font-medium">Norwegian Air Sports Federation</span>
-                                            <span class="text-blue-400 font-bold font-mono">€1703,-</span>
+                                            <span class="text-blue-400 font-bold font-mono">€1850,-</span>
                                         </li>
                                         <li class="flex justify-between items-start text-sm border-b border-white/5 pb-2 gap-4 text-right">
-                                            <span class="font-medium text-left">Spain REAL FEDERACION AERONAUTICA <span class="block text-[10px] text-slate-500 font-medium lowercase italic italic tracking-normal">(3 yr commitment)</span></span>
-                                            <span class="text-blue-400 font-bold font-mono">€1000,-</span>
+                                            <span class="font-medium text-left">Spain REAL FEDERACION AERONAUTICA <span class="block text-[10px] text-slate-500 font-medium lowercase italic italic tracking-normal">(Renewed commitment)</span></span>
+                                            <span class="text-blue-400 font-bold font-mono">€1200,-</span>
                                         </li>
                                         <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
                                             <span class="font-medium">KSAK Swedish Air Sports Federation</span>
-                                            <span class="text-blue-400 font-bold font-mono">€926,-</span>
+                                            <span class="text-blue-400 font-bold font-mono">€950,-</span>
                                         </li>
                                         <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
                                             <span class="font-medium">Airsports Denmark</span>
-                                            <span class="text-blue-400 font-bold font-mono">€426,-</span>
+                                            <span class="text-blue-400 font-bold font-mono">€450,-</span>
                                         </li>
                                         <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
                                             <span class="font-medium">Deutscher Aero Club E.V. Eu</span>

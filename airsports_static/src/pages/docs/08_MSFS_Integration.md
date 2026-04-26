@@ -56,6 +56,12 @@ Using the application is straightforward:
 *   **Session Persistence:** You must log in with your email and password every time the application starts; credentials are not currently remembered for security reasons.
 *   **SimConnect:** Ensure you are in the cockpit and the simulation is unpaused before clicking "Start Tracking" to ensure a stable SimConnect bridge.
 
+## 6. Join the Community
+
+Don't fly alone! Join hundreds of other virtual and real-world pilots to discuss tactics, find upcoming events, and get technical support in our official Slack workspace.
+
+*   **Slack (General Community):** [Join our Slack Workspace](https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg)
+
 ---
 
 *Ready to fly? Head back to the [Introduction](/docs/01_Introduction) to learn about the different competition types.*

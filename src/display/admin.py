@@ -23,6 +23,7 @@ from display.models import (
     EditableRoute,
     EmailMapLink,
     UserUploadedMap,
+    NewsletterSubscriber,
 )
 from solo.admin import SingletonModelAdmin
 
@@ -99,3 +100,9 @@ admin.site.register(Club)
 admin.site.register(EditableRoute, GuardedModelAdmin)
 admin.site.register(EmailMapLink)
 admin.site.register(UserUploadedMap, GuardedModelAdmin)
+
+class NewsletterSubscriberAdmin(admin.ModelAdmin):
+    list_display = ("email", "created_at", "is_active")
+    search_fields = ["email"]
+
+admin.site.register(NewsletterSubscriber, NewsletterSubscriberAdmin)
