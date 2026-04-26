@@ -21,7 +21,8 @@ spec:
       port: 80
     matches:
     - path:
-      value: /ws
+        type: PathPrefix
+        value: /ws
   - filters:
     - type: ExtensionRef
       extensionRef:

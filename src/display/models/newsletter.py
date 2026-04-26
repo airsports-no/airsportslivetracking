@@ -10,4 +10,4 @@ class NewsletterSubscriber(models.Model):
 
     class Meta:
         verbose_name = "Newsletter Subscriber"
-        verbose_name = "Newsletter Subscribers"
+        verbose_name_plural = "Newsletter Subscribers"

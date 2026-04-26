@@ -63,7 +63,7 @@ import msfsClientImg from '../assets/img/msfs_client.png';
                     </div>
                     <div class="w-px h-8 bg-white/10 hidden md:block"></div>
                     <div class="flex items-center gap-3 text-white/80 font-black text-xs uppercase tracking-widest italic">
-                        Official Partner of European National Air Sports Federations
+                        Norway • Spain • Sweden • Denmark • Germany
                     </div>
                 </div>
             </div>
@@ -249,7 +249,7 @@ import msfsClientImg from '../assets/img/msfs_client.png';
                     <ul class="space-y-4 font-bold text-slate-700 uppercase tracking-tight text-sm italic">
                         <li class="flex items-start gap-4">
                             <span class="text-orange-600">01</span>
-                            <span>Support for **Garmin GDL90** and OGN telemetry protocols.</span>
+                            <span>Support for <strong>Garmin GDL90</strong> and OGN telemetry protocols.</span>
                         </li>
                         <li class="flex items-start gap-4">
                             <span class="text-orange-600">02</span>
@@ -282,6 +282,35 @@ import msfsClientImg from '../assets/img/msfs_client.png';
             </div>
         </div>
 
+        <!-- Safety & Hardware Integration -->
+        <div class="py-32 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-32">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div class="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 relative overflow-hidden group">
+                    <div class="absolute -top-12 -right-12 w-48 h-48 bg-blue-500/5 rounded-full group-hover:scale-110 transition-transform duration-700"></div>
+                    <h3 class="text-3xl font-extrabold font-lexend italic uppercase mb-6 tracking-tight text-slate-900">Safety First</h3>
+                    <p class="text-slate-600 text-lg mb-8 font-medium leading-relaxed">
+                        We collaborate with <a href="https://www.safesky.app/" target="_blank" class="text-blue-600 font-bold hover:underline">SafeSky</a> to broadcast competing aircraft positions over their network. 
+                        This supports <strong>electronic conspicuity</strong>, significantly improving flying safety for both competitors and general aviation.
+                    </p>
+                    <div class="flex items-center gap-4 text-xs font-black uppercase tracking-widest text-blue-600 italic">
+                        <span class="w-2 h-2 bg-blue-600 rounded-full"></span> Electronic Visibility
+                    </div>
+                </div>
+
+                <div class="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 relative overflow-hidden group">
+                    <div class="absolute -top-12 -right-12 w-48 h-48 bg-orange-500/5 rounded-full group-hover:scale-110 transition-transform duration-700"></div>
+                    <h3 class="text-3xl font-extrabold font-lexend italic uppercase mb-6 tracking-tight text-slate-900">Hardware Integration</h3>
+                    <p class="text-slate-600 text-lg mb-8 font-medium leading-relaxed">
+                        Full support for <a href="https://www.flymaster.net/" target="_blank" class="text-orange-600 font-bold hover:underline">FlyMaster</a> flight trackers. 
+                        Bring your professional hardware and synchronize it directly with our live scoring and tracking engine.
+                    </p>
+                    <div class="flex items-center gap-4 text-xs font-black uppercase tracking-widest text-orange-600 italic">
+                        <span class="w-2 h-2 bg-orange-600 rounded-full"></span> Professional Trackers
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- MSFS Section -->
         <div class="py-32 bg-indigo-900 text-white overflow-hidden relative mb-32">
             <div class="absolute inset-0 opacity-10 pointer-events-none">
@@ -296,11 +325,14 @@ import msfsClientImg from '../assets/img/msfs_client.png';
                         <h2 class="text-4xl md:text-6xl font-extrabold mb-8 tracking-tighter font-lexend italic uppercase">MSFS 2020 & 2024 <br/> <span class="text-blue-400 text-3xl md:text-5xl">Live Integration</span></h2>
                         <p class="text-xl text-indigo-100 mb-10 leading-relaxed font-medium">
                             Can't fly the real thing yet? Compete virtually with our dedicated high-fidelity simulator client. 
-                            Join **400+ pilots** in our community for scored flights and tactics.
+                            Join <strong>400+ pilots</strong> in our community for scored flights and tactics in our official Slack workspace.
                         </p>
                         <div class="flex flex-wrap gap-6">
                             <a href="/docs/08_MSFS_Integration" class="bg-white text-indigo-900 px-10 py-4 rounded-2xl font-extrabold hover:bg-blue-50 transition-all shadow-xl active:scale-95 uppercase tracking-wider italic">
                                 Virtual Flight Guide
+                            </a>
+                            <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="bg-indigo-600/50 border border-indigo-400/40 text-white px-10 py-4 rounded-2xl font-extrabold hover:bg-indigo-600 transition-all active:scale-95 uppercase tracking-wider italic">
+                                Join Slack Community
                             </a>
                         </div>
                     </div>
@@ -351,63 +383,6 @@ import msfsClientImg from '../assets/img/msfs_client.png';
             </div>
         </div>
 
-        <script>
-            // ... previous scripts ...
-
-            // Newsletter subscription logic
-            const newsletterForm = document.getElementById('newsletter-form');
-            const newsletterEmail = document.getElementById('newsletter-email') as HTMLInputElement;
-            const newsletterMessage = document.getElementById('newsletter-message');
-            const newsletterSubmit = document.getElementById('newsletter-submit') as HTMLButtonElement;
-
-            if (newsletterForm && newsletterEmail && newsletterMessage && newsletterSubmit) {
-                newsletterForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    
-                    const email = newsletterEmail.value;
-                    newsletterSubmit.disabled = true;
-                    newsletterSubmit.textContent = 'Subscribing...';
-                    
-                    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-                        ? 'http://localhost:8002' 
-                        : 'https://airsports.no';
-
-                    try {
-                        const response = await fetch(`${API_BASE}/api/v1/newsletter/`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({ email })
-                        });
-
-                        newsletterMessage.classList.remove('hidden', 'text-green-400', 'text-red-400');
-                        
-                        if (response.ok) {
-                            newsletterMessage.textContent = 'Thanks for subscribing!';
-                            newsletterMessage.classList.add('text-green-400');
-                            newsletterEmail.value = '';
-                        } else {
-                            const data = await response.json();
-                            if (data.email && data.email[0].includes('already exists')) {
-                                newsletterMessage.textContent = 'You are already subscribed!';
-                            } else {
-                                newsletterMessage.textContent = 'Something went wrong. Please try again.';
-                            }
-                            newsletterMessage.classList.add('text-red-400');
-                        }
-                    } catch (err) {
-                        newsletterMessage.textContent = 'Network error. Please try again later.';
-                        newsletterMessage.classList.add('text-red-400');
-                    } finally {
-                        newsletterSubmit.disabled = false;
-                        newsletterSubmit.textContent = 'Subscribe';
-                    }
-                });
-            }
-        </script>
-
         <!-- Vision Section -->
         <div class="py-32 bg-white relative overflow-hidden">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -449,46 +424,32 @@ import msfsClientImg from '../assets/img/msfs_client.png';
                                 <span class="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
                                 Donations & Sponsors
                             </h4>
-                    <!-- Donor List Card -->
-                        <div class="space-y-8">
-                            <div>
-                                <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Competition Year 2024</h5>
-                                <ul class="space-y-3">
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-                                        <span class="font-medium">Norwegian Air Sports Federation</span>
-                                        <span class="text-blue-400 font-bold font-mono">€1703,-</span>
-                                    </li>
-                                    <li class="flex justify-between items-start text-sm border-b border-white/5 pb-2 gap-4 text-right">
-                                        <span class="font-medium text-left">Spain REAL FEDERACION AERONAUTICA <span class="block text-[10px] text-slate-500 font-medium lowercase italic italic tracking-normal">(3 yr commitment)</span></span>
-                                        <span class="text-blue-400 font-bold font-mono">€1000,-</span>
-                                    </li>
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-                                        <span class="font-medium">KSAK Swedish Air Sports Federation</span>
-                                        <span class="text-blue-400 font-bold font-mono">€926,-</span>
-                                    </li>
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-                                        <span class="font-medium">Airsports Denmark</span>
-                                        <span class="text-blue-400 font-bold font-mono">€426,-</span>
-                                    </li>
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-                                        <span class="font-medium">Deutscher Aero Club E.V. Eu</span>
-                                        <span class="text-blue-400 font-bold font-mono">€1000,-</span>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Sponsors 2023</h5>
-                                <ul class="space-y-3">
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2 italic">
-                                        <span class="font-medium">Spain REAL FEDERACION AERONAUTICA</span>
-                                        <span class="text-orange-400 font-bold font-mono">€580,-</span>
-                                    </li>
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2 italic">
-                                        <span class="font-medium">Norwegian Air Sports Federation</span>
-                                        <span class="text-orange-400 font-bold font-mono">€3851,-</span>
-                                    </li>
-                                </ul>
-                            </div>
+                            <div class="space-y-8">
+                                <div>
+                                    <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Competition Year 2025</h5>
+                                    <ul class="space-y-3">
+                                        <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+                                            <span class="font-medium">Norwegian Air Sports Federation</span>
+                                            <span class="text-blue-400 font-bold font-mono">€1850,-</span>
+                                        </li>
+                                        <li class="flex justify-between items-start text-sm border-b border-white/5 pb-2 gap-4 text-right">
+                                            <span class="font-medium text-left">Spain REAL FEDERACION AERONAUTICA <span class="block text-[10px] text-slate-500 font-medium lowercase italic italic tracking-normal">(Renewed commitment)</span></span>
+                                            <span class="text-blue-400 font-bold font-mono">€1200,-</span>
+                                        </li>
+                                        <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+                                            <span class="font-medium">KSAK Swedish Air Sports Federation</span>
+                                            <span class="text-blue-400 font-bold font-mono">€950,-</span>
+                                        </li>
+                                        <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+                                            <span class="font-medium">Airsports Denmark</span>
+                                            <span class="text-blue-400 font-bold font-mono">€450,-</span>
+                                        </li>
+                                        <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+                                            <span class="font-medium">Deutscher Aero Club E.V. Eu</span>
+                                            <span class="text-blue-400 font-bold font-mono">€1000,-</span>
+                                        </li>
+                                    </ul>
+                                </div>
                                 <div class="mt-8">
                                     <a href="/support" class="text-blue-400 font-bold text-xs uppercase tracking-widest hover:text-white transition-colors">Support the Project →</a>
                                 </div>
@@ -555,6 +516,59 @@ import msfsClientImg from '../assets/img/msfs_client.png';
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') closeLightbox();
             });
+
+            // Newsletter subscription logic
+            const newsletterForm = document.getElementById('newsletter-form');
+            const newsletterEmail = document.getElementById('newsletter-email') as HTMLInputElement;
+            const newsletterMessage = document.getElementById('newsletter-message');
+            const newsletterSubmit = document.getElementById('newsletter-submit') as HTMLButtonElement;
+
+            if (newsletterForm && newsletterEmail && newsletterMessage && newsletterSubmit) {
+                newsletterForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const email = newsletterEmail.value;
+                    newsletterSubmit.disabled = true;
+                    newsletterSubmit.textContent = 'Subscribing...';
+                    
+                    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                        ? 'http://localhost:8002' 
+                        : 'https://airsports.no';
+
+                    try {
+                        const response = await fetch(`${API_BASE}/api/v1/newsletter/`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ email })
+                        });
+
+                        newsletterMessage.classList.remove('hidden', 'text-green-400', 'text-red-400');
+                        
+                        if (response.ok) {
+                            newsletterMessage.textContent = 'Thanks for subscribing!';
+                            newsletterMessage.classList.add('text-green-400');
+                            newsletterEmail.value = '';
+                        } else {
+                            const data = await response.json();
+                            if (data.email && data.email[0].includes('already exists')) {
+                                newsletterMessage.textContent = 'You are already subscribed!';
+                            } else {
+                                newsletterMessage.textContent = 'Something went wrong. Please try again.';
+                            }
+                            newsletterMessage.classList.add('text-red-400');
+                        }
+                    } catch (err) {
+                        newsletterMessage.textContent = 'Network error. Please try again later.';
+                        newsletterMessage.classList.add('text-red-400');
+                    } finally {
+                        newsletterSubmit.disabled = false;
+                        newsletterSubmit.textContent = 'Subscribe';
+                    }
+                });
+            }
         </script>
 	</main>
 </Layout>
