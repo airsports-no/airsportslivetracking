@@ -1,0 +1,50 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Support the Project">
+	<main class="pt-20 pb-32">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h1 class="text-4xl md:text-6xl font-extrabold text-slate-900 font-lexend italic mb-8 uppercase">Support & Funding</h1>
+            <p class="text-xl text-slate-600 leading-relaxed font-medium mb-12">
+                Air Sports Live Tracking is a community-driven, non-profit project. Our primary server is provided free of charge at 
+                <a href="https://airsports.no" class="text-blue-600 font-bold underline decoration-blue-600/30">airsports.no</a>. 
+                Your contributions help us maintain high-performance server capacity and develop new features for the global aviation community.
+            </p>
+
+            <div class="grid grid-cols-1 gap-12">
+                <!-- Bank Details Card -->
+                <div class="bg-white p-12 rounded-[3rem] shadow-3xl border border-slate-200">
+                    <h4 class="font-bold text-xs mb-8 flex items-center gap-3 text-slate-400 uppercase tracking-[0.3em] font-lexend italic">
+                        <span class="w-3 h-3 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.4)]"></span>
+                        Direct Bank Transfer
+                    </h4>
+                    <div class="space-y-6 text-slate-700 font-bold font-mono text-sm tracking-tighter">
+                        <div class="flex justify-between border-b border-slate-50 pb-4">
+                            <span class="text-slate-400 font-lexend uppercase italic text-[10px] tracking-widest">IBAN</span>
+                            <span>NO84 1506 4113 078</span>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-50 pb-4">
+                            <span class="text-slate-400 font-lexend uppercase italic text-[10px] tracking-widest">BIC</span>
+                            <span>DNBANOKKXXX</span>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <span class="text-slate-400 font-lexend uppercase italic text-[10px] tracking-widest">BANK</span>
+                            <span class="text-right uppercase">DNB BANK ASA, TONSBERG</span>
+                        </div>
+                    </div>
+                    <div class="mt-10 p-6 bg-orange-50 rounded-2xl border border-orange-100">
+                        <p class="text-[10px] uppercase font-bold tracking-widest text-orange-700 mb-2 italic">Important Note</p>
+                        <p class="text-xs text-orange-800 leading-relaxed font-medium italic">
+                            Please specify the donor name and if you wish to remain anonymous. All donations are published on the home page as a token of our gratitude.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-20 text-center">
+                <a href="/" class="btn btn-ghost">← Back to Home</a>
+            </div>
+        </div>
+    </main>
+</Layout>

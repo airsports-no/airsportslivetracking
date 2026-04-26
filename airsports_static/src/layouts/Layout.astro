@@ -45,6 +45,7 @@ const { title } = Astro.props;
                         <a href="/docs/01_Introduction" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Guides</a>
                         <a href="/faq" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">FAQ</a>
                         <a href="/developers" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Developers</a>
+                        <a href="/support" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Support</a>
                     </div>
                     <div class="flex items-center gap-4">
                         <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="text-slate-400 hover:text-slate-600 hidden sm:block transition-colors" title="Join our Slack">
@@ -104,6 +105,21 @@ const { title } = Astro.props;
                 </div>
             </div>
         </footer>
+        <script>
+            // Synchronize with API_BASE logic used in LiveTicker and TodaysFlights
+            const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                ? 'http://localhost:8002' 
+                : 'https://airsports.no';
+
+            // Automatically redirect all platform links to the correct API_BASE (local or prod)
+            document.querySelectorAll('a[href^="https://airsports.no"]').forEach(link => {
+                const linkElement = link as HTMLAnchorElement;
+                const href = linkElement.getAttribute('href');
+                if (href) {
+                    linkElement.href = href.replace('https://airsports.no', API_BASE);
+                }
+            });
+        </script>
 	</body>
 </html>
 

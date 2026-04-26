@@ -3,28 +3,41 @@ import { TrackPosition } from '../types';
 
 export function usePlayback(
     mode: 'realtime' | 'playback',
-    positionsByContestant: Record<number, TrackPosition[]>
+    positionsByContestant: Record<number, TrackPosition[]>,
+    initialTime?: Date | null,
+    initialSpeed?: number,
+    initialIsPlaying?: boolean
 ) {
-    const [playbackSpeed, setPlaybackSpeed] = useState(1);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [playbackTime, setPlaybackTime] = useState<Date>(new Date());
+    const [playbackSpeed, setPlaybackSpeed] = useState(initialSpeed ?? 1);
+    const [isPlaying, setIsPlaying] = useState(initialIsPlaying ?? false);
+    const [playbackTime, setPlaybackTime] = useState<Date>(initialTime ?? new Date());
     const [playbackTimeInfo, setPlaybackTimeInfo] = useState<{start: Date, end: Date} | null>(null);
     const playbackTimerRef = useRef<number | null>(null);
+    const hasInitializedRef = useRef(false);
 
     // Playback mode setup
     useEffect(() => {
-        if (mode === 'playback') {
-            setIsPlaying(false);
-            
+        if (mode === 'playback' && !hasInitializedRef.current) {
             const allPositions = Object.values(positionsByContestant).flat();
             if (allPositions.length > 0) {
                 const start = new Date(Math.min(...allPositions.map(p => new Date(p.time).getTime())));
                 const end = new Date(Math.max(...allPositions.map(p => new Date(p.time).getTime())));
                 setPlaybackTimeInfo({start, end});
-                setPlaybackTime(start);
+                
+                if (!initialTime) {
+                    setPlaybackTime(start);
+                } else {
+                    setPlaybackTime(initialTime);
+                }
+                
+                if (initialIsPlaying !== undefined) {
+                    setIsPlaying(initialIsPlaying);
+                }
+                
+                hasInitializedRef.current = true;
             }
         }
-    }, [mode, positionsByContestant]);
+    }, [mode, positionsByContestant, initialTime, initialIsPlaying]);
 
     // Playback timer
     useEffect(() => {

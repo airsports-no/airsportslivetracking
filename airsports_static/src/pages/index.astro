@@ -7,6 +7,11 @@ import routeEditor from '../assets/img/route_editor.png';
 import task from '../assets/img/task.png';
 import logoNoTextWhite from '../assets/img/airsports_no_text_white.png';
 import TodaysFlights from '../components/TodaysFlights.astro';
+
+// Competition Graphics
+import precisionImg from '../assets/img/Precision.png';
+import anrImg from '../assets/img/ANR.png';
+import challengeImg from '../assets/img/AirSportsChallenge.png';
 ---
 
 <Layout title="Home">
@@ -24,72 +29,138 @@ import TodaysFlights from '../components/TodaysFlights.astro';
                     Open Source & Community Driven
                 </div>
                 <h1 class="text-4xl sm:text-6xl md:text-8xl font-extrabold tracking-tighter mb-8 font-lexend italic text-shadow-lg uppercase leading-tight">
-                    The sky is your <br/>
-                    <span class="text-blue-200">playground</span>
+                    Fly the perfect <br/>
+                    <span class="text-blue-200">second</span>
                 </h1>
                 <p class="text-lg sm:text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto mb-14 leading-relaxed font-medium">
-                    The professional platform for <span class="text-white border-b-2 border-blue-400/50 pb-1">Precision Flying</span>, <span class="text-white border-b-2 border-orange-400/50 pb-1">ANR</span>, and <span class="text-white border-b-2 border-indigo-400/50 pb-1">Air Sports Challenge</span>. 
-                    Providing real-time visualization and automated scoring for the next generation of competitive aviation.
+                    Fly 120km. Hit every waypoint within 2 seconds. Stick-and-rudder only — no GPS. 
+                    <span class="text-white">This is precision flying, and this is how we score it in real time.</span>
                 </p>
                 <div class="flex flex-wrap justify-center gap-6">
-                    <a href="https://airsports.no" class="bg-white text-blue-600 px-12 py-5 rounded-2xl font-extrabold text-lg hover:bg-blue-50 transition-all shadow-2xl shadow-blue-900/40 active:scale-95 uppercase tracking-wider">
-                        Airsports Dashboard
+                    <a href="https://airsports.no/competition-map/774/2734?mode=playback&time=2025-07-06T11:45:50&speed=40&autoplay=true" class="bg-orange-500 text-white px-12 py-5 rounded-2xl font-extrabold text-lg hover:bg-orange-600 transition-all shadow-2xl shadow-orange-900/40 active:scale-95 uppercase tracking-wider border-b-4 border-orange-700">
+                        Watch a Competition Replay →
                     </a>
-                    <a href="/docs/01_Introduction" class="bg-blue-500/40 backdrop-blur-md border border-blue-400/40 text-white px-12 py-5 rounded-2xl font-extrabold text-lg hover:bg-blue-500/60 transition-all active:scale-95 uppercase tracking-wider">
-                        Documentation
+                    <a href="https://airsports.no" class="bg-white/10 backdrop-blur-md border border-white/20 text-white px-12 py-5 rounded-2xl font-extrabold text-lg hover:bg-white/20 transition-all active:scale-95 uppercase tracking-wider">
+                        Airsports Dashboard
                     </a>
                 </div>
             </div>
         </div>
 
-        <!-- Role-Based Navigation & Precision Highlights -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 relative z-20">
-            <!-- Precision Highlights Bar -->
-            <div class="flex flex-wrap justify-center items-center gap-x-12 gap-y-8 mb-16 px-6 py-8 bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-2xl">
-                <div class="flex items-center gap-4 group">
-                    <div class="w-12 h-12 bg-blue-500/20 text-blue-300 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform border border-blue-500/20 shadow-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+        <!-- Credibility Bar -->
+        <div class="bg-slate-900 border-y border-white/5 py-8 relative z-30">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex flex-wrap justify-center md:justify-between items-center gap-8 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-500">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl font-black text-white font-lexend italic uppercase tracking-tighter">5+</span>
+                        <span class="text-[10px] font-bold text-blue-200 uppercase tracking-[0.2em] leading-tight">National <br/> Federations</span>
                     </div>
-                    <div>
-                        <div class="text-white font-bold text-sm tracking-widest uppercase font-lexend italic">Precision Timing</div>
-                        <div class="text-blue-200/50 text-[10px] uppercase font-bold tracking-widest mt-0.5">Surgical Accuracy</div>
+                    <div class="w-px h-8 bg-white/10 hidden md:block"></div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl font-black text-white font-lexend italic uppercase tracking-tighter">1000s</span>
+                        <span class="text-[10px] font-bold text-blue-200 uppercase tracking-[0.2em] leading-tight">Flights <br/> Tracked</span>
                     </div>
-                </div>
-
-                <div class="w-px h-8 bg-white/10 hidden md:block"></div>
-
-                <div class="flex items-center gap-4 group">
-                    <div class="w-12 h-12 bg-orange-500/20 text-orange-300 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform border border-orange-500/20 shadow-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A2 2 0 013 15.488V5.111a2 2 0 011.106-1.789l5.447-2.724a2 2 0 011.894 0l5.447 2.724A2 2 0 0118 5.111v10.377a2 2 0 01-1.106 1.789L11.447 19.829a2 2 0 01-1.894 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 1.5v18.5" />
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="text-white font-bold text-sm tracking-widest uppercase font-lexend italic">Corridor Discipline</div>
-                        <div class="text-blue-200/50 text-[10px] uppercase font-bold tracking-widest mt-0.5">Hold the Line</div>
-                    </div>
-                </div>
-
-                <div class="w-px h-8 bg-white/10 hidden md:block"></div>
-
-                <div class="flex items-center gap-4 group">
-                    <div class="w-12 h-12 bg-red-500/20 text-red-300 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform border border-red-500/20 shadow-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="text-white font-bold text-sm tracking-widest uppercase font-lexend italic">Tactical Navigation</div>
-                        <div class="text-blue-200/50 text-[10px] uppercase font-bold tracking-widest mt-0.5">Evade Penalties</div>
+                    <div class="w-px h-8 bg-white/10 hidden md:block"></div>
+                    <div class="flex items-center gap-3 text-white/80 font-black text-xs uppercase tracking-widest italic">
+                        Norway • Spain • Sweden • Denmark • Germany
                     </div>
                 </div>
             </div>
+        </div>
 
+        <!-- Today's Flights Section (Experience it now) -->
+        <div class="relative z-20">
+            <TodaysFlights />
+        </div>
+
+        <!-- The Sports Section -->
+        <div class="py-32 bg-slate-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-20">
+                    <h2 class="text-4xl md:text-5xl font-extrabold text-slate-900 font-lexend italic mb-6 uppercase tracking-tight">The Sports</h2>
+                    <p class="text-slate-600 text-xl max-w-2xl mx-auto font-medium">From professional world championships to weekend fly-ins, we provide the tools to compete.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Precision Flying -->
+                    <div class="bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-slate-200 group hover:border-blue-500/50 transition-all">
+                        <div class="h-48 overflow-hidden relative">
+                            <Image src={precisionImg} alt="Precision Flying" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent"></div>
+                            <div class="absolute bottom-6 left-8">
+                                <h4 class="text-white font-bold text-xl font-lexend italic uppercase">Precision Flying</h4>
+                            </div>
+                        </div>
+                        <div class="p-8">
+                            <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                                The "Formula 1" of navigation. Pilots fly solo, hitting hidden checkpoints down to the exact second using only a paper map and a stopwatch.
+                            </p>
+                            <ul class="space-y-3 mb-8">
+                                <li class="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-blue-600 italic">
+                                    <span class="w-1.5 h-1.5 bg-blue-600 rounded-full"></span> 1-Second Timing Window
+                                </li>
+                                <li class="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-blue-600 italic">
+                                    <span class="w-1.5 h-1.5 bg-blue-600 rounded-full"></span> Ground Observation
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- ANR -->
+                    <div class="bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-slate-200 group hover:border-orange-500/50 transition-all">
+                        <div class="h-48 overflow-hidden relative">
+                            <Image src={anrImg} alt="ANR" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent"></div>
+                            <div class="absolute bottom-6 left-8">
+                                <h4 class="text-white font-bold text-xl font-lexend italic uppercase">Air Navigation Race</h4>
+                            </div>
+                        </div>
+                        <div class="p-8">
+                            <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                                Modern, fast, and visual. Two-person crews fight to stay inside a narrow corridor. Straying outside triggers immediate penalties.
+                            </p>
+                            <ul class="space-y-3 mb-8">
+                                <li class="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-orange-600 italic">
+                                    <span class="w-1.5 h-1.5 bg-orange-600 rounded-full"></span> Corridor Discipline
+                                </li>
+                                <li class="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-orange-600 italic">
+                                    <span class="w-1.5 h-1.5 bg-orange-600 rounded-full"></span> Knock-out Brackets
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Air Sports Challenge -->
+                    <div class="bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-slate-200 group hover:border-indigo-500/50 transition-all">
+                        <div class="h-48 overflow-hidden relative">
+                            <Image src={challengeImg} alt="Air Sports Challenge" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent"></div>
+                            <div class="absolute bottom-6 left-8">
+                                <h4 class="text-white font-bold text-xl font-lexend italic uppercase">Air Sports Challenge</h4>
+                            </div>
+                        </div>
+                        <div class="p-8">
+                            <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                                The ultimate test. Combines Precision timing with the ANR corridor, adding dynamic prohibited zones and tactical obstacles.
+                            </p>
+                            <ul class="space-y-3 mb-8">
+                                <li class="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-indigo-600 italic">
+                                    <span class="w-1.5 h-1.5 bg-indigo-600 rounded-full"></span> Tactical Obstacles
+                                </li>
+                                <li class="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-indigo-600 italic">
+                                    <span class="w-1.5 h-1.5 bg-indigo-600 rounded-full"></span> Hybrid Scoring
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Role-Based CTA Grid -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-32">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <a href="/docs/02_Contestant_Guide" class="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 group hover:border-blue-200 transition-all">
+                <a href="https://airsports.no" class="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 group hover:border-blue-200 transition-all">
                     <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mb-10 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -97,14 +168,14 @@ import TodaysFlights from '../components/TodaysFlights.astro';
                     </div>
                     <h3 class="text-2xl font-bold mb-4 text-slate-900 font-lexend italic">FOR PILOTS</h3>
                     <p class="text-slate-500 leading-relaxed mb-8 text-sm">
-                        Register for events, manage your team, and track your flights using only your smartphone.
+                        Find upcoming contests, register your crew, and track your precision flights live.
                     </p>
                     <span class="text-blue-600 font-bold flex items-center gap-2 text-xs uppercase tracking-widest">
-                        Get Started <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" /></svg>
+                        Go to Dashboard <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" /></svg>
                     </span>
                 </a>
                 
-                <a href="/docs/03_Contest_Manager_Guide" class="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 group hover:border-orange-200 transition-all">
+                <a href="https://airsports.no/upgrade-organizer" class="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 group hover:border-orange-200 transition-all">
                     <div class="w-16 h-16 bg-orange-50 text-orange-600 rounded-3xl flex items-center justify-center mb-10 group-hover:bg-orange-600 group-hover:text-white transition-all shadow-inner">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -112,14 +183,14 @@ import TodaysFlights from '../components/TodaysFlights.astro';
                     </div>
                     <h3 class="text-2xl font-bold mb-4 text-slate-900 font-lexend italic">FOR ORGANIZERS</h3>
                     <p class="text-slate-500 leading-relaxed mb-8 text-sm">
-                        Establish contests, design routes, and manage logistics with our linear programming optimizer.
+                        Create your own contest and design custom routes with our precision editor.
                     </p>
                     <span class="text-orange-600 font-bold flex items-center gap-2 text-xs uppercase tracking-widest">
-                        Manage Events <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" /></svg>
+                        Become Organizer <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" /></svg>
                     </span>
                 </a>
 
-                <a href="/docs/05_Results_Service_Guide" class="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 group hover:border-indigo-200 transition-all">
+                <a href="https://airsports.no/competition-map/774/2734?mode=playback&time=2025-07-06T11:45:50&speed=40&autoplay=true" class="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 group hover:border-indigo-200 transition-all">
                     <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mb-10 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -127,26 +198,23 @@ import TodaysFlights from '../components/TodaysFlights.astro';
                     </div>
                     <h3 class="text-2xl font-bold mb-4 text-slate-900 font-lexend italic">FOR SPECTATORS</h3>
                     <p class="text-slate-500 leading-relaxed mb-8 text-sm">
-                        Follow live clubhouse leaderboards and track every turn with synchronized WebSocket updates.
+                        Experience a real competition with our interactive playback and scoring.
                     </p>
                     <span class="text-indigo-600 font-bold flex items-center gap-2 text-xs uppercase tracking-widest">
-                        View Results <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" /></svg>
+                        Watch Action <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" /></svg>
                     </span>
                 </a>
             </div>
         </div>
 
-        <!-- Today's Flights Section -->
-        <TodaysFlights />
-
         <!-- Platform in Action -->
-        <div id="platform-in-action" class="py-32 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div id="platform-in-action" class="py-32 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-white rounded-[4rem] shadow-sm mb-32">
             <div class="text-center mb-20">
                 <h2 class="text-4xl md:text-5xl font-extrabold text-slate-900 font-lexend italic mb-6 uppercase tracking-tight">The Platform in Action</h2>
                 <div class="w-24 h-1 bg-blue-600 mx-auto rounded-full"></div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32 px-8">
                 <div class="order-2 lg:order-1">
                     <h3 class="text-3xl font-bold mb-6 font-lexend italic text-slate-800 uppercase">Operational Dashboard</h3>
                     <p class="text-lg text-slate-600 mb-8 leading-relaxed font-medium">
@@ -168,7 +236,7 @@ import TodaysFlights from '../components/TodaysFlights.astro';
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center px-8">
                 <div class="bg-slate-100 p-4 rounded-[3rem] shadow-3xl transform -rotate-1 hover:rotate-0 transition-all duration-500 overflow-hidden border border-slate-200 hover:scale-[1.03] cursor-zoom-in group/img">
                     <Image src={routeEditor} alt="ASLT Route Editor" class="rounded-[2rem] shadow-inner w-full h-auto lightbox-trigger" width={1000} height={600} data-full-src={routeEditor.src} />
                 </div>
@@ -189,26 +257,58 @@ import TodaysFlights from '../components/TodaysFlights.astro';
                     </ul>
                 </div>
             </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32">
-                <div class="order-2 lg:order-1">
-                    <h3 class="text-3xl font-bold mb-6 font-lexend italic text-slate-800 uppercase">Live Competition Map</h3>
-                    <p class="text-lg text-slate-600 mb-8 leading-relaxed font-medium">
-                        Experience the thrill of the race as it happens. Our live competition map provides spectators and organizers with a real-time view of every contestant, complete with trail breadcrumbs and instant penalty notifications.
-                    </p>
-                    <ul class="space-y-4 font-bold text-slate-700 uppercase tracking-tight text-sm italic">
-                        <li class="flex items-start gap-4">
-                            <span class="text-indigo-600">01</span>
-                            <span>High-fidelity tracking with low-latency WebSocket updates.</span>
-                        </li>
-                        <li class="flex items-start gap-4">
-                            <span class="text-indigo-600">02</span>
-                            <span>Visual confirmation of gate crossings and corridor compliance.</span>
-                        </li>
-                    </ul>
+        </div>
+
+        <!-- MSFS Section -->
+        <div class="py-32 bg-indigo-900 text-white overflow-hidden relative mb-32">
+            <div class="absolute inset-0 opacity-10 pointer-events-none">
+                <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <path d="M0 100 L100 0 L100 100 Z" fill="currentColor" />
+                </svg>
+            </div>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+                    <div>
+                        <div class="inline-block px-4 py-1 mb-6 text-[10px] font-black tracking-widest uppercase bg-blue-500 rounded-full italic">Virtual Competition</div>
+                        <h2 class="text-4xl md:text-6xl font-extrabold mb-8 tracking-tighter font-lexend italic uppercase">MSFS 2020 & 2024 <br/> <span class="text-blue-400 text-3xl md:text-5xl">Live Integration</span></h2>
+                        <p class="text-xl text-indigo-100 mb-10 leading-relaxed font-medium">
+                            Can't fly the real thing yet? Compete virtually with our dedicated high-fidelity simulator client. 
+                            Experience the same precision scoring and real-time tracks used in world championships.
+                        </p>
+                        <div class="flex flex-wrap gap-6">
+                            <a href="/docs/08_MSFS_Integration" class="bg-white text-indigo-900 px-10 py-4 rounded-2xl font-extrabold hover:bg-blue-50 transition-all shadow-xl active:scale-95 uppercase tracking-wider italic">
+                                Virtual Flight Guide
+                            </a>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div class="bg-slate-800/50 backdrop-blur-md p-4 rounded-[3rem] border border-white/10 shadow-2xl rotate-2">
+                             <div class="bg-gradient-to-tr from-blue-600 to-indigo-800 rounded-[2rem] aspect-video flex flex-col justify-center items-center text-center p-12">
+                                <div class="opacity-20 mb-6">
+                                    <Image src={logoNoTextWhite} alt="ASLT Logo" width={100} height={100} />
+                                </div>
+                                <h4 class="text-2xl font-bold font-lexend italic uppercase mb-4 tracking-tight">Sim-to-Cloud Bridge</h4>
+                                <p class="text-blue-100 text-sm font-medium">Synchronize your MSFS telemetry directly to our scoring engine with zero lag.</p>
+                             </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="order-1 lg:order-2 bg-slate-100 p-4 rounded-[3rem] shadow-3xl transform rotate-1 hover:rotate-0 transition-all duration-500 overflow-hidden border border-slate-200 hover:scale-[1.03] cursor-zoom-in group/img">
-                    <Image src={task} alt="ASLT Live Competition Map" class="rounded-[2rem] shadow-inner w-full h-auto lightbox-trigger" width={1000} height={600} data-full-src={task.src} />
-                </div>
+            </div>
+        </div>
+
+        <!-- Video Tutorials CTA -->
+        <div class="py-24 bg-slate-900 text-white relative overflow-hidden mb-32">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+                <h2 class="text-4xl font-extrabold mb-6 font-lexend italic uppercase tracking-tight">Master the platform</h2>
+                <p class="text-xl text-slate-400 mb-10 max-w-2xl mx-auto font-medium">
+                    Watch our step-by-step video tutorials to get started with competition management and registration.
+                </p>
+                <a href="/tutorials" class="inline-flex items-center gap-3 bg-white text-slate-900 px-10 py-4 rounded-2xl font-extrabold hover:bg-slate-100 transition-all shadow-xl active:scale-95 uppercase tracking-wider">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                    Watch Tutorials
+                </a>
             </div>
         </div>
 
@@ -217,7 +317,7 @@ import TodaysFlights from '../components/TodaysFlights.astro';
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
                     <div>
-                        <h2 class="text-4xl font-extrabold mb-8 tracking-tight text-slate-900 font-lexend italic uppercase">Professional Grade. <br/> <span class="text-blue-600">Open Source Heart.</span></h2>
+                        <h2 class="text-4xl font-extrabold mb-8 tracking-tight text-slate-900 font-lexend italic uppercase text-shadow-sm">Professional Grade. <br/> <span class="text-blue-600">Open Source Heart.</span></h2>
                         <p class="text-lg text-slate-600 mb-10 leading-relaxed font-medium">
                             ASLT was born from a desire to make air sports more transparent and interactive. Traditional scoring often relies on manual logs and post-flight processing. We changed that.
                         </p>
@@ -247,126 +347,41 @@ import TodaysFlights from '../components/TodaysFlights.astro';
                         </div>
                     </div>
                     <div class="relative">
-                        <div class="bg-gradient-to-tr from-blue-600 to-indigo-800 rounded-[4rem] aspect-square shadow-3xl transform rotate-2 relative overflow-hidden border-8 border-white">
-                            <div class="absolute inset-0 flex items-center justify-center opacity-10 transform -rotate-2 scale-150">
-                                <Image src={logoNoTextWhite} alt="Watermark" class="w-full h-auto" width={600} height={600} />
-                            </div>
-                            <div class="absolute inset-12 flex flex-col justify-end text-white transform -rotate-2">
-                                <p class="text-4xl font-extrabold leading-tight mb-6 font-lexend italic uppercase tracking-tighter">Supporting MSFS 2020 & 2024</p>
-                                <p class="text-blue-100 text-lg font-medium">Compete in virtual tasks using our dedicated high-fidelity simulator client.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Video Tutorials CTA -->
-        <div class="py-24 bg-indigo-900 text-white relative overflow-hidden">
-            <div class="absolute inset-0 opacity-10">
-                <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                    <path d="M0 100 L100 0 L100 100 Z" fill="currentColor" />
-                </svg>
-            </div>
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-                <h2 class="text-4xl font-extrabold mb-6 font-lexend italic uppercase tracking-tight">New to the platform?</h2>
-                <p class="text-xl text-indigo-100 mb-10 max-w-2xl mx-auto font-medium">
-                    Watch our step-by-step video tutorials to get started with competition management and registration.
-                </p>
-                <a href="/tutorials" class="inline-flex items-center gap-3 bg-white text-indigo-900 px-10 py-4 rounded-2xl font-extrabold hover:bg-indigo-50 transition-all shadow-xl active:scale-95 uppercase tracking-wider">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                    </svg>
-                    Watch Video Tutorials
-                </a>
-            </div>
-        </div>
-
-        <!-- Funding Section -->
-        <div class="bg-slate-50 border-y border-slate-200 py-32 relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply opacity-20 filter blur-3xl -mr-48 -mt-48"></div>
-            <div class="max-w-7xl mx-auto px-4 relative z-10">
-                <div class="text-center mb-16">
-                    <h2 class="text-4xl md:text-5xl font-extrabold text-slate-900 mb-8 font-lexend italic uppercase tracking-tight">Support & Funding</h2>
-                    <p class="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-medium mb-12">
-                        Our primary server is up and running at <a href="https://airsports.no" class="text-blue-600 font-bold underline decoration-blue-600/30">airsports.no</a> free of charge. 
-                        We rely on community contributions to maintain high-performance capacity.
-                    </p>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-                    <!-- Bank Details Card -->
-                    <div class="bg-white p-12 rounded-[3rem] shadow-3xl border border-slate-200">
-                        <h4 class="font-bold text-xs mb-8 flex items-center gap-3 text-slate-400 uppercase tracking-[0.3em] font-lexend italic">
-                            <span class="w-3 h-3 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.4)]"></span>
-                            Payment Information
-                        </h4>
-                        <div class="space-y-6 text-slate-700 font-bold font-mono text-sm tracking-tighter">
-                            <div class="flex justify-between border-b border-slate-50 pb-4">
-                                <span class="text-slate-400 font-lexend uppercase italic text-[10px] tracking-widest">IBAN</span>
-                                <span>NO84 1506 4113 078</span>
-                            </div>
-                            <div class="flex justify-between border-b border-slate-50 pb-4">
-                                <span class="text-slate-400 font-lexend uppercase italic text-[10px] tracking-widest">BIC</span>
-                                <span>DNBANOKKXXX</span>
-                            </div>
-                            <div class="flex flex-col gap-2">
-                                <span class="text-slate-400 font-lexend uppercase italic text-[10px] tracking-widest">BANK</span>
-                                <span class="text-right uppercase">DNB BANK ASA, TONSBERG</span>
-                            </div>
-                        </div>
-                        <div class="mt-10 p-6 bg-orange-50 rounded-2xl border border-orange-100">
-                            <p class="text-[10px] uppercase font-bold tracking-widest text-orange-700 mb-2 italic">Important</p>
-                            <p class="text-xs text-orange-800 leading-relaxed font-medium italic italic">
-                                "Please write who the donor is and whether you would like to remain anonymous. All donations will be published on this page."
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Donor List Card -->
-                    <div class="bg-[#0F172A] p-12 rounded-[3rem] shadow-3xl text-white">
-                        <h4 class="font-bold text-xs mb-8 flex items-center gap-3 text-blue-400 uppercase tracking-[0.3em] font-lexend italic">
-                            <span class="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
-                            Donations & Sponsors
-                        </h4>
-                        <div class="space-y-8">
-                            <div>
-                                <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Competition Year 2024</h5>
-                                <ul class="space-y-3">
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-                                        <span class="font-medium">Norwegian Air Sports Federation</span>
-                                        <span class="text-blue-400 font-bold font-mono">€1703,-</span>
-                                    </li>
-                                    <li class="flex justify-between items-start text-sm border-b border-white/5 pb-2 gap-4 text-right">
-                                        <span class="font-medium text-left">Spain REAL FEDERACION AERONAUTICA <span class="block text-[10px] text-slate-500 font-medium lowercase italic italic tracking-normal">(3 yr commitment)</span></span>
-                                        <span class="text-blue-400 font-bold font-mono">€1000,-</span>
-                                    </li>
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-                                        <span class="font-medium">KSAK Swedish Air Sports Federation</span>
-                                        <span class="text-blue-400 font-bold font-mono">€926,-</span>
-                                    </li>
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-                                        <span class="font-medium">Airsports Denmark</span>
-                                        <span class="text-blue-400 font-bold font-mono">€426,-</span>
-                                    </li>
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
-                                        <span class="font-medium">Deutscher Aero Club E.V. Eu</span>
-                                        <span class="text-blue-400 font-bold font-mono">€1000,-</span>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Sponsors 2023</h5>
-                                <ul class="space-y-3">
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2 italic">
-                                        <span class="font-medium">Spain REAL FEDERACION AERONAUTICA</span>
-                                        <span class="text-orange-400 font-bold font-mono">€580,-</span>
-                                    </li>
-                                    <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2 italic">
-                                        <span class="font-medium">Norwegian Air Sports Federation</span>
-                                        <span class="text-orange-400 font-bold font-mono">€3851,-</span>
-                                    </li>
-                                </ul>
+                        <!-- Donor List Card -->
+                        <div class="bg-[#0F172A] p-12 rounded-[3rem] shadow-3xl text-white">
+                            <h4 class="font-bold text-xs mb-8 flex items-center gap-3 text-blue-400 uppercase tracking-[0.3em] font-lexend italic">
+                                <span class="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
+                                Donations & Sponsors
+                            </h4>
+                            <div class="space-y-8">
+                                <div>
+                                    <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Competition Year 2024</h5>
+                                    <ul class="space-y-3">
+                                        <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+                                            <span class="font-medium">Norwegian Air Sports Federation</span>
+                                            <span class="text-blue-400 font-bold font-mono">€1703,-</span>
+                                        </li>
+                                        <li class="flex justify-between items-start text-sm border-b border-white/5 pb-2 gap-4 text-right">
+                                            <span class="font-medium text-left">Spain REAL FEDERACION AERONAUTICA <span class="block text-[10px] text-slate-500 font-medium lowercase italic italic tracking-normal">(3 yr commitment)</span></span>
+                                            <span class="text-blue-400 font-bold font-mono">€1000,-</span>
+                                        </li>
+                                        <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+                                            <span class="font-medium">KSAK Swedish Air Sports Federation</span>
+                                            <span class="text-blue-400 font-bold font-mono">€926,-</span>
+                                        </li>
+                                        <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+                                            <span class="font-medium">Airsports Denmark</span>
+                                            <span class="text-blue-400 font-bold font-mono">€426,-</span>
+                                        </li>
+                                        <li class="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+                                            <span class="font-medium">Deutscher Aero Club E.V. Eu</span>
+                                            <span class="text-blue-400 font-bold font-mono">€1000,-</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="mt-8">
+                                    <a href="/support" class="text-blue-400 font-bold text-xs uppercase tracking-widest hover:text-white transition-colors">Support the Project →</a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -394,7 +409,7 @@ import TodaysFlights from '../components/TodaysFlights.astro';
 
             triggers.forEach(trigger => {
                 trigger.parentElement?.addEventListener('click', () => {
-                    const fullSrc = trigger.getAttribute('data-full-src');
+                    const fullSrc = (trigger as HTMLImageElement).getAttribute('data-full-src');
                     if (fullSrc && lightbox && lightboxImg) {
                         lightboxImg.src = fullSrc;
                         lightbox.classList.remove('opacity-0', 'pointer-events-none');

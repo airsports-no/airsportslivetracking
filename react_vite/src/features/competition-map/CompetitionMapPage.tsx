@@ -32,7 +32,24 @@ export default function CompetitionMapPage() {
   const contestIdNum = Number(contestId ?? 632);
   const navigationTaskIdNum = Number(navigationTaskId ?? 2129);
 
-  const [mode, setMode] = useState<'realtime' | 'playback'>('realtime');
+  const initialMode = (searchParams.get('mode') as 'realtime' | 'playback') || 'realtime';
+  const initialTimeParam = searchParams.get('time');
+  const initialSpeedParam = searchParams.get('speed');
+  const autoPlay = searchParams.get('autoplay') === 'true';
+
+  const initialTime = useMemo(() => {
+    if (!initialTimeParam) return null;
+    const date = new Date(initialTimeParam);
+    return isNaN(date.getTime()) ? null : date;
+  }, [initialTimeParam]);
+
+  const initialSpeed = useMemo(() => {
+    if (!initialSpeedParam) return 1;
+    const speed = parseInt(initialSpeedParam, 10);
+    return isNaN(speed) ? 1 : speed;
+  }, [initialSpeedParam]);
+
+  const [mode, setMode] = useState<'realtime' | 'playback'>(initialMode);
   const [showFullTrails, setShowFullTrails] = useState(false);
   const [selectedContestantId, setSelectedContestantId] = useState<number | null>(null);
   const [showScoreLog, setShowScoreLog] = useState(false);
@@ -238,7 +255,7 @@ export default function CompetitionMapPage() {
     playbackTime,
     setPlaybackTime,
     playbackTimeInfo
-  } = usePlayback(mode, positionsByContestant);
+  } = usePlayback(mode, positionsByContestant, initialTime, initialSpeed, autoPlay);
 
   const [now, setNow] = useState(new Date());
   useEffect(() => {

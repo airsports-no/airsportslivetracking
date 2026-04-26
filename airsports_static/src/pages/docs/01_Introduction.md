@@ -45,6 +45,10 @@ If you are running an event, this guide is your operational manual. It covers:
 *   Managing the **Results Service** for both flying and ground-based tests (landings, theory).
 *   *Refer to: [Contest Manager Guide](/docs/03_Contest_Manager_Guide), [Route Creation and Tasks](/docs/04_Route_Creation_and_Tasks), [Results Service Guide](/docs/05_Results_Service_Guide), and [Competition Types and Scorecards](/docs/07_Competition_Types_and_Scorecards)*
 
+### 3. The Virtual Pilot (MSFS Users)
+If you are competing using Microsoft Flight Simulator 2020 or 2024, our dedicated bridge client allows you to participate in real competitions from your home setup.
+*   *Refer to: [MSFS Integration](/docs/08_MSFS_Integration)*
+
 ## How to Become an Organizer
 To host a contest, you need **Organizer** status. This is **automatically approved** for all registered users. Simply log in to the platform and click the **"Become an Organizer"** button in the navigation bar. Once activated, the **"Management"** menu will appear, providing access to your contests and tools.
 
