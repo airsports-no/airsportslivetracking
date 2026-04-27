@@ -49,7 +49,8 @@
           <button type="submit" class="btn btn-primary">Login</button>
         </div>
         <input type="hidden" name="next" value="{{ next }}"/>
-         <div class="text-sm mt-4 text-center">
+         <div class="text-sm mt-4 text-center space-y-2">
+            <p><a href="https://airsports.no" class="link font-bold text-primary">← Back to airsports.no homepage</a></p>
             <p><a href="{% url 'password_reset' %}" class="link">Reset password</a></p>
             <p>First time user of the website and registered in the app? <a href="{% url 'password_reset' %}" class="link">Click here</a> to generate a password</p>
          </div>

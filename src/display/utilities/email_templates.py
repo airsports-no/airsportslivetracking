@@ -6,18 +6,18 @@ Thank you for downloading the Air Sports Live Tracking APP and being part of the
   
 <p><strong>With Air Sports Live Tracking you can:</strong></p>
 <ol>
-    <li>Maximize the use of the Live Tracking app. Read our guide for useful tips on installing and using the App. <a href="https://home.airsports.no/docs/02_Contestant_Guide"><strong>– Installation Guide –</strong></a></li>
-    <li>Register yourself for a competition and receive an automatically generated Flight Order. No preparation, just go flying! Find the event on the mission dashboard and click: “Register” to attend. <a href="https://home.airsports.no/tutorials/#SelfRegistration">Watch this Self-Register tutorial</a>.</li>
+    <li>Maximize the use of the Live Tracking app. Read our guide for useful tips on installing and using the App. <a href="https://airsports.no/docs/02_Contestant_Guide"><strong>– Installation Guide –</strong></a></li>
+    <li>Register yourself for a competition and receive an automatically generated Flight Order. No preparation, just go flying! Find the event on the mission dashboard and click: “Register” to attend. <a href="https://airsports.no/tutorials/#SelfRegistration">Watch this Self-Register tutorial</a>.</li>
     <li>Become a Contest Administrator and create your own competitions. To get started, go to your <a href="https://airsports.no">Mission Dashboard</a> and click the <strong>"Become Organizer"</strong> button in the top menu. This will instantly grant you the privileges needed to host and manage your own events.</li>
 </ol>
   
-<p>For more info visit our <strong>News & FAQ</strong>: <a href="https://home.airsports.no/faq">home.airsports.no/faq</a> or see our tutorials on <a href="https://www.youtube.com/c/AirSportsLiveTracking?sub_confirmation=1">YouTube</a>, and please subscribe.</p>
+<p>For more info visit our <strong>News & FAQ</strong>: <a href="https://airsports.no/faq">airsports.no/faq</a> or see our tutorials on <a href="https://www.youtube.com/c/AirSportsLiveTracking?sub_confirmation=1">YouTube</a>, and please subscribe.</p>
 
 <p><strong>IMPORTANT:</strong><br>
 <strong>Access to position</strong> : The app requires access to position even when the APP is in the background. This is especially important in a competition.<br>
-<strong>Huawei/OnePlus</strong> : We have experienced that some phones do not provide access to the battery when the app is in the background. Smartphone owners must therefore check, and go into the settings and manually give the APP access to the battery when the app is in the background mode. <a href="https://home.airsports.no/docs/02_Contestant_Guide#4-troubleshooting-tracking"><strong>Please read the guide for crucial settings and helpful tips!</strong></a></p>
+<strong>Huawei/OnePlus</strong> : We have experienced that some phones do not provide access to the battery when the app is in the background. Smartphone owners must therefore check, and go into the settings and manually give the APP access to the battery when the app is in the background mode. <a href="https://airsports.no/docs/02_Contestant_Guide#4-troubleshooting-tracking"><strong>Please read the guide for crucial settings and helpful tips!</strong></a></p>
 
-<p>Read more about Air Sports Live Tracking; <a href="https://home.airsports.no">home.airsports.no</a>.</p>
+<p>Read more about Air Sports Live Tracking; <a href="https://airsports.no">airsports.no</a>.</p>
   
 <p>We wish you all the best and let us know if you have any questions. If you want, we can arrange a webinar for you and your friends, to show some of the most important features.</p>
 """
@@ -45,12 +45,12 @@ To create contests and design routes, we recommend using a computer for the best
 
 <p><strong>RESOURCES:</strong></p>
 <ul>
-    <li><a href="https://home.airsports.no/docs/04_Route_Creation_and_Tasks"><strong>Route Creation & Task Guide</strong></a></li>
-    <li><a href="https://home.airsports.no/tutorials/#CreateContest"><strong>Step-by-step Video Tutorials</strong></a></li>
+    <li><a href="https://airsports.no/docs/04_Route_Creation_and_Tasks"><strong>Route Creation & Task Guide</strong></a></li>
+    <li><a href="https://airsports.no/tutorials/#CreateContest"><strong>Step-by-step Video Tutorials</strong></a></li>
     <li><a href="https://www.youtube.com/@AirSportsLiveTracking"><strong>YouTube Channel</strong></a></li>
 </ul>
 
-<p><strong>HELP – Do not hesitate to contact us</strong> if you have any questions. We can arrange Skype or MS Teams meetings to show you the ropes, or review your first contest setup to ensure everything is in order before the first flight. Visit <a href="https://home.airsports.no/faq"><strong>home.airsports.no/faq</strong></a> for more helpful information.</p>
+<p><strong>HELP – Do not hesitate to contact us</strong> if you have any questions. We can arrange Skype or MS Teams meetings to show you the ropes, or review your first contest setup to ensure everything is in order before the first flight. Visit <a href="https://airsports.no/faq"><strong>airsports.no/faq</strong></a> for more helpful information.</p>
   
 <p>Good luck with your event!</p>
 """
@@ -66,5 +66,5 @@ DELETION_EMAIL = """
 EMAIL_SIGNATURE = """
 <p>–</p>
 <p><strong>Team Air Sports Live Tracking</strong><br>
-<a href="https://home.airsports.no">home.airsports.no</a></p>
+<a href="https://airsports.no">airsports.no</a></p>
 """

@@ -18,11 +18,6 @@ from display.views import (
 from . import api
 
 urlpatterns = [
-    path(
-        "terms_and_conditions/",
-        TemplateView.as_view(template_name="display/terms_and_conditions.html"),
-        name="terms_and_conditions",
-    ),
     path("admin/", admin.site.urls),
     path("display/", include("display.urls")),
     path("display/api/", include("display.urls_api")),

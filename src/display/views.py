@@ -24,6 +24,7 @@ from django.contrib.auth.mixins import (
 
 from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculator_running_utilities import is_calculator_running
+from live_tracking_map import settings
 from playback_tools.playback import validate_gpx_file
 import rest_framework.exceptions as drf_exceptions
 
@@ -325,7 +326,7 @@ def tracking_qr_code_view(request, pk):
         request,
         "display/tracking_qr_code.html",
         {
-            "url": "https://airsports.no{}".format(url),
+            "url": "https://app.airsports.no{}".format(url),
             "navigation_task": navigation_task,
         },
     )
@@ -1959,26 +1960,26 @@ class CombinedFrontEndView(View):
     """
 
     def get(self, request, *args, **kwargs):
-        host = request.get_host()
+        # request.get_host() returns "domain:port". We only want the domain.
+        host = request.get_host().split(":")[0]
         if host in ["airsports.no", "www.airsports.no"]:
-            # Check for production path first, then local dev path
-            marketing_root = "/marketing_dist"
-            if not os.path.exists(marketing_root):
-                # Fallback to local project path (assuming running from src/ or project root)
-                local_path = os.path.join(settings.BASE_DIR.parent, "airsports_static/dist")
-                if os.path.exists(local_path):
-                    marketing_root = local_path
-
-            path = kwargs.get("path", "")
-            if not path or path == "/":
+            # Use the root folder defined in settings (handles dev vs prod)
+            marketing_root = getattr(settings, "MARKETING_STATIC_ROOT", "/marketing_dist")
+            
+            path = kwargs.get("path", "").strip("/")
+            if not path:
                 path = "index.html"
 
-            # Check if it's a directory and serve index.html
+            # 1. Check if the path exists exactly as requested
             full_path = os.path.join(marketing_root, path)
+            
+            # 2. If it is a directory, append index.html (Astro's default style)
             if os.path.isdir(full_path):
                 path = os.path.join(path, "index.html")
-            elif not os.path.exists(full_path) and not "." in os.path.basename(path):
-                # Try adding .html or /index.html for pretty URLs
+                full_path = os.path.join(marketing_root, path)
+            
+            # 3. If the file doesn't exist, try common pretty-URL fallbacks
+            if not os.path.exists(full_path):
                 if os.path.exists(full_path + ".html"):
                     path += ".html"
                 elif os.path.exists(os.path.join(full_path, "index.html")):

@@ -85,14 +85,14 @@ ____________________________________________________________
         return str(self.contestant) + " " + str(self.contestant.navigation_task)
 
     def get_absolute_url(self):
-        return "https://airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
+        return "https://app.airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
 
     def send_email(self, email_address: str, first_name: str):
         """
         Sends an e-mail to a contestant with a link to the flight order.
         """
         logger.info(f"Sending email to {email_address}")
-        url = "https://airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
+        url = "https://app.airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
 
         starting_point_time_string = self.contestant.starting_point_time_local.strftime("%Y-%m-%d %H:%M:%S")
         tracking_start_time_string = self.contestant.tracker_start_time_local.strftime("%Y-%m-%d %H:%M:%S")

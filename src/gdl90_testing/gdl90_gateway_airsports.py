@@ -120,7 +120,7 @@ if __name__ == "__main__":
     # while True:
     websocket.enableTrace(True)
     # droid.startLocating()
-    ws = websocket.WebSocketApp("wss://airsports.no/ws/tracks/global/",
+    ws = websocket.WebSocketApp("wss://app.airsports.no/ws/tracks/global/",
                                 on_message=on_message,
                                 on_error=on_error,
                                 on_open=on_open,

@@ -9,7 +9,7 @@ As a Contest Manager, you are the architect of the competition. ASLT provides po
 To host a contest, you need **Organizer** status. This is **automatically approved** for all registered users.
 
 ### Step 1: Activate Organizer Status
-1.  Log in to your account at `https://airsports.no/`.
+1.  Log in to your account at `https://app.airsports.no/`.
 2.  In the navigation bar, click the button labeled **"Become an Organizer"**.
 3.  Approval is instantaneous. A new **"Management"** menu will now be visible in your navigation bar.
 

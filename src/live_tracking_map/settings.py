@@ -38,11 +38,10 @@ ADMINS = [("admin", "test@test.com")]
 SECRET_KEY = os.environ.get("SECRET_KEY", "secret")
 
 SERVER_ROOT = "https://airsports.no"
-CSRF_TRUSTED_ORIGINS = ["https://*.airsports.no", "http://*.127.0.0.1"]
+CSRF_TRUSTED_ORIGINS = ["https://*.airsports.no", "http://*.airsports.no", "http://*.127.0.0.1"]
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 CORS_ALLOWED_ORIGINS = [
-    "https://home.airsports.no",
     "https://airsports.no",
     "https://app.airsports.no",
     "https://airsports-info-1747b.web.app",
@@ -323,7 +322,24 @@ if os.environ.get("MODE") == "dev" or IS_UNIT_TESTING:
 
 TEMPORARY_FOLDER = "/tmp"
 
-STATICFILES_DIRS = [os.path.join(BASE_DIR, "static"), "/assets_vite", "/marketing_dist"]
+# Dynamic calculation for marketing assets folder
+MARKETING_STATIC_ROOT = "/marketing_dist"
+if os.environ.get("MODE") == "dev":
+    # In Dev Container, prioritize the fixed workspace path
+    dev_paths = [
+        "/workspace/airsports_static/dist",
+        os.path.join(BASE_DIR.parent, "airsports_static/dist"),
+    ]
+    for opt in dev_paths:
+        if os.path.exists(os.path.join(opt, "index.html")):
+            MARKETING_STATIC_ROOT = opt
+            break
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+    "/assets_vite",
+    MARKETING_STATIC_ROOT,
+]
 
 LOGGING = LOG_CONFIGURATION
 

@@ -271,7 +271,7 @@ class MyGoogleWTS(GoogleWTS):
         else:
             url = self._image_url(tile)
             try:
-                headers = {"User-Agent": self.user_agent, "Referer": "https://airsports.no/"}
+                headers = {"User-Agent": self.user_agent, "Referer": "https://app.airsports.no/"}
                 response = requests.get(url, headers=headers, timeout=1)
                 im_data = io.BytesIO(response.content)
                 img = Image.open(im_data)
@@ -334,7 +334,7 @@ class FlightContest(MyGoogleWTS):
 
         url = self._image_url(tile)
         try:
-            headers = {"User-Agent": self.user_agent, "Referer": "https://airsports.no/"}
+            headers = {"User-Agent": self.user_agent, "Referer": "https://app.airsports.no/"}
             request = Request(url, headers=headers)
             fh = urlopen(request)
             im_data = six.BytesIO(fh.read())

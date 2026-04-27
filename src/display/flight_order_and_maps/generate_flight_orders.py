@@ -347,7 +347,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     tracking_start_time_string = f'{contestant.tracker_start_time_local.strftime("%H:%M:%S")}'
     finish_tracking_time = f'{contestant.finished_by_time_local.strftime("%H:%M:%S")}'
     facebook_share_url = "https://www.facebook.com/sharer/sharer.php?u="
-    url = facebook_share_url + "https://airsports.no" + contestant.navigation_task.tracking_link
+    url = facebook_share_url + "https://app.airsports.no" + contestant.navigation_task.tracking_link
     qr = qr_code_image(url, "static/img/facebook_logo.png")
     qr_file = NamedTemporaryFile(suffix=".png")
     qr.save(qr_file)

@@ -16,33 +16,35 @@ Add the following lines to your system's `hosts` file:
 ```
 
 ## 2. Build the Static Assets
-Django needs the built Astro files to serve them. Run the build command in the marketing directory:
+You can now build both the React app and the Marketing site from the root directory using the new helper scripts:
 
 ```bash
-cd airsports_static
-npm install
-npm run build
+# To build everything at once:
+npm run build:all
+
+# Or build specifically:
+npm run build:marketing
+npm run build:react
 ```
-This creates the `dist/` folder which Django is now configured to look for if the production `/marketing_dist` path is missing.
+
+If you are using the **Dev Container**, the dependencies for the marketing site are now installed automatically when the container is created.
 
 ## 3. Start the Application
-Run the Django development server. To use the domains without a port number, you must bind to port `80` (requires root/admin):
+Run the Django development server inside your dev container. Because your `docker-compose.yml` maps host `8002` to container `8000`, you must bind to `8000` inside the container:
 
 ```bash
-# From the /src directory
-sudo python manage.py runserver 80
+# From the /src directory INSIDE the container
+python manage.py runserver 0.0.0.0:8000
 ```
-
-*If you prefer not to use sudo, run on port 8000 and append :8000 to the URLs below.*
 
 ## 4. Verification Checklist
 
 ### ✅ Marketing Site (airsports.no)
-Visit `http://airsports.no`. You should see the Astro-based marketing site. 
-- Test "Pretty URLs": Visit `http://airsports.no/faq` or `http://airsports.no/support`. Django should resolve these to the corresponding HTML files in the dist folder.
+Visit `http://airsports.no:8002` in your browser.
+- Test "Pretty URLs": Visit `http://airsports.no:8002/faq`.
 
 ### ✅ Main Application (app.airsports.no)
-Visit `http://app.airsports.no`. You should see the React application (loading screen/dashboard).
+Visit `http://app.airsports.no:8002`. You should see the React application.
 - Verify that the `Host` header detection correctly opted out of the marketing site for this subdomain.
 
 ### ✅ Legacy API Compatibility

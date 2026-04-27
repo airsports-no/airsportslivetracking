@@ -4,6 +4,7 @@
 !config
 !data
 !react_vite
+!airsports_static
 !documentation
 !wait-for-it.sh
 !requirements.txt

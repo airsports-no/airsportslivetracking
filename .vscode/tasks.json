@@ -67,11 +67,22 @@
 			"problemMatcher": []
 		},
 		{
+			"label": "Watch Marketing Astro",
+			"type": "shell",
+			"command": "npm run watch:marketing",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
 			"label": "Start All Watchers",
 			"dependsOn": [
 				"Run server",
 				// "Run celery", // Should be run outside of vscode to avoid issues
 				"Watch React Vite",
+				"Watch Marketing Astro",
 				"Watch Tailwind CSS"
 			],
 			"problemMatcher": [],

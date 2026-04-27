@@ -140,7 +140,7 @@ class ContestantProcessor:
         if self.latest_recorded_time == datetime.datetime.min.replace(tzinfo=datetime.timezone.utc):
             post_slack_competition_message(
                 str(self.contestant.navigation_task),
-                f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
+                f"{'Live' if self.live_processing else 'Batch'} calculator started for {self.contestant} in navigation task <https://app.airsports.no{self.contestant.navigation_task.tracking_link}|{self.contestant.navigation_task}>",
             )
             self.websocket_facade.transmit_delete_contestant(self.contestant)
             self.websocket_facade.transmit_contestant(self.contestant)
