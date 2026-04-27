@@ -103,5 +103,5 @@ WORKDIR /src
 # Force font cache generation
 RUN python -c "import matplotlib"
 
-# USER django
-# RUN python3 manage.py collectstatic --noinput
+USER django
+RUN COLLECT_LOCAL=1 python3 manage.py collectstatic --noinput
