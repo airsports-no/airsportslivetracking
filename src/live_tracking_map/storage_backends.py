@@ -1,5 +1,12 @@
 from django.contrib.staticfiles.storage import ManifestFilesMixin, StaticFilesStorage
-from storages.backends.gcloud import GoogleCloudStorage
+
+try:
+    from storages.backends.gcloud import GoogleCloudStorage
+except Exception:
+    # Fallback for environments where django-storages or google-auth fails to initialize
+    class GoogleCloudStorage(object):
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("GoogleCloudStorage failed to initialize. Check credentials.")
 
 class ManifestGoogleCloudStorage(ManifestFilesMixin, GoogleCloudStorage):
     """

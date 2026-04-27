@@ -127,7 +127,14 @@ INSTALLED_APPS = [
     "django_js_reverse",
     "corsheaders",
 ]
-if os.environ.get("MODE") != "dev":
+IS_UNIT_TESTING = (
+    any(s in sys.argv for s in ("test", "jenkins", "pytest")) 
+    or "pytest" in sys.modules 
+    or os.environ.get("PYTEST_CURRENT_TEST") is not None
+)
+
+
+if os.environ.get("MODE") != "dev" and not IS_UNIT_TESTING:
     INSTALLED_APPS.append("drf_firebase_auth")
 
 LOCATION_FIELD = {
@@ -227,14 +234,13 @@ SPECTACULAR_SETTINGS = {
         "drf_firebase_auth.authentication.FirebaseAuthentication": "firebaseAuth",
     },
 }
-if os.environ.get("MODE") != "dev":
+if os.environ.get("MODE") != "dev" and not IS_UNIT_TESTING:
     REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(
         0, "drf_firebase_auth.authentication.FirebaseAuthentication"
     )
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
-IS_UNIT_TESTING = any(s in sys.argv for s in ("test", "jenkins"))
 
 # if IS_UNIT_TESTING:  # Use sqlite3 when running tests
 #     DATABASES = {
@@ -288,43 +294,44 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
-STORAGES = {
-    "default": {
-        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
-        "OPTIONS": {"bucket_name": "airsports-data", "default_acl": "publicRead"},
-    },
-}
-
-if os.environ.get("COLLECT_LOCAL"):
-    STORAGES["staticfiles"] = {
-        "BACKEND": "live_tracking_map.storage_backends.ManifestLocalStaticFilesStorage",
+if IS_UNIT_TESTING or os.environ.get("MODE") == "dev":
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {"location": "/tmp/media", "base_url": "/media/"},
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
     }
+    MEDIA_ROOT = "/tmp/media"
 else:
-    STORAGES["staticfiles"] = {
-        "BACKEND": "live_tracking_map.storage_backends.ManifestGoogleCloudStorage",
-        "OPTIONS": {"bucket_name": "airsports-static", "default_acl": None, "querystring_auth": False},
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+            "OPTIONS": {"bucket_name": "airsports-data", "default_acl": "publicRead"},
+        },
     }
+    if os.environ.get("COLLECT_LOCAL"):
+        STORAGES["staticfiles"] = {
+            "BACKEND": "live_tracking_map.storage_backends.ManifestLocalStaticFilesStorage",
+        }
+    else:
+        STORAGES["staticfiles"] = {
+            "BACKEND": "live_tracking_map.storage_backends.ManifestGoogleCloudStorage",
+            "OPTIONS": {"bucket_name": "airsports-static", "default_acl": None, "querystring_auth": False},
+        }
 
 # Default to relative paths so they are served via the Global Load Balancer / CDN.
 # The GKE Gateway is configured to route these paths to the appropriate GCS buckets.
 MEDIA_ROOT_URL = "/media/"
 MEDIA_URL = MEDIA_ROOT_URL
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+# MEDIA_ROOT is set above for dev/test, otherwise use default
+if not (IS_UNIT_TESTING or os.environ.get("MODE") == "dev"):
+    MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 STATIC_URL = "/static/"
 STATIC_ROOT = "/static"
-
-# Serve static files locally when developing or testing
-if os.environ.get("MODE") == "dev" or IS_UNIT_TESTING:
-    STORAGES["default"] = {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-        "OPTIONS": {"location": "/tmp/media", "base_url": "/media/"},
-    }
-    MEDIA_ROOT = "/tmp/media"
-else:
-    # Production storage (uploads go to GCS, but served via LB at /media/)
-    # Ensure your GKE Gateway has a rule for /media/ pointing to the data bucket.
-    pass
 
 
 
