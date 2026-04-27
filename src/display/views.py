@@ -1962,7 +1962,7 @@ class CombinedFrontEndView(View):
     def get(self, request, *args, **kwargs):
         # request.get_host() returns "domain:port". We only want the domain.
         host = request.get_host().split(":")[0]
-        if host in ["airsports.no", "www.airsports.no"]:
+        if host in ["airsports.no", "www.airsports.no", "127.0.0.1"]:
             # Use the root folder defined in settings (handles dev vs prod)
             marketing_root = getattr(settings, "MARKETING_STATIC_ROOT", "/marketing_dist")
             

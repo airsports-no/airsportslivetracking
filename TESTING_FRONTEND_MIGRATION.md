@@ -2,18 +2,20 @@
 
 This guide explains how to verify the migration of the Astro marketing site to `airsports.no` and the main application to `app.airsports.no` on your local machine.
 
-## 1. Local DNS Setup
-To simulate the production environment, you need to map the production domains to your local loopback address.
-
+## 1. Local DNS Setup (Optional)
+### Option A: Using the hosts file (Recommended for full simulation)
 Add the following lines to your system's `hosts` file:
-*   **Linux/Mac:** `/etc/hosts`
-*   **Windows:** `C:\Windows\System32\drivers\etc\hosts`
-
 ```text
 127.0.0.1 airsports.no
 127.0.0.1 app.airsports.no
 127.0.0.1 www.airsports.no
 ```
+Visit: `http://airsports.no:8002`
+
+### Option B: Zero-Config (No hosts file needed)
+The application is configured to distinguish between `localhost` and `127.0.0.1` for easy testing:
+*   **`http://127.0.0.1:8002`** → Shows the **Marketing Site**.
+*   **`http://localhost:8002`** → Shows the **React Application**.
 
 ## 2. Build the Static Assets
 You can now build both the React app and the Marketing site from the root directory using the new helper scripts:

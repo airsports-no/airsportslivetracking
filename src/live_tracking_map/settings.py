@@ -294,30 +294,32 @@ STORAGES = {
         "OPTIONS": {"bucket_name": "airsports-data", "default_acl": "publicRead"},
     },
     "staticfiles": {
-        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
-        "OPTIONS": {"bucket_name": "airsports-static", "default_acl": None, "querystring_auth": False},
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
-MEDIA_ROOT_URL = os.environ.get("MEDIA_URL_BASE", "https://storage.googleapis.com/airsports-data/")
+# Default to relative paths so they are served via the Global Load Balancer / CDN.
+# The GKE Gateway is configured to route these paths to the appropriate GCS buckets.
+MEDIA_ROOT_URL = "/media/"
 MEDIA_URL = MEDIA_ROOT_URL
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
-STATIC_URL = os.environ.get("STATIC_URL_BASE", "https://storage.googleapis.com/airsports-static/")
+
+STATIC_URL = "/static/"
+STATIC_ROOT = "/static"
+
 # Serve static files locally when developing or testing
 if os.environ.get("MODE") == "dev" or IS_UNIT_TESTING:
     STORAGES["default"] = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
         "OPTIONS": {"location": "/tmp/media", "base_url": "/media/"},
     }
-    MEDIA_ROOT_URL = "/media/"
-    MEDIA_URL = MEDIA_ROOT_URL
     MEDIA_ROOT = "/tmp/media"
+else:
+    # Production storage (uploads go to GCS, but served via LB at /media/)
+    # Ensure your GKE Gateway has a rule for /media/ pointing to the data bucket.
+    pass
 
-    STORAGES["staticfiles"] = {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-        "OPTIONS": {"location": "/static", "base_url": "/static/"},
-    }
-    STATIC_URL = "/static/"
-    STATIC_ROOT = "/static"
+# WhiteNoise serves from STATIC_ROOT which is defined as /static
+
 
 
 TEMPORARY_FOLDER = "/tmp"

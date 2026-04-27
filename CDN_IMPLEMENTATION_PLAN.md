@@ -48,6 +48,10 @@ This document tracks the migration of mission-critical telemetry to be served vi
     - Point this rule to a `BackendBucket` referencing the `airsports-static` GCS bucket.
     - This enables **Global Edge Caching** for JS/CSS and **HTTP/2 Multiplexing** (single connection for HTML and assets).
 
+3.  **Optional: Add Media Backend Bucket**:
+    - Similarly, route `/media/*` to the `airsports-data` bucket in the Load Balancer.
+    - This ensures user uploads are also served via the CDN edge.
+
 ### C. TODO: Verify HTML Caching 🔍
 Once the GKE Gateway bug is resolved:
 - Ensure `airsports.no` (the marketing HTML) is being cached by the CDN.
