@@ -53,7 +53,7 @@ ingress:
   className: ""
   annotations:
     kubernetes.io/ingress.global-static-ip-name: public
-    networking.gke.io/managed-certificates: airsports-no-cert
+    networking.gke.io/certmap: airsports-gateway
     kubernetes.io/ingress.class: "gce"
     nginx.ingress.kubernetes.io/proxy-body-size: "500m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
