@@ -297,7 +297,7 @@ STORAGES = {
 
 if os.environ.get("COLLECT_LOCAL"):
     STORAGES["staticfiles"] = {
-        "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
+        "BACKEND": "live_tracking_map.storage_backends.ManifestLocalStaticFilesStorage",
     }
 else:
     STORAGES["staticfiles"] = {

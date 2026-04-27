@@ -22,7 +22,9 @@ class EmailMapLink(models.Model):
     class Meta:
         ordering = ("created_at",)
 
-    HTML_SIGNATURE = f"""
+    @property
+    def HTML_SIGNATURE(self):
+        return f"""
 <h3><strong>Best Regards,</strong><br /><span style="color: #000080;">
 <strong>Team&nbsp;Air Sports Live Tracking</strong>
 <strong>&nbsp;</strong>

@@ -31,7 +31,8 @@ RUN src/static/css/tailwindcss -i src/static/css/input.css -o src/static/css/out
 
 # Stage 2: Build python dependencies
 FROM python:3.12-slim-bookworm AS python_builder
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \
+    MPLCONFIGDIR=/tmp/matplotlib
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get -y install --no-install-recommends \
@@ -51,6 +52,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Stage 3: Setup runtime environment
 FROM python:3.12-slim-bookworm AS tracker_base
 ENV PYTHONUNBUFFERED=1 \
+    MPLCONFIGDIR=/tmp/matplotlib \
     LC_ALL=C.UTF-8 \
     LANG=C.UTF-8
 
@@ -97,8 +99,8 @@ WORKDIR /src
 
 
 
-RUN mkdir /logs
-RUN chown django /logs
+RUN mkdir /logs /static
+RUN chown django /logs /static
 WORKDIR /src
 # Force font cache generation
 RUN python -c "import matplotlib"
