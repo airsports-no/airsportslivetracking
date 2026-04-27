@@ -24,6 +24,13 @@ spec:
     - path:
         type: PathPrefix
         value: /ws
+  - backendRefs:
+    - name: static-storage-service
+      port: 80
+    matches:
+    - path:
+        type: PathPrefix
+        value: /static
   - filters:
     - type: ExtensionRef
       extensionRef:

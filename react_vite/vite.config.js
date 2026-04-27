@@ -11,9 +11,9 @@ const __dirname = dirname(__filename);
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  // Use GCS absolute URL for production to ensure side-by-side compatibility with all entry points.
+  // Use /static/ for production to leverage same-origin GCLB/CDN caching.
   base: mode === 'production' 
-    ? 'https://storage.googleapis.com/airsports-static/' 
+    ? '/static/' 
     : '/static/',
   resolve: {
     alias: {

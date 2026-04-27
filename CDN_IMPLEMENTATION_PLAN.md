@@ -39,12 +39,11 @@ This document tracks the migration of mission-critical telemetry to be served vi
 - **Dockerfile**: Multi-stage build now includes Astro compilation.
 - **Routing**: Catch-all `CombinedFrontEndView` handles pretty URLs for the marketing site.
 
-### B. CRITICAL TODO: Asset Performance Optimization 🔴
-To match Firebase's global performance, we must stop serving static assets directly from a GCS URL and instead route them through the Load Balancer.
+### B. CRITICAL TODO: Asset Performance Optimization ⚠️
 
-1.  **Switch to Relative Static URL**:
-    - Update `settings.py` to use `STATIC_URL = '/static/'` in production.
-2.  **Add Backend Bucket to HTTPRoute**:
+1.  **Switch to Relative Static URL**: ✅ **Done in code.**
+    - Both `react_vite/vite.config.js` and `airsports_static/astro.config.mjs` are now configured to use `base: '/static/'` in production.
+2.  **Add Backend Bucket to HTTPRoute**: 🔴 **Still Needed.**
     - Update `helm/templates/httproute_root.yaml` to include a rule for `/static/*`.
     - Point this rule to a `BackendBucket` referencing the `airsports-static` GCS bucket.
     - This enables **Global Edge Caching** for JS/CSS and **HTTP/2 Multiplexing** (single connection for HTML and assets).
