@@ -7,6 +7,7 @@ spec:
   domains:
     - airsports.no
     - www.airsports.no
+    - app.airsports.no
     - traccar.airsports.no
     - traccarclient.airsports.no
     - mbtiles.airsports.no

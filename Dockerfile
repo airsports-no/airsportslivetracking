@@ -7,8 +7,15 @@ WORKDIR /app/src/static/css
 RUN rm -f tailwindcss
 RUN curl -sL daisyui.com/fast | bash
 
+# Build React app
 COPY react_vite /app/react_vite
 WORKDIR /app/react_vite
+RUN --mount=type=cache,target=/root/.npm npm ci
+RUN npm run build
+
+# Build Astro marketing site
+COPY airsports_static /app/airsports_static
+WORKDIR /app/airsports_static
 RUN --mount=type=cache,target=/root/.npm npm ci
 RUN npm run build
 
@@ -80,6 +87,7 @@ RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh
 # Copy built assets and source code from builder stage
 COPY --chown=django:django src /src
 COPY --chown=django:django --from=frontend_builder /app/assets_vite /assets_vite
+COPY --chown=django:django --from=frontend_builder /app/airsports_static/dist /marketing_dist
 COPY --chown=django:django react_vite/src/routes.json /react_vite/src/
 COPY --chown=django:django --from=frontend_builder /app/src/static/css/output.css /src/static/css
 

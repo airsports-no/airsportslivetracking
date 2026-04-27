@@ -84,6 +84,16 @@ ingress:
           pathType: Prefix
           serviceName: tracker-web-service-ingress
           servicePort: 80
+    - host: app.airsports.no
+      paths:
+        - path: /ws/
+          pathType: Prefix
+          serviceName: tracker-daphne-service-ingress
+          servicePort: 80
+        - path: /
+          pathType: Prefix
+          serviceName: tracker-web-service-ingress
+          servicePort: 80
     - host: traccar.airsports.no
       paths:
         - path: /

@@ -9,6 +9,7 @@ spec:
   hostnames:
   - "airsports.no"
   - "www.airsports.no"
+  - "app.airsports.no"
   rules:
   - filters:
     - type: ExtensionRef

@@ -39,9 +39,12 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "secret")
 
 SERVER_ROOT = "https://airsports.no"
 CSRF_TRUSTED_ORIGINS = ["https://*.airsports.no", "http://*.127.0.0.1"]
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 CORS_ALLOWED_ORIGINS = [
     "https://home.airsports.no",
     "https://airsports.no",
+    "https://app.airsports.no",
     "https://airsports-info-1747b.web.app",
     "https://airsports-info-1747b.firebaseapp.com",
     "http://localhost:4321",
@@ -320,7 +323,7 @@ if os.environ.get("MODE") == "dev" or IS_UNIT_TESTING:
 
 TEMPORARY_FOLDER = "/tmp"
 
-STATICFILES_DIRS = [os.path.join(BASE_DIR, "static"), "/assets_vite"]
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static"), "/assets_vite", "/marketing_dist"]
 
 LOGGING = LOG_CONFIGURATION
 

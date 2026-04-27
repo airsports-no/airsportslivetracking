@@ -11,7 +11,7 @@ from rest_framework import permissions
 from django_js_reverse.views import urls_json
 
 from display.views import (
-    FrontEndView,
+    CombinedFrontEndView,
     view_token,
     firebase_token_login,
 )
@@ -50,5 +50,5 @@ if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 urlpatterns += [
-    re_path(r"^(?!api/).*", FrontEndView.as_view(), name="frontend"),
+    re_path(r"^(?!api/)(?P<path>.*)", CombinedFrontEndView.as_view(), name="frontend"),
 ]

@@ -7,6 +7,9 @@ from typing import Dict, List
 
 from django.templatetags.static import static
 from django.views.decorators.csrf import csrf_exempt
+from django.views import View
+from django.views.static import serve
+
 import gpxpy
 import zipfile
 from crispy_forms.layout import Fieldset
@@ -1948,6 +1951,42 @@ class FrontEndView(TemplateView):
     """
 
     template_name = "display/frontend.html"
+
+
+class CombinedFrontEndView(View):
+    """
+    Serve either the marketing site (Astro) or the React app based on the hostname.
+    """
+
+    def get(self, request, *args, **kwargs):
+        host = request.get_host()
+        if host in ["airsports.no", "www.airsports.no"]:
+            # Check for production path first, then local dev path
+            marketing_root = "/marketing_dist"
+            if not os.path.exists(marketing_root):
+                # Fallback to local project path (assuming running from src/ or project root)
+                local_path = os.path.join(settings.BASE_DIR.parent, "airsports_static/dist")
+                if os.path.exists(local_path):
+                    marketing_root = local_path
+
+            path = kwargs.get("path", "")
+            if not path or path == "/":
+                path = "index.html"
+
+            # Check if it's a directory and serve index.html
+            full_path = os.path.join(marketing_root, path)
+            if os.path.isdir(full_path):
+                path = os.path.join(path, "index.html")
+            elif not os.path.exists(full_path) and not "." in os.path.basename(path):
+                # Try adding .html or /index.html for pretty URLs
+                if os.path.exists(full_path + ".html"):
+                    path += ".html"
+                elif os.path.exists(os.path.join(full_path, "index.html")):
+                    path = os.path.join(path, "index.html")
+
+            return serve(request, path, document_root=marketing_root)
+        else:
+            return FrontEndView.as_view()(request, *args, **kwargs)
 
 
 class EditableRouteDeleteView(GuardianPermissionRequiredMixin, DeleteView):
