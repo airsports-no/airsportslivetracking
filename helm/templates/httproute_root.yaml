@@ -54,6 +54,8 @@ spec:
       type: HTTP
       httpHealthCheck:
         requestPath: /display/healthz/
+        timeoutSec: 30
+        checkIntervalSec: 35
   targetRef:
     group: ""
     kind: Service
@@ -72,6 +74,8 @@ spec:
       type: HTTP
       httpHealthCheck:
         requestPath: /display/healthz/
+        timeoutSec: 30
+        checkIntervalSec: 35
   targetRef:
     group: ""
     kind: Service
