@@ -106,4 +106,6 @@ WORKDIR /src
 RUN python -c "import matplotlib"
 
 USER django
+# Remove Tailwind source files that cause ManifestStaticFilesStorage to fail
+RUN rm -f /src/static/css/tailwindcss /src/static/css/input.css
 RUN COLLECT_LOCAL=1 python3 manage.py collectstatic --noinput

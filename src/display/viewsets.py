@@ -461,6 +461,8 @@ class ContestViewSet(ModelViewSet):
         response["ETag"] = etag
         if instance.is_public and instance.is_featured:
             response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+            if "Vary" in response:
+                del response["Vary"]
         else:
             response["Cache-Control"] = "private, no-cache"
         return response
@@ -502,6 +504,8 @@ class ContestViewSet(ModelViewSet):
             # s-maxage=31536000: CDN caches for 1 year (explicit invalidation)
             # stale-while-revalidate=86400: Serve stale data while fetching fresh in background
             response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+            if "Vary" in response:
+                del response["Vary"]
         else:
             # Private data must NOT be cached by CDN or shared.
             response["Cache-Control"] = "private, no-cache"
@@ -987,6 +991,8 @@ class NavigationTaskViewSet(ModelViewSet):
         response["ETag"] = etag
         if instance.is_public and instance.contest.is_public and instance.is_featured:
             response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+            if "Vary" in response:
+                del response["Vary"]
         else:
             response["Cache-Control"] = "private, no-cache"
         return response
@@ -1463,6 +1469,9 @@ class ContestantViewSet(ModelViewSet):
             # max-age=0: Browser always checks CDN (no disk cache).
             response["Cache-Control"] = "public, max-age=0, s-maxage=30, stale-while-revalidate=60"
 
+        if is_public and "Vary" in response:
+            del response["Vary"]
+
         return response
 
     @action(detail=True, methods=["get"], url_path=r"slice/(?P<minute_index>\d+)")
@@ -1518,7 +1527,13 @@ class ContestantViewSet(ModelViewSet):
         elif is_finished:
             response["Cache-Control"] = "public, max-age=120, s-maxage=31536000, stale-while-revalidate=86400"
         else:
-            response["Cache-Control"] = "public, max-age=0, must-revalidate"
+            # Live slices: Short CDN cache to protect origin during high load
+            response["Cache-Control"] = "public, max-age=0, s-maxage=10, must-revalidate"
+
+        if is_public and "Vary" in response:
+            # Remove Vary: Cookie for public responses to allow Google Cloud CDN caching
+            # even when SessionAuthentication is active.
+            del response["Vary"]
 
         return response
 
@@ -1629,44 +1644,9 @@ class ContestantViewSet(ModelViewSet):
             response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         else:
             response["Cache-Control"] = "public, max-age=0, s-maxage=30, stale-while-revalidate=60"
-            
-        return response
 
-    @action(detail=True, methods=["get"])
-    def paginated_track_data(self, request, *args, **kwargs):
-        contestant: Contestant = (
-            self.get_object()
-        )  # This is important, this is where the object permissions are checked
-        position_data = contestant.get_track()
-        pagination = MyCursorPagination()
-        page = pagination.paginate_queryset(
-            position_data.values(
-                "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
-            ),
-            request,
-        )
-        if page is not None:
-            if len(page):
-                page[-1]["progress"] = contestant.calculate_progress(page[-1]["time"], ignore_finished=True)
-            result = pagination.get_paginated_response(page)
-            response = Response(result.data)
-            if (
-                pagination.get_next_link() is None
-                and hasattr(contestant, "contestanttrack")
-                and not contestant.contestanttrack.calculator_finished
-            ):
-                add_never_cache_headers(response)
-            else:
-                patch_response_headers(response, 60 * 60 * 24 * 31)
-        else:
-            # Manually serialize the positions to avoid PositionSerialiser overhead
-            # Use streaming to avoid memory spikes
-            positions_qs = position_data.values(
-                "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
-            )
-            response = StreamingHttpResponse(
-                self._stream_positions_json(positions_qs, contestant), content_type="application/json"
-            )
+        if is_public and "Vary" in response:
+            del response["Vary"]
 
         return response
 
@@ -1698,7 +1678,10 @@ class ContestantViewSet(ModelViewSet):
             # s-maxage=10: CDN shields origin by caching for 10 seconds.
             # max-age=0: Browser always checks CDN (no disk cache).
             response["Cache-Control"] = "public, max-age=0, s-maxage=10, stale-while-revalidate=60"
-            
+
+        if is_public and "Vary" in response:
+            del response["Vary"]
+
         return response
 
     @action(detail=True, methods=["post"])
