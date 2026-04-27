@@ -81,6 +81,25 @@ spec:
     kind: Service
     name: tracker-daphne-service-gateway
 ---
+apiVersion: networking.gke.io/v1
+kind: HealthCheckPolicy
+metadata:
+  name: static-storage-health-check
+  namespace: default
+spec:
+  default:
+    config:
+      type: HTTP
+      httpHealthCheck:
+        port: 80
+      # Fix: Timeout (25) is now less than Interval (30)
+      checkIntervalSec: 30
+      timeoutSec: 25
+  targetRef:
+    group: ""
+    kind: Service
+    name: static-storage-service
+---
 # Replaces BackendConfig
 apiVersion: networking.gke.io/v1
 kind: GCPBackendPolicy
