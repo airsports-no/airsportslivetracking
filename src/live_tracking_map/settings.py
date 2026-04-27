@@ -311,16 +311,10 @@ else:
             "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
             "OPTIONS": {"bucket_name": "airsports-data", "default_acl": "publicRead"},
         },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
     }
-    if os.environ.get("COLLECT_LOCAL"):
-        STORAGES["staticfiles"] = {
-            "BACKEND": "live_tracking_map.storage_backends.ManifestLocalStaticFilesStorage",
-        }
-    else:
-        STORAGES["staticfiles"] = {
-            "BACKEND": "live_tracking_map.storage_backends.ManifestGoogleCloudStorage",
-            "OPTIONS": {"bucket_name": "airsports-static", "default_acl": None, "querystring_auth": False},
-        }
 
 # Default to relative paths so they are served via the Global Load Balancer / CDN.
 # The GKE Gateway is configured to route these paths to the appropriate GCS buckets.
