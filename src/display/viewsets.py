@@ -1515,7 +1515,7 @@ class ContestantViewSet(ModelViewSet):
             response["Cache-Control"] = "public, max-age=120, s-maxage=31536000, stale-while-revalidate=86400"
         else:
             # Live slices: Short CDN cache to protect origin during high load
-            response["Cache-Control"] = "public, max-age=0, s-maxage=10, must-revalidate"
+            response["Cache-Control"] = "public, max-age=5, s-maxage=10, must-revalidate"
 
         if is_public and "Vary" in response:
             # Remove Vary: Cookie for public responses to allow Google Cloud CDN caching
