@@ -1985,6 +1985,11 @@ class CombinedFrontEndView(View):
                 elif os.path.exists(os.path.join(full_path, "index.html")):
                     path = os.path.join(path, "index.html")
 
+            # 4. If the file still doesn't exist, and it's not an API call, redirect to app.airsports.no
+            # We preserve the full path and query strings.
+            if not os.path.exists(os.path.join(marketing_root, path)) and not request.path.startswith("/api") and host != "127.0.0.1":
+                return HttpResponseRedirect(f"https://app.airsports.no{request.get_full_path()}", status=301)
+
             return serve(request, path, document_root=marketing_root)
         else:
             return FrontEndView.as_view()(request, *args, **kwargs)
