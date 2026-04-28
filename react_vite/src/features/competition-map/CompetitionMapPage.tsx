@@ -657,7 +657,7 @@ export default function CompetitionMapPage() {
                   <Trophy size={12} />
                   <span className="hidden sm:inline">Contest</span>
                 </Link>
-                {staticNavTaskData?.user_has_change_permission && (
+                {(staticNavTaskData?.user_has_change_permission || document.configuration.is_superuser)&& (
                   <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Manage">
                     <Settings size={12} />
                     <span className="hidden sm:inline">Manage</span>

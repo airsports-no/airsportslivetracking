@@ -43,9 +43,23 @@
         dateDisplay.textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', month: 'short', day: 'numeric' });
 
         try {
-            const response = await fetch(`${API_BASE}/api/v1/contests/todays_navigation/`);
-            if (!response.ok) throw new Error('Failed to fetch');
-            const data = await response.json();
+            const [flightsResponse, ongoingResponse] = await Promise.all([
+                fetch(`${API_BASE}/api/v1/contests/todays_navigation/`),
+                fetch(`${API_BASE}/api/v1/contests/ongoing_navigation/`)
+            ]);
+
+            if (!flightsResponse.ok) throw new Error('Failed to fetch flights');
+            const data = await flightsResponse.json();
+
+            const activeContestantPks = new Set();
+            if (ongoingResponse.ok) {
+                const ongoingData = await ongoingResponse.json();
+                ongoingData.forEach(task => {
+                    if (task.active_contestants) {
+                        task.active_contestants.forEach(c => activeContestantPks.add(c.pk));
+                    }
+                });
+            }
 
             const platformSection = document.getElementById('platform-in-action');
 
@@ -66,16 +80,25 @@
                 const sortedContestants = (task.contestants || []).sort((a, b) => new Date(a.takeoff_time).getTime() - new Date(b.takeoff_time).getTime());
 
                 const contestantsHtml = sortedContestants.map(c => {
+                    const isLive = activeContestantPks.has(c.pk);
                     const time = new Date(c.takeoff_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZoneName: 'short' });
                     return `
                     <div class="flex justify-between items-center py-4 border-b border-slate-50 last:border-0 group/row">
                         <div class="flex flex-col min-w-0">
-                            <span class="text-sm font-extrabold text-slate-800 tracking-tight truncate uppercase italic group-hover/row:text-blue-600 transition-colors">#${c.contestant_number} ${c.pilot_name}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-extrabold ${isLive ? 'text-blue-600' : 'text-slate-800'} tracking-tight truncate uppercase italic group-hover/row:text-blue-600 transition-colors">#${c.contestant_number} ${c.pilot_name}</span>
+                                ${isLive ? `
+                                    <span class="relative flex h-2 w-2">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                    </span>
+                                ` : ''}
+                            </div>
                             <span class="text-[10px] text-slate-400 uppercase font-black tracking-[0.1em] mt-0.5">${c.aircraft_registration}</span>
                         </div>
                         <div class="flex flex-col items-end shrink-0 ml-4">
-                             <span class="font-mono text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">${time}</span>
-                             <span class="text-[8px] text-slate-300 uppercase font-black tracking-widest mt-1">Takeoff</span>
+                             <span class="font-mono text-xs font-black ${isLive ? 'text-red-600 bg-red-50 border-red-100' : 'text-blue-600 bg-blue-50 border-blue-100'} px-2 py-0.5 rounded-lg border">${time}</span>
+                             <span class="text-[8px] text-slate-300 uppercase font-black tracking-widest mt-1">${isLive ? 'Flying' : 'Takeoff'}</span>
                         </div>
                     </div>
                 `}).join('');
@@ -115,6 +138,8 @@
     }
 
     fetchTodaysFlights();
+    // Update every 2 minutes
+    setInterval(fetchTodaysFlights, 120000);
 </script>
 
 <style>

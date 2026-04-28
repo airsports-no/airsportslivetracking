@@ -86,7 +86,7 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
                 </div>
                 
                 {/* Thermometer Display (moved to the right) */}
-                {dangerData && <DangerThermometerDisplay dangerData={dangerData} />}
+                {(dangerData || (window as any).DEBUG_DANGER_THERMOMETER === true) && <DangerThermometerDisplay dangerData={dangerData} />}
             </div>
         </div>
     );
