@@ -49,12 +49,21 @@ class FillInMissingCourseTest(unittest.TestCase):
         self.processor.fill_in_missing_course(previous, position)
         self.assertEqual(position.course, 180.0)
 
-    def test_zero_course_with_short_distance_leaves_course_at_zero(self):
-        # ~0.1 m apart — well below the 5 m threshold.
-        previous = _make_position(60.0, 11.0)
+    def test_zero_course_short_distance_with_zero_prev_course_stays_at_zero(self):
+        # ~0.1 m apart — well below the 5 m threshold. Previous course is also 0,
+        # so we have nothing better to fall back to.
+        previous = _make_position(60.0, 11.0, course=0.0)
         position = _make_position(60.0 + 1e-6, 11.0, course=0.0)
         self.processor.fill_in_missing_course(previous, position)
         self.assertEqual(position.course, 0.0)
+
+    def test_zero_course_short_distance_inherits_previous_course(self):
+        # Near-stationary aircraft (well below the 5 m threshold) should keep
+        # the last known heading rather than snapping back to north.
+        previous = _make_position(60.0, 11.0, course=137.5)
+        position = _make_position(60.0 + 1e-6, 11.0, course=0.0)
+        self.processor.fill_in_missing_course(previous, position)
+        self.assertEqual(position.course, 137.5)
 
     def test_zero_course_north_movement_yields_zero_bearing(self):
         # Move ~111 m north — bearing should be close to 0 (north).

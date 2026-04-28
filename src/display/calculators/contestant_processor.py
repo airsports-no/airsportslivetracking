@@ -196,13 +196,17 @@ class ContestantProcessor:
 
         * the incoming course is exactly 0 (we trust any non-zero value already
           provided by the tracker — including legitimate due-north headings, which
-          we accept as a reasonable trade-off),
-        * a previous position exists, and
-        * the horizontal distance between the two positions is at least
-          ``MIN_DISTANCE_FOR_BEARING_M`` metres so that GPS jitter does not
-          dominate the bearing calculation.
+          we accept as a reasonable trade-off), and
+        * a previous position exists.
 
-        In all other cases the existing course value is left untouched.
+        When the horizontal distance between the two positions is below
+        ``MIN_DISTANCE_FOR_BEARING_M`` metres, GPS jitter dominates and the
+        derived bearing would be unreliable. In that case we fall back to the
+        previous position's course (whether tracker-provided or itself derived
+        from the track on an earlier step) so that a near-stationary aircraft
+        keeps its last known heading rather than snapping back to north. If the
+        previous course is also 0 we have nothing better to use and leave the
+        heading at 0.
         """
         if position.course != 0:
             return
@@ -211,6 +215,8 @@ class ContestantProcessor:
         start = (last_position.latitude, last_position.longitude)
         finish = (position.latitude, position.longitude)
         if calculate_distance_lat_lon(start, finish) < MIN_DISTANCE_FOR_BEARING_M:
+            if last_position.course != 0:
+                position.course = last_position.course
             return
         position.course = calculate_bearing(start, finish)
 
