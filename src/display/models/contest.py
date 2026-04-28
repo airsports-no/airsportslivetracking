@@ -267,3 +267,17 @@ class Contest(models.Model):
         """
         users = get_users_with_perms(self, attach_perms=True)
         return [user for user, permissions in users.items() if "change_contest" in permissions]
+
+
+class HighlightedContest(models.Model):
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE)
+    start_time = models.DateTimeField(help_text="When the highlighting period starts")
+    finish_time = models.DateTimeField(help_text="When the highlighting period ends")
+    blurb = models.TextField(help_text="A nice description of why this contest is highlighted")
+
+    def __str__(self):
+        return f"Highlight for {self.contest.name}"
+
+    def clean(self):
+        if not self.contest.is_public:
+            raise ValidationError("Only public contests can be highlighted")

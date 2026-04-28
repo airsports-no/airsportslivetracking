@@ -1,0 +1,101 @@
+---
+// HighlightedContests.astro
+---
+<div id="highlighted-contests-container" class="py-24 bg-white relative overflow-hidden hidden">
+    <!-- Decorative background elements -->
+    <div class="absolute top-0 right-0 w-1/3 h-full bg-blue-50/50 skew-x-12 translate-x-20"></div>
+    
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="text-center mb-16">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+                Featured Events
+            </div>
+            <h2 class="text-4xl md:text-5xl font-extrabold text-slate-900 font-lexend italic uppercase tracking-tight">Major <span class="text-blue-600">Highlights</span></h2>
+        </div>
+
+        <div id="highlighted-contests-list" class="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <!-- Content injected via JS -->
+        </div>
+    </div>
+</div>
+
+<script>
+    async function fetchHighlightedContests() {
+        const container = document.getElementById('highlighted-contests-container');
+        const list = document.getElementById('highlighted-contests-list');
+        
+        if (!container || !list) return;
+
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:8002'
+            : 'https://app.airsports.no';
+
+        try {
+            const response = await fetch(`${API_BASE}/api/v1/highlighted_contests/`);
+            if (!response.ok) throw new Error('Failed to fetch highlights');
+            const data = await response.json();
+
+            if (!data || data.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            list.innerHTML = '';
+
+            data.forEach(highlight => {
+                const contest = highlight.contest;
+                const card = document.createElement('div');
+                card.className = 'group relative bg-slate-900 rounded-[3rem] overflow-hidden shadow-2xl flex flex-col md:flex-row h-full transform hover:scale-[1.02] transition-all duration-500';
+                
+                const startTime = new Date(contest.start_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                const finishTime = new Date(contest.finish_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                card.innerHTML = `
+                    <div class="md:w-2/5 h-64 md:h-auto relative overflow-hidden">
+                        ${contest.header_image ? 
+                            `<img src="${contest.header_image}" alt="${contest.name}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80" />` :
+                            `<div class="w-full h-full bg-gradient-to-br from-blue-600 to-indigo-900 opacity-80"></div>`
+                        }
+                        <div class="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-900 via-transparent to-transparent"></div>
+                        <div class="absolute bottom-6 left-8 md:bottom-auto md:top-8">
+                            <div class="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full">
+                                <span class="text-[10px] font-black text-white uppercase tracking-widest">${contest.country || 'Global'}</span>
+                                ${contest.country_flag_url ? `<img src="${API_BASE + contest.country_flag_url}" alt="" class="w-4 h-3 object-cover rounded-sm" />` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="md:w-3/5 p-10 flex flex-col justify-center relative z-10">
+                        <div class="mb-4">
+                            <p class="text-blue-400 font-black text-[10px] uppercase tracking-[0.3em] mb-2">${startTime} — ${finishTime}</p>
+                            <h3 class="text-3xl font-black text-white font-lexend italic uppercase tracking-tight leading-tight mb-4">${contest.name}</h3>
+                            <p class="text-slate-300 text-sm leading-relaxed font-medium mb-8">
+                                ${highlight.blurb}
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-4 mt-auto">
+                            <a href="https://app.airsports.no/competition-map/${contest.id}" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-700 transition-all active:scale-95 italic">
+                                View Competition
+                            </a>
+                            ${contest.contest_website ? `
+                                <a href="${contest.contest_website}" target="_blank" class="bg-white/10 border border-white/20 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white/20 transition-all active:scale-95 italic">
+                                    Official Site
+                                </a>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+
+        } catch (e) {
+            console.error('Highlights fetch error:', e);
+            container.classList.add('hidden');
+        }
+    }
+
+    fetchHighlightedContests();
+</script>

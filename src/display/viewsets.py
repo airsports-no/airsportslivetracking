@@ -55,6 +55,7 @@ from display.models import (
     Task,
     TaskTest,
     NewsletterSubscriber,
+    HighlightedContest,
 )
 from display.permissions import (
     EditableRoutePermission,
@@ -120,6 +121,7 @@ from display.serialisers import (
     ContestantNestedTeamSerialiser,
     FutureContestantNestedTeamSerialiser,
     NewsletterSubscriberSerialiser,
+    HighlightedContestSerialiser,
 )
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
@@ -1761,6 +1763,20 @@ class TaskTestViewSet(ModelViewSet):
     def get_queryset(self):
         contest_id = self.kwargs.get("contest_pk")
         return TaskTest.objects.filter(task__contest_id=contest_id)
+
+class HighlightedContestViewSet(ReadOnlyModelViewSet):
+    queryset = HighlightedContest.objects.all()
+    serializer_class = HighlightedContestSerialiser
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return HighlightedContest.objects.filter(
+            start_time__lte=now,
+            finish_time__gte=now,
+            contest__is_public=True
+        ).select_related("contest")
+
 
 class NewsletterSubscriberViewSet(ModelViewSet):
     queryset = NewsletterSubscriber.objects.all()

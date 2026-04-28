@@ -24,6 +24,7 @@ from display.models import (
     EmailMapLink,
     UserUploadedMap,
     NewsletterSubscriber,
+    HighlightedContest,
 )
 from solo.admin import SingletonModelAdmin
 
@@ -106,3 +107,20 @@ class NewsletterSubscriberAdmin(admin.ModelAdmin):
     search_fields = ["email"]
 
 admin.site.register(NewsletterSubscriber, NewsletterSubscriberAdmin)
+
+
+class HighlightedContestAdmin(admin.ModelAdmin):
+    list_display = ("contest", "start_time", "finish_time")
+    list_filter = ("contest", "start_time", "finish_time")
+    search_fields = ("contest__name", "blurb")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "contest":
+            kwargs["queryset"] = Contest.objects.order_by("name")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    class Media:
+        js = ("js/highlight_prefill.js",)
+
+
+admin.site.register(HighlightedContest, HighlightedContestAdmin)

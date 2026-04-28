@@ -54,6 +54,7 @@ from display.models import (
     GateCumulativeScore,
     EditableRoute,
     MyUser,
+    HighlightedContest,
     STARTINGPOINT,
     FINISHPOINT,
     GATE_TYPES,
@@ -669,6 +670,14 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         instance: Contest = super().create(validated_data)
         instance.initialise(self.context["request"].user)
         return instance
+
+
+class HighlightedContestSerialiser(serializers.ModelSerializer):
+    contest = ContestSerialiser(read_only=True)
+
+    class Meta:
+        model = HighlightedContest
+        fields = ("id", "contest", "start_time", "finish_time", "blurb")
 
 
 class ContestParticipationSerialiser(ContestSerialiser):

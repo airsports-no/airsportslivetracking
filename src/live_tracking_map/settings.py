@@ -46,8 +46,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://app.airsports.no",
     "https://airsports-info-1747b.web.app",
     "https://airsports-info-1747b.firebaseapp.com",
-    "http://localhost:4321",
-    "http://127.0.0.1:4321",
+    "http://localhost:8002",
+    "http://127.0.0.1:8002",
 ]
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("MODE") == "dev"
