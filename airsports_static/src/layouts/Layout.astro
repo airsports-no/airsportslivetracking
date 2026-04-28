@@ -31,20 +31,19 @@ const { title } = Astro.props;
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-20 items-center">
                     <div class="flex items-center gap-4">
-                        <a href="/" class="flex items-center gap-2 group overflow-visible">
-                            <div class="flex-shrink-0 p-2 overflow-visible">
-                                <Image src={logoNoText} alt="ASLT Logo" class="h-10 sm:h-12 w-auto group-hover:rotate-12 transition-transform duration-300" width={256} />
+                        <a href="/" class="flex items-center gap-1 sm:gap-2 group overflow-visible">
+                            <div class="flex-shrink-0 p-1 sm:p-2 overflow-visible">
+                                <Image src={logoNoText} alt="ASLT Logo" class="h-8 md:h-14 w-auto group-hover:rotate-12 transition-transform duration-300" width={256} />
                             </div>
                             <div class="flex flex-col leading-tight">
-                                <span class="text-[#2563EB] font-extrabold text-lg sm:text-2xl tracking-tighter font-lexend italic whitespace-nowrap">AIR SPORTS</span>
-                                <span class="text-slate-500 font-bold text-[8px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] whitespace-nowrap">Live Tracking</span>
+                                <span class="text-[#2563EB] font-extrabold text-base sm:text-lg md:text-2xl tracking-tighter font-lexend italic whitespace-nowrap">AIR SPORTS</span>
+                                <span class="text-slate-500 font-bold text-[7px] sm:text-[8px] md:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] whitespace-nowrap">Live Tracking</span>
                             </div>
                         </a>
                     </div>
                     
                     <!-- Desktop Menu -->
-                    <div class="hidden lg:flex items-center space-x-6 lg:space-x-8">
-                        <a href="/" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Home</a>
+                    <div class="hidden xl:flex items-center space-x-6 xl:space-x-8">
                         <a href="/tutorials" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Tutorials</a>
                         <a href="/docs/01_Introduction" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Guides</a>
                         <a href="/faq" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">FAQ</a>
@@ -52,16 +51,16 @@ const { title } = Astro.props;
                         <a href="/support" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Support</a>
                     </div>
 
-                    <div class="flex items-center gap-2 sm:gap-4">
+                    <div class="flex items-center gap-1 sm:gap-4">
                         <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="text-slate-400 hover:text-slate-600 hidden sm:block transition-colors" title="Join our Slack">
                             <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.528 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.528 0 0 1 2.521-2.52 2.528 2.528 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52h-2.521zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm6.331-1.271a2.528 2.528 0 0 1 2.521-2.522A2.528 2.528 0 0 1 20.208 5.042a2.528 2.528 0 0 1-2.521 2.52h-2.521v-2.52zm-1.271 0a2.528 2.528 0 0 1-2.521 2.522 2.528 2.528 0 0 1-2.521-2.522V2.522A2.528 2.528 0 0 1 11.373 0a2.528 2.528 0 0 1 2.521 2.522v6.312zM15.165 18.958a2.528 2.528 0 0 1 2.522 2.521A2.528 2.528 0 0 1 15.165 24a2.528 2.528 0 0 1-2.522-2.521v-2.52h2.522zm0-1.271a2.528 2.528 0 0 1-2.522-2.521 2.528 2.528 0 0 1 2.522-2.521h6.313A2.528 2.528 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.52h-6.313z"/></svg>
                         </a>
-                        <a href="https://app.airsports.no" class="bg-[#2563EB] text-white px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 text-xs sm:text-sm active:scale-95 uppercase tracking-wider whitespace-nowrap">
+                        <a href="https://app.airsports.no" class="bg-[#2563EB] text-white px-2 py-1.5 sm:px-4 sm:py-2 md:px-6 md:py-3 rounded-lg sm:rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 text-[10px] sm:text-xs md:text-sm active:scale-95 uppercase tracking-wider whitespace-nowrap">
                             <span class="hidden sm:inline">Competition</span> Dashboard
                         </a>
 
                         <!-- Hamburger Button -->
-                        <button id="mobile-menu-button" class="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" aria-label="Toggle Menu">
+                        <button id="mobile-menu-button" class="xl:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" aria-label="Toggle Menu">
                             <svg id="menu-icon-open" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
@@ -74,9 +73,8 @@ const { title } = Astro.props;
             </div>
 
             <!-- Mobile Menu -->
-            <div id="mobile-menu" class="hidden lg:hidden border-t border-slate-100 bg-white/95 backdrop-blur-xl animate-in slide-in-from-top duration-300">
+            <div id="mobile-menu" class="hidden xl:hidden border-t border-slate-100 bg-white/95 backdrop-blur-xl animate-in slide-in-from-top duration-300">
                 <div class="px-4 pt-2 pb-6 space-y-1 shadow-xl">
-                    <a href="/" class="block px-4 py-3 text-base font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all uppercase tracking-wider">Home</a>
                     <a href="/tutorials" class="block px-4 py-3 text-base font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all uppercase tracking-wider">Tutorials</a>
                     <a href="/docs/01_Introduction" class="block px-4 py-3 text-base font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all uppercase tracking-wider">Guides</a>
                     <a href="/faq" class="block px-4 py-3 text-base font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all uppercase tracking-wider">FAQ</a>
