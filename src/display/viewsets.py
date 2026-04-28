@@ -687,7 +687,7 @@ class ContestViewSet(ModelViewSet):
         data = TodaysNavigationSerialiser(navigation_tasks, many=True, context={"request": self.request}).data
         response = Response(data)
         # Public list scheduled for today. No ETag available.
-        # s-maxage=600: CDN shields origin by caching for 10 minutes.
+        # s-maxage=120: CDN shields origin by caching for 2 minutes.
         # max-age=0: Browser always checks CDN (no disk cache).
         response["Cache-Control"] = "public, max-age=0, s-maxage=120"
         return response
@@ -998,16 +998,8 @@ class NavigationTaskViewSet(ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        version = get_contest_list_version()
-
-        # ETag based on global version and object ID
-        etag = f'"{version}-navtask-{instance.pk}"'
-        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
-            return Response(status=status.HTTP_304_NOT_MODIFIED)
-
         response = super().retrieve(request, *args, **kwargs)
 
-        response["ETag"] = etag
         if instance.is_public and instance.contest.is_public and instance.is_featured:
             response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
             if "Vary" in response:
