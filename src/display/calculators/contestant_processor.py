@@ -24,11 +24,17 @@ from display.utilities.traccar_factory import get_traccar_instance
 
 from display.utilities.coordinate_utilities import (
     Projector,
+    calculate_bearing,
+    calculate_distance_lat_lon,
 )
 from display.models import Contestant, TrackAnnotation, ScoreLogEntry, ContestantReceivedPosition
 
 DANGER_LEVEL_REPORT_INTERVAL = 5
 CHECK_BUFFERED_DATA_TIME_LIMIT = 6
+# Minimum horizontal distance (metres) between two positions before we trust a
+# track-derived bearing. Below this, GPS jitter dominates and the bearing is
+# unreliable, so we leave the heading at 0 rather than emitting noise.
+MIN_DISTANCE_FOR_BEARING_M = 5.0
 logger = logging.getLogger(__name__)
 
 
@@ -172,6 +178,41 @@ class ContestantProcessor:
             except Empty:
                 continue
         logger.info(f"{self.contestant}: score_updater_thread exiting")
+
+    def fill_in_missing_course(
+        self,
+        last_position: Optional[ContestantReceivedPosition],
+        position: ContestantReceivedPosition,
+    ) -> None:
+        """
+        Some upstream tracking sources do not populate the course/heading field, in
+        which case ``generate_position_block_for_contestant`` defaults it to 0. A
+        constant 0 heading makes every aircraft on the live map point north, which
+        is misleading. When we have a previous position available (the calculator,
+        unlike the position processor, has the track) we can derive the heading
+        from the great-circle bearing between the two points.
+
+        We only fill in the course when:
+
+        * the incoming course is exactly 0 (we trust any non-zero value already
+          provided by the tracker — including legitimate due-north headings, which
+          we accept as a reasonable trade-off),
+        * a previous position exists, and
+        * the horizontal distance between the two positions is at least
+          ``MIN_DISTANCE_FOR_BEARING_M`` metres so that GPS jitter does not
+          dominate the bearing calculation.
+
+        In all other cases the existing course value is left untouched.
+        """
+        if position.course != 0:
+            return
+        if last_position is None:
+            return
+        start = (last_position.latitude, last_position.longitude)
+        finish = (position.latitude, position.longitude)
+        if calculate_distance_lat_lon(start, finish) < MIN_DISTANCE_FOR_BEARING_M:
+            return
+        position.course = calculate_bearing(start, finish)
 
     def interpolate_track(
         self, last_position: Optional[ContestantReceivedPosition], position: ContestantReceivedPosition
@@ -362,6 +403,12 @@ class ContestantProcessor:
                     if self.previous_position.time < p.time:
                         self.previous_position = p
                     continue
+
+                # If the tracker did not report a heading (``course`` defaulted to 0
+                # in generate_position_block_for_contestant), derive it from the
+                # track. This avoids every map icon pointing north when the source
+                # omits the field.
+                self.fill_in_missing_course(self.previous_position, p)
 
                 # Pre-project non-interpolated position
                 p_obj = self.projector.project_point(p.latitude, p.longitude)
