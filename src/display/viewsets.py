@@ -642,23 +642,42 @@ class ContestViewSet(ModelViewSet):
         start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
         end_of_day = start_of_day + datetime.timedelta(days=1)
 
-        # Public navigation tasks with contestants scheduled today
+        # A contestant is valid if they are scheduled today AND (they haven't finished yet OR they actually started flying)
+        # This one is for filtering Contestant objects directly (used in Prefetch)
+        valid_contestant_q = Q(
+            takeoff_time__gte=start_of_day,
+            takeoff_time__lt=end_of_day
+        ) & (
+            Q(finished_by_time__gte=now) | 
+            Q(contestanttrack__calculator_started=True)
+        )
+
+        # This one is for filtering NavigationTask objects via the contestant relationship
+        valid_nav_task_q = Q(
+            contestant__takeoff_time__gte=start_of_day,
+            contestant__takeoff_time__lt=end_of_day
+        ) & (
+            Q(contestant__finished_by_time__gte=now) | 
+            Q(contestant__contestanttrack__calculator_started=True)
+        )
+
+        # Public navigation tasks with at least one valid contestant scheduled today
         navigation_tasks = (
             NavigationTask.objects.filter(
                 is_public=True,
                 contest__is_public=True,
-                contestant__takeoff_time__gte=start_of_day,
-                contestant__takeoff_time__lt=end_of_day,
+            ).filter(
+                valid_nav_task_q
             )
             .distinct()
             .select_related("contest")
         )
 
-        # Prefetch today's contestants to avoid N+1
+        # Prefetch valid today's contestants to avoid N+1
         todays_contestants_prefetch = Prefetch(
             "contestant_set",
             queryset=Contestant.objects.filter(
-                takeoff_time__gte=start_of_day, takeoff_time__lt=end_of_day
+                valid_contestant_q
             ).select_related("team__crew__member1", "team__aeroplane"),
             to_attr="prefetched_todays_contestants",
         )
