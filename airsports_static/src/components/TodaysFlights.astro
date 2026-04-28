@@ -66,7 +66,7 @@
                 const sortedContestants = (task.contestants || []).sort((a, b) => new Date(a.takeoff_time).getTime() - new Date(b.takeoff_time).getTime());
 
                 const contestantsHtml = sortedContestants.map(c => {
-                    const time = new Date(c.takeoff_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+                    const time = new Date(c.takeoff_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZoneName: 'short' });
                     return `
                     <div class="flex justify-between items-center py-4 border-b border-slate-50 last:border-0 group/row">
                         <div class="flex flex-col min-w-0">
