@@ -18,7 +18,7 @@ const { title } = Astro.props;
 		<meta charset="UTF-8" />
         <!-- Build Version: 2026-04-26-V10 -->
 		<meta name="description" content="Air Sports Live Tracking - Professional competition flying platform" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="icon" type="image/png" href="/img/airsports_no_text.png" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title} | Air Sports Live Tracking</title>
@@ -31,8 +31,10 @@ const { title } = Astro.props;
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-20 items-center">
                     <div class="flex items-center gap-4">
-                        <a href="/" class="flex items-center gap-2 sm:gap-3 group">
-                            <Image src={logoNoText} alt="ASLT Logo" class="h-8 sm:h-10 w-auto group-hover:rotate-12 transition-transform duration-300" width={48} height={48} />
+                        <a href="/" class="flex items-center gap-2 group overflow-visible">
+                            <div class="flex-shrink-0 p-2 overflow-visible">
+                                <Image src={logoNoText} alt="ASLT Logo" class="h-10 sm:h-12 w-auto group-hover:rotate-12 transition-transform duration-300" width={256} />
+                            </div>
                             <div class="flex flex-col leading-tight">
                                 <span class="text-[#2563EB] font-extrabold text-lg sm:text-2xl tracking-tighter font-lexend italic whitespace-nowrap">AIR SPORTS</span>
                                 <span class="text-slate-500 font-bold text-[8px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] whitespace-nowrap">Live Tracking</span>
@@ -41,7 +43,7 @@ const { title } = Astro.props;
                     </div>
                     
                     <!-- Desktop Menu -->
-                    <div class="hidden md:flex items-center space-x-6 lg:space-x-8">
+                    <div class="hidden lg:flex items-center space-x-6 lg:space-x-8">
                         <a href="/" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Home</a>
                         <a href="/tutorials" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Tutorials</a>
                         <a href="/docs/01_Introduction" class="text-slate-600 hover:text-blue-600 font-semibold text-sm transition-colors uppercase tracking-wider">Guides</a>
@@ -59,7 +61,7 @@ const { title } = Astro.props;
                         </a>
 
                         <!-- Hamburger Button -->
-                        <button id="mobile-menu-button" class="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" aria-label="Toggle Menu">
+                        <button id="mobile-menu-button" class="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" aria-label="Toggle Menu">
                             <svg id="menu-icon-open" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
@@ -72,7 +74,7 @@ const { title } = Astro.props;
             </div>
 
             <!-- Mobile Menu -->
-            <div id="mobile-menu" class="hidden md:hidden border-t border-slate-100 bg-white/95 backdrop-blur-xl animate-in slide-in-from-top duration-300">
+            <div id="mobile-menu" class="hidden lg:hidden border-t border-slate-100 bg-white/95 backdrop-blur-xl animate-in slide-in-from-top duration-300">
                 <div class="px-4 pt-2 pb-6 space-y-1 shadow-xl">
                     <a href="/" class="block px-4 py-3 text-base font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all uppercase tracking-wider">Home</a>
                     <a href="/tutorials" class="block px-4 py-3 text-base font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all uppercase tracking-wider">Tutorials</a>
@@ -95,8 +97,8 @@ const { title } = Astro.props;
 
         <footer class="bg-[#0F172A] text-slate-400 py-20 mt-20">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-16">
-                    <div class="col-span-1 md:col-span-2">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16">
+                    <div class="col-span-1 lg:col-span-2">
                         <Image src={logoWhite} alt="ASLT Logo White" class="h-12 w-auto mb-8 opacity-90 object-left object-contain max-w-full" width={300} height={48} />
                         <p class="text-base leading-relaxed max-w-md text-slate-400">
                             The world's leading open-source scoring platform for aircraft competitions. Modernizing air sports through real-time technology and non-profit dedication.
