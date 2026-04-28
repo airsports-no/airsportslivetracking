@@ -465,10 +465,7 @@ class TodaysNavigationSerialiser(serializers.ModelSerializer):
         if hasattr(obj, "prefetched_todays_contestants"):
             contestants = obj.prefetched_todays_contestants
         else:
-            now = datetime.datetime.now(datetime.timezone.utc)
-            start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_of_day = start_of_day + datetime.timedelta(days=1)
-            contestants = obj.contestant_set.filter(takeoff_time__gte=start_of_day, takeoff_time__lt=end_of_day)
+            contestants = obj.contestant_set.valid_today()
         return ContestantTickerSerialiser(contestants, many=True).data
 
 

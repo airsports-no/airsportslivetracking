@@ -83,12 +83,12 @@
                     const isLive = activeContestantPks.has(c.pk);
                     const time = new Date(c.takeoff_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZoneName: 'short' });
                     return `
-                    <div class="flex justify-between items-center py-4 border-b border-slate-50 last:border-0 group/row">
+                    <div class="flex justify-between items-start py-4 border-b border-slate-50 last:border-0 group/row">
                         <div class="flex flex-col min-w-0">
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm font-extrabold ${isLive ? 'text-blue-600' : 'text-slate-800'} tracking-tight truncate uppercase italic group-hover/row:text-blue-600 transition-colors">#${c.contestant_number} ${c.pilot_name}</span>
+                            <div class="flex items-start gap-2">
+                                <span class="text-sm font-extrabold ${isLive ? 'text-blue-600' : 'text-slate-800'} tracking-tight uppercase italic group-hover/row:text-blue-600 transition-colors leading-tight">#${c.contestant_number} ${c.pilot_name}</span>
                                 ${isLive ? `
-                                    <span class="relative flex h-2 w-2">
+                                    <span class="relative flex h-2 w-2 mt-1 shrink-0">
                                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                         <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                                     </span>

@@ -53,6 +53,25 @@ def round_gate_times(times: dict) -> dict:
     return {key: round_time_second(value) for key, value in times.items()}
 
 
+class ContestantQuerySet(QuerySet):
+    def valid_today(self):
+        """
+        Filter contestants who are scheduled for today and have either started flying
+        or haven't reached their expected finish time yet.
+        """
+        now = datetime.datetime.now(datetime.timezone.utc)
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + datetime.timedelta(days=1)
+
+        return self.filter(
+            takeoff_time__gte=start_of_day,
+            takeoff_time__lt=end_of_day
+        ).filter(
+            Q(finished_by_time__gte=now) | 
+            Q(contestanttrack__calculator_started=True)
+        )
+
+
 class Contestant(models.Model):
     """
     The contestant model represents an instance of a team competing in a navigation task. It keeps track of all timing
@@ -60,6 +79,8 @@ class Contestant(models.Model):
     any team/navigation task combination, but contestants for teams that share either personnel or aircraft cannot
     overlap in time.
     """
+
+    objects = ContestantQuerySet.as_manager()
 
     team = models.ForeignKey("Team", on_delete=models.CASCADE)
     navigation_task = models.ForeignKey("NavigationTask", on_delete=models.CASCADE)
