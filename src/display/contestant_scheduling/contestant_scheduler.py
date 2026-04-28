@@ -98,7 +98,6 @@ class Solver:
         logger.debug("Obvious solution")
         for team in self.teams:
             logger.debug(f"{team.pk} starting slot {self.start_slot_numbers[f'{team.pk}'].value()}")
-        self.problem.writeLP("problem.lp")
         logger.debug("Running solve")
         # status = self.problem.solve(pulp.SCIP_CMD(timeLimit=600))
         status = self.problem.solve(pulp.PULP_CBC_CMD(timeLimit=60000, warmStart=True))
