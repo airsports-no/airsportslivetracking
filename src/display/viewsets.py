@@ -976,12 +976,12 @@ class NavigationTaskViewSet(ModelViewSet):
         instance = self.get_object()
         response = super().retrieve(request, *args, **kwargs)
 
-        if instance.is_public and instance.contest.is_public and instance.is_featured:
-            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
-            if "Vary" in response:
-                del response["Vary"]
-        else:
-            response["Cache-Control"] = "private, no-cache"
+        # if instance.is_public and instance.contest.is_public and instance.is_featured:
+        #     response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+        #     if "Vary" in response:
+        #         del response["Vary"]
+        # else:
+        #     response["Cache-Control"] = "private, no-cache"
         return response
 
     permission_classes = [
