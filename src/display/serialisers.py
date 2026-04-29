@@ -1008,6 +1008,17 @@ class ContestantSerialiser(serializers.ModelSerializer):
     navigation_task = serializers.PrimaryKeyRelatedField(read_only=True)
     landing_time = serializers.DateTimeField(read_only=True)
     schedule_locked = serializers.BooleanField(required=False)
+    first_position_time = SerializerMethodField("get_first_position_time", read_only=True)
+    last_position_time = SerializerMethodField("get_last_position_time", read_only=True)
+
+    def get_first_position_time(self, contestant):
+        first = contestant.contestantreceivedposition_set.order_by("time").first()
+        return first.time if first else None
+
+    def get_last_position_time(self, contestant):
+        last = contestant.contestantreceivedposition_set.order_by("time").last()
+        return last.time if last else None
+
     overlap_warnings = SerializerMethodField("get_overlap_warnings", read_only=True)
     overlapping_tasks = SerializerMethodField("get_overlapping_tasks", read_only=True)
 

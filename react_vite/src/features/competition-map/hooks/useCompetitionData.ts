@@ -219,11 +219,16 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         // 1. Calculate total expected requests to provide a granular progress bar
         let totalRequests = 0;
         const contestantRequestPlans = contestantsToFetch.map(c => {
-            const startTime = new Date(c.takeoff_time);
-            const finishByTime = new Date(c.finished_by_time);
-            const endTime = finishByTime < now ? finishByTime : now;
+            const definedStartTime = new Date(c.tracker_start_time);
+            const firstPosTime = c.first_position_time ? new Date(c.first_position_time) : null;
+            const startTime = (firstPosTime && firstPosTime < definedStartTime) ? firstPosTime : definedStartTime;
+
+            const definedFinishTime = new Date(c.finished_by_time);
+            const lastPosTime = c.last_position_time ? new Date(c.last_position_time) : null;
+            const absoluteEndTime = (lastPosTime && lastPosTime > definedFinishTime) ? lastPosTime : definedFinishTime;
+            const endTime = absoluteEndTime < now ? absoluteEndTime : now;
             
-            const startMinute = Math.floor(startTime.getTime() / 60000) - 5;
+            const startMinute = Math.floor(startTime.getTime() / 60000);
             const endMinute = Math.ceil(endTime.getTime() / 60000);
             
             let requests = 1; // For score data

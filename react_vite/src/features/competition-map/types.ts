@@ -162,6 +162,9 @@ export interface Contestant {
   playing_cards?: { card: string }[];
   navigation_task: NavigationTask;
   takeoff_time: string;
+  tracker_start_time: string;
+  first_position_time?: string | null;
+  last_position_time?: string | null;
   finished_by_time: string;
   adaptive_start?: boolean;
   has_crossed_starting_line: boolean;
