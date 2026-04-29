@@ -216,34 +216,64 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
         onProgress({ loaded: 0, total: 100, message: 'Planning track stitching...' });
 
+        const getBestChunkSize = (minute: number, endMinute: number, now: Date) => {
+            const remaining = endMinute - minute + 1;
+            // Tiered chunking for CDN efficiency and reduced request count
+            for (const size of [60, 15, 5]) {
+                if (minute % size === 0 && remaining >= size) {
+                    const chunkEndTime = (minute + size) * 60000;
+                    // Only use chunks for data that is definitively in the past (150s grace period)
+                    if (chunkEndTime < now.getTime() - 150000) {
+                        return size;
+                    }
+                }
+            }
+            return 1;
+        };
+
         // 1. Calculate total expected requests to provide a granular progress bar
         let totalRequests = 0;
         const contestantRequestPlans = contestantsToFetch.map(c => {
-            const definedStartTime = new Date(c.tracker_start_time);
+            const scheduledStartTime = new Date(c.tracker_start_time);
             const firstPosTime = c.first_position_time ? new Date(c.first_position_time) : null;
-            const startTime = (firstPosTime && firstPosTime < definedStartTime) ? firstPosTime : definedStartTime;
 
-            const definedFinishTime = new Date(c.finished_by_time);
+            // If we have actual positions, prioritize starting there. 
+            // Only fall back to scheduled time if no positions exist.
+            let startTime = firstPosTime || scheduledStartTime;
+
+            // If the pilot started early, include that.
+            if (firstPosTime && scheduledStartTime < firstPosTime) {
+                // If it's just a few minutes early, include the scheduled start.
+                // If it's hours earlier, we probably only care about the actual flight.
+                if (firstPosTime.getTime() - scheduledStartTime.getTime() < 3600000) {
+                    startTime = scheduledStartTime;
+                }
+            }
+
+            const scheduledFinishTime = new Date(c.finished_by_time);
             const lastPosTime = c.last_position_time ? new Date(c.last_position_time) : null;
-            const absoluteEndTime = (lastPosTime && lastPosTime > definedFinishTime) ? lastPosTime : definedFinishTime;
+
+            // End at the later of scheduled finish or last known position
+            let absoluteEndTime = (lastPosTime && lastPosTime > scheduledFinishTime) ? lastPosTime : scheduledFinishTime;
+
+            // If we are currently in the scheduled window or data is recent, include "now"
             const endTime = absoluteEndTime < now ? absoluteEndTime : now;
-            
-            const startMinute = Math.floor(startTime.getTime() / 60000);
+
+            // Safety: Never request more than 24 hours of data.
+            // If the range is larger, prefer the end of the window (the most recent data).
+            let finalStartTime = startTime;
+            if (endTime.getTime() - finalStartTime.getTime() > 24 * 3600000) {
+                finalStartTime = new Date(endTime.getTime() - 24 * 3600000);
+            }
+
+            const startMinute = Math.floor(finalStartTime.getTime() / 60000);
             const endMinute = Math.ceil(endTime.getTime() / 60000);
-            
+
             let requests = 1; // For score data
             let currentMinute = startMinute;
             while (currentMinute <= endMinute) {
-                if (currentMinute % chunkSize === 0) {
-                    const chunkEndTime = (currentMinute + chunkSize) * 60000;
-                    if (chunkEndTime < now.getTime() - 60000 && currentMinute + chunkSize <= endMinute) {
-                        currentMinute += chunkSize;
-                    } else {
-                        currentMinute++;
-                    }
-                } else {
-                    currentMinute++;
-                }
+                const size = getBestChunkSize(currentMinute, endMinute, now);
+                currentMinute += size;
                 requests++;
             }
             totalRequests += requests;
@@ -266,35 +296,17 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         const contestantPromises = contestantsToFetch.map(async (c, idx) => {
             try {
                 const { startMinute, endMinute } = contestantRequestPlans[idx];
-                const slicePromises = [];
-                
+                const sliceResults: any[][] = [];
+
                 let currentMinute = startMinute;
                 while (currentMinute <= endMinute) {
-                    const nextAligned = Math.ceil((currentMinute + 1) / chunkSize) * chunkSize;
-                    
-                    let p;
-                    if (currentMinute % chunkSize !== 0) {
-                        p = fetchContestantSlice(c.id, currentMinute).finally(() => updateProgress());
-                        currentMinute++;
-                    } else {
-                        const chunkEndTime = (currentMinute + chunkSize) * 60000;
-                        // Use a 150s grace period (2.5 minutes) before requesting a chunk as a multi-minute slice.
-                        // This ensures the backend has finalized the chunk as immutable (120s window) before we cache it.
-                        if (chunkEndTime < now.getTime() - 150000 && currentMinute + chunkSize <= endMinute) {
-                            p = fetchContestantSlice(c.id, currentMinute, chunkSize).finally(() => updateProgress());
-                            currentMinute += chunkSize;
-                        } else {
-                            p = fetchContestantSlice(c.id, currentMinute).finally(() => updateProgress());
-                            currentMinute++;
-                        }
-                    }
-                    slicePromises.push(p);
+                    const size = getBestChunkSize(currentMinute, endMinute, now);
+                    const p = await fetchContestantSlice(c.id, currentMinute, size).finally(() => updateProgress());
+                    sliceResults.push(p);
+                    currentMinute += size;
                 }
-                
-                const sliceResults = await Promise.all(slicePromises);
-                const allPositions: TrackPosition[] = sliceResults.flat();
-                
-                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id).finally(() => {
+
+                const allPositions: TrackPosition[] = sliceResults.flat();                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id).finally(() => {
                     updateProgress(`Processed scores for ${c.team.crew.member1.first_name}`);
                 });
 
