@@ -285,19 +285,25 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
         const updateProgress = (msg?: string) => {
             loadedRequests++;
-            const percentage = Math.round((loadedRequests / totalRequests) * 100);
+            // Use 99% as the max during individual request phase to keep bar visible during data processing
+            const percentage = Math.min(99, Math.round((loadedRequests / totalRequests) * 100));
             onProgress({ 
                 loaded: percentage, 
                 total: 100, 
-                message: msg || `Downloading telemetry: ${percentage}%` 
+                message: msg || `Downloading data: ${percentage}%` 
             });
         };
 
         const contestantPromises = contestantsToFetch.map(async (c, idx) => {
             try {
                 const { startMinute, endMinute } = contestantRequestPlans[idx];
-                const sliceResults: any[][] = [];
+                
+                // Fetch score data first so it's included in the progress and available as soon as possible
+                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id).finally(() => {
+                    updateProgress(`Downloading track for ${c.team.crew.member1.first_name}...`);
+                });
 
+                const sliceResults: any[][] = [];
                 let currentMinute = startMinute;
                 while (currentMinute <= endMinute) {
                     const size = getBestChunkSize(currentMinute, endMinute, now);
@@ -306,10 +312,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                     currentMinute += size;
                 }
 
-                const allPositions: TrackPosition[] = sliceResults.flat();                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id).finally(() => {
-                    updateProgress(`Processed scores for ${c.team.crew.member1.first_name}`);
-                });
-
+                const allPositions: TrackPosition[] = sliceResults.flat();
                 return {
                     contestant: { ...c, contestanttrack: scoreData.contestant_track, playing_cards: scoreData.playing_cards },
                     positions: allPositions.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
@@ -323,6 +326,8 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         });
 
         const allContestantData = await Promise.all(contestantPromises);
+        onProgress({ loaded: 100, total: 100, message: 'Processing complete' });
+        
         const positionUpdates: Record<number, TrackPosition[]> = {};
         const annotationUpdates: Record<number, ScoreAnnotation[]> = {};
         const scoreLogUpdates: Record<number, ScoreLogEntry[]> = {};
