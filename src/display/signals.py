@@ -51,7 +51,7 @@ def invalidate_contest_list_cache(sender, **kwargs):
             new_version = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
         else:
             new_version = int(version) + 1
-        
+
         cache.set("contest_list_version", new_version, timeout=None)
         logger.debug(f"Updated contest_list_version to {new_version} due to change in {sender}")
     except Exception as e:
@@ -436,7 +436,7 @@ def register_personal_tracker(sender, instance: Person, **kwargs):
             traccar.update_device_name(str(instance) + " simulator", instance.simulator_tracking_id)
     # Send welcome email if the person is validated, but previously was not
     previous_person = Person.objects.filter(pk=instance.pk).first()
-    if previous_person and not previous_person.validated and instance.validated:
+    if instance.validated and ((previous_person and not previous_person.validated) or not previous_person):
         user = MyUser.objects.filter(email=instance.email).first()
         if user:
             user.send_welcome_email(instance)
