@@ -251,24 +251,36 @@ class UserPersonViewSet(GenericViewSet):
     @action(detail=False, methods=["get"])
     def get_current_sim_navigation_task(self, request, *args, **kwargs):
         person = self.get_object()
-        contestants = Contestant.get_contestant_for_device_at_time(
+        contestants_data = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, person.simulator_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
-        if not contestants:
-            raise Http404
-        contestant, _ = contestants[0]
-        return Response(NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data)
+        return self._format_navigation_tasks_response(request, contestants_data)
 
     @action(detail=False, methods=["get"])
     def get_current_app_navigation_task(self, request, *args, **kwargs):
         person = self.get_object()
-        contestants = Contestant.get_contestant_for_device_at_time(
-            TrackingService.TRACCAR, person.simulator_tracking_id, datetime.datetime.now(datetime.timezone.utc)
+        contestants_data = Contestant.get_contestant_for_device_at_time(
+            TrackingService.TRACCAR, person.app_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
-        if not contestants:
+        return self._format_navigation_tasks_response(request, contestants_data)
+
+    def _format_navigation_tasks_response(self, request, contestants_data):
+        if not contestants_data:
             raise Http404
-        contestant, _ = contestants[0]
-        return Response(NavigationTasksSummarySerialiser(instance=contestant.navigation_task).data)
+
+        tasks_map = {}
+        for contestant, _ in contestants_data:
+            task = contestant.navigation_task
+            if task.pk not in tasks_map:
+                tasks_map[task.pk] = {
+                    "navigation_task": NavigationTasksSummarySerialiser(task, context={"request": request}).data,
+                    "active_contestants": [],
+                }
+            tasks_map[task.pk]["active_contestants"].append(
+                ContestantSerialiser(contestant, context={"request": request}).data
+            )
+
+        return Response(list(tasks_map.values()))
 
     @action(detail=False, methods=["put", "patch"])
     def update_profile(self, request, *args, **kwargs):
