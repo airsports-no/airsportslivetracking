@@ -84,7 +84,6 @@ class AnrCorridorCalculator(Calculator):
         self.corridor_grace_time = self.scorecard.corridor_grace_time
         self.corridor_maximum_penalty_is_per_leg = self.scorecard.corridor_maximum_penalty_is_per_leg
         self.current_leg_outside_start_time = None
-        self.is_first_leg_of_excursion = True
 
         self.polygon_helper = PolygonHelper(self.projector)
         self._bounds_cache = {}
@@ -113,9 +112,7 @@ class AnrCorridorCalculator(Calculator):
         LOOKAHEAD_SECONDS = 30
         if self.corridor_state == self.OUTSIDE_CORRIDOR:
             # Live score should show total excursion penalty so far
-            current_leg_incremental, _, _ = self._calculate_current_leg_penalty(
-                datetime.datetime.now(datetime.timezone.utc) if self.live_processing else track[-1].time
-            )
+            current_leg_incremental, _, _ = self._calculate_current_leg_penalty(track[-1].time)
 
             return 100, self.excursion_accumulated_score + current_leg_incremental
 
@@ -255,7 +252,6 @@ class AnrCorridorCalculator(Calculator):
                     self.corridor_state = self.OUTSIDE_CORRIDOR
                     self.previous_corridor_state = self.OUTSIDE_CORRIDOR
                     self.current_leg_outside_start_time = current_time
-                    self.is_first_leg_of_excursion = False
                     self.crossed_outside_gate = event.gate
                     self.accumulated_score = 0
             else:
@@ -319,7 +315,6 @@ class AnrCorridorCalculator(Calculator):
                     self.corridor_state = self.OUTSIDE_CORRIDOR
                     self.previous_corridor_state = self.OUTSIDE_CORRIDOR
                     self.current_leg_outside_start_time = current_time
-                    self.is_first_leg_of_excursion = False
                     self.crossed_outside_gate = event.gate
                     self.accumulated_score = 0
             else:
@@ -338,13 +333,12 @@ class AnrCorridorCalculator(Calculator):
         if outside_time_this_segment < 0:
             outside_time_this_segment = 0
 
-        if self.is_first_leg_of_excursion:
-            penalty_time = np.round(max(0.0, outside_time_this_segment - self.corridor_grace_time))
-        else:
-            # No grace time for subsequent legs of the same excursion
-            penalty_time = np.round(outside_time_this_segment)
+        # Calculate total penalty for the excursion so far including this segment
+        total_outside_time = self.excursion_total_outside_seconds + outside_time_this_segment
+        penalty_time = np.round(max(0.0, total_outside_time - self.corridor_grace_time))
 
-        raw_penalty = self.scorecard.corridor_outside_penalty * penalty_time
+        total_penalty = self.scorecard.corridor_outside_penalty * penalty_time
+        raw_penalty = max(0.0, total_penalty - self.excursion_accumulated_score)
         capped = False
 
         if self.corridor_maximum_penalty_is_per_leg:
@@ -497,8 +491,7 @@ class AnrCorridorCalculator(Calculator):
                 self.crossed_outside_time = position.time
                 self.crossed_outside_gate = last_visible_gate
                 self.current_leg_outside_start_time = position.time
-                self.is_first_leg_of_excursion = True
-
+        
                 # Start of a new excursion
                 self.excursion_accumulated_score = 0.0
                 self.excursion_total_outside_seconds = 0.0
@@ -514,8 +507,7 @@ class AnrCorridorCalculator(Calculator):
             self.crossed_outside_position = None
             self.crossed_outside_time = None
             self.current_leg_outside_start_time = None
-            self.is_first_leg_of_excursion = True
-
+    
         self.previous_last_gate = last_visible_gate
 
     def on_adaptive_start(self, event: AdaptiveStartEvent):
