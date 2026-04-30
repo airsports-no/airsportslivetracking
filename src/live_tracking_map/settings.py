@@ -134,7 +134,7 @@ IS_UNIT_TESTING = (
 )
 
 
-if os.environ.get("MODE") != "dev" and not IS_UNIT_TESTING:
+if not IS_UNIT_TESTING:
     INSTALLED_APPS.append("drf_firebase_auth")
 
 LOCATION_FIELD = {
@@ -236,7 +236,7 @@ SPECTACULAR_SETTINGS = {
         "drf_firebase_auth.authentication.FirebaseAuthentication": "firebaseAuth",
     },
 }
-if os.environ.get("MODE") != "dev" and not IS_UNIT_TESTING:
+if not IS_UNIT_TESTING:
     REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(
         0, "drf_firebase_auth.authentication.FirebaseAuthentication"
     )
