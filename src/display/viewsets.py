@@ -273,7 +273,9 @@ class UserPersonViewSet(GenericViewSet):
             task = contestant.navigation_task
             if task.pk not in tasks_map:
                 tasks_map[task.pk] = {
-                    "navigation_task": NavigationTasksSummarySerialiser(task, context={"request": request}).data,
+                    "navigation_task": NavigationTasksSummarySerialiser(
+                        task, context={"request": request, "exclude_route": True}
+                    ).data,
                     "active_contestants": [],
                 }
             tasks_map[task.pk]["active_contestants"].append(

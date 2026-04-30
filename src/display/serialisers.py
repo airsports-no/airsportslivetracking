@@ -531,6 +531,11 @@ class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
             "planning_time",
         )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.context.get("exclude_route"):
+            self.fields.pop("route")
+
     def get_flown_contestants_count(self, obj):
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
 
