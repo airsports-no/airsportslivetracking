@@ -1,0 +1,24 @@
+{
+  "features": {
+    "ghcr.io/devcontainers-extra/features/curl-apt-get:1": {
+      "version": "1.0.18",
+      "resolved": "ghcr.io/devcontainers-extra/features/curl-apt-get@sha256:7fb32e4ebdd440369a598e7a27b1ed56c9e73eb6b4f595d30969862d2fc68e40",
+      "integrity": "sha256:7fb32e4ebdd440369a598e7a27b1ed56c9e73eb6b4f595d30969862d2fc68e40"
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "1.3.5",
+      "resolved": "ghcr.io/devcontainers/features/git@sha256:27905dc196c01f77d6ba8709cb82eeaf330b3b108772e2f02d1cd0d826de1251",
+      "integrity": "sha256:27905dc196c01f77d6ba8709cb82eeaf330b3b108772e2f02d1cd0d826de1251"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "1.7.1",
+      "resolved": "ghcr.io/devcontainers/features/node@sha256:8c0de46939b61958041700ee89e3493f3b2e4131a06dc46b4d9423427d06e5f6",
+      "integrity": "sha256:8c0de46939b61958041700ee89e3493f3b2e4131a06dc46b4d9423427d06e5f6"
+    },
+    "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
+      "version": "1.0.2",
+      "resolved": "ghcr.io/rocker-org/devcontainer-features/apt-packages@sha256:87a4d7750a596a5db034ba8508782f31aebdc2ffe955c66aaecb33d9de2ecdae",
+      "integrity": "sha256:87a4d7750a596a5db034ba8508782f31aebdc2ffe955c66aaecb33d9de2ecdae"
+    }
+  }
+}

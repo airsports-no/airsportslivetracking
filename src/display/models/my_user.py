@@ -24,6 +24,22 @@ class MyUser(BaseUser, GuardianUserMixin):
     username = models.CharField(max_length=50, default="not_applicable")
     objects = BaseUserManager()
 
+    def set_password(self, raw_password):
+        super().set_password(raw_password)
+        # We don't sync here because we don't always have Firebase initialized 
+        # or want to block on it during every set_password call.
+        # Instead, the FirebaseMigrationBackend handles synchronization during login.
+        # However, if we wanted to be proactive, we could trigger an async task here.
+        pass
+
+    @property
+    def is_migrated(self) -> bool:
+        """
+        Returns True if the user has been migrated to Firebase (i.e., they no longer
+        have a usable local Django password).
+        """
+        return not self.has_usable_password()
+
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.email})"
 

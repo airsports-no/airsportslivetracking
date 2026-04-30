@@ -32,7 +32,7 @@
 				"eslint",
 				"prettier"
 			] // Optional: List of global npm packages to install
-		},
+		}
 	},
 	"customizations": {
 		"vscode": {

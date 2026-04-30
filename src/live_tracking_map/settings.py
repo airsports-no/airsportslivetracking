@@ -165,6 +165,7 @@ DRF_FIREBASE_AUTH = {
     "FIREBASE_SERVICE_ACCOUNT_KEY": "/secret/airsports-firebase-admin.json",
     "FIREBASE_AUTH_EMAIL_VERIFICATION": True,
 }
+FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY", "AIzaSyD_LDULS2RvLvhTtnLyEzARtbs-WgtFOAo")
 
 MIDDLEWARE = [
     "live_tracking_map.middleware.CDNSafetyMiddleware",
@@ -196,6 +197,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "display.context_processors.firebase_settings",
             ],
         },
     },
@@ -206,7 +208,7 @@ WSGI_APPLICATION = "live_tracking_map.wsgi.application"
 # AUTH_PASSWORD_VALIDATORS = []
 
 AUTHENTICATION_BACKENDS = (
-    "django.contrib.auth.backends.ModelBackend",  # this is default
+    "display.auth_backends.FirebaseMigrationBackend",
     "guardian.backends.ObjectPermissionBackend",
 )
 

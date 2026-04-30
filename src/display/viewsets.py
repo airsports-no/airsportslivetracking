@@ -1490,7 +1490,7 @@ class ContestantViewSet(ModelViewSet):
         start_window = datetime.datetime.fromtimestamp(minute_index * 60, tz=datetime.timezone.utc)
         end_window = start_window + datetime.timedelta(seconds=60 * count)
         now = datetime.datetime.now(datetime.timezone.utc)
-        is_finished = end_window < now - datetime.timedelta(minutes=2)
+        is_finished = end_window < now - datetime.timedelta(minutes=10) or contestant.finished_by_time < now
 
         # track_version only bumps on calculator (re)start, not on every position
         # append. Short-circuiting with 304 is therefore only safe when the

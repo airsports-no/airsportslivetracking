@@ -19,6 +19,7 @@ data:
   AUTHEMAIL_EMAIL_HOST_USER: {{ .Values.smtp.user }}
   AUTHEMAIL_DEFAULT_EMAIL_FROM: support@airsports.no
   AUTHEMAIL_DEFAULT_EMAIL_BCC: support@airsports.no
+  FIREBASE_WEB_API_KEY: "AIzaSyD_LDULS2RvLvhTtnLyEzARtbs-WgtFOAo"
 
   LOG_HANDLER: stackdriver
 

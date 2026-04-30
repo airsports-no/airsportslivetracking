@@ -69,8 +69,8 @@ RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone &
     && rm -rf /usr/bin/python3* /usr/lib/python3.11 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN addgroup --system django \
-    && adduser --system --ingroup django -u 200 django
+RUN groupadd --system django \
+    && useradd --system -m -u 200 -g django -s /bin/bash django
 
 ###### INSTALL PYTHON PACKAGES ######
 COPY --from=python_builder /wheels /wheels
