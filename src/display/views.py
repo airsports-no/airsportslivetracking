@@ -2259,6 +2259,67 @@ def firebase_token_login(request):
     return redirect("/")
 
 
+@login_required
+def firebase_password_change(request):
+    """
+    Redirects the user to a Firebase-hosted password reset link.
+    """
+    from display.auth_backends import FirebaseMigrationBackend
+    from firebase_admin import auth
+
+    backend = FirebaseMigrationBackend()
+    backend._initialize_firebase()
+
+    try:
+        # Define the continue URL (where the user goes after completing the reset)
+        # Use app.airsports.no as requested by the user.
+        action_code_settings = auth.ActionCodeSettings(
+            url="https://app.airsports.no",
+            handle_code_in_app=False,
+        )
+        # Generate a password reset link for the logged-in user
+        link = auth.generate_password_reset_link(request.user.email, action_code_settings=action_code_settings)
+        # Redirect the user to the Firebase-hosted interface
+        return HttpResponseRedirect(link)
+    except Exception as e:
+        logger.error(f"Failed to generate Firebase password reset link for {request.user.email}: {e}")
+        messages.error(request, "Failed to initiate password change via Firebase. Please try again later.")
+        return HttpResponseRedirect("/")
+
+
+def firebase_password_reset(request):
+    """
+    Overrides the default Django password reset to use Firebase.
+    Sends the reset email via Firebase REST API.
+    """
+    from django.contrib.auth.forms import PasswordResetForm
+    import requests
+
+    if request.method == "POST":
+        form = PasswordResetForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data["email"]
+            api_key = getattr(settings, "FIREBASE_WEB_API_KEY", "")
+            url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={api_key}"
+            payload = {
+                "requestType": "PASSWORD_RESET",
+                "email": email,
+                "continueUrl": "https://app.airsports.no"
+            }
+            try:
+                response = requests.post(url, json=payload, timeout=5)
+                if response.status_code != 200:
+                    logger.warning(f"Firebase password reset failed for {email}: {response.text}")
+            except Exception as e:
+                logger.error(f"Error calling Firebase password reset for {email}: {e}")
+
+            return HttpResponseRedirect(reverse("password_reset_done"))
+    else:
+        form = PasswordResetForm()
+
+    return render(request, "registration/password_reset_form.html", {"form": form})
+
+
 @csrf_exempt
 def fly_master_data_post(request):
     logger.debug(f"Received {request.method} from Flymaster with files {request.FILES} and post {request.POST}")

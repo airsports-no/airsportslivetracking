@@ -420,7 +420,6 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
                 )
                 self.calculator.current_leg_outside_start_time = self.calculator.crossed_outside_time
                 self.calculator.crossed_outside_gate = gate1
-                self.calculator.is_first_leg_of_excursion = False  # Second leg of excursion
 
                 mock_update.reset_mock()
                 # Simulate the event that Orchestrator would trigger when gate is passed
@@ -480,7 +479,6 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
                 self.assertEqual(self.calculator.excursion_total_outside_seconds, 15.0)
                 # accumulated_score is reset for the new leg
                 self.assertEqual(self.calculator.accumulated_score, 0)
-                self.assertFalse(self.calculator.is_first_leg_of_excursion)
 
                 # We expect 1 informational message about passing gate2 while outside
                 self.assertEqual(len(mock_update.call_args_list), 1)

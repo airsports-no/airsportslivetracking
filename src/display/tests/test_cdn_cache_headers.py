@@ -47,18 +47,19 @@ class CDNCacheHeadersTests(TransactionTestCase):
         self.mock_traccar_class = self.traccar_patcher.start()
         self.mock_traccar_class.create_from_configuration.return_value = TraccarMock
 
+        now = datetime.datetime.now(datetime.timezone.utc)
         self.contest = Contest.objects.create(
             name="TestContest",
-            start_time=datetime.datetime.now(datetime.timezone.utc),
-            finish_time=datetime.datetime.now(datetime.timezone.utc),
+            start_time=now - datetime.timedelta(days=1),
+            finish_time=now + datetime.timedelta(days=1),
             is_public=True,
         )
         route = Route.objects.create(name="Route")
         self.navigation_task = NavigationTask.create(
             name="NavigationTask",
             original_scorecard=get_default_scorecard(),
-            start_time=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
-            finish_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
+            start_time=now - datetime.timedelta(hours=2),
+            finish_time=now + datetime.timedelta(hours=2),
             route=route,
             contest=self.contest,
             is_public=True,
@@ -74,10 +75,10 @@ class CDNCacheHeadersTests(TransactionTestCase):
         self.contestant = Contestant.objects.create(
             team=team,
             navigation_task=self.navigation_task,
-            takeoff_time=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
+            takeoff_time=now - datetime.timedelta(hours=1),
             contestant_number=1,
-            tracker_start_time=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.timezone.utc),
-            finished_by_time=datetime.datetime(2020, 1, 1, 11, tzinfo=datetime.timezone.utc),
+            tracker_start_time=now - datetime.timedelta(hours=1),
+            finished_by_time=now + datetime.timedelta(hours=1),
         )
         # Authenticate so private contests are visible to this user (as they are the pilot/owner)
         self.client.force_login(user)
