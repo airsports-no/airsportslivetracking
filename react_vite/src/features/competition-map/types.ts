@@ -102,6 +102,15 @@ export interface ProhibitedZone {
   tooltip_position?: [number, number];
 }
 
+export interface Photo {
+  id: number;
+  name: string;
+  route: number;
+  latitude: number;
+  longitude: number;
+  file: string | null;
+}
+
 export interface RouteData {
   id: number;
   name: string;
@@ -113,6 +122,7 @@ export interface RouteData {
   landing_gates: Waypoint[];
   corridor_polygon?: { lat: number; lng: number }[];
   prohibited_set: ProhibitedZone[];
+  photo_set: Photo[];
 }
 
 export interface GateScoreRule {

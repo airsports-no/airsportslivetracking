@@ -8,6 +8,9 @@ from io import BytesIO
 from subprocess import CalledProcessError
 from tempfile import NamedTemporaryFile
 from typing import List, Literal
+
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
 from cartopy import geodesic
@@ -171,7 +174,8 @@ def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_
     # )
     figdata.seek(0)
     img = Image.open(figdata, formats=["PNG"])
-    img2 = img.rotate(waypoint.bearing_next)
+    bearing = waypoint.bearing_next if waypoint.bearing_next is not None else 0
+    img2 = img.rotate(bearing)
     width, height = img2.size
     overlap = 500
     left = overlap
@@ -254,11 +258,15 @@ def insert_photos_latex(contestant, document: Document, flight_order_configurati
                 for photo in row_photos:
                     if waypoint := photo.leg:
                         with fig.create(MiniPage(width=rf"{figure_width}\textwidth")) as mp:
-                            image_file = generate_photo(photo, waypoint, meters_across, zoom_level)
+                            if photo.file:
+                                image_filename = photo.file.path
+                            else:
+                                image_file = generate_photo(photo, waypoint, meters_across, zoom_level)
+                                image_filename = image_file.name
                             mp.append(
                                 StandAloneGraphic(
                                     image_options=r"width=\linewidth",
-                                    filename=image_file.name,
+                                    filename=image_filename,
                                 )
                             )
                             mp.append(Command("caption*", photo.name))

@@ -400,12 +400,16 @@ class EditableRoute(models.Model):
         from display.models.route import Photo
 
         for photo in self.get_features_type("observation_photo"):
-            Photo.objects.create(
+            p = Photo.objects.create(
                 name=photo["properties"]["name"],
                 route=route,
                 latitude=photo["geometry"]["coordinates"][1],
                 longitude=photo["geometry"]["coordinates"][0],
             )
+            try:
+                p.generate_image()
+            except:
+                logger.exception(f"Failed to generate image for photo {p.name}")
 
     @classmethod
     def _create_route_and_thumbnail(cls, name: str, route: dict) -> "EditableRoute":

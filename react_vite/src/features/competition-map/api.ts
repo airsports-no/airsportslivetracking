@@ -1,5 +1,6 @@
 import type { NavigationTask, PaginatedTrackResponse, ContestantScoreData } from './types';
 import { reverse } from '../../urls';
+import { getCookie } from '../../utils/csrf';
 
 type ErrorMessage = string | string[];
 
@@ -109,6 +110,77 @@ export function makeWebSocket(navigationTaskId: number): WebSocket {
   const wsProtocol = protocol === 'https:' ? 'wss' : 'ws';
   // Assuming the ws path is not part of django-js-reverse
   return new WebSocket(`${wsProtocol}://${host}/ws/tracks/${navigationTaskId}/`);
+}
+
+export async function fetchPhotos(contestId: number, navigationTaskId: number): Promise<any[]> {
+    const url = reverse('navigationtasks-photos', contestId, navigationTaskId);
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch photos: ${res.statusText}`);
+    }
+    return res.json();
+}
+
+export async function createPhoto(photoData: any): Promise<any> {
+    const url = reverse('photos-list');
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')!
+        },
+        body: JSON.stringify(photoData)
+    });
+    if (!res.ok) {
+        throw new Error(`Failed to create photo: ${res.statusText}`);
+    }
+    return res.json();
+}
+
+export async function updatePhoto(photoId: number, photoData: any): Promise<any> {
+    const url = reverse('photos-detail', photoId);
+    const res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')!
+        },
+        body: JSON.stringify(photoData)
+    });
+    if (!res.ok) {
+        throw new Error(`Failed to update photo: ${res.statusText}`);
+    }
+    return res.json();
+}
+
+export async function deletePhoto(photoId: number): Promise<void> {
+    const url = reverse('photos-detail', photoId);
+    const res = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')!
+        }
+    });
+    if (!res.ok) {
+        throw new Error(`Failed to delete photo: ${res.statusText}`);
+    }
+}
+
+export async function uploadPhotoFile(photoId: number, file: File): Promise<any> {
+    const url = reverse('photos-detail', photoId);
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')!
+        },
+        body: formData
+    });
+    if (!res.ok) {
+        throw new Error(`Failed to upload photo: ${res.statusText}`);
+    }
+    return res.json();
 }
 
 export async function fetchContestDetails(contestId: number): Promise<any> {

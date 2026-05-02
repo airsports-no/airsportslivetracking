@@ -168,6 +168,7 @@ class Photo(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     _leg = MyPickledObjectField(default=None, null=True)
+    file = models.ImageField(upload_to="photos/", null=True, blank=True)
 
     @property
     def leg(self) -> Waypoint | None:
@@ -179,3 +180,41 @@ class Photo(models.Model):
                 self._leg = result[0]
                 self.save(update_fields=["_leg"])
         return self._leg
+
+    def generate_image(self, force=False):
+        if (not self.file or force) and self.route:
+            from display.flight_order_and_maps.generate_flight_orders import generate_photo
+            from django.core.files import File
+            import os
+            import logging
+
+            logger = logging.getLogger(__name__)
+
+            # Try to get configuration from navigation task
+            try:
+                # navigationtask is a OneToOneField on Route
+                nav_task = self.route.navigationtask
+                config = nav_task.flightorderconfiguration
+                meters_across = config.photos_meters_across
+                zoom_level = config.photos_zoom_level
+            except:
+                # Fallback to defaults
+                meters_across = 350
+                zoom_level = 17
+
+            logger.info(f"Generating image for photo {self.name} at {self.latitude}, {self.longitude}")
+            if waypoint := self.leg:
+                logger.info(f"Found closest leg {waypoint.name} for photo {self.name}")
+                try:
+                    temp_file = generate_photo(self, waypoint, meters_across, zoom_level)
+                    try:
+                        with open(temp_file.name, "rb") as f:
+                            self.file.save(f"{self.name}_{self.pk}.png", File(f), save=True)
+                        logger.info(f"Successfully saved image for photo {self.name}")
+                    finally:
+                        if os.path.exists(temp_file.name):
+                            os.remove(temp_file.name)
+                except Exception as e:
+                    logger.exception(f"Failed to generate photo image for {self.name}: {e}")
+            else:
+                logger.warning(f"Could not find closest leg for photo {self.name} - image generation skipped")

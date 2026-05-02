@@ -25,6 +25,7 @@ from display.models import (
     Crew,
     Club,
     Route,
+    Photo,
     NavigationTask,
     FlightOrderConfiguration,
     TRACKING_DEVICE,
@@ -90,6 +91,16 @@ def prevent_recursion(func):
             del instance._dirty
 
     return no_recursion
+
+
+@receiver(post_delete, sender=Photo)
+def auto_delete_file_on_delete(sender, instance: Photo, **kwargs):
+    """
+    Deletes file from filesystem
+    when corresponding Photo object is deleted.
+    """
+    if instance.file:
+        instance.file.delete(save=False)
 
 
 @receiver(post_save, sender=TaskTest)

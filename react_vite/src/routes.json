@@ -7,6 +7,8 @@
   "PAST_FLIGHTS": "past-flights",
   "MISSION_DASHBOARD": "",
   "MISSION_DASHBOARD_DETAIL": "mission-dashboard/:contestId",
+  "MISSION_DASHBOARD_PHOTOS": "mission-dashboard/:contestId/:navigationTaskId/photos",
+
   "COMPETITION_MAP": "competition-map",
   "COMPETITION_MAP_DETAIL": "competition-map/:contestId/:navigationTaskId",
   "CONTEST_RESULTS_TABLE": "mission-dashboard/:contestId/results",

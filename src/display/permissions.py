@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from guardian.mixins import PermissionRequiredMixin
 from rest_framework import permissions
 from rest_framework.generics import get_object_or_404
@@ -309,3 +310,28 @@ class TeamPermissions(permissions.BasePermission):
         if request.method in SAFE_METHODS:
             return True
         return request.user.has_perm("display.change_contest") or request.user.has_perm("display.change_contest", obj)
+
+
+class PhotoPermissions(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_superuser:
+            return True
+
+        try:
+            # NavigationTask is OneToOne to Route. Reverse relation is 'navigationtask'
+            nav_task = obj.route.navigationtask
+            contest = nav_task.contest
+        except (AttributeError, ObjectDoesNotExist):
+            # Fallback for photos that might be on routes not yet linked to a task (though unlikely in this UI)
+            return False
+
+        if request.method in SAFE_METHODS:
+            return nav_task.is_public or request.user.has_perm("display.view_contest", contest) or request.user.has_perm("view_contest", contest)
+        
+        return (
+            request.user.has_perm("display.change_contest", contest) or 
+            request.user.has_perm("change_contest", contest)
+        )

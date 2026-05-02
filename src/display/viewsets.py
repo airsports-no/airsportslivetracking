@@ -50,6 +50,7 @@ from display.models import (
     Team,
     Scorecard,
     Route,
+    Photo,
     Aeroplane,
     Club,
     ANOMALY,
@@ -70,6 +71,7 @@ from display.permissions import (
     NavigationTaskSelfManagementPermissions,
     NavigationTaskPublicPutDeletePermissions,
     RoutePermissions,
+    PhotoPermissions,
     ContestantPublicPermissions,
     ContestantNavigationTaskContestPermissions,
     TaskContestPublicPermissions,
@@ -96,6 +98,8 @@ from display.serialisers import (
     ContestantTickerSerialiser,
     SignupSerialiser,
     SharingSerialiser,
+    PhotoSerialiser,
+    PhotoPublicSerialiser,
     ContestSerialiser,
     ContestTeamSerialiser,
     TeamNestedSerialiser,
@@ -1054,6 +1058,45 @@ class NavigationTaskViewSet(ModelViewSet):
         else:
             serialiser = self.get_serializer(instance=navigation_task.scorecard)
             return Response(serialiser.data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[
+            NavigationTaskPublicPermissions | (permissions.IsAuthenticated & NavigationTaskContestPermissions)
+        ],
+    )
+    def photos(self, request, pk=None, contest_pk=None):
+        navigation_task = self.get_object()
+        photos = navigation_task.route.photo_set.all().order_by("name")
+        # If the user has change permission, show everything. Otherwise show public version.
+        if navigation_task.user_has_change_permissions(request.user):
+            serializer = PhotoSerialiser(photos, many=True)
+        else:
+            serializer = PhotoPublicSerialiser(photos, many=True)
+        return Response(serializer.data)
+
+
+class PhotoViewSet(ModelViewSet):
+    queryset = Photo.objects.all()
+    serializer_class = PhotoSerialiser
+    permission_classes = [permissions.IsAuthenticated & PhotoPermissions]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        route_id = self.request.query_params.get("route")
+        if route_id:
+            queryset = queryset.filter(route_id=route_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        photo = serializer.save()
+        photo.generate_image()
+
+    def perform_destroy(self, instance):
+        if instance.file:
+            instance.file.delete(save=False)
+        instance.delete()
 
     @action(
         detail=True,

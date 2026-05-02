@@ -48,6 +48,7 @@ from display.models import (
     ContestTeam,
     GateScore,
     Prohibited,
+    Photo,
     PlayingCard,
     TrackAnnotation,
     ScoreLogEntry,
@@ -325,11 +326,24 @@ class ProhibitedSerialiser(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class PhotoSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = Photo
+        fields = "__all__"
+
+
+class PhotoPublicSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = Photo
+        fields = ["id", "name", "file"]
+
+
 class RouteSerialiser(serializers.ModelSerializer):
     waypoints = WaypointSerialiser(many=True)
     landing_gates = WaypointSerialiser(required=False, help_text="Optional landing gate", many=True)
     takeoff_gates = WaypointSerialiser(required=False, help_text="Optional takeoff gate", many=True)
     prohibited_set = ProhibitedSerialiser(many=True, required=False)
+    photo_set = PhotoSerialiser(many=True, required=False)
     corridor_polygon = serializers.JSONField(required=False, read_only=True)
     number_of_wayoints = serializers.IntegerField(read_only=True)
     route_length_nm = serializers.FloatField(read_only=True)
@@ -352,6 +366,7 @@ class RouteSerialiser(serializers.ModelSerializer):
             "landing_gates",
             "corridor_polygon",
             "prohibited_set",
+            "photo_set",
             "number_of_wayoints",
             "route_length_nm",
             "number_of_prohibited_zones",

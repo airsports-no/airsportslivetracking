@@ -33,7 +33,7 @@ urlpatterns = [
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
-    path("api/v1/reverse-urls/", cache_page(3600)(urls_json), name="js_reverse"),
+    path("api/v1/reverse-urls/", urls_json, name="js_reverse"),
     path("api/v1/", include(api.urlpatterns)),
     path(
         "global/contest_details/<int:pk>/",

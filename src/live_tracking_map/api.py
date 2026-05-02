@@ -18,6 +18,7 @@ from display.viewsets import (
     TeamViewSet,
     GetScorecardsViewSet,
     EditableRouteViewSet,
+    PhotoViewSet,
     NewsletterSubscriberViewSet,
     HighlightedContestViewSet,
 )
@@ -53,6 +54,7 @@ router.register(r"clubs", ClubViewSet, basename="clubs")
 router.register(r"teams", TeamViewSet, basename="teams")
 router.register(r"scorecards", GetScorecardsViewSet, basename="scorecards")
 router.register(r"editableroutes", EditableRouteViewSet, basename="editableroutes")
+router.register(r"photos", PhotoViewSet, basename="photos")
 # results_details_router = routers.NestedSimpleRouter(router, r'contestresults', lookup='contest')
 # results_details_router.register(r'details', ContestResultsDetailsViewSet, basename="contestresultsdetails")
 

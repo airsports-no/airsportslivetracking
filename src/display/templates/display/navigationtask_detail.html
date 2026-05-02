@@ -63,6 +63,7 @@
                         <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
                             <li><a href="{% fe_url 'CONTESTANT_SCHEDULING' contestId=object.contest.pk navigationTaskId=object.pk %}">{% lucide "calendar-clock" size=14 class="lucide lucide-calendar-clock" %}Scheduling assistant</a></li>
                             {% if "change_contest" in contest_permissions %}
+                            <li><a href="{% fe_url 'MISSION_DASHBOARD_PHOTOS' contestId=object.contest.pk navigationTaskId=object.pk %}">{% lucide "camera" size=14 class="lucide lucide-camera" %}Manage photos</a></li>
                             <li><a href="{% url 'batch_update_contestants' object.pk %}">{% lucide "users" size=14 class="lucide lucide-users" %}Batch update contestants</a></li>
                             {% endif %}
                             <li><a href="{% url 'navigationtask_flightordersprogress' object.pk %}">{% lucide "file-output" width="18" height="18" %} Generate flight orders</a></li>
