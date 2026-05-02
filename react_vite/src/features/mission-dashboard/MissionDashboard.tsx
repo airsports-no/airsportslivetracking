@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useLayoutEffect, useRef } from 'react';
 import Select from 'react-select';
+import { selectStyles } from '../../utils/selectStyles';
 import { LatLngBounds } from 'leaflet';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
@@ -502,9 +503,10 @@ const MissionDashboard = () => {
                                 setCurrentPage(1);
                                 updateURL({ countries, page: 1 });
                             }}
-                            className="w-full max-w-[200px] dark:bg-black text-sm"
+                            className="w-full max-w-[200px] text-sm"
                             placeholder="Country..."
                             classNamePrefix="my-react-select"
+                            styles={selectStyles}
                         />
                         <div className="form-control">
                             <label className="label cursor-pointer flex gap-2 py-0">

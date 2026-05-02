@@ -3,6 +3,7 @@ import { Contest, NavigationTask } from '../types';
 import { useMissionDashboardStore } from '../store';
 import { fetchNavigationTask } from '../../competition-map/api';
 import Select from 'react-select';
+import { selectStyles } from '../../../utils/selectStyles';
 import { reverse } from '../../../urls';
 import { Contestant } from '../../competition-map/types';
 import { Loading } from '../../route-editor/components/basicComponents';
@@ -168,9 +169,10 @@ const PastFlights = () => {
                         setSelectedCountries(selectedOptions ? selectedOptions.map(option => option.value) : []);
                         setCurrentPage(1);
                     }}
-                    className="w-full max-w-[200px] dark:bg-black text-sm"
+                    className="w-full max-w-[200px] text-sm"
                     placeholder="Country..."
                     classNamePrefix="my-react-select"
+                    styles={selectStyles}
                 />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

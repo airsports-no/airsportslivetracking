@@ -24,3 +24,16 @@ html, body, #root {
 .cursor-grabbing {
   cursor: grabbing !important;
 }
+
+/* Custom variables for React Select to ensure theme inheritance and opacity */
+:root, [data-theme='light'] {
+  --rs-bg: #ffffff;
+  --rs-text: #000000;
+  --rs-border: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme='dark'], [data-theme='aviation'] {
+  --rs-bg: #1d232a;
+  --rs-text: #ffffff;
+  --rs-border: rgba(255, 255, 255, 0.2);
+}

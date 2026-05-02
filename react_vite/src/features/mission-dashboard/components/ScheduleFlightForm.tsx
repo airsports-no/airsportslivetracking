@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
+import { selectStyles } from '../../../utils/selectStyles';
 import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamPayload, ScheduleFlightPayload, MyContestTeam, Team } from '../types';
 import * as api from '../api';
 import { useMissionDashboardStore } from '../store';
@@ -246,6 +247,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                                 isClearable
                                 placeholder="Select a co-pilot"
                                 classNamePrefix="my-react-select"
+                                styles={selectStyles}
                             />
                         </label>
                         <label className="form-control w-full">
@@ -257,6 +259,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                                 isClearable
                                 placeholder="Select or type aircraft registration"
                                 classNamePrefix="my-react-select"
+                                styles={selectStyles}
                             />
                         </label>
                          <label className="form-control w-full">
@@ -272,6 +275,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                                 isClearable
                                 placeholder="Select or type club"
                                 classNamePrefix="my-react-select"
+                                styles={selectStyles}
                             />
                         </label>
                     </>
