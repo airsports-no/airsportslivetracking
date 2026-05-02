@@ -54,20 +54,41 @@ def round_gate_times(times: dict) -> dict:
 
 
 class ContestantQuerySet(QuerySet):
-    def valid_today(self):
+    def valid_today(self, timezone_name: str | None = None):
         """
         Filter contestants who are scheduled for today and have either started flying
         or haven't reached their expected finish time yet.
+        If timezone_name is provided, "today" is calculated according to that timezone.
         """
-        now = datetime.datetime.now(datetime.timezone.utc)
-        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_of_day = start_of_day + datetime.timedelta(days=1)
+        import pytz
+
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        
+        if timezone_name:
+            try:
+                tz = pytz.timezone(timezone_name)
+                # Get current time in the target timezone
+                now_tz = now_utc.astimezone(tz)
+                # Calculate start and end of day in the target timezone
+                start_of_day_tz = now_tz.replace(hour=0, minute=0, second=0, microsecond=0)
+                end_of_day_tz = start_of_day_tz + datetime.timedelta(days=1)
+                
+                # Convert back to UTC for filtering
+                start_of_day = start_of_day_tz.astimezone(datetime.timezone.utc)
+                end_of_day = end_of_day_tz.astimezone(datetime.timezone.utc)
+            except Exception:
+                # Fallback to UTC
+                start_of_day = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+                end_of_day = start_of_day + datetime.timedelta(days=1)
+        else:
+            start_of_day = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_of_day = start_of_day + datetime.timedelta(days=1)
 
         return self.filter(
             takeoff_time__gte=start_of_day,
             takeoff_time__lt=end_of_day
         ).filter(
-            Q(finished_by_time__gte=now) | 
+            Q(finished_by_time__gte=now_utc) | 
             Q(contestanttrack__calculator_started=True)
         )
 

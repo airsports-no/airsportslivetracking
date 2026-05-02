@@ -466,7 +466,8 @@ class TodaysNavigationSerialiser(serializers.ModelSerializer):
         if hasattr(obj, "prefetched_todays_contestants"):
             contestants = obj.prefetched_todays_contestants
         else:
-            contestants = obj.contestant_set.valid_today()
+            timezone_name = self.context.get("timezone")
+            contestants = obj.contestant_set.valid_today(timezone_name)
         return ContestantTickerSerialiser(contestants, many=True).data
 
 

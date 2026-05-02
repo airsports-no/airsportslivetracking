@@ -655,12 +655,14 @@ class ContestViewSet(ModelViewSet):
         # if request.META.get("HTTP_IF_NONE_MATCH") == etag:
         #     return Response(status=status.HTTP_304_NOT_MODIFIED)
 
+        timezone_name = request.query_params.get("timezone")
+
         # Public navigation tasks with at least one valid contestant scheduled today
         navigation_tasks = (
             NavigationTask.objects.filter(
                 is_public=True,
                 contest__is_public=True,
-                contestant__in=Contestant.objects.valid_today()
+                contestant__in=Contestant.objects.valid_today(timezone_name)
             )
             .distinct()
             .select_related("contest")
@@ -669,13 +671,13 @@ class ContestViewSet(ModelViewSet):
         # Prefetch valid today's contestants to avoid N+1
         todays_contestants_prefetch = Prefetch(
             "contestant_set",
-            queryset=Contestant.objects.valid_today().select_related("team__crew__member1", "team__aeroplane"),
+            queryset=Contestant.objects.valid_today(timezone_name).select_related("team__crew__member1", "team__aeroplane"),
             to_attr="prefetched_todays_contestants",
         )
 
         navigation_tasks = navigation_tasks.prefetch_related(todays_contestants_prefetch)
 
-        data = TodaysNavigationSerialiser(navigation_tasks, many=True, context={"request": self.request}).data
+        data = TodaysNavigationSerialiser(navigation_tasks, many=True, context={"request": self.request, "timezone": timezone_name}).data
         response = Response(data)
         # Public list scheduled for today. No ETag available.
         # s-maxage=120: CDN shields origin by caching for 2 minutes.
