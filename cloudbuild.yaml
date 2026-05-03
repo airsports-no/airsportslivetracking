@@ -33,7 +33,7 @@ steps:
     export IMAGE_TAG=latest
     docker exec -u root tracker_daphne /bin/bash -c "mkdir -p reports && chown django:django reports && rm -rf reports/*"
     docker exec tracker_daphne /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
-    docker exec tracker_daphne /bin/bash -c "pytest"
+    docker exec tracker_daphne /bin/bash -c "pytest -v --junitxml reports/django_test_results.xml --cov=src --cov-report=xml:reports/django_coverage.xml"
 - name: 'gcr.io/cloud-builders/docker'
   args: ['compose','down']
 images:
