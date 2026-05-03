@@ -14,7 +14,10 @@ from django.urls import reverse
 
 
 def print_view_url(view_name: str, args: list):
-    print(f"{view_name}: {reverse(view_name, args=args)}")
+    try:
+        print(f"{view_name}: {reverse(view_name, args=args)}")
+    except Exception as e:
+        print(f"{view_name}: FAILED ({e})")
 
 
 print_view_url("navigationtasks-detail", [1, 2])
@@ -36,7 +39,6 @@ print_view_url("tasktests-list", [1])
 print_view_url("tasktests-detail", [1, 2])
 print_view_url("editableroutes-detail", [1])
 print_view_url("editableroute_createnavigationtask", [1])
-print_view_url("terms_and_conditions", [])
 print_view_url("userprofile-my-participating-contests", [])
 print_view_url("contestants-initial-track-data", [1, 2, 3])
 print_view_url("contest_details", [1])

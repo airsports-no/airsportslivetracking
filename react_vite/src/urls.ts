@@ -30,6 +30,12 @@ export const reverse = (name: string, ...args: (string | number)[]) => {
         return `/url-initialization-failed/${name}/`;
     }
     // @ts-ignore
+    if (typeof _urls[name] !== 'function') {
+        console.error(`URL name "${name}" not found in reverse URLs.`);
+        // Fallback to a guessed path if it's a known non-Django URL or just to avoid crash
+        return `/${name.replace(/_/g, '-')}/`;
+    }
+    // @ts-ignore
     return _urls[name](...args);
 };
 

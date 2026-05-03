@@ -194,11 +194,10 @@ export async function fetchContestDetails(contestId: number): Promise<any> {
 }
 
 export async function fetchDisclaimerHtml(): Promise<string> {
-    // Assume 'terms_and_conditions' is the Django URL name for the disclaimer page
-    const disclaimerUrl = reverse('terms_and_conditions'); 
-    if (!disclaimerUrl) {
-        throw new Error("Disclaimer URL not found in configuration or URL reversing service.");
-    }
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    // If we are local, we might be serving both from the same port, or we just want to try the same origin
+    // In production, we explicitly want to fetch from the marketing domain.
+    const disclaimerUrl = isLocal ? '/terms_and_conditions/' : 'https://airsports.no/terms_and_conditions/';
 
     const res = await fetch(disclaimerUrl);
     if (!res.ok) {
