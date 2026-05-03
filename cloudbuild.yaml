@@ -39,6 +39,7 @@ steps:
     echo "Preparing environment..."
     mkdir -p reports
     chmod 777 reports
+    docker compose run --rm -u root tracker_daphne chown -R django:django /src/reports
     
     echo "Waiting for DB..."
     docker compose run --rm tracker_daphne /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 60"
