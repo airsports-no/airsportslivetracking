@@ -31,7 +31,7 @@ steps:
   - '-c'
   - |
     export IMAGE_TAG=latest
-    docker exec tracker_daphne /bin/bash -c "mkdir -p reports && rm -rf reports/*"
+    docker exec -u root tracker_daphne /bin/bash -c "mkdir -p reports && chown django:django reports && rm -rf reports/*"
     docker exec tracker_daphne /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 30"
     docker exec tracker_daphne /bin/bash -c "pytest"
 - name: 'gcr.io/cloud-builders/docker'

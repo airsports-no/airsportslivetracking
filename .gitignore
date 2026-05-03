@@ -44,3 +44,4 @@ firebase-admin
 manifest.json*
 scraper_venv/
 *.cache
+src/reports/
