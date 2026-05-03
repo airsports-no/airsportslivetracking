@@ -457,16 +457,28 @@ class RouteSummarySerialiser(serializers.ModelSerializer):
 class ContestantTickerSerialiser(serializers.ModelSerializer):
     pilot_name = serializers.SerializerMethodField()
     aircraft_registration = serializers.SerializerMethodField()
+    calculator_finished = serializers.SerializerMethodField()
 
     class Meta:
         model = Contestant
-        fields = ("pk", "contestant_number", "pilot_name", "aircraft_registration", "takeoff_time", "finished_by_time")
+        fields = (
+            "pk",
+            "contestant_number",
+            "pilot_name",
+            "aircraft_registration",
+            "takeoff_time",
+            "finished_by_time",
+            "calculator_finished",
+        )
 
     def get_pilot_name(self, obj):
         return f"{obj.team.crew.member1.first_name} {obj.team.crew.member1.last_name}"
 
     def get_aircraft_registration(self, obj):
         return obj.team.aeroplane.registration
+
+    def get_calculator_finished(self, obj):
+        return getattr(obj, "contestanttrack", None).calculator_finished if hasattr(obj, "contestanttrack") else False
 
 
 class TodaysNavigationSerialiser(serializers.ModelSerializer):
@@ -1031,6 +1043,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
     schedule_locked = serializers.BooleanField(required=False)
     first_position_time = SerializerMethodField("get_first_position_time", read_only=True)
     last_position_time = SerializerMethodField("get_last_position_time", read_only=True)
+    calculator_finished = serializers.SerializerMethodField()
+
+    def get_calculator_finished(self, obj):
+        return getattr(obj, "contestanttrack", None).calculator_finished if hasattr(obj, "contestanttrack") else False
 
     def get_first_position_time(self, contestant):
         first = contestant.contestantreceivedposition_set.order_by("time").first()

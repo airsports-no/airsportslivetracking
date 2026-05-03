@@ -675,7 +675,9 @@ class ContestViewSet(ModelViewSet):
         # Prefetch valid today's contestants to avoid N+1
         todays_contestants_prefetch = Prefetch(
             "contestant_set",
-            queryset=Contestant.objects.valid_today(timezone_name).select_related("team__crew__member1", "team__aeroplane"),
+            queryset=Contestant.objects.valid_today(timezone_name).select_related(
+                "team__crew__member1", "team__aeroplane", "contestanttrack"
+            ),
             to_attr="prefetched_todays_contestants",
         )
 

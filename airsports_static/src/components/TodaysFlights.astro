@@ -83,24 +83,45 @@
 
                 const contestantsHtml = sortedContestants.map(c => {
                     const isLive = activeContestantPks.has(c.pk);
+                    const isCompleted = c.calculator_finished;
                     const time = new Date(c.takeoff_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZoneName: 'short' });
+                    
+                    let statusColor = 'text-slate-800';
+                    let timeColor = 'text-blue-600 bg-blue-50 border-blue-100';
+                    let statusText = 'Takeoff';
+
+                    if (isLive) {
+                        statusColor = 'text-blue-600';
+                        timeColor = 'text-red-600 bg-red-50 border-red-100';
+                        statusText = 'Flying';
+                    } else if (isCompleted) {
+                        statusColor = 'text-slate-400';
+                        timeColor = 'text-slate-400 bg-slate-50 border-slate-100';
+                        statusText = 'Completed';
+                    }
+
                     return `
                     <div class="flex justify-between items-start py-4 border-b border-slate-50 last:border-0 group/row">
                         <div class="flex flex-col min-w-0">
                             <div class="flex items-start gap-2">
-                                <span class="text-sm font-extrabold ${isLive ? 'text-blue-600' : 'text-slate-800'} tracking-tight uppercase italic group-hover/row:text-blue-600 transition-colors leading-tight">#${c.contestant_number} ${c.pilot_name}</span>
+                                <span class="text-sm font-extrabold ${statusColor} tracking-tight uppercase italic group-hover/row:text-blue-600 transition-colors leading-tight">#${c.contestant_number} ${c.pilot_name}</span>
                                 ${isLive ? `
                                     <span class="relative flex h-2 w-2 mt-1 shrink-0">
                                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                         <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                                     </span>
                                 ` : ''}
+                                ${isCompleted ? `
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mt-1 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                ` : ''}
                             </div>
                             <span class="text-[10px] text-slate-400 uppercase font-black tracking-[0.1em] mt-0.5">${c.aircraft_registration}</span>
                         </div>
                         <div class="flex flex-col items-end shrink-0 ml-4">
-                             <span class="font-mono text-xs font-black ${isLive ? 'text-red-600 bg-red-50 border-red-100' : 'text-blue-600 bg-blue-50 border-blue-100'} px-2 py-0.5 rounded-lg border">${time}</span>
-                             <span class="text-[8px] text-slate-300 uppercase font-black tracking-widest mt-1">${isLive ? 'Flying' : 'Takeoff'}</span>
+                             <span class="font-mono text-xs font-black ${timeColor} px-2 py-0.5 rounded-lg border">${time}</span>
+                             <span class="text-[8px] text-slate-300 uppercase font-black tracking-widest mt-1">${statusText}</span>
                         </div>
                     </div>
                 `}).join('');
