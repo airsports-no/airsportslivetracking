@@ -37,8 +37,8 @@ steps:
   - '-c'
   - |
     echo "Preparing environment..."
-    mkdir -p reports
-    chmod 777 reports
+    mkdir -p src/reports
+    chmod 777 src/reports
     docker compose run --rm -u root tracker_daphne chown -R django:django /src/reports
     
     echo "Waiting for DB..."
