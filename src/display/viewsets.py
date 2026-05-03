@@ -1078,28 +1078,6 @@ class NavigationTaskViewSet(ModelViewSet):
             serializer = PhotoPublicSerialiser(photos, many=True)
         return Response(serializer.data)
 
-
-class PhotoViewSet(ModelViewSet):
-    queryset = Photo.objects.all()
-    serializer_class = PhotoSerialiser
-    permission_classes = [permissions.IsAuthenticated & PhotoPermissions]
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        route_id = self.request.query_params.get("route")
-        if route_id:
-            queryset = queryset.filter(route_id=route_id)
-        return queryset
-
-    def perform_create(self, serializer):
-        photo = serializer.save()
-        photo.generate_image()
-
-    def perform_destroy(self, instance):
-        if instance.file:
-            instance.file.delete(save=False)
-        instance.delete()
-
     @action(
         detail=True,
         methods=["post"],
@@ -1251,6 +1229,29 @@ class PhotoViewSet(ModelViewSet):
             elif serialiser.validated_data["visibility"] == serialiser.UNLISTED:
                 navigation_task.make_unlisted()
         return Response(serialiser.data, status=status.HTTP_200_OK)
+
+
+class PhotoViewSet(ModelViewSet):
+    queryset = Photo.objects.all()
+    serializer_class = PhotoSerialiser
+    permission_classes = [permissions.IsAuthenticated & PhotoPermissions]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        route_id = self.request.query_params.get("route")
+        if route_id:
+            queryset = queryset.filter(route_id=route_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        photo = serializer.save()
+        photo.generate_image()
+
+    def perform_destroy(self, instance):
+        if instance.file:
+            instance.file.delete(save=False)
+        instance.delete()
+
 
 
 class RouteViewSet(ModelViewSet):

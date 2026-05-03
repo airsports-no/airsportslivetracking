@@ -395,53 +395,95 @@ export default function CompetitionMapPage() {
         const finishGateName = staticNavTaskData.route.waypoints.find(wp => wp.type === 'fp')?.name;
 
         return allContestantsData.map((c, index) => { // Updated
-          let state = 'Waiting...';
           const logsForTime = (scoreLogByContestant[c.id] ?? []).filter(log => new Date(log.time) <= currentTime);
+          const hasStarted = startGateName && logsForTime.some(log => log.gate === startGateName);
+          const hasFinished = finishGateName && logsForTime.some(log => log.gate === finishGateName);
 
-          if (finishGateName && logsForTime.some(log => log.gate === finishGateName)) {
+          let state = 'Waiting...';
+          if (hasFinished) {
             state = 'Finished';
-          } else if (startGateName && logsForTime.some(log => log.gate === startGateName)) {
+          } else if (hasStarted) {
             state = 'Enroute';
           }
 
+          let score: number | string = currentScores[c.id] ?? staticNavTaskData.scorecard.initial_score ?? 0;
+          let isNotStarted = false;
+          if (!hasStarted && c.finished_by_time) {
+              const finishedBy = new Date(c.finished_by_time);
+              if (currentTime.getTime() > finishedBy.getTime() && !c.contestanttrack?.calculator_started) {
+                  score = 'Not started';
+                  isNotStarted = true;
+              }
+          }
+
           let countdown = null;
+          let expectedBy = null;
           const shouldShowCountdown = !c.adaptive_start || c.has_crossed_starting_line;
-          if (state === 'Waiting...' && shouldShowCountdown && startGateName && c.gate_times?.[startGateName]) {
-              const startTime = new Date(c.gate_times[startGateName]);
-              const diffSeconds = (startTime.getTime() - currentTime.getTime()) / 1000;
-              if (diffSeconds > 0) {
-                  countdown = diffSeconds;
+          
+          if (!hasStarted && !isNotStarted) {
+              if (shouldShowCountdown && startGateName && c.gate_times?.[startGateName]) {
+                  const startTime = new Date(c.gate_times[startGateName]);
+                  const diffSeconds = (startTime.getTime() - currentTime.getTime()) / 1000;
+                  if (diffSeconds > 0) {
+                      countdown = diffSeconds;
+                  }
+              } else if (c.adaptive_start && !c.has_crossed_starting_line && c.finished_by_time) {
+                  const finishedBy = new Date(c.finished_by_time);
+                  expectedBy = finishedBy.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
               }
           }
 
           return {
             id: c.id,
             name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
-            score: currentScores[c.id] ?? staticNavTaskData.scorecard.initial_score ?? 0,
+            score: score,
             state: state,
             color: `hsl(${(index / total) * 360}, 70%, 50%)`,
             countdown: countdown,
+            expectedBy: expectedBy,
           };
         });
       }
 
       return allContestantsData.map((c, index) => {
-        let countdown = null;
-        const shouldShowCountdown = !c.adaptive_start || c.has_crossed_starting_line;
-        if (c.contestanttrack?.current_state === 'Waiting...' && shouldShowCountdown && startGateName && c.gate_times?.[startGateName]) {
-            const startTime = new Date(c.gate_times[startGateName]);
-            const diffSeconds = (startTime.getTime() - currentTime.getTime()) / 1000;
-            if (diffSeconds > 0) {
-                countdown = diffSeconds;
+        const state = c.contestanttrack?.current_state ?? 'Waiting...';
+        const hasStarted = c.contestanttrack?.passed_starting_gate;
+
+        let score: number | string = c.contestanttrack?.score ?? 0;
+        let isNotStarted = false;
+        if (!hasStarted && c.finished_by_time) {
+            const finishedBy = new Date(c.finished_by_time);
+            if (currentTime.getTime() > finishedBy.getTime() && !c.contestanttrack?.calculator_started) {
+                score = 'Not started';
+                isNotStarted = true;
             }
         }
+
+        let countdown = null;
+        let expectedBy = null;
+        const shouldShowCountdown = !c.adaptive_start || c.has_crossed_starting_line;
+
+        if (!hasStarted && !isNotStarted) {
+            if (shouldShowCountdown && startGateName && c.gate_times?.[startGateName]) {
+                const startTime = new Date(c.gate_times[startGateName]);
+                const diffSeconds = (startTime.getTime() - currentTime.getTime()) / 1000;
+                if (diffSeconds > 0) {
+                    countdown = diffSeconds;
+                }
+            } else if (c.adaptive_start && !c.has_crossed_starting_line && c.finished_by_time) {
+                const finishedBy = new Date(c.finished_by_time);
+                expectedBy = finishedBy.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+        }
+
         return {
             id: c.id,
             name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
-            score: c.contestanttrack?.score ?? 0,
-            state: c.contestanttrack?.current_state ?? 'Waiting...',
+            score: score,
+            state: state,
             color: `hsl(${(index / total) * 360}, 70%, 50%)`,
             countdown: countdown,
+            expectedBy: expectedBy,
         };
       });
     };
@@ -449,7 +491,11 @@ export default function CompetitionMapPage() {
     const allContestants = getContestantsWithState();
     const active = allContestants.filter(c => c.state !== 'Waiting...');
     const waiting = allContestants.filter(c => c.state === 'Waiting...');
-    const sortFn = (a: { score: number }, b: { score: number }) => dir === 'asc' ? a.score - b.score : b.score - a.score;
+    const sortFn = (a: { score: number | string }, b: { score: number | string }) => {
+        const scoreA = typeof a.score === 'number' ? a.score : (dir === 'asc' ? Infinity : -Infinity);
+        const scoreB = typeof b.score === 'number' ? b.score : (dir === 'asc' ? Infinity : -Infinity);
+        return dir === 'asc' ? scoreA - scoreB : scoreB - scoreA;
+    };
     active.sort(sortFn);
     waiting.sort(sortFn);
     return [...active, ...waiting];

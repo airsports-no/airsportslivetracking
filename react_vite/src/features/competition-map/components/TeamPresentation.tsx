@@ -6,7 +6,7 @@ import GateScoreArrowV2 from './gateScoreArrow/GateScoreArrowV2';
 
 interface Props {
     contestant: Contestant;
-    score: number;
+    score: number | string;
     dangerData?: DangerData;
     gateArrowData?: GateArrowData;
     navigationTask: NavigationTask | null;
@@ -44,7 +44,9 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
                     <div className="flex items-center gap-3 sm:gap-4">
                         {/* Score moved inside for more horizontal layout */}
                         <div className="text-center px-2 border-r border-base-300">
-                            <div className="text-2xl sm:text-4xl font-bold text-primary">{score.toFixed(0)}</div>
+                            <div className={`font-bold text-primary ${typeof score === 'number' ? 'text-2xl sm:text-4xl' : 'text-sm sm:text-lg leading-tight'}`}>
+                                {typeof score === 'number' ? score.toFixed(0) : score}
+                            </div>
                             <div className="text-[8px] sm:text-xs opacity-60">SCORE</div>
                         </div>
 

@@ -3,10 +3,11 @@ import React from 'react';
 interface Row {
   id: number;
   name: string;
-  score: number;
+  score: number | string;
   state?: string;
   color?: string;
   countdown?: number | null;
+  expectedBy?: string | null;
 }
 
 interface Props {
@@ -60,12 +61,21 @@ export default function ResultsTable({ rows, selectedId, onRowClick, dividerInde
                 `}
               >
                 <td className="w-8 px-1 text-center" style={{borderLeft: `4px solid ${r.color ?? 'transparent'}`}}>{idx + 1}</td>
-                <td className="max-w-[80px] sm:max-w-[150px] md:max-w-none truncate px-2">{r.name}</td>
+                <td className="max-w-[80px] sm:max-w-[150px] md:max-w-none truncate px-2">
+                    <div className="flex flex-col">
+                        <span>{r.name}</span>
+                        {r.expectedBy && (
+                            <span className="text-[10px] opacity-60 font-normal">
+                                Exp by: {r.expectedBy}
+                            </span>
+                        )}
+                    </div>
+                </td>
                 <td className="px-1 text-right tabular-nums">
                     {r.countdown && r.countdown > 0 ? (
                         formatCountdown(r.countdown)
                     ) : (
-                        (r.score ?? 0).toFixed(0)
+                        typeof r.score === 'number' ? r.score.toFixed(0) : r.score
                     )}
                 </td>
               </tr>
