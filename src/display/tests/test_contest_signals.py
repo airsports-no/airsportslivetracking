@@ -10,15 +10,15 @@ from utilities.mock_utilities import TraccarMock
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestContestSignals(TransactionTestCase):
     def test_save_contest_with_colliding_contestant_id(self, *args):
-        # Create a contest. It will get ID 1.
+        # Create a contest.
         contest = Contest.objects.create(
             name="TestContest",
             start_time=datetime.datetime.now(datetime.timezone.utc),
             finish_time=datetime.datetime.now(datetime.timezone.utc),
         )
-        self.assertEqual(contest.pk, 1)
 
-        # Create a contestant. It will also get ID 1 (in its own table).
+        # Create a contestant and force it to have the same ID as the contest.
+        # This simulates the "colliding ID" scenario across different tables.
         route = Route.objects.create(name="Route")
         navigation_task = NavigationTask.create(
             name="NavigationTask",
@@ -31,7 +31,8 @@ class TestContestSignals(TransactionTestCase):
         aeroplane = Aeroplane.objects.create(registration="registration")
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         team = Team.objects.create(crew=crew, aeroplane=aeroplane)
-        contestant = Contestant.objects.create(
+        contestant = Contestant(
+            pk=contest.pk,  # Explicitly set PK to match the contest
             team=team,
             tracking_device=TRACKING_DEVICE,
             navigation_task=navigation_task,
@@ -41,7 +42,8 @@ class TestContestSignals(TransactionTestCase):
             tracker_start_time=datetime.datetime(2020, 1, 1, 9, 30, tzinfo=datetime.timezone.utc),
             finished_by_time=datetime.datetime(2020, 1, 1, 12, tzinfo=datetime.timezone.utc),
         )
-        self.assertEqual(contestant.pk, 1)
+        Contestant.objects.bulk_create([contestant])
+        self.assertEqual(contestant.pk, contest.pk)
 
         # Now save the contest again. 
         # Before the fix, this would trigger the pre_save signal,
