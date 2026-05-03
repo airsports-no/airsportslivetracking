@@ -45,7 +45,8 @@ steps:
   args:
   - '-c'
   - |
-    docker exec tracker_daphne /bin/bash -c "pytest -v"
+    docker exec tracker_daphne /bin/bash -c "pytest --collect-only -p no:cov"
+    docker exec tracker_daphne /bin/bash -c "pytest -v -p no:cov --cache-clear"
 - name: 'gcr.io/cloud-builders/docker'
   args: ['compose','down']
 
@@ -55,5 +56,5 @@ images:
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  machineType: 'E2_HIGHCPU_8'
+  machineType: 'E2_STANDARD_8'
 timeout: '7200s'
