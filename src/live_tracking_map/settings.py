@@ -131,6 +131,7 @@ IS_UNIT_TESTING = (
     any(s in sys.argv for s in ("test", "jenkins", "pytest")) 
     or "pytest" in sys.modules 
     or os.environ.get("PYTEST_CURRENT_TEST") is not None
+    or os.environ.get("DISABLE_FIREBASE") == "1"
 )
 
 
