@@ -42,9 +42,11 @@
 
         dateDisplay.textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', month: 'short', day: 'numeric' });
 
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
         try {
             const [flightsResponse, ongoingResponse] = await Promise.all([
-                fetch(`${API_BASE}/api/v1/contests/todays_navigation/`),
+                fetch(`${API_BASE}/api/v1/contests/todays_navigation/?timezone=${userTimezone}`),
                 fetch(`${API_BASE}/api/v1/contests/ongoing_navigation/`)
             ]);
 
