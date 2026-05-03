@@ -24,8 +24,8 @@ steps:
       gcloud builds triggers run Deploy --branch=main --region=europe-west1 --project=${PROJECT_ID}
       fi
 - name: 'gcr.io/cloud-builders/docker'
-  id: 'Start Environment'
-  args: ['compose','up','-d']
+  id: 'Start Dependencies'
+  args: ['compose','up','-d','mysql','redis']
   env:
   - 'DISABLE_FIREBASE=1'
 - name: 'gcr.io/cloud-builders/docker'
@@ -36,19 +36,18 @@ steps:
   args:
   - '-c'
   - |
-    echo "Waiting for containers to stabilize..."
-    sleep 10
-    docker ps -a
-    
-    echo "Preparing reports directory..."
-    docker exec -u root tracker_daphne /bin/bash -c "mkdir -p reports && chown django:django reports && rm -rf reports/*" || (docker compose logs tracker_daphne && exit 1)
+    echo "Preparing environment..."
+    mkdir -p reports
+    chmod 777 reports
     
     echo "Waiting for DB..."
-    docker exec tracker_daphne /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 60" || (docker compose logs && exit 1)
+    docker compose run --rm tracker_daphne /bin/bash -c "/wait-for-it.sh \"mysql:3306\" -t 60"
+    
+    echo "Running migrations..."
+    docker compose run --rm tracker_daphne python3 manage.py migrate
     
     echo "Running pytest..."
-    docker exec tracker_daphne /bin/bash -c "pytest --collect-only -p no:cov" || (docker compose logs tracker_daphne && exit 1)
-    docker exec tracker_daphne /bin/bash -c "pytest -v -p no:cov --cache-clear" || (docker compose logs tracker_daphne && exit 1)
+    docker compose run --rm tracker_daphne pytest -v -p no:cov --junitxml reports/django_test_results.xml
 - name: 'gcr.io/cloud-builders/docker'
   args: ['compose','down']
 
