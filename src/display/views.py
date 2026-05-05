@@ -2334,7 +2334,6 @@ def firebase_password_reset(request):
                     payload = {
                         "requestType": "PASSWORD_RESET",
                         "email": email,
-                        "continueUrl": "https://app.airsports.no",
                     }
 
                     response = requests.post(url, json=payload, timeout=5)
