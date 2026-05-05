@@ -10,6 +10,7 @@ from display.calculators.contestant_processor import ContestantProcessor
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.utilities.coordinate_utilities import calculate_speed_between_points, calculate_bearing
 
+from django.db.models import F
 from display.models import Contestant, ContestantUploadedTrack
 
 import os
@@ -127,8 +128,7 @@ def recalculate_live_contestant(contestant: "Contestant"):
             q.pop()
     else:
         logger.warning("Empty track for contestant, ignoring")
-    contestant.track_version += 1
-    contestant.save(update_fields=["track_version"])
+    Contestant.objects.filter(pk=contestant.pk).update(track_version=F("track_version") + 1)
 
 
 def recalculate_from_existing_positions_sync(contestant: "Contestant"):
@@ -171,8 +171,7 @@ def recalculate_from_existing_positions_sync(contestant: "Contestant"):
             q.pop()
     else:
         logger.warning(f"No existing positions found for contestant {contestant}")
-    contestant.track_version += 1
-    contestant.save(update_fields=["track_version"])
+    Contestant.objects.filter(pk=contestant.pk).update(track_version=F("track_version") + 1)
 
 
 class InvalidGpxTimeFormatException(Exception): ...
@@ -257,8 +256,6 @@ def insert_gpx_file(contestant_object: "Contestant", file):
     except:
         pass
     contestant_object.contestantreceivedposition_set.all().delete()
-    contestant_object.track_version += 1
-    contestant_object.save(update_fields=["track_version"])
     ContestantUploadedTrack.objects.create(contestant=contestant_object, track=positions)
     logger.debug("Created new uploaded track with {} positions".format(len(positions)))
     if len(positions) == 0:
@@ -276,5 +273,4 @@ def insert_gpx_file(contestant_object: "Contestant", file):
     contestant_processor.run()
     while not q.empty():
         q.pop()
-    contestant_object.track_version += 1
-    contestant_object.save(update_fields=["track_version"])
+    Contestant.objects.filter(pk=contestant_object.pk).update(track_version=F("track_version") + 1)

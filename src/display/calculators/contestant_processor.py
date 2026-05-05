@@ -111,8 +111,8 @@ class ContestantProcessor:
             self.latest_recorded_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
             self.contestant.reset_track_and_score()
             self.contestant.contestantreceivedposition_set.all().delete()
-            self.contestant.track_version += 1
-            self.contestant.save(update_fields=["track_version"])
+            Contestant.objects.filter(pk=self.contestant.pk).update(track_version=F("track_version") + 1)
+            self.contestant.refresh_from_db(fields=["track_version"])
 
         self.suppress_side_effects = False # Will be toggled in run()
         
