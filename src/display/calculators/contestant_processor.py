@@ -19,6 +19,7 @@ from slack_facade import post_slack_competition_message
 from traccar_facade import augment_positions_from_traccar
 from utilities.timed_queue import TimedQueue, TimedOut
 from websocket_channels import WebsocketFacade
+from django.db.models import F
 
 from display.utilities.traccar_factory import get_traccar_instance
 
@@ -112,7 +113,6 @@ class ContestantProcessor:
             self.contestant.reset_track_and_score()
             self.contestant.contestantreceivedposition_set.all().delete()
             Contestant.objects.filter(pk=self.contestant.pk).update(track_version=F("track_version") + 1)
-            self.contestant.refresh_from_db(fields=["track_version"])
 
         self.suppress_side_effects = False # Will be toggled in run()
         
