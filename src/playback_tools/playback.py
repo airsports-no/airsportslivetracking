@@ -103,8 +103,6 @@ def recalculate_live_contestant(contestant: "Contestant"):
     except:
         pass
     contestant.contestantreceivedposition_set.all().delete()
-    contestant.track_version += 1
-    contestant.save(update_fields=["track_version"])
     now = datetime.datetime.now(datetime.timezone.utc)
     if contestant.finished_by_time > now:
         contestant.finished_by_time = max(contestant.takeoff_time + datetime.timedelta(seconds=1), now)
@@ -129,6 +127,8 @@ def recalculate_live_contestant(contestant: "Contestant"):
             q.pop()
     else:
         logger.warning("Empty track for contestant, ignoring")
+    contestant.track_version += 1
+    contestant.save(update_fields=["track_version"])
 
 
 def recalculate_from_existing_positions_sync(contestant: "Contestant"):
@@ -171,6 +171,8 @@ def recalculate_from_existing_positions_sync(contestant: "Contestant"):
             q.pop()
     else:
         logger.warning(f"No existing positions found for contestant {contestant}")
+    contestant.track_version += 1
+    contestant.save(update_fields=["track_version"])
 
 
 class InvalidGpxTimeFormatException(Exception): ...
