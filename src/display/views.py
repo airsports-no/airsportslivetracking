@@ -2290,13 +2290,14 @@ def firebase_password_change(request):
 def firebase_password_reset(request):
     """
     Overrides the default Django password reset to use Firebase.
-    Handles migration of legacy users and sends reset email via Django.
+    Handles migration of legacy users and triggers Firebase to send reset email.
     """
     from django.contrib.auth.forms import PasswordResetForm
     from firebase_admin import auth
     from display.auth_backends import FirebaseMigrationBackend
     from display.models import MyUser
-    from django.template.loader import render_to_string
+    import requests
+    from django.conf import settings
 
     if request.method == "POST":
         form = PasswordResetForm(request.POST)
@@ -2328,29 +2329,19 @@ def firebase_password_reset(request):
 
             if firebase_user:
                 try:
-                    action_code_settings = auth.ActionCodeSettings(
-                        url="https://app.airsports.no",
-                        handle_code_in_app=False,
-                    )
-                    link = auth.generate_password_reset_link(email, action_code_settings=action_code_settings)
-
-                    # Send email via Django using the template we created
-                    subject = render_to_string("registration/password_reset_subject.txt").strip()
-                    body = render_to_string("registration/password_reset_email.html", {
+                    api_key = getattr(settings, "FIREBASE_WEB_API_KEY", "")
+                    url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={api_key}"
+                    payload = {
+                        "requestType": "PASSWORD_RESET",
                         "email": email,
-                        "reset_link": link,
-                    })
+                        "continueUrl": "https://app.airsports.no",
+                    }
 
-                    send_mail(
-                        subject,
-                        body,
-                        None,  # Use DEFAULT_FROM_EMAIL
-                        [email],
-                        fail_silently=False,
-                    )
-                    logger.info(f"[PasswordReset] Reset email sent to {email}")
+                    response = requests.post(url, json=payload, timeout=5)
+                    response.raise_for_status()
+                    logger.info(f"[PasswordReset] Firebase reset email triggered for {email}")
                 except Exception as e:
-                    logger.error(f"[PasswordReset] Error generating or sending reset link for {email}: {e}")
+                    logger.error(f"[PasswordReset] Error triggering Firebase reset email for {email}: {e}")
 
             return HttpResponseRedirect(reverse("password_reset_done"))
     else:
