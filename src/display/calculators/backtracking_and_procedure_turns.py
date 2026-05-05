@@ -21,7 +21,9 @@ from display.utilities.coordinate_utilities import (
     calculate_distance_lat_lon,
     euclidean_point_to_line_distance,
 )
+from display.utilities.route_building_utilities import find_closest_leg_to_point
 from display.models import Contestant, Scorecard, Route, ANOMALY, INFORMATION
+from display.waypoint import Waypoint
 
 if TYPE_CHECKING:
     from display.calculators.positions_and_gates import Gate
@@ -256,7 +258,11 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.update_current_leg(last_visible_gate)
         first_position = track[start_index]
         bearing = bearing_between(first_position, last_position)
-        bearing_difference = abs(get_heading_difference(bearing, last_visible_gate.bearing))
+        
+        # Use local reference bearing for backtracking check
+        # This handles curved legs correctly by finding the closest segment of the route
+        reference_bearing = self._get_local_reference_bearing(last_position, last_visible_gate, next_gate)
+        bearing_difference = abs(get_heading_difference(bearing, reference_bearing))
 
         if (
             just_passed_gate
@@ -332,7 +338,6 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             is_new_pt_gate = just_passed_gate and last_visible_gate.is_procedure_turn and not last_visible_gate.missed
 
             if not is_new_pt_gate and bearing_difference > self.backtracking_limit:
-
                 # Check if we are near the gate we just passed
                 # To avoid penalties during slow turns or maneuvering near the gate
                 if (
@@ -540,3 +545,46 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         # Rerun track calculation one final time in order to terminate any ongoing backtracking
         self.calculate_track_score(track, self.last_visible_gate, self.last_visible_gate, None)
         self.update_tracking_state(self.FINISHED)
+
+    def _get_local_reference_bearing(
+        self, last_position: ContestantReceivedPosition, last_visible_gate: "Gate", next_gate: Optional["Gate"]
+    ) -> float:
+        """
+        Finds the bearing of the closest segment of the route to the current position.
+        This handles curved legs by considering all intermediate curve points.
+        """
+        relevant_waypoints = self._get_relevant_waypoints(last_visible_gate, next_gate)
+        if len(relevant_waypoints) < 2:
+            return last_visible_gate.bearing
+
+        closest_leg_info = find_closest_leg_to_point(
+            last_position.latitude, last_position.longitude, relevant_waypoints
+        )
+        if closest_leg_info:
+            leg_start_wp, _ = closest_leg_info
+            # If the closest leg is the last one in our relevant list and it's the next_gate,
+            # we should probably use its bearing_from_previous or something.
+            # But bearing_next of the waypoint should be correct for the segment starting at it.
+            if leg_start_wp.bearing_next >= 0:
+                return leg_start_wp.bearing_next
+
+        # Fallback: if we are beyond the last segment, use the bearing of the last segment
+        if len(relevant_waypoints) >= 2:
+            return relevant_waypoints[-2].bearing_next
+
+        return last_visible_gate.bearing
+
+    def _get_relevant_waypoints(self, last_visible_gate: "Gate", next_gate: Optional["Gate"]) -> List[Waypoint]:
+        """
+        Returns the list of waypoints in the current leg, including curve points.
+        """
+        waypoints = []
+        started = False
+        for wp in self.route.waypoints:
+            if wp == last_visible_gate.waypoint:
+                started = True
+            if started:
+                waypoints.append(wp)
+            if next_gate and wp == next_gate.waypoint:
+                break
+        return waypoints
