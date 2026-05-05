@@ -647,7 +647,10 @@ class ContestantProcessor:
         if update_score_message.planned is not None and update_score_message.actual is not None:
             offset = (update_score_message.actual - update_score_message.planned).total_seconds()
             # Must use round, this is the same as used in the score calculation
-            offset_string = "{} s".format("+{}".format(round(offset)) if offset > 0 else round(offset))
+            offset_val = round(offset)
+            offset_string = f"{offset_val:+}s" if offset_val != 0 else "0s"
+            if offset_string and offset_string not in update_score_message.message:
+                update_score_message.message += f" ({offset_string})"
         else:
             offset_string = ""
         if capped:
@@ -669,8 +672,6 @@ class ContestantProcessor:
         # Format score as float for consistency (0.0, 15.0, etc.)
         display_score = float(score)
         string = "{}: {} points {}".format(update_score_message.gate.name, display_score, update_score_message.message)
-        if offset_string:
-            string += " ({})".format(offset_string)
         times_string = ""
         if update_score_message.planned and update_score_message.actual:
             times_string = "planned: {}\nactual: {}".format(planned_time, actual_time)

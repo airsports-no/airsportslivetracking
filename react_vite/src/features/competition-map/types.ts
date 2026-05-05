@@ -249,6 +249,7 @@ export interface ScoreLogEntry {
   points: number;
   planned?: string | null;
   actual?: string | null;
+  offset_string?: string | null;
   type: "anomaly" | "information" | string;
   contestant: number;
 }
