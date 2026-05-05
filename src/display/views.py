@@ -2290,28 +2290,67 @@ def firebase_password_change(request):
 def firebase_password_reset(request):
     """
     Overrides the default Django password reset to use Firebase.
-    Sends the reset email via Firebase REST API.
+    Handles migration of legacy users and sends reset email via Django.
     """
     from django.contrib.auth.forms import PasswordResetForm
-    import requests
+    from firebase_admin import auth
+    from display.auth_backends import FirebaseMigrationBackend
+    from display.models import MyUser
+    from django.template.loader import render_to_string
 
     if request.method == "POST":
         form = PasswordResetForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data["email"]
-            api_key = getattr(settings, "FIREBASE_WEB_API_KEY", "")
-            url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={api_key}"
-            payload = {
-                "requestType": "PASSWORD_RESET",
-                "email": email,
-                "continueUrl": "https://app.airsports.no"
-            }
+
+            # Initialize Firebase
+            backend = FirebaseMigrationBackend()
+            backend._initialize_firebase()
+
+            firebase_user = None
             try:
-                response = requests.post(url, json=payload, timeout=5)
-                if response.status_code != 200:
-                    logger.warning(f"Firebase password reset failed for {email}: {response.text}")
-            except Exception as e:
-                logger.error(f"Error calling Firebase password reset for {email}: {e}")
+                firebase_user = auth.get_user_by_email(email)
+            except auth.UserNotFoundError:
+                # Check if we should migrate from Django
+                django_user = MyUser.objects.filter(email__iexact=email).first()
+                if django_user:
+                    try:
+                        firebase_user = auth.create_user(
+                            email=email,
+                            display_name=f"{django_user.first_name} {django_user.last_name}".strip() or None
+                        )
+                        logger.info(f"[PasswordReset] Created Firebase account for {email} to enable reset.")
+                        # Purge local password as they are now migrating
+                        django_user.set_unusable_password()
+                        django_user.save()
+                    except Exception as e:
+                        logger.error(f"[PasswordReset] Failed to create Firebase user for {email}: {e}")
+
+            if firebase_user:
+                try:
+                    action_code_settings = auth.ActionCodeSettings(
+                        url="https://app.airsports.no",
+                        handle_code_in_app=False,
+                    )
+                    link = auth.generate_password_reset_link(email, action_code_settings=action_code_settings)
+
+                    # Send email via Django using the template we created
+                    subject = render_to_string("registration/password_reset_subject.txt").strip()
+                    body = render_to_string("registration/password_reset_email.html", {
+                        "email": email,
+                        "reset_link": link,
+                    })
+
+                    send_mail(
+                        subject,
+                        body,
+                        None,  # Use DEFAULT_FROM_EMAIL
+                        [email],
+                        fail_silently=False,
+                    )
+                    logger.info(f"[PasswordReset] Reset email sent to {email}")
+                except Exception as e:
+                    logger.error(f"[PasswordReset] Error generating or sending reset link for {email}: {e}")
 
             return HttpResponseRedirect(reverse("password_reset_done"))
     else:
