@@ -648,7 +648,7 @@ class ContestantProcessor:
             offset = (update_score_message.actual - update_score_message.planned).total_seconds()
             # Must use round, this is the same as used in the score calculation
             offset_val = round(offset)
-            offset_string = f"{offset_val:+}s" if offset_val != 0 else "0s"
+            offset_string = f"{offset_val:+} s" if offset_val != 0 else "0 s"
             if offset_string and offset_string not in update_score_message.message:
                 update_score_message.message += f" ({offset_string})"
         else:
