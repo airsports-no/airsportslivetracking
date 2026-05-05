@@ -21,6 +21,7 @@ from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalcula
 from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import Projector
+from display.waypoint import Waypoint
 
 
 class CalculatorUnitTestBase(TestCase):
@@ -600,6 +601,76 @@ class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
             [pos1, pos2, pos3], state.last_visible_gate, state.in_range_of_gate, state.next_gate
         )
         self.assertEqual(self.calculator.tracking_state, self.calculator.BACKTRACKING)
+
+    def test_curved_leg_backtracking(self):
+        # 1. Setup a route with a curve: SP -> Curve 1.1 -> TP1
+        wp1 = Waypoint("SP")
+        wp1.latitude = 60.0
+        wp1.longitude = 11.0
+        wp1.type = "sp"
+        wp1.width = 1.0
+        wp1.gate_line = ((60.0, 10.9), (60.0, 11.1))
+
+        curve1 = Waypoint("Curve 1.1")
+        curve1.latitude = 60.1
+        curve1.longitude = 11.1
+        curve1.type = "secret"
+        curve1.on_curved_segment = True
+        curve1.gate_line = ((60.1, 11.0), (60.1, 11.2))
+
+        wp2 = Waypoint("TP1")
+        wp2.latitude = 60.2
+        wp2.longitude = 11.0
+        wp2.type = "tp"
+        wp2.width = 1.0
+        wp2.gate_line = ((60.2, 10.9), (60.2, 11.1))
+
+        waypoints = [wp1, curve1, wp2]
+        from display.utilities.route_building_utilities import calculate_and_update_legs
+
+        calculate_and_update_legs(waypoints, False)
+
+        self.route.waypoints = waypoints
+        # Add expected gate times for new waypoints
+        now = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        self.contestant.gate_times = {wp.name: now for wp in waypoints}
+
+        # Re-initialize calculator to pick up new waypoints
+        self.calculator.initiate_gates()
+        for gate in self.calculator.gates:
+            gate.center_x = 0.0
+            gate.center_y = 0.0
+            gate.projected_gate_line = MagicMock()
+            gate.get_distance_to_gate_line = MagicMock(return_value=2000.0)
+
+        # 2. Simulate track point on the first part of the curve (heading NE, ~45 deg)
+        pos1 = self.create_position(60.01, 11.01, datetime.datetime(2020, 1, 1, 10, 0))
+        pos2 = self.create_position(60.02, 11.02, datetime.datetime(2020, 1, 1, 10, 1))
+
+        self.calculator.tracking_state = self.calculator.TRACKING
+
+        sp_gate = next(g for g in self.calculator.gates if g.name == "SP")
+        tp1_gate = next(g for g in self.calculator.gates if g.name == "TP1")
+
+        # 3. Simulate track point on the second part of the curve (heading NW, ~315 deg)
+        # Difference between 45 (SP bearing) and 315 is 90 deg.
+        # If reference was fixed to SP.bearing (45), this might trigger backtracking if diff > 90.
+        pos3 = self.create_position(60.15, 11.05, datetime.datetime(2020, 1, 1, 10, 10))
+        pos4 = self.create_position(60.16, 11.04, datetime.datetime(2020, 1, 1, 10, 11))
+
+        # At pos4, closest leg should be Curve 1.1 -> TP1, with bearing ~315.
+        # track bearing is ~315, so diff ~ 0. Correct!
+        self.calculator.calculate_track_score([pos1, pos2, pos3, pos4], sp_gate, None, tp1_gate)
+        # It transitions to STARTED because sp_gate.type is 'sp'
+        self.assertEqual(self.calculator.tracking_state, self.calculator.STARTED)
+
+        # 4. Now simulate ACTUAL backtracking on the second part
+        # Turn towards SE (~135 deg)
+        pos5 = self.create_position(60.15, 11.05, datetime.datetime(2020, 1, 1, 10, 12))
+
+        self.calculator.calculate_track_score([pos1, pos2, pos3, pos4, pos5], sp_gate, None, tp1_gate)
+        # Should be BACKTRACKING_TEMPORARY because diff from local reference (~315) is ~180
+        self.assertEqual(self.calculator.tracking_state, self.calculator.BACKTRACKING_TEMPORARY)
 
 
 class TestLandingPatternCalculator(CalculatorUnitTestBase):
