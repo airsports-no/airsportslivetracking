@@ -423,14 +423,8 @@ class ContestantProcessor:
 
                 for position in self.interpolate_track(self.previous_position, p):
                     position.websocket_transmitted_time = datetime.datetime.now(datetime.timezone.utc)
-                    if position.time > self.latest_recorded_time:
-                        positions_to_save.append(position)
                     all_positions.append(position)
                 self.previous_position = p
-
-            if len(positions_to_save) > 100:
-                ContestantReceivedPosition.objects.bulk_create(positions_to_save)
-                positions_to_save = []
 
             for position in all_positions:
                 # Toggle silent mode based on position time
@@ -441,6 +435,8 @@ class ContestantProcessor:
                     logger.info(f"{self.contestant}: Silent catch-up completed at {position.time}, resuming active scoring")
 
                 self.orchestrator.calculate_score(position)
+                if position.time > self.latest_recorded_time:
+                    positions_to_save.append(position)
 
                 # Proactive termination check based on speed
                 if self.live_processing and self.orchestrator.has_any_gate_passed and not self.track_terminated:
@@ -457,6 +453,10 @@ class ContestantProcessor:
                             f"Inferred landing due to {self.consecutive_low_speed_positions} consecutive low speed positions"
                         )
                         break
+
+            if len(positions_to_save) > 100:
+                ContestantReceivedPosition.objects.bulk_create(positions_to_save)
+                positions_to_save = []
 
             if self.track_terminated:
                 break

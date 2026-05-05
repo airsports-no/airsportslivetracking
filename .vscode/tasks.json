@@ -19,7 +19,7 @@
 		{
 			"label": "Run celery",
 			"type": "shell",
-			"command": "celery -A live_tracking_map worker -l DEBUG -f /logs/celery.log --concurrency 1",
+			"command": "celery -A live_tracking_map worker -l DEBUG --concurrency 1",
 			"group": "run",
 			"options": {
 				"cwd": "${workspaceFolder}/src"

@@ -51,7 +51,7 @@ class ContestantReceivedPosition(models.Model):
             "id": index,
             "latitude": float(self.latitude),
             "longitude": float(self.longitude),
-            "altitude": self.latitude,
+            "altitude": self.altitude,
             "attributes": {"batteryLevel": self.battery_level},
             "speed": self.speed,
             "course": self.course,

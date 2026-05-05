@@ -219,24 +219,36 @@ def insert_gpx_file(contestant_object: "Contestant", file):
                                 (previous_point["latitude"], previous_point["longitude"]),
                                 (point.latitude, point.longitude),
                             )
-                        positions.append(
-                            {
-                                "deviceId": contestant_object.tracker_device_id,
-                                "id": index,
-                                "latitude": float(point.latitude),
-                                "longitude": float(point.longitude),
-                                "altitude": float(point.elevation) if point.elevation else 0,
-                                "attributes": {"batteryLevel": 1.0},
-                                "speed": speed,
-                                "course": course,
-                                "device_time": point.time,
-                            }
-                        )
-                        if len(positions) > 2:
-                            previous_point = positions[-2]
+                        point_dict = {
+                            "deviceId": contestant_object.tracker_device_id,
+                            "id": index,
+                            "latitude": float(point.latitude),
+                            "longitude": float(point.longitude),
+                            "altitude": float(point.elevation) if point.elevation else 0,
+                            "attributes": {"batteryLevel": 1.0, "course": course},
+                            "speed": speed,
+                            "course": course,
+                            "device_time": point.time,
+                        }
+                        positions.append(point_dict)
+                        previous_point = point_dict
                         index += 1
                     except Exception as e:
                         logger.warning(f"Skipping point {index} due to error: {e}")
+
+    # if len(positions) > 0:
+    #     first_time = positions[0]["device_time"]
+    #     last_time = positions[-1]["device_time"]
+    #     if last_time < now:
+    #         # If the track is in the past, update all times to match it
+    #         contestant_object.tracker_start_time = first_time - datetime.timedelta(minutes=30)
+    #         contestant_object.takeoff_time = first_time
+    #         contestant_object.finished_by_time = last_time + datetime.timedelta(minutes=30)
+    #         contestant_object.save(update_fields=["tracker_start_time", "takeoff_time", "finished_by_time"])
+    #     elif contestant_object.finished_by_time > now:
+    #         contestant_object.finished_by_time = max(contestant_object.takeoff_time + datetime.timedelta(seconds=1), now)
+    #         contestant_object.save(update_fields=["finished_by_time"])
+
     try:
         contestant_object.contestantuploadedtrack.delete()
         logger.debug("Deleted existing uploaded track")
@@ -262,3 +274,5 @@ def insert_gpx_file(contestant_object: "Contestant", file):
     contestant_processor.run()
     while not q.empty():
         q.pop()
+    contestant_object.track_version += 1
+    contestant_object.save(update_fields=["track_version"])
