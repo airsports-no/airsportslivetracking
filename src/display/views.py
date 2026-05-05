@@ -2262,27 +2262,30 @@ def firebase_token_login(request):
 @login_required
 def firebase_password_change(request):
     """
-    Redirects the user to a Firebase-hosted password reset link.
+    Triggers Firebase to send a password reset email to the logged-in user.
     """
+    from django.conf import settings
+    import requests
     from display.auth_backends import FirebaseMigrationBackend
-    from firebase_admin import auth
 
     backend = FirebaseMigrationBackend()
     backend._initialize_firebase()
 
     try:
-        # Define the continue URL (where the user goes after completing the reset)
-        # Use app.airsports.no as requested by the user.
-        action_code_settings = auth.ActionCodeSettings(
-            url="https://app.airsports.no",
-            handle_code_in_app=False,
-        )
-        # Generate a password reset link for the logged-in user
-        link = auth.generate_password_reset_link(request.user.email, action_code_settings=action_code_settings)
-        # Redirect the user to the Firebase-hosted interface
-        return HttpResponseRedirect(link)
+        api_key = getattr(settings, "FIREBASE_WEB_API_KEY", "")
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={api_key}"
+        payload = {
+            "requestType": "PASSWORD_RESET",
+            "email": request.user.email,
+        }
+
+        response = requests.post(url, json=payload, timeout=5)
+        response.raise_for_status()
+
+        messages.success(request, f"A password reset email has been sent to {request.user.email}. Please check your inbox.")
+        return HttpResponseRedirect("/")
     except Exception as e:
-        logger.error(f"Failed to generate Firebase password reset link for {request.user.email}: {e}")
+        logger.error(f"Failed to trigger Firebase password reset email for {request.user.email}: {e}")
         messages.error(request, "Failed to initiate password change via Firebase. Please try again later.")
         return HttpResponseRedirect("/")
 
