@@ -4,6 +4,7 @@ import typing
 
 import eval7
 from django.db import models
+from django.db.models import F
 
 from display.poker.poker_cards import PLAYING_CARDS
 
