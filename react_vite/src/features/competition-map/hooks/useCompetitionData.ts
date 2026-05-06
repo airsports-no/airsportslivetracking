@@ -156,6 +156,13 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                     newPositions.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                     return { ...prev, [contestantId]: newPositions };
                 });
+                
+                // Update contestant metadata with progress and last seen time from position data
+                const update: any = { last_position_received_at: Date.now() };
+                if (payload.progress !== undefined) {
+                    update.progress = payload.progress;
+                }
+                updateContestant(contestantId, update);
             }
             if (payload.annotations && payload.annotations.length > 0) {
                 setAnnotationsByContestantRef.current(prev => { // Use ref here

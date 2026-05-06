@@ -1,4 +1,5 @@
 import React from 'react';
+import { Zap } from 'lucide-react';
 
 interface Row {
   id: number;
@@ -8,6 +9,9 @@ interface Row {
   color?: string;
   countdown?: number | null;
   expectedBy?: string | null;
+  is_active_flight?: boolean;
+  is_receiving_data?: boolean;
+  progress?: number;
 }
 
 interface Props {
@@ -63,11 +67,24 @@ export default function ResultsTable({ rows, selectedId, onRowClick, dividerInde
                 <td className="w-8 px-1 text-center" style={{borderLeft: `4px solid ${r.color ?? 'transparent'}`}}>{idx + 1}</td>
                 <td className="max-w-[80px] sm:max-w-[150px] md:max-w-none truncate px-2">
                     <div className="flex flex-col">
-                        <span>{r.name}</span>
+                        <div className="flex items-center gap-1">
+                            <span className="truncate">{r.name}</span>
+                            {r.is_receiving_data && (
+                                <Zap size={12} className="text-warning fill-warning flex-none" title="Actively receiving data" />
+                            )}
+                        </div>
                         {r.expectedBy && (
                             <span className="text-[10px] opacity-60 font-normal">
                                 Exp by: {r.expectedBy}
                             </span>
+                        )}
+                        {r.is_active_flight && r.progress !== undefined && (
+                            <progress 
+                                className="progress progress-primary h-1 mt-0.5 w-full max-w-[100px]" 
+                                value={Math.max(0, Math.min(100, r.progress))} 
+                                max="100"
+                                title={`Progress: ${r.progress.toFixed(1)}%`}
+                            ></progress>
                         )}
                     </div>
                 </td>

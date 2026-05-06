@@ -1,8 +1,17 @@
 import L from 'leaflet';
 
 // Creates a DivIcon with a rotated airplane-like SVG, colored per contestant and labeled with contestant number
-export function planeIcon(number: number, color: string, headingDeg: number): L.DivIcon {
+export function planeIcon(number: number, color: string, headingDeg: number, isReceiving: boolean = false): L.DivIcon {
   const size = 36;
+  
+  const lightningSvg = isReceiving ? `
+    <div style="position:absolute; right:-4px; top:-4px; color:#fbbf24; filter: drop-shadow(0 0 2px #000);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2 L3 14h9l-1 8 10-12h-9l1-8z"></path>
+        </svg>
+    </div>
+  ` : '';
+
   const svg = `
     <div style="position: relative; width: ${size}px; height: ${size}px;">
       <div style="position:absolute; left:0; top:0; width:${size}px; height:${size}px; transform: rotate(${headingDeg}deg); transform-origin: 50% 50%;">
@@ -20,6 +29,7 @@ export function planeIcon(number: number, color: string, headingDeg: number): L.
       <div style="position:absolute; left:50%; top:50%; transform: translate(-50%, -50%); font-size:10px; font-weight:700; color:#fff; text-shadow: 0 0 2px #000;">
         ${number}
       </div>
+      ${lightningSvg}
     </div>`;
 
   return L.divIcon({

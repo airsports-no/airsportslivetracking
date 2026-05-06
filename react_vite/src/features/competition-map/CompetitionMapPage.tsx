@@ -433,6 +433,33 @@ export default function CompetitionMapPage() {
               }
           }
 
+          // Calculate progress for playback mode
+          let progress = undefined;
+          const isPoker = staticNavTaskData.scorecard.task_type.includes('poker');
+          const isLanding = staticNavTaskData.scorecard.task_type.includes('landing');
+
+          if (isPoker) {
+              const cardLogs = logsForTime.filter(l => l.message.includes('Received card'));
+              progress = Math.min(100, (cardLogs.length / 5) * 100);
+          } else if (isLanding) {
+              progress = 0;
+          } else if (hasStarted && !hasFinished && staticNavTaskData.route.waypoints.length > 0) {
+              const firstWp = staticNavTaskData.route.waypoints[0].name;
+              const lastWp = staticNavTaskData.route.waypoints[staticNavTaskData.route.waypoints.length - 1].name;
+              const startTimeStr = c.gate_times?.[firstWp];
+              const endTimeStr = c.gate_times?.[lastWp];
+              
+              if (startTimeStr && endTimeStr) {
+                  const startTime = new Date(startTimeStr).getTime();
+                  const endTime = new Date(endTimeStr).getTime();
+                  const currentT = currentTime.getTime();
+                  const totalRange = endTime - startTime;
+                  if (totalRange > 0) {
+                      progress = 100 * (currentT - startTime) / totalRange;
+                  }
+              }
+          }
+
           return {
             id: c.id,
             name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
@@ -441,6 +468,9 @@ export default function CompetitionMapPage() {
             color: `hsl(${(index / total) * 360}, 70%, 50%)`,
             countdown: countdown,
             expectedBy: expectedBy,
+            is_active_flight: hasStarted && !hasFinished,
+            is_receiving_data: false, // Lightning symbol doesn't make sense in playback
+            progress: progress,
           };
         });
       }
@@ -448,6 +478,8 @@ export default function CompetitionMapPage() {
       return allContestantsData.map((c, index) => {
         const state = c.contestanttrack?.current_state ?? 'Waiting...';
         const hasStarted = c.contestanttrack?.passed_starting_gate;
+        const calculatorStarted = c.contestanttrack?.calculator_started;
+        const calculatorFinished = c.contestanttrack?.calculator_finished;
 
         let score: number | string = c.contestanttrack?.score ?? 0;
         let isNotStarted = false;
@@ -476,6 +508,13 @@ export default function CompetitionMapPage() {
             }
         }
 
+        // Active flight: Calculator running but not finished
+        const isActiveFlight = calculatorStarted && !calculatorFinished;
+        
+        // Receiving data: Last position arrived in the last 30 seconds (local time)
+        const lastSeen = c.last_position_received_at ?? c.contestanttrack?.last_position_received_at;
+        const isReceivingData = isActiveFlight && lastSeen && (Date.now() - lastSeen < 30000);
+
         return {
             id: c.id,
             name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
@@ -484,6 +523,9 @@ export default function CompetitionMapPage() {
             color: `hsl(${(index / total) * 360}, 70%, 50%)`,
             countdown: countdown,
             expectedBy: expectedBy,
+            is_active_flight: isActiveFlight,
+            is_receiving_data: isReceivingData,
+            progress: c.progress ?? c.contestanttrack?.progress,
         };
       });
     };

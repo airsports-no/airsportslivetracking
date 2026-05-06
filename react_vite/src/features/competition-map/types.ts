@@ -53,6 +53,8 @@ export interface ContestantTrackSummary {
   calculator_finished: boolean;
   calculator_started: boolean;
   contestant: number;
+  progress?: number;
+  last_position_received_at?: number;
 }
 
 export interface TrackerDisplay {
@@ -178,6 +180,8 @@ export interface Contestant {
   finished_by_time: string;
   adaptive_start?: boolean;
   has_crossed_starting_line: boolean;
+  progress?: number;
+  last_position_received_at?: number;
   latest_emaillink?: { url: string; created_at: string };
   overlap_warnings?: string[];
   overlapping_tasks?: {

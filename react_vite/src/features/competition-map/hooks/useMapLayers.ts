@@ -253,8 +253,19 @@ export function useMapLayers({
             // Update marker position and icon
             const latest = positions[positions.length - 1];
             if (latest) {
+                const calculatorStarted = contestant.contestanttrack?.calculator_started;
+                const calculatorFinished = contestant.contestanttrack?.calculator_finished;
+                const isActiveFlight = calculatorStarted && !calculatorFinished;
+                const lastSeen = contestant.last_position_received_at ?? contestant.contestanttrack?.last_position_received_at;
+                const isReceiving = isActiveFlight && lastSeen && (Date.now() - lastSeen < 30000);
+
                 layers.marker.setLatLng([latest.latitude, latest.longitude]);
-                layers.marker.setIcon(planeIcon(contestant.contestant_number, layers.recentTrailSolid.options.color as string, latest.course ?? 0));
+                layers.marker.setIcon(planeIcon(
+                    contestant.contestant_number, 
+                    layers.recentTrailSolid.options.color as string, 
+                    latest.course ?? 0,
+                    isReceiving
+                ));
                 layers.marker.setOpacity(1);
             } else {
                 layers.marker.setOpacity(0);
