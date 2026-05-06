@@ -1353,6 +1353,10 @@ def delete_score_item(request, pk):
     entry = get_object_or_404(ScoreLogEntry, pk=pk)
     contestant = entry.contestant
     contestant.contestanttrack.update_score(contestant.contestanttrack.score - entry.points)
+    
+    # Increment score_version to invalidate score_data ETags without affecting track ETags
+    type(contestant).objects.filter(pk=contestant.pk).update(score_version=F("score_version") + 1)
+
     entry.delete()
     # Push the updated data so that it is reflected on the contest track
     wf = WebsocketFacade()

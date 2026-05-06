@@ -1493,31 +1493,32 @@ class ContestantViewSet(ModelViewSet):
         Used by the front end to load initial data
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        is_finished = hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished
 
-        # ETag based on contestant's track version
-        etag = f'"{contestant.pk}-{contestant.track_version}-scores"'
-        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
+        # ETag based on contestant's track and score versions. 
+        # track_version only bumps on (re)start. score_version bumps on admin edits.
+        # Short-circuiting with 304 is therefore only safe when the flight is finished.
+        etag = f'"{contestant.pk}-{contestant.track_version}-{contestant.score_version}-scores"'
+        if is_finished and request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         response = Response(generate_score_data(contestant.pk))
-        response["ETag"] = etag
 
-        # Cache-Control:
-        is_finished = hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished
         is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
         
         if not is_public:
             response["Cache-Control"] = "private, no-cache"
         elif is_finished:
+            response["ETag"] = etag
             # Finished scores are static. 
             # s-maxage=31536000: CDN caches for 1 year (explicit invalidation)
             # max-age=0: Browser always checks CDN (no disk cache).
             response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         else:
             # Live scores change frequently.
-            # s-maxage=30: CDN shields origin by caching for 30 seconds.
-            # max-age=0: Browser always checks CDN (no disk cache).
-            response["Cache-Control"] = "public, max-age=0, s-maxage=30, stale-while-revalidate=60"
+            # No ETag sent to avoid stale 304s from CDN.
+            # s-maxage=10: CDN shields origin by caching for 10 seconds.
+            response["Cache-Control"] = "public, max-age=0, s-maxage=10, must-revalidate"
 
         if is_public and "Vary" in response:
             del response["Vary"]
@@ -1684,25 +1685,9 @@ class ContestantViewSet(ModelViewSet):
     @action(detail=True, methods=["get"])
     def score(self, request, pk=None, **kwargs):
         """
-        Returns the score for the contestant
+        Returns the score for the contestant. This is a wrapper around score_data.
         """
-        contestant = self.get_object()  # This is important, this is where the object permissions are checked
-        response = Response(generate_score_data(contestant.pk))
-        
-        is_finished = hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished
-        is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
-        
-        if not is_public:
-            response["Cache-Control"] = "private, no-cache"
-        elif is_finished:
-            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
-        else:
-            response["Cache-Control"] = "public, max-age=0, s-maxage=30, stale-while-revalidate=60"
-
-        if is_public and "Vary" in response:
-            del response["Vary"]
-
-        return response
+        return self.score_data(request, pk=pk, **kwargs)
 
     @action(detail=True, methods=["get"])
     def track(self, request, pk=None, **kwargs):
@@ -1722,16 +1707,24 @@ class ContestantViewSet(ModelViewSet):
         is_finished = ct.calculator_finished
         is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
         
+        # ETag based on contestant's track version.
+        # track_version only bumps on (re)start. Short-circuiting with 304 is
+        # therefore only safe when the flight is finished.
+        etag = f'"{contestant.pk}-{contestant.track_version}-track"'
+        if is_finished and request.META.get("HTTP_IF_NONE_MATCH") == etag:
+            return Response(status=status.HTTP_304_NOT_MODIFIED)
+
         if not is_public:
             response["Cache-Control"] = "private, no-cache"
         elif is_finished:
+            response["ETag"] = etag
             # Finished tracks are static.
             response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         else:
             # Live tracks change as the flight progresses.
+            # No ETag sent to avoid stale 304s from CDN.
             # s-maxage=10: CDN shields origin by caching for 10 seconds.
-            # max-age=0: Browser always checks CDN (no disk cache).
-            response["Cache-Control"] = "public, max-age=0, s-maxage=10, stale-while-revalidate=60"
+            response["Cache-Control"] = "public, max-age=0, s-maxage=10, must-revalidate"
 
         if is_public and "Vary" in response:
             del response["Vary"]

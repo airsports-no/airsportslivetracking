@@ -126,6 +126,10 @@ class Contestant(models.Model):
         default=0,
         help_text="Incremented whenever a new track is loaded from scratch either from traccar or from a gpx file.",
     )
+    score_version = models.IntegerField(
+        default=0,
+        help_text="Incremented whenever score-related data (e.g. poker cards, administrative penalty removals) is modified after calculation.",
+    )
     contestant_number = models.PositiveIntegerField(
         help_text="A unique number for the contestant in this navigation task"
     )

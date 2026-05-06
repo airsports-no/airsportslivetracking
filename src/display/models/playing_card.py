@@ -99,6 +99,9 @@ class PlayingCard(models.Model):
             contestant.contestanttrack.update_score(
                 contestant.contestanttrack.score - previous_hand_score + new_hand_score
             )
+        
+        type(contestant).objects.filter(pk=contestant.pk).update(score_version=F("score_version") + 1)
+
         from websocket_channels import WebsocketFacade
 
         ws = WebsocketFacade()
@@ -132,6 +135,9 @@ class PlayingCard(models.Model):
             contestant.contestanttrack.update_score(
                 contestant.contestanttrack.score - previous_hand_score + new_hand_score
             )
+
+            type(contestant).objects.filter(pk=contestant.pk).update(score_version=F("score_version") + 1)
+
             from websocket_channels import WebsocketFacade
 
             ws = WebsocketFacade()
@@ -181,6 +187,7 @@ class PlayingCard(models.Model):
             score_log_entry=entry,
         )
         contestant.contestanttrack.update_score(contestant.contestanttrack.score - previous_hand_score + new_hand_score)
+        type(contestant).objects.filter(pk=contestant.pk).update(score_version=F("score_version") + 1)
         from websocket_channels import WebsocketFacade
 
         ws = WebsocketFacade()
