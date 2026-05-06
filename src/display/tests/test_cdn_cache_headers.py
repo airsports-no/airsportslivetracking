@@ -136,15 +136,13 @@ class CDNCacheHeadersTests(TransactionTestCase):
         self.assertIn("Cookie", response.get("Vary", ""))
 
     # --- 3. ETag short-circuit only fires for finished slices ---
-    def test_live_slice_does_not_304_when_track_version_unchanged(self):
-        """track_version doesn't bump on position append, so a live slice
-        with a stale ETag could otherwise return 304 with new positions
-        sitting in the database."""
+    def test_live_slice_can_304_if_data_unchanged(self):
+        """With data-dependent ETags (including position count), even a live 
+        slice can safely return 304 if no new positions have arrived."""
         self._make_public()
         live_index = _live_minute_index()
 
-        # Add a position inside the live window so the response would be
-        # observably wrong if a 304 were returned.
+        # Add a position inside the live window.
         window_start = datetime.datetime.fromtimestamp(live_index * 60, tz=datetime.timezone.utc)
         ContestantReceivedPosition.objects.create(
             contestant=self.contestant,
@@ -157,10 +155,20 @@ class CDNCacheHeadersTests(TransactionTestCase):
         self.assertEqual(first.status_code, 200)
         etag = first["ETag"]
 
-        # Same ETag, but slice is live → must NOT 304.
+        # If data hasn't changed, 304 is now allowed.
         second = self.client.get(self._slice_url(live_index), HTTP_IF_NONE_MATCH=etag)
-        self.assertEqual(second.status_code, 200)
-        self.assertEqual(len(second.json()), 1)
+        self.assertEqual(second.status_code, 304)
+
+        # But if data IS added, ETag MUST change and return 200.
+        ContestantReceivedPosition.objects.create(
+            contestant=self.contestant,
+            time=window_start + datetime.timedelta(seconds=20),
+            latitude=60.1,
+            longitude=11.1,
+        )
+        third = self.client.get(self._slice_url(live_index), HTTP_IF_NONE_MATCH=etag)
+        self.assertEqual(third.status_code, 200)
+        self.assertEqual(len(third.json()), 2)
 
     def test_finished_slice_returns_304_with_matching_etag(self):
         self._make_public()

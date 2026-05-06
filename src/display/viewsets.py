@@ -1554,35 +1554,46 @@ class ContestantViewSet(ModelViewSet):
         start_window = datetime.datetime.fromtimestamp(minute_index * 60, tz=datetime.timezone.utc)
         end_window = start_window + datetime.timedelta(seconds=60 * count)
         now = datetime.datetime.now(datetime.timezone.utc)
-        is_finished = (
-            end_window < now - datetime.timedelta(minutes=10)
-            or contestant.finished_by_time < now
-            or (hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished)
+
+        # 1. LIGHTWEIGHT CHECK: Only fetch the count to build the ETag.
+        # This query is fast because it can be satisfied by a composite index.
+        positions_qs = contestant.contestantreceivedposition_set.filter(
+            time__gte=start_window, time__lt=end_window
+        )
+        current_count = positions_qs.count()
+
+        # 2. Determine if this specific slice is truly immutable.
+        is_immutable = (
+            (hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished)
+            or (contestant.finished_by_time and contestant.finished_by_time < now)
         )
 
-        # track_version only bumps on calculator (re)start, not on every position
-        # append. Short-circuiting with 304 is therefore only safe when the
-        # window is in the past — a live slice could otherwise return 304 even
-        # though new positions have arrived since the client's last fetch.
-        etag = f'"{contestant.pk}-{contestant.track_version}-{minute_index}-c{count}"'
-        if is_finished and request.META.get("HTTP_IF_NONE_MATCH") == etag:
+        # 3. Create a sensitive ETag including the count of positions.
+        # If a new point is appended, the ETag breaks, making it safe to
+        # allow 304 short-circuiting even for live slices.
+        etag = f'"{contestant.pk}-{contestant.track_version}-{minute_index}-cnt{current_count}"'
+
+        if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
-        positions = contestant.contestantreceivedposition_set.filter(
-            time__gte=start_window, time__lt=end_window
-        ).values("time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated")
+        # 4. HEAVY LIFTING: Only runs if the cache is stale or missing.
+        positions_list = list(positions_qs.values(
+            "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
+        ))
 
-        response = Response(list(positions))
+        response = Response(positions_list)
         response["ETag"] = etag
 
         is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
         if not is_public:
             # Private telemetry must never reach the shared CDN cache.
             response["Cache-Control"] = "private, no-cache"
-        elif is_finished:
+        elif is_immutable and current_count > 0:
+            # ONLY cache for 1 year if it's immutable AND we actually have data.
+            # If current_count is 0, someone might have requested a slice before the flight started.
             response["Cache-Control"] = "public, max-age=120, s-maxage=31536000, stale-while-revalidate=86400"
         else:
-            # Live slices: Short CDN cache to protect origin during high load
+            # If the flight is ongoing, or the slice is empty, use short-term caching.
             response["Cache-Control"] = "public, max-age=5, s-maxage=10, must-revalidate"
 
         if is_public and "Vary" in response:
