@@ -460,6 +460,12 @@ export default function CompetitionMapPage() {
               }
           }
 
+          const allPos = positionsByContestant[c.id] ?? [];
+          const latestPosInTimeline = allPos.filter(p => new Date(p.time) <= currentTime).pop();
+          const isReceivingData = (
+              latestPosInTimeline && (currentTime.getTime() - new Date(latestPosInTimeline.time).getTime() < 30000)
+          );
+
           return {
             id: c.id,
             name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`,
@@ -469,7 +475,7 @@ export default function CompetitionMapPage() {
             countdown: countdown,
             expectedBy: expectedBy,
             is_active_flight: hasStarted && !hasFinished,
-            is_receiving_data: false, // Lightning symbol doesn't make sense in playback
+            is_receiving_data: isReceivingData,
             progress: progress,
           };
         });
@@ -513,7 +519,7 @@ export default function CompetitionMapPage() {
         
         // Receiving data: Last position arrived in the last 30 seconds (local time)
         const lastSeen = c.last_position_received_at ?? c.contestanttrack?.last_position_received_at;
-        const isReceivingData = isActiveFlight && lastSeen && (Date.now() - lastSeen < 30000);
+        const isReceivingData = lastSeen && (Date.now() - lastSeen < 30000);
 
         return {
             id: c.id,

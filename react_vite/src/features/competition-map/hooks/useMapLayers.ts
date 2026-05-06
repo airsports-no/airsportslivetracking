@@ -253,11 +253,18 @@ export function useMapLayers({
             // Update marker position and icon
             const latest = positions[positions.length - 1];
             if (latest) {
-                const calculatorStarted = contestant.contestanttrack?.calculator_started;
-                const calculatorFinished = contestant.contestanttrack?.calculator_finished;
-                const isActiveFlight = calculatorStarted && !calculatorFinished;
-                const lastSeen = contestant.last_position_received_at ?? contestant.contestanttrack?.last_position_received_at;
-                const isReceiving = isActiveFlight && lastSeen && (Date.now() - lastSeen < 30000);
+                let isReceiving = false;
+                if (mode === 'realtime') {
+                    const calculatorStarted = contestant.contestanttrack?.calculator_started;
+                    const calculatorFinished = contestant.contestanttrack?.calculator_finished;
+                    const isActiveFlight = calculatorStarted && !calculatorFinished;
+                    const lastSeen = contestant.last_position_received_at ?? contestant.contestanttrack?.last_position_received_at;
+                    isReceiving = !!(lastSeen && (Date.now() - lastSeen < 30000));
+                } else {
+                    // Playback mode: compare latest point time to currentTime.
+                    // This will show lightning if a point was "just received" relative to the timeline.
+                    isReceiving = (currentTime.getTime() - new Date(latest.time).getTime() < 30000);
+                }
 
                 layers.marker.setLatLng([latest.latitude, latest.longitude]);
                 layers.marker.setIcon(planeIcon(
