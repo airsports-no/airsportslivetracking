@@ -562,12 +562,27 @@ export default function CompetitionMapPage() {
 
   const filteredScoreLog = useMemo(() => {
     if (!selectedContestantId || !scoreLogByContestant[selectedContestantId]) return [];
-    if (mode === 'realtime') {
-      return scoreLogByContestant[selectedContestantId];
-    } else {
-      return scoreLogByContestant[selectedContestantId].filter(log => new Date(log.time) <= currentTime);
-    }
-  }, [selectedContestantId, scoreLogByContestant, mode, currentTime]);
+    
+    const showSecrets = !!(staticNavTaskData?.display_secrets && userShowSecrets);
+    const logEntries = scoreLogByContestant[selectedContestantId];
+
+    return logEntries.filter(log => {
+      // 1. Time filtering for playback
+      if (mode === 'playback' && new Date(log.time) > currentTime) {
+        return false;
+      }
+
+      // 2. Secret gate filtering
+      if (!showSecrets && staticNavTaskData) {
+        const waypoint = staticNavTaskData.route.waypoints.find(wp => wp.name === log.gate);
+        if (waypoint && waypoint.type === 'secret') {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [selectedContestantId, scoreLogByContestant, mode, currentTime, staticNavTaskData, userShowSecrets]);
 
    if (navTaskError?.status === 404) {
     return (
