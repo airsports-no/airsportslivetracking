@@ -10,7 +10,7 @@
 
 **Get started step 2\.** 
 
-Download the AirSports MSFS2020 Client: **DOWNLOAD FOR FREE FROM GOOGLE DRIVE** The AirSports MSFS Client is a standalone application. Just un-zip the files and save them to a location on  your computer and open “airsports.exe”. (The AirSports MSFS 2020 Client is developed by © Air Sports Live Tracking) 
+Download the AirSports MSFS Client: **[DOWNLOAD FROM THE MICROSOFT STORE](https://apps.microsoft.com/detail/9N4MZBKPDS5X?hl=en-us&gl=NO&ocid=pdpshare)**. 
 
 **First time use:** Enter the email you used in the Air Sports Live Tracking app **and** choose your preferred  password. Press “**Sign up**” (just the first time) and check your email for verification. After verification your  profile is active and the *AirSports MSFS2020 Client* is ready use and “**log in**”. 
 

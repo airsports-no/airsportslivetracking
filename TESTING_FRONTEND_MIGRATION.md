@@ -13,8 +13,8 @@ Add the following lines to your system's `hosts` file:
 Visit: `http://airsports.no:8002`
 
 ### Option B: Zero-Config (No hosts file needed)
-The application is configured to distinguish between `localhost` and `127.0.0.1` for easy testing:
-*   **`http://127.0.0.1:8002`** → Shows the **Marketing Site**.
+The application is configured to distinguish between different hostnames for easy testing:
+*   **`http://127.0.0.1:8002`**, **`http://0.0.0.0:8002`**, or **`http://[::1]:8002`** → Shows the **Marketing Site**.
 *   **`http://localhost:8002`** → Shows the **React Application**.
 
 ## 2. Build the Static Assets

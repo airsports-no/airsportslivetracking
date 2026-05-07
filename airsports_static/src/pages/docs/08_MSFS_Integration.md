@@ -18,11 +18,10 @@ The client brings professional-grade competition opportunities to the virtual wo
 
 ## 2. Installation
 
-The Airsports MSFS2020 Client is a standalone application delivered in a ZIP archive.
+The Airsports MSFS Client is available on the Microsoft Store for a seamless installation experience.
 
-1.  **Extract:** Download and extract the archive to a dedicated folder on your computer.
-2.  **Contents:** Ensure all items (files and folders) remain together in the same directory.
-3.  **No Installer Required:** The application runs directly from the extracted folder.
+1.  **Microsoft Store:** [Download from the Microsoft Store](https://apps.microsoft.com/detail/9N4MZBKPDS5X?hl=en-us&gl=NO&ocid=pdpshare).
+2.  **Automatic Updates:** The Microsoft Store version ensures you always have the latest scoring logic and feature updates.
 
 ## 3. Getting Started
 

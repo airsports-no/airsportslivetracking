@@ -13,7 +13,7 @@ import HighlightedContests from '../components/HighlightedContests.astro';
 import precisionImg from '../assets/img/Precision.png';
 import anrImg from '../assets/img/ANR.png';
 import challengeImg from '../assets/img/AirSportsChallenge.png';
-import msfsClientImg from '../assets/img/msfs_client.png';
+import msfsAppImg from '../assets/img/msfs_app.png';
 ---
 
 <Layout title="Home">
@@ -409,11 +409,15 @@ import msfsClientImg from '../assets/img/msfs_client.png';
                             Can't fly the real thing yet? Compete virtually with our dedicated high-fidelity simulator client. 
                             Join our community for scored flights and tactics in our official Slack workspace.
                         </p>
-                        <div class="flex flex-wrap gap-6">
-                            <a href="/docs/08_MSFS_Integration" class="bg-white text-indigo-900 px-10 py-4 rounded-2xl font-extrabold hover:bg-blue-50 transition-all shadow-xl active:scale-95 uppercase tracking-wider italic">
+                        <div class="flex flex-wrap gap-4">
+                            <a href="https://apps.microsoft.com/detail/9N4MZBKPDS5X?hl=en-us&gl=NO&ocid=pdpshare" target="_blank" class="bg-white text-indigo-900 px-8 py-4 rounded-2xl font-extrabold hover:bg-blue-50 transition-all shadow-xl active:scale-95 uppercase tracking-wider italic flex items-center gap-3">
+                                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/></svg>
+                                Microsoft Store
+                            </a>
+                            <a href="/docs/08_MSFS_Integration" class="bg-indigo-800/50 border border-white/20 text-white px-8 py-4 rounded-2xl font-extrabold hover:bg-indigo-800 transition-all active:scale-95 uppercase tracking-wider italic">
                                 Virtual Flight Guide
                             </a>
-                            <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="bg-indigo-600/50 border border-indigo-400/40 text-white px-10 py-4 rounded-2xl font-extrabold hover:bg-indigo-600 transition-all active:scale-95 uppercase tracking-wider italic">
+                            <a href="https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg" class="bg-indigo-600/50 border border-indigo-400/40 text-white px-8 py-4 rounded-2xl font-extrabold hover:bg-indigo-600 transition-all active:scale-95 uppercase tracking-wider italic">
                                 Join Slack Community
                             </a>
                         </div>
@@ -421,7 +425,7 @@ import msfsClientImg from '../assets/img/msfs_client.png';
                     <div class="relative">
                         <div class="bg-slate-800/50 backdrop-blur-md p-4 rounded-[3rem] border border-white/10 shadow-2xl rotate-2 hover:rotate-0 transition-all duration-500 overflow-hidden group/img cursor-zoom-in">
                              <div class="bg-gradient-to-tr from-blue-600 to-indigo-800 rounded-[2rem] overflow-hidden">
-                                <Image src={msfsClientImg} alt="Airsports MSFS Client" class="w-full h-auto opacity-90 group-hover:opacity-100 transition-opacity lightbox-trigger" width={800} height={500} data-full-src={msfsClientImg.src} />
+                                <Image src={msfsAppImg} alt="Airsports MSFS App" class="w-full h-auto opacity-90 group-hover:opacity-100 transition-opacity lightbox-trigger" width={800} height={500} data-full-src={msfsAppImg.src} />
                              </div>
                              <div class="absolute bottom-10 left-10 right-10 p-6 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
                                 <h4 class="text-xl font-bold font-lexend italic uppercase mb-2 tracking-tight text-white">Sim-to-Cloud Bridge</h4>
