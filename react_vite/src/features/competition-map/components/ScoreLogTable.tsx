@@ -26,7 +26,7 @@ export default function ScoreLogTable({ scoreLog, contestantName, onClose }: Pro
         <tbody>
           {scoreLog.map((entry) => (
             <tr key={entry.id}>
-              <td className="px-1 whitespace-nowrap tabular-nums">{new Date(entry.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+              <td className="px-1 whitespace-nowrap tabular-nums">{new Date(entry.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
               <td className="px-1 truncate max-w-[50px]" title={entry.gate}>{entry.gate}</td>
               <td className="px-1 text-xs leading-tight break-words">{entry.message}</td>
               <td className="px-1 text-right tabular-nums">{(entry.points ?? 0).toFixed(0)}</td>

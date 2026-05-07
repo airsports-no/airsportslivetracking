@@ -6,7 +6,8 @@ import './WaypointLabel.css';
 function formatTime(dt: Date): string {
   const hh = String(dt.getHours()).padStart(2, '0');
   const mm = String(dt.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+  const ss = String(dt.getSeconds()).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
 }
 
 function renderWaypointLabels(

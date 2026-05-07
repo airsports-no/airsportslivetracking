@@ -45,7 +45,7 @@ export default function TimelineControls({
                 </div>
                 
                 <div className="flex-1 flex items-center gap-2 order-3 sm:order-2 min-w-full sm:min-w-0">
-                    <span className="text-xs sm:text-sm font-mono whitespace-nowrap">{startTime.toLocaleTimeString()}</span>
+                    <span className="text-xs sm:text-sm font-mono whitespace-nowrap">{startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                     <input
                         type="range"
                         min={min}
@@ -54,7 +54,7 @@ export default function TimelineControls({
                         onChange={handleSliderChange}
                         className="range range-primary range-xs sm:range-sm flex-1"
                     />
-                    <span className="text-xs sm:text-sm font-mono whitespace-nowrap">{endTime.toLocaleTimeString()}</span>
+                    <span className="text-xs sm:text-sm font-mono whitespace-nowrap">{endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                 </div>
 
                 <div className="flex items-center gap-2 order-2 sm:order-3 ml-auto sm:ml-0">
