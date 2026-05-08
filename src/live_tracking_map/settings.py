@@ -298,16 +298,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 if IS_UNIT_TESTING or os.environ.get("MODE") == "dev":
+    media_location = "/tmp/media"
+    if os.environ.get("MODE") == "dev":
+        media_location = "/data/media"
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
-            "OPTIONS": {"location": "/tmp/media", "base_url": "/media/"},
+            "OPTIONS": {"location": media_location, "base_url": "/media/"},
         },
         "staticfiles": {
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
-    MEDIA_ROOT = "/tmp/media"
+    MEDIA_ROOT = media_location
 else:
     STORAGES = {
         "default": {
