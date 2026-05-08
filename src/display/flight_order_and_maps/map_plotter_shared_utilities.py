@@ -31,7 +31,10 @@ def get_map_choices() -> list[tuple[str, str]]:
 
 
 def country_code_to_map_source(country_code: str) -> str:
-    return {"no": NORWAY_250, "fi": FINLAND_200, "se": SWEDEN_250_OPSTIC}.get(country_code, "cyclosm")
+    if not country_code:
+        return "cyclosm"
+    code = str(country_code).lower()
+    return {"no": NORWAY_250, "fi": FINLAND_200, "se": SWEDEN_250_OPSTIC}.get(code, "cyclosm")
 
 
 DEFAULT_MAP_ZOOM_LEVELS = {
