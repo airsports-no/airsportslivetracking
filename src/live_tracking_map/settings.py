@@ -299,7 +299,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 if IS_UNIT_TESTING or os.environ.get("MODE") == "dev":
     media_location = "/tmp/media"
-    if os.environ.get("MODE") == "dev":
+    if os.environ.get("MODE") == "dev" and not IS_UNIT_TESTING:
         media_location = "/data/media"
     STORAGES = {
         "default": {
