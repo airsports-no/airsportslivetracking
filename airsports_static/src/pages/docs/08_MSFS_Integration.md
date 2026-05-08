@@ -57,7 +57,7 @@ Using the application is straightforward:
 
 ## 6. Join the Community
 
-Don't fly alone! Join hundreds of other virtual and real-world pilots to discuss tactics, find upcoming events, and get technical support in our official Slack workspace.
+Don't fly alone! Join other virtual and real-world pilots to discuss tactics, find upcoming events, and get technical support in our official Slack workspace.
 
 *   **Slack (General Community):** [Join our Slack Workspace](https://join.slack.com/t/airsportslivetracking/shared_invite/zt-2mmaui668-tEaJvJgoqg7782m3bdTleg)
 
