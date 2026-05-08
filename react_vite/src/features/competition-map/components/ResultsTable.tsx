@@ -50,11 +50,18 @@ export default function ResultsTable({ rows, selectedId, onRowClick, dividerInde
         <tbody>
           {rows.map((r, idx) => (
             <React.Fragment key={r.id}>
+              {idx === 0 && dividerIndex !== 0 && (
+                <tr className="bg-base-200/50 pointer-events-none">
+                  <td colSpan={3} className="text-[10px] uppercase font-bold px-2 py-1 opacity-70">
+                    Scored / Flying
+                  </td>
+                </tr>
+              )}
               {idx === dividerIndex && (
-                <tr className="bg-base-300 pointer-events-none">
-                    <td colSpan={3} className="h-1 p-0">
-                        <div className="w-full h-px bg-base-content/20"></div>
-                    </td>
+                <tr className="bg-base-200/50 pointer-events-none">
+                  <td colSpan={3} className={`text-[10px] uppercase font-bold px-2 py-1 opacity-70 ${idx !== 0 ? 'border-t border-base-content/10' : ''}`}>
+                    Scheduled / Waiting
+                  </td>
                 </tr>
               )}
               <tr 
@@ -62,9 +69,12 @@ export default function ResultsTable({ rows, selectedId, onRowClick, dividerInde
                 className={`
                     ${onRowClick ? 'cursor-pointer hover:bg-base-300' : ''} 
                     ${selectedId === r.id ? 'bg-primary/20 font-bold' : ''}
+                    ${r.state === 'Waiting...' ? 'opacity-60' : ''}
                 `}
               >
-                <td className="w-8 px-1 text-center" style={{borderLeft: `4px solid ${r.color ?? 'transparent'}`}}>{idx + 1}</td>
+                <td className="w-8 px-1 text-center font-mono text-[10px]" style={{borderLeft: `4px solid ${r.color ?? 'transparent'}`}}>
+                    {r.state === 'Waiting...' ? '-' : idx + 1}
+                </td>
                 <td className="max-w-[80px] sm:max-w-[150px] md:max-w-none truncate px-2">
                     <div className="flex flex-col">
                         <div className="flex items-center gap-1">
