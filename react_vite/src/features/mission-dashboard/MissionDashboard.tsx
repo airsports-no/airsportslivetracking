@@ -410,9 +410,12 @@ const MissionDashboard = () => {
         <div className="container mx-auto p-4">
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-4xl font-bold">Mission Dashboard</h1>
-                {document.configuration.isOrganizer && (
-                    <a href={reverse("contest_create")} className="btn btn-primary">Create New Contest</a>
-                )}
+                <div className="flex items-center gap-4">
+                    <iframe src="https://github.com/sponsors/airsports-no/button" title="Sponsor airsports-no" height="32" width="114" style={{ border: 0, borderRadius: '6px' }}></iframe>
+                    {document.configuration.isOrganizer && (
+                        <a href={reverse("contest_create")} className="btn btn-primary">Create New Contest</a>
+                    )}
+                </div>
             </div>
 
             {error && <div className="alert alert-error">{error}</div>}
