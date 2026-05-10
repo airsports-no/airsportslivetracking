@@ -100,6 +100,7 @@ export default function CompetitionMapPage() {
     positionsByContestant,
     annotationsByContestant,
     scoreLogByContestant,
+    gateScoresByContestant,
     dangerDataByContestant,
     gateArrowDataByContestant,
     progress,

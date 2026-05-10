@@ -1054,6 +1054,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         self.gatecumulativescore_set.all().delete()
         self.actualgatetime_set.all().delete()
         self.contestanttrack.reset()
+        type(self).objects.filter(pk=self.pk).update(score_version=F("score_version") + 1)
 
     def generate_processing_statistics(self) -> bytes:
         """

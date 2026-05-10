@@ -8,6 +8,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const [positionsByContestant, setPositionsByContestant] = useState<Record<number, TrackPosition[]>>({});
     const [annotationsByContestant, setAnnotationsByContestant] = useState<Record<number, ScoreAnnotation[]>>({});
     const [scoreLogByContestant, setScoreLogByContestant] = useState<Record<number, ScoreLogEntry[]>>({});
+    const [gateScoresByContestant, setGateScoresByContestant] = useState<Record<number, any[]>>({});
     const [dangerDataByContestant, setDangerDataByContestant] = useState<Record<number, DangerData>>({});
     const [gateArrowDataByContestant, setGateArrowDataByContestant] = useState<Record<number, GateArrowData>>({});
     const [progress, setProgress] = useState({ loaded: 0, total: 0, message: '' });
@@ -106,11 +107,19 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
             if (msg.type === 'contestant_delete') {
                 const c = JSON.parse(msg.data) as { contestant_id: number };
+                const id = c.contestant_id;
                 setContestantsById(prev => {
                     const newContestants = { ...prev };
-                    delete newContestants[c.contestant_id];
+                    delete newContestants[id];
                     return newContestants;
                 });
+                // Clear all associated data
+                setPositionsByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
+                setAnnotationsByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
+                setScoreLogByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
+                setGateScoresByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
+                setDangerDataByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
+                setGateArrowDataByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
                 return;
             }
 
@@ -164,17 +173,17 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 }
                 updateContestant(contestantId, update);
             }
-            if (payload.annotations && payload.annotations.length > 0) {
-                setAnnotationsByContestantRef.current(prev => { // Use ref here
-                    const newAnnotations = [...(prev[contestantId] || []), ...payload.annotations];
+            if (msg.type === "annotations" && payload.annotations) {
+                setAnnotationsByContestantRef.current(prev => {
+                    const newAnnotations = [...payload.annotations];
                     newAnnotations.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                     return { ...prev, [contestantId]: newAnnotations };
                 });
             }
-            if (msg.type === "score_log" && payload.score_log_entries && payload.score_log_entries.length > 0) {
+            if (msg.type === "score_log" && payload.score_log_entries) {
                 setScoreLogByContestantRef.current(prev => {
                     const existingScoreLogs = prev[contestantId] ?? [];
-                    const newEntries = payload.score_log_entries; // These are the *newly arrived* entries, not all of them yet.
+                    const newEntries = payload.score_log_entries; // The score_log WebSocket message contains the FULL history for the contestant.
 
                     // Identify start and finish gates from navigation task data
                     const startGateName = staticNavTaskDataRef.current?.route?.waypoints.find((wp: Waypoint) => wp.type === 'sp')?.name;
@@ -201,12 +210,14 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                         });
                     }
 
-                    // The score_log WebSocket message contains the FULL history for the contestant,
-                    // so we replace the existing log rather than appending.
+                    // Replace the existing log rather than appending.
                     const allScoreLogs = [...newEntries];
                     allScoreLogs.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                     return { ...prev, [contestantId]: allScoreLogs };
                 });
+            }
+            if (msg.type === "gate_score" && payload.gate_scores) {
+                setGateScoresByContestant(prev => ({ ...prev, [contestantId]: payload.gate_scores }));
             }
             if (payload.contestant_track) {
                 updateContestant(contestantId, { contestanttrack: payload.contestant_track });
@@ -325,6 +336,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                     positions: allPositions.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     annotations: scoreData.annotations.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     scoreLogs: scoreData.score_log_entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
+                    gateScores: scoreData.gate_scores,
                 };
             } catch (e) {
                 console.error('Failed to fetch data for contestant', c.id, e);
@@ -338,6 +350,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         const positionUpdates: Record<number, TrackPosition[]> = {};
         const annotationUpdates: Record<number, ScoreAnnotation[]> = {};
         const scoreLogUpdates: Record<number, ScoreLogEntry[]> = {};
+        const gateScoreUpdates: Record<number, any[]> = {};
         const contestantUpdates: Record<number, Contestant> = {};
 
         for (const data of allContestantData) {
@@ -345,10 +358,11 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 positionUpdates[data.contestant.id] = data.positions;
                 annotationUpdates[data.contestant.id] = data.annotations;
                 scoreLogUpdates[data.contestant.id] = data.scoreLogs;
+                gateScoreUpdates[data.contestant.id] = data.gateScores;
                 contestantUpdates[data.contestant.id] = data.contestant;
             }
         }
-        return { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates };
+        return { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates };
     }, [contestIdNum, navigationTaskIdNum]);
 
 
@@ -363,11 +377,12 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         const contestantsToRefetch = Object.values(contestantsByIdRef.current).filter(c => c && !c.contestanttrack?.calculator_finished);
 
         if (contestantsToRefetch.length > 0) {
-            const { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates } = await fetchAllContestantData(contestantsToRefetch, setProgress);
+            const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(contestantsToRefetch, setProgress);
 
             setPositionsByContestant(prev => ({...prev, ...positionUpdates}));
             setAnnotationsByContestant(prev => ({...prev, ...annotationUpdates}));
             setScoreLogByContestant(prev => ({...prev, ...scoreLogUpdates}));
+            setGateScoresByContestant(prev => ({...prev, ...gateScoreUpdates}));
             setContestantsById(prev => ({ ...prev, ...contestantUpdates }));
         }
 
@@ -403,11 +418,12 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                     setContestantsById(initialContestantsMap);
                     setShouldConnectWs(true);
 
-                    const { positionUpdates, annotationUpdates, scoreLogUpdates, contestantUpdates } = await fetchAllContestantData(task.contestant_set, setProgress);
+                    const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(task.contestant_set, setProgress);
                     if (!cancelled) {
                         setPositionsByContestant(positionUpdates);
                         setAnnotationsByContestant(annotationUpdates);
                         setScoreLogByContestant(scoreLogUpdates);
+                        setGateScoresByContestant(gateScoreUpdates);
                         setContestantsById(prev => ({ ...prev, ...contestantUpdates }));
                     }
                 }
@@ -569,6 +585,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         positionsByContestant,
         annotationsByContestant,
         scoreLogByContestant,
+        gateScoresByContestant,
         dangerDataByContestant,
         gateArrowDataByContestant,
         progress,
