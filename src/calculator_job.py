@@ -7,6 +7,8 @@ from logging.config import dictConfig
 import os
 import sys
 
+from django.db.models import F
+
 from django.core.exceptions import ObjectDoesNotExist
 
 import log_configuration
