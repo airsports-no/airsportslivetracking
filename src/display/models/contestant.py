@@ -11,7 +11,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, IntegrityError
-from django.db.models import Q, QuerySet
+from django.db.models import F, Q, QuerySet
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 

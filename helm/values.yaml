@@ -155,6 +155,12 @@ redis:
   haproxy:
     enabled: true
     replicas: 2
+
+    # Tuning: reduce false DOWNs in HAProxy tcp-checks towards sentinel/redis.
+    # Default in redis-ha chart is `timeout.check: 2s`, and we see 2002ms timeouts in prod logs.
+    timeout:
+      check: 5s
+
     resources:
       requests:
         cpu: 500m
