@@ -48,3 +48,9 @@ class TestPlayingCards(TestCase):
         score, hand_type = PlayingCard.evaluate_hand(self.contestant)
         self.assertEqual(17235968, score)
         self.assertEqual("Pair", hand_type)
+
+    def test_properties(self):
+        pc = PlayingCard.objects.create(contestant=self.contestant, card="Ah", waypoint_name="WP1")
+        self.assertEqual(pc.rank, "A")
+        self.assertEqual(pc.suit, "h")
+        self.assertEqual(pc.waypoint, "WP1")

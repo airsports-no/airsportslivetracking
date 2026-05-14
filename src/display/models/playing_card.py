@@ -25,6 +25,18 @@ class PlayingCard(models.Model):
     def __str__(self):
         return f"{self.card} for {self.contestant} at {self.waypoint_name} (waypoint {self.waypoint_index})"
 
+    @property
+    def rank(self) -> str:
+        return self.card[0]
+
+    @property
+    def suit(self) -> str:
+        return self.card[1]
+
+    @property
+    def waypoint(self) -> str:
+        return self.waypoint_name
+
     @classmethod
     def get_random_unique_card(cls, contestant: "Contestant") -> str:
         """
