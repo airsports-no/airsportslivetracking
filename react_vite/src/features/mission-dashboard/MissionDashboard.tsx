@@ -14,6 +14,7 @@ import ContestMap from './components/ContestMap';
 import { Loading } from '../route-editor/components/basicComponents';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { reverse } from '../../urls';
+import { Map as MapIcon } from 'lucide-react';
 
 // Define NavigationTask interface based on likely API response structure
 interface NavigationTask {
@@ -60,6 +61,7 @@ const MissionDashboard = () => {
     const [sliderRange, setSliderRange] = useState<[number, number] | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [myContestsPage, setMyContestsPage] = useState(1);
+    const [showMapOnMobile, setShowMapOnMobile] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
     const isMounted = useRef(true);
@@ -420,24 +422,36 @@ const MissionDashboard = () => {
 
             {error && <div className="alert alert-error">{error}</div>}
             
-            <div className="mb-8 hidden lg:block z-30">
-                <h2 className="text-2xl font-bold mb-4">Contest Map</h2>
-                <ContestMap 
-                    contests={textFilteredContests} 
-                    onBoundsChanged={(bounds) => {
-                        setMapBounds(bounds);
-                        if (bounds) {
+            <div className="mb-8 z-30">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold">Contest Map</h2>
+                    <button 
+                        className="btn btn-sm btn-ghost lg:hidden flex gap-2"
+                        onClick={() => setShowMapOnMobile(!showMapOnMobile)}
+                    >
+                        <MapIcon size={18} />
+                        {showMapOnMobile ? 'Hide Map' : 'Show Map'}
+                    </button>
+                </div>
+                
+                <div className={`${showMapOnMobile ? 'block' : 'hidden'} lg:block`}>
+                    <ContestMap 
+                        contests={textFilteredContests} 
+                        onBoundsChanged={(bounds) => {
+                            setMapBounds(bounds);
+                            if (bounds) {
+                                setCurrentPage(1);
+                                updateURL({ page: 1 });
+                            }
+                        }} 
+                        minZoom={2}
+                        onInteraction={() => {
+                            setHasUserInteractedWithMap(true);
                             setCurrentPage(1);
                             updateURL({ page: 1 });
-                        }
-                    }} 
-                    minZoom={2}
-                    onInteraction={() => {
-                        setHasUserInteractedWithMap(true);
-                        setCurrentPage(1);
-                        updateURL({ page: 1 });
-                    }} 
-                />
+                        }} 
+                    />
+                </div>
             </div>
 
             {/* Live Now Section */}
