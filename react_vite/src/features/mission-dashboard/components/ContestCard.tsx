@@ -17,7 +17,7 @@ interface ContestCardProps {
 
 const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight, isEditorContest, hasOpenTasksForScheduling, viewLink, manageLink }) => {
     return (
-        <div className={`card bg-base-300 shadow-xl ${contest.header_image ? 'image-full' : ''} h-[270px] overflow-hidden`}>
+        <div className={`card bg-base-300 shadow-xl ${contest.header_image ? 'image-full' : ''} h-[260px] overflow-hidden`}>
             {contest.header_image && (
                 <figure><img src={contest.header_image} alt={contest.name} className="w-full h-full object-cover" /></figure>
             )}
@@ -40,7 +40,7 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                     )}
                 </div>
                 
-                <div className="mt-auto pt-2 flex items-end justify-between gap-2">
+                <div className="mt-auto flex items-end justify-between gap-2 pt-2">
                     <div className="flex flex-col gap-1 mb-1">
                         {status === 'live' && <div className="badge badge-error badge-xs">LIVE</div>}
                         {hasScheduledFlight && <div className="badge badge-info badge-xs">Scheduled</div>}
