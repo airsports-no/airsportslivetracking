@@ -29,11 +29,27 @@ interface TaskCardProps {
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count, isRegisteredButNotPilot, allow_self_management }) => {
+    const getStatusBadge = () => {
+        switch (status) {
+            case 'Open':
+                return <div className="badge badge-outline">Open</div>;
+            case 'Scheduled':
+                return <div className="badge badge-info">Scheduled</div>;
+            case 'Live':
+                return <div className="badge badge-error gap-1">🔴 Live</div>;
+            case 'Finalized':
+                return <div className="badge badge-success">Finalized</div>;
+            default:
+                return null;
+        }
+    };
+
     return (
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
                 <h3 className="card-title flex flex-wrap items-center gap-2">
                     <span className="flex-1">{name}</span>
+                    {getStatusBadge()}
                     <PublicityIcon isPublic={is_public} isFeatured={is_featured} />
                     <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="btn btn-xs btn-outline btn-info gap-1">
                         <MapPin size={14} />
@@ -47,7 +63,6 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                 {contestName && <p>{contestName}</p>}
                 {(status === 'Open' || status === 'Scheduled') && canSchedule && allow_self_management && (
                     <div className="card-actions justify-end items-center gap-2">
-                        {status === 'Scheduled' && <div className="badge badge-info">Scheduled</div>}
                         <button onClick={onScheduleClick} className="btn btn-primary">Register Flight Plan</button>
                     </div>
                 )}
@@ -58,17 +73,13 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                     </div>
                 )}
                 {status === 'Live' && (
-                    <div className="card-actions justify-between items-center">
-                        <div className="flex flex-col gap-1">
-                            <p className="text-error">🔴 LIVE</p>
-                            {canSchedule && allow_self_management && <button onClick={onScheduleClick} className="btn btn-ghost btn-xs px-0 justify-start">Register another flight plan</button>}
-                        </div>
+                    <div className="card-actions justify-end items-center">
+                        {canSchedule && allow_self_management && <button onClick={onScheduleClick} className="btn btn-ghost btn-xs px-0 justify-start">Register another flight plan</button>}
                         <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Watch Tracking</a>
                     </div>
                 )}
                 {status === 'Finalized' && (
-                     <div className="card-actions justify-between items-center">
-                        <p>Results Ready</p>
+                     <div className="card-actions justify-end items-center">
                         <button onClick={onViewScoresClick} className="btn btn-secondary">View Scores</button>
                     </div>
                 )}
