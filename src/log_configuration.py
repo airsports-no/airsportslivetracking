@@ -23,9 +23,9 @@ LOG_CONFIGURATION = {
     "loggers": {
         "root": {
             "handlers": handlers,
-            "level": "DEBUG",
+            "level": "INFO",
         },
-        "": {"handlers": handlers, "level": "DEBUG"},
+        "": {"handlers": handlers, "level": "INFO"},
         "celery": {
             "handlers": handlers,
             "level": "INFO",
