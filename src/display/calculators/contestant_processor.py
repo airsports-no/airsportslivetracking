@@ -111,9 +111,8 @@ class ContestantProcessor:
             else:
                 logger.info(f"{self.contestant}: No existing positions, performing clean start")
             self.latest_recorded_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+            # reset_track_and_score now also deletes positions and increments track_version
             self.contestant.reset_track_and_score()
-            self.contestant.contestantreceivedposition_set.all().delete()
-            Contestant.objects.filter(pk=self.contestant.pk).update(track_version=F("track_version") + 1)
 
         self.suppress_side_effects = False # Will be toggled in run()
         

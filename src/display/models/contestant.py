@@ -1044,7 +1044,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     def reset_track_and_score(self):
         """
-        Reset all scoring to start again
+        Reset all scoring and the track to start again
         """
         from display.models import PlayingCard
 
@@ -1053,8 +1053,11 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         self.trackannotation_set.all().delete()
         self.gatecumulativescore_set.all().delete()
         self.actualgatetime_set.all().delete()
+        self.contestantreceivedposition_set.all().delete()
         self.contestanttrack.reset()
-        type(self).objects.filter(pk=self.pk).update(score_version=F("score_version") + 1)
+        type(self).objects.filter(pk=self.pk).update(
+            score_version=F("score_version") + 1, track_version=F("track_version") + 1
+        )
 
     def generate_processing_statistics(self) -> bytes:
         """
