@@ -933,8 +933,8 @@ class SignUpForm(forms.Form):
 
     def clean_email(self):
         email = self.cleaned_data.get("email").lower()
-        if Person.objects.filter(email=email).exists():
-            raise ValidationError("A person with this email already exists.")
+        if MyUser.objects.filter(email=email).exists():
+            raise ValidationError("An account with this email already exists. Please log in or use the 'Forgot Password' tool.")
         return email
 
     def clean(self):
