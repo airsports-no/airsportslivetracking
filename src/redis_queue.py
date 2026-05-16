@@ -42,8 +42,13 @@ class RedisQueue:
             self.redis_handle.lpush(self.queue_name, pickle.dumps(item))
 
     @property
-    def size(self)->int:
-        return self.redis_handle.llen(self.queue_name)
+    def size(self) -> int:
+        if self.redis_handle:
+            try:
+                return self.redis_handle.llen(self.queue_name)
+            except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
+                return 0
+        return 0
 
     def pop(self, blocking=False, timeout: float = 10) -> Any:
         if self.redis_handle:
@@ -54,10 +59,11 @@ class RedisQueue:
             else:
                 try:
                     item = self.redis_handle.blpop([self.queue_name], timeout=timeout)
-                except redis.exceptions.ConnectionError:
-                    logger.error(f"Redis connection error while popping from {self.queue_name}")
-                    return None
-                
+                except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
+                    # We re-raise these so the caller can distinguish between a sentinel None 
+                    # and a transient infra failure.
+                    raise
+
                 if item is None:
                     raise RedisEmpty
                 q, item = item
@@ -72,16 +78,21 @@ class RedisQueue:
         logger.error(f"RedisQueue {self.queue_name} has no redis_handle")
         return None
 
+
     def peek(self) -> Any:
-        # logger.debug("Peak {}".format(self.queue_name))
         if self.redis_handle:
-            item = self.redis_handle.lindex(self.queue_name, 0)
-            # logger.debug("Got item {}".format(item))
-            if item is None:
-                raise RedisEmpty
             try:
+                item = self.redis_handle.lindex(self.queue_name, 0)
+                if item is None:
+                    raise RedisEmpty
                 return pickle.loads(item)
-            except:
+            except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
+                # If redis is down, we don't know if it's empty. 
+                # Raise an error or return a sentinel? 
+                # For safety in this app's logic, we'll return None and let the caller handle it,
+                # but empty() needs to be careful.
+                raise
+            except Exception:
                 logger.exception("Failed decoding queued item peek")
         return None
 
@@ -91,3 +102,7 @@ class RedisQueue:
             return False
         except RedisEmpty:
             return True
+        except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
+            # If redis is down, we should NOT assume it's empty and stop.
+            # Returning False keeps the ingestion loop alive.
+            return False

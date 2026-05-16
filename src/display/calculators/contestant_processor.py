@@ -1,5 +1,6 @@
 import datetime
 import logging
+import redis
 import threading
 import time
 import traceback
@@ -477,6 +478,9 @@ class ContestantProcessor:
                 self.position_queue.pop()
             except RedisEmpty:
                 break
+            except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
+                # Redis is down, we can't drain. Just stop.
+                break
         self.score_processing_queue.put(None)
         self.score_processing_queue.join()
         self.score_thread.join()
@@ -619,13 +623,19 @@ class ContestantProcessor:
                         self.finished_loading_initial_positions.set()
                     self.timed_queue.put(position_data, release_time)
                 else:
-                    # RedisQueue.pop() returns None on connection/decoding errors OR if it receives pickle.dumps(None)
-                    logger.info(f"{self.contestant}: Delayed position queuer received None (Sentinel or Error) from {self.position_queue.queue_name}")
+                    # RedisQueue.pop() returns None ONLY when it receives a pickle.dumps(None) sentinel.
+                    # This happens when the ingestion source (like Traccar or Flymaster) is finished.
+                    logger.info(f"{self.contestant}: Delayed position queuer received termination sentinel from {self.position_queue.queue_name}")
                     self.timed_queue.close()
                     if not receiving:
                         self.finished_loading_initial_positions.set()
                         receiving = True
                     break
+            except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as e:
+                # Transient infra error (e.g. Redis restart during redeploy). Do NOT terminate.
+                logger.warning(f"{self.contestant}: Transient Redis error in enqueue_positions_thread: {e}. Retrying...")
+                time.sleep(1)
+                continue
             except RedisEmpty:
                 if receiving:
                     self.check_termination_is_commanded(self.previous_position)
