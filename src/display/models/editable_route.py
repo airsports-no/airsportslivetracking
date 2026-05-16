@@ -634,5 +634,4 @@ class EditableRoute(models.Model):
             route = self.create_landing_route()
         else:
             raise ValidationError(f"Unknown task type {task_type}")
-        route.validate_gate_polygons()
         return route

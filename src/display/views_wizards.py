@@ -206,8 +206,6 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             initial_step_data = self.get_cleaned_data_for_step("landing_route_import")
             route = initial_step_data["internal_route"].create_landing_route()
             editable_route = initial_step_data["internal_route"]
-        # Check for gate polygons that do not match a turning point
-        route.validate_gate_polygons()
         return route, editable_route
 
     def done(self, form_list, **kwargs):
