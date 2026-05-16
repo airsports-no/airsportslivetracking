@@ -114,11 +114,13 @@ def serialize_playing_card(pc: "PlayingCard") -> dict:
     return {
         "id": pc.id,
         "contestant": pc.contestant_id,
-        "gate": pc.gate,
-        "card_type": pc.card_type,
-        "card_value": pc.card_value,
-        "card_suit": pc.card_suit,
-        "card_string": pc.card_string,
+        "gate": pc.waypoint_name,
+        "card": pc.card,
+        "rank": pc.rank,
+        "suit": pc.suit,
+        "card_value": pc.rank,
+        "card_suit": pc.suit,
+        "card_string": pc.card,
     }
 
 
