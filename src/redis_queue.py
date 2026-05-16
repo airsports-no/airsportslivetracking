@@ -86,6 +86,8 @@ class RedisQueue:
                 if item is None:
                     raise RedisEmpty
                 return pickle.loads(item)
+            except RedisEmpty:
+                raise
             except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
                 # If redis is down, we don't know if it's empty. 
                 # Raise an error or return a sentinel? 
