@@ -94,8 +94,8 @@ externalRedis:
 redis:
   enabled: true
   
-  # Reduced to 1 replica to save cost in GKE Autopilot
-  replicas: 2
+  # Increase to 3 replicas for stable Sentinel quorum in GKE Autopilot
+  replicas: 3
   
   
   image:
@@ -155,18 +155,23 @@ redis:
       limits:
         cpu: 500m
         memory: 256Mi
+    # Redis 7.2+ supports hostnames in Sentinel, which is MUCH more stable in K8s
+    config:
+      sentinel-announce-hostnames: "yes"
+      sentinel-resolve-hostnames: "yes"
 
   haproxy:
     enabled: true
     replicas: 2
 
     # Tuning: reduce false DOWNs in HAProxy tcp-checks towards sentinel/redis.
-    # Default in redis-ha chart is `timeout.check: 2s`, and we see 2002ms timeouts in prod logs.
-    # Increasing to 10s and adding fall/interval tuning to handle transient spikes.
+    # We saw Layer7 timeouts during pod restarts because of brittle IP-based checks.
+    # Increasing check parameters to allow more time for pod readiness and IP discovery.
     timeout:
-      check: 10s
-    checkInterval: 2s
-    checkFall: 3
+      check: 15s
+    checkInterval: 5s
+    checkFall: 5
+    checkRise: 2
 
     resources:
       requests:
