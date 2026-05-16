@@ -128,6 +128,16 @@ class PokerCalculator(Calculator):
 
         incursions = self.polygon_helper.check_inside_polygons(self.gate_polygons, p_x, p_y)
 
+        # Fallback for gates without polygons: use distance to the gate center relative to gate width
+        gates_with_polygons = {name for name, _ in self.gate_polygons}
+        for gate in self.gates:
+            if gate.name not in gates_with_polygons and gate.name not in self.passed_gates:
+                if gate.center_x is not None and gate.center_y is not None:
+                    dist_sq = (p_x - gate.center_x) ** 2 + (p_y - gate.center_y) ** 2
+                    # gate.gate_radius represents half the gate width
+                    if dist_sq <= gate.gate_radius ** 2:
+                        incursions.append(gate.name)
+
         events = []
         for gate_name in incursions:
             if gate_name not in self.passed_gates:

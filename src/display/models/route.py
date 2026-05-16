@@ -130,11 +130,11 @@ class Route(models.Model):
         Validate that the gate polygons must contain exactly one waypoint
         """
         waypoint_names = [gate.name for gate in self.waypoints if gate.type != "secret"]
-        if self.prohibited_set.filter(type="gate"):
+        if self.prohibited_set.filter(type="waypoint"):
             if len(waypoint_names) != len(set(waypoint_names)):
                 self.delete()
                 raise ValidationError("You cannot have multiple waypoints with the same name if you use gate polygons")
-        for gate_polygon in self.prohibited_set.filter(type="gate"):
+        for gate_polygon in self.prohibited_set.filter(type="waypoint"):
             if gate_polygon.name not in waypoint_names:
                 self.delete()
                 raise ValidationError(f"Gate polygon '{gate_polygon.name}' is not matched by any turning point names.")

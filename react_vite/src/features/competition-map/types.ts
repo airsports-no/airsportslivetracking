@@ -171,7 +171,7 @@ export interface Contestant {
   gate_times?: Record<string, string>;
   default_map_url?: string;
   tracker_id_display?: TrackerDisplay[];
-  playing_cards?: { card: string }[];
+  playing_cards?: { card?: string; rank?: string; suit?: string; id?: number; waypoint?: string; card_string?: string; card_value?: string; card_suit?: string }[];
   navigation_task: NavigationTask;
   takeoff_time: string;
   tracker_start_time: string;
@@ -265,7 +265,7 @@ export interface ContestantScoreData {
   score_log_entries: ScoreLogEntry[];
   gate_scores: { id: number; gate: string; points: number; contestant: number }[];
   contestant_track: ContestantTrackSummary;
-  playing_cards?: { card: string }[];
+  playing_cards?: { card?: string; rank?: string; suit?: string; id?: number; waypoint?: string; card_string?: string; card_value?: string; card_suit?: string }[];
 }
 
 export interface GateArrowData {
