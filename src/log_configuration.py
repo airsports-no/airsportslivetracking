@@ -80,6 +80,11 @@ LOG_CONFIGURATION = {
             "level": "INFO",
             "propagate": False,
         },
+        "uvicorn": {
+            "handlers": handlers,
+            "level": "INFO",
+            "propagate": False,
+        },
         "urllib3": {
             "handlers": handlers,
             "level": "INFO",
