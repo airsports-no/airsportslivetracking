@@ -526,6 +526,19 @@ class ContestantProcessor:
             termination_time = self.is_termination_commanded()
             if termination_time:
                 last_gate = self.orchestrator.get_last_gate()
+                
+                # Fallbacks for when no gates have been passed yet
+                lat = 0.0
+                lon = 0.0
+                planned = self.contestant.takeoff_time
+                
+                if position:
+                    lat, lon = position.latitude, position.longitude
+                elif last_gate:
+                    lat, lon = last_gate.latitude, last_gate.longitude
+                    planned = last_gate.expected_time
+                elif self.route.waypoints:
+                    lat, lon = self.route.waypoints[0].latitude, self.route.waypoints[0].longitude
 
                 self.score_processing_queue.put_nowait(
                     UpdateScoreMessage(
@@ -533,11 +546,11 @@ class ContestantProcessor:
                         last_gate,
                         0,
                         "manually terminated",
-                        position.latitude if position else last_gate.latitude,
-                        position.longitude if position else last_gate.longitude,
+                        lat,
+                        lon,
                         "information",
                         "",
-                        planned=last_gate.expected_time,
+                        planned=planned,
                     )
                 )
                 self.notify_termination("Manually terminated")
