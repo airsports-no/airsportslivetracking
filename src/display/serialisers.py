@@ -1765,12 +1765,12 @@ Takeoff and landing gate:
     }},
 }}
 
-Prohibited, penalty, information, gate zones
+Prohibited, penalty, information zones
 {{
     "name": "Prohibited 1",
     "layer_type": "polygon",
     "track_points": [], # Leave empty
-    "feature_type": "prohibited", # prohibited, penalty, info, gate
+    "feature_type": "prohibited", # prohibited, penalty, info
     "tooltip_position": [0, 0], # Useful if the polygon name overlaps anything in the map. The numbers of pixels from centre of object
     "geojson": {{
         "type": "Feature",

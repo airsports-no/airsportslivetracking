@@ -131,7 +131,7 @@ class Route(models.Model):
 
 class Prohibited(models.Model):
     """
-    Models information, penalty, and prohibited zones, as well as gate polygons.
+    Models information, penalty, and prohibited zones.
     """
 
     name = models.CharField(max_length=200)
