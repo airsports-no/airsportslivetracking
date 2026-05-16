@@ -16,7 +16,7 @@ from display.models import Contestant, ContestantUploadedTrack
 import os
 
 from display.utilities.tracking_definitions import TrackingService
-from redis_queue import RedisQueue
+from redis_queue import RedisQueue, RedisEmpty
 
 TRACCAR_HOST = os.environ.get("TRACCAR_HOST", "traccar")
 server = f"{TRACCAR_HOST}:5055"
@@ -116,7 +116,10 @@ def recalculate_live_contestant(contestant: "Contestant"):
         queue_name = f"override_{contestant.pk}"
         q = RedisQueue(queue_name)
         while not q.empty():
-            q.pop()
+            try:
+                q.pop()
+            except RedisEmpty:
+                break
         for i in track:
             q.append(i)
         q.append(None)
@@ -125,7 +128,10 @@ def recalculate_live_contestant(contestant: "Contestant"):
         contestant_processor = ContestantProcessor(contestant, live_processing=False, queue_name_override=queue_name, recalculate=True)
         contestant_processor.run()
         while not q.empty():
-            q.pop()
+            try:
+                q.pop()
+            except RedisEmpty:
+                break
     else:
         logger.warning("Empty track for contestant, ignoring")
     Contestant.objects.filter(pk=contestant.pk).update(track_version=F("track_version") + 1)
@@ -137,7 +143,10 @@ def recalculate_from_existing_positions_sync(contestant: "Contestant"):
         queue_name = f"override_{contestant.pk}"
         q = RedisQueue(queue_name)
         while not q.empty():
-            q.pop()
+            try:
+                q.pop()
+            except RedisEmpty:
+                break
         
         for pos in positions:
             data = {
@@ -168,7 +177,10 @@ def recalculate_from_existing_positions_sync(contestant: "Contestant"):
         contestant_processor.run()
         
         while not q.empty():
-            q.pop()
+            try:
+                q.pop()
+            except RedisEmpty:
+                break
     else:
         logger.warning(f"No existing positions found for contestant {contestant}")
     Contestant.objects.filter(pk=contestant.pk).update(track_version=F("track_version") + 1)
@@ -264,7 +276,10 @@ def insert_gpx_file(contestant_object: "Contestant", file):
     queue_name = f"override_{contestant_object.pk}"
     q = RedisQueue(queue_name)
     while not q.empty():
-        q.pop()
+        try:
+            q.pop()
+        except RedisEmpty:
+            break
     for i in positions:
         q.append(i)
     q.append(None)
@@ -272,5 +287,8 @@ def insert_gpx_file(contestant_object: "Contestant", file):
     contestant_processor = ContestantProcessor(contestant_object, live_processing=False, queue_name_override=queue_name, recalculate=True)
     contestant_processor.run()
     while not q.empty():
-        q.pop()
+        try:
+            q.pop()
+        except RedisEmpty:
+            break
     Contestant.objects.filter(pk=contestant_object.pk).update(track_version=F("track_version") + 1)

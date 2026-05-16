@@ -29,7 +29,7 @@ from display.models import (
     Scorecard,
 )
 from display.calculators.contestant_processor import ContestantProcessor
-from redis_queue import RedisQueue
+from redis_queue import RedisQueue, RedisEmpty
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -142,7 +142,10 @@ def clone_contestant(original_contestant, new_task):
 def run_benchmark(contestant, positions):
     q = RedisQueue(contestant.pk)
     while not q.empty():
-        q.pop()
+        try:
+            q.pop()
+        except RedisEmpty:
+            break
 
     for pos in positions:
         data = {

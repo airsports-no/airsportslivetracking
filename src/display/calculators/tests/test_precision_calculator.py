@@ -30,7 +30,7 @@ from display.models import (
     ScoreLogEntry,
 )
 from utilities.mock_utilities import TraccarMock
-from redis_queue import RedisQueue
+from redis_queue import RedisQueue, RedisEmpty
 
 TEST_DATA_DIR = os.path.dirname(__file__)
 
@@ -47,7 +47,10 @@ def calculator_runner(contestant, track):
     q.append(None)
     contestant_processor.run()
     while not q.empty():
-        q.pop()
+        try:
+            q.pop()
+        except RedisEmpty:
+            break
 
 
 def load_track_points(filename):

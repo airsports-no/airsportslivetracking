@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 from display.models import Contestant, ContestantReceivedPosition
 from display.calculators.contestant_processor import ContestantProcessor
-from redis_queue import RedisQueue
+from redis_queue import RedisQueue, RedisEmpty
 
 def recalculate_contestant(contestant):
     logger.info(f"Recalculating {contestant} (PK: {contestant.pk})")
@@ -66,7 +66,7 @@ def recalculate_contestant(contestant):
     while not q.empty():
         try:
             q.pop()
-        except:
+        except RedisEmpty:
             break
     
     for p in traccar_positions:
@@ -99,7 +99,7 @@ def recalculate_contestant(contestant):
         while not q.empty():
             try:
                 q.pop()
-            except:
+            except RedisEmpty:
                 break
 
 PROGRESS_FILE = "recalc_progress.log"

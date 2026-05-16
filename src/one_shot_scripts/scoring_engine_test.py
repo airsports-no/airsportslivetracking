@@ -35,7 +35,7 @@ from display.models import (
     Aeroplane,
 )
 from display.calculators.contestant_processor import ContestantProcessor
-from redis_queue import RedisQueue
+from redis_queue import RedisQueue, RedisEmpty
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -214,7 +214,10 @@ def clone_contestant(original_contestant, new_task):
 def run_recalculation(contestant, positions):
     q = RedisQueue(contestant.pk)
     while not q.empty():
-        q.pop()
+        try:
+            q.pop()
+        except RedisEmpty:
+            break
 
     for pos in positions:
         data = {

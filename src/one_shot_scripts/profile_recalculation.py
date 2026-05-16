@@ -22,7 +22,7 @@ from display.models import (
     Route, Prohibited, Scorecard, Person, Crew, Team, Aeroplane
 )
 from display.calculators.contestant_processor import ContestantProcessor
-from redis_queue import RedisQueue
+from redis_queue import RedisQueue, RedisEmpty
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -130,7 +130,10 @@ def clone_contestant(original_contestant, new_task, suffix_int=0):
 def run_recalculation(contestant, positions):
     q = RedisQueue(contestant.pk)
     while not q.empty():
-        q.pop()
+        try:
+            q.pop()
+        except RedisEmpty:
+            break
         
     for pos in positions:
         data = {
@@ -214,7 +217,10 @@ def main():
         # Manually enable live processing for profiling
         q_p = RedisQueue(new_contestant_p.pk)
         while not q_p.empty():
-            q_p.pop()
+            try:
+                q_p.pop()
+            except RedisEmpty:
+                break
         for pos in positions_p:
             data = {
                 "id": pos.position_id,
