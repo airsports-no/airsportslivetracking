@@ -93,6 +93,7 @@ from display.forms import (
     ImportRouteForm,
     DeleteUserForm,
     PersonForm,
+    SignUpForm,
 )
 from display.flight_order_and_maps.generate_flight_orders import (
     generate_flight_orders_latex,
@@ -2427,6 +2428,82 @@ def firebase_password_reset(request):
         form = PasswordResetForm()
 
     return render(request, "registration/password_reset_form.html", {"form": form})
+
+
+def signup(request):
+    """
+    Dedicated signup view for creating new users.
+    Creates user in Firebase first, then in Django.
+    """
+    from firebase_admin import auth
+    from display.auth_backends import FirebaseMigrationBackend
+    from display.models import MyUser, Person
+
+    if request.method == "POST":
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            first_name = form.cleaned_data["first_name"]
+            last_name = form.cleaned_data["last_name"]
+            email = form.cleaned_data["email"].lower()
+            password = form.cleaned_data["password"]
+
+            # 1. Initialize Firebase
+            backend = FirebaseMigrationBackend()
+            backend._initialize_firebase()
+
+            try:
+                # 2. Create Firebase user
+                firebase_user = auth.create_user(
+                    email=email,
+                    password=password,
+                    display_name=f"{first_name} {last_name}".strip()
+                )
+                logger.info(f"[SignUp] Created Firebase user for {email}")
+
+                # 3. Create Django User
+                user = MyUser.objects.create_user(
+                    email=email,
+                    username=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    password=None # Local password is unusable, Firebase is source of truth
+                )
+                user.set_unusable_password()
+                user.save()
+
+                # 4. Create Person profile
+                # We use get_or_create in case a Person record exists without a user
+                person, created = Person.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        "first_name": first_name,
+                        "last_name": last_name,
+                    }
+                )
+                if not created:
+                    person.first_name = first_name
+                    person.last_name = last_name
+                    person.save()
+
+                # 5. Log user in
+                # We use FirebaseMigrationBackend because they are now "pre-authenticated" via the signup process
+                # and we've verified Firebase succeeded.
+                login(request, user, backend="display.auth_backends.FirebaseMigrationBackend")
+                messages.success(request, f"Welcome to Air Sports Live Tracking, {first_name}!")
+                return redirect("/")
+
+            except Exception as e:
+                # Handle cases like Email already exists in Firebase
+                error_message = str(e)
+                if "EMAIL_EXISTS" in error_message or "already exists" in error_message.lower():
+                    messages.error(request, "An account with this email already exists.")
+                else:
+                    logger.error(f"[SignUp] Unexpected error during signup for {email}: {e}")
+                    messages.error(request, "An error occurred during signup. Please try again later.")
+    else:
+        form = SignUpForm()
+
+    return render(request, "registration/signup.html", {"form": form})
 
 
 @csrf_exempt

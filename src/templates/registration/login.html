@@ -48,6 +48,10 @@
         <div class="form-control mt-6">
           <button type="submit" class="btn btn-primary">Login</button>
         </div>
+        <div class="divider">OR</div>
+        <div class="text-center">
+            <p>Don't have an account? <a href="{% url 'signup' %}" class="link link-secondary font-bold text-lg">Sign up here</a></p>
+        </div>
         <input type="hidden" name="next" value="{{ next }}"/>
          <div class="text-sm mt-4 text-center space-y-2">
             <p><a href="https://airsports.no" class="link font-bold text-primary">← Back to airsports.no homepage</a></p>

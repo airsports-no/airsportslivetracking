@@ -904,6 +904,49 @@ class DeleteUserForm(forms.Form):
         )
 
 
+class SignUpForm(forms.Form):
+    first_name = forms.CharField(max_length=200, label="First name")
+    last_name = forms.CharField(max_length=200, label="Last name")
+    email = forms.EmailField(label="Email address")
+    password = forms.CharField(widget=forms.PasswordInput, label="Password")
+    password_confirm = forms.CharField(widget=forms.PasswordInput, label="Confirm password")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_class = "form mt-4"
+        self.helper.layout = Layout(
+            Fieldset(
+                "Personal Information",
+                "first_name",
+                "last_name",
+                "email",
+            ),
+            Fieldset(
+                "Security",
+                "password",
+                "password_confirm",
+            ),
+            ButtonHolder(Submit("submit", "Sign Up")),
+        )
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email").lower()
+        if Person.objects.filter(email=email).exists():
+            raise ValidationError("A person with this email already exists.")
+        return email
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get("password")
+        password_confirm = cleaned_data.get("password_confirm")
+
+        if password and password_confirm and password != password_confirm:
+            self.add_error("password_confirm", "Passwords do not match.")
+
+        return cleaned_data
+
+
 class ImportContestTeamForm(forms.Form):
     contest = forms.ModelChoiceField(queryset=Contest.objects.all())
 

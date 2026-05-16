@@ -16,6 +16,7 @@ from display.views import (
     firebase_token_login,
     firebase_password_change,
     firebase_password_reset,
+    signup,
 )
 from . import api
 
@@ -25,6 +26,7 @@ urlpatterns = [
     path("display/api/", include("display.urls_api")),
     path("links/", include("firebase.urls")),
     path("accounts/token/", view_token, name="token"),
+    path("accounts/signup/", signup, name="signup"),
     path("accounts/password_change/", firebase_password_change, name="password_change"),
     path("accounts/password_change/done/", RedirectView.as_view(url="/", permanent=False)),
     path("accounts/password_reset/", firebase_password_reset, name="password_reset"),

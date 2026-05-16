@@ -1,0 +1,30 @@
+{% extends "base_tailwind.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Sign up{% endblock %}
+
+{% block content %}
+<div class="hero min-h-screen bg-base-200">
+  <div class="hero-content flex-col lg:flex-row-reverse">
+    <div class="text-center lg:text-left lg:pl-8">
+      <h1 class="text-5xl font-bold">Join Air Sports Live Tracking</h1>
+      <p class="py-6">Join our community of general aviation pilots! Track your flights, share your position, and compete in friendly events. All you need is your phone and a passion for flying.</p>
+      <div role="alert" class="alert alert-info shadow-sm max-w-md">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span>By signing up, you'll have a unified account for both the website and the mobile app.</span>
+      </div>
+    </div>
+    <div class="card shrink-0 w-full max-w-md shadow-2xl bg-base-100">
+      <div class="card-body">
+        <h2 class="card-title text-2xl mb-4">Create your account</h2>
+        {% crispy form %}
+        <div class="divider">OR</div>
+        <div class="text-center">
+          <p>Already have an account? <a href="{% url 'login' %}" class="link link-primary font-bold">Log in here</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
