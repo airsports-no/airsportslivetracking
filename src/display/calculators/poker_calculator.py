@@ -11,7 +11,6 @@ from display.calculators.calculator import (
     GateMissedEvent,
     FinishLinePassedEvent,
 )
-from display.calculators.calculator_utilities import PolygonHelper
 from display.calculators.positions_and_gates import Gate
 from display.models import Contestant, Scorecard, Route, PlayingCard
 from display.models.contestant_utility_models import ContestantReceivedPosition
@@ -25,7 +24,7 @@ class PokerCalculator(Calculator):
     def calculate_outside_route(
         self, track: List[ContestantReceivedPosition], state: OrchestratorState
     ) -> List[OrchestratorEvent]:
-        return self.check_polygons(track[-1], state)
+        return self.check_distance(track[-1], state)
 
     def finalise(self, track: List[ContestantReceivedPosition]):
         pass
@@ -98,15 +97,7 @@ class PokerCalculator(Calculator):
             projector=projector,
         )
         self.initiate_gates()
-
-        self.gate_polygons = []
-        if len(self.gates) > 0:
-            self.polygon_helper = PolygonHelper(self.projector)
-            self.waypoint_names = [gate.name for gate in self.gates]
-            gate_zones = self.route.prohibited_set.filter(type="waypoint")
-            for gate in gate_zones:
-                self.gate_polygons.append((gate.name, self.polygon_helper.build_polygon(gate.path)))
-
+        self.waypoint_names = [gate.name for gate in self.gates]
         self.passed_gates = set()
 
     def on_gate_missed(self, event: GateMissedEvent):
@@ -120,32 +111,25 @@ class PokerCalculator(Calculator):
         track: List[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
-        return self.check_polygons(track[-1], state)
+        return self.check_distance(track[-1], state)
 
-    def check_polygons(self, position: ContestantReceivedPosition, state: OrchestratorState) -> List[OrchestratorEvent]:
+    def check_distance(self, position: ContestantReceivedPosition, state: OrchestratorState) -> List[OrchestratorEvent]:
         p_x = getattr(position, "projected_x", None)
         p_y = getattr(position, "projected_y", None)
+        
+        if p_x is None or p_y is None:
+            return []
 
-        incursions = self.polygon_helper.check_inside_polygons(self.gate_polygons, p_x, p_y)
-
-        # Fallback for gates without polygons: use distance to the gate center relative to gate width
-        gates_with_polygons = {name for name, _ in self.gate_polygons}
+        events = []
+        # Detection: use distance to the gate center relative to gate width
         for gate in self.gates:
-            if gate.name not in gates_with_polygons and gate.name not in self.passed_gates:
+            if gate.name not in self.passed_gates:
                 if gate.center_x is not None and gate.center_y is not None:
                     dist_sq = (p_x - gate.center_x) ** 2 + (p_y - gate.center_y) ** 2
                     # gate.gate_radius represents half the gate width
                     if dist_sq <= gate.gate_radius ** 2:
-                        incursions.append(gate.name)
-
-        events = []
-        for gate_name in incursions:
-            if gate_name not in self.passed_gates:
-                # Find the gate object
-                gate = next((g for g in self.gates if g.name == gate_name), None)
-                if gate:
-                    self.passed_gates.add(gate_name)
-                    events.append(PokerGatePassedEvent(gate, position))
+                        self.passed_gates.add(gate.name)
+                        events.append(PokerGatePassedEvent(gate, position))
         return events
 
     def on_poker_gate_passed(self, event: PokerGatePassedEvent):

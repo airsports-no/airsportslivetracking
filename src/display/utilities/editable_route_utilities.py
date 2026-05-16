@@ -7,7 +7,7 @@ Each Feature in the collection represents a route element:
 - "route_path": A LineString representing the connected track.
 - "route_waypoint": Points representing waypoints along the track.
 - "takeoff_gate" / "landing_gate": LineStrings for TO/LDG gates.
-- "zone": Polygons for prohibited, info, penalty, or gate zones.
+- "zone": Polygons for prohibited, info, penalty zones.
 
 Coordinate System:
 GeoJSON uses [longitude, latitude] order.
@@ -141,11 +141,6 @@ def create_information_zone(positions: list[tuple[float, float]], name: str) -> 
 def create_penalty_zone(positions: list[tuple[float, float]], name: str) -> dict:
     """Create a penalty zone polygon"""
     return _create_polygon(positions, name, "penalty")
-
-
-def create_gate_polygon(positions: list[tuple[float, float]], name: str) -> dict:
-    """Create a gate polygon used for poker run"""
-    return _create_polygon(positions, name, "waypoint")
 
 
 ### End used by kml import ###

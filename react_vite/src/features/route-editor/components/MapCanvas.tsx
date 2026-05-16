@@ -4,7 +4,6 @@ import {
   getBearing,
   getDestinationPoint,
   toRad,
-  isPointInPolygon,
   getQuadraticBezierPoints
 } from '../../../utils/geoUtils';
 import useMapInit from './map/useMapInit';
@@ -402,22 +401,10 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
           marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
             if (tempPolygonPoints.length >= 3) {
-              // Check if polygon contains exactly one waypoint
-              const containedPoints = routePoints.filter(p => isPointInPolygon(p, tempPolygonPoints));
-              let type: "prohibited" | "penalty" | "info" | "waypoint" = 'prohibited';
-
-              if (containedPoints.length === 1) {
-                const wp = containedPoints[0];
-                const alreadyCovered = polygons.some(p => p.type === 'waypoint' && isPointInPolygon(wp, p.points));
-                if (!alreadyCovered) {
-                  type = 'waypoint';
-                }
-              }
-
               setPolygons(prev => [...prev, {
                 id: crypto.randomUUID(),
                 name: `Zone ${prev.length + 1}`,
-                type: type,
+                type: 'prohibited',
                 points: tempPolygonPoints
               }]);
               setTempPolygonPoints([]);

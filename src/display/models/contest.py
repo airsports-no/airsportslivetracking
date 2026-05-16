@@ -150,11 +150,17 @@ class Contest(models.Model):
 
     @property
     def latitude(self) -> float:
-        return float(self.location.split(",")[0])
+        try:
+            return float(self.location.split(",")[0])
+        except (ValueError, IndexError, AttributeError):
+            return 0.0
 
     @property
     def longitude(self) -> float:
-        return float(self.location.split(",")[1])
+        try:
+            return float(self.location.split(",")[1])
+        except (ValueError, IndexError, AttributeError):
+            return 0.0
 
     @property
     def country_flag_url(self):

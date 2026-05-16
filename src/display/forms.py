@@ -6,6 +6,7 @@ from typing import Iterable, Optional
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, ButtonHolder, Submit, Fieldset, Field, HTML
 from django import forms
+from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.utils.safestring import mark_safe
@@ -609,7 +610,7 @@ class ContestantQuickAddForm(forms.Form):
         self.navigation_task = kwargs.pop("navigation_task")
         super().__init__(*args, **kwargs)
         self.fields["contest_team"].queryset = self.navigation_task.contest.contestteam_set.all()
-        self.fields["starting_point_time"].initial = self.navigation_task.start_time
+        self.fields["starting_point_time"].initial = timezone.localtime()
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset(

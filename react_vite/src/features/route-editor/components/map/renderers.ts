@@ -4,7 +4,6 @@ import {
   getBearing,
   getDestinationPoint,
   getDistanceFromLine,
-  isPointInPolygon,
   getQuadraticBezierPoints
 } from '../../../../utils/geoUtils';
 import { RoutePoint, Gate, Polygon, Mode, SelectionType } from '../../../../types';
@@ -348,7 +347,6 @@ export const drawPolygons = (
     let color = '#3b82f6';
     if (poly.type === 'prohibited') color = '#ef4444';
     if (poly.type === 'penalty') color = '#f97316';
-    if (poly.type === 'waypoint') color = '#a855f7';
 
     const polygonLayer = L.polygon(poly.points.map(p => [p.lat, p.lng]), {
       color: color,

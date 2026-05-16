@@ -50,7 +50,7 @@ export interface ObservationMarker extends LatLng {
 export interface Polygon {
   id: string;
   name: string;
-  type: "prohibited" | "penalty" | "info" | "waypoint";
+  type: "prohibited" | "penalty" | "info";
   points: LatLng[];
 }
 

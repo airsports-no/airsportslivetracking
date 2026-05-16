@@ -1719,7 +1719,6 @@ ldg, polyline # Optional landing gate
 prohibited, polygon # Optional prohibited zone
 penalty, polygon # Optional penalty zone
 info, polygon # Optional information zone
-gate, polygon # Optional gate, used for poker runs
 
 Each line in the list above represents a route object type. Now follows a detailed description of each object type.
 
@@ -1813,6 +1812,21 @@ Prohibited, penalty, information, gate zones
 
     def get_is_editor(self, editable_route):
         return editable_route.id in self.context.get("editable_route_ids", set())
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        if "route" in ret and isinstance(ret["route"], dict) and "features" in ret["route"]:
+            filtered_features = []
+            for feature in ret["route"]["features"]:
+                props = feature.get("properties", {})
+                if props.get("featureType") == "waypoint_polygon":
+                    continue
+                if props.get("polygonType") == "waypoint":
+                    continue
+                filtered_features.append(feature)
+            ret["route"]["features"] = filtered_features
+        return ret
+
 
 class NewsletterSubscriberSerialiser(serializers.ModelSerializer):
     class Meta:

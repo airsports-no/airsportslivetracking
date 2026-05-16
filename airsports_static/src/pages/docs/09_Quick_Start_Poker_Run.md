@@ -27,11 +27,11 @@ The route defines where the pilots will fly and where cards are "dealt."
 1.  In your mission dashboard, go to the **Routes** tab.
 2.  Click **Create New Route**.
 3.  **Add Waypoints:** Click on the map to add the sequence of airports or landmarks. 
-4.  **Add Gate Polygons (Optional but Recommended):** 
-    *   Switch to the **Add Polygon** mode.
-    *   Draw a large area (e.g., around an airfield) for each card-collection point.
-    *   Name the polygon exactly the same as the waypoint it belongs to.
-    *   *Note: If no polygon is present, ASLT will fall back to a distance-based check (radius of the gate width).*
+4.  **Configure Collection Zones:** 
+    *   For Poker Runs, each waypoint is treated as a **circular collection zone**.
+    *   The size of the circle is determined by the **Gate Width** property of each waypoint.
+    *   The collection zone is a circle centered on the waypoint with a **radius** equal to half the width.
+    *   *Example: Setting a gate width of 1.0 NM creates a collection circle with a diameter of 1.0 NM (0.5 NM radius) around the point.*
 5.  **Save the Route.**
 
 ## 3. Configure the Navigation Task

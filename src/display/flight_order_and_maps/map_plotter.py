@@ -37,6 +37,7 @@ import os
 import sys
 from typing import Optional, Tuple, List
 
+from django.db import models
 from PIL import Image
 from cartopy.io.img_tiles import OSM, GoogleWTS
 import matplotlib.pyplot as plt
@@ -963,11 +964,14 @@ def plot_precision_track(
     line_width: float,
     minute_mark_line_width: float,
     colour: str,
+    task_type: List[str] = [],
 ):
     tracks = [[]]
     previous_waypoint = None  # type: Optional[Waypoint]
     includes_unknown_legs = any(waypoint.type == "ul" for waypoint in route.waypoints)
     on_unknown_leg = False
+    is_poker = POKER in task_type
+    
     for index, waypoint in enumerate(route.waypoints):
         if index < len(route.waypoints) - 1:
             next_waypoint = route.waypoints[index + 1]
@@ -1012,33 +1016,66 @@ def plot_precision_track(
         for index, waypoint in enumerate(track):  # type: int, Waypoint
             if waypoint.type not in (SECRETPOINT, ANR_TP, UNKNOWN_LEG, DUMMY):
                 bearing = waypoint_bearing(waypoint, index)
-                ys, xs = np.array(waypoint.gate_line).T
-                if not waypoints_only:
+                
+                # Special rendering for Poker Run gates as circular zones
+                if is_poker:
+                    # Half width in NM
+                    radius_nm = waypoint.width / 2
+                    
+                    circle_points = []
+                    for angle in range(0, 360, 10):
+                        rad = math.radians(angle)
+                        d_lat = (radius_nm / 60.0) * math.cos(rad)
+                        d_lon = (radius_nm / (60.0 * math.cos(math.radians(waypoint.latitude)))) * math.sin(rad)
+                        circle_points.append((waypoint.latitude + d_lat, waypoint.longitude + d_lon))
+                    
+                    circle_poly = np.array(circle_points)
                     plt.plot(
-                        xs,
-                        ys,
+                        circle_poly[:, 1],
+                        circle_poly[:, 0],
                         transform=ccrs.PlateCarree(),
                         color=colour,
                         linewidth=line_width,
+                        alpha=0.6
                     )
-                else:
-                    plt.scatter(
-                        waypoint.longitude,
-                        waypoint.latitude,
+                    plt.fill(
+                        circle_poly[:, 1],
+                        circle_poly[:, 0],
                         transform=ccrs.PlateCarree(),
                         color=colour,
-                        s=0.5,
-                        edgecolor="none",
+                        alpha=0.1
                     )
-                    plt.plot(
-                        waypoint.longitude,
-                        waypoint.latitude,
-                        transform=ccrs.PlateCarree(),
-                        color=colour,
-                        marker="o",
-                        markersize=20,
-                        fillstyle="none",
-                    )
+                
+                # Standard gate line rendering
+                elif len(waypoint.gate_line):
+                    ys, xs = np.array(waypoint.gate_line).T
+                    if not waypoints_only:
+                        plt.plot(
+                            xs,
+                            ys,
+                            transform=ccrs.PlateCarree(),
+                            color=colour,
+                            linewidth=line_width,
+                        )
+                    else:
+                        plt.scatter(
+                            waypoint.longitude,
+                            waypoint.latitude,
+                            transform=ccrs.PlateCarree(),
+                            color=colour,
+                            s=0.5,
+                            edgecolor="none",
+                        )
+                        plt.plot(
+                            waypoint.longitude,
+                            waypoint.latitude,
+                            transform=ccrs.PlateCarree(),
+                            color=colour,
+                            marker="o",
+                            markersize=20,
+                            fillstyle="none",
+                        )
+                
                 plot_waypoint_name(
                     route,
                     waypoint,
@@ -1137,20 +1174,23 @@ def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
         ys, xs = path.T
         plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1)
     # for zone_type in ("info", "penalty", "prohibited", "gate"):
-    for feature in editable_route.get_features_type("zone"):
-        fill_colour, line_colour, font_size = PROHIBITED_COLOURS.get(
-            feature["properties"]["polygonType"], ("blue", "darkblue", 4)
-        )
-        print(feature)
-        plot_prohibited_polygon(
-            imagery.crs,
-            ax,
-            editable_route.get_feature_coordinates(feature, flip=True),
-            fill_colour,
-            line_colour,
-            font_size,
-            feature["properties"]["name"],
-        )
+    for feature in editable_route.route["features"]:
+        f_type = feature.get("properties", {}).get("featureType")
+        if f_type in ("zone", "waypoint_polygon"):
+            fill_colour, line_colour, font_size = PROHIBITED_COLOURS.get(
+                feature["properties"].get("polygonType", "waypoint" if f_type == "waypoint_polygon" else ""), 
+                ("blue", "darkblue", 4)
+            )
+            print(feature)
+            plot_prohibited_polygon(
+                imagery.crs,
+                ax,
+                editable_route.get_feature_coordinates(feature, flip=True),
+                fill_colour,
+                line_colour,
+                font_size,
+                feature["properties"]["name"],
+            )
     ax.add_image(imagery, 11)
     figdata = BytesIO()
     plt.savefig(figdata, format="png", dpi=100, transparent=True)  # , bbox_inches="tight", pad_inches=margin_inches/2)
@@ -1236,6 +1276,7 @@ def plot_route(
             line_width,
             minute_mark_line_width,
             colour,
+            task.scorecard.task_type,
         )
     elif ANR_CORRIDOR in task.scorecard.task_type:
         paths = plot_anr_corridor_track(

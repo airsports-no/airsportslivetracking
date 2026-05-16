@@ -96,8 +96,8 @@ class TestPokerCalculator(TransactionTestCase):
             recalculation_completed=False
         )
         
-        # 2. Check polygons (which should trigger the distance fallback)
-        events = self.calculator.check_polygons(pos, state)
+        # 2. Check distance
+        events = self.calculator.check_distance(pos, state)
         
         self.assertEqual(len(events), 1)
         self.assertIsInstance(events[0], PokerGatePassedEvent)

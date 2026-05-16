@@ -21,7 +21,6 @@ from display.utilities.editable_route_utilities import (
     create_prohibited_zone,
     create_information_zone,
     create_penalty_zone,
-    create_gate_polygon,
     get_quadratic_bezier_points,
 )
 from display.utilities.gate_definitions import DUMMY, UNKNOWN_LEG, STARTINGPOINT, FINISHPOINT, SECRETPOINT
@@ -55,7 +54,7 @@ class EditableRoute(models.Model):
         help_text="""
     List of route elements. Each route element is a dictionary with the required key "feature_type" which is used to 
     define the kind of route element that is being described. Legal values are: 
-    ['track', 'to', 'ldg', 'prohibited_*', 'info_*', 'penalty_*', 'gate_*']. 
+    ['track', 'to', 'ldg', 'prohibited_*', 'info_*', 'penalty_*']. 
     Each element can be included multiple times except for 'track' which can appear at most once.
     """,
     )
@@ -77,6 +76,23 @@ class EditableRoute(models.Model):
     def editors(self) -> list:
         users = get_users_with_perms(self, attach_perms=True)
         return [user for user, permissions in users.items() if "change_editableroute" in permissions]
+
+    def save(self, *args, **kwargs):
+        """
+        Overriding save to ensure no waypoint polygons are stored in the route data.
+        """
+        if self.route and isinstance(self.route, dict) and "features" in self.route:
+            filtered_features = []
+            for feature in self.route["features"]:
+                props = feature.get("properties", {})
+                if props.get("featureType") == "waypoint_polygon":
+                    continue
+                if props.get("polygonType") == "waypoint":
+                    continue
+                filtered_features.append(feature)
+            self.route["features"] = filtered_features
+
+        super().save(*args, **kwargs)
 
     def calculate_number_of_waypoints(self):
         if track := self.get_track():
@@ -390,11 +406,14 @@ class EditableRoute(models.Model):
         route.save()
         # Create prohibited zones
         for feature in self.get_features_type("zone"):
+            poly_type = feature["properties"]["polygonType"]
+            if poly_type == "waypoint":
+                continue
             Prohibited.objects.create(
                 name=feature["properties"]["name"],
                 route=route,
                 path=self.get_feature_coordinates(feature, flip=False),
-                type=feature["properties"]["polygonType"],
+                type=poly_type,
                 # tooltip_position=feature.get("tooltip_position", []),
             )
         from display.models.route import Photo
@@ -486,7 +505,6 @@ class EditableRoute(models.Model):
             "prohibited": create_prohibited_zone,
             "info": create_information_zone,
             "penalty": create_penalty_zone,
-            "gate": create_gate_polygon,
         }
 
         for name in features.keys():

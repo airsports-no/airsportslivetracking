@@ -179,6 +179,37 @@ function renderLandingRoute(map: L.Map, route: RouteData): L.Layer[] {
 }
 
 
+// From pokerRenderer.js
+function renderPokerRoute(map: L.Map, route: RouteData): L.Layer[] {
+    const layers: L.Layer[] = [];
+    
+    // 1. Draw circles for waypoints
+    route.waypoints.forEach((waypoint: Waypoint) => {
+        if (waypoint.type !== 'dummy') {
+            // width is in NM, convert half-width to meters for Leaflet circle radius
+            const radiusMeters = (waypoint.width / 2) * 1852;
+            layers.push(L.circle([waypoint.latitude, waypoint.longitude], {
+                radius: radiusMeters,
+                color: "blue",
+                weight: 2,
+                fillOpacity: 0.1
+            }).addTo(map));
+        }
+    });
+
+    // 2. Draw the route line
+    const path: L.LatLngExpression[] = route.waypoints
+        .filter(wp => wp.type !== 'dummy')
+        .map(wp => [wp.latitude, wp.longitude]);
+    
+    if (path.length > 1) {
+        layers.push(L.polyline(path, { color: "blue", weight: 2, opacity: 0.5 }).addTo(map));
+    }
+
+    return layers;
+}
+
+
 export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
   const layersRef = useRef<L.Layer[]>([]);
 
@@ -191,7 +222,9 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
 
     let layers: L.Layer[] = [];
 
-    if (taskType.includes("precision") || taskType.includes("poker")) {
+    if (taskType.includes("poker")) {
+        layers = layers.concat(renderPokerRoute(map, route));
+    } else if (taskType.includes("precision")) {
       layers = layers.concat(renderPrecisionRoute(map, route, navTaskDisplaySecrets, displaySecrets));
     }
     if (taskType.includes("airsports") || taskType.includes("airsportchallenge")) {
