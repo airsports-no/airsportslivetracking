@@ -8,6 +8,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.conf import settings
 from redis import StrictRedis
+from redis.exceptions import RedisError, ReadOnlyError
 
 if TYPE_CHECKING:
     from display.models import (
@@ -26,6 +27,8 @@ REDIS_PORT = getattr(settings, "REDIS_PORT", 6379)
 REDIS_GLOBAL_POSITIONS_KEY = getattr(settings, "REDIS_GLOBAL_POSITIONS_KEY", "global_positions")
 
 ANOMALY = "anomaly"
+
+logger = logging.getLogger(__name__)
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -228,12 +231,63 @@ class WebsocketFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
         self.redis = StrictRedis(REDIS_HOST, REDIS_PORT)
+        self._buffer = []
+        self._max_buffer_size = 1000
+
+    def _flush_buffer(self):
+        """
+        Attempt to send all buffered messages.
+        """
+        if not self._buffer:
+            return
+
+        logger.info(f"Attempting to flush {len(self._buffer)} buffered websocket messages...")
+        still_buffered = []
+        
+        # We process the buffer. If Redis is still down/read-only, we'll stop after the first failure 
+        # to avoid repeated timeouts during this flush attempt.
+        redis_available = True
+        
+        for group_key, data in self._buffer:
+            if redis_available:
+                try:
+                    async_to_sync(self.channel_layer.group_send)(group_key, data)
+                except (RedisError, ReadOnlyError):
+                    redis_available = False
+                    still_buffered.append((group_key, data))
+                except Exception as e:
+                    logger.error(f"Unexpected error during buffer flush for {group_key}: {e}")
+            else:
+                still_buffered.append((group_key, data))
+        
+        self._buffer = still_buffered
+        if not self._buffer:
+            logger.info("Websocket buffer successfully flushed.")
+
+    def _safe_group_send(self, group_key: str, data: dict):
+        """
+        Helper to send to a channel group while catching transient Redis errors (like ReadOnlyError during restarts).
+        If sending fails, the message is buffered for later retry.
+        """
+        # Always try to flush existing buffer before sending new data
+        self._flush_buffer()
+
+        try:
+            async_to_sync(self.channel_layer.group_send)(group_key, data)
+        except (RedisError, ReadOnlyError) as e:
+            if len(self._buffer) < self._max_buffer_size:
+                self._buffer.append((group_key, data))
+                logger.warning(f"Failed to send to websocket group {group_key} due to Redis error: {e}. Message buffered (size: {len(self._buffer)}).")
+            else:
+                logger.error(f"Redis error and buffer full. Dropping message for {group_key}. Error: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error in _safe_group_send for {group_key}: {e}")
 
     def transmit_annotations(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         annotation_data = [serialize_track_annotation(a) for a in contestant.trackannotation_set.all()]
         channel_data = generate_contestant_data_block(contestant, annotations=annotation_data)
-        async_to_sync(self.channel_layer.group_send)(
+        self._safe_group_send(
             group_key,
             {
                 "type": "tracking.data",
@@ -245,7 +299,7 @@ class WebsocketFacade:
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         log_entries = [serialize_score_log_entry(e) for e in contestant.scorelogentry_set.filter(type=ANOMALY)]
         channel_data = generate_contestant_data_block(contestant, log_entries=log_entries)
-        async_to_sync(self.channel_layer.group_send)(
+        self._safe_group_send(
             group_key,
             {
                 "type": "tracking.data",
@@ -257,7 +311,7 @@ class WebsocketFacade:
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         gate_scores = [serialize_gate_cumulative_score(gs) for gs in contestant.gatecumulativescore_set.all()]
         channel_data = generate_contestant_data_block(contestant, gate_scores=gate_scores)
-        async_to_sync(self.channel_layer.group_send)(
+        self._safe_group_send(
             group_key,
             {
                 "type": "tracking.data",
@@ -269,7 +323,7 @@ class WebsocketFacade:
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         playing_cards = [serialize_playing_card(pc) for pc in contestant.playingcard_set.all()]
         channel_data = generate_contestant_data_block(contestant, playing_cards=playing_cards)
-        async_to_sync(self.channel_layer.group_send)(
+        self._safe_group_send(
             group_key,
             {
                 "type": "tracking.data",
@@ -282,7 +336,7 @@ class WebsocketFacade:
         channel_data = generate_contestant_data_block(
             contestant, contestant_track_data=serialize_contestant_track(contestant.contestanttrack)
         )
-        async_to_sync(self.channel_layer.group_send)(
+        self._safe_group_send(
             group_key,
             {
                 "type": "tracking.data",
@@ -293,7 +347,7 @@ class WebsocketFacade:
     def transmit_contestant(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         channel_data = serialize_contestant(contestant)
-        async_to_sync(self.channel_layer.group_send)(
+        self._safe_group_send(
             group_key,
             {
                 "type": "tracking.data",
@@ -304,7 +358,7 @@ class WebsocketFacade:
     def transmit_delete_contestant(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         channel_data = {"contestant_id": contestant.pk}
-        async_to_sync(self.channel_layer.group_send)(
+        self._safe_group_send(
             group_key,
             {
                 "type": "tracking.data",
@@ -324,7 +378,7 @@ class WebsocketFacade:
             latest_time=positions[-1].time,
         )
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        async_to_sync(self.channel_layer.group_send)(
+        self._safe_group_send(
             group_key,
             {
                 "type": "tracking.data",
@@ -354,7 +408,7 @@ class WebsocketFacade:
             },
         )
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        async_to_sync(self.channel_layer.group_send)(
+        self._safe_group_send(
             group_key,
             {
                 "type": "tracking.data",
@@ -370,7 +424,7 @@ class WebsocketFacade:
             danger_level={"danger_level": danger_level, "accumulated_score": accumulated_score},
         )
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        async_to_sync(self.channel_layer.group_send)(
+        self._safe_group_send(
             group_key,
             {
                 "type": "tracking.data",
@@ -401,7 +455,7 @@ class WebsocketFacade:
             "type": "tracking.data",
             "data": s,
         }
-        async_to_sync(self.channel_layer.group_send)("tracking_airsports", container)
+        self._safe_group_send("tracking_airsports", container)
 
     def transmit_global_position_data(
         self,
@@ -434,8 +488,12 @@ class WebsocketFacade:
             "longitude": float(position_data["longitude"]),
         }
         device_id = data["deviceId"]
-        self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
-        async_to_sync(self.channel_layer.group_send)("tracking_global", container)
+        try:
+            self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
+        except (RedisError, ReadOnlyError) as e:
+            logger.warning(f"Failed to update Redis global positions for {device_id}: {e}")
+
+        self._safe_group_send("tracking_global", container)
 
     async def transmit_external_global_position_data(
         self,
@@ -471,13 +529,20 @@ class WebsocketFacade:
         }
         s = json.dumps(data, cls=DateTimeEncoder)
         container = {"type": "tracking.data", "data": s, "latitude": latitude, "longitude": longitude}
-        existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
-        if existing:
-            existing = pickle.loads(existing)
-            if existing["time"] >= data["time"]:
-                return
-        self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
-        await self.channel_layer.group_send("tracking_global", container)
+        try:
+            existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
+            if existing:
+                existing = pickle.loads(existing)
+                if existing["time"] >= data["time"]:
+                    return
+            self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
+        except (RedisError, ReadOnlyError) as e:
+            logger.warning(f"Failed to update Redis global positions for {device_id} (async): {e}")
+
+        try:
+            await self.channel_layer.group_send("tracking_global", container)
+        except (RedisError, ReadOnlyError) as e:
+            logger.warning(f"Failed to send async to websocket group tracking_global: {e}")
 
     def contest_results_channel_name(self, contest: "Contest") -> str:
         return "contestresults_{}".format(contest.pk)
@@ -492,7 +557,7 @@ class WebsocketFacade:
             "type": "contestresults",
             "content": {"type": "contest.teams", "teams": serialiser.data},
         }
-        async_to_sync(self.channel_layer.group_send)(self.contest_results_channel_name(contest), data)
+        self._safe_group_send(self.contest_results_channel_name(contest), data)
 
     def transmit_tasks(self, contest: "Contest"):
         from display.models import Task
@@ -506,7 +571,7 @@ class WebsocketFacade:
                 "tasks": TaskSerialiser(tasks, many=True).data,
             },
         }
-        async_to_sync(self.channel_layer.group_send)(self.contest_results_channel_name(contest), data)
+        self._safe_group_send(self.contest_results_channel_name(contest), data)
 
     def transmit_tests(self, contest: "Contest"):
         from display.models import TaskTest
@@ -520,7 +585,7 @@ class WebsocketFacade:
                 "tests": TaskTestSerialiser(tests, many=True).data,
             },
         }
-        async_to_sync(self.channel_layer.group_send)(self.contest_results_channel_name(contest), data)
+        self._safe_group_send(self.contest_results_channel_name(contest), data)
 
     def transmit_contest_results(self, user: Optional["MyUser"], contest: "Contest"):
         from display.serialisers import ContestResultsDetailsSerialiser
@@ -537,4 +602,4 @@ class WebsocketFacade:
             "type": "contestresults",
             "content": {"type": "contest.results", "results": serialiser.data},
         }
-        async_to_sync(self.channel_layer.group_send)(self.contest_results_channel_name(contest), data)
+        self._safe_group_send(self.contest_results_channel_name(contest), data)
