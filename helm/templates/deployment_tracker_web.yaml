@@ -5,6 +5,11 @@ metadata:
     service: tracker-web
   name: tracker-web
 spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       service: tracker-web
@@ -72,9 +77,9 @@ spec:
             path: /display/readyz/
             port: web
           initialDelaySeconds: 5
-          periodSeconds: 60
+          periodSeconds: 10
           timeoutSeconds: 30
-          failureThreshold: 2
+          failureThreshold: 3
       restartPolicy: Always
       volumes:
         - name: firebase

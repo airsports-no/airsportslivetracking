@@ -5,6 +5,8 @@ metadata:
     service: tracker-processor
   name: tracker-processor
 spec:
+  strategy:
+    type: Recreate
   replicas: 1
   selector:
     matchLabels:
@@ -73,7 +75,7 @@ spec:
               "python", "-m", "probes.is_ready"
             ]
           initialDelaySeconds: 30  # startup takes some time
-          periodSeconds: 120
+          periodSeconds: 30
           timeoutSeconds: 10
         volumeMounts:
           - mountPath: /secret

@@ -3,7 +3,7 @@ kind: Job
 metadata:
   name: tracker-migrate-db-{{ now | unixEpoch }}
   annotations:
-    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook": post-install,pre-upgrade
     "helm.sh/hook-delete-policy": hook-succeeded
 spec:
   ttlSecondsAfterFinished: 100

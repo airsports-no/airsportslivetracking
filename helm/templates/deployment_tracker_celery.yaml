@@ -5,6 +5,11 @@ metadata:
     service: tracker-celery
   name: tracker-celery
 spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       service: tracker-celery
@@ -71,7 +76,7 @@ spec:
               "python /src/celery_readiness.py"
             ]
           initialDelaySeconds: 30  # startup takes some time
-          periodSeconds: 300  # default is quite often and celery uses a lot cpu/ram then.
+          periodSeconds: 60  # reduced from 300 to speed up rollouts while respecting resource usage.
           timeoutSeconds: 10
           failureThreshold: 3
       restartPolicy: Always
