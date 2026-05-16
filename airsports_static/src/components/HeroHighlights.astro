@@ -1,0 +1,188 @@
+---
+// HeroHighlights.astro
+---
+<div id="hero-highlights-container" class="hidden opacity-0 transition-opacity duration-1000 w-full max-w-xl mx-auto lg:mx-0">
+    <div id="hero-highlights-content" class="relative min-h-[340px]">
+        <!-- Highlights will be injected here via JS -->
+    </div>
+    <div id="hero-highlights-pagination" class="flex justify-center lg:justify-start gap-3 mt-4 opacity-0 transition-opacity duration-1000">
+        <!-- Dots injected via JS -->
+    </div>
+</div>
+
+<script>
+    async function fetchHeroHighlights() {
+        const container = document.getElementById('hero-highlights-container');
+        const content = document.getElementById('hero-highlights-content');
+        const heroWrapper = document.getElementById('hero-main-content-wrapper');
+        const heroLeftBlock = document.getElementById('hero-left-block');
+        const heroTitle = document.getElementById('hero-title');
+        const heroButtons = document.getElementById('hero-buttons');
+        const pagination = document.getElementById('hero-highlights-pagination');
+        
+        if (!container || !content || !pagination) return;
+
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:8002'
+            : 'https://app.airsports.no';
+
+        try {
+            const response = await fetch(`${API_BASE}/api/v1/highlighted_contests/`);
+            if (!response.ok) throw new Error('Failed to fetch highlights');
+            const data = await response.json();
+
+            if (!data || data.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            // If we have highlights, adjust the layout of the hero section
+            if (heroWrapper) {
+                heroWrapper.classList.add('lg:flex-row', 'lg:items-center', 'lg:text-left');
+                heroWrapper.classList.remove('text-center');
+            }
+            if (heroLeftBlock) {
+                heroLeftBlock.classList.add('lg:w-1/2', 'lg:mx-0');
+                heroLeftBlock.classList.remove('max-w-4xl', 'mx-auto');
+            }
+            if (heroButtons) {
+                heroButtons.classList.add('lg:justify-start');
+                heroButtons.classList.remove('justify-center');
+            }
+
+            container.classList.remove('hidden');
+            setTimeout(() => {
+                container.classList.remove('opacity-0');
+                pagination.classList.remove('opacity-0');
+            }, 100);
+
+            // Create pagination dots
+            if (data.length > 1) {
+                data.forEach((_, i) => {
+                    const dot = document.createElement('button');
+                    dot.className = `w-2 h-2 rounded-full transition-all duration-300 ${i === 0 ? 'bg-blue-600 w-6' : 'bg-white/20 hover:bg-white/40'}`;
+                    dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+                    dot.addEventListener('click', () => {
+                        if (currentIndex === i) return;
+                        currentIndex = i;
+                        renderHighlight(currentIndex);
+                        resetRotation();
+                    });
+                    pagination.appendChild(dot);
+                });
+            }
+
+            let currentIndex = 0;
+            let intervalId;
+
+            const updateDots = (index) => {
+                const dots = pagination.querySelectorAll('button');
+                dots.forEach((dot, i) => {
+                    if (i === index) {
+                        dot.classList.add('bg-blue-600', 'w-6');
+                        dot.classList.remove('bg-white/20', 'hover:bg-white/40');
+                    } else {
+                        dot.classList.remove('bg-blue-600', 'w-6');
+                        dot.classList.add('bg-white/20', 'hover:bg-white/40');
+                    }
+                });
+            };
+
+            const renderHighlight = (index) => {
+                updateDots(index);
+                const highlight = data[index];
+                const contest = highlight.contest;
+                const startTime = new Date(contest.start_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                const finishTime = new Date(contest.finish_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                // Create the HTML for the highlight card
+                const html = `
+                    <div class="group relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col transition-all duration-700 animate-in fade-in zoom-in-95">
+                        <div class="h-40 relative overflow-hidden">
+                            ${contest.header_image ? 
+                                `<img src="${contest.header_image}" alt="${contest.name}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-80" />` :
+                                `<div class="w-full h-full bg-gradient-to-br from-blue-600 to-indigo-900 opacity-80"></div>`
+                            }
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+                            
+                            <!-- Featured Badge -->
+                            <div class="absolute top-4 right-6">
+                                <div class="flex items-center gap-2 bg-blue-600 px-3 py-1 rounded-full shadow-lg">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                    </svg>
+                                    <span class="text-[9px] font-black text-white uppercase tracking-widest">Featured</span>
+                                </div>
+                            </div>
+
+                            <div class="absolute bottom-4 left-6">
+                                <div class="flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full">
+                                    <span class="text-[9px] font-black text-white uppercase tracking-widest">${contest.country || 'Global'}</span>
+                                    ${contest.country_flag_url ? `<img src="${API_BASE + contest.country_flag_url}" alt="" class="w-3.5 h-2.5 object-cover rounded-sm" />` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6 md:p-8">
+                            <div class="flex justify-between items-start mb-3">
+                                <p class="text-blue-400 font-black text-[10px] uppercase tracking-[0.3em]">${startTime} — ${finishTime}</p>
+                                ${data.length > 1 ? `<span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">${index + 1} / ${data.length}</span>` : ''}
+                            </div>
+                            <h3 class="text-xl md:text-2xl font-black text-white font-lexend italic uppercase tracking-tight leading-tight mb-3 group-hover:text-blue-400 transition-colors line-clamp-2 min-h-[3rem] md:min-h-[4rem]">${contest.name}</h3>
+                            <p class="text-slate-300 text-xs leading-relaxed font-medium mb-6 line-clamp-2 min-h-[2.5rem]">
+                                ${highlight.blurb}
+                            </p>
+                            <div class="flex gap-4">
+                                <a href="https://app.airsports.no/mission-dashboard/${contest.id}" class="bg-blue-600 text-white px-8 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-700 transition-all active:scale-95 italic">
+                                    View Contest
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Add fade out effect before changing content if it's not the first load
+                if (content.innerHTML !== '') {
+                    const activeCard = content.querySelector('div');
+                    if (activeCard) {
+                        activeCard.classList.add('animate-out', 'fade-out', 'zoom-out-95', 'duration-500');
+                        setTimeout(() => {
+                            content.innerHTML = html;
+                        }, 500);
+                    } else {
+                        content.innerHTML = html;
+                    }
+                } else {
+                    content.innerHTML = html;
+                }
+            };
+
+            renderHighlight(0);
+
+            function startRotation() {
+                intervalId = setInterval(() => {
+                    currentIndex = (currentIndex + 1) % data.length;
+                    renderHighlight(currentIndex);
+                }, 8000);
+            }
+
+            function resetRotation() {
+                clearInterval(intervalId);
+                startRotation();
+            }
+
+            if (data.length > 1) {
+                startRotation();
+
+                // Pause on hover
+                container.addEventListener('mouseenter', () => clearInterval(intervalId));
+                container.addEventListener('mouseleave', () => startRotation());
+            }
+
+        } catch (e) {
+            console.error('Hero highlights fetch error:', e);
+            container.classList.add('hidden');
+        }
+    }
+
+    fetchHeroHighlights();
+</script>

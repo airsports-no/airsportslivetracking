@@ -7,7 +7,7 @@ import routeEditor from '../assets/img/route_editor.png';
 import task from '../assets/img/task.png';
 import logoNoTextWhite from '../assets/img/airsports_no_text_white.png';
 import TodaysFlights from '../components/TodaysFlights.astro';
-import HighlightedContests from '../components/HighlightedContests.astro';
+import HeroHighlights from '../components/HeroHighlights.astro';
 
 // Competition Graphics
 import precisionImg from '../assets/img/Precision.png';
@@ -19,7 +19,7 @@ import msfsAppImg from '../assets/img/msfs_app.png';
 <Layout title="Home">
 	<main>
         <!-- Hero Section -->
-        <div class="relative overflow-hidden bg-slate-900 text-white pt-20 pb-32">
+        <div class="relative overflow-hidden bg-slate-900 text-white pt-16 pb-20">
             <!-- Background Image with Opacity -->
             <div class="absolute inset-0 z-0">
                 <Image src={nordic2025} alt="" class="w-full h-full object-cover opacity-40 mix-blend-luminosity" width={1920} height={1080} />
@@ -27,48 +27,41 @@ import msfsAppImg from '../assets/img/msfs_app.png';
             </div>
             
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-                <div class="inline-block px-4 py-1.5 mb-8 text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-blue-100">
+                <div class="inline-block px-4 py-1.5 mb-6 text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-blue-100">
                     Open Source & Global Community
                 </div>
-                <h1 class="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tighter mb-8 font-lexend italic text-shadow-lg uppercase leading-tight">
+                <h1 id="hero-title" class="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tighter mb-10 font-lexend italic text-shadow-lg uppercase leading-tight transition-all duration-1000 mx-auto text-center">
                     The sky is your <br/>
                     <span class="text-blue-200">playground</span>
                 </h1>
 
-                <!-- Migration Notice -->
-                <div class="mb-14 inline-block animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 max-w-4xl w-full mx-auto px-4">
-                    <a href="https://app.airsports.no" class="group flex flex-row items-center justify-center gap-4 sm:gap-8 bg-orange-600/90 backdrop-blur-md border-2 border-orange-400 py-3 px-6 sm:py-4 sm:px-10 rounded-full shadow-2xl hover:bg-orange-600 transition-all hover:scale-[1.01] active:scale-95 text-white">
-                        <div class="bg-white/20 p-2 rounded-full hidden sm:block flex-shrink-0">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                             </svg>
+                <div id="hero-main-content-wrapper" class="flex flex-col gap-10 text-center transition-all duration-1000">
+                    <div id="hero-left-block" class="max-w-4xl mx-auto transition-all duration-1000">
+                        <!-- Primary CTA -->
+                        <div class="mb-8 inline-block animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 w-full px-4">
+                            <a href="https://app.airsports.no/competition-map/774/2734?mode=playback&time=2025-07-06T11:45:50&speed=40&autoplay=true&rankingExpanded=true" class="group flex flex-row items-center justify-center gap-4 sm:gap-6 bg-orange-500/90 backdrop-blur-md border-2 border-orange-400 py-4 px-10 rounded-full shadow-2xl hover:bg-orange-600 transition-all hover:scale-[1.01] active:scale-95 text-white">
+                                <div class="bg-white/20 p-2 rounded-full hidden sm:block flex-shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                    </svg>
+                                </div>
+                                <span class="text-lg sm:text-xl font-black font-lexend italic uppercase tracking-tight">Watch a Competition Replay →</span>
+                            </a>
                         </div>
-                        <div class="text-left flex items-center gap-4">
-                            <span class="hidden lg:block text-[10px] font-black uppercase tracking-[0.3em] text-orange-200 border-r border-orange-400/50 pr-4">Platform Update</span>
-                            <span class="text-sm sm:text-lg lg:text-xl font-extrabold font-lexend italic uppercase tracking-tight">
-                                Competition Dashboard has moved to 
-                                <span class="text-blue-100 underline decoration-white decoration-2 underline-offset-4 ml-1">app.airsports.no</span>
-                            </span>
-                        </div>
-                        <div class="group-hover:translate-x-2 transition-transform hidden sm:block flex-shrink-0">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                             </svg>
-                        </div>
-                    </a>
-                </div>
 
-                <p class="text-lg sm:text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto mb-14 leading-relaxed font-medium">
-                    The professional platform for precision navigation and air racing. 
-                    <span class="text-white">Whether you're flying 120km cross-country or competing virtually, we score your performance in real time.</span>
-                </p>
-                <div class="flex flex-wrap justify-center gap-6">
-                    <a href="https://app.airsports.no/competition-map/774/2734?mode=playback&time=2025-07-06T11:45:50&speed=40&autoplay=true&rankingExpanded=true" class="bg-orange-500 text-white px-12 py-5 rounded-2xl font-extrabold text-lg hover:bg-orange-600 transition-all shadow-2xl shadow-orange-900/40 active:scale-95 uppercase tracking-wider border-b-4 border-orange-700">
-                        Watch a Competition Replay →
-                    </a>
-                    <a href="https://app.airsports.no" class="bg-white/10 backdrop-blur-md border border-white/20 text-white px-12 py-5 rounded-2xl font-extrabold text-lg hover:bg-white/20 transition-all active:scale-95 uppercase tracking-wider">
-                        Competition Dashboard
-                    </a>
+                        <p class="text-lg sm:text-xl md:text-2xl text-blue-100 mb-10 leading-relaxed font-medium">
+                            The professional platform for precision navigation and air racing. 
+                            <span class="text-white">Whether you're flying 120km cross-country or competing virtually, we score your performance in real time.</span>
+                        </p>
+                        <div id="hero-buttons" class="flex flex-wrap justify-center gap-6 transition-all duration-1000">
+                            <a href="https://app.airsports.no" class="bg-blue-600 text-white px-12 py-5 rounded-2xl font-extrabold text-lg hover:bg-blue-700 transition-all shadow-2xl shadow-blue-900/20 active:scale-95 uppercase tracking-wider text-center">
+                                Competition Dashboard
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Hero Highlights -->
+                    <HeroHighlights />
                 </div>
             </div>
         </div>
@@ -103,9 +96,6 @@ import msfsAppImg from '../assets/img/msfs_app.png';
         <div class="relative z-20">
             <TodaysFlights />
         </div>
-
-        <!-- Highlighted Contests Section -->
-        <HighlightedContests />
 
         <!-- The Sports Section -->
         <div class="py-32 bg-slate-50">
