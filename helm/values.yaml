@@ -116,13 +116,17 @@ redis:
   # The subchart itself has a 'redis:' key for the main server config.
   redis:
     disableCommands: []
+    # Increasing resources for GKE Autopilot to avoid throttling during peak scoring periods.
     resources:
       requests:
-        cpu: 500m
-        memory: 512Mi
+        cpu: 1000m
+        memory: 1Gi
       limits:
-        cpu: 500m
-        memory: 512Mi
+        cpu: 1000m
+        memory: 1Gi
+    config:
+      maxmemory: 768mb
+      maxmemory-policy: allkeys-lru
     terminationGracePeriodSeconds: 25
 
   init:
@@ -158,8 +162,11 @@ redis:
 
     # Tuning: reduce false DOWNs in HAProxy tcp-checks towards sentinel/redis.
     # Default in redis-ha chart is `timeout.check: 2s`, and we see 2002ms timeouts in prod logs.
+    # Increasing to 10s and adding fall/interval tuning to handle transient spikes.
     timeout:
-      check: 5s
+      check: 10s
+    checkInterval: 2s
+    checkFall: 3
 
     resources:
       requests:
