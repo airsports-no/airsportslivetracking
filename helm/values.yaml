@@ -156,9 +156,9 @@ redis:
         cpu: 500m
         memory: 256Mi
     # Redis 7.2+ supports hostnames in Sentinel, which is MUCH more stable in K8s
-    config:
-      sentinel-announce-hostnames: "yes"
-      sentinel-resolve-hostnames: "yes"
+    # config:
+    #   sentinel-announce-hostnames: "yes"
+    #   sentinel-resolve-hostnames: "yes"
 
   haproxy:
     enabled: true
