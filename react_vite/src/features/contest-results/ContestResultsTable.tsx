@@ -421,6 +421,9 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
     const ranks = new Map<number, number>();
 
     const sortedSummaries = [...(results.contestsummary_set || [])].sort((a, b) => {
+      if (results.summary_score_sorting_direction?.toUpperCase() === 'DESC') {
+        return (b.points || 0) - (a.points || 0);
+      }
       return (a.points || 0) - (b.points || 0);
     });
     sortedSummaries.forEach((summary, index) => {
