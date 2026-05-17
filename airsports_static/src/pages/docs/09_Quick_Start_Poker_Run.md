@@ -79,4 +79,16 @@ Once the flight window begins, you can monitor the action in real-time.
 
 ---
 
+## 6. Manual Card Management
+
+If a pilot misses a collection zone due to tracking issues, or if you need to correct a hand manually, organizers can manage cards directly.
+
+1.  Go to the **Navigation Task** management view (where you see the list of contestants).
+2.  Find the contestant in the list.
+3.  Click the **Actions** button (three dots or gear icon) next to their name.
+4.  Select **Playing Cards**.
+5.  From this screen, you can **Add** a specific card to their hand or **Remove** existing ones. Any changes will be updated instantly on the Live Map and Leaderboard.
+
+---
+
 *Need more detail? Check out the full [Contest Manager Guide](/docs/03_Contest_Manager_Guide).*
