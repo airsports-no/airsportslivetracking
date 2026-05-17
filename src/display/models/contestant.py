@@ -1058,6 +1058,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         type(self).objects.filter(pk=self.pk).update(
             score_version=F("score_version") + 1, track_version=F("track_version") + 1
         )
+        self.refresh_from_db(fields=["score_version", "track_version"])
 
     def generate_processing_statistics(self) -> bytes:
         """

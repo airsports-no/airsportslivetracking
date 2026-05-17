@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import pickle
+import time
 from typing import List, Optional, Dict, Any, TYPE_CHECKING
 
 from asgiref.sync import async_to_sync
@@ -182,6 +183,7 @@ def serialize_contestant(c: "Contestant") -> dict:
         "tracker_device_id": c.tracker_device_id,
         "team": serialize_team(c.team),
         "track_version": c.track_version,
+        "score_version": c.score_version,
         "live_processing": getattr(c, "live_processing", True),
         "takeoff_time": c.takeoff_time,
         "finished_by_time": c.finished_by_time,
@@ -204,7 +206,12 @@ def generate_contestant_data_block(
     gate_distance_and_estimate: Dict = None,
     danger_level: Dict = None,
 ):
-    data = {"contestant_id": contestant.id}
+    data = {
+        "contestant_id": contestant.id,
+        "msg_id": time.time_ns(),
+        "score_version": contestant.score_version,
+        "track_version": contestant.track_version,
+    }
     data["positions"] = positions or []
     if annotations is not None:
         data["annotations"] = annotations
@@ -349,6 +356,7 @@ class WebsocketFacade:
     def transmit_contestant(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
         channel_data = serialize_contestant(contestant)
+        channel_data["msg_id"] = time.time_ns()
         self._safe_group_send(
             group_key,
             {
@@ -359,7 +367,7 @@ class WebsocketFacade:
 
     def transmit_delete_contestant(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        channel_data = {"contestant_id": contestant.pk}
+        channel_data = {"contestant_id": contestant.pk, "msg_id": time.time_ns()}
         self._safe_group_send(
             group_key,
             {

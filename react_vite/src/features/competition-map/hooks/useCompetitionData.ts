@@ -49,6 +49,8 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const setScoreLogByContestantRef = useRef(setScoreLogByContestant);
     useEffect(() => { setScoreLogByContestantRef.current = setScoreLogByContestant; }, [setScoreLogByContestant]);
 
+    const latestMsgIdsRef = useRef<Record<number, number>>({});
+
     const wsBufferRef = useRef<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimerRef = useRef<number | null>(null);
@@ -97,38 +99,70 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const processWsMessage = useCallback((data: string) => {
         try {
             const msg = JSON.parse(data) as { type: string; data: string };
+            const payload = JSON.parse(msg.data) as any;
+            const contestantId = payload.contestant_id || payload.id;
+            
+            if (!contestantId) return;
+
+            // Handle ordering and versioning
+            const msgId = payload.msg_id;
+            const existing = contestantsByIdRef.current[contestantId];
+            
+            if (existing) {
+                // If the message has a lower version than what we have, reject it.
+                // This is crucial for fast recalculations where old states might still be in flight.
+                if (payload.track_version !== undefined && payload.track_version < existing.track_version) {
+                    return;
+                }
+                if (payload.score_version !== undefined && payload.score_version < existing.score_version) {
+                    return;
+                }
+            }
+
+            if (msgId) {
+                const latestMsgId = latestMsgIdsRef.current[contestantId] || 0;
+                if (msgId < latestMsgId) {
+                    // Only reject based on msgId if the versions are the SAME.
+                    // If the message has a HIGHER version, it overrides msgId (reset event).
+                    const sameTrackVersion = payload.track_version === undefined || (existing && payload.track_version === existing.track_version);
+                    const sameScoreVersion = payload.score_version === undefined || (existing && payload.score_version === existing.score_version);
+                    
+                    if (sameTrackVersion && sameScoreVersion) {
+                        // console.debug(`WS: Rejecting out-of-order message for ${contestantId} (${msgId} < ${latestMsgId})`);
+                        return;
+                    }
+                }
+                latestMsgIdsRef.current[contestantId] = msgId;
+            }
 
             if (msg.type === 'contestant') {
-                const c = JSON.parse(msg.data) as Partial<Contestant> & { id: number };
-                console.debug('WS: received contestant metadata', c);
-                updateContestant(c.id, c);
+                console.debug('WS: received contestant metadata', payload);
+                updateContestant(contestantId, payload);
                 return;
             }
 
             if (msg.type === 'contestant_delete') {
-                const c = JSON.parse(msg.data) as { contestant_id: number };
-                const id = c.contestant_id;
                 setContestantsById(prev => {
                     const newContestants = { ...prev };
-                    delete newContestants[id];
+                    delete newContestants[contestantId];
                     return newContestants;
                 });
                 // Clear all associated data
-                setPositionsByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
-                setAnnotationsByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
-                setScoreLogByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
-                setGateScoresByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
-                setDangerDataByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
-                setGateArrowDataByContestant(prev => { const next = { ...prev }; delete next[id]; return next; });
+                setPositionsByContestant(prev => { const next = { ...prev }; delete next[contestantId]; return next; });
+                setAnnotationsByContestant(prev => { const next = { ...prev }; delete next[contestantId]; return next; });
+                setScoreLogByContestant(prev => { const next = { ...prev }; delete next[contestantId]; return next; });
+                setGateScoresByContestant(prev => { const next = { ...prev }; delete next[contestantId]; return next; });
+                setDangerDataByContestant(prev => { const next = { ...prev }; delete next[contestantId]; return next; });
+                setGateArrowDataByContestant(prev => { const next = { ...prev }; delete next[contestantId]; return next; });
                 return;
             }
 
-            const payload = JSON.parse(msg.data) as any;
-            const contestantId = payload.contestant_id;
-            if (!contestantId) return;
-
             if (msg.type === 'danger_level') {
                 setDangerDataByContestant(prev => ({ ...prev, [contestantId]: payload.danger_level }));
+                updateContestant(contestantId, {
+                    track_version: payload.track_version,
+                    score_version: payload.score_version
+                });
                 return;
             }
             if (msg.type === 'playing_cards') {
@@ -136,12 +170,18 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 const contestantId = playingCardsPayload.contestant_id;
                 const playing_cards = playingCardsPayload.playing_cards;
 
-                updateContestant(contestantId, { playing_cards });
+                updateContestant(contestantId, { 
+                    playing_cards,
+                    track_version: payload.track_version,
+                    score_version: payload.score_version
+                });
                 return;
             }
             if (msg.type === 'crossing_time') {
                 const crossingPayload = JSON.parse(msg.data) as {
                     contestant_id: number;
+                    track_version: number;
+                    score_version: number;
                     gate_distance_and_estimate: {
                         seconds_to_planned_crossing: number;
                         estimated_crossing_offset: number;
@@ -156,6 +196,10 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
                 // Update gateArrowDataByContestant with the gate_distance_and_estimate from the crossing_time message
                 setGateArrowDataByContestant(prev => ({ ...prev, [crossingContestantId]: gateData }));
+                updateContestant(crossingContestantId, {
+                    track_version: payload.track_version,
+                    score_version: payload.score_version
+                });
                 return;
             }
 
@@ -167,7 +211,11 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 });
                 
                 // Update contestant metadata with progress and last seen time from position data
-                const update: any = { last_position_received_at: Date.now() };
+                const update: any = { 
+                    last_position_received_at: Date.now(),
+                    track_version: payload.track_version,
+                    score_version: payload.score_version
+                };
                 if (payload.progress !== undefined) {
                     update.progress = payload.progress;
                 }
@@ -178,6 +226,10 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                     const newAnnotations = [...payload.annotations];
                     newAnnotations.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                     return { ...prev, [contestantId]: newAnnotations };
+                });
+                updateContestant(contestantId, {
+                    track_version: payload.track_version,
+                    score_version: payload.score_version
                 });
             }
             if (msg.type === "score_log" && payload.score_log_entries) {
@@ -215,12 +267,24 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                     allScoreLogs.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                     return { ...prev, [contestantId]: allScoreLogs };
                 });
+                updateContestant(contestantId, {
+                    track_version: payload.track_version,
+                    score_version: payload.score_version
+                });
             }
             if (msg.type === "gate_score" && payload.gate_scores) {
                 setGateScoresByContestant(prev => ({ ...prev, [contestantId]: payload.gate_scores }));
+                updateContestant(contestantId, {
+                    track_version: payload.track_version,
+                    score_version: payload.score_version
+                });
             }
             if (payload.contestant_track) {
-                updateContestant(contestantId, { contestanttrack: payload.contestant_track });
+                updateContestant(contestantId, { 
+                    contestanttrack: payload.contestant_track,
+                    track_version: payload.track_version,
+                    score_version: payload.score_version
+                });
             }
         } catch (e) {
             console.error('WS parse error', e);

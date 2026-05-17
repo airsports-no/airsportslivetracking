@@ -165,6 +165,7 @@ export interface Contestant {
   contestanttrack: ContestantTrackSummary;
   contestant_number: number;
   track_version: number;
+  score_version: number;
   air_speed: number;
   wind_speed: number;
   wind_direction: number;
