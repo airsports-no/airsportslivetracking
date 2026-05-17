@@ -2,6 +2,7 @@ import datetime
 import random
 import typing
 
+from display.models.contestant_utility_models import ContestantReceivedPosition
 import eval7
 from django.db import models
 from django.db.models import F
@@ -157,7 +158,7 @@ class PlayingCard(models.Model):
             ws.transmit_playing_cards(contestant)
 
     @classmethod
-    def add_contestant_card(cls, contestant: "Contestant", card: str, waypoint: str, waypoint_index: int):
+    def add_contestant_card(cls, contestant: "Contestant", card: str, waypoint: str, waypoint_index: int, pos: ContestantReceivedPosition|None=None):
         """
         Adds a specific card to the contestant, updates the score, and pushes this to the front end. Requires the
         waypoint index to identify at which waypoint the card was dealt.
@@ -183,8 +184,9 @@ class PlayingCard(models.Model):
             type=ANOMALY,
             string="{}: {}".format(waypoint, message),
         )
+        if pos is None:
+            pos = contestant.get_latest_position()
 
-        pos = contestant.get_latest_position()
         longitude = 0
         latitude = 0
         if pos:

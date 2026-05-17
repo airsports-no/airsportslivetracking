@@ -96,8 +96,8 @@ class TestPokerCalculator(TransactionTestCase):
             recalculation_completed=False
         )
         
-        # 2. Check distance
-        events = self.calculator.check_distance(pos, state)
+        # 2. Check enroute logic (which calls check_distance)
+        events = self.calculator.calculate_enroute([pos], state)
         
         self.assertEqual(len(events), 1)
         self.assertIsInstance(events[0], PokerGatePassedEvent)
@@ -122,3 +122,37 @@ class TestPokerCalculator(TransactionTestCase):
         self.assertEqual(serialized["card_string"], card.card)
         self.assertEqual(serialized["card_value"], card.rank)
         self.assertEqual(serialized["card_suit"], card.suit)
+
+    @patch("websocket_channels.WebsocketFacade.transmit_playing_cards")
+    def test_poker_gate_passed_only_once(self, mock_transmit):
+        # Ensure that passing the same gate twice only awards one card
+        pos = ContestantReceivedPosition.objects.create(
+            contestant=self.contestant,
+            latitude=60.0,
+            longitude=11.0,
+            time=self.contestant.takeoff_time
+        )
+        proj = self.projector.project_point(pos.latitude, pos.longitude)
+        pos.projected_x = proj.projected_x
+        pos.projected_y = proj.projected_y
+        
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=False
+        )
+        
+        # First pass
+        events1 = self.calculator.calculate_enroute([pos], state)
+        self.assertEqual(len(events1), 1)
+        self.calculator.on_poker_gate_passed(events1[0])
+        
+        # Second pass (same position)
+        events2 = self.calculator.calculate_enroute([pos], state)
+        self.assertEqual(len(events2), 0)
+        
+        self.assertEqual(PlayingCard.objects.filter(contestant=self.contestant).count(), 1)

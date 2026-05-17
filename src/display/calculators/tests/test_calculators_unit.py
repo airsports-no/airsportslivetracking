@@ -717,54 +717,6 @@ class TestLandingPatternCalculator(CalculatorUnitTestBase):
         self.assertTrue(any(isinstance(e, LandingPassedEvent) for e in events))
 
 
-class TestPokerCalculator(CalculatorUnitTestBase):
-    @patch("display.calculators.poker_calculator.PolygonHelper")
-    def setUp(self, mock_polygon_helper):
-        super().setUp()
-        gate = MagicMock()
-        gate.name = "Poker 1"
-        gate.waypoint.latitude = 60.0
-        gate.waypoint.longitude = 11.0
-        # Make the mock prohibited_set.filter return something subscriptable
-        self.route.prohibited_set.filter.return_value = [MagicMock(name="Poker 1", path=[])]
-        # Explicitly set return value for filter since we accessed it by name before
-        self.route.prohibited_set.filter.return_value[0].name = "Poker 1"
-
-        self.calculator = PokerCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            self.score_processing_queue,
-            live_processing=False,
-            projector=self.projector,
-        )
-        # PolygonHelper is already mocked in setUp, but we need to re-mock the instance attributes
-        self.calculator.polygon_helper = MagicMock()
-
-    def test_check_polygons_passed(self):
-        # We need to re-initialize gate_polygons because it was built during __init__ with mocked filter
-        gate = MagicMock()
-        gate.name = "Poker 1"
-        self.calculator.gates = [gate]
-        self.calculator.gate_polygons = [("Poker 1", MagicMock())]
-        self.calculator.polygon_helper.check_inside_polygons.return_value = ["Poker 1"]
-
-        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        state = OrchestratorState(
-            last_gate=None,
-            last_visible_gate=None,
-            next_gate=None,
-            in_range_of_gate=None,
-            projector=self.projector,
-            has_passed_finishpoint=False,
-            recalculation_completed=True,
-        )
-
-        events = self.calculator.check_polygons(pos, state)
-
-        self.assertTrue(any(isinstance(e, PokerGatePassedEvent) for e in events))
-
-
 class TestProhibitedZoneCalculator(CalculatorUnitTestBase):
     @patch("display.calculators.prohibited_zone_calculator.PolygonHelper")
     def setUp(self, mock_polygon_helper):

@@ -144,4 +144,5 @@ class PokerCalculator(Calculator):
             PlayingCard.get_random_unique_card(self.contestant),
             event.gate.name,
             waypoint_index,
+            pos=event.position
         )
