@@ -34,6 +34,7 @@ from display.models import (
     FlightOrderConfiguration,
     UserUploadedMap,
 )
+from display.models.my_user import MyUser
 from display.poker.poker_cards import PLAYING_CARDS
 from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
 
@@ -932,9 +933,7 @@ class SignUpForm(forms.Form):
         )
 
     def clean_email(self):
-        email = self.cleaned_data.get("email").lower()
-        if MyUser.objects.filter(email=email).exists():
-            raise ValidationError("An account with this email already exists. Please log in or use the 'Forgot Password' tool.")
+        email = self.cleaned_data.get("email", "").lower()
         return email
 
     def clean(self):

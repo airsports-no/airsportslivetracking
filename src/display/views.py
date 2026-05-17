@@ -2489,14 +2489,20 @@ def signup(request):
                     messages.error(request, "User created but verification email could not be sent. Please use 'Forgot Password' to verify your account.")
                     return redirect("login")
 
-                # 4. Create Django User (Inactive or Unusable Password)
-                user = MyUser.objects.create_user(
+                # 4. Ensure Django User exists (Inactive or Unusable Password)
+                # Since MyUser is a local proxy for Firebase, we tolerate existing records.
+                user, created = MyUser.objects.get_or_create(
                     email=email,
-                    username=email,
-                    first_name=first_name,
-                    last_name=last_name,
-                    password=None # Local password is unusable, Firebase is source of truth
+                    defaults={
+                        "username": email,
+                        "first_name": first_name,
+                        "last_name": last_name,
+                    }
                 )
+                if not created:
+                    user.first_name = first_name
+                    user.last_name = last_name
+                
                 user.set_unusable_password()
                 user.save()
 
