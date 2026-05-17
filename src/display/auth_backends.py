@@ -85,6 +85,21 @@ class FirebaseMigrationBackend(ModelBackend):
         
         if firebase_success:
             logger.info(f"[Auth-Migration] User {username} authenticated successfully via FIREBASE.")
+            
+            # Check for email verification if it's a primary auth path
+            self._initialize_firebase()
+            try:
+                firebase_user = auth.get_user_by_email(username)
+                if not firebase_user.email_verified:
+                    logger.warning(f"[Auth-Migration] Rejecting login for {username}: Email not verified in Firebase.")
+                    from django.contrib import messages
+                    if request:
+                        messages.error(request, "Your email address has not been verified. Please check your inbox for the verification link.")
+                    return None
+            except Exception as e:
+                logger.error(f"[Auth-Migration] Error checking verification status for {username}: {e}")
+                # We continue if we can't check verification, to avoid locking users out due to transient SDK errors
+
             try:
                 from display.models import MyUser
                 # Use iexact to be case-insensitive and robust

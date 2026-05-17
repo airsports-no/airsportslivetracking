@@ -2438,6 +2438,7 @@ def signup(request):
     from firebase_admin import auth
     from display.auth_backends import FirebaseMigrationBackend
     from display.models import MyUser, Person
+    import requests
 
     if request.method == "POST":
         form = SignUpForm(request.POST)
@@ -2460,7 +2461,35 @@ def signup(request):
                 )
                 logger.info(f"[SignUp] Created Firebase user for {email}")
 
-                # 3. Create Django User
+                # 3. Trigger Email Verification
+                # We need an idToken to trigger the verification email via REST API.
+                # Since we just created the user with a password, we can sign them in.
+                api_key = getattr(settings, "FIREBASE_WEB_API_KEY", "")
+                signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+                signin_payload = {
+                    "email": email,
+                    "password": password,
+                    "returnSecureToken": True
+                }
+                signin_response = requests.post(signin_url, json=signin_payload, timeout=5)
+                signin_response.raise_for_status()
+                id_token = signin_response.json().get("idToken")
+
+                if id_token:
+                    verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={api_key}"
+                    verify_payload = {
+                        "requestType": "VERIFY_EMAIL",
+                        "idToken": id_token,
+                    }
+                    verify_response = requests.post(verify_url, json=verify_payload, timeout=5)
+                    verify_response.raise_for_status()
+                    logger.info(f"[SignUp] Verification email triggered for {email}")
+                else:
+                    logger.error(f"[SignUp] Failed to obtain idToken for {email} after creation.")
+                    messages.error(request, "User created but verification email could not be sent. Please use 'Forgot Password' to verify your account.")
+                    return redirect("login")
+
+                # 4. Create Django User (Inactive or Unusable Password)
                 user = MyUser.objects.create_user(
                     email=email,
                     username=email,
@@ -2471,7 +2500,7 @@ def signup(request):
                 user.set_unusable_password()
                 user.save()
 
-                # 4. Create Person profile
+                # 5. Create Person profile
                 # We use get_or_create in case a Person record exists without a user
                 person, created = Person.objects.get_or_create(
                     email=email,
@@ -2485,12 +2514,8 @@ def signup(request):
                     person.last_name = last_name
                     person.save()
 
-                # 5. Log user in
-                # We use FirebaseMigrationBackend because they are now "pre-authenticated" via the signup process
-                # and we've verified Firebase succeeded.
-                login(request, user, backend="display.auth_backends.FirebaseMigrationBackend")
-                messages.success(request, f"Welcome to Air Sports Live Tracking, {first_name}!")
-                return redirect("/")
+                # Do NOT log the user in automatically. They must verify email first.
+                return render(request, "registration/signup_success.html", {"email": email})
 
             except Exception as e:
                 # Handle cases like Email already exists in Firebase

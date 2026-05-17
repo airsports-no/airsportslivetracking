@@ -1,0 +1,22 @@
+{% extends "base_tailwind.html" %}
+
+{% block title %}Verify your email{% endblock %}
+
+{% block content %}
+<div class="hero min-h-screen bg-base-200">
+  <div class="hero-content text-center">
+    <div class="max-w-md">
+      <h1 class="text-5xl font-bold text-primary mb-8">Check your email!</h1>
+      <div class="card bg-base-100 shadow-xl p-8">
+        <p class="py-4 text-lg">We've sent a verification link to <span class="font-bold text-secondary">{{ email }}</span>.</p>
+        <p class="py-4">Please click the link in the email to activate your account. You won't be able to log in until your email is verified.</p>
+        <div class="divider"></div>
+        <p class="text-sm opacity-60 italic">Didn't get the email? Check your spam folder or wait a few minutes.</p>
+        <div class="card-actions justify-center mt-6">
+          <a href="{% url 'login' %}" class="btn btn-outline">Back to Login</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
