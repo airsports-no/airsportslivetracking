@@ -14,6 +14,11 @@ from queue import Queue
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 @patch("websocket_channels.WebsocketFacade")
 class TestPokerCalculator(TransactionTestCase):
+
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    @patch("websocket_channels.WebsocketFacade")
     def setUp(self, *args):
         from display.default_scorecards import default_scorecard_poker_run
         self.scorecard = default_scorecard_poker_run.get_default_scorecard()
