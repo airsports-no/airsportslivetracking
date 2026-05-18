@@ -12,7 +12,7 @@ from .route import *
 from .scorecard_and_gate_score import *
 from .scoring_models import *
 from .scoring_table_models import *
-from .team_structure import *
+from .team_structure import Team, Aeroplane, Crew, Person, Club
 from .user_uploaded_map import *
 from .flymaster_data import *
 from .newsletter import *

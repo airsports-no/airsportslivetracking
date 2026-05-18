@@ -114,6 +114,8 @@ from display.models import (
     ContestantReceivedPosition,
     Contest,
     Team,
+    Aeroplane,
+    Crew,
     Person,
     ContestTeam,
     MyUser,
@@ -137,6 +139,7 @@ from display.tasks import (
     recalculate_live_data_for_contestant,
 )
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
+from display.utilities.navigation_task_type_definitions import POKER, AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, PRECISION
 from display.waypoint import Waypoint
 from display.utilities.gate_definitions import (
     STARTINGPOINT,
@@ -2583,3 +2586,279 @@ def check_map_generation_status(request, task_id, contestant_id):
     if result:
         return JsonResponse(result)
     return JsonResponse({"status": "pending"})
+
+def quick_register(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    if not navigation_task.is_poker_run:
+        raise Http404("Quick registration is only available for Poker Run tasks.")
+    contest = navigation_task.contest
+    
+    if not request.user.is_authenticated:
+        return render(request, "display/quick_register_login.html", {"contest": contest, "navigation_task": navigation_task})
+
+    # Check if they already have an active registration for this task
+    # (One that hasn't finished yet)
+    existing_contestant = Contestant.objects.filter(
+        navigation_task=navigation_task,
+        team__crew__member1=request.user.person,
+        finished_by_time__gt=timezone.now()
+    ).first()
+    
+    if existing_contestant:
+        return render(request, "display/quick_register_success.html", {
+            "contest": contest,
+            "navigation_task": navigation_task,
+            "tail_number": existing_contestant.team.aeroplane.registration,
+            "contestant": existing_contestant
+        })
+
+    if request.method == "POST":
+        tail_number = request.POST.get("tail_number", "").strip().upper()
+        if tail_number:
+            # 1. Create/Get Aeroplane
+            aeroplane, _ = Aeroplane.objects.get_or_create(registration=tail_number)
+            
+            # 2. Create/Get Crew (member1 is current user)
+            crew, _ = Crew.objects.get_or_create(member1=request.user.person, member2=None)
+            
+            # 3. Create/Get Team
+            team, _ = Team.objects.get_or_create(aeroplane=aeroplane, crew=crew)
+            
+            # 4. Create ContestTeam
+            contest_team, _ = ContestTeam.objects.get_or_create(contest=contest, team=team)
+            
+            # 5. Create Contestant (Scheduled Flight)
+            # Determine next contestant number
+            last_contestant = Contestant.objects.filter(navigation_task=navigation_task).order_by("-contestant_number").first()
+            next_number = (last_contestant.contestant_number + 1) if last_contestant else 1
+            
+            takeoff_time = timezone.now()
+            # Default duration 6 hours
+            finished_by_time = takeoff_time + datetime.timedelta(hours=6)
+            # Tracker lead time 15 mins
+            tracker_start_time = takeoff_time - datetime.timedelta(minutes=15)
+            
+            Contestant.objects.create(
+                team=team,
+                navigation_task=navigation_task,
+                takeoff_time=takeoff_time,
+                finished_by_time=finished_by_time,
+                tracker_start_time=tracker_start_time,
+                contestant_number=next_number,
+                air_speed=contest_team.air_speed,
+                wind_speed=navigation_task.wind_speed,
+                wind_direction=navigation_task.wind_direction,
+                minutes_to_starting_point=navigation_task.minutes_to_starting_point,
+                tracking_service=contest_team.tracking_service,
+                tracking_device=contest_team.tracking_device,
+                tracker_device_id=contest_team.tracker_device_id,
+            )
+            
+            return render(request, "display/quick_register_success.html", {
+                "contest": contest,
+                "navigation_task": navigation_task,
+                "tail_number": tail_number
+            })
+
+    return render(request, "display/quick_register.html", {"contest": contest, "navigation_task": navigation_task})
+
+
+def generate_hangar_flyer_pdf(request, pk):
+    navigation_task = get_object_or_404(NavigationTask, pk=pk)
+    contest = navigation_task.contest
+    is_poker = navigation_task.is_poker_run
+
+    # Check permissions (only editors can generate flyer)
+    if not request.user.has_perm("display.change_contest", contest):
+        raise Http404("You do not have permission to generate the flyer.")
+
+    from fpdf import FPDF
+    import qrcode
+    from io import BytesIO
+    import os
+    import requests
+
+    def load_image_to_buffer(field, name_for_log):
+        if not field:
+            return None
+        # 1. Try Django storage API / local path
+        try:
+            with field.open('rb') as f:
+                return BytesIO(f.read())
+        except Exception as e:
+            logger.warning(f"Could not open {name_for_log} via storage: {e}")
+
+        # 2. Try fetching via URL (for remote storage or if disk is out of sync)
+        try:
+            url = field.url
+            if url.startswith('/'):
+                url = request.build_absolute_uri(url)
+            logger.info(f"Attempting to fetch {name_for_log} from URL: {url}")
+            resp = requests.get(url, timeout=3)
+            if resp.status_code == 200:
+                return BytesIO(resp.content)
+            else:
+                logger.warning(f"Failed to fetch {name_for_log} from {url}: status {resp.status_code}")
+        except Exception as e:
+            logger.warning(f"Error fetching {name_for_log} from URL: {e}")
+
+        return None
+
+    class MyFPDF(FPDF):
+        def footer(self):
+            self.set_y(-20)
+            logo_paths = [
+                "/workspace/src/static/img/AirSportsLiveTracking.png",
+                "/src/static/img/AirSportsLiveTracking.png",
+                "src/static/img/AirSportsLiveTracking.png"
+            ]
+            img_found = False
+            for img_path in logo_paths:
+                if os.path.exists(img_path):
+                    try:
+                        self.image(img_path, x=65, w=80)
+                        img_found = True
+                        break
+                    except Exception as e:
+                        logger.warning(f"FPDF could not render AirSports logo from {img_path}: {e}")
+
+            if not img_found:
+                self.set_font("helvetica", "I", 8)
+                self.set_text_color(150, 150, 150)
+                self.cell(0, 10, "Air Sports Live Tracking - https://airsports.no", align="C")
+
+    # Determine target URL
+    if is_poker:
+        target_url = request.build_absolute_uri(reverse('quick_register', args=[pk]))
+        subtitle = "Digital Poker Run - Navigation & Strategy Challenge"
+    else:
+        # Use frontend Schedule Flight page
+        base_url = request.build_absolute_uri('/')[:-1]
+        frontend_path = settings.FRONTEND_ROUTES.get('SCHEDULE_FLIGHT', 'schedule-flight')
+        target_url = f"{base_url}/{frontend_path}?contestId={contest.pk}&navigationTaskId={pk}"
+        subtitle = "Self-Management Signup - Navigation & Strategy Challenge"
+
+    # Prepare buffers
+    qr_img = qrcode.make(target_url)
+    qr_buf = BytesIO()
+    qr_img.save(qr_buf, format="PNG")
+    qr_buf.seek(0)
+
+    logo_buf = load_image_to_buffer(contest.logo, "contest logo")
+    header_buf = load_image_to_buffer(contest.header_image, "contest header")
+
+    pdf = MyFPDF()
+    pdf.add_page()
+
+    # 1. Header Section
+    pdf.set_font("helvetica", "B", 20)
+    pdf.cell(pdf.epw * 0.7, 10, contest.name)
+    if logo_buf:
+        try:
+            pdf.image(logo_buf, x=165, y=10, w=30)
+            pdf.set_x(pdf.l_margin)
+        except Exception as e:
+            logger.warning(f"FPDF error rendering logo: {e}")
+    pdf.ln(12)
+
+    pdf.set_font("helvetica", "B", 16)
+    pdf.set_text_color(0, 102, 204)
+    pdf.cell(pdf.epw, 10, navigation_task.name, new_x="LMARGIN", new_y="NEXT")
+
+    pdf.set_font("helvetica", "", 12)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(pdf.epw, 8, subtitle, new_x="LMARGIN", new_y="NEXT")
+
+    pdf.set_font("helvetica", "I", 10)
+    pdf.set_text_color(120, 120, 120)
+    pdf.cell(pdf.epw, 6, f"Competition Type: {navigation_task.original_scorecard.name}", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(5)
+
+    # 2. Contest Header Image
+
+    if header_buf:
+        try:
+            curr_y = pdf.get_y()
+            pdf.image(header_buf, x=15, y=curr_y, w=180)
+            pdf.set_x(pdf.l_margin)
+            pdf.set_y(pdf.get_y() + 5)
+        except Exception as e:
+            logger.warning(f"FPDF error rendering header image: {e}")
+
+    # 3. Welcome Text
+    pdf.set_font("helvetica", "", 12)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_x(pdf.l_margin)
+    pdf.write(6, "Welcome pilots! Today's flight uses Air Sports Live Tracking (ASLT) to automate scoring, manage your digital card deck, and live-stream our tracks straight to the hangar leaderboard.")
+    pdf.ln(10)
+    pdf.set_line_width(0.2)
+    pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+    pdf.ln(5)
+
+    # 4. QR Code Section
+    curr_y = pdf.get_y()
+    qr_w = 50
+    pdf.image(qr_buf, x=(pdf.w - qr_w) / 2, y=curr_y, w=qr_w)
+    pdf.set_x(pdf.l_margin)
+    pdf.set_y(curr_y + 55)
+    pdf.set_font("helvetica", "B", 16)
+    pdf.cell(pdf.epw, 8, "Scan to Register", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("helvetica", "I", 9)
+    pdf.cell(pdf.epw, 5, f"Target URL: {target_url}", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(5)
+    pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+    pdf.ln(5)
+
+    # 5. Steps Section
+    pdf.set_font("helvetica", "B", 14)
+    pdf.cell(pdf.epw, 10, "STEPS TO JOIN THE FLIGHT:", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("helvetica", "", 11)
+
+    if is_poker:
+        steps = [
+            "1. Scan the QR code above with your smartphone.",
+            "2. Enter your Tail Number on the quick web confirmation page.",
+            "3. Launch your native ASLT Mobile App normally.",
+            "4. Your pre-scheduled Poker Run flight will be active on your app dashboard. Tap 'Start Tracking' and fly!"
+        ]
+    else:
+        steps = [
+            "1. Scan the QR code above with your smartphone.",
+            "2. Complete the self-management signup on the web page.",
+            "3. Launch your native ASLT Mobile App normally.",
+            "4. Once registered, your flight will be active on your app dashboard. Tap 'Start Tracking' and fly!"
+        ]
+
+    for step in steps:
+        pdf.set_x(pdf.l_margin)
+        pdf.write(7, step)
+        pdf.ln(8)
+
+    pdf.ln(2)
+    pdf.set_font("helvetica", "I", 10)
+    pdf.set_text_color(80, 80, 80)
+    pdf.set_x(pdf.l_margin)
+    if is_poker:
+        challenge_text = "Optional Challenge Notice: Watch your navigation boundaries. Virtual Penalty Zones are active on this course. Brave the 'Extra Card Gate' if you want to gamble for a stronger poker hand, but mind the obstacles!"
+    else:
+        challenge_text = "Watch your navigation boundaries. Virtual Penalty Zones may be active on this course. Ensure your tracker is correctly configured before departure."
+
+    pdf.write(5, challenge_text)
+    pdf.ln(8)
+    pdf.set_font("helvetica", "", 9)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_x(pdf.l_margin)
+    pdf.write(5, "Platform Architecture: Open-source, ad-free community utility. https://airsports.no")
+    pdf.ln(5)
+
+    # Finalize PDF
+    try:
+
+        pdf_bytes = bytes(pdf.output())
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="hangar_flyer_{navigation_task.pk}.pdf"'
+        response["Content-Length"] = len(pdf_bytes)
+        return response
+    except Exception as e:
+        logger.error(f"Error finalizing PDF: {e}")
+        return HttpResponse(f"Error generating PDF: {e}", content_type="text/plain", status=500)

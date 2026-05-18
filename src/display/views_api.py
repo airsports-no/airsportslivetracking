@@ -168,7 +168,9 @@ def auto_complete_person_email(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_persons_for_signup(request):
-    return Response(PersonSignUpSerialiser(Person.objects.exclude(email=request.user.email), many=True).data)
+    # Filter for persons with valid-ish emails to prevent empty results or crashes
+    persons = Person.objects.exclude(email=request.user.email).filter(email__contains="@")
+    return Response(PersonSignUpSerialiser(persons, many=True).data)
 
 
 @extend_schema(responses={200: OpenApiTypes.ANY})

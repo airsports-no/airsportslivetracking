@@ -1,94 +1,42 @@
 ---
 layout: ../../layouts/DocsLayout.astro
-title: "Quick Start: Organizing a Poker Run"
+title: "Organizing and Flying an ASLT Digital Poker Run"
 ---
 
-# Quick Start: Organizing a Poker Run
+## Organizing and Flying an ASLT Digital Poker Run
 
-A Poker Run is a casual, social flying event where pilots visit various waypoints to collect digital playing cards. The crew with the best poker hand at the end wins. This guide covers everything from initial setup to live scoring.
+An ASLT Digital Poker Run eliminates the logistical headache of stationing volunteers at remote airfields to manually distribute playing cards. The platform automatically tracks aircraft via GPS, checks airspace boundaries against virtual penalty zones, and processes card dealing upon geofence triggers.
 
----
-
-## 1. Create the Contest
-
-Before you can add tasks, you need an overall contest container.
-
-1.  Log in to [app.airsports.no](https://app.airsports.no).
-2.  Go to **Management** > **My Contests**.
-3.  Click **Create New Contest**.
-4.  Enter the name (e.g., "Summer Fly-in Poker Run 2026") and location.
-5.  Set the visibility to **Public** if you want it to appear on the global map.
-6.  Save the contest.
-
-## 2. Design the Route
-
-The route defines where the pilots will fly and where cards are "dealt."
-
-1.  In your mission dashboard, go to the **Routes** tab.
-2.  Click **Create New Route**.
-3.  **Add Waypoints:** Click on the map to add the sequence of airports or landmarks. 
-4.  **Configure Collection Zones:** 
-    *   For Poker Runs, each waypoint is treated as a **circular collection zone**.
-    *   The size of the circle is determined by the **Gate Width** property of each waypoint.
-    *   The collection zone is a circle centered on the waypoint with a **radius** equal to half the width.
-    *   *Example: Setting a gate width of 1.0 NM creates a collection circle with a diameter of 1.0 NM (0.5 NM radius) around the point.*
-5.  **Save the Route.**
-
-## 3. Configure the Navigation Task
-
-The task brings the route and poker rules together.
-
-1.  In your contest dashboard, go to the **Tasks** tab.
-2.  Click **Add Navigation Task**.
-3.  Select your newly created **Route**.
-4.  **Select Scorecard:** Choose the **Pilot Poker Run** scorecard. This automatically sets the calculation engine to Poker mode.
-5.  Set the **Start Time** and **Finish Time** for the window when pilots can fly.
-6.  Save the task.
+### Organizer Setup Process
+1. **Design your Course:** Use the ASLT web management portal to draw circle geofences over your destination airports. 
+2. **Add Strategic Challenges (Optional):** Layer polygon "Penalty Zones" between airfields. You can intentionally position an "Extra Card Gate" guarded by tight tactical airspace corridors to force pilots into real-time risk-vs-reward decisions.
+3. **Print your Hangar Materials:** Click "Generate Hangar Flyer" on your event dashboard. Print the page containing your custom event registration QR code and flight order matrix, then mount it prominently on the clubhouse or hangar wall.
+4. **Manual Card Management (Optional):** If a pilot misses a collection zone due to tracking issues or if you need to correct a hand manually, you can adjust cards directly. In the **Navigation Task** management view, click the **Actions** icon next to any contestant and select **Playing Cards** to add or remove specific cards from their deck.
 
 ---
 
-## 4. Participant Setup
+### Pilot Quick-Start Checklist
 
-### Downloading the App
-Contestants must use the **Air Sports Live Tracking** app to record their flight and receive cards.
-*   **iOS:** [Apple App Store](https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686)
-*   **Android:** [Google Play Store](https://play.google.com/store/apps/details?id=no.airsports.android.livetracking)
+#### 1. Pre-Flight Setup (Do this at home)
+* **Download the App:** Ensure you have the **Air Sports Live Tracking (ASLT)** app installed on your iOS or Android device.
+* **Log In:** Open the app and log into your user profile.
+* **Verify Subscription:** Confirm your pilot tracking subscription is current (€3.69/month or €8.99/year). 
+  > *Note: ASLT is a true non-profit, open-source platform backed by national flying federations. 100% of app subscriptions directly fund ongoing mobile software engineering, security updates, and high-precision telemetry infrastructure.*
 
-### Registration
-There are two ways to get pilots into your task:
+#### 2. Before Engine Start (At the Hangar Wall)
+* **Scan to Register:** Locate the printed flyer on the hangar wall, scan the QR code with your smartphone, input your aircraft registration/tail number, and confirm.
+* **Initialize Payload:** Once the web page confirms registration, close your mobile browser and open your native **ASLT Mobile App** manually. Your pre-scheduled Poker Run flight will automatically be sitting active on your main dashboard.
+* **Check Status:** Verify your device battery level (connect to cockpit power if available) and ensure location services/GPS permissions are fully enabled.
 
-#### Option A: Self-Registration (Recommended for social events)
-1. Ensure **"Allow Self Management"** is enabled in your Task settings.
-2. Pilots find the contest on the dashboard at `app.airsports.no`.
-3. They click **Register** to enter their details and then **Schedule Flight** to join the task.
+#### 3. Taxiing & Takeoff
+* **Initiate Tracking:** Right before pulling out of your parking box or beginning your taxi checklist, press the prominent **"Start Tracking"** button inside the app UI.
+* **Secure Placement:** Mount the mobile device firmly on your glare shield or kneeboard with an uncompromised line-of-sight to the sky for maximum GPS satellite geometry performance.
+* **Background Execution:** You can turn the device display off to optimize thermal limits and conserve battery power. The core logging engine executes uninterrupted in the background.
 
-#### Option B: Manual Registration
-1. As an organizer, go to the **Teams** tab in your contest.
-2. Add the pilot and co-pilot details.
-3. In the **Contestant Schedule** of the Navigation Task, add the team to a slot.
+#### 4. Airborne Operations
+* **Automated Geofencing:** As your aircraft cuts through the predefined airport geofences, the cloud engine logs your track and issues a digital card to your deck. Cockpit distraction is zero—there is no need to touch the device during flight.
+* **Tactical Airmanship:** Maintain separation from the virtual penalty zones detailed in your morning briefing. If pursuing the optional "Extra Card Gate," navigate the narrow checkpoint lanes accurately to build a stronger card hand.
 
----
-
-## 5. Live Tracking and Scores
-
-Once the flight window begins, you can monitor the action in real-time.
-
-1.  **Find the Map:** From the contest page on `app.airsports.no`, click on the **Live Map** button next to your Poker Run task.
-2.  **View the Hand:** As pilots cross gates, their cards will appear instantly on the map.
-3.  **Leaderboard:** The **Results** tab in your contest will show the current hands and estimated poker rankings as pilots land.
-
----
-
-## 6. Manual Card Management
-
-If a pilot misses a collection zone due to tracking issues, or if you need to correct a hand manually, organizers can manage cards directly.
-
-1.  Go to the **Navigation Task** management view (where you see the list of contestants).
-2.  Find the contestant in the list.
-3.  Click the **Actions** button (three dots or gear icon) next to their name.
-4.  Select **Playing Cards**.
-5.  From this screen, you can **Add** a specific card to their hand or **Remove** existing ones. Any changes will be updated instantly on the Live Map and Leaderboard.
-
----
-
-*Need more detail? Check out the full [Contest Manager Guide](/docs/03_Contest_Manager_Guide).*
+#### 5. Shutdown & Scoring
+* **Terminate Tracking:** Once clear of the active runway at your final destination, open the app dashboard and press **"Stop Tracking."**
+* **Leaderboard Sync:** Walk into the hangar base. Your precise track, penalty data, and final poker combinations are calculated live and projected directly on the master event display.

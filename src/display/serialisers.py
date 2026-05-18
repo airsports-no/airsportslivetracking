@@ -77,9 +77,16 @@ class MangledEmailField(serializers.Field):
         """
         Serialize the value's class name.
         """
-        name, domain = value.split("@")
-        levels = domain.split(".")
-        return f"{name}@*****.{'.'.join(levels[1:])}"
+        if not value or "@" not in value:
+            return value
+        try:
+            name, domain = value.split("@")
+            levels = domain.split(".")
+            if len(levels) > 1:
+                return f"{name}@*****.{'.'.join(levels[1:])}"
+            return f"{name}@*****"
+        except (ValueError, AttributeError):
+            return value
 
 
 class AeroplaneSerialiser(serializers.ModelSerializer):

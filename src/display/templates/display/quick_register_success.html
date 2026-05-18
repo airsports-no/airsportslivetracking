@@ -1,0 +1,42 @@
+{% extends "base_tailwind.html" %}
+{% load frontend_urls %}
+{% load lucide %}
+{% load tz %}
+{% block content %}
+<div class="container mx-auto p-4 md:p-8 max-w-md">
+    <div class="card bg-success text-success-content shadow-xl">
+        <div class="card-body items-center text-center">
+            {% if contest.logo %}
+            <div class="mb-4">
+                <img src="{{ contest.logo.url }}" alt="{{ contest.name }} logo" class="max-h-24 object-contain brightness-0 invert">
+            </div>
+            {% endif %}
+            <h2 class="card-title text-3xl mb-2">Registration Successful!</h2>
+            <p class="opacity-90">{{ navigation_task.name }}</p>
+            
+            <div class="my-6">
+                <a href="{% fe_url 'COMPETITION_MAP_DETAIL' contestId=contest.pk navigationTaskId=navigation_task.pk %}" class="btn btn-lg btn-primary gap-2 shadow-lg">
+                    {% lucide "map-pin" %}
+                    Open Live Map
+                </a>
+            </div>
+
+            <p class="text-lg font-bold">Tail Number: {{ tail_number }}</p>
+            <p class="mt-2">Your flight has been scheduled and is ready for departure.</p>
+            <p class="text-sm opacity-90 italic">You have until <strong>{{ contestant.finished_by_time|timezone:contest.time_zone|date:"H:i" }}</strong> local time to complete the task.</p>
+            
+            <div class="divider"></div>
+            
+            <h3 class="text-xl font-bold mt-2">Next Step:</h3>
+            <div class="bg-base-100 text-base-content p-4 rounded-lg shadow-inner mt-2">
+                <p class="font-bold">Open your native ASLT App manually.</p>
+                <p class="text-sm mt-2">The Poker Run flight will be waiting on your main dashboard. Tap "Start Tracking" and fly!</p>
+            </div>
+            
+            <div class="card-actions justify-center mt-8">
+                <a href="/" class="btn btn-ghost">Return to Home</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

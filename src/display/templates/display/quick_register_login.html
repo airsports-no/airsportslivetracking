@@ -1,0 +1,24 @@
+{% extends "base_tailwind.html" %}
+{% block content %}
+<div class="container mx-auto p-4 md:p-8 max-w-md">
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            {% if contest.logo %}
+            <div class="flex justify-center mb-4">
+                <img src="{{ contest.logo.url }}" alt="{{ contest.name }} logo" class="max-h-24 object-contain">
+            </div>
+            {% endif %}
+            <h2 class="card-title text-2xl mb-4">Login Required</h2>
+            <p class="mb-6">Please log in or sign up to register for <strong>{{ contest.name }} - {{ navigation_task.name }}</strong>.</p>
+            
+            <div class="flex flex-col gap-4">
+                <a href="{% url 'login' %}?next={{ request.get_full_path }}" class="btn btn-primary text-lg">Log In</a>
+                <a href="{% url 'signup' %}?next={{ request.get_full_path }}" class="btn btn-outline text-lg">Sign Up</a>
+            </div>
+            
+            <div class="divider mt-8"></div>
+            <p class="text-xs text-center opacity-70">Air Sports Live Tracking is a non-profit, open-source platform.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

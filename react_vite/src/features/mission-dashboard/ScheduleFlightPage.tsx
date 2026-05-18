@@ -4,7 +4,7 @@ import { fetchContest, fetchMyContestTeams } from './api';
 import { Contest, MyContestTeam } from './types';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
 import { Loading } from '../route-editor/components/basicComponents';
-import { generatePath } from '../../urls';
+import { generatePath, reverse } from '../../urls';
 
 const ScheduleFlightPage = () => {
     const [searchParams] = useSearchParams();
@@ -32,12 +32,22 @@ const ScheduleFlightPage = () => {
                 ]);
                 setContest(contestData);
                 setMyContestTeams(teamsData);
-            } catch (err) {
+                setLoading(false);
+            } catch (err: any) {
+                if (err.status === 401 || err.status === 403) {
+                    const next = encodeURIComponent(window.location.pathname + window.location.search);
+                    let loginUrl = reverse('login');
+                    if (loginUrl.includes('url-initialization-failed')) {
+                        loginUrl = '/accounts/login/';
+                    }
+                    window.location.href = `${loginUrl}?next=${next}`;
+                    return;
+                }
                 setError((err as Error).message);
-            } finally {
                 setLoading(false);
             }
         };
+
 
         loadData();
     }, [contestId, navigationTaskId]);

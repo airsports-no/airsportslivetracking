@@ -117,6 +117,23 @@
                                     <div class="opacity-70 mb-1">Scorecard:</div>
                                     <div class="truncate">{{ navigation_task.original_scorecard }}</div>
                                 </div>
+                                {% if "change_contest" in contest_permissions %}
+                                <div class="mt-4">
+                                    {% if navigation_task.allow_self_management %}
+                                    <a href="{% url 'hangar_flyer' navigation_task.pk %}" class="btn btn-xs btn-outline w-full gap-1">
+                                        {% lucide "file-text" size=12 %}
+                                        Hangar Flyer
+                                    </a>
+                                    {% else %}
+                                    <div class="tooltip tooltip-bottom w-full" data-tip="Enable 'Allow self-management' in task settings to use the flyer">
+                                        <button class="btn btn-xs btn-outline w-full gap-1" disabled>
+                                            {% lucide "file-text" size=12 %}
+                                            Hangar Flyer
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
