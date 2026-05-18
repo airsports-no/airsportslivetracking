@@ -2745,21 +2745,67 @@ def generate_hangar_flyer_pdf(request, pk):
     qr_buf.seek(0)
 
     logo_buf = load_image_to_buffer(contest.logo, "contest logo")
+    # if not logo_buf:
+    #     fallback_logo = "/workspace/airsports_static/public/img/airsports.png"
+    #     if os.path.exists(fallback_logo):
+    #         with open(fallback_logo, 'rb') as f:
+    #             logo_buf = BytesIO(f.read())
+
     header_buf = load_image_to_buffer(contest.header_image, "contest header")
+    # if not header_buf:
+    #     fallback_header = "/workspace/airsports_static/public/img/nordic2025.png"
+    #     if os.path.exists(fallback_header):
+    #         with open(fallback_header, 'rb') as f:
+    #             header_buf = BytesIO(f.read())
 
     pdf = MyFPDF()
     pdf.add_page()
 
-    # 1. Header Section
-    pdf.set_font("helvetica", "B", 20)
-    pdf.cell(pdf.epw * 0.7, 10, contest.name)
-    if logo_buf:
+    # 1. Contest Header Image (at the top, fixed height to ensure one-page layout)
+    if header_buf:
         try:
-            pdf.image(logo_buf, x=165, y=10, w=30)
-            pdf.set_x(pdf.l_margin)
+            # Zoom to fit: Crop top and bottom instead of squeezing
+            # We want to fill 190x40mm. 
+            # We'll use FPDF's image() with a negative height or manual cropping if needed,
+            # but usually, we can just let it overflow or use a clip.
+            # Simplified approach: Use a fixed width and let it maintain aspect ratio, 
+            # but since we need a fixed height container, we'll use the 'keep aspect ratio' logic.
+            
+            from PIL import Image
+            header_buf.seek(0)
+            with Image.open(header_buf) as img:
+                img_w, img_h = img.size
+                aspect = img_w / img_h
+                target_w = 190
+                target_h = 40
+                target_aspect = target_w / target_h
+                
+                if aspect > target_aspect:
+                    # Image is wider than target area - crop sides
+                    new_w = img_h * target_aspect
+                    left = (img_w - new_w) / 2
+                    img_cropped = img.crop((left, 0, left + new_w, img_h))
+                else:
+                    # Image is taller than target area - crop top/bottom
+                    new_h = img_w / target_aspect
+                    top = (img_h - new_h) / 2
+                    img_cropped = img.crop((0, top, img_w, top + new_h))
+                
+                temp_header_buf = BytesIO()
+                img_cropped.save(temp_header_buf, format="PNG")
+                temp_header_buf.seek(0)
+                pdf.image(temp_header_buf, x=10, y=10, w=target_w, h=target_h)
+            
+            pdf.set_y(55)
         except Exception as e:
-            logger.warning(f"FPDF error rendering logo: {e}")
-    pdf.ln(12)
+            logger.warning(f"FPDF error rendering header image: {e}")
+            pdf.set_y(10)
+    else:
+        pdf.set_y(10)
+
+    # 2. Contest & Task Titles
+    pdf.set_font("helvetica", "B", 20)
+    pdf.cell(pdf.epw, 10, contest.name, new_x="LMARGIN", new_y="NEXT")
 
     pdf.set_font("helvetica", "B", 16)
     pdf.set_text_color(0, 102, 204)
@@ -2774,17 +2820,6 @@ def generate_hangar_flyer_pdf(request, pk):
     pdf.cell(pdf.epw, 6, f"Competition Type: {navigation_task.original_scorecard.name}", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(5)
 
-    # 2. Contest Header Image
-
-    if header_buf:
-        try:
-            curr_y = pdf.get_y()
-            pdf.image(header_buf, x=15, y=curr_y, w=180)
-            pdf.set_x(pdf.l_margin)
-            pdf.set_y(pdf.get_y() + 5)
-        except Exception as e:
-            logger.warning(f"FPDF error rendering header image: {e}")
-
     # 3. Welcome Text
     pdf.set_font("helvetica", "", 12)
     pdf.set_text_color(0, 0, 0)
@@ -2797,10 +2832,10 @@ def generate_hangar_flyer_pdf(request, pk):
 
     # 4. QR Code Section
     curr_y = pdf.get_y()
-    qr_w = 50
+    qr_w = 45
     pdf.image(qr_buf, x=(pdf.w - qr_w) / 2, y=curr_y, w=qr_w)
     pdf.set_x(pdf.l_margin)
-    pdf.set_y(curr_y + 55)
+    pdf.set_y(curr_y + 50)
     pdf.set_font("helvetica", "B", 16)
     pdf.cell(pdf.epw, 8, "Scan to Register", align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("helvetica", "I", 9)
@@ -2844,12 +2879,15 @@ def generate_hangar_flyer_pdf(request, pk):
         challenge_text = "Watch your navigation boundaries. Virtual Penalty Zones may be active on this course. Ensure your tracker is correctly configured before departure."
 
     pdf.write(5, challenge_text)
-    pdf.ln(8)
-    pdf.set_font("helvetica", "", 9)
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_x(pdf.l_margin)
-    pdf.write(5, "Platform Architecture: Open-source, ad-free community utility. https://airsports.no")
     pdf.ln(5)
+
+    # 6. Contest Logo (at the bottom)
+    if logo_buf:
+        try:
+            # Position it at the bottom right
+            pdf.image(logo_buf, x=170, y=255, w=30)
+        except Exception as e:
+            logger.warning(f"FPDF error rendering logo at bottom: {e}")
 
     # Finalize PDF
     try:
