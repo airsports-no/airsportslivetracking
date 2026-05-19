@@ -283,6 +283,11 @@ urlpatterns = [
         change_user_editableroute_permissions,
         name="editableroute_permissions_change",
     ),
+    path(
+        "editableroute/<int:pk>/permissions/<int:user_pk>/delete",
+        delete_user_editableroute_permissions,
+        name="editableroute_permissions_delete",
+    ),
     path("navigationtask/<int:pk>/quick_register/", quick_register, name="quick_register"),
     path("navigationtask/<int:pk>/hangar_flyer/", generate_hangar_flyer_pdf, name="hangar_flyer"),
 ]
