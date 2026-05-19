@@ -605,13 +605,13 @@ class ContestViewSet(ModelViewSet):
         """
         contest = self.get_object()
         serialiser = self.get_serializer(data=request.data)  # type: SharingSerialiser
-        if serialiser.is_valid():
-            if serialiser.validated_data["visibility"] == serialiser.PUBLIC:
-                contest.make_public()
-            elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
-                contest.make_private()
-            elif serialiser.validated_data["visibility"] == serialiser.UNLISTED:
-                contest.make_unlisted()
+        serialiser.is_valid(raise_exception=True)
+        if serialiser.validated_data["visibility"] == serialiser.PUBLIC:
+            contest.make_public()
+        elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
+            contest.make_private()
+        elif serialiser.validated_data["visibility"] == serialiser.UNLISTED:
+            contest.make_unlisted()
         return Response(serialiser.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"])
@@ -879,7 +879,7 @@ class ContestViewSet(ModelViewSet):
         if request.method == "POST":
             contest = None
         serialiser = self.get_serializer(instance=contest, data=request.data)
-        serialiser.is_valid()
+        serialiser.is_valid(raise_exception=True)
         contest_team = serialiser.save()
         return Response(ContestTeamSerialiser(contest_team).data, status=status.HTTP_201_CREATED)
 
@@ -1056,7 +1056,7 @@ class NavigationTaskViewSet(ModelViewSet):
         navigation_task = self.get_object()  # type: NavigationTask
         if request.method == "PUT":
             serialiser = self.get_serializer(instance=navigation_task.scorecard, data=request.data)
-            serialiser.is_valid()
+            serialiser.is_valid(raise_exception=True)
             serialiser.save()
             return Response(serialiser.data, status=status.HTTP_200_OK)
         else:
@@ -1223,13 +1223,13 @@ class NavigationTaskViewSet(ModelViewSet):
         """
         navigation_task = self.get_object()
         serialiser = self.get_serializer(data=request.data)  # type: SharingSerialiser
-        if serialiser.is_valid():
-            if serialiser.validated_data["visibility"] == serialiser.PUBLIC:
-                navigation_task.make_public()
-            elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
-                navigation_task.make_private()
-            elif serialiser.validated_data["visibility"] == serialiser.UNLISTED:
-                navigation_task.make_unlisted()
+        serialiser.is_valid(raise_exception=True)
+        if serialiser.validated_data["visibility"] == serialiser.PUBLIC:
+            navigation_task.make_public()
+        elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
+            navigation_task.make_private()
+        elif serialiser.validated_data["visibility"] == serialiser.UNLISTED:
+            navigation_task.make_unlisted()
         return Response(serialiser.data, status=status.HTTP_200_OK)
 
 

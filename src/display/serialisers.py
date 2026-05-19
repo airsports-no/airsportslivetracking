@@ -259,19 +259,19 @@ class TeamNestedSerialiser(CountryFieldMixin, serializers.ModelSerializer):
         aeroplane_data = validated_data.pop("aeroplane")
         aeroplane_instance = Aeroplane.objects.filter(registration=aeroplane_data.get("registration")).first()
         aeroplane_serialiser = AeroplaneSerialiser(instance=aeroplane_instance, data=aeroplane_data)
-        aeroplane_serialiser.is_valid()
+        aeroplane_serialiser.is_valid(raise_exception=True)
         aeroplane = aeroplane_serialiser.save()
         crew_data = validated_data.pop("crew")
         crew_instance = Crew.objects.filter(pk=crew_data.get("id")).first()
         crew_serialiser = CrewSerialiser(instance=crew_instance, data=crew_data)
-        crew_serialiser.is_valid()
+        crew_serialiser.is_valid(raise_exception=True)
         crew = crew_serialiser.save()
         club = None
         club_data = validated_data.pop("club", None)
         if club_data:
             club_instance = Club.objects.filter(name=club_data.get("name")).first()
             club_serialiser = ClubSerialiser(instance=club_instance, data=club_data)
-            club_serialiser.is_valid()
+            club_serialiser.is_valid(raise_exception=True)
             club = club_serialiser.save()
         return aeroplane, crew, club
 
@@ -1266,7 +1266,7 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
     def create(self, validated_data):
         team_data = validated_data.pop("team")
         team_serialiser = TeamNestedSerialiser(data=team_data)
-        team_serialiser.is_valid()
+        team_serialiser.is_valid(raise_exception=True)
         team = team_serialiser.save()
         validated_data["team"] = team
         return super().create(validated_data)
@@ -1279,7 +1279,7 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
             except ObjectDoesNotExist:
                 team_instance = None
             team_serialiser = TeamNestedSerialiser(instance=team_instance, data=team_data)
-            team_serialiser.is_valid()
+            team_serialiser.is_valid(raise_exception=True)
             team = team_serialiser.save()
             validated_data.update({"team": team.pk})
         return super().update(instance, validated_data)
@@ -1362,7 +1362,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
 
         route = validated_data.pop("route", None)
         route_serialiser = RouteSerialiser(data=route)
-        route_serialiser.is_valid()
+        route_serialiser.is_valid(raise_exception=True)
         route = route_serialiser.save()
         assign_perm("view_route", user, route)
         assign_perm("delete_route", user, route)
@@ -1372,7 +1372,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
             contestant_serialiser = ContestantNestedTeamSerialiser(
                 data=contestant_data, context={"navigation_task": navigation_task}
             )
-            contestant_serialiser.is_valid()
+            contestant_serialiser.is_valid(raise_exception=True)
             contestant_serialiser.save()
         return navigation_task
 
@@ -1494,7 +1494,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             contestant_serialiser = self.internal_serialiser(
                 data=contestant_set, many=True, context={"navigation_task": navigation_task}
             )
-            contestant_serialiser.is_valid()
+            contestant_serialiser.is_valid(raise_exception=True)
         contestant_serialiser.save()
         return navigation_task
 
