@@ -630,10 +630,11 @@ PROHIBITED_COLOURS = {
 def plot_prohibited_polygon(
     target_projection, ax, polygon_path, fill_colour: str, line_colour: str, font_size: int, name
 ):
+    if len(polygon_path) < 3:
+        return
     line = []
     for element in polygon_path:
         line.append(target_projection.transform_point(*list(element), ccrs.PlateCarree()))
-    print(f"Plotting prohibited zone: {name} with line {polygon_path}")
     polygon = Polygon(line)
     centre = polygon.centroid
     ax.add_geometries(
@@ -1129,73 +1130,73 @@ def plot_precision_track(
 #     nx, ny = da.sizes['x'], da.sizes['y']
 #     x, y = np.meshgrid(np.arange(nx), np.arange(ny)) * transform
 def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
-    plt.figure(figsize=(3, 3))
-    imagery = OSM(user_agent="airsports.no, support@airsports.no")
-    ax = plt.axes(projection=imagery.crs)
-    editable_track = editable_route.get_feature_type("route_path")
-    print(editable_track)
-    if editable_track is not None:
-        tracks = [[]]
-        coordinates = editable_route.get_feature_coordinates(editable_track)
-        track_points = editable_route.get_ordered_track_waypoints()
-        for index, (latitude, longitude) in enumerate(coordinates):
-            item = track_points[index]
-            tracks[-1].append((latitude, longitude))
-            print(item)
-            plt.text(
-                longitude,
-                latitude,
-                " " + item["properties"]["name"],
-                verticalalignment="center",
-                color="red",
-                horizontalalignment="left",
-                transform=ccrs.PlateCarree(),
-                fontsize=8,
-                family="monospace",
-                clip_on=True,
-            )
-        print(tracks)
-        for track in tracks:
-            path = np.array(track)
-            ys, xs = path.T
-            plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=1)
-    takeoff_gates = editable_route.get_features_type("to")
-    for takeoff_gate in takeoff_gates:
-        takeoff_gate_line = editable_route.get_feature_coordinates(takeoff_gate)
-        path = np.array(takeoff_gate_line)
-        print(path)
-        ys, xs = path.T
-        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=1)
-    landing_gates = editable_route.get_features_type("ldg")
-    for landing_gate in landing_gates:
-        landing_gate_line = editable_route.get_feature_coordinates(landing_gate)
-        print(path)
-        path = np.array(landing_gate_line)
-        ys, xs = path.T
-        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1)
-    # for zone_type in ("info", "penalty", "prohibited", "gate"):
-    for feature in editable_route.route["features"]:
-        f_type = feature.get("properties", {}).get("featureType")
-        if f_type in ("zone", "waypoint_polygon"):
-            fill_colour, line_colour, font_size = PROHIBITED_COLOURS.get(
-                feature["properties"].get("polygonType", "waypoint" if f_type == "waypoint_polygon" else ""), 
-                ("blue", "darkblue", 4)
-            )
-            print(feature)
-            plot_prohibited_polygon(
-                imagery.crs,
-                ax,
-                editable_route.get_feature_coordinates(feature, flip=True),
-                fill_colour,
-                line_colour,
-                font_size,
-                feature["properties"]["name"],
-            )
-    ax.add_image(imagery, 11)
-    figdata = BytesIO()
-    plt.savefig(figdata, format="png", dpi=100, transparent=True)  # , bbox_inches="tight", pad_inches=margin_inches/2)
-    figdata.seek(0)
-    return figdata
+    fig = plt.figure(figsize=(3, 3))
+    try:
+        imagery = OSM(user_agent="airsports.no, support@airsports.no")
+        ax = plt.axes(projection=imagery.crs)
+        editable_track = editable_route.get_feature_type("route_path")
+        if editable_track is not None:
+            tracks = [[]]
+            coordinates = editable_route.get_feature_coordinates(editable_track)
+            track_points = editable_route.get_ordered_track_waypoints()
+            for index, (latitude, longitude) in enumerate(coordinates):
+                item = track_points[index]
+                tracks[-1].append((latitude, longitude))
+                plt.text(
+                    longitude,
+                    latitude,
+                    " " + item["properties"]["name"],
+                    verticalalignment="center",
+                    color="red",
+                    horizontalalignment="left",
+                    transform=ccrs.PlateCarree(),
+                    fontsize=8,
+                    family="monospace",
+                    clip_on=True,
+                )
+            for track in tracks:
+                path = np.array(track)
+                if path.size > 0:
+                    ys, xs = path.T
+                    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=1)
+        takeoff_gates = editable_route.get_features_type("to")
+        for takeoff_gate in takeoff_gates:
+            takeoff_gate_line = editable_route.get_feature_coordinates(takeoff_gate)
+            path = np.array(takeoff_gate_line)
+            if path.size > 0:
+                ys, xs = path.T
+                plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=1)
+        landing_gates = editable_route.get_features_type("ldg")
+        for landing_gate in landing_gates:
+            landing_gate_line = editable_route.get_feature_coordinates(landing_gate)
+            path = np.array(landing_gate_line)
+            if path.size > 0:
+                ys, xs = path.T
+                plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1)
+        # for zone_type in ("info", "penalty", "prohibited", "gate"):
+        for feature in editable_route.route["features"]:
+            f_type = feature.get("properties", {}).get("featureType")
+            if f_type in ("zone", "waypoint_polygon"):
+                fill_colour, line_colour, font_size = PROHIBITED_COLOURS.get(
+                    feature["properties"].get("polygonType", "waypoint" if f_type == "waypoint_polygon" else ""), 
+                    ("blue", "darkblue", 4)
+                )
+                plot_prohibited_polygon(
+                    imagery.crs,
+                    ax,
+                    editable_route.get_feature_coordinates(feature, flip=True),
+                    fill_colour,
+                    line_colour,
+                    font_size,
+                    feature["properties"]["name"],
+                )
+        ax.add_image(imagery, 11)
+        figdata = BytesIO()
+        plt.savefig(figdata, format="png", dpi=100, transparent=True)  # , bbox_inches="tight", pad_inches=margin_inches/2)
+        figdata.seek(0)
+        return figdata
+    finally:
+        plt.close(fig)
 
 
 def plot_route(

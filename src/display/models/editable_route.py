@@ -437,13 +437,15 @@ class EditableRoute(models.Model):
         """
         editable_route = EditableRoute.objects.create(name=name, route=route)
         try:
-            editable_route.thumbnail.save(
-                editable_route.name + "_thumbnail.png",
-                ContentFile(editable_route.create_thumbnail().getvalue()),
-                save=True,
-            )
-        except:
-            logger.exception("Failed creating editable route thumbnail. Editable route is still created.")
+            thumbnail_data = editable_route.create_thumbnail()
+            if thumbnail_data:
+                editable_route.thumbnail.save(
+                    editable_route.name + "_thumbnail.png",
+                    ContentFile(thumbnail_data.getvalue()),
+                    save=True,
+                )
+        except Exception:
+            logger.exception(f"Failed creating thumbnail for EditableRoute {editable_route.pk}. Editable route is still created.")
         return editable_route
 
     def update_thumbnail(self):
@@ -451,13 +453,15 @@ class EditableRoute(models.Model):
         Update the thumbnail image for the editable route.
         """
         try:
-            self.thumbnail.save(
-                self.name + "_thumbnail.png",
-                ContentFile(self.create_thumbnail().getvalue()),
-                save=True,
-            )
-        except:
-            logger.exception("Failed updating editable route thumbnail")
+            thumbnail_data = self.create_thumbnail()
+            if thumbnail_data:
+                self.thumbnail.save(
+                    self.name + "_thumbnail.png",
+                    ContentFile(thumbnail_data.getvalue()),
+                    save=True,
+                )
+        except Exception:
+            logger.exception(f"Failed updating thumbnail for EditableRoute {self.pk}")
 
     @classmethod
     def create_from_kml(cls, route_name: str, kml_content: TextIO) -> tuple[Optional["EditableRoute"], list[str]]:

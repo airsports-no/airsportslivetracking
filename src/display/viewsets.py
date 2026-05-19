@@ -386,13 +386,15 @@ class EditableRouteViewSet(ModelViewSet):
     def perform_create(self, serializer):
         super().perform_create(serializer)
         try:
-            serializer.instance.thumbnail.save(
-                serializer.instance.name + "_thumbnail.png",
-                ContentFile(serializer.instance.create_thumbnail().getvalue()),
-                save=True,
-            )
-        except:
-            logger.exception("Failed creating editable route thumbnail")
+            thumbnail_data = serializer.instance.create_thumbnail()
+            if thumbnail_data:
+                serializer.instance.thumbnail.save(
+                    serializer.instance.name + "_thumbnail.png",
+                    ContentFile(thumbnail_data.getvalue()),
+                    save=True,
+                )
+        except Exception:
+            logger.exception(f"Failed creating thumbnail for EditableRoute {serializer.instance.pk}")
 
 
 TRACK_DATA_PAGE_SIZE_MINUTES = 30
