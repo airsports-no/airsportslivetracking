@@ -879,7 +879,7 @@ class ContestViewSet(ModelViewSet):
         if request.method == "POST":
             contest = None
         serialiser = self.get_serializer(instance=contest, data=request.data)
-        serialiser.is_valid()
+        serialiser.is_valid(raise_exception=True)
         contest_team = serialiser.save()
         return Response(ContestTeamSerialiser(contest_team).data, status=status.HTTP_201_CREATED)
 
