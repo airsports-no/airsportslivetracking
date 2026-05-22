@@ -27,7 +27,7 @@ spec:
       labels:
         service: mbtiles
     spec:
-      terminationGracePeriodSeconds: 25
+      terminationGracePeriodSeconds: 45
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -44,6 +44,10 @@ spec:
       containers:
         - name: mbtiles
           image: ghcr.io/consbio/mbtileserver:latest
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 20"]
           ports:
             - containerPort: 8000
               name: http

@@ -29,7 +29,7 @@ spec:
         service: traccar
         deployVersion: "1"
     spec:
-      terminationGracePeriodSeconds: 25
+      terminationGracePeriodSeconds: 45
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -64,6 +64,10 @@ spec:
       containers:
         - name: traccar
           image: traccar/traccar:5.10-alpine
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 20"]
           resources:
             requests:
               cpu: 800m

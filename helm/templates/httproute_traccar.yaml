@@ -33,6 +33,8 @@ spec:
       httpHealthCheck:
         port: 8082
         requestPath: /api/server?force=true
+        timeoutSec: 5
+        checkIntervalSec: 10
   targetRef:
     group: ""
     kind: Service
