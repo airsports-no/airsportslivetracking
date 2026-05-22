@@ -32,8 +32,6 @@ spec:
       type: HTTP
       httpHealthCheck:
         requestPath: /services/
-        timeoutSec: 5
-        checkIntervalSec: 10
   targetRef:
     group: ""
     kind: Service
