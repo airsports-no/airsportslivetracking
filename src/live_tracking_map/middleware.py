@@ -75,6 +75,56 @@ class HandleKnownExceptionsMiddleware(MiddlewareMixin):
         #     return HttpResponseNotFound(str(exception))
 
 
+class FirebaseSessionMiddleware:
+    """
+    Exchanges Firebase ID Tokens (set by authentication backends) 
+    for long-lived Firebase Session Cookies.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        # If the auth backend attached an ID token, exchange it for a session cookie
+        if hasattr(request, "_firebase_id_token"):
+            try:
+                from datetime import timedelta
+                from firebase_admin import auth
+                from django.conf import settings
+                from display.auth_backends import FirebaseMigrationBackend
+
+                # Ensure Firebase is initialized
+                FirebaseMigrationBackend()._initialize_firebase()
+
+                # Set session expiration to match Django's (default 30 days)
+                expires_in = timedelta(seconds=getattr(settings, "SESSION_COOKIE_AGE", 60 * 60 * 24 * 30))
+                
+                # Firebase session cookie max is 2 weeks. Cap it.
+                if expires_in > timedelta(days=14):
+                    expires_in = timedelta(days=14)
+
+                session_cookie = auth.create_session_cookie(
+                    request._firebase_id_token, 
+                    expires_in=expires_in
+                )
+                
+                # Set the cookie on the response
+                response.set_cookie(
+                    "session", # Firebase default cookie name
+                    session_cookie,
+                    max_age=int(expires_in.total_seconds()),
+                    httponly=True,
+                    secure=not getattr(settings, "DEBUG", False),
+                    samesite="Lax"
+                )
+                logger.info(f"Firebase Session Cookie created for user {request.user}")
+            except Exception as e:
+                logger.error(f"Failed to create Firebase Session Cookie: {e}")
+
+        return response
+
+
 # Exceptions that Django turns into non-500 responses — logging them as 500s
 # floods the error monitor with noise (see issue #100).
 _NON_500_EXCEPTIONS = (Http404, PermissionDenied)

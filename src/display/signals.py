@@ -484,9 +484,18 @@ def create_random_password_for_user(sender, instance: MyUser, created: bool, **k
         if person and person.validated:
             # This is a new user object for an already existing valid person. Send the welcome email.
             instance.send_welcome_email(person)
-    if not instance.has_usable_password():
-        instance.set_password(make_random_password(length=20))
-        instance.save()
+    
+    # Do NOT set random passwords for users who are migrated to Firebase.
+    # Firebase-migrated users have unusable passwords by design.
+    # Also prevent infinite recursion if we do decide to save.
+    if not instance.has_usable_password() and not getattr(instance, "_is_firebase_migrated", False):
+        # Only set a random password if it's a truly new/empty local user 
+        # that hasn't been explicitly marked as Firebase-migrated.
+        # But wait, if they have an unusable password, we should probably 
+        # only set a random one if they were just created and aren't migrated.
+        if created:
+            instance.set_password(make_random_password(length=20))
+            instance.save(update_fields=["password"])
 
 
 @receiver(signal=m2m_changed, sender=User.groups.through)

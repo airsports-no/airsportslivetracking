@@ -29,7 +29,7 @@ class FirebaseMigrationBackend(ModelBackend):
         try:
             response = requests.post(url, json=payload, timeout=5)
             if response.status_code == 200:
-                return True
+                return response.json()  # Return the whole response containing idToken
             else:
                 try:
                     error_data = response.json()
@@ -37,10 +37,10 @@ class FirebaseMigrationBackend(ModelBackend):
                     logger.warning(f"[Auth-Migration] Firebase REST API login failed for {email}: {error_msg} (Status: {response.status_code})")
                 except Exception:
                     logger.warning(f"[Auth-Migration] Firebase REST API login failed for {email} with status {response.status_code}")
-                return False
+                return None
         except Exception as e:
             logger.error(f"[Auth-Migration] Error verifying password with Firebase REST API: {e}")
-            return False
+            return None
 
     def _initialize_firebase(self):
         try:
@@ -81,11 +81,15 @@ class FirebaseMigrationBackend(ModelBackend):
             return super().authenticate(request, username=username, password=password, **kwargs)
 
         # 1. Attempt to authenticate against Firebase first (PRIMARY AUTH)
-        firebase_success = self._verify_firebase_password(username, password)
+        firebase_response = self._verify_firebase_password(username, password)
         
-        if firebase_success:
+        if firebase_response:
             logger.info(f"[Auth-Migration] User {username} authenticated successfully via FIREBASE.")
             
+            # Store the ID token in the request so middleware can exchange it for a session cookie
+            if request and "idToken" in firebase_response:
+                request._firebase_id_token = firebase_response["idToken"]
+
             # Check for email verification if it's a primary auth path
             self._initialize_firebase()
             try:
@@ -113,12 +117,14 @@ class FirebaseMigrationBackend(ModelBackend):
                         username=username.lower(),  # Pass email as username to satisfy the manager
                         password=None  # Firebase is the source of truth
                     )
+                    user._is_firebase_migrated = True
                     user.set_unusable_password()
                     user.save()
 
                 if self.user_can_authenticate(user):
                     # Ensure local password is unusable to enforce Firebase
                     if user.has_usable_password():
+                        user._is_firebase_migrated = True
                         user.set_unusable_password()
                         user.save(update_fields=["password"])
                         logger.info(f"[Auth-Migration] User {username} local password purged (Firebase migrated).")
