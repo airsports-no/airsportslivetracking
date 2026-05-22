@@ -248,7 +248,10 @@ class TestAccessNavigationTask(APITestCase):
         assign_perm("delete_contest", self.different_user_with_object_permissions, self.contest)
 
     def test_post_gpx_track(self, *args):
-        with open("tests/post_gpx_track.json", "r") as i:
+        import os
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(current_dir, "post_gpx_track.json")
+        with open(file_path, "r") as i:
             data = json.load(i)
         self.client.force_login(user=self.user_owner)
         result = self.client.post(
