@@ -1,4 +1,3 @@
-# Minor change to trigger build
 import base64
 from collections import OrderedDict
 import datetime
@@ -483,7 +482,9 @@ class ContestViewSet(ModelViewSet):
 
         response["ETag"] = etag
         if instance.is_public and instance.is_featured:
-            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+            # Public data can be cached by CDN but MUST be revalidated via ETag.
+            # stale-while-revalidate=86400: Serve stale data while fetching fresh in background
+            response["Cache-Control"] = "public, no-cache, stale-while-revalidate=86400"
             if "Vary" in response:
                 del response["Vary"]
         else:
@@ -523,10 +524,10 @@ class ContestViewSet(ModelViewSet):
         # 3. Set Caching Headers
         response["ETag"] = etag
         if public_only:
-            # Public data can be cached by CDN and shared between users.
-            # s-maxage=31536000: CDN caches for 1 year (explicit invalidation)
+            # Public data can be cached by CDN and shared between users, 
+            # but MUST be revalidated via ETag to ensure the list is fresh.
             # stale-while-revalidate=86400: Serve stale data while fetching fresh in background
-            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+            response["Cache-Control"] = "public, no-cache, stale-while-revalidate=86400"
             if "Vary" in response:
                 del response["Vary"]
         else:

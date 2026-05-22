@@ -52,8 +52,6 @@ const getAuthHeaders = () => {
     };
 };
 
-let cachedContests: Contest[] | null = null;
-
 export interface ContestFilters {
     pks?: number[];
     startTimeGte?: string;
@@ -115,12 +113,6 @@ const _fetchContestsPage = async (cursor?: string | null, filters?: ContestFilte
 export type OnContestPageFetched = (contests: Contest[], nextCursor: string | null) => void;
 
 export const fetchContests = async (filters?: ContestFilters, onPageFetched?: OnContestPageFetched): Promise<Contest[]> => {
-    const hasFilters = filters && (filters.pks?.length || filters.startTimeGte || filters.startTimeLte || filters.finishTimeGte || filters.finishTimeLte || filters.isEditor !== undefined);
-
-    if (!hasFilters && cachedContests) {
-        return Promise.resolve(cachedContests);
-    }
-
     let allContests: Contest[] = [];
     let nextCursor: string | null = null;
     let hasMore = true;
@@ -136,9 +128,6 @@ export const fetchContests = async (filters?: ContestFilters, onPageFetched?: On
         }
     }
 
-    if (!hasFilters) {
-        cachedContests = allContests;
-    }
     return allContests;
 };
 
