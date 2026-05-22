@@ -277,7 +277,12 @@ class Solver:
         if not self.optimise:
             for team in self.teams:
                 self.start_slot_numbers[f"{team.pk}"].fixValue()
-        self.__initialise_extra_variables(latest_finish)
+        
+        overall_latest_finish = max(
+            [self.start_slot_numbers[f"{team.pk}"].value() + team.flight_time for team in self.teams],
+            default=0
+        )
+        self.__initialise_extra_variables(overall_latest_finish)
 
     def __nonoverlapping_aircraft(self):
         logger.debug("Nonoverlapping aircraft")
