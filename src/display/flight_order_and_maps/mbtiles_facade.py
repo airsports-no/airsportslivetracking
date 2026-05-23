@@ -9,7 +9,7 @@ def get_available_maps() -> dict:
     try:
         result = _requests_retry_session().get(f"{MBTILES_SERVER_URL}services/")
         return result.json()
-    except requests.exceptions.JSONDecodeError:
+    except (requests.exceptions.RequestException, requests.exceptions.JSONDecodeError):
         return {}
 
 
@@ -17,7 +17,7 @@ def get_map_details(map_key: str) -> dict:
     try:
         result = _requests_retry_session().get(f"{MBTILES_SERVER_URL}services/{map_key}")
         return result.json()
-    except requests.exceptions.JSONDecodeError:
+    except (requests.exceptions.RequestException, requests.exceptions.JSONDecodeError):
         return {}
 
 

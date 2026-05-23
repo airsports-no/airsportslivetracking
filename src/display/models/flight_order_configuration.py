@@ -93,4 +93,3 @@ class FlightOrderConfiguration(models.Model):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._meta.get_field("map_source").choices = get_map_choices()

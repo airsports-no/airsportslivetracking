@@ -374,7 +374,10 @@ class LocalMapServer(MyGoogleWTS):
     def __init__(self, map_key: str, **kwargs):
         super().__init__(**kwargs)
         self.map_key = map_key
-        self.format = get_map_details(self.map_key).get("format", "png")
+        details = get_map_details(self.map_key)
+        if not details:
+            raise requests.RequestException("MBTiles server unavailable or map key missing")
+        self.format = details.get("format", "png")
 
     def _image_url(self, tile):
         x, y, z = tile
@@ -1237,8 +1240,13 @@ def plot_route(
             imagery = CyclOSM(desired_tile_form="RGBA", user_agent="airsports.no, support@airsports.no")
             attribution = "openstreetmap.org CycleOSM"
         else:
-            imagery = LocalMapServer(map_source, desired_tile_form="RGBA")
-            attribution = MAP_ATTRIBUTIONS.get(map_source, "Missing")
+            try:
+                imagery = LocalMapServer(map_source, desired_tile_form="RGBA")
+                attribution = MAP_ATTRIBUTIONS.get(map_source, "Missing")
+            except (requests.RequestException, Exception):
+                logger.warning(f"MBTiles server unavailable for {map_source}, falling back to OSM")
+                imagery = OSM(user_agent="airsports.no, support@airsports.no")
+                attribution = "© OpenStreetMap contributors"
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12
