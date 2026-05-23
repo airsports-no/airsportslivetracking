@@ -45,7 +45,8 @@ class TrackingConsumer(WebsocketConsumer):
         self.groups.append(self.navigation_task_group_name)
         try:
             self.navigation_task = NavigationTask.objects.get(pk=self.navigation_task_pk)
-        except ObjectDoesNotExist:
+        except (ObjectDoesNotExist, ValueError):
+            logger.warning(f"NavigationTask with key {self.navigation_task_pk} does not exist or is invalid")
             return
         self.accept()
 
@@ -156,8 +157,8 @@ class ContestResultsConsumer(WebsocketConsumer):
         async_to_sync(self.channel_layer.group_add)(self.contest_results_group_name, self.channel_name)
         try:
             contest = Contest.objects.get(pk=self.contest_pk)
-        except ObjectDoesNotExist:
-            logger.warning(f"Contest with key {self.contest_pk} does not exist")
+        except (ObjectDoesNotExist, ValueError):
+            logger.warning(f"Contest with key {self.contest_pk} does not exist or is invalid")
             return
         self.accept()
         ws = WebsocketFacade()
