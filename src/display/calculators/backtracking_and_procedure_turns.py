@@ -576,15 +576,26 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 (last_position.latitude, last_position.longitude), (last_wp.latitude, last_wp.longitude)
             )
             if dist_to_first < dist_to_last:
-                return first_wp.bearing_next
+                fallback_bearing = first_wp.bearing_next
             else:
-                return relevant_waypoints[-2].bearing_next
+                fallback_bearing = relevant_waypoints[-2].bearing_next
+            
+            if fallback_bearing >= 0:
+                return fallback_bearing
 
-        return last_visible_gate.bearing
+        # Final fallback: use the gate's bearing, but ensure it's not -1
+        gate_bearing = last_visible_gate.bearing
+        if gate_bearing < 0:
+            # If the gate itself has no next bearing (e.g. FP), use bearing from previous
+            gate_bearing = last_visible_gate.bearing_from_previous
+            
+        return max(0.0, gate_bearing)
 
     def _get_relevant_waypoints(self, last_visible_gate: "Gate", next_gate: Optional["Gate"]) -> List[Waypoint]:
         """
-        Returns the list of waypoints in the current leg, including curve points.
+        Returns the list of waypoints from the last passed gate to the end of the route.
+        This allows find_closest_leg_to_point to find the segment the pilot is actually
+        flying near, even if they've missed a gate or are off-track between legs.
         """
         waypoints = []
         started = False
@@ -593,6 +604,4 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 started = True
             if started:
                 waypoints.append(wp)
-            if next_gate and wp == next_gate.waypoint:
-                break
         return waypoints
