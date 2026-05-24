@@ -562,15 +562,23 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         )
         if closest_leg_info:
             leg_start_wp, _ = closest_leg_info
-            # If the closest leg is the last one in our relevant list and it's the next_gate,
-            # we should probably use its bearing_from_previous or something.
-            # But bearing_next of the waypoint should be correct for the segment starting at it.
             if leg_start_wp.bearing_next >= 0:
                 return leg_start_wp.bearing_next
 
-        # Fallback: if we are beyond the last segment, use the bearing of the last segment
+        # If we didn't find a closest leg or it has no bearing, use the closest end of the segment list as fallback
         if len(relevant_waypoints) >= 2:
-            return relevant_waypoints[-2].bearing_next
+            first_wp = relevant_waypoints[0]
+            last_wp = relevant_waypoints[-1]
+            dist_to_first = calculate_distance_lat_lon(
+                (last_position.latitude, last_position.longitude), (first_wp.latitude, first_wp.longitude)
+            )
+            dist_to_last = calculate_distance_lat_lon(
+                (last_position.latitude, last_position.longitude), (last_wp.latitude, last_wp.longitude)
+            )
+            if dist_to_first < dist_to_last:
+                return first_wp.bearing_next
+            else:
+                return relevant_waypoints[-2].bearing_next
 
         return last_visible_gate.bearing
 

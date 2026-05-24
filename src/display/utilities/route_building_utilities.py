@@ -18,7 +18,7 @@ from display.utilities.coordinate_utilities import (
     create_perpendicular_line_at_end_lonlat,
     bearing_difference,
     calculate_fractional_distance_point_lat_lon,
-    point_to_line_segment_distance,
+    point_to_line_distance,
 )
 from display.models import Route, Scorecard, Prohibited
 from display.utilities.gate_definitions import ANR_TP, STARTINGPOINT, FINISHPOINT, TURNPOINT
@@ -560,7 +560,7 @@ def find_closest_leg_to_point(
     minimum_distance = None
     leg = None
     for index in range(len(waypoints) - 1):
-        distance = point_to_line_segment_distance(
+        distance = point_to_line_distance(
             waypoints[index].latitude,
             waypoints[index].longitude,
             waypoints[index + 1].latitude,
