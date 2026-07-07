@@ -161,6 +161,79 @@ redis:
     enabled: true
     replicas: 2
 
+    # The redis-ha chart routes through per-pod announce services and asks every Sentinel which
+    # announce IP owns the master role. In production all Sentinels consistently agree on the
+    # current master, but the follow-on direct INFO replication checks against replica pods time
+    # out at 15s and mark those backends DOWN. Override HAProxy so routing follows Sentinel's
+    # quorum-backed master decision without the extra per-Redis role probes that are timing out.
+    customConfig: |-
+      defaults REDIS
+        mode tcp
+        timeout connect 4s
+        timeout server 330s
+        timeout client 330s
+        timeout check 15s
+
+      listen health_check_http_url
+        bind [::]:8888 v4v6
+        mode http
+        monitor-uri /healthz
+        option dontlognull
+
+      backend check_if_redis_is_master_0
+        mode tcp
+        option tcp-check
+        tcp-check connect
+        tcp-check send PING\r\n
+        tcp-check expect string +PONG
+        tcp-check send SENTINEL\ get-master-addr-by-name\ mymaster\r\n
+        tcp-check expect string REPLACE_ANNOUNCE0
+        tcp-check send QUIT\r\n
+        server R0 airsportsrelease-redis-announce-0:26379 check inter 5s
+        server R1 airsportsrelease-redis-announce-1:26379 check inter 5s
+        server R2 airsportsrelease-redis-announce-2:26379 check inter 5s
+
+      backend check_if_redis_is_master_1
+        mode tcp
+        option tcp-check
+        tcp-check connect
+        tcp-check send PING\r\n
+        tcp-check expect string +PONG
+        tcp-check send SENTINEL\ get-master-addr-by-name\ mymaster\r\n
+        tcp-check expect string REPLACE_ANNOUNCE1
+        tcp-check send QUIT\r\n
+        server R0 airsportsrelease-redis-announce-0:26379 check inter 5s
+        server R1 airsportsrelease-redis-announce-1:26379 check inter 5s
+        server R2 airsportsrelease-redis-announce-2:26379 check inter 5s
+
+      backend check_if_redis_is_master_2
+        mode tcp
+        option tcp-check
+        tcp-check connect
+        tcp-check send PING\r\n
+        tcp-check expect string +PONG
+        tcp-check send SENTINEL\ get-master-addr-by-name\ mymaster\r\n
+        tcp-check expect string REPLACE_ANNOUNCE2
+        tcp-check send QUIT\r\n
+        server R0 airsportsrelease-redis-announce-0:26379 check inter 5s
+        server R1 airsportsrelease-redis-announce-1:26379 check inter 5s
+        server R2 airsportsrelease-redis-announce-2:26379 check inter 5s
+
+      frontend ft_redis_master
+        bind [::]:6379 v4v6
+        default_backend bk_redis_master
+
+      backend bk_redis_master
+        mode tcp
+        balance first
+        option tcp-check
+        tcp-check connect
+        tcp-check send PING\r\n
+        tcp-check expect string +PONG
+        server R0 airsportsrelease-redis-announce-0:6379 check inter 5s fall 5 rise 2
+        server R1 airsportsrelease-redis-announce-1:6379 check inter 5s fall 5 rise 2
+        server R2 airsportsrelease-redis-announce-2:6379 check inter 5s fall 5 rise 2
+
     # Tuning: reduce false DOWNs in HAProxy tcp-checks towards sentinel/redis.
     # We saw Layer7 timeouts during pod restarts because of brittle IP-based checks.
     # Increasing check parameters to allow more time for pod readiness and IP discovery.
