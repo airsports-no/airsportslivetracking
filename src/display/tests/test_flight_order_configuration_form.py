@@ -1,7 +1,6 @@
 import datetime
 from unittest.mock import patch
 
-from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
@@ -94,18 +93,8 @@ class FlightOrderConfigurationFormTests(TestCase):
         self.assertIn("map_source", form.errors)
         mock_validate_zoom.assert_not_called()
 
-    @patch("display.models.flight_order_configuration.get_map_choices", return_value=[("osm", "OSM"), ("cyclosm", "CycleOSM")])
-    def test_model_full_clean_accepts_dynamic_map_source(self, _mock_choices):
-        self.configuration.map_source = "osm"
+    @patch("display.forms.get_map_choices", return_value=[("osm", "OSM"), ("cyclosm", "CycleOSM")])
+    def test_form_exposes_dynamic_map_source_choices(self, mock_choices):
+        form = FlightOrderConfigurationForm(instance=self.configuration)
 
-        self.configuration.full_clean()
-
-    @patch("display.models.flight_order_configuration.get_map_choices", return_value=[("cyclosm", "CycleOSM")])
-    def test_model_full_clean_rejects_unknown_map_source(self, _mock_choices):
-        self.configuration.map_source = "not-a-map"
-
-        with self.assertRaises(ValidationError) as ctx:
-            self.configuration.full_clean()
-
-        self.assertIn("map_source", ctx.exception.message_dict)
-        self.assertIn("not-a-map is not a valid map source.", ctx.exception.message_dict["map_source"])
+        self.assertEqual(form.fields["map_source"].choices, mock_choices.return_value)
