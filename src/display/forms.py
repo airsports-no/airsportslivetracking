@@ -242,16 +242,30 @@ class FlightOrderConfigurationForm(forms.ModelForm):
         model = FlightOrderConfiguration
         exclude = ("navigation_task",)
 
+    def clean_map_source(self):
+        map_source = self.cleaned_data.get("map_source")
+        if not map_source:
+            return map_source
+
+        valid_map_sources = {choice[0] for choice in get_map_choices()}
+        if map_source not in valid_map_sources:
+            raise ValidationError("Select a valid choice. That choice is not one of the available choices.")
+
+        return map_source
+
     def clean(self):
         cleaned_data = super().clean()
+        if "map_source" in self.errors or not cleaned_data.get("map_source"):
+            return cleaned_data
+
         validate_map_zoom_level(
             cleaned_data.get("map_source"), cleaned_data.get("map_user_source"), cleaned_data.get("map_zoom_level")
         )
+        return cleaned_data
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["map_source"].choices = get_map_choices()
-        print(self.fields["map_source"].choices)
         self.helper = FormHelper()
         self.helper.layout = Layout(
             HTML(
