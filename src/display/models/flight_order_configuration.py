@@ -1,4 +1,3 @@
-from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
@@ -25,7 +24,7 @@ class FlightOrderConfiguration(models.Model):
     map_zoom_level = models.IntegerField(default=12, choices=[(x, x) for x in range(1, 20)])
     map_orientation = models.CharField(choices=ORIENTATIONS, default=PORTRAIT, max_length=30)
     map_scale = models.IntegerField(choices=SCALES, default=SCALE_TO_FIT)
-    map_source = models.CharField(default="cyclosm", max_length=50, blank=True)
+    map_source = models.CharField(choices=[], default="cyclosm", max_length=50, blank=True)
     map_user_source = models.ForeignKey(
         "UserUploadedMap",
         on_delete=models.SET_NULL,
@@ -92,11 +91,6 @@ class FlightOrderConfiguration(models.Model):
             return 420
         return 297
 
-    def clean(self):
-        super().clean()
-        if not self.map_source:
-            return
-
-        valid_map_sources = {choice[0] for choice in get_map_choices()}
-        if self.map_source not in valid_map_sources:
-            raise ValidationError({"map_source": f"{self.map_source} is not a valid map source."})
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._meta.get_field("map_source").choices = get_map_choices()
