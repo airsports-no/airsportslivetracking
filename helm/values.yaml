@@ -163,9 +163,9 @@ redis:
 
     # The redis-ha chart routes through per-pod announce services and asks every Sentinel which
     # announce IP owns the master role. In production all Sentinels consistently agree on the
-    # current master, but the follow-on direct INFO replication checks against replica pods time
-    # out at 15s and mark those backends DOWN. Override HAProxy so routing follows Sentinel's
-    # quorum-backed master decision without the extra per-Redis role probes that are timing out.
+    # current master, but HAProxy still times out on its built-in tcp-check + expect-string gating
+    # for the per-Sentinel announce backends. Override HAProxy with a simpler config that only
+    # verifies Redis responds to PING on the announce services and then balances in stable order.
     customConfig: |-
       defaults REDIS
         mode tcp
@@ -179,45 +179,6 @@ redis:
         mode http
         monitor-uri /healthz
         option dontlognull
-
-      backend check_if_redis_is_master_0
-        mode tcp
-        option tcp-check
-        tcp-check connect
-        tcp-check send PING\r\n
-        tcp-check expect string +PONG
-        tcp-check send SENTINEL\ get-master-addr-by-name\ mymaster\r\n
-        tcp-check expect string REPLACE_ANNOUNCE0
-        tcp-check send QUIT\r\n
-        server R0 airsportsrelease-redis-announce-0:26379 check inter 5s
-        server R1 airsportsrelease-redis-announce-1:26379 check inter 5s
-        server R2 airsportsrelease-redis-announce-2:26379 check inter 5s
-
-      backend check_if_redis_is_master_1
-        mode tcp
-        option tcp-check
-        tcp-check connect
-        tcp-check send PING\r\n
-        tcp-check expect string +PONG
-        tcp-check send SENTINEL\ get-master-addr-by-name\ mymaster\r\n
-        tcp-check expect string REPLACE_ANNOUNCE1
-        tcp-check send QUIT\r\n
-        server R0 airsportsrelease-redis-announce-0:26379 check inter 5s
-        server R1 airsportsrelease-redis-announce-1:26379 check inter 5s
-        server R2 airsportsrelease-redis-announce-2:26379 check inter 5s
-
-      backend check_if_redis_is_master_2
-        mode tcp
-        option tcp-check
-        tcp-check connect
-        tcp-check send PING\r\n
-        tcp-check expect string +PONG
-        tcp-check send SENTINEL\ get-master-addr-by-name\ mymaster\r\n
-        tcp-check expect string REPLACE_ANNOUNCE2
-        tcp-check send QUIT\r\n
-        server R0 airsportsrelease-redis-announce-0:26379 check inter 5s
-        server R1 airsportsrelease-redis-announce-1:26379 check inter 5s
-        server R2 airsportsrelease-redis-announce-2:26379 check inter 5s
 
       frontend ft_redis_master
         bind [::]:6379 v4v6
