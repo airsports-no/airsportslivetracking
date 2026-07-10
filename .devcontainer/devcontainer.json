@@ -57,7 +57,7 @@
 	// "postCreateCommand": "pip install cython shapely -r requirements.txt && npm install && cd react_vite && npm install && cd ../src/static/css && curl -sL daisyui.com/fast | bash",
 	"postCreateCommand": "cd src/static/css && curl -sL daisyui.com/fast | bash && cd /workspace && npm install -g @google/gemini-cli && cd react_vite && npm install && cd /workspace/airsports_static && npm install && pip install snakeviz",
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
+	"forwardPorts": [4321],
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "pip3 install --user -r requirements.txt",
 	// Configure tool-specific properties.

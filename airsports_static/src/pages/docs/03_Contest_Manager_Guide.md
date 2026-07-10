@@ -6,6 +6,9 @@ title: "Contest Manager Guide: Orchestrating an Event"
 
 # Contest Manager Guide: Orchestrating an Event
 
+> **World Precision Flying Championship Organizers:** This is a general guide. For the detailed, step-by-step guide tailored for fully managed WPFC competitions, please see the [WPFC Contest Manager Guide](./10_WPFC_Contest_Manager_Guide).
+
+
 As a Contest Manager, you are the architect of the competition. ASLT provides powerful tools to handle complex logistics, real-time scoring, and advanced scheduling. 
 
 ---
