@@ -28,8 +28,29 @@ from display.models import (
 from websocket_channels import WebsocketFacade
 
 
+def _mock_traccar():
+    mock_traccar = Mock()
+    mock_traccar.get_or_create_device.return_value = ({}, False)
+    mock_traccar.update_device_name.return_value = None
+    mock_traccar.get_device.return_value = None
+    mock_traccar.delete_device.return_value = None
+    return mock_traccar
+
+
+def _create_person(**kwargs):
+    with patch("display.signals.get_traccar_instance", return_value=_mock_traccar()), patch(
+        "display.models.contestant.get_traccar_instance", return_value=_mock_traccar()
+    ):
+        return Person.objects.create(**kwargs)
+
+
 class ResultsRealtimeUpdateTests(TransactionTestCase):
-    def setUp(self):
+    @patch("display.models.contestant.get_traccar_instance")
+    @patch("display.signals.get_traccar_instance")
+    def setUp(self, mock_signal_traccar, mock_model_traccar):
+        mock_traccar = _mock_traccar()
+        mock_signal_traccar.return_value = mock_traccar
+        mock_model_traccar.return_value = mock_traccar
         now = datetime.datetime.now(datetime.timezone.utc)
         self.contest = Contest.objects.create(
             name="Realtime Results Contest",
@@ -41,7 +62,7 @@ class ResultsRealtimeUpdateTests(TransactionTestCase):
             summary_score_sorting_direction=Contest.DESCENDING,
         )
         self.team = Team.objects.create(
-            crew=Crew.objects.create(member1=Person.objects.create(first_name="Pilot", last_name="One", email="p1@example.com")),
+            crew=Crew.objects.create(member1=_create_person(first_name="Pilot", last_name="One", email="p1@example.com")),
             aeroplane=Aeroplane.objects.create(registration="LN-RT1"),
         )
         self.task = Task.objects.create(
@@ -211,11 +232,11 @@ class ResultsRealtimeUpdateTests(TransactionTestCase):
         )
 
         other_team_one = Team.objects.create(
-            crew=Crew.objects.create(member1=Person.objects.create(first_name="Pilot", last_name="Two", email="p2@example.com")),
+            crew=Crew.objects.create(member1=_create_person(first_name="Pilot", last_name="Two", email="p2@example.com")),
             aeroplane=Aeroplane.objects.create(registration="LN-RT2"),
         )
         other_team_two = Team.objects.create(
-            crew=Crew.objects.create(member1=Person.objects.create(first_name="Pilot", last_name="Three", email="p3@example.com")),
+            crew=Crew.objects.create(member1=_create_person(first_name="Pilot", last_name="Three", email="p3@example.com")),
             aeroplane=Aeroplane.objects.create(registration="LN-RT3"),
         )
         TaskSummary.objects.create(task=other_task, team=other_team_one, points=5)
@@ -253,7 +274,7 @@ class ResultsRealtimeUpdateTests(TransactionTestCase):
             sorting=TaskTest.DESCENDING,
         )
         other_team = Team.objects.create(
-            crew=Crew.objects.create(member1=Person.objects.create(first_name="Pilot", last_name="Four", email="p4@example.com")),
+            crew=Crew.objects.create(member1=_create_person(first_name="Pilot", last_name="Four", email="p4@example.com")),
             aeroplane=Aeroplane.objects.create(registration="LN-RT4"),
         )
         TaskSummary.objects.create(task=other_task, team=other_team, points=11)
@@ -304,7 +325,7 @@ class ResultsRealtimeUpdateTests(TransactionTestCase):
         )
 
         other_team = Team.objects.create(
-            crew=Crew.objects.create(member1=Person.objects.create(first_name="Pilot", last_name="Five", email="p5@example.com")),
+            crew=Crew.objects.create(member1=_create_person(first_name="Pilot", last_name="Five", email="p5@example.com")),
             aeroplane=Aeroplane.objects.create(registration="LN-RT5"),
         )
         TaskSummary.objects.create(task=task_a, team=other_team, points=9)
@@ -328,11 +349,7 @@ class NavigationTaskResultsServiceTests(APITransactionTestCase):
     @patch("display.models.contestant.get_traccar_instance")
     @patch("display.signals.get_traccar_instance")
     def setUp(self, mock_signal_traccar, mock_model_traccar):
-        mock_traccar = Mock()
-        mock_traccar.get_or_create_device.return_value = ({}, False)
-        mock_traccar.update_device_name.return_value = None
-        mock_traccar.get_device.return_value = None
-        mock_traccar.delete_device.return_value = None
+        mock_traccar = _mock_traccar()
         mock_signal_traccar.return_value = mock_traccar
         mock_model_traccar.return_value = mock_traccar
         self.auth_user = get_user_model().objects.create(
@@ -443,7 +460,12 @@ class NavigationTaskResultsServiceTests(APITransactionTestCase):
 
 
 class ContestResultsEndpointBroadcastTests(APITransactionTestCase):
-    def setUp(self):
+    @patch("display.models.contestant.get_traccar_instance")
+    @patch("display.signals.get_traccar_instance")
+    def setUp(self, mock_signal_traccar, mock_model_traccar):
+        mock_traccar = _mock_traccar()
+        mock_signal_traccar.return_value = mock_traccar
+        mock_model_traccar.return_value = mock_traccar
         self.auth_user = get_user_model().objects.create(email="contest-editor@example.com")
         self.client.force_login(self.auth_user)
         self.contest = Contest.objects.create(
@@ -457,7 +479,7 @@ class ContestResultsEndpointBroadcastTests(APITransactionTestCase):
         assign_perm("display.view_contest", self.auth_user, self.contest)
         self.team = Team.objects.create(
             crew=Crew.objects.create(
-                member1=Person.objects.create(first_name="Pilot", last_name="Two", email="p2@example.com")
+                member1=_create_person(first_name="Pilot", last_name="Two", email="p2@example.com")
             ),
             aeroplane=Aeroplane.objects.create(registration="LN-RT2"),
         )
@@ -479,7 +501,12 @@ class ContestResultsEndpointBroadcastTests(APITransactionTestCase):
 
 
 class ContestResultsRestMutationTests(APITransactionTestCase):
-    def setUp(self):
+    @patch("display.models.contestant.get_traccar_instance")
+    @patch("display.signals.get_traccar_instance")
+    def setUp(self, mock_signal_traccar, mock_model_traccar):
+        mock_traccar = _mock_traccar()
+        mock_signal_traccar.return_value = mock_traccar
+        mock_model_traccar.return_value = mock_traccar
         self.auth_user = get_user_model().objects.create(email="results-editor@example.com")
         self.client.force_login(self.auth_user)
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -496,7 +523,7 @@ class ContestResultsRestMutationTests(APITransactionTestCase):
         assign_perm("display.view_contest", self.auth_user, self.contest)
         self.team = Team.objects.create(
             crew=Crew.objects.create(
-                member1=Person.objects.create(first_name="Pilot", last_name="Three", email="p3@example.com")
+                member1=_create_person(first_name="Pilot", last_name="Three", email="p3@example.com")
             ),
             aeroplane=Aeroplane.objects.create(registration="LN-RT3"),
         )
