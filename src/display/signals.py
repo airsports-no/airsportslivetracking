@@ -6,6 +6,7 @@ from string import ascii_uppercase, ascii_lowercase, digits
 
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.db.models.signals import post_save, post_delete, pre_delete, pre_save, m2m_changed
 from django.dispatch import receiver
@@ -93,6 +94,30 @@ def prevent_recursion(func):
     return no_recursion
 
 
+def queue_team_test_score_update(instance: TeamTestScore):
+    from websocket_channels import WebsocketFacade
+
+    contest = instance.task_test.task.contest
+    team_id = instance.team_id
+    task_id = instance.task_test.task_id
+    task_test_id = instance.task_test_id
+    score_id = instance.pk
+
+    def send_update():
+        ws = WebsocketFacade()
+        ws.transmit_score_update(
+            contest=contest,
+            team_id=team_id,
+            task_id=task_id,
+            task_test_id=task_test_id,
+            score_id=score_id,
+        )
+
+    transaction.on_commit(send_update)
+
+
+
+
 @receiver(post_delete, sender=Photo)
 def auto_delete_file_on_delete(sender, instance: Photo, **kwargs):
     """
@@ -114,11 +139,15 @@ def update_score_on_test_configuration_change(sender, instance: TaskTest, **kwar
 def auto_summarise_tests(sender, instance: TeamTestScore, **kwargs):
     try:
         if instance.task_test.task.autosum_scores:
-            task_summary, _ = TaskSummary.objects.get_or_create(
-                task=instance.task_test.task,
-                team=instance.team,
-                defaults={"points": instance.points},
-            )
+            task_summary = TaskSummary.objects.filter(task=instance.task_test.task, team=instance.team).first()
+            if task_summary is None:
+                task_summary = TaskSummary(task=instance.task_test.task, team=instance.team, points=instance.points)
+                task_summary._skip_results_broadcast = True
+                try:
+                    task_summary.save()
+                except IntegrityError:
+                    task_summary = TaskSummary.objects.get(task=instance.task_test.task, team=instance.team)
+            task_summary._skip_results_broadcast = True
             task_summary.update_sum()
     except ObjectDoesNotExist:
         pass
@@ -135,11 +164,32 @@ def update_score_on_task_configuration_change(sender, instance: Task, **kwargs):
 def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
     try:
         if instance.task.contest.autosum_scores:
-            contest_summary, _ = ContestSummary.objects.get_or_create(
-                contest=instance.task.contest,
-                team=instance.team,
-                defaults={"points": instance.points},
-            )
+            for task in Task.objects.filter(contest=instance.task.contest):
+                if task.id == instance.task_id:
+                    continue
+                task_summary = TaskSummary.objects.filter(task=task, team=instance.team).first()
+                if task_summary is None:
+                    tests = TeamTestScore.objects.filter(team=instance.team, task_test__task=task)
+                    if not tests.exists():
+                        continue
+                    task_summary = TaskSummary(task=task, team=instance.team, points=0)
+                    task_summary._skip_results_broadcast = True
+                    try:
+                        task_summary.save()
+                    except IntegrityError:
+                        task_summary = TaskSummary.objects.get(task=task, team=instance.team)
+                    task_summary._skip_results_broadcast = True
+                    task_summary.update_sum()
+
+            contest_summary = ContestSummary.objects.filter(contest=instance.task.contest, team=instance.team).first()
+            if contest_summary is None:
+                contest_summary = ContestSummary(contest=instance.task.contest, team=instance.team, points=instance.points)
+                contest_summary._skip_results_broadcast = True
+                try:
+                    contest_summary.save()
+                except IntegrityError:
+                    contest_summary = ContestSummary.objects.get(contest=instance.task.contest, team=instance.team)
+            contest_summary._skip_results_broadcast = True
             contest_summary.update_sum()
             # Update contestants
             from websocket_channels import WebsocketFacade
@@ -175,17 +225,14 @@ def post_contest_team_change(sender, instance: ContestTeam, **kwargs):
     ws = WebsocketFacade()
     ws.transmit_teams(instance.contest)
 
-
 @receiver(post_save, sender=TeamTestScore)
 @receiver(post_delete, sender=TeamTestScore)
 def post_team_test_score_change(sender, instance: TeamTestScore, **kwargs):
-    from websocket_channels import WebsocketFacade
-
     try:
-        ws = WebsocketFacade()
-        ws.transmit_contest_results(None, instance.task_test.task.contest)
+        queue_team_test_score_update(instance)
     except ObjectDoesNotExist:
         pass
+
 
 
 @receiver(post_save, sender=TaskSummary)
@@ -193,11 +240,15 @@ def post_team_test_score_change(sender, instance: TeamTestScore, **kwargs):
 def post_task_summary_change(sender, instance: TaskSummary, **kwargs):
     from websocket_channels import WebsocketFacade
 
-    ws = WebsocketFacade()
-    try:
+    if getattr(instance, "_skip_results_broadcast", False):
+        return
+
+    def send_update():
+        ws = WebsocketFacade()
         ws.transmit_contest_results(None, instance.task.contest)
-    except ObjectDoesNotExist:
-        pass
+
+    transaction.on_commit(send_update)
+
 
 
 @receiver(post_save, sender=ContestSummary)
@@ -205,8 +256,14 @@ def post_task_summary_change(sender, instance: TaskSummary, **kwargs):
 def push_contest_summary_change(sender, instance: ContestSummary, **kwargs):
     from websocket_channels import WebsocketFacade
 
-    ws = WebsocketFacade()
-    ws.transmit_contest_results(None, instance.contest)
+    if getattr(instance, "_skip_results_broadcast", False):
+        return
+
+    def send_update():
+        ws = WebsocketFacade()
+        ws.transmit_contest_results(None, instance.contest)
+
+    transaction.on_commit(send_update)
 
 
 @receiver(post_save, sender=Task)
@@ -233,7 +290,11 @@ def update_task_test_index(sender, instance: TaskTest, created, **kwargs):
         if instance.task.tasktest_set.all().count() > 0:
             highest_index = max([item.index for item in instance.task.tasktest_set.all()])
             instance.index = highest_index + 1
-            instance.save()
+            instance._skip_results_broadcast = True
+            try:
+                instance.save()
+            finally:
+                del instance._skip_results_broadcast
 
 
 @receiver(post_save, sender=TaskTest)
@@ -241,11 +302,14 @@ def update_task_test_index(sender, instance: TaskTest, created, **kwargs):
 def push_test_change(sender, instance: TaskTest, **kwargs):
     from websocket_channels import WebsocketFacade
 
-    ws = WebsocketFacade()
-    try:
-        ws.transmit_tests(instance.task.contest)
-    except ObjectDoesNotExist:
-        pass
+    if getattr(instance, "_skip_results_broadcast", False):
+        return
+
+    def send_update():
+        ws = WebsocketFacade()
+        ws.transmit_contest_results(None, instance.task.contest)
+
+    transaction.on_commit(send_update)
 
 
 #

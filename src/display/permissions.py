@@ -190,13 +190,13 @@ class TaskContestPermissions(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["GET"]:
-            return request.user.has_perm("view_contest", obj.contest)
+            return request.user.has_perm("display.view_contest", obj.contest)
         if request.method in ["POST"]:
-            return request.user.has_perm("add_contest", obj.contest)
+            return request.user.has_perm("display.change_contest", obj.contest)
         if request.method in ["PUT", "PATCH"]:
-            return request.user.has_perm("change_contest", obj.contest)
+            return request.user.has_perm("display.change_contest", obj.contest)
         if request.method in ["DELETE"]:
-            return request.user.has_perm("delete_contest", obj.contest)
+            return request.user.has_perm("display.change_contest", obj.contest)
         return False
 
 
@@ -210,13 +210,13 @@ class TaskTestContestPermissions(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["GET"]:
-            return request.user.has_perm("view_contest", obj.task.contest)
+            return request.user.has_perm("display.view_contest", obj.task.contest)
         if request.method in ["POST"]:
-            return request.user.has_perm("add_contest", obj.task.contest)
+            return request.user.has_perm("display.change_contest", obj.task.contest)
         if request.method in ["PUT", "PATCH"]:
-            return request.user.has_perm("change_contest", obj.task.contest)
+            return request.user.has_perm("display.change_contest", obj.task.contest)
         if request.method in ["DELETE"]:
-            return request.user.has_perm("delete_contest", obj.task.contest)
+            return request.user.has_perm("display.change_contest", obj.task.contest)
         return False
 
 

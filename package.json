@@ -4,7 +4,7 @@
     "build:marketing": "cd airsports_static && npm run build",
     "build:all": "npm run build:react && npm run build:marketing",
     "watch:react": "cd react_vite && npm run build -- --watch",
-    "watch:marketing": "cd airsports_static && npx nodemon --watch src --ext astro,md,js,ts,mjs --exec 'npm run build'",
+    "watch:marketing": "cd airsports_static && npm run dev -- --host",
     "watch:all": "npx concurrently \"npm run watch:react\" \"npm run watch:marketing\""
   },
   "devDependencies": {

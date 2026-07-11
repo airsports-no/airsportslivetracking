@@ -61,6 +61,7 @@ from display.models import (
 from display.permissions import (
     EditableRoutePermission,
     ContestPermissions,
+    ContestModificationPermissions,
     ContestPublicPermissions,
     ContestPublicModificationPermissions,
     OrganiserPermission,
@@ -809,7 +810,11 @@ class ContestViewSet(ModelViewSet):
             response["Cache-Control"] = "private, no-cache"
         return response
 
-    @action(detail=True, methods=["put"])
+    @action(
+        detail=True,
+        methods=["put"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
     def update_contest_summary(self, request, *args, **kwargs):
         """
         Update the total score for the contest for a team.
@@ -827,7 +832,11 @@ class ContestViewSet(ModelViewSet):
 
         return Response(status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=["put"])
+    @action(
+        detail=True,
+        methods=["put"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
     def update_task_summary(self, request, *args, **kwargs):
         """
         Update the total score for a task for a team.
@@ -844,7 +853,11 @@ class ContestViewSet(ModelViewSet):
             summary.save()
         return Response(status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=["put"])
+    @action(
+        detail=True,
+        methods=["put"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
     def update_test_result(self, request, *args, **kwargs):
         """
         Update the school for an individual test for a team.
@@ -861,7 +874,11 @@ class ContestViewSet(ModelViewSet):
             results.save()
         return Response(status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=["post"])
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
     def team_results_delete(self, request, *args, **kwargs):
         contest = self.get_object()
         team_id = request.data["team_id"]
@@ -869,7 +886,6 @@ class ContestViewSet(ModelViewSet):
         ContestSummary.objects.filter(contest=contest, team__pk=team_id).delete()
         ws = WebsocketFacade()
         ws.transmit_contest_results(request.user, contest)
-        ws.transmit_teams(contest)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
@@ -1828,6 +1844,22 @@ class TaskViewSet(ModelViewSet):
         contest_id = self.kwargs.get("contest_pk")
         return Task.objects.filter(contest_id=contest_id)
 
+    def destroy(self, request, *args, **kwargs):
+        task = self.get_object()
+        if task.tasktest_set.filter(navigation_task__isnull=False).exists():
+            raise drf_exceptions.ValidationError(
+                "Cannot delete a task that is linked to a navigation task. Delete the navigation task instead."
+            )
+        return super().destroy(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        task = self.get_object()
+        if task.tasktest_set.filter(navigation_task__isnull=False).exists():
+            raise drf_exceptions.ValidationError(
+                "Cannot modify a task that is linked to a navigation task. Modify the navigation task instead."
+            )
+        return super().update(request, *args, **kwargs)
+
 
 class TaskTestViewSet(ModelViewSet):
     queryset = TaskTest.objects.all()
@@ -1837,6 +1869,22 @@ class TaskTestViewSet(ModelViewSet):
     def get_queryset(self):
         contest_id = self.kwargs.get("contest_pk")
         return TaskTest.objects.filter(task__contest_id=contest_id)
+
+    def destroy(self, request, *args, **kwargs):
+        task_test = self.get_object()
+        if task_test.navigation_task_id is not None:
+            raise drf_exceptions.ValidationError(
+                "Cannot delete a test that is linked to a navigation task. Delete the navigation task instead."
+            )
+        return super().destroy(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        task_test = self.get_object()
+        if task_test.navigation_task_id is not None:
+            raise drf_exceptions.ValidationError(
+                "Cannot modify a test that is linked to a navigation task. Modify the navigation task instead."
+            )
+        return super().update(request, *args, **kwargs)
 
 class HighlightedContestViewSet(ReadOnlyModelViewSet):
     queryset = HighlightedContest.objects.all()

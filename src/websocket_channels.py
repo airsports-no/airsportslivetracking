@@ -597,6 +597,38 @@ class WebsocketFacade:
         }
         self._safe_group_send(self.contest_results_channel_name(contest), data)
 
+    def transmit_score_update(
+        self,
+        contest: "Contest",
+        team_id: int,
+        task_id: int,
+        task_test_id: int,
+        score_id: Optional[int],
+    ):
+        from display.models import ContestSummary, TaskSummary, TeamTestScore
+        from display.serialisers import (
+            TeamTestScoreWithoutReferenceSerialiser,
+            TaskSummaryWithoutReferenceSerialiser,
+            ContestSummaryWithoutReferenceSerialiser,
+        )
+
+        score = TeamTestScore.objects.filter(pk=score_id).first() if score_id is not None else None
+        task_summary = TaskSummary.objects.filter(task_id=task_id, team_id=team_id).first()
+        contest_summary = ContestSummary.objects.filter(contest=contest, team_id=team_id).first()
+
+        data = {
+            "type": "contestresults",
+            "content": {
+                "type": "score.update",
+                "test_score": TeamTestScoreWithoutReferenceSerialiser(score).data if score else None,
+                "task_summary": TaskSummaryWithoutReferenceSerialiser(task_summary).data if task_summary else None,
+                "contest_summary": ContestSummaryWithoutReferenceSerialiser(contest_summary).data if contest_summary else None,
+                "task_test_id": task_test_id,
+                "team_id": team_id,
+            },
+        }
+        self._safe_group_send(self.contest_results_channel_name(contest), data)
+
     def transmit_contest_results(self, user: Optional["MyUser"], contest: "Contest"):
         from display.serialisers import ContestResultsDetailsSerialiser
 

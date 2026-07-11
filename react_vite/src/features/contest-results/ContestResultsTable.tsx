@@ -182,7 +182,6 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
       const testId = parseInt(columnId.replace('test-', ''));
       await updateTestResult(contestId, teamId, testId, value);
     }
-    fetchResults(contestId);
   };
 
   const columns = useMemo<ColumnDef<ContestSummary & { [key: string]: any }>[]>(() => {
@@ -254,7 +253,9 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
             columnHelper.accessor(testDataField, {
               header: () => (
                 <div className="flex flex-col items-center gap-1">
-                  <span className="px-2 py-1 text-sm bg-base-200 text-base-content font-normal rounded-md">{test.heading}</span>
+                  <span className="px-2 py-1 text-sm bg-base-200 text-base-content font-normal rounded-md">
+                    {test.heading} (w {test.weight ?? 1})
+                  </span>
                   {results.permission_change_contest && (
                     <div className="flex items-center gap-1">
                       <button
@@ -334,7 +335,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                   className={`transition-transform duration-200 ${expandedTasks[task.id] ? 'rotate-180' : ''}`}
                 />
                 <span>
-                  {task.heading} {expandedTasks[task.id] ? '(Σ)' : ''}
+                  {task.heading} (w {task.weight ?? 1}) {expandedTasks[task.id] ? '(Σ)' : ''}
                 </span>
               </div>
               {results.permission_change_contest && (
@@ -509,7 +510,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
           <h2 className="text-2xl font-bold text-center">{results.name}</h2>
           <div className="flex-1 flex justify-end">
             <a
-              href={reverse('contests-results-csv', contestId)}
+              href={reverse('contests-results-csv', contestId ?? 0)}
               className="btn btn-sm btn-outline gap-2"
               target="_blank"
               rel="noopener noreferrer"
@@ -523,7 +524,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
       <DataTable
         columns={columns}
         data={data}
-        className="table table-zebra table-pin-rows table-pin-cols"
+        className="table table-zebra table-pin-rows table-pin-cols w-full min-w-max"
         updateMyData={updateMyData}
         initialSorting={initialSorting}
       />

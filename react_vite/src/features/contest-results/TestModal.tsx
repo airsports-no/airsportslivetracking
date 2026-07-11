@@ -19,7 +19,7 @@ export const TestModal: React.FC<TestModalProps> = ({ show, onClose, onSubmit, t
     if (test) {
       setName(test.name);
       setHeading(test.heading);
-      setWeight(test.weight || 1.0);
+      setWeight(test.weight ?? 1.0);
       setSorting(test.sorting || 'asc');
     } else {
       // Reset for new test

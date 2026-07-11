@@ -19,7 +19,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ show, onClose, onSubmit, t
     if (task) {
       setName(task.name);
       setHeading(task.heading);
-      setWeight(task.weight || 1.0);
+      setWeight(task.weight ?? 1.0);
       setAutosumScores(task.autosum_scores !== undefined ? task.autosum_scores : true);
       setSortingDirection(task.summary_score_sorting_direction || 'asc');
     } else {
