@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, forwardRef } from 'react';
+import React, { useEffect, useRef, forwardRef, useState } from 'react';
 import L from 'leaflet';
 import {
   getBearing,
@@ -10,6 +10,8 @@ import useMapInit from './map/useMapInit';
 import useDragHandlers from './map/useDragHandlers';
 import * as Renderers from './map/renderers';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
+import { fetchEditableRouteMapSources, fetchGlobalEditableRouteMapSources } from '../api';
+import { MapSource } from '../types';
 
 const getAngleDiff = (a: number, b: number) => {
   let diff = a - b;
@@ -19,6 +21,7 @@ const getAngleDiff = (a: number, b: number) => {
 };
 
 interface MapCanvasProps {
+    routeId?: number | null;
     routePoints: RoutePoint[];
     gates: Gate[];
     observationMarkers: ObservationMarker[];
@@ -42,7 +45,8 @@ interface MapCanvasProps {
     onMapClick: (latlng: L.LatLng) => void;
 }
 
-const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
+const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({ 
+  routeId,
   // --- Data Props ---
   routePoints,
   gates,
@@ -73,6 +77,9 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   const polylinesRef = useRef<L.Layer[]>([]);
   const routeLineRef = useRef<L.Polyline | null>(null);
   const layerControlRef = useRef<L.Control.Layers | null>(null); // Ref for layer control
+  const [mapSources, setMapSources] = useState<MapSource[] | null>(null);
+  const [selectedBaseLayerLabel, setSelectedBaseLayerLabel] = useState<string>('Google Satellite');
+  const didAutoFitSourceRef = useRef(false);
   
   const { handleDragMove, handleDragEnd, dragRef } = useDragHandlers({
     mapRef,
@@ -98,22 +105,49 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     }
   });
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loader = routeId
+      ? fetchEditableRouteMapSources(routeId)
+      : fetchGlobalEditableRouteMapSources();
+
+    loader
+      .then((sources) => {
+        if (!cancelled) {
+          setMapSources(sources);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed loading route editor map sources', error);
+        if (!cancelled) {
+          setMapSources([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [routeId]);
+
   // --- Add Tile Layers and Layer Control ---
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
 
-    // Remove existing control and layers if the effect re-runs
+    // Remove existing control and tile layers if the effect re-runs
     if (layerControlRef.current) {
       map.removeControl(layerControlRef.current);
+      layerControlRef.current = null;
     }
-    // Remove the previously added osm layer if any, before adding a new one.
-    // This is important because osm.addTo(map) creates a new layer instance each time.
+
+    const layersToRemove: L.Layer[] = [];
     map.eachLayer((layer) => {
-      if ((layer as any)._url && (layer as any)._url.includes('openstreetmap')) {
-        map.removeLayer(layer);
+      if (layer instanceof L.TileLayer) {
+        layersToRemove.push(layer);
       }
     });
+    layersToRemove.forEach((layer) => map.removeLayer(layer));
 
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -125,37 +159,106 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
       attribution: '&copy; Google'
     });
 
-    const openAip = L.tileLayer('https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey={apiKey}', {
+    const openAip = L.tileLayer('https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=3d5d3...1d8', {
       maxZoom: 14,
       minZoom: 4,
-      attribution: '<a href="https://www.openaip.net/">OpenAIP Data</a>',
-      apiKey: '3d5d3f82528731731362a23f445951d8'
+      attribution: '<a href="https://www.openaip.net/">OpenAIP Data</a>'
     });
 
-    osm.addTo(map);
+    const fallbackBaseLayers: Record<string, L.TileLayer> = {
+      'OpenStreetMap': osm,
+      'Google Satellite': googleSat,
+    };
+    const fallbackOverlays: Record<string, L.TileLayer> = {
+      'OpenAIP': openAip,
+    };
 
-    const newLayerControl = L.control.layers({
-      "OpenStreetMap": osm,
-      "Google Satellite": googleSat,
-    }, {
-      "OpenAIP": openAip
-    }).addTo(map);
+    const baseLayers: Record<string, L.TileLayer> = {};
+    const overlays: Record<string, L.TileLayer> = {};
+    const sourceByLabel: Record<string, MapSource> = {};
 
-    layerControlRef.current = newLayerControl;
+    if (mapSources && mapSources.length > 0) {
+      baseLayers['Google Satellite'] = googleSat;
+      mapSources.forEach((source) => {
+        const tileLayer = L.tileLayer(source.tile_url, {
+          attribution: source.attribution,
+          minNativeZoom: source.min_zoom,
+          maxNativeZoom: source.max_zoom,
+          minZoom: 0,
+          maxZoom: 20,
+        });
+        sourceByLabel[source.label] = source;
+        if (source.is_overlay) {
+          overlays[source.label] = tileLayer;
+        } else {
+          baseLayers[source.label] = tileLayer;
+        }
+      });
+      if (Object.keys(overlays).length === 0) {
+        overlays['OpenAIP'] = openAip;
+      }
+    } else {
+      Object.assign(baseLayers, fallbackBaseLayers);
+      Object.assign(overlays, fallbackOverlays);
+    }
+
+    const firstBaseLayerLabel = Object.keys(baseLayers)[0] ?? 'OpenStreetMap';
+    const firstBaseLayer = baseLayers[firstBaseLayerLabel] ?? osm;
+    firstBaseLayer.addTo(map);
+    setSelectedBaseLayerLabel(firstBaseLayerLabel);
+
+    layerControlRef.current = L.control.layers(baseLayers, overlays).addTo(map);
+
+    const onBaseLayerChange = (event: L.LayersControlEvent) => {
+      setSelectedBaseLayerLabel(event.name);
+    };
+    map.on('baselayerchange', onBaseLayerChange);
 
     return () => {
+      map.off('baselayerchange', onBaseLayerChange);
       if (layerControlRef.current) {
         map.removeControl(layerControlRef.current);
         layerControlRef.current = null;
       }
-      // Ensure the osm layer is also removed during cleanup
+      const cleanupLayers: L.Layer[] = [];
       map.eachLayer((layer) => {
-        if ((layer as any)._url && (layer as any)._url.includes('openstreetmap')) {
-          map.removeLayer(layer);
+        if (layer instanceof L.TileLayer) {
+          cleanupLayers.push(layer);
         }
       });
+      cleanupLayers.forEach((layer) => map.removeLayer(layer));
     };
-  }, [mapRef.current]);
+  }, [mapRef, mapSources, routeId, routePoints.length, gates.length, observationMarkers.length, polygons.length]);
+
+  useEffect(() => {
+    if (!mapRef.current || !mapSources || routeId || didAutoFitSourceRef.current) return;
+
+    const preferredSource = mapSources.find((source) => source.origin === 'user_upload' && source.bounds);
+    if (!preferredSource || !preferredSource.bounds) return;
+
+    const [minLon, minLat, maxLon, maxLat] = preferredSource.bounds;
+    mapRef.current.fitBounds([
+      [minLat, minLon] as [number, number],
+      [maxLat, maxLon] as [number, number],
+    ]);
+    didAutoFitSourceRef.current = true;
+  }, [mapRef, mapSources, routeId]);
+
+  const canExplicitlyAdjustViewport = !routeId && routePoints.length === 0 && gates.length === 0 && observationMarkers.length === 0 && polygons.length === 0;
+  const selectedBaseLayerSource = mapSources?.find((source) => !source.is_overlay && source.label === selectedBaseLayerLabel) ?? null;
+
+  const handleZoomToSelectedMap = () => {
+    if (!mapRef.current || !selectedBaseLayerSource?.bounds) return;
+    const [minLon, minLat, maxLon, maxLat] = selectedBaseLayerSource.bounds;
+    const normalizedDefaultZoom = selectedBaseLayerSource.default_zoom == null
+      ? undefined
+      : Math.max(selectedBaseLayerSource.min_zoom, Math.min(selectedBaseLayerSource.default_zoom, selectedBaseLayerSource.max_zoom));
+    const center: [number, number] = [
+      (minLat + maxLat) / 2,
+      (minLon + maxLon) / 2,
+    ];
+    mapRef.current.setView(center, normalizedDefaultZoom ?? mapRef.current.getZoom());
+  };
 
 
   // --- 2. Bind Map Click Event ---
@@ -423,7 +526,18 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels
   ]);
 
-  return <div id="map-container" className="w-full h-full bg-slate-200" />;
+  return (
+    <>
+      {canExplicitlyAdjustViewport && selectedBaseLayerSource?.bounds && (
+        <div className="absolute bottom-4 right-4 z-[1000]">
+          <button type="button" className="btn btn-sm btn-primary" onClick={handleZoomToSelectedMap}>
+            Zoom to map extent
+          </button>
+        </div>
+      )}
+      <div id="map-container" className="w-full h-full bg-slate-200" />
+    </>
+  );
 });
 
 export default MapCanvas;

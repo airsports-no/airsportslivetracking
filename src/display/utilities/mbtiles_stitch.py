@@ -1,4 +1,5 @@
 import logging
+import math
 from io import BytesIO
 from typing import Tuple
 
@@ -60,3 +61,16 @@ class MBTilesHelper:
                     int(position_y * scaled_tile_height),
                 ),
             )
+
+    def bounds(self):
+        def tile_to_lon_lat(x: int, y: int, z: int):
+            n = 2.0**z
+            lon_deg = x / n * 360.0 - 180.0
+            lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * y / n)))
+            lat_deg = math.degrees(lat_rad)
+            return lon_deg, lat_deg
+
+        zoom = self.tiles[0].z
+        min_lon, max_lat = tile_to_lon_lat(self.min_x, self.min_y, zoom)
+        max_lon, min_lat = tile_to_lon_lat(self.max_x + 1, self.max_y + 1, zoom)
+        return min_lon, min_lat, max_lon, max_lat

@@ -4,7 +4,8 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.forms import FlightOrderConfigurationForm
+from display.forms import FlightOrderConfigurationForm, validate_map_zoom_level
+from display.flight_order_and_maps.map_plotter_shared_utilities import resolve_map_source_definition
 from display.models import Contest, NavigationTask, Route
 
 
@@ -27,7 +28,17 @@ class FlightOrderConfigurationFormTests(TestCase):
         self.configuration = self.navigation_task.flightorderconfiguration
 
     @patch("display.forms.validate_map_zoom_level")
-    @patch("display.forms.get_map_choices", return_value=[("osm", "OSM"), ("cyclosm", "CycleOSM")])
+    @patch(
+        "display.forms.get_map_choices",
+        return_value=[
+            ("Norway250k", "Norway 250k"),
+            ("osm", "OSM"),
+            ("fc", "Flight Contest"),
+            ("mto", "MapTiler Outdoor"),
+            ("cyclosm", "CycleOSM"),
+            ("openaip", "OpenAIP"),
+        ],
+    )
     def test_accepts_osm_map_source_from_dynamic_choices(self, _mock_choices, mock_validate_zoom):
         form = FlightOrderConfigurationForm(
             data={
@@ -93,8 +104,45 @@ class FlightOrderConfigurationFormTests(TestCase):
         self.assertIn("map_source", form.errors)
         mock_validate_zoom.assert_not_called()
 
-    @patch("display.forms.get_map_choices", return_value=[("osm", "OSM"), ("cyclosm", "CycleOSM")])
+    @patch(
+        "display.forms.get_map_choices",
+        return_value=[
+            ("Norway250k", "Norway 250k"),
+            ("osm", "OSM"),
+            ("fc", "Flight Contest"),
+            ("mto", "MapTiler Outdoor"),
+            ("cyclosm", "CycleOSM"),
+            ("openaip", "OpenAIP"),
+        ],
+    )
     def test_form_exposes_dynamic_map_source_choices(self, mock_choices):
         form = FlightOrderConfigurationForm(instance=self.configuration)
 
         self.assertEqual(form.fields["map_source"].choices, mock_choices.return_value)
+
+    @patch("display.forms.get_map_details", return_value={"name": "Norway 250k", "minzoom": 8, "maxzoom": 14})
+    def test_validate_map_zoom_level_accepts_unified_builtin_mbtiles_source(self, mock_get_map_details):
+        validate_map_zoom_level("Norway250k", None, 12)
+        mock_get_map_details.assert_not_called()
+
+    @patch("display.forms.get_map_details", return_value={"name": "OpenAIP", "minzoom": 4, "maxzoom": 14})
+    def test_validate_map_zoom_level_accepts_unified_non_mbtiles_source(self, mock_get_map_details):
+        validate_map_zoom_level("openaip", None, 10)
+        mock_get_map_details.assert_not_called()
+
+    def test_resolve_map_source_definition_for_uploaded_map_uses_uploaded_metadata(self):
+        class UploadedMap:
+            pk = 42
+            name = "Uploaded map"
+            attribution = "Uploaded attribution"
+            minimum_zoom_level = 7
+            maximum_zoom_level = 13
+            default_zoom_level = 10
+
+        source = resolve_map_source_definition("ignored", UploadedMap())
+
+        self.assertEqual(source["provider"], "user_uploaded_mbtiles")
+        self.assertEqual(source["label"], "Uploaded map")
+        self.assertEqual(source["min_zoom"], 7)
+        self.assertEqual(source["max_zoom"], 13)
+        self.assertEqual(source["default_zoom"], 10)

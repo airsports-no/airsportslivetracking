@@ -863,6 +863,7 @@ export default function RouteEditor() {
         {/* MAP CONTAINER */}
             <MapCanvas
                 ref={setMapInstance}
+                routeId={routeId ? parseInt(routeId, 10) : null}
                 routePoints={routePoints}
                 gates={gates}
                 observationMarkers={observationMarkers}

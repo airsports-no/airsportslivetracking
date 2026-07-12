@@ -1,5 +1,5 @@
 import { getCookie } from '../../utils/csrf';
-import { RouteData, SavePayload } from './types';
+import { MapSource, RouteData, SavePayload } from './types';
 import { Route } from '../../types'; // Add this import
 import { reverse } from '../../urls';
 
@@ -67,6 +67,28 @@ export const fetchEditableRoutes = async (): Promise<Route[]> => {
     if (!response.ok) {
         const errorMessages = await getErrorMessages(response);
         throw new Error(`Failed to fetch editable routes: ${errorMessages}`);
+    }
+    const data = await response.json();
+    return data;
+};
+
+export const fetchEditableRouteMapSources = async (routeId: number): Promise<MapSource[]> => {
+    const url = reverse('editableroutes-map-sources', routeId);
+    const response = await fetch(url);
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to fetch route editor map sources: ${errorMessages}`);
+    }
+    const data = await response.json();
+    return data;
+};
+
+export const fetchGlobalEditableRouteMapSources = async (): Promise<MapSource[]> => {
+    const url = reverse('editableroutes-global-map-sources');
+    const response = await fetch(url);
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to fetch global route editor map sources: ${errorMessages}`);
     }
     const data = await response.json();
     return data;

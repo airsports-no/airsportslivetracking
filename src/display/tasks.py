@@ -15,9 +15,14 @@ from display.flight_order_and_maps.generate_flight_orders import (
     generate_flight_orders_latex,
     embed_map_in_pdf,
 )
+from display.flight_order_and_maps.user_uploaded_mbtiles_publish import (
+    publish_user_uploaded_map,
+    request_mbtiles_reload,
+)
 from display.flight_order_and_maps.map_plotter import plot_route
 from django.core.files.storage import default_storage
 from django.utils.text import slugify
+from django.utils import timezone
 
 from display.models.contestant import Contestant
 from display.models.email_map_link import EmailMapLink
@@ -261,9 +266,20 @@ def process_user_uploaded_map(map_id: int):
         instance.clear_local_file_path()
         content, minimum_zoom, maximum_zoom = instance.create_thumbnail()
         filename = os.path.split(instance.map_file.name)[1] + "_thumbnail.png"
-        instance.thumbnail.save(filename, ContentFile(content.getvalue()), save=False)
+        try:
+            instance.thumbnail.save(filename, ContentFile(content.getvalue()), save=False)
+        except Exception:
+            logger.exception(f"Failed saving thumbnail for UserUploadedMap {map_id}")
         instance.minimum_zoom_level = minimum_zoom
         instance.maximum_zoom_level = maximum_zoom
+        try:
+            minimum_longitude, minimum_latitude, maximum_longitude, maximum_latitude = instance.get_bounds()
+            instance.minimum_longitude = minimum_longitude
+            instance.minimum_latitude = minimum_latitude
+            instance.maximum_longitude = maximum_longitude
+            instance.maximum_latitude = maximum_latitude
+        except Exception:
+            logger.exception(f"Failed reading bounds for UserUploadedMap {map_id}")
         if not minimum_zoom <= instance.default_zoom_level <= maximum_zoom:
             clamped = max(minimum_zoom, min(instance.default_zoom_level, maximum_zoom))
             logger.warning(
@@ -271,6 +287,11 @@ def process_user_uploaded_map(map_id: int):
                 f"{instance.default_zoom_level} to {clamped} (map supports [{minimum_zoom}, {maximum_zoom}])"
             )
             instance.default_zoom_level = clamped
+        service_key, relative_path = publish_user_uploaded_map(instance)
+        instance.published_service_key = service_key
+        instance.published_relative_path = relative_path
+        instance.published_at = timezone.now()
+        request_mbtiles_reload()
         instance.processing_status = UserUploadedMap.PROCESSING_READY
         instance.processing_error = ""
         instance.save()

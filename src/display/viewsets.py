@@ -55,6 +55,7 @@ from display.models import (
     ANOMALY,
     Task,
     TaskTest,
+    UserUploadedMap,
     NewsletterSubscriber,
     HighlightedContest,
 )
@@ -130,6 +131,8 @@ from display.serialisers import (
 )
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
+from display.flight_order_and_maps.map_plotter_shared_utilities import get_builtin_map_source_definitions, map_source_definition_to_payload
+from live_tracking_map import settings
 from websocket_channels import WebsocketFacade, generate_contestant_data_block
 
 logger = logging.getLogger(__name__)
@@ -317,6 +320,38 @@ class EditableRouteViewSet(ModelViewSet):
     permission_classes = [EditableRoutePermission]
     serializer_class = EditableRouteSerialiser
 
+    @staticmethod
+    def _build_map_sources_for_user(user):
+        sources = []
+        for definition in get_builtin_map_source_definitions():
+            sources.append(map_source_definition_to_payload(definition))
+
+        uploaded_maps = get_objects_for_user(
+            user,
+            "display.view_useruploadedmap",
+            klass=UserUploadedMap,
+            accept_global_perms=False,
+        ).filter(processing_status=UserUploadedMap.PROCESSING_READY).exclude(published_service_key="")
+
+        for uploaded_map in uploaded_maps:
+            sources.append(
+                {
+                    "key": uploaded_map.published_service_key,
+                    "label": uploaded_map.name,
+                    "origin": "user_upload",
+                    "type": "mbtiles",
+                    "tile_url": f"{settings.MBTILES_SERVER_URL.rstrip('/')}/services/{uploaded_map.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png",
+                    "attribution": uploaded_map.attribution,
+                    "min_zoom": uploaded_map.minimum_zoom_level,
+                    "max_zoom": uploaded_map.maximum_zoom_level,
+                    "default_zoom": uploaded_map.default_zoom_level,
+                    "is_overlay": False,
+                    "bounds": uploaded_map.bounds,
+                }
+            )
+
+        return sources
+
     def get_serializer_class(self):
         if self.action == "list":
             return EditableRouteLightSerialiser
@@ -395,6 +430,15 @@ class EditableRouteViewSet(ModelViewSet):
                 )
         except Exception:
             logger.exception(f"Failed creating thumbnail for EditableRoute {serializer.instance.pk}")
+
+    @action(detail=False, methods=["get"], url_path="global-map-sources")
+    def global_map_sources(self, request, *args, **kwargs):
+        return Response(self._build_map_sources_for_user(request.user))
+
+    @action(detail=True, methods=["get"])
+    def map_sources(self, request, *args, **kwargs):
+        self.get_object()
+        return Response(self._build_map_sources_for_user(request.user))
 
 
 TRACK_DATA_PAGE_SIZE_MINUTES = 30

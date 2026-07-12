@@ -66,12 +66,49 @@ class UserUploadedMap(models.Model):
         default=PROCESSING_PENDING,
     )
     processing_error = models.TextField(blank=True, default="")
+    published_service_key = models.CharField(max_length=255, blank=True, default="")
+    published_relative_path = models.CharField(max_length=500, blank=True, default="")
+    published_at = models.DateTimeField(blank=True, null=True)
+    minimum_longitude = models.FloatField(blank=True, null=True)
+    minimum_latitude = models.FloatField(blank=True, null=True)
+    maximum_longitude = models.FloatField(blank=True, null=True)
+    maximum_latitude = models.FloatField(blank=True, null=True)
 
     def __str__(self):
         return self.name
 
     class Meta:
         unique_together = ("user", "name")
+
+    @property
+    def default_service_key(self) -> str:
+        return f"user-uploaded-map-{self.pk}"
+
+    @property
+    def default_published_relative_path(self) -> str:
+        return f"user-uploaded/{self.default_service_key}.mbtiles"
+
+    @property
+    def safe_map_file_size(self):
+        try:
+            return self.map_file.size
+        except (FileNotFoundError, OSError, ValueError):
+            return None
+
+    @property
+    def safe_thumbnail_url(self):
+        if not self.thumbnail:
+            return None
+        try:
+            return self.thumbnail.url
+        except (FileNotFoundError, OSError, ValueError):
+            return None
+
+    @property
+    def bounds(self):
+        if None in (self.minimum_longitude, self.minimum_latitude, self.maximum_longitude, self.maximum_latitude):
+            return None
+        return [self.minimum_longitude, self.minimum_latitude, self.maximum_longitude, self.maximum_latitude]
 
     def get_local_file_path(self) -> str:
         """
@@ -121,3 +158,9 @@ class UserUploadedMap(models.Model):
             temporary_file = BytesIO()
             image.save(temporary_file, "PNG")
             return temporary_file, minimum_zoom_level, maximum_zoom_level
+
+    def get_bounds(self) -> tuple[float, float, float, float]:
+        local_path = self.get_local_file_path()
+        with MBtiles(local_path) as src:
+            helper = MBTilesHelper(src)
+            return helper.bounds()

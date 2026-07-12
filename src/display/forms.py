@@ -20,8 +20,12 @@ from display.flight_order_and_maps.map_constants import (
     A4,
     PORTRAIT,
 )
-from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_choices
+from display.flight_order_and_maps.map_plotter_shared_utilities import (
+    get_map_choices,
+    resolve_map_source_definition,
+)
 from display.flight_order_and_maps.mbtiles_facade import get_map_details
+
 from display.models import (
     NavigationTask,
     Contestant,
@@ -203,7 +207,17 @@ class ContestantMapForm(forms.Form):
 class UserUploadedMapForm(forms.ModelForm):
     class Meta:
         model = UserUploadedMap
-        exclude = ("thumbnail", "unprotected", "minimum_zoom_level", "maximum_zoom_level")
+        exclude = (
+            "thumbnail",
+            "unprotected",
+            "minimum_zoom_level",
+            "maximum_zoom_level",
+            "processing_status",
+            "processing_error",
+            "published_service_key",
+            "published_relative_path",
+            "published_at",
+        )
         # widgets = {"map_file": FileInput(attrs={'accept': 'application/vnd.mapbox-vector-tile'})}
 
     def __init__(self, *args, **kwargs):
@@ -219,22 +233,14 @@ class UserUploadedMapForm(forms.ModelForm):
 
 
 def validate_map_zoom_level(map_source: str, user_uploaded_map: Optional[UserUploadedMap], zoom_level: int):
-    if user_uploaded_map:
-        if not user_uploaded_map.minimum_zoom_level <= zoom_level <= user_uploaded_map.maximum_zoom_level:
-            raise ValidationError(
-                f"The selected zoom level {zoom_level}  is not in the valid range [{user_uploaded_map.minimum_zoom_level}, "
-                f"{user_uploaded_map.maximum_zoom_level}] for the  user uploaded map {user_uploaded_map.name}"
-            )
-    else:
-        if map_source not in ("osm", "fc", "mto", "cyclosm"):
-            map_details = get_map_details(map_source)
-            min_zoom = map_details.get("minzoom", 12)
-            max_zoom = map_details.get("maxzoom", 12)
-            if not min_zoom <= zoom_level <= max_zoom:
-                raise ValidationError(
-                    f"The selected zoom level {zoom_level} is not in the valid range [{min_zoom}, "
-                    f"{max_zoom}] for the map source {map_details['name']}"
-                )
+    source = resolve_map_source_definition(map_source, user_uploaded_map)
+    min_zoom = source["min_zoom"]
+    max_zoom = source["max_zoom"]
+    if not min_zoom <= zoom_level <= max_zoom:
+        raise ValidationError(
+            f"The selected zoom level {zoom_level} is not in the valid range [{min_zoom}, "
+            f"{max_zoom}] for the map source {source['label']}"
+        )
 
 
 class FlightOrderConfigurationForm(forms.ModelForm):

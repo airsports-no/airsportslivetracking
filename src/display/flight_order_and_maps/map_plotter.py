@@ -52,7 +52,11 @@ import matplotlib.ticker as mticker
 from pymbtiles import MBtiles
 from shapely.geometry import Polygon
 
-from display.flight_order_and_maps.map_plotter_shared_utilities import MAP_ATTRIBUTIONS
+from display.flight_order_and_maps.map_plotter_shared_utilities import (
+    MAP_ATTRIBUTIONS,
+    BUILTIN_NON_MBTILES_SOURCES,
+    resolve_map_source_definition,
+)
 from display.flight_order_and_maps.mbtiles_facade import get_map_details
 from display.utilities.coordinate_utilities import (
     calculate_distance_lat_lon,
@@ -1227,26 +1231,29 @@ def plot_route(
         imagery = UserUploadedMBTiles(user_map_source)
         attribution = user_map_source.attribution
     else:
-        if map_source == "osm":
-            imagery = OSM(user_agent="airsports.no, support@airsports.no")  # Does not like zoom level greater than 12
-            attribution = "© OpenStreetMap contributors"
-        elif map_source == "fc":
-            imagery = FlightContest(desired_tile_form="RGBA")
-            attribution = "FlightContest"
-        elif map_source == "mto":
-            imagery = MapTilerOutdoor(desired_tile_form="RGBA")
-            attribution = "maptiler.com"
-        elif map_source == "cyclosm":
-            imagery = CyclOSM(desired_tile_form="RGBA", user_agent="airsports.no, support@airsports.no")
-            attribution = "openstreetmap.org CycleOSM"
-        else:
-            try:
-                imagery = LocalMapServer(map_source, desired_tile_form="RGBA")
-                attribution = MAP_ATTRIBUTIONS.get(map_source, "Missing")
-            except (requests.RequestException, Exception):
-                logger.warning(f"MBTiles server unavailable for {map_source}, falling back to OSM")
+        try:
+            source = resolve_map_source_definition(map_source)
+            provider = source["provider"]
+            attribution = source["attribution"]
+            if provider == "osm":
                 imagery = OSM(user_agent="airsports.no, support@airsports.no")
-                attribution = "© OpenStreetMap contributors"
+            elif provider == "fc":
+                imagery = FlightContest(desired_tile_form="RGBA")
+            elif provider == "mto":
+                imagery = MapTilerOutdoor(desired_tile_form="RGBA")
+            elif provider == "cyclosm":
+                imagery = CyclOSM(desired_tile_form="RGBA", user_agent="airsports.no, support@airsports.no")
+            elif provider == "openaip":
+                imagery = OpenAIP(desired_tile_form="RGBA")
+            elif provider == "mbtiles":
+                imagery = LocalMapServer(map_source, desired_tile_form="RGBA")
+                attribution = source["attribution"] or MAP_ATTRIBUTIONS.get(map_source, "Missing")
+            else:
+                raise ValueError(f"Unsupported map source provider: {provider}")
+        except (requests.RequestException, Exception):
+            logger.warning(f"MBTiles server unavailable for {map_source}, falling back to OSM")
+            imagery = OSM(user_agent="airsports.no, support@airsports.no")
+            attribution = BUILTIN_NON_MBTILES_SOURCES["osm"]["attribution"]
     if map_size == A3:
         if zoom_level is None:
             zoom_level = 12

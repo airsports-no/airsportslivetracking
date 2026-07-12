@@ -138,6 +138,10 @@ from display.tasks import (
     recalculate_existing_positions,
     recalculate_live_data_for_contestant,
 )
+from display.flight_order_and_maps.user_uploaded_mbtiles_publish import (
+    unpublish_user_uploaded_map,
+    request_mbtiles_reload,
+)
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
 from display.utilities.navigation_task_type_definitions import POKER, AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, PRECISION
 from display.waypoint import Waypoint
@@ -2172,10 +2176,21 @@ class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         instance = form.save()  # type: UserUploadedMap
+        unpublish_user_uploaded_map(instance)
+        request_mbtiles_reload()
         instance.clear_local_file_path()
         instance.processing_status = UserUploadedMap.PROCESSING_PENDING
         instance.processing_error = ""
-        instance.save(update_fields=["processing_status", "processing_error"])
+        instance.published_service_key = ""
+        instance.published_relative_path = ""
+        instance.published_at = None
+        instance.save(update_fields=[
+            "processing_status",
+            "processing_error",
+            "published_service_key",
+            "published_relative_path",
+            "published_at",
+        ])
 
         transaction.on_commit(lambda: process_user_uploaded_map.delay(instance.pk))
 
@@ -2209,6 +2224,8 @@ class UserUploadedMapDelete(GuardianPermissionRequiredMixin, DeleteView):
         return self.get_object()
 
     def form_valid(self, form):
+        unpublish_user_uploaded_map(self.object)
+        request_mbtiles_reload()
         self.object.clear_local_file_path()
         return super().form_valid(form)
 

@@ -9,6 +9,10 @@ services:
     environment:
       - MODE=dev
       - MEDIA_LOCATION
+      - MBTILES_SERVER_URL=http://mbtiles:8000/
+      - MBTILES_PUBLISH_ROOT=/maptiles
+      - MBTILES_RELOAD_METHOD=local
+      - MBTILES_RELOAD_LOCAL_URL=http://mbtiles:8000/services/
       - REMOVE_BG_KEY
       - GOOGLE_APPLICATION_CREDENTIALS=/secret/application_default_credentials.json
       - GOOGLE_CLOUD_PROJECT=airsports-613ce
@@ -49,6 +53,10 @@ services:
       - GOOGLE_CLOUD_PROJECT=airsports-613ce
       - MEDIA_LOCATION
       - MODE=dev
+      - MBTILES_SERVER_URL=http://mbtiles:8000/
+      - MBTILES_PUBLISH_ROOT=/maptiles
+      - MBTILES_RELOAD_METHOD=local
+      - MBTILES_RELOAD_LOCAL_URL=http://mbtiles:8000/services/
       - DISABLE_FIREBASE
       - MPLCONFIGDIR=/tmp
     volumes:
@@ -64,6 +72,7 @@ services:
     depends_on:
       - mysql
       - redis
+      - mbtiles
 
 
 
@@ -84,6 +93,15 @@ services:
       - traccar
       - mysql
       - redis
+
+  mbtiles:
+    container_name: mbtiles
+    image: ghcr.io/consbio/mbtileserver:latest
+    command: ["/mbtileserver", "--enable-reload-signal"]
+    volumes:
+      - ./mapserver:/tilesets
+    ports:
+      - "8001:8000"
 
   traccar:
     image: traccar/traccar:ubuntu
