@@ -1,7 +1,7 @@
 from PIL import Image
 import qrcode
 
-from live_tracking_map.settings import MBTILES_SERVER_URL
+from live_tracking_map.settings import MBTILES_PUBLIC_URL
 from display.flight_order_and_maps.mbtiles_facade import get_available_maps, get_map_details
 
 BUILTIN_NON_MBTILES_SOURCES = {
@@ -75,12 +75,18 @@ def get_map_filename(url: str) -> str:
     return url.split("/")[-1]
 
 
+def is_user_uploaded_service_url(url: str) -> bool:
+    return "/services/user-uploaded/" in url or "/services/user-uploaded-map-" in url
+
+
 def get_builtin_map_source_definitions() -> list[dict]:
     definitions = []
     for key, source in BUILTIN_NON_MBTILES_SOURCES.items():
         definitions.append({"key": key, "provider": key, **source})
 
     for system_map_data in get_available_maps():
+        if is_user_uploaded_service_url(system_map_data["url"]):
+            continue
         key = get_map_filename(system_map_data["url"])
         details = get_map_details(key)
         definitions.append(
@@ -94,7 +100,7 @@ def get_builtin_map_source_definitions() -> list[dict]:
                 "min_zoom": details.get("minzoom", 0),
                 "max_zoom": details.get("maxzoom", 18),
                 "default_zoom": DEFAULT_MAP_ZOOM_LEVELS.get(key),
-                "is_overlay": False,
+                "is_overlay": True,
                 "bounds": details.get("bounds"),
             }
         )
@@ -115,7 +121,7 @@ def resolve_map_source_definition(map_source_key: str, user_uploaded_map=None) -
             "label": user_uploaded_map.name,
             "provider": "user_uploaded_mbtiles",
             "type": "mbtiles",
-            "tile_url": f"{MBTILES_SERVER_URL.rstrip('/')}/services/{user_uploaded_map.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png" if user_uploaded_map.published_service_key else "",
+            "tile_url": f"{MBTILES_PUBLIC_URL.rstrip('/')}/services/user-uploaded/{user_uploaded_map.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png" if user_uploaded_map.published_service_key else "",
             "attribution": user_uploaded_map.attribution,
             "min_zoom": user_uploaded_map.minimum_zoom_level,
             "max_zoom": user_uploaded_map.maximum_zoom_level,

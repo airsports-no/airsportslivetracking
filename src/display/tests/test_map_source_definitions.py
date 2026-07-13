@@ -42,7 +42,11 @@ class MapSourceDefinitionTests(TestCase):
         mock_get_available_maps.return_value = [
             {"name": "Norway 250k", "url": "https://mbtiles.airsports.no/services/Norway250k"}
         ]
-        mock_get_map_details.return_value = {"minzoom": 8, "maxzoom": 14}
+        mock_get_map_details.return_value = {
+            "minzoom": 8,
+            "maxzoom": 14,
+            "tiles": ["https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png"],
+        }
 
         definitions = sources.get_builtin_map_source_definitions()
         keys = {item["key"] for item in definitions}
@@ -50,3 +54,29 @@ class MapSourceDefinitionTests(TestCase):
         self.assertIn("osm", keys)
         self.assertIn("openaip", keys)
         self.assertIn("Norway250k", keys)
+
+        norway = next(item for item in definitions if item["key"] == "Norway250k")
+        self.assertEqual(
+            norway["tile_url"],
+            "https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png",
+        )
+
+    @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_map_details")
+    @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_available_maps")
+    def test_get_builtin_map_source_definitions_excludes_user_uploaded_namespace(
+        self, mock_get_available_maps, mock_get_map_details
+    ):
+        mock_get_available_maps.return_value = [
+            {"name": "Norway 250k", "url": "https://mbtiles.airsports.no/services/Norway250k"},
+            {"name": "Pilot uploaded map", "url": "http://localhost:8001/services/user-uploaded/user-uploaded-map-307"},
+        ]
+        mock_get_map_details.return_value = {
+            "minzoom": 8,
+            "maxzoom": 14,
+            "tiles": ["https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png"],
+        }
+
+        definitions = sources.get_builtin_map_source_definitions()
+
+        self.assertTrue(any(item["key"] == "Norway250k" for item in definitions))
+        self.assertFalse(any(item["label"] == "Pilot uploaded map" for item in definitions))

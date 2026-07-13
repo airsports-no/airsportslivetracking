@@ -10,6 +10,7 @@ services:
       - MODE=dev
       - MEDIA_LOCATION
       - MBTILES_SERVER_URL=http://mbtiles:8000/
+      - MBTILES_PUBLIC_URL=http://localhost:8001/
       - MBTILES_PUBLISH_ROOT=/maptiles
       - MBTILES_RELOAD_METHOD=local
       - MBTILES_RELOAD_LOCAL_URL=http://mbtiles:8000/services/
@@ -54,6 +55,7 @@ services:
       - MEDIA_LOCATION
       - MODE=dev
       - MBTILES_SERVER_URL=http://mbtiles:8000/
+      - MBTILES_PUBLIC_URL=http://localhost:8001/
       - MBTILES_PUBLISH_ROOT=/maptiles
       - MBTILES_RELOAD_METHOD=local
       - MBTILES_RELOAD_LOCAL_URL=http://mbtiles:8000/services/

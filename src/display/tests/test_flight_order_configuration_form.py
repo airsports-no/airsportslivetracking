@@ -120,15 +120,21 @@ class FlightOrderConfigurationFormTests(TestCase):
 
         self.assertEqual(form.fields["map_source"].choices, mock_choices.return_value)
 
-    @patch("display.forms.get_map_details", return_value={"name": "Norway 250k", "minzoom": 8, "maxzoom": 14})
-    def test_validate_map_zoom_level_accepts_unified_builtin_mbtiles_source(self, mock_get_map_details):
+    @patch(
+        "display.forms.resolve_map_source_definition",
+        return_value={"label": "Norway 250k", "min_zoom": 8, "max_zoom": 14},
+    )
+    def test_validate_map_zoom_level_accepts_unified_builtin_mbtiles_source(self, mock_resolve_map_source_definition):
         validate_map_zoom_level("Norway250k", None, 12)
-        mock_get_map_details.assert_not_called()
+        mock_resolve_map_source_definition.assert_called_once_with("Norway250k", None)
 
-    @patch("display.forms.get_map_details", return_value={"name": "OpenAIP", "minzoom": 4, "maxzoom": 14})
-    def test_validate_map_zoom_level_accepts_unified_non_mbtiles_source(self, mock_get_map_details):
+    @patch(
+        "display.forms.resolve_map_source_definition",
+        return_value={"label": "OpenAIP", "min_zoom": 4, "max_zoom": 14},
+    )
+    def test_validate_map_zoom_level_accepts_unified_non_mbtiles_source(self, mock_resolve_map_source_definition):
         validate_map_zoom_level("openaip", None, 10)
-        mock_get_map_details.assert_not_called()
+        mock_resolve_map_source_definition.assert_called_once_with("openaip", None)
 
     def test_resolve_map_source_definition_for_uploaded_map_uses_uploaded_metadata(self):
         class UploadedMap:
@@ -138,6 +144,8 @@ class FlightOrderConfigurationFormTests(TestCase):
             minimum_zoom_level = 7
             maximum_zoom_level = 13
             default_zoom_level = 10
+            published_service_key = "user-uploaded-map-42"
+            bounds = None
 
         source = resolve_map_source_definition("ignored", UploadedMap())
 
@@ -146,3 +154,7 @@ class FlightOrderConfigurationFormTests(TestCase):
         self.assertEqual(source["min_zoom"], 7)
         self.assertEqual(source["max_zoom"], 13)
         self.assertEqual(source["default_zoom"], 10)
+        self.assertEqual(
+            source["tile_url"],
+            "http://localhost:8001/services/user-uploaded/user-uploaded-map-42/tiles/{z}/{x}/{y}.png",
+        )

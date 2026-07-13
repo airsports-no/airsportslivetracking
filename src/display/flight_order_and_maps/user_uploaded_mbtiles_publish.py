@@ -24,6 +24,10 @@ def get_published_absolute_path(user_map: UserUploadedMap) -> Path:
     return get_mbtiles_publish_root() / user_map.default_published_relative_path
 
 
+def get_local_reload_trigger_path() -> Path:
+    return get_mbtiles_publish_root() / ".reload-trigger"
+
+
 def publish_user_uploaded_map(user_map: UserUploadedMap) -> tuple[str, str]:
     target = get_published_absolute_path(user_map)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -59,10 +63,12 @@ def request_mbtiles_reload() -> None:
     if reload_method == "noop":
         return None
     if reload_method == "local":
-        local_url = getattr(settings, "MBTILES_RELOAD_LOCAL_URL", "")
-        if not local_url:
-            raise RuntimeError("MBTILES_RELOAD_LOCAL_URL must be set when MBTILES_RELOAD_METHOD=local")
-        requests.post(local_url)
+        trigger_path = get_local_reload_trigger_path()
+        trigger_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            trigger_path.touch()
+        except PermissionError:
+            os.utime(trigger_path, None)
         return None
     if reload_method != "kubernetes":
         raise RuntimeError(f"Unknown MBTiles reload method: {reload_method}")

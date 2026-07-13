@@ -78,7 +78,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   const routeLineRef = useRef<L.Polyline | null>(null);
   const layerControlRef = useRef<L.Control.Layers | null>(null); // Ref for layer control
   const [mapSources, setMapSources] = useState<MapSource[] | null>(null);
-  const [selectedBaseLayerLabel, setSelectedBaseLayerLabel] = useState<string>('Google Satellite');
+  const [selectedBaseLayerLabel, setSelectedBaseLayerLabel] = useState<string>('OpenStreetMap');
   const didAutoFitSourceRef = useRef(false);
   
   const { handleDragMove, handleDragEnd, dragRef } = useDragHandlers({
@@ -178,14 +178,17 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     const sourceByLabel: Record<string, MapSource> = {};
 
     if (mapSources && mapSources.length > 0) {
+      baseLayers['OpenStreetMap'] = osm;
       baseLayers['Google Satellite'] = googleSat;
       mapSources.forEach((source) => {
+        const overlayMinZoom = source.is_overlay ? Math.max(0, source.min_zoom - 1) : 0;
+        const overlayMaxZoom = source.is_overlay ? Math.min(20, source.max_zoom + 1) : 20;
         const tileLayer = L.tileLayer(source.tile_url, {
           attribution: source.attribution,
           minNativeZoom: source.min_zoom,
           maxNativeZoom: source.max_zoom,
-          minZoom: 0,
-          maxZoom: 20,
+          minZoom: overlayMinZoom,
+          maxZoom: overlayMaxZoom,
         });
         sourceByLabel[source.label] = source;
         if (source.is_overlay) {
@@ -197,12 +200,18 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
       if (Object.keys(overlays).length === 0) {
         overlays['OpenAIP'] = openAip;
       }
+      if (!overlays['OpenAIP']) {
+        overlays['OpenAIP'] = openAip;
+      }
+      if (!baseLayers['OpenStreetMap']) {
+        baseLayers['OpenStreetMap'] = osm;
+      }
     } else {
       Object.assign(baseLayers, fallbackBaseLayers);
       Object.assign(overlays, fallbackOverlays);
     }
 
-    const firstBaseLayerLabel = Object.keys(baseLayers)[0] ?? 'OpenStreetMap';
+    const firstBaseLayerLabel = baseLayers['OpenStreetMap'] ? 'OpenStreetMap' : (Object.keys(baseLayers)[0] ?? 'OpenStreetMap');
     const firstBaseLayer = baseLayers[firstBaseLayerLabel] ?? osm;
     firstBaseLayer.addTo(map);
     setSelectedBaseLayerLabel(firstBaseLayerLabel);
@@ -245,14 +254,15 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   }, [mapRef, mapSources, routeId]);
 
   const canExplicitlyAdjustViewport = !routeId && routePoints.length === 0 && gates.length === 0 && observationMarkers.length === 0 && polygons.length === 0;
-  const selectedBaseLayerSource = mapSources?.find((source) => !source.is_overlay && source.label === selectedBaseLayerLabel) ?? null;
+  const selectedOverlaySource = mapSources?.find((source) => source.is_overlay && source.label === selectedBaseLayerLabel) ?? null;
+  const overlayOutOfRange = !!selectedOverlaySource && !!mapRef.current && (mapRef.current.getZoom() < selectedOverlaySource.min_zoom - 1 || mapRef.current.getZoom() > selectedOverlaySource.max_zoom + 1);
 
   const handleZoomToSelectedMap = () => {
-    if (!mapRef.current || !selectedBaseLayerSource?.bounds) return;
-    const [minLon, minLat, maxLon, maxLat] = selectedBaseLayerSource.bounds;
-    const normalizedDefaultZoom = selectedBaseLayerSource.default_zoom == null
+    if (!mapRef.current || !selectedOverlaySource?.bounds) return;
+    const [minLon, minLat, maxLon, maxLat] = selectedOverlaySource.bounds;
+    const normalizedDefaultZoom = selectedOverlaySource.default_zoom == null
       ? undefined
-      : Math.max(selectedBaseLayerSource.min_zoom, Math.min(selectedBaseLayerSource.default_zoom, selectedBaseLayerSource.max_zoom));
+      : Math.max(selectedOverlaySource.min_zoom, Math.min(selectedOverlaySource.default_zoom, selectedOverlaySource.max_zoom));
     const center: [number, number] = [
       (minLat + maxLat) / 2,
       (minLon + maxLon) / 2,
@@ -528,8 +538,13 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
 
   return (
     <>
-      {canExplicitlyAdjustViewport && selectedBaseLayerSource?.bounds && (
-        <div className="absolute bottom-4 right-4 z-[1000]">
+      {canExplicitlyAdjustViewport && selectedOverlaySource?.bounds && (
+        <div className="absolute bottom-4 right-4 z-[1000] flex flex-col items-end gap-2">
+          {overlayOutOfRange && (
+            <div className="rounded bg-base-100/90 px-3 py-2 text-xs text-base-content shadow border border-base-300 max-w-xs">
+              Selected overlay is only visible around zoom {selectedOverlaySource.min_zoom}–{selectedOverlaySource.max_zoom}.
+            </div>
+          )}
           <button type="button" className="btn btn-sm btn-primary" onClick={handleZoomToSelectedMap}>
             Zoom to map extent
           </button>

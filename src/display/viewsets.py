@@ -340,12 +340,12 @@ class EditableRouteViewSet(ModelViewSet):
                     "label": uploaded_map.name,
                     "origin": "user_upload",
                     "type": "mbtiles",
-                    "tile_url": f"{settings.MBTILES_SERVER_URL.rstrip('/')}/services/{uploaded_map.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png",
+                    "tile_url": f"{settings.MBTILES_PUBLIC_URL.rstrip('/')}/services/user-uploaded/{uploaded_map.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png",
                     "attribution": uploaded_map.attribution,
                     "min_zoom": uploaded_map.minimum_zoom_level,
                     "max_zoom": uploaded_map.maximum_zoom_level,
                     "default_zoom": uploaded_map.default_zoom_level,
-                    "is_overlay": False,
+                    "is_overlay": True,
                     "bounds": uploaded_map.bounds,
                 }
             )

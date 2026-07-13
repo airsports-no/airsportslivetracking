@@ -170,13 +170,31 @@ class RequestMbtilesReloadTests(TestCase):
         MBTILES_RELOAD_METHOD="local",
         MBTILES_RELOAD_LOCAL_URL="http://mbtiles:8000/services/",
     )
-    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.requests.post")
-    def test_request_mbtiles_reload_uses_local_http_reload_endpoint(self, post_mock):
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.Path.touch")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.Path.mkdir")
+    def test_request_mbtiles_reload_touches_local_reload_trigger(self, mkdir_mock, touch_mock):
         from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
 
         request_mbtiles_reload()
 
-        post_mock.assert_called_once_with("http://mbtiles:8000/services/")
+        mkdir_mock.assert_called_once_with(parents=True, exist_ok=True)
+        touch_mock.assert_called_once_with()
+
+    @override_settings(
+        MBTILES_RELOAD_METHOD="local",
+        MBTILES_RELOAD_LOCAL_URL="http://mbtiles:8000/services/",
+    )
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.os.utime")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.Path.touch", side_effect=PermissionError("readonly trigger file"))
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.Path.mkdir")
+    def test_request_mbtiles_reload_updates_timestamp_when_trigger_exists_but_is_not_touch_writable(self, mkdir_mock, touch_mock, utime_mock):
+        from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
+
+        request_mbtiles_reload()
+
+        mkdir_mock.assert_called_once_with(parents=True, exist_ok=True)
+        touch_mock.assert_called_once_with()
+        utime_mock.assert_called_once()
 
 
 class UnifiedMapSourcesApiTests(APITransactionTestCase):
@@ -215,6 +233,7 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
         assign_perm("display.view_editableroute", self.user, self.route)
 
     @patch("display.viewsets.get_builtin_map_source_definitions")
+    @override_settings(MBTILES_PUBLIC_URL="http://localhost:8001/")
     def test_route_editor_map_sources_include_builtin_and_accessible_uploaded_maps(
         self, mock_get_builtin_map_source_definitions
     ):
@@ -229,7 +248,7 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
                 "min_zoom": 8,
                 "max_zoom": 14,
                 "default_zoom": 12,
-                "is_overlay": False,
+                "is_overlay": True,
                 "bounds": [10.0, 59.0, 11.0, 60.0],
             },
             {
@@ -334,7 +353,7 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
         self.assertEqual(builtin["tile_url"], "https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png")
         self.assertEqual(builtin["min_zoom"], 8)
         self.assertEqual(builtin["max_zoom"], 14)
-        self.assertFalse(builtin["is_overlay"])
+        self.assertTrue(builtin["is_overlay"])
         self.assertEqual(builtin["bounds"], [10.0, 59.0, 11.0, 60.0])
 
         osm = next(item for item in payload if item["key"] == "osm")
@@ -373,11 +392,12 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
         self.assertEqual(uploaded["max_zoom"], 13)
         self.assertEqual(uploaded["default_zoom"], 11)
         self.assertEqual(uploaded["attribution"], "Uploaded attribution")
-        self.assertEqual(uploaded["tile_url"], f"https://mbtiles.airsports.no/services/{allowed.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png")
+        self.assertEqual(uploaded["tile_url"], f"http://localhost:8001/services/user-uploaded/{allowed.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png")
         self.assertEqual(uploaded["bounds"], [10.0, 59.0, 11.0, 60.0])
         self.assertNotIn(hidden.published_service_key, [item["key"] for item in payload])
 
     @patch("display.viewsets.get_builtin_map_source_definitions")
+    @override_settings(MBTILES_PUBLIC_URL="http://localhost:8001/")
     def test_global_route_editor_map_sources_available_without_route_id(
         self, mock_get_builtin_map_source_definitions
     ):
@@ -392,7 +412,7 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
                 "min_zoom": 8,
                 "max_zoom": 14,
                 "default_zoom": 12,
-                "is_overlay": False,
+                "is_overlay": True,
                 "bounds": [10.0, 59.0, 11.0, 60.0],
             },
             {
@@ -415,7 +435,7 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         payload = response.json()
         self.assertTrue(any(item["key"] == "osm" for item in payload))
-        self.assertTrue(any(item["key"] == "Norway250k" for item in payload))
+        self.assertTrue(any(item["key"] == "Norway250k" and item["is_overlay"] for item in payload))
 
 
 class UserUploadedMapLifecycleViewTests(TestCase):
