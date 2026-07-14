@@ -77,6 +77,23 @@ class ProcessUserUploadedMapTaskTests(TestCase):
         self.assertEqual(instance.bounds, [10.0, 59.0, 11.0, 60.0])
 
     @override_settings(MBTILES_PUBLISH_ROOT="/tilesets-test")
+    def test_processing_stores_uploaded_bounds_in_south_then_north_order(self):
+        instance = _make_instance(self.user, default_zoom=12)
+        fake_png = BytesIO(b"\x89PNG\r\n\x1a\nfake")
+
+        with patch.object(UserUploadedMap, "create_thumbnail", return_value=(fake_png, 12, 15)), \
+             patch.object(UserUploadedMap, "get_bounds", return_value=(-0.9474, 38.3457, -0.0357, 38.6619)), \
+             patch("display.tasks.publish_user_uploaded_map", return_value=("user-uploaded-map-1", "user-uploaded/user-uploaded-map-1.mbtiles")), \
+             patch("display.tasks.request_mbtiles_reload"):
+            process_user_uploaded_map(instance.pk)
+
+        instance.refresh_from_db()
+        self.assertEqual(instance.minimum_longitude, -0.9474)
+        self.assertEqual(instance.minimum_latitude, 38.3457)
+        self.assertEqual(instance.maximum_longitude, -0.0357)
+        self.assertEqual(instance.maximum_latitude, 38.6619)
+
+    @override_settings(MBTILES_PUBLISH_ROOT="/tilesets-test")
     def test_thumbnail_save_failure_does_not_block_publish(self):
         instance = _make_instance(self.user, default_zoom=12)
         fake_png = BytesIO(b"\x89PNG\r\n\x1a\nfake")
@@ -170,31 +187,26 @@ class RequestMbtilesReloadTests(TestCase):
         MBTILES_RELOAD_METHOD="local",
         MBTILES_RELOAD_LOCAL_URL="http://mbtiles:8000/services/",
     )
-    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.Path.touch")
-    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.Path.mkdir")
-    def test_request_mbtiles_reload_touches_local_reload_trigger(self, mkdir_mock, touch_mock):
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.os.kill")
+    def test_request_mbtiles_reload_sends_local_hup_signal(self, kill_mock):
         from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
 
         request_mbtiles_reload()
 
-        mkdir_mock.assert_called_once_with(parents=True, exist_ok=True)
-        touch_mock.assert_called_once_with()
+        kill_mock.assert_called_once()
 
     @override_settings(
         MBTILES_RELOAD_METHOD="local",
         MBTILES_RELOAD_LOCAL_URL="http://mbtiles:8000/services/",
     )
-    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.os.utime")
-    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.Path.touch", side_effect=PermissionError("readonly trigger file"))
-    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.Path.mkdir")
-    def test_request_mbtiles_reload_updates_timestamp_when_trigger_exists_but_is_not_touch_writable(self, mkdir_mock, touch_mock, utime_mock):
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.os.kill", side_effect=PermissionError("signal denied"))
+    def test_request_mbtiles_reload_raises_when_local_hup_signal_fails(self, kill_mock):
         from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
 
-        request_mbtiles_reload()
+        with self.assertRaises(PermissionError):
+            request_mbtiles_reload()
 
-        mkdir_mock.assert_called_once_with(parents=True, exist_ok=True)
-        touch_mock.assert_called_once_with()
-        utime_mock.assert_called_once()
+        kill_mock.assert_called_once()
 
 
 class UnifiedMapSourcesApiTests(APITransactionTestCase):
@@ -308,7 +320,7 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
                 "label": "OpenAIP",
                 "provider": "openaip",
                 "type": "raster_xyz",
-                "tile_url": "https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=3d5d3...1d8",
+                "tile_url": "https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=3d5d3f82528731731362a23f445951d8",
                 "attribution": "OpenAIP Data",
                 "min_zoom": 4,
                 "max_zoom": 14,
@@ -524,6 +536,26 @@ class UserUploadedMapListViewTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         self.assertContains(response, "Missing file map")
+
+    def test_list_view_shows_extent_when_bounds_are_available(self):
+        uploaded_map = UserUploadedMap.objects.create(
+            user=self.user,
+            name="Extent map",
+            map_file=SimpleUploadedFile("extent.mbtiles", b"placeholder"),
+            processing_status=UserUploadedMap.PROCESSING_READY,
+            minimum_longitude=-3.5266,
+            minimum_latitude=40.6639,
+            maximum_longitude=-2.5158,
+            maximum_latitude=41.0047,
+        )
+        assign_perm("display.view_useruploadedmap", self.user, uploaded_map)
+
+        response = self.client.get(reverse("useruploadedmap_list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.assertContains(response, "Extent")
+        self.assertContains(response, "40.6639")
+        self.assertContains(response, "41.0047")
 
     def test_update_view_tolerates_missing_map_file_on_disk(self):
         uploaded_map = UserUploadedMap.objects.create(

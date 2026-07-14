@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import signal
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -63,12 +64,7 @@ def request_mbtiles_reload() -> None:
     if reload_method == "noop":
         return None
     if reload_method == "local":
-        trigger_path = get_local_reload_trigger_path()
-        trigger_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            trigger_path.touch()
-        except PermissionError:
-            os.utime(trigger_path, None)
+        os.kill(1, signal.SIGHUP)
         return None
     if reload_method != "kubernetes":
         raise RuntimeError(f"Unknown MBTiles reload method: {reload_method}")

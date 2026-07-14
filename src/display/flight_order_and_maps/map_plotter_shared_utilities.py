@@ -48,7 +48,7 @@ BUILTIN_NON_MBTILES_SOURCES = {
     "openaip": {
         "label": "OpenAIP",
         "type": "raster_xyz",
-        "tile_url": "https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=3d5d3...1d8",
+        "tile_url": "https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=3d5d3f82528731731362a23f445951d8",
         "attribution": "OpenAIP Data",
         "min_zoom": 4,
         "max_zoom": 14,

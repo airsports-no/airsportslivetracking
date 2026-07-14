@@ -63,6 +63,11 @@ class MBTilesHelper:
             )
 
     def bounds(self):
+        bounds_metadata = self.mbtiles.meta.get("bounds")
+        if bounds_metadata:
+            west, south, east, north = [float(value) for value in str(bounds_metadata).split(",")]
+            return west, south, east, north
+
         def tile_to_lon_lat(x: int, y: int, z: int):
             n = 2.0**z
             lon_deg = x / n * 360.0 - 180.0
@@ -73,4 +78,6 @@ class MBTilesHelper:
         zoom = self.tiles[0].z
         min_lon, max_lat = tile_to_lon_lat(self.min_x, self.min_y, zoom)
         max_lon, min_lat = tile_to_lon_lat(self.max_x + 1, self.max_y + 1, zoom)
+        if self.tms:
+            min_lat, max_lat = max_lat, min_lat
         return min_lon, min_lat, max_lon, max_lat
