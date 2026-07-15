@@ -56,6 +56,7 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import (
     MAP_ATTRIBUTIONS,
     BUILTIN_NON_MBTILES_SOURCES,
     resolve_map_source_definition,
+    resolve_uploaded_map_from_token,
 )
 from display.flight_order_and_maps.mbtiles_facade import get_map_details
 from display.utilities.coordinate_utilities import (
@@ -1235,7 +1236,13 @@ def plot_route(
             source = resolve_map_source_definition(map_source)
             provider = source["provider"]
             attribution = source["attribution"]
-            if provider == "osm":
+            if provider == "user_uploaded_mbtiles":
+                if uploaded_map := resolve_uploaded_map_from_token(map_source):
+                    imagery = UserUploadedMBTiles(uploaded_map)
+                    attribution = uploaded_map.attribution
+                else:
+                    raise ValueError(f"Unknown uploaded map source token: {map_source}")
+            elif provider == "osm":
                 imagery = OSM(user_agent="airsports.no, support@airsports.no")
             elif provider == "fc":
                 imagery = FlightContest(desired_tile_form="RGBA")

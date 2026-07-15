@@ -52,14 +52,6 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
         logger.info(f"Async map generation started for task {task_id}, contestant {contestant_id}")
 
         map_source = map_params["map_source"]
-        user_map_source = None
-        if map_params.get("user_map_source_id"):
-            from display.models import UserUploadedMap
-
-            try:
-                user_map_source = UserUploadedMap.objects.get(pk=map_params["user_map_source_id"])
-            except UserUploadedMap.DoesNotExist:
-                pass
 
         # Use existing plot_route logic
         map_image = plot_route(
@@ -73,7 +65,6 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
             dpi=map_params["dpi"],
             scale=int(map_params["scale"]),
             map_source=map_source,
-            user_map_source=user_map_source,
             line_width=float(map_params["line_width"]),
             minute_mark_line_width=float(map_params.get("minute_mark_line_width", 0.5)),
             colour=map_params["colour"],
@@ -287,7 +278,11 @@ def process_user_uploaded_map(map_id: int):
                 f"{instance.default_zoom_level} to {clamped} (map supports [{minimum_zoom}, {maximum_zoom}])"
             )
             instance.default_zoom_level = clamped
-        service_key, relative_path = publish_user_uploaded_map(instance)
+        if instance.published_absolute_path.exists() and instance.published_relative_path and instance.published_service_key:
+            service_key = instance.published_service_key
+            relative_path = instance.published_relative_path
+        else:
+            service_key, relative_path = publish_user_uploaded_map(instance)
         instance.published_service_key = service_key
         instance.published_relative_path = relative_path
         instance.published_at = timezone.now()
@@ -301,6 +296,27 @@ def process_user_uploaded_map(map_id: int):
             processing_status=UserUploadedMap.PROCESSING_FAILED,
             processing_error=f"Failed reading mbtiles file: {ex}",
         )
+
+
+def backfill_legacy_user_uploaded_map_to_shared_storage(map_id: int) -> bool:
+    from display.models import UserUploadedMap
+
+    try:
+        instance = UserUploadedMap.objects.get(pk=map_id)
+    except UserUploadedMap.DoesNotExist:
+        return False
+
+    if not instance.map_file:
+        return False
+
+    process_user_uploaded_map(map_id)
+    instance.refresh_from_db()
+
+    if instance.processing_status == UserUploadedMap.PROCESSING_READY and instance.canonical_source_exists:
+        instance.remove_uploaded_blob()
+        return True
+
+    return False
 
 
 @app.task

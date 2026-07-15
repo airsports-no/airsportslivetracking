@@ -1,8 +1,13 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from guardian.shortcuts import assign_perm
 
 from display.flight_order_and_maps import map_plotter_shared_utilities as sources
+from display.models.user_uploaded_map import UserUploadedMap
 
 
 class MapSourceDefinitionTests(TestCase):
@@ -80,3 +85,150 @@ class MapSourceDefinitionTests(TestCase):
 
         self.assertTrue(any(item["key"] == "Norway250k" for item in definitions))
         self.assertFalse(any(item["label"] == "Pilot uploaded map" for item in definitions))
+
+
+class NavigationTaskMapSourceAvailabilityTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create(email="maps@example.com")
+
+    @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_builtin_map_source_definitions")
+    def test_includes_global_sources_and_extent_overlapping_maps_only(self, mock_get_builtin_map_source_definitions):
+        mock_get_builtin_map_source_definitions.return_value = [
+            {
+                "key": "osm",
+                "label": "OSM",
+                "provider": "osm",
+                "type": "raster_xyz",
+                "tile_url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                "attribution": "© OpenStreetMap contributors",
+                "min_zoom": 0,
+                "max_zoom": 19,
+                "default_zoom": 12,
+                "is_overlay": False,
+                "bounds": None,
+            },
+            {
+                "key": "Norway250k",
+                "label": "Norway 250k",
+                "provider": "mbtiles",
+                "type": "mbtiles",
+                "tile_url": "https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png",
+                "attribution": "",
+                "min_zoom": 8,
+                "max_zoom": 14,
+                "default_zoom": 12,
+                "is_overlay": True,
+                "bounds": [10.0, 59.0, 11.0, 60.0],
+            },
+            {
+                "key": "Sweden250k",
+                "label": "Sweden 250k",
+                "provider": "mbtiles",
+                "type": "mbtiles",
+                "tile_url": "https://mbtiles.airsports.no/services/Sweden250k/tiles/{z}/{x}/{y}.png",
+                "attribution": "",
+                "min_zoom": 8,
+                "max_zoom": 14,
+                "default_zoom": 12,
+                "is_overlay": True,
+                "bounds": [20.0, 65.0, 21.0, 66.0],
+            },
+        ]
+        overlapping_uploaded = UserUploadedMap.objects.create(
+            user=self.user,
+            name="Overlap",
+            published_service_key="user-uploaded-map-1",
+            minimum_zoom_level=10,
+            maximum_zoom_level=13,
+            default_zoom_level=11,
+            attribution="Uploaded attribution",
+            processing_status=UserUploadedMap.PROCESSING_READY,
+            minimum_longitude=10.0,
+            minimum_latitude=59.0,
+            maximum_longitude=11.0,
+            maximum_latitude=60.0,
+        )
+        outside_uploaded = UserUploadedMap.objects.create(
+            user=self.user,
+            name="Outside",
+            published_service_key="user-uploaded-map-2",
+            minimum_zoom_level=10,
+            maximum_zoom_level=13,
+            default_zoom_level=11,
+            attribution="Uploaded attribution",
+            processing_status=UserUploadedMap.PROCESSING_READY,
+            minimum_longitude=20.0,
+            minimum_latitude=65.0,
+            maximum_longitude=21.0,
+            maximum_latitude=66.0,
+        )
+        hidden_uploaded = UserUploadedMap.objects.create(
+            user=self.user,
+            name="Hidden",
+            published_service_key="user-uploaded-map-3",
+            minimum_zoom_level=10,
+            maximum_zoom_level=13,
+            default_zoom_level=11,
+            attribution="Uploaded attribution",
+            processing_status=UserUploadedMap.PROCESSING_READY,
+            minimum_longitude=10.0,
+            minimum_latitude=59.0,
+            maximum_longitude=11.0,
+            maximum_latitude=60.0,
+        )
+        assign_perm("display.view_useruploadedmap", self.user, overlapping_uploaded)
+        assign_perm("display.view_useruploadedmap", self.user, outside_uploaded)
+
+        task = SimpleNamespace(route=SimpleNamespace(get_extent=lambda: (59.0, 60.0, 10.0, 11.0)))
+
+        definitions = sources.get_available_map_source_definitions_for_navigation_task(task, self.user)
+        keys = {item["key"] for item in definitions}
+
+        self.assertIn("osm", keys)
+        self.assertIn("Norway250k", keys)
+        self.assertNotIn("Sweden250k", keys)
+        self.assertIn(sources.uploaded_map_token(overlapping_uploaded), keys)
+        self.assertNotIn(sources.uploaded_map_token(outside_uploaded), keys)
+        self.assertNotIn(sources.uploaded_map_token(hidden_uploaded), keys)
+
+    def test_uploaded_map_token_round_trip(self):
+        uploaded = UserUploadedMap.objects.create(
+            user=self.user,
+            name="Round trip",
+            published_service_key="user-uploaded-map-4",
+            processing_status=UserUploadedMap.PROCESSING_READY,
+        )
+
+        token = sources.uploaded_map_token(uploaded)
+
+        self.assertEqual(token, f"user_uploaded:{uploaded.pk}")
+        self.assertEqual(sources.parse_uploaded_map_token(token), uploaded.pk)
+
+    @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_builtin_map_source_definitions", return_value=[])
+    def test_includes_uploaded_maps_from_passed_uploaded_queryset(self, _mock_get_builtin_map_source_definitions):
+        uploaded = UserUploadedMap.objects.create(
+            user=self.user,
+            name="Contest shared",
+            published_service_key="user-uploaded-map-5",
+            minimum_zoom_level=10,
+            maximum_zoom_level=13,
+            default_zoom_level=11,
+            attribution="Uploaded attribution",
+            processing_status=UserUploadedMap.PROCESSING_READY,
+            minimum_longitude=10.0,
+            minimum_latitude=59.0,
+            maximum_longitude=11.0,
+            maximum_latitude=60.0,
+        )
+        task = SimpleNamespace(
+            route=SimpleNamespace(get_extent=lambda: (59.0, 60.0, 10.0, 11.0)),
+        )
+
+        definitions = sources.get_available_map_source_definitions_for_navigation_task(
+            task,
+            self.user,
+            uploaded_maps=UserUploadedMap.objects.filter(pk=uploaded.pk),
+        )
+        keys = {item["key"] for item in definitions}
+
+        self.assertIn(sources.uploaded_map_token(uploaded), keys)

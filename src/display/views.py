@@ -65,7 +65,12 @@ from guardian.shortcuts import (
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 
-from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_zoom_levels
+from display.flight_order_and_maps.map_plotter_shared_utilities import (
+    get_map_zoom_levels,
+    get_available_map_source_choices_for_navigation_task,
+    get_map_zoom_levels_for_definitions,
+    get_available_map_source_definitions_for_navigation_task,
+)
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.forms import (
@@ -142,6 +147,7 @@ from display.flight_order_and_maps.user_uploaded_mbtiles_publish import (
     unpublish_user_uploaded_map,
     request_mbtiles_reload,
 )
+
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
 from display.utilities.navigation_task_type_definitions import POKER, AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, PRECISION
 from display.waypoint import Waypoint
@@ -562,9 +568,15 @@ def get_contestant_map(request, pk):
     """
     contestant = get_object_or_404(Contestant, pk=pk)
     redirect_url = reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
+    map_source_definitions = get_available_map_source_definitions_for_navigation_task(
+        contestant.navigation_task,
+        request.user,
+        uploaded_maps=contestant.navigation_task.get_available_user_maps(),
+    )
+    map_source_choices = [(item["key"], item["label"]) for item in map_source_definitions]
+    map_zoom_levels = get_map_zoom_levels_for_definitions(map_source_definitions)
     if request.method == "POST":
-        form = ContestantMapForm(request.POST, redirect_url=redirect_url)
-        form.fields["user_map_source"].queryset = contestant.navigation_task.get_available_user_maps()
+        form = ContestantMapForm(request.POST, redirect_url=redirect_url, map_source_choices=map_source_choices)
         if form.is_valid():
             map_params = {
                 "size": form.cleaned_data["size"],
@@ -575,9 +587,6 @@ def get_contestant_map(request, pk):
                 "dpi": form.cleaned_data["dpi"],
                 "scale": int(form.cleaned_data["scale"]),
                 "map_source": form.cleaned_data["map_source"],
-                "user_map_source_id": (
-                    form.cleaned_data["user_map_source"].pk if form.cleaned_data["user_map_source"] else None
-                ),
                 "line_width": float(form.cleaned_data["line_width"]),
                 "minute_mark_line_width": float(form.cleaned_data["minute_mark_line_width"]),
                 "colour": form.cleaned_data["colour"],
@@ -609,7 +618,6 @@ def get_contestant_map(request, pk):
                 "orientation": configuration.map_orientation,
                 "scale": configuration.map_scale,
                 "map_source": configuration.map_source,
-                "user_map_source": configuration.map_user_source,
                 "include_annotations": configuration.map_include_annotations,
                 "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
                 "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
@@ -618,9 +626,8 @@ def get_contestant_map(request, pk):
                 "colour": configuration.map_line_colour,
             },
             redirect_url=redirect_url,
+            map_source_choices=map_source_choices,
         )
-        form.fields["user_map_source"].queryset = contestant.navigation_task.get_available_user_maps()
-        form.fields["user_map_source"].initial = contestant.navigation_task.flightorderconfiguration.map_user_source
 
     return render(
         request,
@@ -628,7 +635,7 @@ def get_contestant_map(request, pk):
         {
             "form": form,
             "redirect": redirect_url,
-            "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
+            "system_map_zoom_levels": json.dumps(map_zoom_levels),
         },
     )
 
@@ -640,19 +647,20 @@ def update_flight_order_configurations(request, pk):
     """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     configuration = get_object_or_404(FlightOrderConfiguration, navigation_task__pk=pk)
+    map_source_definitions = get_available_map_source_definitions_for_navigation_task(
+        navigation_task,
+        request.user,
+        uploaded_maps=navigation_task.get_available_user_maps(),
+    )
+    map_source_choices = [(item["key"], item["label"]) for item in map_source_definitions]
+    map_zoom_levels = get_map_zoom_levels_for_definitions(map_source_definitions)
     if request.method == "POST":
-        form = FlightOrderConfigurationForm(request.POST, instance=configuration)
-        form.fields["map_user_source"].queryset = UserUploadedMap.objects.filter(
-            pk__in=[item.pk for item in navigation_task.get_available_user_maps()]
-        )
+        form = FlightOrderConfigurationForm(request.POST, instance=configuration, map_source_choices=map_source_choices)
         if form.is_valid():
             form.save()
             return redirect(reverse("navigationtask_detail", kwargs={"pk": pk}))
     else:
-        form = FlightOrderConfigurationForm(instance=configuration)
-        form.fields["map_user_source"].queryset = UserUploadedMap.objects.filter(
-            pk__in=[item.pk for item in navigation_task.get_available_user_maps()]
-        )
+        form = FlightOrderConfigurationForm(instance=configuration, map_source_choices=map_source_choices)
     return render(
         request,
         "display/flight_order_configuration_form.html",
@@ -660,7 +668,7 @@ def update_flight_order_configurations(request, pk):
             "form": form,
             "navigation_task": navigation_task,
             "initial_color": configuration.map_line_colour,
-            "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
+            "system_map_zoom_levels": json.dumps(map_zoom_levels),
         },
     )
 
@@ -693,7 +701,6 @@ def get_contestant_default_map(request, pk):
         "dpi": configuration.map_dpi,
         "scale": configuration.map_scale,
         "map_source": configuration.map_source,
-        "user_map_source_id": configuration.map_user_source.pk if configuration.map_user_source else None,
         "line_width": configuration.map_line_width,
         "colour": configuration.map_line_colour,
         "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
@@ -828,9 +835,15 @@ def get_navigation_task_map(request, pk):
     """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     redirect_url = reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
+    map_source_definitions = get_available_map_source_definitions_for_navigation_task(
+        navigation_task,
+        request.user,
+        uploaded_maps=navigation_task.get_available_user_maps(),
+    )
+    map_source_choices = [(item["key"], item["label"]) for item in map_source_definitions]
+    map_zoom_levels = get_map_zoom_levels_for_definitions(map_source_definitions)
     if request.method == "POST":
-        form = MapForm(request.POST, redirect_url=redirect_url)
-        form.fields["user_map_source"].queryset = navigation_task.get_available_user_maps()
+        form = MapForm(request.POST, redirect_url=redirect_url, map_source_choices=map_source_choices)
         if form.is_valid():
             map_params = {
                 "size": form.cleaned_data["size"],
@@ -841,9 +854,6 @@ def get_navigation_task_map(request, pk):
                 "dpi": form.cleaned_data["dpi"],
                 "scale": int(form.cleaned_data["scale"]),
                 "map_source": form.cleaned_data["map_source"],
-                "user_map_source_id": (
-                    form.cleaned_data["user_map_source"].pk if form.cleaned_data["user_map_source"] else None
-                ),
                 "line_width": float(form.cleaned_data["line_width"]),
                 "colour": form.cleaned_data["colour"],
                 "include_meridians_and_parallels_lines": form.cleaned_data["include_meridians_and_parallels_lines"],
@@ -875,22 +885,20 @@ def get_navigation_task_map(request, pk):
                 "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
                 "scale": configuration.map_scale,
                 "map_source": configuration.map_source,
-                "user_map_source": configuration.map_user_source,
                 "dpi": configuration.map_dpi,
                 "line_width": configuration.map_line_width,
                 "colour": configuration.map_line_colour,
             },
             redirect_url=redirect_url,
+            map_source_choices=map_source_choices,
         )
-        form.fields["user_map_source"].queryset = navigation_task.get_available_user_maps()
-        form.fields["user_map_source"].initial = navigation_task.flightorderconfiguration.map_user_source
     return render(
         request,
         "display/map_form.html",
         {
             "form": form,
             "redirect": redirect_url,
-            "system_map_zoom_levels": json.dumps(get_map_zoom_levels()),
+            "system_map_zoom_levels": json.dumps(map_zoom_levels),
         },
     )
 
@@ -2153,7 +2161,9 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
         instance = form.save()  # type: UserUploadedMap
         instance.processing_status = UserUploadedMap.PROCESSING_PENDING
         instance.processing_error = ""
-        instance.save(update_fields=["processing_status", "processing_error"])
+        instance.published_service_key = instance.default_service_key
+        instance.published_relative_path = instance.default_published_relative_path
+        instance.save(update_fields=["processing_status", "processing_error", "published_service_key", "published_relative_path"])
 
         assign_perm("delete_useruploadedmap", self.request.user, instance)
         assign_perm("view_useruploadedmap", self.request.user, instance)
@@ -2181,8 +2191,8 @@ class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
         instance.clear_local_file_path()
         instance.processing_status = UserUploadedMap.PROCESSING_PENDING
         instance.processing_error = ""
-        instance.published_service_key = ""
-        instance.published_relative_path = ""
+        instance.published_service_key = instance.default_service_key
+        instance.published_relative_path = instance.default_published_relative_path
         instance.published_at = None
         instance.save(update_fields=[
             "processing_status",

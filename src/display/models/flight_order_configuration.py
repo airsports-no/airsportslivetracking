@@ -2,7 +2,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 from display.flight_order_and_maps.map_constants import A3, MAP_SIZES, A4, ORIENTATIONS, PORTRAIT, SCALES, SCALE_TO_FIT
-from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_choices
+from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_choices, resolve_uploaded_map_from_token
 
 
 class FlightOrderConfiguration(models.Model):
@@ -25,13 +25,6 @@ class FlightOrderConfiguration(models.Model):
     map_orientation = models.CharField(choices=ORIENTATIONS, default=PORTRAIT, max_length=30)
     map_scale = models.IntegerField(choices=SCALES, default=SCALE_TO_FIT)
     map_source = models.CharField(choices=[], default="cyclosm", max_length=50, blank=True)
-    map_user_source = models.ForeignKey(
-        "UserUploadedMap",
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-        help_text="Overrides whatever is chosen in map source",
-    )
     map_include_annotations = models.BooleanField(
         default=True,
         help_text="If this if set, the generated map will include minute marks and leg headings for the contestant so that no map preparation is necessary.",
@@ -94,3 +87,7 @@ class FlightOrderConfiguration(models.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._meta.get_field("map_source").choices = get_map_choices()
+
+    @property
+    def resolved_uploaded_map(self):
+        return resolve_uploaded_map_from_token(self.map_source)

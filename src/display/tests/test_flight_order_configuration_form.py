@@ -4,7 +4,8 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.forms import FlightOrderConfigurationForm, validate_map_zoom_level
+from display.forms import FlightOrderConfigurationForm, MapForm, ContestantMapForm, validate_map_zoom_level
+from display.flight_order_and_maps.generate_flight_orders import build_flight_order_map_plot_kwargs
 from display.flight_order_and_maps.map_plotter_shared_utilities import resolve_map_source_definition
 from display.models import Contest, NavigationTask, Route
 
@@ -50,7 +51,6 @@ class FlightOrderConfigurationFormTests(TestCase):
                 "map_orientation": self.configuration.map_orientation,
                 "map_scale": self.configuration.map_scale,
                 "map_source": "osm",
-                "map_user_source": "",
                 "map_include_annotations": self.configuration.map_include_annotations,
                 "map_plot_track_between_waypoints": self.configuration.map_plot_track_between_waypoints,
                 "map_line_width": self.configuration.map_line_width,
@@ -84,7 +84,6 @@ class FlightOrderConfigurationFormTests(TestCase):
                 "map_orientation": self.configuration.map_orientation,
                 "map_scale": self.configuration.map_scale,
                 "map_source": "not-a-map",
-                "map_user_source": "",
                 "map_include_annotations": self.configuration.map_include_annotations,
                 "map_plot_track_between_waypoints": self.configuration.map_plot_track_between_waypoints,
                 "map_line_width": self.configuration.map_line_width,
@@ -120,6 +119,53 @@ class FlightOrderConfigurationFormTests(TestCase):
 
         self.assertEqual(form.fields["map_source"].choices, mock_choices.return_value)
 
+    def test_map_generation_forms_use_supplied_unified_map_choices(self):
+        unified_choices = [("osm", "OSM"), ("user_uploaded:42", "Uploaded map")]
+
+        generic_form = MapForm(map_source_choices=unified_choices)
+        contestant_form = ContestantMapForm(map_source_choices=unified_choices)
+
+        self.assertEqual(generic_form.fields["map_source"].choices, unified_choices)
+        self.assertNotIn("user_map_source", generic_form.fields)
+        self.assertEqual(contestant_form.fields["map_source"].choices, unified_choices)
+        self.assertNotIn("user_map_source", contestant_form.fields)
+
+    @patch(
+        "display.forms.resolve_map_source_definition",
+        return_value={"label": "Uploaded map", "min_zoom": 7, "max_zoom": 13},
+    )
+    def test_flight_order_form_accepts_uploaded_token_from_supplied_choices_even_when_model_default_choices_do_not_include_it(self, mock_resolve_map_source_definition):
+        unified_choices = [("osm", "OSM"), ("user_uploaded:42", "Uploaded map")]
+
+        form = FlightOrderConfigurationForm(
+            data={
+                "document_size": self.configuration.document_size,
+                "include_turning_point_images": self.configuration.include_turning_point_images,
+                "map_include_meridians_and_parallels_lines": self.configuration.map_include_meridians_and_parallels_lines,
+                "map_dpi": self.configuration.map_dpi,
+                "map_zoom_level": self.configuration.map_zoom_level,
+                "map_orientation": self.configuration.map_orientation,
+                "map_scale": self.configuration.map_scale,
+                "map_source": "user_uploaded:42",
+                "map_include_annotations": self.configuration.map_include_annotations,
+                "map_plot_track_between_waypoints": self.configuration.map_plot_track_between_waypoints,
+                "map_line_width": self.configuration.map_line_width,
+                "map_minute_mark_line_width": self.configuration.map_minute_mark_line_width,
+                "map_line_colour": self.configuration.map_line_colour,
+                "turning_point_photos_meters_across": self.configuration.turning_point_photos_meters_across,
+                "turning_point_photos_zoom_level": self.configuration.turning_point_photos_zoom_level,
+                "unknown_leg_photos_meters_across": self.configuration.unknown_leg_photos_meters_across,
+                "unknown_leg_photos_zoom_level": self.configuration.unknown_leg_photos_zoom_level,
+                "photos_meters_across": self.configuration.photos_meters_across,
+                "photos_zoom_level": self.configuration.photos_zoom_level,
+            },
+            instance=self.configuration,
+            map_source_choices=unified_choices,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        mock_resolve_map_source_definition.assert_called_once_with("user_uploaded:42", None)
+
     @patch(
         "display.forms.resolve_map_source_definition",
         return_value={"label": "Norway 250k", "min_zoom": 8, "max_zoom": 14},
@@ -136,6 +182,22 @@ class FlightOrderConfigurationFormTests(TestCase):
         validate_map_zoom_level("openaip", None, 10)
         mock_resolve_map_source_definition.assert_called_once_with("openaip", None)
 
+    @patch(
+        "display.forms.resolve_map_source_definition",
+        return_value={"label": "Uploaded map", "min_zoom": 7, "max_zoom": 13},
+    )
+    def test_validate_map_zoom_level_accepts_uploaded_token(self, mock_resolve_map_source_definition):
+        validate_map_zoom_level("user_uploaded:42", None, 10)
+        mock_resolve_map_source_definition.assert_called_once_with("user_uploaded:42", None)
+
+    def test_build_flight_order_map_plot_kwargs_uses_only_unified_map_source(self):
+        self.configuration.map_source = "user_uploaded:42"
+
+        kwargs = build_flight_order_map_plot_kwargs(self.navigation_task, self.configuration, contestant=None)
+
+        self.assertEqual(kwargs["map_source"], "user_uploaded:42")
+        self.assertNotIn("user_map_source", kwargs)
+
     def test_resolve_map_source_definition_for_uploaded_map_uses_uploaded_metadata(self):
         class UploadedMap:
             pk = 42
@@ -150,6 +212,7 @@ class FlightOrderConfigurationFormTests(TestCase):
         source = resolve_map_source_definition("ignored", UploadedMap())
 
         self.assertEqual(source["provider"], "user_uploaded_mbtiles")
+        self.assertEqual(source["key"], "user_uploaded:42")
         self.assertEqual(source["label"], "Uploaded map")
         self.assertEqual(source["min_zoom"], 7)
         self.assertEqual(source["max_zoom"], 13)

@@ -1,10 +1,13 @@
 import os
 from io import BytesIO
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.utils.text import slugify
 from pymbtiles import MBtiles
 
 from display.utilities.mbtiles_stitch import MBTilesHelper
@@ -22,6 +25,10 @@ def validate_file_size(value):
 
 
 LOCAL_MAP_FILE_CACHE = {}
+
+
+def get_mbtiles_publish_root() -> Path:
+    return Path(getattr(settings, "MBTILES_PUBLISH_ROOT", "/tilesets"))
 
 
 class UserUploadedMap(models.Model):
@@ -86,10 +93,24 @@ class UserUploadedMap(models.Model):
 
     @property
     def default_published_relative_path(self) -> str:
-        return f"user-uploaded/{self.default_service_key}.mbtiles"
+        if self.published_relative_path:
+            return self.published_relative_path
+        suffix = self.pk if self.pk else slugify(self.name) or "uploaded-map"
+        return f"user_uploaded_maps/user-uploaded-map-{suffix}.mbtiles"
+
+    @property
+    def published_absolute_path(self) -> Path:
+        relative_path = self.published_relative_path or self.default_published_relative_path
+        return get_mbtiles_publish_root() / relative_path
+
+    @property
+    def canonical_source_exists(self) -> bool:
+        return self.published_absolute_path.exists()
 
     @property
     def safe_map_file_size(self):
+        if self.published_absolute_path.exists():
+            return self.published_absolute_path.stat().st_size
         try:
             return self.map_file.size
         except (FileNotFoundError, OSError, ValueError):
@@ -116,6 +137,8 @@ class UserUploadedMap(models.Model):
         This function ensures that the file has been copied to the local file system and returns the path to it.
         Streams the file in chunks to avoid loading the entire (up to 100MB) mbtiles into memory at once.
         """
+        if self.published_absolute_path.exists():
+            return str(self.published_absolute_path)
         key = f"user_map_{self.map_file.name}"
         if temporary_path := LOCAL_MAP_FILE_CACHE.get(key):
             return temporary_path
@@ -128,6 +151,16 @@ class UserUploadedMap(models.Model):
                 self.map_file.close()
             LOCAL_MAP_FILE_CACHE[key] = temporary_map.name
             return temporary_map.name
+
+    def remove_uploaded_blob(self):
+        if not self.map_file:
+            return
+        try:
+            self.map_file.delete(save=False)
+        except Exception:
+            pass
+        self.map_file = ""
+        self.save(update_fields=["map_file"])
 
     def clear_local_file_path(self):
         """

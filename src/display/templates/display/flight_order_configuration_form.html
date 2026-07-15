@@ -26,22 +26,8 @@
         });
 
         const mapSource = document.getElementById("id_map_source");
-        const customMap = document.getElementById("id_map_user_source");
         const zoomSelect = document.getElementById("id_map_zoom_level");
 
-        function updateMapSourceVisibility(first) {
-            const mapSourceContainer = document.querySelector("#div_id_map_source");
-
-            if (customMap && customMap.value !== "") {
-                if(mapSourceContainer) mapSourceContainer.style.display = "none";
-                setOptions(customMap.value, first);
-            } else {
-                if(mapSourceContainer) mapSourceContainer.style.display = "";
-                if(mapSource) setOptions(mapSource.value, first);
-            }
-        }
-        
-        if(customMap) customMap.onchange = function (e) { updateMapSourceVisibility(false) };
         if(mapSource) mapSource.onchange = (event) => { setOptions(event.target.value, false) };
 
         const zoomLevels = JSON.parse('{{ system_map_zoom_levels | safe }}');
@@ -58,7 +44,7 @@
             }
         }
         
-        updateMapSourceVisibility(true);
+        if (mapSource) setOptions(mapSource.value, true);
     });
 </script>
 {% endblock %}

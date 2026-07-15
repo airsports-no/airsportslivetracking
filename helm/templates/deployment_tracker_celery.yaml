@@ -62,7 +62,7 @@ spec:
           - mountPath: /secret
             readOnly: true
             name: firebase
-          - mountPath: /tilesets
+          - mountPath: {{ .Values.mbtiles.uploadedMountPath | quote }}
             name: mbtiles-files
         livenessProbe:
           exec:
@@ -94,5 +94,9 @@ spec:
           secret:
             secretName: firebase-secrets
         - name: mbtiles-files
-          persistentVolumeClaim:
-            claimName: pvc-mbtiles
+          csi:
+            driver: gcsfuse.csi.storage.gke.io
+            readOnly: false
+            volumeAttributes:
+              bucketName: {{ .Values.mbtiles.bucketName | quote }}
+              mountOptions: {{ printf "%s,only-dir=user_uploaded_maps" .Values.mbtiles.gcsfuse.mountOptions | quote }}

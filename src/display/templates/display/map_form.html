@@ -28,7 +28,6 @@
         });
 
         const mapSource = document.getElementById("id_map_source");
-        const customMap = document.getElementById("id_user_map_source");
         const zoomSelect = document.getElementById("id_zoom_level");
         const zoomLevels = JSON.parse('{{ system_map_zoom_levels | safe }}');
 
@@ -43,23 +42,9 @@
             }
         }
         
-        function updateVisibility() {
-            const mapSourceContainer = document.getElementById("div_id_map_source");
-            if (!mapSourceContainer) return;
-
-            if (customMap && customMap.value !== "") {
-                mapSourceContainer.style.display = "none";
-                setOptions(customMap.value);
-            } else {
-                mapSourceContainer.style.display = "";
-                if(mapSource) setOptions(mapSource.value);
-            }
-        }
-
-        if(customMap) customMap.onchange = updateVisibility;
         if(mapSource) mapSource.onchange = () => { if(mapSource) setOptions(mapSource.value) };
         
-        updateVisibility();
+        if (mapSource) setOptions(mapSource.value);
     });
 </script>
 {% endblock %}

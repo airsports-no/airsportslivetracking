@@ -1,6 +1,8 @@
 from PIL import Image
 import qrcode
 
+from guardian.shortcuts import get_objects_for_user
+
 from live_tracking_map.settings import MBTILES_PUBLIC_URL
 from display.flight_order_and_maps.mbtiles_facade import get_available_maps, get_map_details
 
@@ -75,6 +77,96 @@ def get_map_filename(url: str) -> str:
     return url.split("/")[-1]
 
 
+def uploaded_map_token(user_uploaded_map) -> str:
+    return f"user_uploaded:{user_uploaded_map.pk}"
+
+
+def parse_uploaded_map_token(value: str) -> int | None:
+    if not value or not str(value).startswith("user_uploaded:"):
+        return None
+    try:
+        return int(str(value).split(":", 1)[1])
+    except (TypeError, ValueError):
+        return None
+
+
+def route_extent_to_bounds(route) -> tuple[float, float, float, float] | None:
+    try:
+        minimum_latitude, maximum_latitude, minimum_longitude, maximum_longitude = route.get_extent()
+    except (TypeError, ValueError):
+        return None
+    return minimum_longitude, minimum_latitude, maximum_longitude, maximum_latitude
+
+
+def bounds_intersect(a: tuple[float, float, float, float] | list[float], b: tuple[float, float, float, float] | list[float]) -> bool:
+    west_a, south_a, east_a, north_a = a
+    west_b, south_b, east_b, north_b = b
+    return not (east_a < west_b or east_b < west_a or north_a < south_b or north_b < south_a)
+
+
+def source_definition_from_user_uploaded_map(user_uploaded_map) -> dict:
+    return {
+        "key": uploaded_map_token(user_uploaded_map),
+        "label": user_uploaded_map.name,
+        "provider": "user_uploaded_mbtiles",
+        "type": "mbtiles",
+        "tile_url": f"{MBTILES_PUBLIC_URL.rstrip('/')}/services/user-uploaded/{user_uploaded_map.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png" if user_uploaded_map.published_service_key else "",
+        "attribution": user_uploaded_map.attribution,
+        "min_zoom": user_uploaded_map.minimum_zoom_level,
+        "max_zoom": user_uploaded_map.maximum_zoom_level,
+        "default_zoom": user_uploaded_map.default_zoom_level,
+        "is_overlay": True,
+        "bounds": user_uploaded_map.bounds,
+    }
+
+
+def get_available_map_source_definitions_for_navigation_task(task, user, uploaded_maps=None) -> list[dict]:
+    from display.models.user_uploaded_map import UserUploadedMap
+
+    route_bounds = route_extent_to_bounds(task.route)
+    definitions = []
+    for definition in get_builtin_map_source_definitions():
+        if definition["provider"] != "mbtiles":
+            definitions.append(definition)
+            continue
+        if route_bounds and definition.get("bounds") and bounds_intersect(definition["bounds"], route_bounds):
+            definitions.append(definition)
+
+    if uploaded_maps is None:
+        uploaded_maps = get_objects_for_user(
+            user,
+            "display.view_useruploadedmap",
+            klass=UserUploadedMap,
+            accept_global_perms=False,
+        ).filter(processing_status=UserUploadedMap.PROCESSING_READY).exclude(published_service_key="")
+    else:
+        uploaded_maps = uploaded_maps.filter(processing_status=UserUploadedMap.PROCESSING_READY).exclude(published_service_key="")
+    for uploaded_map in uploaded_maps:
+        if route_bounds and uploaded_map.bounds and bounds_intersect(uploaded_map.bounds, route_bounds):
+            definitions.append(source_definition_from_user_uploaded_map(uploaded_map))
+    return definitions
+
+
+def get_available_map_source_choices_for_navigation_task(task, user) -> list[tuple[str, str]]:
+    return [(definition["key"], definition["label"]) for definition in get_available_map_source_definitions_for_navigation_task(task, user)]
+
+
+def get_map_zoom_levels_for_definitions(definitions: list[dict]) -> dict[str, tuple[int, int, int]]:
+    return {
+        definition["key"]: (definition["min_zoom"], definition["max_zoom"], definition["default_zoom"])
+        for definition in definitions
+    }
+
+
+def resolve_uploaded_map_from_token(map_source_key: str):
+    uploaded_pk = parse_uploaded_map_token(map_source_key)
+    if uploaded_pk is None:
+        return None
+    from display.models.user_uploaded_map import UserUploadedMap
+
+    return UserUploadedMap.objects.filter(pk=uploaded_pk).first()
+
+
 def is_user_uploaded_service_url(url: str) -> bool:
     return "/services/user-uploaded/" in url or "/services/user-uploaded-map-" in url
 
@@ -116,19 +208,9 @@ def get_map_source_definition(map_source_key: str) -> dict:
 
 def resolve_map_source_definition(map_source_key: str, user_uploaded_map=None) -> dict:
     if user_uploaded_map is not None:
-        return {
-            "key": str(user_uploaded_map.pk),
-            "label": user_uploaded_map.name,
-            "provider": "user_uploaded_mbtiles",
-            "type": "mbtiles",
-            "tile_url": f"{MBTILES_PUBLIC_URL.rstrip('/')}/services/user-uploaded/{user_uploaded_map.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png" if user_uploaded_map.published_service_key else "",
-            "attribution": user_uploaded_map.attribution,
-            "min_zoom": user_uploaded_map.minimum_zoom_level,
-            "max_zoom": user_uploaded_map.maximum_zoom_level,
-            "default_zoom": user_uploaded_map.default_zoom_level,
-            "is_overlay": False,
-            "bounds": user_uploaded_map.bounds,
-        }
+        return source_definition_from_user_uploaded_map(user_uploaded_map)
+    if uploaded_map := resolve_uploaded_map_from_token(map_source_key):
+        return source_definition_from_user_uploaded_map(uploaded_map)
     return get_map_source_definition(map_source_key)
 
 
@@ -185,7 +267,7 @@ def get_map_zoom_levels() -> dict[str, tuple[int, int, int]]:
         for definition in get_builtin_map_source_definitions()
     }
     for user_uploaded_map in UserUploadedMap.objects.all():
-        zoom_levels[user_uploaded_map.pk] = (
+        zoom_levels[uploaded_map_token(user_uploaded_map)] = (
             user_uploaded_map.minimum_zoom_level,
             user_uploaded_map.maximum_zoom_level,
             user_uploaded_map.default_zoom_level,
