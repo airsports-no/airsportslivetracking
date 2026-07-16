@@ -90,6 +90,7 @@ RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh
 COPY --chown=django:django src /src
 COPY --chown=django:django --from=frontend_builder /app/assets_vite /assets_vite
 COPY --chown=django:django --from=frontend_builder /app/airsports_static/dist /marketing_dist
+COPY --chown=django:django --from=frontend_builder /app/airsports_static/public/example_flight_order.pdf /marketing_dist/example_flight_order.pdf
 COPY --chown=django:django react_vite/src/routes.json /react_vite/src/
 COPY --chown=django:django --from=frontend_builder /app/src/static/css/output.css /src/static/css
 
