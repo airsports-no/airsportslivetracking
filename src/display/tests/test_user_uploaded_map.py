@@ -385,13 +385,30 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
             name="Hidden map",
             processing_status=UserUploadedMap.PROCESSING_FAILED,
         )
+        collision = UserUploadedMap.objects.create(
+            user=get_user_model().objects.create(email="collision@example.com"),
+            name="Pilot uploaded map",
+            processing_status=UserUploadedMap.PROCESSING_READY,
+            published_service_key="user-uploaded-map-collision",
+            minimum_zoom_level=9,
+            maximum_zoom_level=12,
+            default_zoom_level=10,
+            attribution="Second uploaded attribution",
+            minimum_longitude=12.0,
+            minimum_latitude=61.0,
+            maximum_longitude=13.0,
+            maximum_latitude=62.0,
+        )
         assign_perm("display.view_useruploadedmap", self.user, hidden)
+        assign_perm("display.view_useruploadedmap", self.user, collision)
 
         response = self.client.get(
             reverse("editableroutes-map-sources", kwargs={"pk": self.route.pk})
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         payload = response.json()
+
+        self.assertEqual(len([item for item in payload if item["origin"] == "user_upload"]), 2)
 
         builtin = next(item for item in payload if item["key"] == "Norway250k")
         self.assertEqual(builtin["key"], "Norway250k")
@@ -431,8 +448,8 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
         self.assertTrue(openaip["is_overlay"])
         self.assertIsNone(openaip["bounds"])
 
-        uploaded = next(item for item in payload if item["origin"] == "user_upload")
-        self.assertEqual(uploaded["key"], allowed.published_service_key)
+        uploaded = next(item for item in payload if item["origin"] == "user_upload" and item["key"] == f"user_uploaded:{allowed.pk}")
+        self.assertEqual(uploaded["key"], f"user_uploaded:{allowed.pk}")
         self.assertEqual(uploaded["label"], allowed.name)
         self.assertEqual(uploaded["min_zoom"], 10)
         self.assertEqual(uploaded["max_zoom"], 13)

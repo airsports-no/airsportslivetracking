@@ -47,7 +47,6 @@ interface MapCanvasProps {
 
 const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({ 
   routeId,
-  // --- Data Props ---
   routePoints,
   gates,
   observationMarkers,
@@ -60,8 +59,6 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   showCorridor,
   maxObsDist,
   hideLabels,
-
-  // --- Actions / Setters ---
   setRoutePoints,
   setGates,
   setObservationMarkers,
@@ -70,18 +67,18 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   setSelectionType,
   setMode,
   setTempPolygonPoints,
-  onMapClick // Callback for generic map clicks (handled in App.jsx)
+  onMapClick
 }, ref) => {
   const mapRef = useMapInit();
   const markersRef = useRef<{[key: string]: L.Layer}>({});
   const polylinesRef = useRef<L.Layer[]>([]);
   const routeLineRef = useRef<L.Polyline | null>(null);
-  const layerControlRef = useRef<L.Control.Layers | null>(null); // Ref for layer control
+  const layerControlRef = useRef<L.Control.Layers | null>(null);
   const overlayLayersRef = useRef<Record<string, L.TileLayer>>({});
   const [mapSources, setMapSources] = useState<MapSource[] | null>(null);
-  const [selectedBaseLayerLabel, setSelectedBaseLayerLabel] = useState<string>('OpenStreetMap');
-  const [activeOverlayLabels, setActiveOverlayLabels] = useState<string[]>([]);
-  const [selectedOverlayLabel, setSelectedOverlayLabel] = useState<string | null>(null);
+  const [selectedBaseLayerKey, setSelectedBaseLayerKey] = useState<string>('osm');
+  const [activeOverlayKeys, setActiveOverlayKeys] = useState<string[]>([]);
+  const [selectedOverlayKey, setSelectedOverlayKey] = useState<string | null>(null);
   const didAutoFitSourceRef = useRef(false);
   
   const { handleDragMove, handleDragEnd, dragRef } = useDragHandlers({
@@ -178,7 +175,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
 
     const baseLayers: Record<string, L.TileLayer> = {};
     const overlays: Record<string, L.TileLayer> = {};
-    const sourceByLabel: Record<string, MapSource> = {};
+    const sourceByKey: Record<string, MapSource> = {};
+    const labelToKey: Record<string, string> = {};
 
     overlayLayersRef.current = {};
 
@@ -195,10 +193,11 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
           minZoom: overlayMinZoom,
           maxZoom: overlayMaxZoom,
         });
-        sourceByLabel[source.label] = source;
+        sourceByKey[source.key] = source;
+        labelToKey[source.label] = source.key;
         if (source.is_overlay) {
           overlays[source.label] = tileLayer;
-          overlayLayersRef.current[source.label] = tileLayer;
+          overlayLayersRef.current[source.key] = tileLayer;
         } else {
           baseLayers[source.label] = tileLayer;
         }
@@ -220,29 +219,31 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     const firstBaseLayerLabel = baseLayers['OpenStreetMap'] ? 'OpenStreetMap' : (Object.keys(baseLayers)[0] ?? 'OpenStreetMap');
     const firstBaseLayer = baseLayers[firstBaseLayerLabel] ?? osm;
     firstBaseLayer.addTo(map);
-    setSelectedBaseLayerLabel(firstBaseLayerLabel);
+    setSelectedBaseLayerKey(labelToKey[firstBaseLayerLabel] ?? 'osm');
 
     layerControlRef.current = L.control.layers(baseLayers, overlays).addTo(map);
 
     const onBaseLayerChange = (event: L.LayersControlEvent) => {
-      setSelectedBaseLayerLabel(event.name);
+      setSelectedBaseLayerKey(labelToKey[event.name] ?? event.name);
     };
     const onOverlayAdd = (event: L.LayersControlEvent) => {
-      const addedSource = sourceByLabel[event.name];
+      const overlayKey = labelToKey[event.name] ?? event.name;
+      const addedSource = sourceByKey[overlayKey];
       if (addedSource && addedSource.label !== 'OpenAIP') {
-        Object.entries(overlayLayersRef.current).forEach(([label, layer]) => {
-          if (label === event.name || label === 'OpenAIP') return;
+        Object.entries(overlayLayersRef.current).forEach(([key, layer]) => {
+          if (key === overlayKey || key === 'openaip') return;
           if (map.hasLayer(layer)) {
             map.removeLayer(layer);
           }
         });
       }
-      setActiveOverlayLabels((prev) => (prev.includes(event.name) ? prev : [...prev, event.name]));
-      setSelectedOverlayLabel(event.name);
+      setActiveOverlayKeys((prev: string[]) => (prev.includes(overlayKey) ? prev : [...prev, overlayKey]));
+      setSelectedOverlayKey(overlayKey);
     };
     const onOverlayRemove = (event: L.LayersControlEvent) => {
-      setActiveOverlayLabels((prev) => prev.filter((label) => label !== event.name));
-      setSelectedOverlayLabel((prev) => (prev === event.name ? null : prev));
+      const overlayKey = labelToKey[event.name] ?? event.name;
+      setActiveOverlayKeys((prev: string[]) => prev.filter((key) => key !== overlayKey));
+      setSelectedOverlayKey((prev: string | null) => (prev === overlayKey ? null : prev));
     };
     map.on('baselayerchange', onBaseLayerChange);
     map.on('overlayadd', onOverlayAdd);
@@ -282,7 +283,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
 
   const canExplicitlyAdjustViewport = !routeId && routePoints.length === 0 && gates.length === 0 && observationMarkers.length === 0 && polygons.length === 0;
   const selectedOverlaySource = mapSources?.find(
-    (source) => source.is_overlay && source.label === selectedOverlayLabel && activeOverlayLabels.includes(source.label),
+    (source) => source.is_overlay && source.key === selectedOverlayKey && activeOverlayKeys.includes(source.key),
   ) ?? null;
   const canShowZoomToOverlayButton = !!selectedOverlaySource?.bounds && selectedOverlaySource.label !== 'OpenAIP';
   const overlayOutOfRange = !!selectedOverlaySource && !!mapRef.current && (mapRef.current.getZoom() < selectedOverlaySource.min_zoom - 1 || mapRef.current.getZoom() > selectedOverlaySource.max_zoom + 1);
