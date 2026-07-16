@@ -110,7 +110,7 @@ def source_definition_from_user_uploaded_map(user_uploaded_map) -> dict:
         "label": user_uploaded_map.name,
         "provider": "user_uploaded_mbtiles",
         "type": "mbtiles",
-        "tile_url": f"{MBTILES_PUBLIC_URL.rstrip('/')}/services/user-uploaded/{user_uploaded_map.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png" if user_uploaded_map.published_service_key else "",
+        "tile_url": f"{MBTILES_PUBLIC_URL.rstrip('/')}/services/{user_uploaded_map.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png" if user_uploaded_map.published_service_key else "",
         "attribution": user_uploaded_map.attribution,
         "min_zoom": user_uploaded_map.minimum_zoom_level,
         "max_zoom": user_uploaded_map.maximum_zoom_level,
@@ -168,7 +168,7 @@ def resolve_uploaded_map_from_token(map_source_key: str):
 
 
 def is_user_uploaded_service_url(url: str) -> bool:
-    return "/services/user-uploaded/" in url or "/services/user-uploaded-map-" in url
+    return "/services/user-uploaded/" in url or "/services/user-uploaded-map-" in url or "/services/user_uploaded_maps/" in url
 
 
 def get_builtin_map_source_definitions() -> list[dict]:

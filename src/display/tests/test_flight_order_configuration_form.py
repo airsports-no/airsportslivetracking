@@ -219,5 +219,5 @@ class FlightOrderConfigurationFormTests(TestCase):
         self.assertEqual(source["default_zoom"], 10)
         self.assertEqual(
             source["tile_url"],
-            "http://localhost:8001/services/user-uploaded/user-uploaded-map-42/tiles/{z}/{x}/{y}.png",
+            "http://localhost:8001/services/user-uploaded-map-42/tiles/{z}/{x}/{y}.png",
         )

@@ -41,7 +41,6 @@ class ProcessUserUploadedMapTaskTests(TestCase):
         fake_png = BytesIO(b"\x89PNG\r\n\x1a\nfake")
 
         with patch.object(UserUploadedMap, "create_thumbnail", return_value=(fake_png, 10, 14)), \
-             patch("display.tasks.publish_user_uploaded_map", return_value=(instance.default_service_key, instance.default_published_relative_path)), \
              patch("display.tasks.request_mbtiles_reload") as reload_mock:
             process_user_uploaded_map(instance.pk)
 
@@ -64,7 +63,6 @@ class ProcessUserUploadedMapTaskTests(TestCase):
 
         with patch.object(UserUploadedMap, "create_thumbnail", return_value=(fake_png, 10, 14)), \
              patch.object(UserUploadedMap, "get_bounds", return_value=(10.0, 59.0, 11.0, 60.0)), \
-             patch("display.tasks.publish_user_uploaded_map", return_value=(instance.default_service_key, instance.default_published_relative_path)), \
              patch("display.tasks.request_mbtiles_reload"):
             process_user_uploaded_map(instance.pk)
 
@@ -82,7 +80,6 @@ class ProcessUserUploadedMapTaskTests(TestCase):
 
         with patch.object(UserUploadedMap, "create_thumbnail", return_value=(fake_png, 12, 15)), \
              patch.object(UserUploadedMap, "get_bounds", return_value=(-0.9474, 38.3457, -0.0357, 38.6619)), \
-             patch("display.tasks.publish_user_uploaded_map", return_value=(instance.default_service_key, instance.default_published_relative_path)), \
              patch("display.tasks.request_mbtiles_reload"):
             process_user_uploaded_map(instance.pk)
 
@@ -98,7 +95,6 @@ class ProcessUserUploadedMapTaskTests(TestCase):
         fake_png = BytesIO(b"\x89PNG\r\n\x1a\nfake")
 
         with patch.object(UserUploadedMap, "create_thumbnail", return_value=(fake_png, 10, 14)), \
-             patch("display.tasks.publish_user_uploaded_map", return_value=(instance.default_service_key, instance.default_published_relative_path)), \
              patch("display.tasks.request_mbtiles_reload") as reload_mock, \
              patch.object(FieldFile, "save", side_effect=PermissionError("no thumbnail write permission")):
             process_user_uploaded_map(instance.pk)
@@ -140,11 +136,11 @@ class ProcessUserUploadedMapTaskTests(TestCase):
         self.assertEqual(instance.default_service_key, f"user-uploaded-map-{instance.pk}")
         self.assertEqual(
             instance.default_published_relative_path,
-            f"user_uploaded_maps/{instance.default_service_key}.mbtiles",
+            instance.map_file.name,
         )
 
     @override_settings(MBTILES_PUBLISH_ROOT="/tmp/tilesets-test")
-    def test_backfill_copies_legacy_blob_to_shared_storage_and_clears_uploaded_blob(self):
+    def test_backfill_normalizes_legacy_blob_metadata_without_removing_uploaded_blob(self):
         instance = _make_instance(self.user, default_zoom=12)
         instance.published_service_key = instance.default_service_key
         instance.published_relative_path = instance.default_published_relative_path
@@ -156,9 +152,11 @@ class ProcessUserUploadedMapTaskTests(TestCase):
             result = backfill_legacy_user_uploaded_map_to_shared_storage(instance.pk)
 
         instance.refresh_from_db()
-        self.assertTrue(result)
+        self.assertFalse(result)
         self.assertEqual(instance.processing_status, UserUploadedMap.PROCESSING_READY)
-        self.assertFalse(bool(instance.map_file))
+        self.assertTrue(bool(instance.map_file))
+        self.assertEqual(instance.published_service_key, instance.default_service_key)
+        self.assertEqual(instance.published_relative_path, instance.map_file.name)
 
     @override_settings(MBTILES_PUBLISH_ROOT="/tmp/tilesets-test")
     def test_processing_uses_published_file_as_canonical_source_after_initial_publish(self):
@@ -440,7 +438,7 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
         self.assertEqual(uploaded["max_zoom"], 13)
         self.assertEqual(uploaded["default_zoom"], 11)
         self.assertEqual(uploaded["attribution"], "Uploaded attribution")
-        self.assertEqual(uploaded["tile_url"], f"http://localhost:8001/services/user-uploaded/{allowed.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png")
+        self.assertEqual(uploaded["tile_url"], f"http://localhost:8001/services/{allowed.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png")
         self.assertEqual(uploaded["bounds"], [10.0, 59.0, 11.0, 60.0])
         self.assertNotIn(hidden.published_service_key, [item["key"] for item in payload])
 
@@ -641,13 +639,15 @@ class UserUploadedMapCreateViewTests(TestCase):
         created = UserUploadedMap.objects.get(name="Created map")
         self.assertEqual(created.user, self.user)
         self.assertEqual(created.processing_status, UserUploadedMap.PROCESSING_PENDING)
+        self.assertEqual(created.published_service_key, created.default_service_key)
+        self.assertEqual(created.published_relative_path, created.map_file.name)
         self.assertEqual(created.processing_error, "")
         on_commit_mock.assert_called_once()
         delay_mock.assert_called_once_with(created.pk)
 
     @patch("display.views.process_user_uploaded_map.delay")
     @patch("display.views.transaction.on_commit", side_effect=lambda fn: fn())
-    def test_create_view_removes_uploaded_blob_after_writing_shared_copy(self, on_commit_mock, delay_mock):
+    def test_create_view_keeps_uploaded_blob_as_canonical_storage(self, on_commit_mock, delay_mock):
         response = self.client.post(
             reverse("useruploadedmap_add"),
             {

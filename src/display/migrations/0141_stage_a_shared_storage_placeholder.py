@@ -8,7 +8,12 @@ def backfill_shared_storage(apps, schema_editor):
 
     for uploaded_map in UserUploadedMap.objects.exclude(map_file=""):
         service_key = uploaded_map.published_service_key or f"user-uploaded-map-{uploaded_map.pk}"
-        relative_path = uploaded_map.published_relative_path or f"user_uploaded_maps/{service_key}.mbtiles"
+        if uploaded_map.published_relative_path:
+            relative_path = uploaded_map.published_relative_path
+        elif uploaded_map.map_file:
+            relative_path = uploaded_map.map_file
+        else:
+            relative_path = f"user_uploaded_maps/{service_key}.mbtiles"
 
         fields_to_update = []
         if uploaded_map.published_service_key != service_key:

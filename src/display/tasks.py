@@ -15,10 +15,7 @@ from display.flight_order_and_maps.generate_flight_orders import (
     generate_flight_orders_latex,
     embed_map_in_pdf,
 )
-from display.flight_order_and_maps.user_uploaded_mbtiles_publish import (
-    publish_user_uploaded_map,
-    request_mbtiles_reload,
-)
+from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
 from display.flight_order_and_maps.map_plotter import plot_route
 from django.core.files.storage import default_storage
 from django.utils.text import slugify
@@ -278,11 +275,12 @@ def process_user_uploaded_map(map_id: int):
                 f"{instance.default_zoom_level} to {clamped} (map supports [{minimum_zoom}, {maximum_zoom}])"
             )
             instance.default_zoom_level = clamped
-        if instance.published_absolute_path.exists() and instance.published_relative_path and instance.published_service_key:
+        if instance.published_relative_path and instance.published_service_key:
             service_key = instance.published_service_key
             relative_path = instance.published_relative_path
         else:
-            service_key, relative_path = publish_user_uploaded_map(instance)
+            service_key = instance.default_service_key
+            relative_path = instance.default_published_relative_path
         instance.published_service_key = service_key
         instance.published_relative_path = relative_path
         instance.published_at = timezone.now()

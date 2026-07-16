@@ -2162,7 +2162,7 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
         instance.processing_status = UserUploadedMap.PROCESSING_PENDING
         instance.processing_error = ""
         instance.published_service_key = instance.default_service_key
-        instance.published_relative_path = instance.default_published_relative_path
+        instance.published_relative_path = instance.map_file.name
         instance.save(update_fields=["processing_status", "processing_error", "published_service_key", "published_relative_path"])
 
         assign_perm("delete_useruploadedmap", self.request.user, instance)
@@ -2192,7 +2192,7 @@ class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
         instance.processing_status = UserUploadedMap.PROCESSING_PENDING
         instance.processing_error = ""
         instance.published_service_key = instance.default_service_key
-        instance.published_relative_path = instance.default_published_relative_path
+        instance.published_relative_path = instance.map_file.name if instance.map_file else instance.default_published_relative_path
         instance.published_at = None
         instance.save(update_fields=[
             "processing_status",

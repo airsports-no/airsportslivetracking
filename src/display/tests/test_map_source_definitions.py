@@ -73,7 +73,7 @@ class MapSourceDefinitionTests(TestCase):
     ):
         mock_get_available_maps.return_value = [
             {"name": "Norway 250k", "url": "https://mbtiles.airsports.no/services/Norway250k"},
-            {"name": "Pilot uploaded map", "url": "http://localhost:8001/services/user-uploaded/user-uploaded-map-307"},
+            {"name": "Pilot uploaded map", "url": "http://localhost:8001/services/user-uploaded-map-307"},
         ]
         mock_get_map_details.return_value = {
             "minzoom": 8,

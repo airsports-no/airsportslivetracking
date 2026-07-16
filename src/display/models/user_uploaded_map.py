@@ -93,8 +93,8 @@ class UserUploadedMap(models.Model):
 
     @property
     def default_published_relative_path(self) -> str:
-        if self.published_relative_path:
-            return self.published_relative_path
+        if self.map_file and getattr(self.map_file, "name", ""):
+            return self.map_file.name
         suffix = self.pk if self.pk else slugify(self.name) or "uploaded-map"
         return f"user_uploaded_maps/user-uploaded-map-{suffix}.mbtiles"
 

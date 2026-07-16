@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import signal
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 import requests
 from django.conf import settings
@@ -28,43 +27,6 @@ def get_published_absolute_path(user_map: UserUploadedMap) -> Path:
 
 def get_local_reload_trigger_path() -> Path:
     return get_mbtiles_publish_root() / ".reload-trigger"
-
-
-def write_uploaded_file_to_published_path(user_map: UserUploadedMap, uploaded_file) -> tuple[str, str]:
-    target = get_published_absolute_path(user_map)
-    target.parent.mkdir(parents=True, exist_ok=True)
-
-    with NamedTemporaryFile(dir=target.parent, delete=False) as temporary_file:
-        for chunk in uploaded_file.chunks():
-            temporary_file.write(chunk)
-        temporary_file.flush()
-        os.fsync(temporary_file.fileno())
-        temporary_path = Path(temporary_file.name)
-
-    temporary_path.replace(target)
-    return user_map.default_service_key, user_map.default_published_relative_path
-
-
-def publish_user_uploaded_map(user_map: UserUploadedMap) -> tuple[str, str]:
-    target = get_published_absolute_path(user_map)
-    target.parent.mkdir(parents=True, exist_ok=True)
-
-    if user_map.published_relative_path and target.exists():
-        return user_map.default_service_key, user_map.default_published_relative_path
-
-    with NamedTemporaryFile(dir=target.parent, delete=False) as temporary_file:
-        user_map.map_file.open("rb")
-        try:
-            for chunk in user_map.map_file.chunks():
-                temporary_file.write(chunk)
-        finally:
-            user_map.map_file.close()
-        temporary_file.flush()
-        os.fsync(temporary_file.fileno())
-        temporary_path = Path(temporary_file.name)
-
-    temporary_path.replace(target)
-    return user_map.default_service_key, user_map.default_published_relative_path
 
 
 def unpublish_user_uploaded_map(user_map: UserUploadedMap) -> None:
