@@ -13,6 +13,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
+from django.core.files.storage import default_storage
 from cartopy import geodesic
 
 from cartopy.io.img_tiles import GoogleTiles
@@ -230,6 +231,18 @@ def insert_unknown_leg_images_latex(
 def insert_photos_latex(contestant, document: Document, flight_order_configuration: FlightOrderConfiguration):
     from display.flight_order_and_maps.map_constants import A3
 
+    def resolve_photo_filename(photo: Photo) -> str:
+        if not photo.file:
+            raise ValueError("Photo has no file attached")
+        try:
+            return photo.file.path
+        except NotImplementedError:
+            with default_storage.open(photo.file.name, "rb") as src:
+                suffix = os.path.splitext(photo.file.name)[1] or ".img"
+                with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    tmp.write(src.read())
+                    return tmp.name
+
     photos = list(contestant.navigation_task.route.photo_set.all().order_by("name"))
 
     if flight_order_configuration.document_size == A3:
@@ -259,7 +272,7 @@ def insert_photos_latex(contestant, document: Document, flight_order_configurati
                     if waypoint := photo.leg:
                         with fig.create(MiniPage(width=rf"{figure_width}\textwidth")) as mp:
                             if photo.file:
-                                image_filename = photo.file.path
+                                image_filename = resolve_photo_filename(photo)
                             else:
                                 image_file = generate_photo(photo, waypoint, meters_across, zoom_level)
                                 image_filename = image_file.name
