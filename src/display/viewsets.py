@@ -24,6 +24,8 @@ from rest_framework.response import Response
 from rest_framework.pagination import CursorPagination
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 import rest_framework.exceptions as drf_exceptions
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from urllib import parse
 
 from django_filters.rest_framework import DjangoFilterBackend
@@ -587,6 +589,16 @@ class ContestViewSet(ModelViewSet):
             "contestteam_set__team__crew__member1",
         ).order_by("-start_time")
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="team_id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="Team primary key",
+            )
+        ]
+    )
     @action(detail=True, methods=["get"], url_path=r"contest_team_for_team/(?P<team_id>\d+)")
     def contest_team_for_team(self, request, team_id, **kwargs):
         """Get the ContestTeam that matches the Team id"""
@@ -1544,6 +1556,16 @@ class ContestantViewSet(ModelViewSet):
 
         return response
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="minute_index",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="Minute index to inspect",
+            )
+        ]
+    )
     @action(detail=True, methods=["get"], url_path=r"slice/(?P<minute_index>\d+)")
     def slice(self, request, minute_index, **kwargs):
         contestant = self.get_object()
