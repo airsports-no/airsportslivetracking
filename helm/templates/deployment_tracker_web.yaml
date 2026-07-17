@@ -51,6 +51,13 @@ spec:
         ports:
           - name: web
             containerPort: 8002
+        env:
+          - name: GUNICORN_TIMEOUT
+            value: "60"
+          - name: NUM_WORKERS
+            value: "1"
+          - name: NUM_THREADS
+            value: "1"
         envFrom:
           - configMapRef:
               name: envs-production-other
