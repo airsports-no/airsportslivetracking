@@ -19,6 +19,8 @@ from rest_framework.fields import MultipleChoiceField, SerializerMethodField
 from rest_framework.exceptions import ValidationError
 from rest_framework.relations import SlugRelatedField
 from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from timezone_field.rest_framework import TimeZoneSerializerField
 from phonenumber_field.serializerfields import PhoneNumberField
 from phonenumber_field.validators import validate_international_phonenumber
@@ -603,7 +605,8 @@ class NavigationTasksSummaryParticipationSerialiser(serializers.ModelSerializer)
 class ContestTeamSerialiser(serializers.ModelSerializer):
     is_user_pilot = serializers.SerializerMethodField("get_is_user_pilot")
 
-    def get_is_user_pilot(self, contest_team):
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_is_user_pilot(self, contest_team) -> bool:
         request = self.context.get("request", None)
         if request is None or not request.user.is_authenticated:
             return False
