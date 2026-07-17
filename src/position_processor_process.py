@@ -62,7 +62,10 @@ def print_contestant_positions_debug():
         )
         global_received_positions = 0
         last_debug = time.time()
-        cache.set(LAST_DEBUG_KEY, last_debug, 10 * DEBUG_INTERVAL)
+        try:
+            cache.set(LAST_DEBUG_KEY, last_debug, 10 * DEBUG_INTERVAL)
+        except Exception:
+            logger.warning("Unable to persist position processor heartbeat to Redis cache", exc_info=True)
 
 
 def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> List[Tuple[Contestant, bool]]:
@@ -109,7 +112,10 @@ def clean_db_positions():
 
 
 def initial_processor(queue: Queue, global_map_queue: Queue):
-    cache.set(LAST_DEBUG_KEY, last_debug, 10 * DEBUG_INTERVAL)
+    try:
+        cache.set(LAST_DEBUG_KEY, last_debug, 10 * DEBUG_INTERVAL)
+    except Exception:
+        logger.warning("Unable to initialize position processor heartbeat in Redis cache", exc_info=True)
 
     connections.close_all()
     while True:
