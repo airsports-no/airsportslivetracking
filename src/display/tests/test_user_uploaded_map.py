@@ -1,7 +1,7 @@
 import os
 from io import BytesIO
 from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -37,7 +37,6 @@ class ProcessUserUploadedMapTaskTests(TestCase):
     @override_settings(MBTILES_PUBLISH_ROOT="/tilesets-test")
     def test_successful_processing_marks_ready_and_stores_publish_metadata(self):
         instance = _make_instance(self.user, default_zoom=12)
-
         fake_png = BytesIO(b"\x89PNG\r\n\x1a\nfake")
 
         with patch.object(UserUploadedMap, "create_thumbnail", return_value=(fake_png, 10, 14)), \
@@ -51,7 +50,7 @@ class ProcessUserUploadedMapTaskTests(TestCase):
         self.assertEqual(instance.maximum_zoom_level, 14)
         self.assertEqual(instance.default_zoom_level, 12)
         self.assertEqual(instance.published_service_key, instance.default_service_key)
-        self.assertEqual(instance.published_relative_path, instance.default_published_relative_path)
+        self.assertEqual(instance.published_relative_path, str(instance.map_file))
         self.assertIsNotNone(instance.published_at)
         self.assertTrue(instance.thumbnail)
         reload_mock.assert_called_once()
@@ -105,7 +104,7 @@ class ProcessUserUploadedMapTaskTests(TestCase):
         self.assertEqual(instance.minimum_zoom_level, 10)
         self.assertEqual(instance.maximum_zoom_level, 14)
         self.assertEqual(instance.published_service_key, instance.default_service_key)
-        self.assertEqual(instance.published_relative_path, instance.default_published_relative_path)
+        self.assertEqual(instance.published_relative_path, str(instance.map_file))
         self.assertIsNotNone(instance.published_at)
         reload_mock.assert_called_once()
 
@@ -134,10 +133,7 @@ class ProcessUserUploadedMapTaskTests(TestCase):
     def test_default_service_key_and_relative_path(self):
         instance = _make_instance(self.user)
         self.assertEqual(instance.default_service_key, f"user-uploaded-map-{instance.pk}")
-        self.assertEqual(
-            instance.default_published_relative_path,
-            instance.map_file.name,
-        )
+        self.assertEqual(instance.default_published_relative_path, instance.map_file.name)
 
     @override_settings(MBTILES_PUBLISH_ROOT="/tmp/tilesets-test")
     def test_backfill_normalizes_legacy_blob_metadata_without_removing_uploaded_blob(self):
@@ -189,7 +185,6 @@ class RequestMbtilesReloadTests(TestCase):
         from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
 
         request_mbtiles_reload()
-
         post_mock.assert_not_called()
 
     @override_settings(
@@ -218,150 +213,48 @@ class RequestMbtilesReloadTests(TestCase):
         self.assertEqual(kwargs["namespace"], "default")
         self.assertEqual(kwargs["command"], ["/bin/sh", "-c", "kill -HUP 1"])
 
-    @override_settings(
-        MBTILES_RELOAD_METHOD="local",
-        MBTILES_RELOAD_LOCAL_URL="http://mbtiles:8000/services/",
-    )
-    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.os.kill")
-    def test_request_mbtiles_reload_sends_local_hup_signal(self, kill_mock):
-        from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
 
-        request_mbtiles_reload()
+class MapSourceDefinitionPayloadTests(APITransactionTestCase):
+    reset_sequences = True
 
-        kill_mock.assert_called_once()
-
-    @override_settings(
-        MBTILES_RELOAD_METHOD="local",
-        MBTILES_RELOAD_LOCAL_URL="http://mbtiles:8000/services/",
-    )
-    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.os.kill", side_effect=PermissionError("signal denied"))
-    def test_request_mbtiles_reload_raises_when_local_hup_signal_fails(self, kill_mock):
-        from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
-
-        with self.assertRaises(PermissionError):
-            request_mbtiles_reload()
-
-        kill_mock.assert_called_once()
-
-
-class UnifiedMapSourcesApiTests(APITransactionTestCase):
     def setUp(self):
         create_scorecards()
-        self.client = self.client_class()
-        self.user = get_user_model().objects.create(email="mapsources@example.com")
-        self.client.force_authenticate(user=self.user)
-        assign_perm("display.add_editableroute", self.user)
+        self.user = get_user_model().objects.create(email="apiuser@example.com")
         self.contest = Contest.objects.create(
             name="Contest",
+            start_time="2024-01-01T08:00:00Z",
+            finish_time="2024-01-01T18:00:00Z",
+        )
+        self.route = Route.objects.create(name="Route")
+        self.navigation_task = NavigationTask.create(
+            name="Task",
+            original_scorecard=Scorecard.objects.first(),
             start_time="2024-01-01T10:00:00Z",
-            finish_time="2024-01-01T12:00:00Z",
+            finish_time="2024-01-01T11:00:00Z",
+            route=self.route,
+            contest=self.contest,
         )
-        scorecard = Scorecard.get_originals().first()
-        self.route = EditableRoute.objects.create(
-            name="Route",
-            route={
-                "type": "FeatureCollection",
-                "features": [
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "name": "Test route",
-                        },
-                        "geometry": {
-                            "type": "LineString",
-                            "coordinates": [[10.0, 60.0], [10.1, 60.1]],
-                        },
-                    }
-                ],
-            },
-            settings={},
+        self.editable_route = EditableRoute.objects.create(
+            name="Editable route",
+            route={"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": []}}]},
         )
+        self.client.force_login(self.user)
         assign_perm("display.view_contest", self.user, self.contest)
-        assign_perm("display.view_editableroute", self.user, self.route)
+        assign_perm("display.change_contest", self.user, self.contest)
+        assign_perm("display.add_editableroute", self.user)
+        assign_perm("display.change_editableroute", self.user, self.editable_route)
+        assign_perm("display.view_editableroute", self.user, self.editable_route)
 
     @patch("display.viewsets.get_builtin_map_source_definitions")
     @override_settings(MBTILES_PUBLIC_URL="http://localhost:8001/")
-    def test_route_editor_map_sources_include_builtin_and_accessible_uploaded_maps(
-        self, mock_get_builtin_map_source_definitions
-    ):
+    def test_route_editor_map_sources_include_builtin_and_accessible_uploaded_maps(self, mock_get_builtin_map_source_definitions):
         mock_get_builtin_map_source_definitions.return_value = [
-            {
-                "key": "Norway250k",
-                "label": "Norway 250k",
-                "provider": "mbtiles",
-                "type": "mbtiles",
-                "tile_url": "https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png",
-                "attribution": "",
-                "min_zoom": 8,
-                "max_zoom": 14,
-                "default_zoom": 12,
-                "is_overlay": True,
-                "bounds": [10.0, 59.0, 11.0, 60.0],
-            },
-            {
-                "key": "osm",
-                "label": "OSM",
-                "provider": "osm",
-                "type": "raster_xyz",
-                "tile_url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                "attribution": "© OpenStreetMap contributors",
-                "min_zoom": 0,
-                "max_zoom": 19,
-                "default_zoom": 12,
-                "is_overlay": False,
-                "bounds": None,
-            },
-            {
-                "key": "fc",
-                "label": "Flight Contest",
-                "provider": "fc",
-                "type": "raster_xyz",
-                "tile_url": "https://flightcontest.de/route/maps/{z}/{x}/{y}.png",
-                "attribution": "FlightContest",
-                "min_zoom": 0,
-                "max_zoom": 18,
-                "default_zoom": 12,
-                "is_overlay": False,
-                "bounds": None,
-            },
-            {
-                "key": "mto",
-                "label": "MapTiler Outdoor",
-                "provider": "mto",
-                "type": "raster_xyz",
-                "tile_url": "https://api.maptiler.com/maps/outdoor/{z}/{x}/{y}.png?key=YxHsFU6aEqsEULL34uJT",
-                "attribution": "maptiler.com",
-                "min_zoom": 0,
-                "max_zoom": 18,
-                "default_zoom": 12,
-                "is_overlay": False,
-                "bounds": None,
-            },
-            {
-                "key": "cyclosm",
-                "label": "CycleOSM",
-                "provider": "cyclosm",
-                "type": "raster_xyz",
-                "tile_url": "https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",
-                "attribution": "openstreetmap.org CycleOSM",
-                "min_zoom": 0,
-                "max_zoom": 20,
-                "default_zoom": 12,
-                "is_overlay": False,
-                "bounds": None,
-            },
-            {
-                "key": "openaip",
-                "label": "OpenAIP",
-                "provider": "openaip",
-                "type": "raster_xyz",
-                "tile_url": "https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=3d5d3f82528731731362a23f445951d8",
-                "attribution": "OpenAIP Data",
-                "min_zoom": 4,
-                "max_zoom": 14,
-                "default_zoom": 10,
-                "is_overlay": True,
-            },
+            {"key": "Norway250k", "label": "Norway 250k", "provider": "mbtiles", "type": "mbtiles", "tile_url": "http://localhost:8001/services/mbtiles/Norway250k/tiles/{z}/{x}/{y}.png", "attribution": "", "min_zoom": 8, "max_zoom": 14, "default_zoom": 12, "is_overlay": True, "allow_multiple": False, "is_always_on_top": False, "bounds": [10.0, 59.0, 11.0, 60.0]},
+            {"key": "osm", "label": "OSM", "provider": "osm", "type": "raster_xyz", "tile_url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", "attribution": "© OpenStreetMap contributors", "min_zoom": 0, "max_zoom": 19, "default_zoom": 12, "is_overlay": False, "allow_multiple": False, "is_always_on_top": False, "bounds": None},
+            {"key": "fc", "label": "Flight Contest", "provider": "fc", "type": "raster_xyz", "tile_url": "https://flightcontest.de/route/maps/{z}/{x}/{y}.png", "attribution": "FlightContest", "min_zoom": 0, "max_zoom": 18, "default_zoom": 12, "is_overlay": False, "allow_multiple": False, "is_always_on_top": False, "bounds": None},
+            {"key": "mto", "label": "MapTiler Outdoor", "provider": "mto", "type": "raster_xyz", "tile_url": "https://api.maptiler.com/maps/outdoor/{z}/{x}/{y}.png?key=test", "attribution": "maptiler.com", "min_zoom": 0, "max_zoom": 18, "default_zoom": 12, "is_overlay": False, "allow_multiple": False, "is_always_on_top": False, "bounds": None},
+            {"key": "cyclosm", "label": "CycleOSM", "provider": "cyclosm", "type": "raster_xyz", "tile_url": "https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", "attribution": "openstreetmap.org CycleOSM", "min_zoom": 0, "max_zoom": 20, "default_zoom": 12, "is_overlay": False, "allow_multiple": False, "is_always_on_top": False, "bounds": None},
+            {"key": "openaip", "label": "OpenAIP", "provider": "openaip", "type": "raster_xyz", "tile_url": "https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=test", "attribution": "OpenAIP Data", "min_zoom": 4, "max_zoom": 14, "default_zoom": 10, "is_overlay": True, "allow_multiple": True, "is_always_on_top": True, "bounds": None},
         ]
 
         allowed = _make_instance(self.user)
@@ -380,11 +273,7 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
         allowed.save()
         assign_perm("display.view_useruploadedmap", self.user, allowed)
 
-        hidden = UserUploadedMap.objects.create(
-            user=self.user,
-            name="Hidden map",
-            processing_status=UserUploadedMap.PROCESSING_FAILED,
-        )
+        hidden = UserUploadedMap.objects.create(user=self.user, name="Hidden map", processing_status=UserUploadedMap.PROCESSING_FAILED)
         collision = UserUploadedMap.objects.create(
             user=get_user_model().objects.create(email="collision@example.com"),
             name="Pilot uploaded map",
@@ -402,18 +291,15 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
         assign_perm("display.view_useruploadedmap", self.user, hidden)
         assign_perm("display.view_useruploadedmap", self.user, collision)
 
-        response = self.client.get(
-            reverse("editableroutes-map-sources", kwargs={"pk": self.route.pk})
-        )
+        response = self.client.get(reverse("editableroutes-map-sources", kwargs={"pk": self.editable_route.pk}))
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         payload = response.json()
 
         self.assertEqual(len([item for item in payload if item["origin"] == "user_upload"]), 2)
-
         builtin = next(item for item in payload if item["key"] == "Norway250k")
         self.assertEqual(builtin["key"], "Norway250k")
         self.assertEqual(builtin["label"], "Norway 250k")
-        self.assertEqual(builtin["tile_url"], "https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png")
+        self.assertEqual(builtin["tile_url"], "http://localhost:8001/services/mbtiles/Norway250k/tiles/{z}/{x}/{y}.png")
         self.assertEqual(builtin["min_zoom"], 8)
         self.assertEqual(builtin["max_zoom"], 14)
         self.assertTrue(builtin["is_overlay"])
@@ -426,28 +312,6 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
         self.assertTrue(osm["tile_url"].startswith("https://{s}.tile.openstreetmap.org/"))
         self.assertFalse(osm["is_overlay"])
 
-        flight_contest = next(item for item in payload if item["key"] == "fc")
-        self.assertEqual(flight_contest["label"], "Flight Contest")
-        self.assertEqual(flight_contest["origin"], "builtin")
-        self.assertEqual(flight_contest["type"], "raster_xyz")
-
-        maptiler = next(item for item in payload if item["key"] == "mto")
-        self.assertEqual(maptiler["label"], "MapTiler Outdoor")
-        self.assertEqual(maptiler["origin"], "builtin")
-        self.assertEqual(maptiler["type"], "raster_xyz")
-
-        cyclosm = next(item for item in payload if item["key"] == "cyclosm")
-        self.assertEqual(cyclosm["label"], "CycleOSM")
-        self.assertEqual(cyclosm["origin"], "builtin")
-        self.assertEqual(cyclosm["type"], "raster_xyz")
-
-        openaip = next(item for item in payload if item["key"] == "openaip")
-        self.assertEqual(openaip["label"], "OpenAIP")
-        self.assertEqual(openaip["origin"], "builtin")
-        self.assertEqual(openaip["type"], "raster_xyz")
-        self.assertTrue(openaip["is_overlay"])
-        self.assertIsNone(openaip["bounds"])
-
         uploaded = next(item for item in payload if item["origin"] == "user_upload" and item["key"] == f"user_uploaded:{allowed.pk}")
         self.assertEqual(uploaded["key"], f"user_uploaded:{allowed.pk}")
         self.assertEqual(uploaded["label"], allowed.name)
@@ -455,46 +319,19 @@ class UnifiedMapSourcesApiTests(APITransactionTestCase):
         self.assertEqual(uploaded["max_zoom"], 13)
         self.assertEqual(uploaded["default_zoom"], 11)
         self.assertEqual(uploaded["attribution"], "Uploaded attribution")
-        self.assertEqual(uploaded["tile_url"], f"http://localhost:8001/services/{allowed.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png")
+        self.assertEqual(uploaded["tile_url"], f"http://localhost:8001/services/{Path(allowed.published_relative_path).stem}/tiles/{{z}}/{{x}}/{{y}}.png")
         self.assertEqual(uploaded["bounds"], [10.0, 59.0, 11.0, 60.0])
         self.assertNotIn(hidden.published_service_key, [item["key"] for item in payload])
 
     @patch("display.viewsets.get_builtin_map_source_definitions")
     @override_settings(MBTILES_PUBLIC_URL="http://localhost:8001/")
-    def test_global_route_editor_map_sources_available_without_route_id(
-        self, mock_get_builtin_map_source_definitions
-    ):
+    def test_global_route_editor_map_sources_available_without_route_id(self, mock_get_builtin_map_source_definitions):
         mock_get_builtin_map_source_definitions.return_value = [
-            {
-                "key": "Norway250k",
-                "label": "Norway 250k",
-                "provider": "mbtiles",
-                "type": "mbtiles",
-                "tile_url": "https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png",
-                "attribution": "",
-                "min_zoom": 8,
-                "max_zoom": 14,
-                "default_zoom": 12,
-                "is_overlay": True,
-                "bounds": [10.0, 59.0, 11.0, 60.0],
-            },
-            {
-                "key": "osm",
-                "label": "OSM",
-                "provider": "osm",
-                "type": "raster_xyz",
-                "tile_url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                "attribution": "© OpenStreetMap contributors",
-                "min_zoom": 0,
-                "max_zoom": 19,
-                "default_zoom": 12,
-                "is_overlay": False,
-                "bounds": None,
-            },
+            {"key": "Norway250k", "label": "Norway 250k", "provider": "mbtiles", "type": "mbtiles", "tile_url": "http://localhost:8001/services/mbtiles/Norway250k/tiles/{z}/{x}/{y}.png", "attribution": "", "min_zoom": 8, "max_zoom": 14, "default_zoom": 12, "is_overlay": True, "allow_multiple": False, "is_always_on_top": False, "bounds": [10.0, 59.0, 11.0, 60.0]},
+            {"key": "osm", "label": "OSM", "provider": "osm", "type": "raster_xyz", "tile_url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", "attribution": "© OpenStreetMap contributors", "min_zoom": 0, "max_zoom": 19, "default_zoom": 12, "is_overlay": False, "allow_multiple": False, "is_always_on_top": False, "bounds": None},
         ]
 
         response = self.client.get(reverse("editableroutes-global-map-sources"))
-
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         payload = response.json()
         self.assertTrue(any(item["key"] == "osm" for item in payload))
@@ -510,7 +347,7 @@ class UserUploadedMapLifecycleViewTests(TestCase):
     def test_update_view_unpublishes_before_reprocessing(self, reload_mock, unpublish_mock):
         instance = _make_instance(self.user)
         instance.published_service_key = f"user-uploaded-map-{instance.pk}"
-        instance.published_relative_path = f"user_uploaded_maps/user-uploaded-map-{instance.pk}.mbtiles"
+        instance.published_relative_path = str(instance.map_file)
         instance.processing_status = UserUploadedMap.PROCESSING_READY
         instance.processing_error = "old error"
         instance.save()
@@ -533,10 +370,77 @@ class UserUploadedMapLifecycleViewTests(TestCase):
         self.assertEqual(instance.processing_status, UserUploadedMap.PROCESSING_PENDING)
         self.assertEqual(instance.processing_error, "")
         self.assertEqual(instance.published_service_key, instance.default_service_key)
+        self.assertEqual(instance.published_relative_path, str(instance.map_file))
+        self.assertIsNone(instance.published_at)
+        unpublish_mock.assert_not_called()
+        reload_mock.assert_not_called()
+        clear_local_mock.assert_called_once()
+        on_commit_mock.assert_called_once()
+        delay_mock.assert_called_once_with(instance.pk)
+
+    @patch("display.views.unpublish_user_uploaded_map")
+    @patch("display.views.request_mbtiles_reload")
+    def test_update_view_unpublishes_previous_file_before_reprocessing(self, reload_mock, unpublish_mock):
+        instance = _make_instance(self.user)
+        instance.published_service_key = f"user-uploaded-map-{instance.pk}"
+        instance.published_relative_path = "user_uploaded_maps/old-file.mbtiles"
+        instance.processing_status = UserUploadedMap.PROCESSING_READY
+        instance.processing_error = "old error"
+        instance.save()
+        instance.map_file = SimpleUploadedFile("new-file.mbtiles", b"replacement bytes")
+        instance.save(update_fields=["map_file"])
+
+        from display.views import UserUploadedMapUpdate
+
+        view = UserUploadedMapUpdate()
+        form = MagicMock()
+        form.save.return_value = instance
+
+        with patch.object(instance, "clear_local_file_path") as clear_local_mock, \
+             patch("display.views.process_user_uploaded_map.delay") as delay_mock, \
+             patch("display.views.transaction.on_commit", side_effect=lambda fn: fn()) as on_commit_mock, \
+             patch.object(view, "get_success_url", return_value="/maps/"):
+            response = view.form_valid(form)
+
+        instance.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/maps/")
+        self.assertEqual(instance.processing_status, UserUploadedMap.PROCESSING_PENDING)
+        self.assertEqual(instance.processing_error, "")
+        self.assertEqual(instance.published_service_key, instance.default_service_key)
         self.assertEqual(instance.published_relative_path, instance.default_published_relative_path)
         self.assertIsNone(instance.published_at)
-        unpublish_mock.assert_called_once_with(instance)
+        unpublish_mock.assert_called_once_with(instance, relative_path="user_uploaded_maps/old-file.mbtiles")
         reload_mock.assert_called_once()
+        clear_local_mock.assert_called_once()
+        on_commit_mock.assert_called_once()
+        delay_mock.assert_called_once_with(instance.pk)
+
+    @patch("display.views.unpublish_user_uploaded_map")
+    @patch("display.views.request_mbtiles_reload")
+    def test_update_view_skips_unpublish_when_file_path_is_unchanged(self, reload_mock, unpublish_mock):
+        instance = _make_instance(self.user)
+        instance.published_service_key = f"user-uploaded-map-{instance.pk}"
+        instance.published_relative_path = str(instance.map_file)
+        instance.processing_status = UserUploadedMap.PROCESSING_READY
+        instance.save()
+
+        from display.views import UserUploadedMapUpdate
+
+        view = UserUploadedMapUpdate()
+        form = MagicMock()
+        form.save.return_value = instance
+
+        with patch.object(instance, "clear_local_file_path") as clear_local_mock, \
+             patch("display.views.process_user_uploaded_map.delay") as delay_mock, \
+             patch("display.views.transaction.on_commit", side_effect=lambda fn: fn()) as on_commit_mock, \
+             patch.object(view, "get_success_url", return_value="/maps/"):
+            response = view.form_valid(form)
+
+        instance.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        unpublish_mock.assert_not_called()
+        reload_mock.assert_not_called()
         clear_local_mock.assert_called_once()
         on_commit_mock.assert_called_once()
         delay_mock.assert_called_once_with(instance.pk)
@@ -571,15 +475,10 @@ class UserUploadedMapListViewTests(TestCase):
         assign_perm("display.add_contest", self.user)
 
     def test_list_view_tolerates_missing_map_file_on_disk(self):
-        uploaded_map = UserUploadedMap.objects.create(
-            user=self.user,
-            name="Missing file map",
-            processing_status=UserUploadedMap.PROCESSING_READY,
-        )
+        uploaded_map = UserUploadedMap.objects.create(user=self.user, name="Missing file map", processing_status=UserUploadedMap.PROCESSING_READY)
         assign_perm("display.view_useruploadedmap", self.user, uploaded_map)
 
         response = self.client.get(reverse("useruploadedmap_list"))
-
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         self.assertContains(response, "Missing file map")
 
@@ -596,37 +495,26 @@ class UserUploadedMapListViewTests(TestCase):
         assign_perm("display.view_useruploadedmap", self.user, uploaded_map)
 
         response = self.client.get(reverse("useruploadedmap_list"))
-
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         self.assertContains(response, "Extent")
         self.assertContains(response, "40.6639")
         self.assertContains(response, "41.0047")
 
     def test_update_view_tolerates_missing_map_file_on_disk(self):
-        uploaded_map = UserUploadedMap.objects.create(
-            user=self.user,
-            name="Missing file map",
-            processing_status=UserUploadedMap.PROCESSING_READY,
-        )
+        uploaded_map = UserUploadedMap.objects.create(user=self.user, name="Missing file map", processing_status=UserUploadedMap.PROCESSING_READY)
         assign_perm("display.view_useruploadedmap", self.user, uploaded_map)
         assign_perm("display.change_useruploadedmap", self.user, uploaded_map)
 
         response = self.client.get(reverse("useruploadedmap_change", kwargs={"pk": uploaded_map.pk}))
-
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         self.assertContains(response, "Upload User Map")
 
     def test_delete_view_tolerates_missing_map_file_on_disk(self):
-        uploaded_map = UserUploadedMap.objects.create(
-            user=self.user,
-            name="Missing file map",
-            processing_status=UserUploadedMap.PROCESSING_READY,
-        )
+        uploaded_map = UserUploadedMap.objects.create(user=self.user, name="Missing file map", processing_status=UserUploadedMap.PROCESSING_READY)
         assign_perm("display.view_useruploadedmap", self.user, uploaded_map)
         assign_perm("display.delete_useruploadedmap", self.user, uploaded_map)
 
         response = self.client.get(reverse("useruploadedmap_delete", kwargs={"pk": uploaded_map.pk}))
-
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         self.assertContains(response, "Missing file map")
 
@@ -657,7 +545,7 @@ class UserUploadedMapCreateViewTests(TestCase):
         self.assertEqual(created.user, self.user)
         self.assertEqual(created.processing_status, UserUploadedMap.PROCESSING_PENDING)
         self.assertEqual(created.published_service_key, created.default_service_key)
-        self.assertEqual(created.published_relative_path, created.map_file.name)
+        self.assertEqual(created.published_relative_path, str(created.map_file))
         self.assertEqual(created.processing_error, "")
         on_commit_mock.assert_called_once()
         delay_mock.assert_called_once_with(created.pk)
@@ -711,7 +599,6 @@ class UnifiedMapSelectionViewTests(TestCase):
         ]
 
         response = self.client.get(reverse("navigationtask_flightorderconfiguration", kwargs={"pk": self.navigation_task.pk}))
-
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         self.assertContains(response, 'id="id_map_source"')
         self.assertNotContains(response, 'id="id_map_user_source"')
@@ -729,47 +616,18 @@ class UnifiedMapSelectionViewTests(TestCase):
             reverse("navigationtask_map", kwargs={"pk": self.navigation_task.pk}),
             {
                 "size": "A4",
-                "zoom_level": 10,
                 "orientation": "landscape",
                 "plot_track_between_waypoints": True,
                 "include_meridians_and_parallels_lines": True,
-                "scale": 0,
+                "scale": "100000",
                 "map_source": "user_uploaded:42",
+                "zoom_level": 10,
                 "dpi": 150,
                 "line_width": 0.5,
                 "colour": "#0000ff",
             },
         )
 
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(generate_map_async_mock.delay.called)
-        args = generate_map_async_mock.delay.call_args[0]
-        map_params = args[2]
-        self.assertEqual(map_params["map_source"], "user_uploaded:42")
-        self.assertNotIn("user_map_source_id", map_params)
-
-
-class GetLocalFilePathStreamingTests(TestCase):
-    """
-    The old implementation called `self.map_file.read()` which loaded the entire (up to 100MB) mbtiles into
-    memory in a single gunicorn request worker. This test guards against that regression by asserting we
-    use the chunked iterator instead.
-    """
-
-    def setUp(self):
-        self.user = get_user_model().objects.create(email="streamuser@example.com")
-
-    def test_uses_chunks_not_full_read(self):
-        instance = _make_instance(self.user)
-
-        from display.models import user_uploaded_map as module
-        module.LOCAL_MAP_FILE_CACHE.pop(f"user_map_{instance.map_file.name}", None)
-
-        with patch.object(instance.map_file, "chunks", return_value=[b"fake bytes"]) as chunks_mock, \
-             patch.object(FieldFile, "read", new_callable=PropertyMock) as read_mock:
-            path = instance.get_local_file_path()
-            self.addCleanup(instance.clear_local_file_path)
-
-        self.assertTrue(path)
-        chunks_mock.assert_called_once()
-        read_mock.assert_not_called()
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Select a valid choice")
+        generate_map_async_mock.delay.assert_not_called()

@@ -2186,8 +2186,13 @@ class UserUploadedMapUpdate(GuardianPermissionRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         instance = form.save()  # type: UserUploadedMap
-        unpublish_user_uploaded_map(instance)
-        request_mbtiles_reload()
+        previous_relative_path = getattr(instance, "published_relative_path", "")
+        current_relative_path = instance.map_file if isinstance(instance.map_file, str) else (instance.map_file.name if getattr(instance.map_file, "name", "") else instance.default_published_relative_path)
+        if previous_relative_path and previous_relative_path != current_relative_path:
+            unpublish_user_uploaded_map(instance, relative_path=previous_relative_path)
+            request_mbtiles_reload()
+            if not isinstance(instance.map_file, str) and getattr(instance.map_file, "storage", None):
+                instance.map_file.storage.delete(previous_relative_path)
         instance.clear_local_file_path()
         instance.processing_status = UserUploadedMap.PROCESSING_PENDING
         instance.processing_error = ""
@@ -2234,6 +2239,8 @@ class UserUploadedMapDelete(GuardianPermissionRequiredMixin, DeleteView):
         return self.get_object()
 
     def form_valid(self, form):
+        if not isinstance(self.object.map_file, str) and getattr(self.object.map_file, "storage", None):
+            self.object.map_file.storage.delete(self.object.published_relative_path or str(self.object.map_file))
         unpublish_user_uploaded_map(self.object)
         request_mbtiles_reload()
         self.object.clear_local_file_path()

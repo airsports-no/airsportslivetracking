@@ -19,6 +19,8 @@ class MapSourceDefinitionTests(TestCase):
         self.assertEqual(definition["provider"], "openaip")
         self.assertEqual(definition["type"], "raster_xyz")
         self.assertTrue(definition["is_overlay"])
+        self.assertTrue(definition["allow_multiple"])
+        self.assertTrue(definition["is_always_on_top"])
         self.assertEqual(definition["default_zoom"], 10)
 
     @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_map_details")
@@ -27,7 +29,7 @@ class MapSourceDefinitionTests(TestCase):
         mock_get_available_maps.return_value = [
             {"name": "Norway 250k", "url": "https://mbtiles.airsports.no/services/Norway250k"}
         ]
-        mock_get_map_details.return_value = {"minzoom": 8, "maxzoom": 14}
+        mock_get_map_details.return_value = {"minzoom": 8, "maxzoom": 14, "tiles": ["http://mbtiles:8000/services/Norway250k/tiles/{z}/{x}/{y}.png"]}
 
         definition = sources.get_map_source_definition("Norway250k")
 
@@ -37,6 +39,7 @@ class MapSourceDefinitionTests(TestCase):
         self.assertEqual(definition["type"], "mbtiles")
         self.assertEqual(definition["min_zoom"], 8)
         self.assertEqual(definition["max_zoom"], 14)
+        self.assertEqual(definition["tile_url"], "http://localhost:8001/services/Norway250k/tiles/{z}/{x}/{y}.png")
         mock_get_map_details.assert_called_once_with("Norway250k")
 
     @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_map_details")
@@ -50,7 +53,8 @@ class MapSourceDefinitionTests(TestCase):
         mock_get_map_details.return_value = {
             "minzoom": 8,
             "maxzoom": 14,
-            "tiles": ["https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png"],
+            "tiles": ["http://mbtiles:8000/services/mbtiles/Norway250k/tiles/{z}/{x}/{y}.png"],
+            "bounds": [10.0, 59.0, 11.0, 60.0],
         }
 
         definitions = sources.get_builtin_map_source_definitions()
@@ -63,7 +67,7 @@ class MapSourceDefinitionTests(TestCase):
         norway = next(item for item in definitions if item["key"] == "Norway250k")
         self.assertEqual(
             norway["tile_url"],
-            "https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png",
+            "http://localhost:8001/services/mbtiles/Norway250k/tiles/{z}/{x}/{y}.png",
         )
 
     @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_map_details")
@@ -74,17 +78,26 @@ class MapSourceDefinitionTests(TestCase):
         mock_get_available_maps.return_value = [
             {"name": "Norway 250k", "url": "https://mbtiles.airsports.no/services/Norway250k"},
             {"name": "Pilot uploaded map", "url": "http://localhost:8001/services/user-uploaded-map-307"},
+            {"name": "Swiss uploaded file", "url": "http://localhost:8001/services/swiss-map-raster200_2021_14_krel_10_2056_eraIjwJ"},
         ]
         mock_get_map_details.return_value = {
             "minzoom": 8,
             "maxzoom": 14,
-            "tiles": ["https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png"],
+            "tiles": ["http://mbtiles:8000/services/mbtiles/Norway250k/tiles/{z}/{x}/{y}.png"],
         }
+        UserUploadedMap.objects.create(
+            user=get_user_model().objects.create(email="uploaded@example.com"),
+            name="Swiss",
+            published_service_key="user-uploaded-map-307",
+            published_relative_path="user_uploaded_maps/swiss-map-raster200_2021_14_krel_10_2056_eraIjwJ.mbtiles",
+            processing_status=UserUploadedMap.PROCESSING_READY,
+        )
 
         definitions = sources.get_builtin_map_source_definitions()
 
         self.assertTrue(any(item["key"] == "Norway250k" for item in definitions))
         self.assertFalse(any(item["label"] == "Pilot uploaded map" for item in definitions))
+        self.assertFalse(any(item["key"] == "swiss-map-raster200_2021_14_krel_10_2056_eraIjwJ" for item in definitions))
 
 
 class NavigationTaskMapSourceAvailabilityTests(TestCase):
@@ -105,6 +118,8 @@ class NavigationTaskMapSourceAvailabilityTests(TestCase):
                 "max_zoom": 19,
                 "default_zoom": 12,
                 "is_overlay": False,
+                "allow_multiple": False,
+                "is_always_on_top": False,
                 "bounds": None,
             },
             {
@@ -112,12 +127,14 @@ class NavigationTaskMapSourceAvailabilityTests(TestCase):
                 "label": "Norway 250k",
                 "provider": "mbtiles",
                 "type": "mbtiles",
-                "tile_url": "https://mbtiles.airsports.no/services/Norway250k/tiles/{z}/{x}/{y}.png",
+                "tile_url": "http://localhost:8001/services/mbtiles/Norway250k/tiles/{z}/{x}/{y}.png",
                 "attribution": "",
                 "min_zoom": 8,
                 "max_zoom": 14,
                 "default_zoom": 12,
                 "is_overlay": True,
+                "allow_multiple": False,
+                "is_always_on_top": False,
                 "bounds": [10.0, 59.0, 11.0, 60.0],
             },
             {
@@ -125,12 +142,14 @@ class NavigationTaskMapSourceAvailabilityTests(TestCase):
                 "label": "Sweden 250k",
                 "provider": "mbtiles",
                 "type": "mbtiles",
-                "tile_url": "https://mbtiles.airsports.no/services/Sweden250k/tiles/{z}/{x}/{y}.png",
+                "tile_url": "http://localhost:8001/services/mbtiles/Sweden250k/tiles/{z}/{x}/{y}.png",
                 "attribution": "",
                 "min_zoom": 8,
                 "max_zoom": 14,
                 "default_zoom": 12,
                 "is_overlay": True,
+                "allow_multiple": False,
+                "is_always_on_top": False,
                 "bounds": [20.0, 65.0, 21.0, 66.0],
             },
         ]
@@ -187,6 +206,7 @@ class NavigationTaskMapSourceAvailabilityTests(TestCase):
         self.assertIn("osm", keys)
         self.assertIn("Norway250k", keys)
         self.assertNotIn("Sweden250k", keys)
+        self.assertNotIn("openaip", keys)
         self.assertIn(sources.uploaded_map_token(overlapping_uploaded), keys)
         self.assertNotIn(sources.uploaded_map_token(outside_uploaded), keys)
         self.assertNotIn(sources.uploaded_map_token(hidden_uploaded), keys)

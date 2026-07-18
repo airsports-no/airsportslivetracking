@@ -29,8 +29,10 @@ def get_local_reload_trigger_path() -> Path:
     return get_mbtiles_publish_root() / ".reload-trigger"
 
 
-def unpublish_user_uploaded_map(user_map: UserUploadedMap) -> None:
-    if user_map.published_relative_path:
+def unpublish_user_uploaded_map(user_map: UserUploadedMap, relative_path: str | None = None) -> None:
+    if relative_path:
+        target = get_mbtiles_publish_root() / relative_path
+    elif user_map.published_relative_path:
         target = get_mbtiles_publish_root() / user_map.published_relative_path
     else:
         target = get_published_absolute_path(user_map)

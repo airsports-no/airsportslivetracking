@@ -217,6 +217,8 @@ class FlightOrderConfigurationFormTests(TestCase):
         self.assertEqual(source["min_zoom"], 7)
         self.assertEqual(source["max_zoom"], 13)
         self.assertEqual(source["default_zoom"], 10)
+        self.assertFalse(source["allow_multiple"])
+        self.assertFalse(source["is_always_on_top"])
         self.assertEqual(
             source["tile_url"],
             "http://localhost:8001/services/user-uploaded-map-42/tiles/{z}/{x}/{y}.png",

@@ -1,3 +1,6 @@
+from pathlib import Path
+from urllib.parse import urlparse
+
 from PIL import Image
 import qrcode
 
@@ -5,6 +8,12 @@ from guardian.shortcuts import get_objects_for_user
 
 from live_tracking_map.settings import MBTILES_PUBLIC_URL
 from display.flight_order_and_maps.mbtiles_facade import get_available_maps, get_map_details
+
+
+def to_public_mbtiles_url(url: str) -> str:
+    parsed = urlparse(url)
+    path = parsed.path if parsed.scheme or parsed.netloc else url
+    return f"{MBTILES_PUBLIC_URL.rstrip('/')}{path}"
 
 BUILTIN_NON_MBTILES_SOURCES = {
     "osm": {
@@ -74,7 +83,18 @@ def folder_map_name(folder: str) -> str:
 
 
 def get_map_filename(url: str) -> str:
-    return url.split("/")[-1]
+    parsed = urlparse(url)
+    path = parsed.path or url
+    path_obj = Path(path.rstrip("/"))
+    if len(path_obj.parts) >= 3 and path_obj.parts[-2] == "services":
+        return path_obj.name
+    if len(path_obj.parts) >= 4 and path_obj.parts[-3] == "services":
+        return "/".join(path_obj.parts[-2:])
+    return path_obj.name
+
+
+def service_key_from_uploaded_relative_path(relative_path: str) -> str:
+    return Path(relative_path).stem
 
 
 def uploaded_map_token(user_uploaded_map) -> str:
@@ -105,17 +125,25 @@ def bounds_intersect(a: tuple[float, float, float, float] | list[float], b: tupl
 
 
 def source_definition_from_user_uploaded_map(user_uploaded_map) -> dict:
+    relative_path = getattr(user_uploaded_map, "published_relative_path", "") or getattr(
+        user_uploaded_map, "default_published_relative_path", ""
+    )
+    service_key = service_key_from_uploaded_relative_path(relative_path) if relative_path else getattr(
+        user_uploaded_map, "published_service_key", ""
+    )
     return {
         "key": uploaded_map_token(user_uploaded_map),
         "label": user_uploaded_map.name,
         "provider": "user_uploaded_mbtiles",
         "type": "mbtiles",
-        "tile_url": f"{MBTILES_PUBLIC_URL.rstrip('/')}/services/{user_uploaded_map.published_service_key}/tiles/{{z}}/{{x}}/{{y}}.png" if user_uploaded_map.published_service_key else "",
+        "tile_url": f"{MBTILES_PUBLIC_URL.rstrip('/')}/services/{service_key}/tiles/{{z}}/{{x}}/{{y}}.png" if service_key else "",
         "attribution": user_uploaded_map.attribution,
         "min_zoom": user_uploaded_map.minimum_zoom_level,
         "max_zoom": user_uploaded_map.maximum_zoom_level,
         "default_zoom": user_uploaded_map.default_zoom_level,
         "is_overlay": True,
+        "allow_multiple": False,
+        "is_always_on_top": False,
         "bounds": user_uploaded_map.bounds,
     }
 
@@ -126,6 +154,8 @@ def get_available_map_source_definitions_for_navigation_task(task, user, uploade
     route_bounds = route_extent_to_bounds(task.route)
     definitions = []
     for definition in get_builtin_map_source_definitions():
+        if definition["key"] == "openaip":
+            continue
         if definition["provider"] != "mbtiles":
             definitions.append(definition)
             continue
@@ -174,12 +204,24 @@ def is_user_uploaded_service_url(url: str) -> bool:
 def get_builtin_map_source_definitions() -> list[dict]:
     definitions = []
     for key, source in BUILTIN_NON_MBTILES_SOURCES.items():
-        definitions.append({"key": key, "provider": key, **source})
+        definitions.append({"key": key, "provider": key, **source, "allow_multiple": key == "openaip", "is_always_on_top": key == "openaip"})
+
+    from display.models.user_uploaded_map import UserUploadedMap
+
+    uploaded_service_keys = {
+        service_key_from_uploaded_relative_path(uploaded_map.published_relative_path)
+        for uploaded_map in UserUploadedMap.objects.exclude(published_relative_path="")
+        if uploaded_map.published_relative_path
+    }
 
     for system_map_data in get_available_maps():
         if is_user_uploaded_service_url(system_map_data["url"]):
             continue
+        parsed = urlparse(system_map_data["url"])
+        path = parsed.path or system_map_data["url"]
         key = get_map_filename(system_map_data["url"])
+        if key in uploaded_service_keys:
+            continue
         details = get_map_details(key)
         definitions.append(
             {
@@ -187,12 +229,14 @@ def get_builtin_map_source_definitions() -> list[dict]:
                 "label": system_map_data["name"],
                 "provider": "mbtiles",
                 "type": "mbtiles",
-                "tile_url": (details.get("tiles") or [system_map_data["url"]])[0],
+                "tile_url": to_public_mbtiles_url((details.get("tiles") or [system_map_data["url"]])[0]),
                 "attribution": system_map_data.get("attribution", ""),
                 "min_zoom": details.get("minzoom", 0),
                 "max_zoom": details.get("maxzoom", 18),
                 "default_zoom": DEFAULT_MAP_ZOOM_LEVELS.get(key),
                 "is_overlay": True,
+                "allow_multiple": False,
+                "is_always_on_top": False,
                 "bounds": details.get("bounds"),
             }
         )
@@ -226,6 +270,8 @@ def map_source_definition_to_payload(definition: dict, origin: str = "builtin") 
         "max_zoom": definition["max_zoom"],
         "default_zoom": definition["default_zoom"],
         "is_overlay": definition["is_overlay"],
+        "allow_multiple": definition.get("allow_multiple", False),
+        "is_always_on_top": definition.get("is_always_on_top", False),
         "bounds": definition.get("bounds"),
     }
 

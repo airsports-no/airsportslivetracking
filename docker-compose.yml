@@ -99,7 +99,7 @@ services:
     image: ghcr.io/consbio/mbtileserver:latest
     command: ["/mbtileserver", "--enable-reload-signal", "--dir", "/tilesets-static,/tilesets-user"]
     volumes:
-      - ./mapserver:/tilesets-static
+      - "/mnt/d/Airsports maps/local_dev:/tilesets-static:ro"
       - ./data/media/user_uploaded_maps:/tilesets-user
     ports:
       - "8001:8000"

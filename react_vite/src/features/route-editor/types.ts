@@ -20,6 +20,8 @@ export interface MapSource {
     max_zoom: number;
     default_zoom: number | null;
     is_overlay: boolean;
+    allow_multiple: boolean;
+    is_always_on_top: boolean;
     bounds?: [number, number, number, number] | null;
 }
 
