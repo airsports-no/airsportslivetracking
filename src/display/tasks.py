@@ -296,27 +296,6 @@ def process_user_uploaded_map(map_id: int):
         )
 
 
-def backfill_legacy_user_uploaded_map_to_shared_storage(map_id: int) -> bool:
-    from display.models import UserUploadedMap
-
-    try:
-        instance = UserUploadedMap.objects.get(pk=map_id)
-    except UserUploadedMap.DoesNotExist:
-        return False
-
-    if not instance.map_file:
-        return False
-
-    process_user_uploaded_map(map_id)
-    instance.refresh_from_db()
-
-    if instance.processing_status == UserUploadedMap.PROCESSING_READY and instance.canonical_source_exists:
-        instance.remove_uploaded_blob()
-        return True
-
-    return False
-
-
 @app.task
 def process_flymaster_file(file_data: str):
     contestant, identifier, positions = build_positions_from_flymaster(file_data)

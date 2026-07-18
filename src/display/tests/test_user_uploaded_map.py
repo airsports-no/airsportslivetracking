@@ -15,7 +15,7 @@ from rest_framework.test import APITransactionTestCase
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Contest, EditableRoute, NavigationTask, Route, Scorecard
 from display.models.user_uploaded_map import UserUploadedMap
-from display.tasks import process_user_uploaded_map, backfill_legacy_user_uploaded_map_to_shared_storage
+from display.tasks import process_user_uploaded_map
 
 
 def _make_instance(user, default_zoom=12) -> UserUploadedMap:
@@ -134,25 +134,6 @@ class ProcessUserUploadedMapTaskTests(TestCase):
         instance = _make_instance(self.user)
         self.assertEqual(instance.default_service_key, f"user-uploaded-map-{instance.pk}")
         self.assertEqual(instance.default_published_relative_path, instance.map_file.name)
-
-    @override_settings(MBTILES_PUBLISH_ROOT="/tmp/tilesets-test")
-    def test_backfill_normalizes_legacy_blob_metadata_without_removing_uploaded_blob(self):
-        instance = _make_instance(self.user, default_zoom=12)
-        instance.published_service_key = instance.default_service_key
-        instance.published_relative_path = instance.default_published_relative_path
-        instance.save(update_fields=["published_service_key", "published_relative_path"])
-        fake_png = BytesIO(b"\x89PNG\r\n\x1a\nfake")
-        with patch.object(UserUploadedMap, "create_thumbnail", return_value=(fake_png, 10, 14)), \
-             patch.object(UserUploadedMap, "get_bounds", return_value=(10.0, 59.0, 11.0, 60.0)), \
-             patch("display.tasks.request_mbtiles_reload"):
-            result = backfill_legacy_user_uploaded_map_to_shared_storage(instance.pk)
-
-        instance.refresh_from_db()
-        self.assertFalse(result)
-        self.assertEqual(instance.processing_status, UserUploadedMap.PROCESSING_READY)
-        self.assertTrue(bool(instance.map_file))
-        self.assertEqual(instance.published_service_key, instance.default_service_key)
-        self.assertEqual(instance.published_relative_path, instance.map_file.name)
 
     @override_settings(MBTILES_PUBLISH_ROOT="/tmp/tilesets-test")
     def test_processing_uses_published_file_as_canonical_source_after_initial_publish(self):
