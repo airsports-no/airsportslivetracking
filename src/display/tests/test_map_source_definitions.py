@@ -40,6 +40,8 @@ class MapSourceDefinitionTests(TestCase):
         self.assertEqual(definition["min_zoom"], 8)
         self.assertEqual(definition["max_zoom"], 14)
         self.assertEqual(definition["tile_url"], "http://localhost:8001/services/Norway250k/tiles/{z}/{x}/{y}.png")
+        payload = sources.map_source_definition_to_payload(definition)
+        self.assertEqual(payload["source_group"], "system_overlay")
         mock_get_map_details.assert_called_once_with("Norway250k")
 
     @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_map_details")
@@ -69,8 +71,45 @@ class MapSourceDefinitionTests(TestCase):
             norway["tile_url"],
             "http://localhost:8001/services/mbtiles/Norway250k/tiles/{z}/{x}/{y}.png",
         )
+        mock_get_map_details.assert_called_once_with("Norway250k")
 
-    @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_map_details")
+    def test_map_source_payload_groups_uploaded_and_system_overlays(self):
+        system_payload = sources.map_source_definition_to_payload(
+            {
+                "key": "Norway250k",
+                "label": "Norway 250k",
+                "type": "mbtiles",
+                "tile_url": "http://localhost:8001/services/Norway250k/tiles/{z}/{x}/{y}.png",
+                "attribution": "",
+                "min_zoom": 8,
+                "max_zoom": 14,
+                "default_zoom": 12,
+                "is_overlay": True,
+                "allow_multiple": False,
+                "is_always_on_top": False,
+                "bounds": [10.0, 59.0, 11.0, 60.0],
+            }
+        )
+        uploaded_payload = sources.map_source_definition_to_payload(
+            {
+                "key": "user_uploaded:42",
+                "label": "Uploaded map",
+                "type": "mbtiles",
+                "tile_url": "http://localhost:8001/services/uploaded/tiles/{z}/{x}/{y}.png",
+                "attribution": "",
+                "min_zoom": 8,
+                "max_zoom": 14,
+                "default_zoom": 12,
+                "is_overlay": True,
+                "allow_multiple": False,
+                "is_always_on_top": False,
+                "bounds": [10.0, 59.0, 11.0, 60.0],
+            },
+            origin="user_upload",
+        )
+
+        self.assertEqual(system_payload["source_group"], "system_overlay")
+        self.assertEqual(uploaded_payload["source_group"], "uploaded_overlay")
     @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_available_maps")
     def test_get_builtin_map_source_definitions_excludes_user_uploaded_namespace(
         self, mock_get_available_maps, mock_get_map_details
@@ -252,3 +291,8 @@ class NavigationTaskMapSourceAvailabilityTests(TestCase):
         keys = {item["key"] for item in definitions}
 
         self.assertIn(sources.uploaded_map_token(uploaded), keys)
+        payload = [
+            sources.map_source_definition_to_payload(definition, origin="user_upload") for definition in definitions
+        ]
+        uploaded_payload = next(item for item in payload if item["key"] == sources.uploaded_map_token(uploaded))
+        self.assertEqual(uploaded_payload["source_group"], "uploaded_overlay")

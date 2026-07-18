@@ -317,6 +317,8 @@ class MapSourceDefinitionPayloadTests(APITransactionTestCase):
         payload = response.json()
         self.assertTrue(any(item["key"] == "osm" for item in payload))
         self.assertTrue(any(item["key"] == "Norway250k" and item["is_overlay"] for item in payload))
+        norway = next(item for item in payload if item["key"] == "Norway250k")
+        self.assertEqual(norway["source_group"], "system_overlay")
 
 
 class UserUploadedMapLifecycleViewTests(TestCase):
