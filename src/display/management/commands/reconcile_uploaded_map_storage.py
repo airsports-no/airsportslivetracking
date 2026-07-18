@@ -75,54 +75,55 @@ class Command(BaseCommand):
         referenced_paths = set()
         for uploaded_map in queryset:
             inspected += 1
-            map_file_name = getattr(uploaded_map.map_file, "name", "") or ""
-            published_relative_path = uploaded_map.published_relative_path or ""
-            expected_relative_path = map_file_name or published_relative_path or uploaded_map.default_published_relative_path
+            try:
+                map_file_name = getattr(uploaded_map.map_file, "name", "") or ""
+                published_relative_path = uploaded_map.published_relative_path or ""
+                expected_relative_path = map_file_name or published_relative_path or uploaded_map.default_published_relative_path
 
-            if map_file_name:
-                referenced_paths.add(map_file_name)
-            if published_relative_path:
-                referenced_paths.add(published_relative_path)
-            if expected_relative_path:
-                referenced_paths.add(expected_relative_path)
+                if map_file_name:
+                    referenced_paths.add(map_file_name)
+                if published_relative_path:
+                    referenced_paths.add(published_relative_path)
+                if expected_relative_path:
+                    referenced_paths.add(expected_relative_path)
 
-            if not map_file_name:
-                missing_map_file += 1
-                self.stdout.write(self.style.WARNING(f"map {uploaded_map.pk}: missing map_file"))
+                if not map_file_name:
+                    missing_map_file += 1
+                    self.stdout.write(self.style.WARNING(f"map {uploaded_map.pk}: missing map_file"))
 
-            if not published_relative_path:
-                missing_published_relative_path += 1
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"map {uploaded_map.pk}: missing published_relative_path; expected {expected_relative_path!r}"
-                    )
-                )
-
-            if expected_relative_path and not uploaded_map.map_file.storage.exists(expected_relative_path):
-                missing_storage_file += 1
-                self.stdout.write(
-                    self.style.ERROR(
-                        f"map {uploaded_map.pk}: storage file missing for {expected_relative_path!r}"
-                    )
-                )
-
-            if backfill_metadata:
-                fields_to_update = []
-                if not uploaded_map.published_relative_path and expected_relative_path:
-                    uploaded_map.published_relative_path = expected_relative_path
-                    fields_to_update.append("published_relative_path")
-                if not uploaded_map.published_service_key:
-                    uploaded_map.published_service_key = uploaded_map.default_service_key
-                    fields_to_update.append("published_service_key")
-                if fields_to_update:
+                if not published_relative_path:
+                    missing_published_relative_path += 1
                     self.stdout.write(
-                        f"map {uploaded_map.pk}: would backfill {fields_to_update} -> "
-                        f"relative_path={uploaded_map.published_relative_path!r}, service_key={uploaded_map.published_service_key!r}"
+                        self.style.WARNING(
+                            f"map {uploaded_map.pk}: missing published_relative_path; expected {expected_relative_path!r}"
+                        )
                     )
-                    if execute:
-                        with transaction.atomic():
-                            uploaded_map.save(update_fields=fields_to_update)
-                        metadata_updates += 1
+
+                if expected_relative_path and not uploaded_map.map_file.storage.exists(expected_relative_path):
+                    missing_storage_file += 1
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"map {uploaded_map.pk}: storage file missing for {expected_relative_path!r}"
+                        )
+                    )
+
+                if backfill_metadata:
+                    fields_to_update = []
+                    if not uploaded_map.published_relative_path and expected_relative_path:
+                        uploaded_map.published_relative_path = expected_relative_path
+                        fields_to_update.append("published_relative_path")
+                    if not uploaded_map.published_service_key:
+                        uploaded_map.published_service_key = uploaded_map.default_service_key
+                        fields_to_update.append("published_service_key")
+                    if fields_to_update:
+                        self.stdout.write(
+                            f"map {uploaded_map.pk}: would backfill {fields_to_update} -> "
+                            f"relative_path={uploaded_map.published_relative_path!r}, service_key={uploaded_map.published_service_key!r}"
+                        )
+                        if execute:
+                            with transaction.atomic():
+                                uploaded_map.save(update_fields=fields_to_update)
+                            metadata_updates += 1
             finally:
                 uploaded_map.clear_local_file_path()
 
