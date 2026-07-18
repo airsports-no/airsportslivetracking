@@ -575,13 +575,6 @@ class ContestantProcessor:
         Trigger termination of the run function.
         """
         logger.info("%s: Setting termination flag. Reason: %s", self.contestant, reason or "unspecified")
-        if logger.isEnabledFor(logging.DEBUG):
-            stack_trace = "".join(traceback.format_stack(limit=12))
-            logger.debug(
-                "%s: Calculator termination stack:\n%s",
-                self.contestant,
-                stack_trace,
-            )
         self.contestant_track.set_calculator_finished()
         self.track_terminated = True
         self.timed_queue.close()
