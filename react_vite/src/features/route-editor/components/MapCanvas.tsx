@@ -607,7 +607,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
         </button>
 
         {!mapSelectorCollapsed && (
-          <div className="space-y-3 border-t border-base-300 p-3">
+          <div className="max-h-[70vh] overflow-y-auto space-y-3 border-t border-base-300 p-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-2">Global base map</div>
               <div className="space-y-1">
