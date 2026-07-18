@@ -37,4 +37,8 @@
     "terminal.integrated.env.linux": {
         "PYTHONPATH": "src/"
     },
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python.testing.pytestArgs": [
+        "."
+    ],
 }

@@ -26,6 +26,8 @@ spec:
     metadata:
       labels:
         service: mbtiles
+      annotations:
+        gke-gcsfuse/volumes: "true"
     spec:
       terminationGracePeriodSeconds: 25
       serviceAccountName: calculator-scheduler
