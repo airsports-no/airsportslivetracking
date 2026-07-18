@@ -123,6 +123,8 @@ class Command(BaseCommand):
                         with transaction.atomic():
                             uploaded_map.save(update_fields=fields_to_update)
                         metadata_updates += 1
+            finally:
+                uploaded_map.clear_local_file_path()
 
         orphan_files = []
         if list_orphan_files or delete_orphan_files:

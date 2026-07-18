@@ -91,6 +91,29 @@ class Command(BaseCommand):
 
             try:
                 minimum_longitude, minimum_latitude, maximum_longitude, maximum_latitude = uploaded_map.get_bounds()
+
+                self.stdout.write(
+                    f"map {uploaded_map.pk} ({uploaded_map.name}) -> "
+                    f"west={minimum_longitude}, south={minimum_latitude}, east={maximum_longitude}, north={maximum_latitude}"
+                )
+
+                if dry_run:
+                    continue
+
+                uploaded_map.minimum_longitude = minimum_longitude
+                uploaded_map.minimum_latitude = minimum_latitude
+                uploaded_map.maximum_longitude = maximum_longitude
+                uploaded_map.maximum_latitude = maximum_latitude
+                with transaction.atomic():
+                    uploaded_map.save(
+                        update_fields=[
+                            "minimum_longitude",
+                            "minimum_latitude",
+                            "maximum_longitude",
+                            "maximum_latitude",
+                        ]
+                    )
+                updated += 1
             except Exception as exc:
                 failed += 1
                 self.stderr.write(
@@ -98,30 +121,8 @@ class Command(BaseCommand):
                         f"fail map {uploaded_map.pk} ({uploaded_map.name}): {exc}"
                     )
                 )
-                continue
-
-            self.stdout.write(
-                f"map {uploaded_map.pk} ({uploaded_map.name}) -> "
-                f"west={minimum_longitude}, south={minimum_latitude}, east={maximum_longitude}, north={maximum_latitude}"
-            )
-
-            if dry_run:
-                continue
-
-            uploaded_map.minimum_longitude = minimum_longitude
-            uploaded_map.minimum_latitude = minimum_latitude
-            uploaded_map.maximum_longitude = maximum_longitude
-            uploaded_map.maximum_latitude = maximum_latitude
-            with transaction.atomic():
-                uploaded_map.save(
-                    update_fields=[
-                        "minimum_longitude",
-                        "minimum_latitude",
-                        "maximum_longitude",
-                        "maximum_latitude",
-                    ]
-                )
-            updated += 1
+            finally:
+                uploaded_map.clear_local_file_path()
 
         summary = (
             f"processed={processed} updated={updated} skipped={skipped} failed={failed}"
