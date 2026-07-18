@@ -64,8 +64,6 @@ spec:
           - mountPath: /secret
             readOnly: true
             name: firebase
-          - mountPath: {{ .Values.mbtiles.uploadedMountPath | quote }}
-            name: mbtiles-files
         livenessProbe:
           exec:
             # bash is needed to replace the environment variable
@@ -95,10 +93,3 @@ spec:
         - name: firebase
           secret:
             secretName: firebase-secrets
-        - name: mbtiles-files
-          csi:
-            driver: gcsfuse.csi.storage.gke.io
-            readOnly: false
-            volumeAttributes:
-              bucketName: {{ .Values.mbtiles.bucketName | quote }}
-              mountOptions: {{ printf "%s,only-dir=user_uploaded_maps" .Values.mbtiles.gcsfuse.mountOptions | quote }}
