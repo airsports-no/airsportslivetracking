@@ -45,6 +45,8 @@ spec:
           - secretRef:
               name: pw-secrets
         env:
+          - name: MBTILES_RELOAD_METHOD
+            value: "kubernetes"
           - name: MBTILES_RELOAD_ENABLED
             value: "1"
           - name: MBTILES_RELOAD_NAMESPACE
