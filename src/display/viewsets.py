@@ -337,6 +337,7 @@ class EditableRouteViewSet(ModelViewSet):
             "display.view_useruploadedmap",
             klass=UserUploadedMap,
             accept_global_perms=False,
+            with_superuser=False,
         ).filter(processing_status=UserUploadedMap.PROCESSING_READY).exclude(published_service_key="")
 
         for uploaded_map in uploaded_maps:

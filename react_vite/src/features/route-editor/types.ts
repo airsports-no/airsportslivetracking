@@ -13,6 +13,7 @@ export interface MapSource {
     key: string;
     label: string;
     origin: 'builtin' | 'user_upload';
+    source_group?: 'external_base' | 'system_overlay' | 'uploaded_overlay';
     type: 'mbtiles' | 'raster_xyz';
     tile_url: string;
     attribution: string;

@@ -161,8 +161,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
       attribution: '<a href="https://www.openaip.net/">OpenAIP Data</a>'
     });
 
-    const externalBaseSources = (mapSources ?? []).filter((source) => !source.is_overlay);
-    const optionalOverlaySources = (mapSources ?? []).filter((source) => source.is_overlay && source.key !== 'openaip');
+    const externalBaseSources = (mapSources ?? []).filter((source) => source.source_group === 'external_base');
+    const optionalOverlaySources = (mapSources ?? []).filter((source) => source.source_group !== 'external_base' && source.key !== 'openaip');
 
     const nextBaseLayerRefs: Record<string, L.TileLayer> = {
       osm,
@@ -291,12 +291,14 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
       bounds: null,
     },
   ];
-  const externalBaseSources = (mapSources ?? []).filter((source) => !source.is_overlay);
+  const externalBaseSources = (mapSources ?? []).filter((source) => source.source_group === 'external_base');
   const selectableBaseSources = [
     ...builtinBaseSources,
     ...externalBaseSources.filter((source) => !builtinBaseSources.some((builtin) => builtin.key === source.key)),
   ];
-  const optionalOverlaySources = (mapSources ?? []).filter((source) => source.is_overlay && source.key !== 'openaip');
+  const systemOverlaySources = (mapSources ?? []).filter((source) => source.source_group === 'system_overlay' && source.key !== 'openaip');
+  const uploadedOverlaySources = (mapSources ?? []).filter((source) => source.source_group === 'uploaded_overlay');
+  const optionalOverlaySources = [...systemOverlaySources, ...uploadedOverlaySources];
 
   const canExplicitlyAdjustViewport = !routeId && routePoints.length === 0 && gates.length === 0 && observationMarkers.length === 0 && polygons.length === 0;
   const selectedOverlaySource = optionalOverlaySources.find((source) => source.key === selectedOverlayKey) ?? null;
@@ -627,7 +629,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
             </div>
 
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-2">Nation / uploaded overlay</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-2">System overlays</div>
               <div className="space-y-1">
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input
@@ -639,7 +641,25 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
                   />
                   <span>None</span>
                 </label>
-                {optionalOverlaySources.map((source) => (
+                {systemOverlaySources.map((source) => (
+                  <label key={source.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="route-editor-overlay-map"
+                      className="radio radio-xs"
+                      checked={selectedOverlayKey === source.key}
+                      onChange={() => handleSelectOverlay(source.key)}
+                    />
+                    <span>{source.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-2">Uploaded overlays</div>
+              <div className="space-y-1">
+                {uploadedOverlaySources.map((source) => (
                   <label key={source.key} className="flex items-center gap-2 text-sm cursor-pointer">
                     <input
                       type="radio"

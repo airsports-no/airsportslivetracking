@@ -259,10 +259,14 @@ def resolve_map_source_definition(map_source_key: str, user_uploaded_map=None) -
 
 
 def map_source_definition_to_payload(definition: dict, origin: str = "builtin") -> dict:
+    source_group = "uploaded_overlay" if origin == "user_upload" else (
+        "external_base" if not definition["is_overlay"] else "system_overlay"
+    )
     return {
         "key": definition["key"],
         "label": definition["label"],
         "origin": origin,
+        "source_group": source_group,
         "type": definition["type"],
         "tile_url": definition["tile_url"],
         "attribution": definition["attribution"],
