@@ -1,8 +1,11 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import F
+import logging
 
 from display.utilities.db_retry import retry_on_lock_timeout
+
+logger = logging.getLogger(__name__)
 
 
 class ContestantTrack(models.Model):
@@ -132,9 +135,18 @@ class ContestantTrack(models.Model):
             self.__push_change()
 
     def set_calculator_finished(self):
+        rows_updated = type(self).objects.filter(pk=self.pk).update(
+            calculator_finished=True,
+            current_state="Finished",
+        )
+        if rows_updated == 0:
+            logger.warning(
+                "ContestantTrack %s disappeared before set_calculator_finished() could persist state; suppressing shutdown noise",
+                self.pk,
+            )
+            return
         self.calculator_finished = True
         self.current_state = "Finished"
-        self.save(update_fields=["calculator_finished", "current_state"])
         self.__push_change()
 
     def set_calculator_started(self):
