@@ -26,6 +26,36 @@ const getAuthHeaders = () => {
     };
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isTransientMapSourceError = (response: Response, errorMessages: ErrorMessage): boolean => {
+    if (response.status === 502 || response.status === 503 || response.status === 504) return true;
+    const normalized = Array.isArray(errorMessages) ? errorMessages.join(' ') : String(errorMessages || '');
+    return /timeout|timed out|temporar|unavailable|bad gateway|gateway timeout/i.test(normalized);
+};
+
+async function fetchMapSourcesWithRetry(url: string, failureLabel: string): Promise<MapSource[]> {
+    const maxAttempts = 4;
+    const retryDelaysMs = [1000, 2000, 4000];
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const response = await fetch(url);
+        if (response.ok) {
+            return await response.json();
+        }
+
+        const errorMessages = await getErrorMessages(response);
+        const transient = isTransientMapSourceError(response, errorMessages);
+        const shouldRetry = transient && attempt < maxAttempts;
+        if (!shouldRetry) {
+            throw new Error(`${failureLabel}: ${errorMessages}`);
+        }
+        await sleep(retryDelaysMs[attempt - 1]);
+    }
+
+    throw new Error(`${failureLabel}: retries exhausted`);
+}
+
 export const fetchRoute = async (routeId: number): Promise<RouteData> => {
     const url = reverse('editableroutes-detail', routeId);
     const response = await fetch(url);
@@ -74,23 +104,11 @@ export const fetchEditableRoutes = async (): Promise<Route[]> => {
 
 export const fetchEditableRouteMapSources = async (routeId: number): Promise<MapSource[]> => {
     const url = reverse('editableroutes-map-sources', routeId);
-    const response = await fetch(url);
-    if (!response.ok) {
-        const errorMessages = await getErrorMessages(response);
-        throw new Error(`Failed to fetch route editor map sources: ${errorMessages}`);
-    }
-    const data = await response.json();
-    return data;
+    return fetchMapSourcesWithRetry(url, 'Failed to fetch route editor map sources');
 };
 
 export const fetchGlobalEditableRouteMapSources = async (): Promise<MapSource[]> => {
     const url = reverse('editableroutes-global-map-sources');
-    const response = await fetch(url);
-    if (!response.ok) {
-        const errorMessages = await getErrorMessages(response);
-        throw new Error(`Failed to fetch global route editor map sources: ${errorMessages}`);
-    }
-    const data = await response.json();
-    return data;
+    return fetchMapSourcesWithRetry(url, 'Failed to fetch global route editor map sources');
 };
 
