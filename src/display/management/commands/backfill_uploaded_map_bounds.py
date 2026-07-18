@@ -34,16 +34,34 @@ class Command(BaseCommand):
             default=None,
             help="Maximum number of rows to process.",
         )
+        parser.add_argument(
+            "--after-id",
+            type=int,
+            default=None,
+            help="Only process rows with pk greater than this value. Useful for manual batching past known failures.",
+        )
+        parser.add_argument(
+            "--before-id",
+            type=int,
+            default=None,
+            help="Only process rows with pk less than or equal to this value.",
+        )
 
     def handle(self, *args, **options):
         map_ids = options.get("map_ids") or []
         force = options["force"]
         dry_run = options["dry_run"]
         limit = options["limit"]
+        after_id = options["after_id"]
+        before_id = options["before_id"]
 
         queryset = UserUploadedMap.objects.all().order_by("pk")
         if map_ids:
             queryset = queryset.filter(pk__in=map_ids)
+        if after_id is not None:
+            queryset = queryset.filter(pk__gt=after_id)
+        if before_id is not None:
+            queryset = queryset.filter(pk__lte=before_id)
         if not force:
             queryset = queryset.filter(
                 minimum_longitude__isnull=True,
