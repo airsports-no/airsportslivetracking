@@ -81,6 +81,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   const [selectedOverlayKey, setSelectedOverlayKey] = useState<string | null>(null);
   const [openAipEnabled, setOpenAipEnabled] = useState<boolean>(false);
   const [mapSelectorCollapsed, setMapSelectorCollapsed] = useState<boolean>(false);
+  const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(12);
   const didAutoFitSourceRef = useRef(false);
   
   const { handleDragMove, handleDragEnd, dragRef } = useDragHandlers({
@@ -258,6 +259,21 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     ]);
     didAutoFitSourceRef.current = true;
   }, [mapRef, mapSources, routeId]);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    setCurrentZoomLevel(map.getZoom());
+
+    const handleZoomEnd = () => {
+      setCurrentZoomLevel(map.getZoom());
+    };
+
+    map.on('zoomend', handleZoomEnd);
+    return () => {
+      map.off('zoomend', handleZoomEnd);
+    };
+  }, [mapRef]);
 
   const builtinBaseSources: MapSource[] = [
     {
@@ -598,7 +614,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
 
   return (
     <>
-      <div className="absolute top-4 left-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded bg-base-100/95 shadow-lg border border-base-300 overflow-hidden">
+      <div className="absolute top-16 left-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded bg-base-100/95 shadow-lg border border-base-300 overflow-hidden">
         <button
           type="button"
           className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-semibold text-base-content hover:bg-base-200/70"
@@ -612,6 +628,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
           <div className="max-h-[70vh] overflow-y-auto space-y-3 border-t border-base-300 p-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-2">Global base map</div>
+              <div className="mb-2 text-xs text-base-content/70">Current zoom: {currentZoomLevel}</div>
               <div className="space-y-1">
                 {selectableBaseSources.map((source) => (
                   <label key={source.key} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -691,7 +708,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
               <div className="space-y-2 border-t border-base-300 pt-3">
                 {overlayOutOfRange && (
                   <div className="rounded bg-base-100/90 px-3 py-2 text-xs text-base-content shadow border border-base-300">
-                    Selected overlay is only visible around zoom {selectedOverlaySource!.min_zoom}–{selectedOverlaySource!.max_zoom}.
+                    Current zoom: {currentZoomLevel}. Selected overlay is only visible around zoom {selectedOverlaySource!.min_zoom}–{selectedOverlaySource!.max_zoom}.
                   </div>
                 )}
                 <button type="button" className="btn btn-sm btn-primary w-full" onClick={handleZoomToSelectedMap}>

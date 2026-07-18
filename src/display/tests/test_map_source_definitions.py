@@ -110,6 +110,7 @@ class MapSourceDefinitionTests(TestCase):
 
         self.assertEqual(system_payload["source_group"], "system_overlay")
         self.assertEqual(uploaded_payload["source_group"], "uploaded_overlay")
+    @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_map_details")
     @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_available_maps")
     def test_get_builtin_map_source_definitions_excludes_user_uploaded_namespace(
         self, mock_get_available_maps, mock_get_map_details
