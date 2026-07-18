@@ -10,7 +10,7 @@ import useMapInit from './map/useMapInit';
 import useDragHandlers from './map/useDragHandlers';
 import * as Renderers from './map/renderers';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
-import { fetchEditableRouteMapSources, fetchGlobalEditableRouteMapSources } from '../api';
+import { fetchEditableRouteMapSources, fetchGlobalEditableRouteMapSources, MapSourceFetchError } from '../api';
 import { MapSource } from '../types';
 
 const getAngleDiff = (a: number, b: number) => {
@@ -77,6 +77,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   const overlayLayersRef = useRef<Record<string, L.TileLayer>>({});
   const sourceByKeyRef = useRef<Record<string, MapSource>>({});
   const [mapSources, setMapSources] = useState<MapSource[] | null>(null);
+  const [mapSourcesLoadingMessage, setMapSourcesLoadingMessage] = useState<string | null>('Loading map sources…');
+  const [mapSourcesError, setMapSourcesError] = useState<string | null>(null);
   const [selectedBaseLayerKey, setSelectedBaseLayerKey] = useState<string>('osm');
   const [selectedOverlayKey, setSelectedOverlayKey] = useState<string | null>(null);
   const [openAipEnabled, setOpenAipEnabled] = useState<boolean>(false);
@@ -111,6 +113,15 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   useEffect(() => {
     let cancelled = false;
 
+    setMapSourcesLoadingMessage('Loading map sources…');
+    setMapSourcesError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        setMapSourcesLoadingMessage('Map sources are still loading. The map server may still be starting or reloading; this can take a few minutes.');
+      }
+    }, 5000);
+
     const loader = routeId
       ? fetchEditableRouteMapSources(routeId)
       : fetchGlobalEditableRouteMapSources();
@@ -118,18 +129,29 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     loader
       .then((sources) => {
         if (!cancelled) {
+          window.clearTimeout(timeoutId);
           setMapSources(sources);
+          setMapSourcesLoadingMessage(null);
         }
       })
-      .catch((error) => {
+      .catch((error: MapSourceFetchError) => {
         console.error('Failed loading route editor map sources', error);
         if (!cancelled) {
+          window.clearTimeout(timeoutId);
           setMapSources([]);
+          if (error?.transient) {
+            setMapSourcesLoadingMessage('Map sources are temporarily unavailable while the map server starts or reloads. Please wait and reopen the selector in a minute.');
+            setMapSourcesError(null);
+          } else {
+            setMapSourcesLoadingMessage(null);
+            setMapSourcesError(error.message || 'Failed loading route editor map sources.');
+          }
         }
       });
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
     };
   }, [routeId]);
 
@@ -626,6 +648,19 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
 
         {!mapSelectorCollapsed && (
           <div className="max-h-[70vh] overflow-y-auto space-y-3 border-t border-base-300 p-3">
+            {mapSourcesLoadingMessage && (
+              <div className="rounded bg-base-200/80 px-3 py-2 text-xs text-base-content border border-base-300">
+                <span className="loading loading-spinner loading-xs mr-2 align-middle"></span>
+                <span className="align-middle">{mapSourcesLoadingMessage}</span>
+              </div>
+            )}
+
+            {mapSourcesError && (
+              <div className="rounded bg-error/10 px-3 py-2 text-xs text-error border border-error/30">
+                {mapSourcesError}
+              </div>
+            )}
+
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-2">Global base map</div>
               <div className="mb-2 text-xs text-base-content/70">Current zoom: {currentZoomLevel}</div>

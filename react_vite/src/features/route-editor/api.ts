@@ -5,6 +5,11 @@ import { reverse } from '../../urls';
 
 type ErrorMessage = string | string[];
 
+export interface MapSourceFetchError extends Error {
+  transient?: boolean;
+  attempts?: number;
+}
+
 async function getErrorMessages(response: Response): Promise<ErrorMessage> {
   try {
     const errorData = await response.json();
@@ -35,8 +40,10 @@ const isTransientMapSourceError = (response: Response, errorMessages: ErrorMessa
 };
 
 async function fetchMapSourcesWithRetry(url: string, failureLabel: string): Promise<MapSource[]> {
-    const maxAttempts = 4;
-    const retryDelaysMs = [1000, 2000, 4000];
+    const maxAttempts = 10;
+    const retryDelayMs = 30000;
+
+    let lastError: MapSourceFetchError | null = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         const response = await fetch(url);
@@ -46,13 +53,21 @@ async function fetchMapSourcesWithRetry(url: string, failureLabel: string): Prom
 
         const errorMessages = await getErrorMessages(response);
         const transient = isTransientMapSourceError(response, errorMessages);
+        const error = new Error(`${failureLabel}: ${errorMessages}`) as MapSourceFetchError;
+        error.transient = transient;
+        error.attempts = attempt;
+        lastError = error;
+
         const shouldRetry = transient && attempt < maxAttempts;
         if (!shouldRetry) {
-            throw new Error(`${failureLabel}: ${errorMessages}`);
+            throw error;
         }
-        await sleep(retryDelaysMs[attempt - 1]);
+        await sleep(retryDelayMs);
     }
 
+    if (lastError) {
+        throw lastError;
+    }
     throw new Error(`${failureLabel}: retries exhausted`);
 }
 
