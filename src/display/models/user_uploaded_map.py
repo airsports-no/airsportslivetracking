@@ -1,10 +1,13 @@
 import os
 from io import BytesIO
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.utils.text import slugify
 from pymbtiles import MBtiles
 
 from display.utilities.mbtiles_stitch import MBTilesHelper
@@ -22,6 +25,10 @@ def validate_file_size(value):
 
 
 LOCAL_MAP_FILE_CACHE = {}
+
+
+def get_mbtiles_publish_root() -> Path:
+    return Path(getattr(settings, "MBTILES_PUBLISH_ROOT", "/tilesets"))
 
 
 class UserUploadedMap(models.Model):
@@ -66,6 +73,13 @@ class UserUploadedMap(models.Model):
         default=PROCESSING_PENDING,
     )
     processing_error = models.TextField(blank=True, default="")
+    published_service_key = models.CharField(max_length=255, blank=True, default="")
+    published_relative_path = models.CharField(max_length=500, blank=True, default="")
+    published_at = models.DateTimeField(blank=True, null=True)
+    minimum_longitude = models.FloatField(blank=True, null=True)
+    minimum_latitude = models.FloatField(blank=True, null=True)
+    maximum_longitude = models.FloatField(blank=True, null=True)
+    maximum_latitude = models.FloatField(blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -73,12 +87,58 @@ class UserUploadedMap(models.Model):
     class Meta:
         unique_together = ("user", "name")
 
+    @property
+    def default_service_key(self) -> str:
+        return f"user-uploaded-map-{self.pk}"
+
+    @property
+    def default_published_relative_path(self) -> str:
+        if self.map_file and getattr(self.map_file, "name", ""):
+            return self.map_file.name
+        suffix = self.pk if self.pk else slugify(self.name) or "uploaded-map"
+        return f"user_uploaded_maps/user-uploaded-map-{suffix}.mbtiles"
+
+    @property
+    def published_absolute_path(self) -> Path:
+        relative_path = self.published_relative_path or self.default_published_relative_path
+        return get_mbtiles_publish_root() / relative_path
+
+    @property
+    def canonical_source_exists(self) -> bool:
+        return self.published_absolute_path.exists()
+
+    @property
+    def safe_map_file_size(self):
+        if self.published_absolute_path.exists():
+            return self.published_absolute_path.stat().st_size
+        try:
+            return self.map_file.size
+        except (FileNotFoundError, OSError, ValueError):
+            return None
+
+    @property
+    def safe_thumbnail_url(self):
+        if not self.thumbnail:
+            return None
+        try:
+            return self.thumbnail.url
+        except (FileNotFoundError, OSError, ValueError):
+            return None
+
+    @property
+    def bounds(self):
+        if None in (self.minimum_longitude, self.minimum_latitude, self.maximum_longitude, self.maximum_latitude):
+            return None
+        return [self.minimum_longitude, self.minimum_latitude, self.maximum_longitude, self.maximum_latitude]
+
     def get_local_file_path(self) -> str:
         """
         Maps are stored in Google file storage. However, matplotlib/cartopy requires the files to be available locally.
         This function ensures that the file has been copied to the local file system and returns the path to it.
         Streams the file in chunks to avoid loading the entire (up to 100MB) mbtiles into memory at once.
         """
+        if self.published_absolute_path.exists():
+            return str(self.published_absolute_path)
         key = f"user_map_{self.map_file.name}"
         if temporary_path := LOCAL_MAP_FILE_CACHE.get(key):
             return temporary_path
@@ -91,6 +151,16 @@ class UserUploadedMap(models.Model):
                 self.map_file.close()
             LOCAL_MAP_FILE_CACHE[key] = temporary_map.name
             return temporary_map.name
+
+    def remove_uploaded_blob(self):
+        if not self.map_file:
+            return
+        try:
+            self.map_file.delete(save=False)
+        except Exception:
+            pass
+        self.map_file = ""
+        self.save(update_fields=["map_file"])
 
     def clear_local_file_path(self):
         """
@@ -121,3 +191,9 @@ class UserUploadedMap(models.Model):
             temporary_file = BytesIO()
             image.save(temporary_file, "PNG")
             return temporary_file, minimum_zoom_level, maximum_zoom_level
+
+    def get_bounds(self) -> tuple[float, float, float, float]:
+        local_path = self.get_local_file_path()
+        with MBtiles(local_path) as src:
+            helper = MBTilesHelper(src)
+            return helper.bounds()

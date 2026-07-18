@@ -57,6 +57,7 @@ from display.models import (
     ANOMALY,
     Task,
     TaskTest,
+    UserUploadedMap,
     NewsletterSubscriber,
     HighlightedContest,
 )
@@ -132,6 +133,12 @@ from display.serialisers import (
 )
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
+from display.flight_order_and_maps.map_plotter_shared_utilities import (
+    get_builtin_map_source_definitions,
+    map_source_definition_to_payload,
+    source_definition_from_user_uploaded_map,
+)
+from live_tracking_map import settings
 from websocket_channels import WebsocketFacade, generate_contestant_data_block
 
 logger = logging.getLogger(__name__)
@@ -319,6 +326,29 @@ class EditableRouteViewSet(ModelViewSet):
     permission_classes = [EditableRoutePermission]
     serializer_class = EditableRouteSerialiser
 
+    @staticmethod
+    def _build_map_sources_for_user(user):
+        sources = []
+        for definition in get_builtin_map_source_definitions():
+            sources.append(map_source_definition_to_payload(definition))
+
+        uploaded_maps = get_objects_for_user(
+            user,
+            "display.view_useruploadedmap",
+            klass=UserUploadedMap,
+            accept_global_perms=False,
+        ).filter(processing_status=UserUploadedMap.PROCESSING_READY).exclude(published_service_key="")
+
+        for uploaded_map in uploaded_maps:
+            sources.append(
+                map_source_definition_to_payload(
+                    source_definition_from_user_uploaded_map(uploaded_map),
+                    origin="user_upload",
+                )
+            )
+
+        return sources
+
     def get_serializer_class(self):
         if self.action == "list":
             return EditableRouteLightSerialiser
@@ -397,6 +427,15 @@ class EditableRouteViewSet(ModelViewSet):
                 )
         except Exception:
             logger.exception(f"Failed creating thumbnail for EditableRoute {serializer.instance.pk}")
+
+    @action(detail=False, methods=["get"], url_path="global-map-sources")
+    def global_map_sources(self, request, *args, **kwargs):
+        return Response(self._build_map_sources_for_user(request.user))
+
+    @action(detail=True, methods=["get"])
+    def map_sources(self, request, *args, **kwargs):
+        self.get_object()
+        return Response(self._build_map_sources_for_user(request.user))
 
 
 TRACK_DATA_PAGE_SIZE_MINUTES = 30

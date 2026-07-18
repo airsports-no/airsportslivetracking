@@ -191,8 +191,12 @@ class TestFullTrack(TransactionTestCase):
         strings = [item.string for item in self.contestant.scorelogentry_set.all().order_by("time", "pk")]
         for s in strings:
             print(s)
+        self.assertIn("SP: 200.0 points backtracking", strings)
+        self.assertIn("TP1: 200.0 points backtracking", strings)
+        self.assertIn("TP3: 200.0 points backtracking", strings)
+        self.assertIn("TP5: 200.0 points backtracking", strings)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(2000.0, contestant_track.score)
+        self.assertEqual(2400.0, contestant_track.score)
 
     def test_missed_procedure_turn(self, *args):
         positions = load_track_points(os.path.join(TEST_DATA_DIR, "jorgen_missed_procedure_turn.gpx"))

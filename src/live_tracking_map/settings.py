@@ -76,6 +76,13 @@ MYSQL_USER = os.environ.get("MYSQL_USER", "tracker")
 MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "tracker")
 MYSQL_DB_NAME = os.environ.get("MYSQL_DB_NAME", "tracker")
 MBTILES_SERVER_URL = os.environ.get("MBTILES_SERVER_URL", "https://mbtiles.airsports.no/")
+MBTILES_PUBLIC_URL = os.environ.get("MBTILES_PUBLIC_URL", MBTILES_SERVER_URL)
+MBTILES_PUBLISH_ROOT = os.environ.get("MBTILES_PUBLISH_ROOT", "/tilesets")
+MBTILES_USER_SUBDIR = os.environ.get("MBTILES_USER_SUBDIR", "user-uploaded")
+MBTILES_RELOAD_METHOD = os.environ.get("MBTILES_RELOAD_METHOD", "noop")
+MBTILES_RELOAD_NAMESPACE = os.environ.get("MBTILES_RELOAD_NAMESPACE", "default")
+MBTILES_RELOAD_POD_LABEL_SELECTOR = os.environ.get("MBTILES_RELOAD_POD_LABEL_SELECTOR", "service=mbtiles")
+MBTILES_RELOAD_LOCAL_URL = os.environ.get("MBTILES_RELOAD_LOCAL_URL", "")
 
 BUILD_ID = os.environ.get("BUILD_ID", "latest")
 

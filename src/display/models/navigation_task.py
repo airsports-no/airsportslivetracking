@@ -14,6 +14,7 @@ from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 
 from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.templatetags.frontend_urls import fe_url
+from display.flight_order_and_maps.map_plotter_shared_utilities import get_available_map_source_definitions_for_navigation_task
 from display.utilities.navigation_task_type_definitions import (
     POKER,
     PRECISION,
@@ -193,6 +194,13 @@ class NavigationTask(models.Model):
                 )
             )
         return UserUploadedMap.objects.filter(pk__in=(item.pk for item in maps))
+
+    def get_available_map_sources(self, user) -> list[dict]:
+        return get_available_map_source_definitions_for_navigation_task(
+            self,
+            user,
+            uploaded_maps=self.get_available_user_maps(),
+        )
 
     # @property
     # def is_landscaped_best(self)->bool:

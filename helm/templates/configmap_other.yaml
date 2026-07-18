@@ -33,6 +33,8 @@ data:
   SECRET_KEY: {{ .Values.secretKey }}
 
   BUILD_ID: {{ .Values.image.tag | quote }}
-  MBTILES_SERVER_URL: {{ .Values.mbtilesUrl }}
+  MBTILES_SERVER_URL: {{ .Values.mbtiles.serverUrl }}
+  MBTILES_PUBLIC_URL: {{ .Values.mbtiles.publicUrl }}
+  MBTILES_PUBLISH_ROOT: {{ .Values.mbtiles.publishRoot }}
   MPLCONFIGDIR: "/tmp"
 

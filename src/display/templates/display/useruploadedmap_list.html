@@ -5,8 +5,8 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for object in object_list %}
             <div class="card bg-base-100 shadow-xl">
-                {% if object.thumbnail %}
-                    <figure><img src="{{ object.thumbnail.url }}" alt="{{ object.name }} thumbnail"></figure>
+                {% if object.safe_thumbnail_url %}
+                    <figure><img src="{{ object.safe_thumbnail_url }}" alt="{{ object.name }} thumbnail"></figure>
                 {% elif object.processing_status == 'pending' %}
                     <div class="p-8 text-center text-base-content/70">
                         <span class="loading loading-spinner loading-md"></span>
@@ -18,9 +18,19 @@
                     </div>
                 {% endif %}
                 <div class="card-body">
-                    <h5 class="card-title">{{ object.name }} ({{ object.map_file.size |filesizeformat }})</h5>
+                    <h5 class="card-title">
+                        {{ object.name }}
+                        {% if object.safe_map_file_size %}
+                            ({{ object.safe_map_file_size|filesizeformat }})
+                        {% else %}
+                            <span class="text-sm text-warning">(file missing)</span>
+                        {% endif %}
+                    </h5>
                     <p class="text-sm">
                         <h6>Zoom levels {{ object.minimum_zoom_level }} - {{ object.maximum_zoom_level }}</h6>
+                        {% if object.bounds %}
+                            <div>Extent: {{ object.minimum_latitude|floatformat:4 }}, {{ object.minimum_longitude|floatformat:4 }} → {{ object.maximum_latitude|floatformat:4 }}, {{ object.maximum_longitude|floatformat:4 }}</div>
+                        {% endif %}
                         <a href="{% url 'useruploadedmap_change' object.pk %}" class="link">Update</a> |
                         <a href="{% url 'useruploadedmap_permissions_list' object.pk %}" class="link">Permissions</a> |
                         <a href="{% url 'useruploadedmap_delete' object.pk %}" class="link link-error">Delete</a>

@@ -44,6 +44,15 @@ spec:
               name: envs-production-other
           - secretRef:
               name: pw-secrets
+        env:
+          - name: MBTILES_RELOAD_METHOD
+            value: "kubernetes"
+          - name: MBTILES_RELOAD_ENABLED
+            value: "1"
+          - name: MBTILES_RELOAD_NAMESPACE
+            value: "default"
+          - name: MBTILES_RELOAD_POD_LABEL_SELECTOR
+            value: "service=mbtiles"
         resources:
           requests:
             cpu: 1000m

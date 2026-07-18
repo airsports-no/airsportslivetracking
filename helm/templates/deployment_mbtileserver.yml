@@ -28,6 +28,7 @@ spec:
         service: mbtiles
     spec:
       terminationGracePeriodSeconds: 25
+      serviceAccountName: calculator-scheduler
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -38,16 +39,23 @@ spec:
                     values:
                       - "true"
       volumes:
-        - name: mbtiles-files
+        - name: mbtiles-static
           persistentVolumeClaim:
             claimName: pvc-mbtiles
+        - name: mbtiles-uploaded
+          csi:
+            driver: gcsfuse.csi.storage.gke.io
+            readOnly: true
+            volumeAttributes:
+              bucketName: {{ .Values.mbtiles.bucketName | quote }}
+              mountOptions: {{ printf "%s,only-dir=user_uploaded_maps" .Values.mbtiles.gcsfuse.mountOptions | quote }}
       containers:
         - name: mbtiles
           image: ghcr.io/consbio/mbtileserver:latest
           ports:
             - containerPort: 8000
               name: http
-          command: ["/mbtileserver",  "--enable-reload-signal"]
+          command: ["/mbtileserver", "--enable-reload-signal", "--dir", "/tilesets-static,/tilesets-user"]
           resources:
             requests:
               cpu: 50m
@@ -67,8 +75,10 @@ spec:
             periodSeconds: 60
             failureThreshold: 3
           volumeMounts:
-            - mountPath: "/tilesets"
-              name: mbtiles-files
+            - mountPath: {{ .Values.mbtiles.staticMountPath | quote }}
+              name: mbtiles-static
+            - mountPath: "/tilesets-user"
+              name: mbtiles-uploaded
 ---
 apiVersion: v1
 kind: Service

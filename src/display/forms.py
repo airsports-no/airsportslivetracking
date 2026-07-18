@@ -20,8 +20,14 @@ from display.flight_order_and_maps.map_constants import (
     A4,
     PORTRAIT,
 )
-from display.flight_order_and_maps.map_plotter_shared_utilities import get_map_choices
+from display.flight_order_and_maps.map_plotter_shared_utilities import (
+    get_map_choices,
+    get_available_map_source_choices_for_navigation_task,
+    get_available_map_source_definitions_for_navigation_task,
+    resolve_map_source_definition,
+)
 from display.flight_order_and_maps.mbtiles_facade import get_map_details
+
 from display.models import (
     NavigationTask,
     Contestant,
@@ -34,6 +40,7 @@ from display.models import (
     FlightOrderConfiguration,
     UserUploadedMap,
 )
+from display.models.user_uploaded_map import validate_file_size
 from display.models.my_user import MyUser
 from display.poker.poker_cards import PLAYING_CARDS
 from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
@@ -88,10 +95,7 @@ class MapForm(forms.Form):
     )
 
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=[], help_text="Is overridden by user map source if set", required=False)
-    user_map_source = forms.ModelChoiceField(
-        UserUploadedMap.objects.all(), help_text="Overrides map source if set", required=False
-    )
+    map_source = forms.ChoiceField(choices=[], required=False)
     zoom_level = forms.TypedChoiceField(initial=12, choices=[(x, x) for x in range(1, 15)], coerce=int, empty_value=12)
     dpi = forms.IntegerField(initial=150, min_value=100, max_value=300)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
@@ -99,6 +103,7 @@ class MapForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.redirect_url = kwargs.pop("redirect_url", "#")
+        self.map_source_choices = kwargs.pop("map_source_choices", None)
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_class = "form mt-4"
@@ -111,7 +116,6 @@ class MapForm(forms.Form):
                 "include_meridians_and_parallels_lines",
                 "scale",
                 "map_source",
-                "user_map_source",
                 "zoom_level",
                 "dpi",
                 "line_width",
@@ -130,7 +134,7 @@ class MapForm(forms.Form):
                 Submit("submit", "Submit"), HTML(f'<a href="{self.redirect_url}" class="btn btn-secondary">Back</a>')
             ),
         )
-        self.fields["map_source"].choices = get_map_choices()
+        self.fields["map_source"].choices = self.map_source_choices or get_map_choices()
 
 
 class ContestantMapForm(forms.Form):
@@ -138,10 +142,7 @@ class ContestantMapForm(forms.Form):
     dpi = forms.IntegerField(initial=150, min_value=100, max_value=300)
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=PORTRAIT)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=[], help_text="Is overridden by user map source if set", required=False)
-    user_map_source = forms.ModelChoiceField(
-        UserUploadedMap.objects.all(), help_text="Overrides map source if set", required=False
-    )
+    map_source = forms.ChoiceField(choices=[], required=False)
     zoom_level = forms.TypedChoiceField(coerce=int, initial=12, choices=[(i, i) for i in range(1, 15)])
 
     include_annotations = forms.BooleanField(initial=True, required=False)
@@ -158,12 +159,11 @@ class ContestantMapForm(forms.Form):
 
     def clean(self):
         cleaned_data = super().clean()
-        validate_map_zoom_level(
-            cleaned_data.get("map_source"), cleaned_data.get("user_uploaded_map"), cleaned_data.get("zoom_level")
-        )
+        validate_map_zoom_level(cleaned_data.get("map_source"), None, cleaned_data.get("zoom_level"))
 
     def __init__(self, *args, **kwargs):
         self.redirect_url = kwargs.pop("redirect_url", "#")
+        self.map_source_choices = kwargs.pop("map_source_choices", None)
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_class = "form mt-4"
@@ -175,7 +175,6 @@ class ContestantMapForm(forms.Form):
                 "orientation",
                 "scale",
                 "map_source",
-                "user_map_source",
                 "zoom_level",
                 "include_annotations",
                 "plot_track_between_waypoints",
@@ -197,13 +196,23 @@ class ContestantMapForm(forms.Form):
                 Submit("submit", "Submit"), HTML(f'<a href="{self.redirect_url}" class="btn btn-secondary">Back</a>')
             ),
         )
-        self.fields["map_source"].choices = get_map_choices()
+        self.fields["map_source"].choices = self.map_source_choices or get_map_choices()
 
 
 class UserUploadedMapForm(forms.ModelForm):
     class Meta:
         model = UserUploadedMap
-        exclude = ("thumbnail", "unprotected", "minimum_zoom_level", "maximum_zoom_level")
+        exclude = (
+            "thumbnail",
+            "unprotected",
+            "minimum_zoom_level",
+            "maximum_zoom_level",
+            "processing_status",
+            "processing_error",
+            "published_service_key",
+            "published_relative_path",
+            "published_at",
+        )
         # widgets = {"map_file": FileInput(attrs={'accept': 'application/vnd.mapbox-vector-tile'})}
 
     def __init__(self, *args, **kwargs):
@@ -219,22 +228,14 @@ class UserUploadedMapForm(forms.ModelForm):
 
 
 def validate_map_zoom_level(map_source: str, user_uploaded_map: Optional[UserUploadedMap], zoom_level: int):
-    if user_uploaded_map:
-        if not user_uploaded_map.minimum_zoom_level <= zoom_level <= user_uploaded_map.maximum_zoom_level:
-            raise ValidationError(
-                f"The selected zoom level {zoom_level}  is not in the valid range [{user_uploaded_map.minimum_zoom_level}, "
-                f"{user_uploaded_map.maximum_zoom_level}] for the  user uploaded map {user_uploaded_map.name}"
-            )
-    else:
-        if map_source not in ("osm", "fc", "mto", "cyclosm"):
-            map_details = get_map_details(map_source)
-            min_zoom = map_details.get("minzoom", 12)
-            max_zoom = map_details.get("maxzoom", 12)
-            if not min_zoom <= zoom_level <= max_zoom:
-                raise ValidationError(
-                    f"The selected zoom level {zoom_level} is not in the valid range [{min_zoom}, "
-                    f"{max_zoom}] for the map source {map_details['name']}"
-                )
+    source = resolve_map_source_definition(map_source, user_uploaded_map)
+    min_zoom = source["min_zoom"]
+    max_zoom = source["max_zoom"]
+    if not min_zoom <= zoom_level <= max_zoom:
+        raise ValidationError(
+            f"The selected zoom level {zoom_level} is not in the valid range [{min_zoom}, "
+            f"{max_zoom}] for the map source {source['label']}"
+        )
 
 
 class FlightOrderConfigurationForm(forms.ModelForm):
@@ -247,7 +248,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
         if not map_source:
             return map_source
 
-        valid_map_sources = {choice[0] for choice in get_map_choices()}
+        valid_map_sources = {choice[0] for choice in self.fields["map_source"].choices}
         if map_source not in valid_map_sources:
             raise ValidationError("Select a valid choice. That choice is not one of the available choices.")
 
@@ -258,14 +259,14 @@ class FlightOrderConfigurationForm(forms.ModelForm):
         if "map_source" in self.errors or not cleaned_data.get("map_source"):
             return cleaned_data
 
-        validate_map_zoom_level(
-            cleaned_data.get("map_source"), cleaned_data.get("map_user_source"), cleaned_data.get("map_zoom_level")
-        )
+        validate_map_zoom_level(cleaned_data.get("map_source"), None, cleaned_data.get("map_zoom_level"))
         return cleaned_data
 
     def __init__(self, *args, **kwargs):
+        self.map_source_choices = kwargs.pop("map_source_choices", None)
         super().__init__(*args, **kwargs)
-        self.fields["map_source"].choices = get_map_choices()
+        self.fields["map_source"].choices = self.map_source_choices or get_map_choices()
+        self.instance._meta.get_field("map_source").choices = self.fields["map_source"].choices
         self.helper = FormHelper()
         self.helper.layout = Layout(
             HTML(
@@ -278,7 +279,6 @@ class FlightOrderConfigurationForm(forms.ModelForm):
                 "Map options",
                 "document_size",
                 "map_source",
-                "map_user_source",
                 "map_orientation",
                 "map_zoom_level",
                 "map_scale",

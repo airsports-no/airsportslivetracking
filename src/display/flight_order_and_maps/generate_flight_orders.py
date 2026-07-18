@@ -68,6 +68,24 @@ class MyFPDF(FPDF, HTMLMixin):
     pass
 
 
+def build_flight_order_map_plot_kwargs(navigation_task, flight_order_configuration: FlightOrderConfiguration, contestant=None) -> dict:
+    return {
+        "zoom_level": flight_order_configuration.map_zoom_level,
+        "landscape": flight_order_configuration.map_orientation == LANDSCAPE,
+        "contestant": contestant,
+        "annotations": flight_order_configuration.map_include_annotations,
+        "waypoints_only": not flight_order_configuration.map_plot_track_between_waypoints,
+        "dpi": flight_order_configuration.map_dpi,
+        "scale": flight_order_configuration.map_scale,
+        "map_source": flight_order_configuration.map_source,
+        "line_width": flight_order_configuration.map_line_width,
+        "minute_mark_line_width": flight_order_configuration.map_minute_mark_line_width,
+        "colour": flight_order_configuration.map_line_colour,
+        "include_meridians_and_parallels_lines": flight_order_configuration.map_include_meridians_and_parallels_lines,
+        "margins_mm": 10,
+    }
+
+
 def generate_turning_point_image(
     waypoints: List[Waypoint], index, meters_across: float, zoom_level: int, is_unknown_leg: bool = False
 ):
@@ -676,20 +694,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     map_image = plot_route(
         contestant.navigation_task,
         flight_order_configuration.document_size,
-        zoom_level=flight_order_configuration.map_zoom_level,
-        landscape=flight_order_configuration.map_orientation == LANDSCAPE,
-        contestant=contestant,
-        annotations=flight_order_configuration.map_include_annotations,
-        waypoints_only=not flight_order_configuration.map_plot_track_between_waypoints,
-        dpi=flight_order_configuration.map_dpi,
-        scale=flight_order_configuration.map_scale,
-        map_source=flight_order_configuration.map_source,
-        user_map_source=flight_order_configuration.map_user_source,
-        line_width=flight_order_configuration.map_line_width,
-        minute_mark_line_width=flight_order_configuration.map_minute_mark_line_width,
-        colour=flight_order_configuration.map_line_colour,
-        include_meridians_and_parallels_lines=flight_order_configuration.map_include_meridians_and_parallels_lines,
-        margins_mm=10,
+        **build_flight_order_map_plot_kwargs(
+            contestant.navigation_task,
+            flight_order_configuration,
+            contestant=contestant,
+        ),
     )
     mapimage_file = NamedTemporaryFile(suffix=".png")
     mapimage_file.write(map_image.read())

@@ -15,9 +15,11 @@ from display.flight_order_and_maps.generate_flight_orders import (
     generate_flight_orders_latex,
     embed_map_in_pdf,
 )
+from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
 from display.flight_order_and_maps.map_plotter import plot_route
 from django.core.files.storage import default_storage
 from django.utils.text import slugify
+from django.utils import timezone
 
 from display.models.contestant import Contestant
 from display.models.email_map_link import EmailMapLink
@@ -47,14 +49,6 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
         logger.info(f"Async map generation started for task {task_id}, contestant {contestant_id}")
 
         map_source = map_params["map_source"]
-        user_map_source = None
-        if map_params.get("user_map_source_id"):
-            from display.models import UserUploadedMap
-
-            try:
-                user_map_source = UserUploadedMap.objects.get(pk=map_params["user_map_source_id"])
-            except UserUploadedMap.DoesNotExist:
-                pass
 
         # Use existing plot_route logic
         map_image = plot_route(
@@ -68,7 +62,6 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
             dpi=map_params["dpi"],
             scale=int(map_params["scale"]),
             map_source=map_source,
-            user_map_source=user_map_source,
             line_width=float(map_params["line_width"]),
             minute_mark_line_width=float(map_params.get("minute_mark_line_width", 0.5)),
             colour=map_params["colour"],
@@ -261,9 +254,20 @@ def process_user_uploaded_map(map_id: int):
         instance.clear_local_file_path()
         content, minimum_zoom, maximum_zoom = instance.create_thumbnail()
         filename = os.path.split(instance.map_file.name)[1] + "_thumbnail.png"
-        instance.thumbnail.save(filename, ContentFile(content.getvalue()), save=False)
+        try:
+            instance.thumbnail.save(filename, ContentFile(content.getvalue()), save=False)
+        except Exception:
+            logger.exception(f"Failed saving thumbnail for UserUploadedMap {map_id}")
         instance.minimum_zoom_level = minimum_zoom
         instance.maximum_zoom_level = maximum_zoom
+        try:
+            minimum_longitude, minimum_latitude, maximum_longitude, maximum_latitude = instance.get_bounds()
+            instance.minimum_longitude = minimum_longitude
+            instance.minimum_latitude = minimum_latitude
+            instance.maximum_longitude = maximum_longitude
+            instance.maximum_latitude = maximum_latitude
+        except Exception:
+            logger.exception(f"Failed reading bounds for UserUploadedMap {map_id}")
         if not minimum_zoom <= instance.default_zoom_level <= maximum_zoom:
             clamped = max(minimum_zoom, min(instance.default_zoom_level, maximum_zoom))
             logger.warning(
@@ -271,6 +275,16 @@ def process_user_uploaded_map(map_id: int):
                 f"{instance.default_zoom_level} to {clamped} (map supports [{minimum_zoom}, {maximum_zoom}])"
             )
             instance.default_zoom_level = clamped
+        if instance.published_relative_path and instance.published_service_key:
+            service_key = instance.published_service_key
+            relative_path = instance.published_relative_path
+        else:
+            service_key = instance.default_service_key
+            relative_path = instance.default_published_relative_path
+        instance.published_service_key = service_key
+        instance.published_relative_path = relative_path
+        instance.published_at = timezone.now()
+        request_mbtiles_reload()
         instance.processing_status = UserUploadedMap.PROCESSING_READY
         instance.processing_error = ""
         instance.save()
