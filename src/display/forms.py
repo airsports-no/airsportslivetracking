@@ -39,7 +39,10 @@ from display.models import (
     GateScore,
     FlightOrderConfiguration,
     UserUploadedMap,
+    TokenType,
+    UserTokenGrant,
 )
+
 from display.models.user_uploaded_map import validate_file_size
 from display.models.my_user import MyUser
 from display.poker.poker_cards import PLAYING_CARDS
@@ -410,12 +413,18 @@ class NavigationTaskForm(forms.ModelForm):
 
 
 class ContestForm(forms.ModelForm):
+    initial_token_grant = forms.ModelChoiceField(queryset=UserTokenGrant.objects.none(), required=False)
+
     class Meta:
         model = Contest
         exclude = ("contest_teams", "is_featured", "is_public", "latitude", "longitude", "country")
 
     def __init__(self, *args, **kwargs):
+        token_grant_queryset = kwargs.pop("token_grant_queryset", UserTokenGrant.objects.none())
         super().__init__(*args, **kwargs)
+        self.fields["initial_token_grant"].queryset = token_grant_queryset
+        self.fields["initial_token_grant"].label = "Initial token grant (optional)"
+        self.fields["initial_token_grant"].help_text = "Assign a token immediately when creating the contest. Spent tokens are never restored."
         datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
         self.fields["start_time"].widget = datetime_widget
         self.fields["finish_time"].widget = datetime_widget
@@ -429,15 +438,10 @@ class ContestForm(forms.ModelForm):
                 "time_zone",
                 "start_time",
                 "finish_time",
+                "initial_token_grant",
             ),
             Fieldset(
                 "Contest location",
-                # HTML(
-                #     "If no position is given, position will be extracted from the starting position of the first task added to the contest"
-                # ),
-                # "latitude",
-                # "longitude",
-                # "country",
                 "location",
             ),
             Fieldset("Publicity", "contest_website", "header_image", "logo"),

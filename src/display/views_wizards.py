@@ -14,6 +14,7 @@ from django import forms
 from guardian.shortcuts import get_objects_for_user
 
 from display.forms import NavigationTaskForm, ContestForm, TrackingDataForm, PersonForm
+from display.services.token_assignment import assign_token_to_contest
 from display.forms_wizards import (
     TaskTypeForm,
     ANRCorridorImportRouteForm,
@@ -40,6 +41,7 @@ from display.models import (
     Aeroplane,
     Club,
     ContestTeam,
+    UserTokenGrant,
 )
 from display.templatetags.frontend_urls import fe_url
 from display.utilities.navigation_task_type_definitions import (
@@ -333,6 +335,12 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
             ).order_by("name")
         return context
 
+    def get_form(self, step=None, data=None, files=None):
+        form = super().get_form(step, data, files)
+        if (step or self.steps.current) == "contest_creation" and "initial_token_grant" in form.fields:
+            form.fields["initial_token_grant"].queryset = UserTokenGrant.objects.filter(user=self.request.user).select_related("token_type")
+        return form
+
     # def get_form(self, step=None, data=None, files=None):
     #     form = super().get_form(step, data, files)
 
@@ -356,8 +364,12 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
         task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
         task_name = self.get_cleaned_data_for_step("contest_selection")["navigation_task_name"]
         if self.get_cleaned_data_for_step("contest_selection")["contest"] is None:
-            contest = Contest.objects.create(**self.get_cleaned_data_for_step("contest_creation"))
+            contest_data = dict(self.get_cleaned_data_for_step("contest_creation"))
+            initial_token_grant = contest_data.pop("initial_token_grant", None)
+            contest = Contest.objects.create(**contest_data)
             contest.initialise(self.request.user)
+            if initial_token_grant is not None:
+                assign_token_to_contest(contest, self.request.user, initial_token_grant.id)
         else:
             contest = self.get_cleaned_data_for_step("contest_selection")["contest"]
         scorecards = [item for item in Scorecard.get_originals() if task_type in item.task_type]

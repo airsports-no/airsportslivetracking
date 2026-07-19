@@ -1,6 +1,5 @@
 from django.contrib import admin
 
-# Register your models here.
 from django.contrib.auth import get_user_model
 from django_use_email_as_username.admin import BaseUserAdmin
 from guardian.admin import GuardedModelAdmin
@@ -25,6 +24,11 @@ from display.models import (
     UserUploadedMap,
     NewsletterSubscriber,
     HighlightedContest,
+    AccessGrant,
+    ClubManagerMembership,
+    TokenType,
+    UserTokenGrant,
+    ContestTokenAssignment,
 )
 from solo.admin import SingletonModelAdmin
 
@@ -41,20 +45,6 @@ class ContestantTrackAdmin(admin.ModelAdmin):
 
 class ContestantInline(admin.TabularInline):
     model = Contestant
-
-
-# class ScorecardInLine(admin.TabularInline):
-#     model = Scorecard
-
-
-# class GateScoreInLine(admin.TabularInline):
-#     model = GateScore
-
-
-# class ScorecardAdmin(admin.ModelAdmin):
-# inlines = (
-#     GateScoreInLine,
-# )
 
 
 class NavigationTaskAdmin(admin.ModelAdmin):
@@ -76,7 +66,16 @@ class PersonAdmin(admin.ModelAdmin):
     list_display = ("email", "first_name", "last_name")
 
 
+class ContestTokenAssignmentInline(admin.TabularInline):
+    model = ContestTokenAssignment
+    extra = 0
+
+
 class ContestAdmin(GuardedModelAdmin):
+    list_display = ("name", "organizing_club", "created_by", "start_time", "finish_time")
+    search_fields = ("name", "organizing_club__name", "created_by__email")
+    inlines = (ContestTokenAssignmentInline,)
+
     def save_model(self, request, obj, form, change):
         result = super().save_model(request, obj, form, change)
         assign_perm("change_contest", request.user, obj),
@@ -85,7 +84,56 @@ class ContestAdmin(GuardedModelAdmin):
         return result
 
 
-# admin.site.unregister(User)
+class ClubManagerMembershipInline(admin.TabularInline):
+    model = ClubManagerMembership
+    extra = 0
+
+
+class AccessGrantInline(admin.TabularInline):
+    model = AccessGrant
+    extra = 0
+    fk_name = "club"
+
+
+class ClubAdmin(admin.ModelAdmin):
+    inlines = (ClubManagerMembershipInline, AccessGrantInline)
+    search_fields = ("name",)
+    list_display = ("name", "country")
+
+
+class AccessGrantAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "tier",
+        "status",
+        "club",
+        "contest",
+        "contestant_limit",
+        "task_limit",
+        "starts_at",
+        "expires_at",
+    )
+    list_filter = ("tier", "status")
+    search_fields = ("club__name", "contest__name", "invoice_reference")
+
+
+class ClubManagerMembershipAdmin(admin.ModelAdmin):
+    list_display = ("club", "user", "role", "is_active")
+    list_filter = ("role", "is_active")
+    search_fields = ("club__name", "user__email")
+
+
+class TokenTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "contestant_limit", "task_limit", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+
+
+class UserTokenGrantAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "token_type", "quantity_total", "quantity_consumed", "quantity_remaining")
+    search_fields = ("user__email", "token_type__name", "purchase_reference")
+
+
 admin.site.register(get_user_model(), BaseUserAdmin)
 admin.site.register(NavigationTask, NavigationTaskAdmin)
 admin.site.register(Scorecard)
@@ -97,14 +145,20 @@ admin.site.register(Team)
 admin.site.register(Crew)
 admin.site.register(Contestant, ContestantTrackAdmin)
 admin.site.register(Person, PersonAdmin)
-admin.site.register(Club)
+admin.site.register(Club, ClubAdmin)
 admin.site.register(EditableRoute, GuardedModelAdmin)
 admin.site.register(EmailMapLink)
 admin.site.register(UserUploadedMap, GuardedModelAdmin)
+admin.site.register(AccessGrant, AccessGrantAdmin)
+admin.site.register(ClubManagerMembership, ClubManagerMembershipAdmin)
+admin.site.register(TokenType, TokenTypeAdmin)
+admin.site.register(UserTokenGrant, UserTokenGrantAdmin)
+
 
 class NewsletterSubscriberAdmin(admin.ModelAdmin):
     list_display = ("email", "created_at", "is_active")
     search_fields = ["email"]
+
 
 admin.site.register(NewsletterSubscriber, NewsletterSubscriberAdmin)
 

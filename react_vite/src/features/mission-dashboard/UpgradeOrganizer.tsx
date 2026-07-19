@@ -41,8 +41,8 @@ const UpgradeOrganizer = () => {
                     <h1 className="text-4xl font-bold text-primary mb-6">Upgrade to Contest Organizer</h1>
                     
                     <p className="text-xl">
-                        You are about to upgrade your account to include contest creation privileges. 
-                        <strong> This upgrade is completely free of charge.</strong>
+                        You are about to upgrade your account to include contest creation privileges.
+                        <strong> Contest creator access is separate from event capacity tiers.</strong>
                     </p>
 
                     <div className="divider">What's New?</div>

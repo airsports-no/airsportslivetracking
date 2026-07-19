@@ -24,6 +24,7 @@ from django.contrib.auth.mixins import (
 
 from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculator_running_utilities import is_calculator_running
+from display.services.token_assignment import assign_token_to_contest
 from live_tracking_map import settings
 from playback_tools.playback import validate_gpx_file
 import rest_framework.exceptions as drf_exceptions
@@ -134,6 +135,7 @@ from display.models import (
     TrackAnnotation,
     ActualGateTime,
     GateCumulativeScore,
+    UserTokenGrant,
 )
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.tasks import (
@@ -1262,10 +1264,18 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
     permission_required = ("display.add_contest",)
     form_class = ContestForm
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["token_grant_queryset"] = UserTokenGrant.objects.filter(user=self.request.user).select_related("token_type")
+        return kwargs
+
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
         instance.country = form.cleaned_data["country_code"]
         instance.initialise(self.request.user)
+        token_grant = form.cleaned_data.get("initial_token_grant")
+        if token_grant is not None:
+            assign_token_to_contest(instance, self.request.user, token_grant.id)
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())
 

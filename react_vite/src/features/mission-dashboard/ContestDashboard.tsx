@@ -11,11 +11,14 @@ import ScheduleFlightForm from './components/ScheduleFlightForm';
 import TaskScoreDisplay from './components/TaskScoreDisplay';
 import UpcomingFlights from './components/UpcomingFlights';
 import PublicityIcon from './components/PublicityIcon';
+import AccessTierBanner from './components/AccessTierBanner';
+import ContestTokenPanel from './components/ContestTokenPanel';
 import { HelpCircle } from 'lucide-react'; // Import HelpCircle
 import { reverse, generatePath } from '../../urls';
 import { useMissionDashboardStore } from './store';
 import { fetchNavigationTask } from '../competition-map/api';
 import { formatDateInterval } from '../../utils';
+import { assignContestToken, replaceContestToken } from './api';
 
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
@@ -132,6 +135,26 @@ const ContestDashboard = () => {
         }
     };
 
+    const handleAssignToken = async (tokenGrantId: number) => {
+        if (!contest) return;
+        try {
+            await assignContestToken(contest.id, tokenGrantId);
+            await fetchContest(contest.id, true);
+        } catch (error) {
+            setError((error as Error).message);
+        }
+    };
+
+    const handleReplaceToken = async (tokenGrantId: number) => {
+        if (!contest) return;
+        try {
+            await replaceContestToken(contest.id, tokenGrantId);
+            await fetchContest(contest.id, true);
+        } catch (error) {
+            setError((error as Error).message);
+        }
+    };
+
     const handleViewScoresClick = async (task: NavigationTask) => {
         setLoadingTaskScores(true);
         setViewingScoresForTask(task); // Show modal immediately with partial data
@@ -235,6 +258,7 @@ const ContestDashboard = () => {
 
             {/* Contest Header */}
             <div className="mb-8">
+                <AccessTierBanner accessStatus={contest.access_status} />
                 {(contest.header_image || contest.logo) && (
                     <img
                         src={contest.header_image || contest.logo}
@@ -305,6 +329,17 @@ const ContestDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {canManageThisContest && (
+                <div className="mb-8">
+                    <ContestTokenPanel
+                        grants={contest.available_token_grants}
+                        currentTokenGrantId={contest.access_status?.token_grant_id}
+                        onAssign={handleAssignToken}
+                        onReplace={handleReplaceToken}
+                    />
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Task Suite */}

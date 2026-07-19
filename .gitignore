@@ -47,3 +47,4 @@ scraper_venv/
 src/reports/
 src/.coverage
 airsports_static/src/pages/docs/05_Results_Service_Guide.md
+.venv/

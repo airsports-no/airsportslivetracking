@@ -17,13 +17,14 @@ from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils.cache import add_never_cache_headers, patch_response_headers
 from guardian.shortcuts import get_objects_for_user
-from rest_framework import status, permissions
+from rest_framework import status, permissions, serializers
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.pagination import CursorPagination
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 import rest_framework.exceptions as drf_exceptions
+from rest_framework.exceptions import ValidationError
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from urllib import parse
@@ -83,6 +84,12 @@ from display.permissions import (
     TaskTestContestPermissions,
     TeamPermissions,
 )
+from display.services.capacity_enforcement import (
+    assert_can_add_navigation_task,
+    assert_can_register_team,
+    assert_can_self_register_contestant,
+)
+from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
 from display.serialisers import (
     ContestantTrackSerialiser,
     NavigationTaskNestedTeamRouteSerialiserNestedContest,
@@ -142,6 +149,10 @@ from live_tracking_map import settings
 from websocket_channels import WebsocketFacade, generate_contestant_data_block
 
 logger = logging.getLogger(__name__)
+
+
+class AssignContestTokenSerializer(serializers.Serializer):
+    token_grant_id = serializers.IntegerField()
 
 
 class UserPersonViewSet(GenericViewSet):
@@ -747,6 +758,50 @@ class ContestViewSet(ModelViewSet):
         response["Cache-Control"] = "public, max-age=0, s-maxage=120"
         return response
 
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def assign_token(self, request, *args, **kwargs):
+        contest = self.get_object()
+        serializer = AssignContestTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            assignment = assign_token_to_contest(contest, request.user, serializer.validated_data["token_grant_id"])
+        except ValidationError as exc:
+            raise drf_exceptions.ValidationError(exc.messages)
+        return Response(
+            {
+                "contest": contest.id,
+                "token_grant": assignment.token_grant_id,
+                "token_type": assignment.token_type_id,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def replace_token(self, request, *args, **kwargs):
+        contest = self.get_object()
+        serializer = AssignContestTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            assignment = replace_token_for_contest(contest, request.user, serializer.validated_data["token_grant_id"])
+        except ValidationError as exc:
+            raise drf_exceptions.ValidationError(exc.messages)
+        return Response(
+            {
+                "contest": contest.id,
+                "token_grant": assignment.token_grant_id,
+                "token_type": assignment.token_type_id,
+            },
+            status=status.HTTP_200_OK,
+        )
+
     @action(detail=True, methods=["get"])
     def results_details(self, request, *args, **kwargs):
         """
@@ -947,6 +1002,7 @@ class ContestViewSet(ModelViewSet):
     )
     def signup(self, request, *args, **kwargs):
         contest = self.get_object()
+        assert_can_register_team(contest)
         if request.method == "POST":
             contest = None
         serialiser = self.get_serializer(instance=contest, data=request.data)
@@ -1204,6 +1260,7 @@ class NavigationTaskViewSet(ModelViewSet):
             serialiser = self.get_serializer(data=request.data)
             serialiser.is_valid(raise_exception=True)
             contest_team = serialiser.validated_data["contest_team"]
+            assert_can_self_register_contestant(navigation_task, contest_team)
             if contest_team.team.crew.member1.email != request.user.email:
                 raise drf_exceptions.ValidationError("You cannot add a team where you are not the pilot")
             # Pretend that the submitted time is in the contest time zone

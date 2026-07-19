@@ -62,7 +62,9 @@ from display.models import (
     FINISHPOINT,
     GATE_TYPES,
     NewsletterSubscriber,
+    UserTokenGrant,
 )
+from display.services.access_resolver import resolve_contest_access
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
@@ -207,6 +209,15 @@ class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     class Meta:
         model = Club
         fields = "__all__"
+
+
+class AvailableTokenGrantSerializer(serializers.ModelSerializer):
+    token_type_name = serializers.CharField(source="token_type.name", read_only=True)
+    quantity_remaining = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = UserTokenGrant
+        fields = ("id", "token_type", "token_type_name", "quantity_total", "quantity_consumed", "quantity_remaining")
 
 
 class CrewSerialiser(serializers.ModelSerializer):
@@ -644,6 +655,8 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     contestteam_set = ContestTeamSerialiser(read_only=True, many=True)
     has_open_tasks = serializers.SerializerMethodField()
     has_flown_contestants = serializers.SerializerMethodField()
+    access_status = serializers.SerializerMethodField()
+    available_token_grants = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -665,6 +678,29 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         if hasattr(contest, "has_flown_contestants_count"):
             return contest.has_flown_contestants_count > 0
         return contest.navigationtask_set.filter(contestant__contestanttrack__calculator_started=True).exists()
+
+    def get_access_status(self, contest):
+        resolution = resolve_contest_access(contest)
+        return {
+            "tier_code": resolution.tier_code,
+            "tier_label": resolution.tier_label,
+            "source_type": resolution.source_type,
+            "source_id": resolution.source_id,
+            "contestant_limit": resolution.contestant_limit,
+            "task_limit": resolution.task_limit,
+            "contestants_used": resolution.contestants_used,
+            "tasks_used": resolution.tasks_used,
+            "enforcement_mode": resolution.enforcement_mode,
+            "token_grant_id": resolution.token_grant_id,
+            "token_type_id": resolution.token_type_id,
+        }
+
+    def get_available_token_grants(self, contest):
+        request = self.context.get("request")
+        if not request or not getattr(request.user, "is_authenticated", False):
+            return []
+        grants = UserTokenGrant.objects.filter(user=request.user).select_related("token_type").order_by("-created_at")
+        return AvailableTokenGrantSerializer(grants, many=True).data
 
     def validate(self, validated_data):
         try:

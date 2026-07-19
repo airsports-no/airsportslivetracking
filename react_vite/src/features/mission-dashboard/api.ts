@@ -13,9 +13,9 @@ async function getErrorMessages(response: Response): Promise<ErrorMessage> {
     } else if (typeof errorData === 'object' && errorData !== null && 'detail' in errorData) {
       return errorData.detail;
     }
-    return JSON.stringify(errorData); // Fallback to stringifying the whole object
+    return JSON.stringify(errorData);
   } catch {
-    return response.statusText; // Fallback to status text if JSON parsing fails
+    return response.statusText;
   }
 }
 
@@ -31,7 +31,6 @@ export const fetchMyContestTeams = async (): Promise<MyContestTeam[]> => {
     return response.json();
 };
 
-
 export const fetchOngoingNavigation = async (): Promise<OngoingNavigation[]> => {
     const url = reverse('contests-ongoing-navigation');
     const response = await fetch(url);
@@ -43,12 +42,9 @@ export const fetchOngoingNavigation = async (): Promise<OngoingNavigation[]> => 
 };
 
 const getAuthHeaders = () => {
-    // In a real app, you would get the token from a secure place.
-    // For now, let's assume the browser handles cookies or auth headers automatically.
     return {
         'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie('csrftoken')!
-        // 'Authorization': `Bearer ${your_token_here}`
+        'X-CSRFToken': getCookie('csrftoken')!
     };
 };
 
@@ -117,7 +113,7 @@ export const fetchContests = async (filters?: ContestFilters, onPageFetched?: On
     let nextCursor: string | null = null;
     let hasMore = true;
 
-    while(hasMore) {
+    while (hasMore) {
         const response = await _fetchContestsPage(nextCursor, filters);
         allContests = allContests.concat(response.results);
         nextCursor = response.next;
@@ -142,7 +138,6 @@ export const fetchContestResults = async (contestId: number): Promise<ContestRes
     }
     return response.json();
 };
-
 
 export const fetchMyFutureFlights = async (): Promise<Contestant[]> => {
     const url = reverse('userprofile-my-future-flights');
@@ -212,7 +207,7 @@ export const fetchTeam = async (teamId: number): Promise<Team> => {
 
 export const registerForContest = async (payload: RegisterTeamPayload): Promise<any> => {
     const { contestId, ...apiPayload } = payload;
-    const url = reverse("contests-signup", contestId);
+    const url = reverse('contests-signup', contestId);
     const response = await fetch(url, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -224,7 +219,6 @@ export const registerForContest = async (payload: RegisterTeamPayload): Promise<
     }
     return response.json();
 };
-
 
 export const fetchContest = async (contestId: number): Promise<Contest> => {
     const url = reverse('contests-detail', contestId);
@@ -238,33 +232,57 @@ export const fetchContest = async (contestId: number): Promise<Contest> => {
     return response.json();
 };
 
+export const assignContestToken = async (contestId: number, tokenGrantId: number): Promise<any> => {
+    const url = reverse('contests-assign-token', contestId);
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ token_grant_id: tokenGrantId }),
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to assign token to contest: ${errorMessages}`);
+    }
+    return response.json();
+};
+
+export const replaceContestToken = async (contestId: number, tokenGrantId: number): Promise<any> => {
+    const url = reverse('contests-replace-token', contestId);
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ token_grant_id: tokenGrantId }),
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to replace token on contest: ${errorMessages}`);
+    }
+    return response.json();
+};
+
 export const scheduleFlight = async (contestId: number, navigationTaskId: number, payload: ScheduleFlightPayload): Promise<Contestant> => {
     const url = reverse('navigationtasks-contestant-self-registration', contestId, navigationTaskId);
-    const response = await fetch(url,
-        {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify(payload),
-        }
-    );
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+    });
     if (!response.ok) {
         const errorMessages = await getErrorMessages(response);
         throw new Error(`Failed to schedule flight: ${errorMessages}`);
     }
     if (response.status === 204) {
-        return; // Resolve with undefined, as there's no JSON body
+        return undefined as any;
     }
     return response.json();
 };
 
 export const cancelFlight = async (contestId: number, navigationTaskId: number, futureContestantId: number): Promise<void> => {
     const url = reverse('navigationtasks-delete-self-managed-contestant', contestId, navigationTaskId, futureContestantId);
-    const response = await fetch(url,
-        {
-            method: 'DELETE',
-            headers: getAuthHeaders(),
-        }
-    );
+    const response = await fetch(url, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+    });
     if (!response.ok) {
         const errorMessages = await getErrorMessages(response);
         throw new Error(`Failed to cancel flight: ${errorMessages}`);
@@ -281,9 +299,4 @@ export const withdraw = async (contestId: number): Promise<void> => {
         const errorMessages = await getErrorMessages(response);
         throw new Error(`Failed to withdraw from contest: ${errorMessages}`);
     }
-    if (response.status === 204) {
-        return; // No content expected for a successful DELETE
-    }
-    // Optionally, if the backend might return JSON even for DELETE, handle it here.
-    // For now, assuming no content for 204.
 };

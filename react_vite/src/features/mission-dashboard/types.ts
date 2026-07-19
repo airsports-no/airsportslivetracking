@@ -1,3 +1,26 @@
+export interface AccessStatus {
+    tier_code: string;
+    tier_label: string;
+    source_type: string;
+    source_id: number | null;
+    contestant_limit: number | null;
+    task_limit: number | null;
+    contestants_used: number;
+    tasks_used: number;
+    enforcement_mode: string;
+    token_grant_id?: number | null;
+    token_type_id?: number | null;
+}
+
+export interface AvailableTokenGrant {
+    id: number;
+    token_type: number;
+    token_type_name: string;
+    quantity_total: number;
+    quantity_consumed: number;
+    quantity_remaining: number;
+}
+
 export interface Contest {
     id: number;
     time_zone: string;
@@ -25,6 +48,8 @@ export interface Contest {
     contest_teams: number[];
     has_open_tasks?: boolean;
     has_flown_contestants?: boolean;
+    access_status?: AccessStatus;
+    available_token_grants?: AvailableTokenGrant[];
 }
 
 export interface Route {

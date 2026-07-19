@@ -86,6 +86,21 @@ MBTILES_RELOAD_LOCAL_URL = os.environ.get("MBTILES_RELOAD_LOCAL_URL", "")
 
 BUILD_ID = os.environ.get("BUILD_ID", "latest")
 
+
+def _parse_optional_int_env(name: str):
+    value = os.environ.get(name, "")
+    if value is None:
+        return None
+    value = value.strip()
+    if value == "" or value.lower() in {"none", "null", "infinite", "inf", "uncapped", "unlimited"}:
+        return None
+    return int(value)
+
+
+DEFAULT_FREE_CONTESTANT_LIMIT = _parse_optional_int_env("DEFAULT_FREE_CONTESTANT_LIMIT")
+DEFAULT_FREE_TASK_LIMIT = _parse_optional_int_env("DEFAULT_FREE_TASK_LIMIT")
+ACCESS_ENFORCEMENT_MODE = os.environ.get("ACCESS_ENFORCEMENT_MODE", "audit")
+
 MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
 
 REMOVE_BG_KEY = os.environ.get("REMOVE_BG_KEY", "")

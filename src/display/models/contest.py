@@ -2,6 +2,7 @@ import logging
 import typing
 from typing import Optional
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
@@ -122,6 +123,8 @@ class Contest(models.Model):
     finish_time = models.DateTimeField(
         help_text="The finish time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval."
     )
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    organizing_club = models.ForeignKey("Club", null=True, blank=True, on_delete=models.SET_NULL)
     contest_teams = models.ManyToManyField("Team", blank=True, through=ContestTeam)
     is_public = models.BooleanField(
         default=False,
