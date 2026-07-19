@@ -96,6 +96,11 @@ class MapForm(forms.Form):
 
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=[], required=False)
+    include_openaip_overlay = forms.BooleanField(
+        initial=False,
+        required=False,
+        help_text="Render OpenAIP on top of the selected map source.",
+    )
     zoom_level = forms.TypedChoiceField(initial=12, choices=[(x, x) for x in range(1, 15)], coerce=int, empty_value=12)
     dpi = forms.IntegerField(initial=150, min_value=100, max_value=300)
     line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
@@ -116,6 +121,7 @@ class MapForm(forms.Form):
                 "include_meridians_and_parallels_lines",
                 "scale",
                 "map_source",
+                "include_openaip_overlay",
                 "zoom_level",
                 "dpi",
                 "line_width",
@@ -143,6 +149,11 @@ class ContestantMapForm(forms.Form):
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=PORTRAIT)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=[], required=False)
+    include_openaip_overlay = forms.BooleanField(
+        initial=False,
+        required=False,
+        help_text="Render OpenAIP on top of the selected map source.",
+    )
     zoom_level = forms.TypedChoiceField(coerce=int, initial=12, choices=[(i, i) for i in range(1, 15)])
 
     include_annotations = forms.BooleanField(initial=True, required=False)
@@ -175,6 +186,7 @@ class ContestantMapForm(forms.Form):
                 "orientation",
                 "scale",
                 "map_source",
+                "include_openaip_overlay",
                 "zoom_level",
                 "include_annotations",
                 "plot_track_between_waypoints",
@@ -286,6 +298,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
                 "map_include_annotations",
                 "map_plot_track_between_waypoints",
                 "map_include_meridians_and_parallels_lines",
+                "map_include_openaip_overlay",
                 "map_line_width",
                 "map_minute_mark_line_width",
             ),

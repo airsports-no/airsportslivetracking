@@ -46,6 +46,7 @@ class FlightOrderConfigurationFormTests(TestCase):
                 "document_size": self.configuration.document_size,
                 "include_turning_point_images": self.configuration.include_turning_point_images,
                 "map_include_meridians_and_parallels_lines": self.configuration.map_include_meridians_and_parallels_lines,
+                "map_include_openaip_overlay": self.configuration.map_include_openaip_overlay,
                 "map_dpi": self.configuration.map_dpi,
                 "map_zoom_level": self.configuration.map_zoom_level,
                 "map_orientation": self.configuration.map_orientation,
@@ -79,6 +80,7 @@ class FlightOrderConfigurationFormTests(TestCase):
                 "document_size": self.configuration.document_size,
                 "include_turning_point_images": self.configuration.include_turning_point_images,
                 "map_include_meridians_and_parallels_lines": self.configuration.map_include_meridians_and_parallels_lines,
+                "map_include_openaip_overlay": self.configuration.map_include_openaip_overlay,
                 "map_dpi": self.configuration.map_dpi,
                 "map_zoom_level": self.configuration.map_zoom_level,
                 "map_orientation": self.configuration.map_orientation,
@@ -142,6 +144,7 @@ class FlightOrderConfigurationFormTests(TestCase):
                 "document_size": self.configuration.document_size,
                 "include_turning_point_images": self.configuration.include_turning_point_images,
                 "map_include_meridians_and_parallels_lines": self.configuration.map_include_meridians_and_parallels_lines,
+                "map_include_openaip_overlay": self.configuration.map_include_openaip_overlay,
                 "map_dpi": self.configuration.map_dpi,
                 "map_zoom_level": self.configuration.map_zoom_level,
                 "map_orientation": self.configuration.map_orientation,
@@ -192,10 +195,12 @@ class FlightOrderConfigurationFormTests(TestCase):
 
     def test_build_flight_order_map_plot_kwargs_uses_only_unified_map_source(self):
         self.configuration.map_source = "user_uploaded:42"
+        self.configuration.map_include_openaip_overlay = True
 
         kwargs = build_flight_order_map_plot_kwargs(self.navigation_task, self.configuration, contestant=None)
 
         self.assertEqual(kwargs["map_source"], "user_uploaded:42")
+        self.assertTrue(kwargs["include_openaip_overlay"])
         self.assertNotIn("user_map_source", kwargs)
 
     def test_resolve_map_source_definition_for_uploaded_map_uses_uploaded_metadata(self):

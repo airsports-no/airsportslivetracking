@@ -591,6 +591,7 @@ def get_contestant_map(request, pk):
                 "minute_mark_line_width": float(form.cleaned_data["minute_mark_line_width"]),
                 "colour": form.cleaned_data["colour"],
                 "include_meridians_and_parallels_lines": form.cleaned_data["include_meridians_and_parallels_lines"],
+                "include_openaip_overlay": form.cleaned_data["include_openaip_overlay"],
                 "margin": 10,
             }
 
@@ -618,9 +619,11 @@ def get_contestant_map(request, pk):
                 "orientation": configuration.map_orientation,
                 "scale": configuration.map_scale,
                 "map_source": configuration.map_source,
+                "include_openaip_overlay": configuration.map_include_openaip_overlay,
                 "include_annotations": configuration.map_include_annotations,
                 "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
                 "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
+                "include_openaip_overlay": configuration.map_include_openaip_overlay,
                 "line_width": configuration.map_line_width,
                 "minute_mark_line_width": configuration.map_minute_mark_line_width,
                 "colour": configuration.map_line_colour,
@@ -704,6 +707,7 @@ def get_contestant_default_map(request, pk):
         "line_width": configuration.map_line_width,
         "colour": configuration.map_line_colour,
         "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
+        "include_openaip_overlay": configuration.map_include_openaip_overlay,
         "margin": 10,
     }
 
@@ -854,9 +858,10 @@ def get_navigation_task_map(request, pk):
                 "dpi": form.cleaned_data["dpi"],
                 "scale": int(form.cleaned_data["scale"]),
                 "map_source": form.cleaned_data["map_source"],
-                "line_width": float(form.cleaned_data["line_width"]),
+                "line_width": form.cleaned_data["line_width"],
                 "colour": form.cleaned_data["colour"],
                 "include_meridians_and_parallels_lines": form.cleaned_data["include_meridians_and_parallels_lines"],
+                "include_openaip_overlay": form.cleaned_data["include_openaip_overlay"],
                 "margin": 10,
             }
 
@@ -883,6 +888,7 @@ def get_navigation_task_map(request, pk):
                 "orientation": configuration.map_orientation,
                 "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
                 "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
+                "include_openaip_overlay": configuration.map_include_openaip_overlay,
                 "scale": configuration.map_scale,
                 "map_source": configuration.map_source,
                 "dpi": configuration.map_dpi,

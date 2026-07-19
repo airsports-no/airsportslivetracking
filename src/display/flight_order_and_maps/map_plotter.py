@@ -358,9 +358,7 @@ class FlightContest(MyGoogleWTS):
 class OpenAIP(MyGoogleWTS):
     def _image_url(self, tile):
         x, y, z = tile
-        s = "1"
-        ext = "png"
-        return f"http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.{ext}"
+        return f"https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=3d5d3f82528731731362a23f445951d8"
 
 
 class MapTilerOutdoor(MyGoogleWTS):
@@ -1224,13 +1222,16 @@ def plot_route(
     minute_mark_line_width: float = 0.5,
     colour: str = "#0000ff",
     include_meridians_and_parallels_lines: bool = True,
+    include_openaip_overlay: bool = False,
     margins_mm: float = 0,
 ):
     route = task.route
     attribution = ""
+    provider = "osm"
     if user_map_source:
         imagery = UserUploadedMBTiles(user_map_source)
         attribution = user_map_source.attribution
+        provider = "user_uploaded_mbtiles"
     else:
         try:
             source = resolve_map_source_definition(map_source)
@@ -1288,7 +1289,8 @@ def plot_route(
     # ax.background_patch.set_facecolor((250 / 255, 250 / 255, 250 / 255))
     # print(f"Figure projection: {imagery.crs}")
     ax.add_image(imagery, zoom_level)  # , interpolation='spline36', zorder=10)
-    # ax.add_image(OpenAIP(), zoom_level, interpolation='spline36', alpha=0.6, zorder=20)
+    if include_openaip_overlay and provider != "openaip":
+        ax.add_image(OpenAIP(desired_tile_form="RGBA"), zoom_level)
     ax.set_aspect("auto")
     if PRECISION in task.scorecard.task_type or POKER in task.scorecard.task_type:
         paths = plot_precision_track(

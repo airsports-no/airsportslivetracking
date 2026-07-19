@@ -602,6 +602,7 @@ class UnifiedMapSelectionViewTests(TestCase):
                 "orientation": "landscape",
                 "plot_track_between_waypoints": True,
                 "include_meridians_and_parallels_lines": True,
+                "include_openaip_overlay": True,
                 "scale": "100000",
                 "map_source": "user_uploaded:42",
                 "zoom_level": 10,
@@ -614,3 +615,30 @@ class UnifiedMapSelectionViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Select a valid choice")
         generate_map_async_mock.delay.assert_not_called()
+
+    @patch("display.tasks.generate_map_async")
+    @patch("display.views.get_available_map_source_definitions_for_navigation_task")
+    def test_navigation_task_map_includes_openaip_overlay_flag_in_async_payload(self, mock_get_sources, generate_map_async_mock):
+        mock_get_sources.return_value = [
+            {"key": "osm", "label": "OSM", "min_zoom": 0, "max_zoom": 19, "default_zoom": 12},
+        ]
+
+        with patch("display.views.MapForm.is_valid", return_value=True), \
+             patch("display.views.MapForm.cleaned_data", new_callable=property, return_value={
+                 "size": "A4",
+                 "zoom_level": 12,
+                 "orientation": "landscape",
+                 "plot_track_between_waypoints": True,
+                 "include_meridians_and_parallels_lines": True,
+                 "include_openaip_overlay": True,
+                 "scale": "100000",
+                 "map_source": "osm",
+                 "dpi": 150,
+                 "line_width": 0.5,
+                 "colour": "#0000ff",
+             }):
+            response = self.client.post(reverse("navigationtask_map", kwargs={"pk": self.navigation_task.pk}), {})
+
+        self.assertEqual(response.status_code, 302)
+        args = generate_map_async_mock.delay.call_args.args
+        self.assertTrue(args[2]["include_openaip_overlay"])

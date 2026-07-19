@@ -66,6 +66,7 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
             minute_mark_line_width=float(map_params.get("minute_mark_line_width", 0.5)),
             colour=map_params["colour"],
             include_meridians_and_parallels_lines=map_params["include_meridians_and_parallels_lines"],
+            include_openaip_overlay=map_params.get("include_openaip_overlay", False),
             margins_mm=map_params.get("margin", 10),
         )
 

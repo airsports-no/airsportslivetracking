@@ -78,6 +78,7 @@ def build_flight_order_map_plot_kwargs(navigation_task, flight_order_configurati
         "dpi": flight_order_configuration.map_dpi,
         "scale": flight_order_configuration.map_scale,
         "map_source": flight_order_configuration.map_source,
+        "include_openaip_overlay": flight_order_configuration.map_include_openaip_overlay,
         "line_width": flight_order_configuration.map_line_width,
         "minute_mark_line_width": flight_order_configuration.map_minute_mark_line_width,
         "colour": flight_order_configuration.map_line_colour,
