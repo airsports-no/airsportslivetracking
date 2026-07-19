@@ -574,9 +574,13 @@ class ContestantProcessor:
         """
         Trigger termination of the run function.
         """
+        if self.track_terminated:
+            logger.debug("%s: termination already requested; skipping duplicate notify_termination call", self.contestant)
+            return
+
         logger.info("%s: Setting termination flag. Reason: %s", self.contestant, reason or "unspecified")
-        self.contestant_track.set_calculator_finished()
         self.track_terminated = True
+        self.contestant_track.set_calculator_finished()
         self.timed_queue.close()
 
     def check_termination_is_commanded(self, position: Optional[ContestantReceivedPosition]):
@@ -612,19 +616,25 @@ class ContestantProcessor:
                         self.contestant.navigation_task.route.waypoints[0].longitude,
                     )
 
-                self.score_processing_queue.put_nowait(
-                    UpdateScoreMessage(
-                        termination_time,
-                        last_gate,
-                        0,
-                        "manually terminated",
-                        lat,
-                        lon,
-                        "information",
-                        "",
-                        planned=planned,
+                try:
+                    self.score_processing_queue.put_nowait(
+                        UpdateScoreMessage(
+                            termination_time,
+                            last_gate,
+                            0,
+                            "manually terminated",
+                            lat,
+                            lon,
+                            "information",
+                            "",
+                            planned=planned,
+                        )
                     )
-                )
+                except queue.Full:
+                    logger.warning(
+                        "%s: score processing queue full while recording manual termination; continuing shutdown",
+                        self.contestant,
+                    )
                 self.notify_termination("Manually terminated")
 
     def is_termination_commanded(self) -> Optional[datetime.datetime]:
