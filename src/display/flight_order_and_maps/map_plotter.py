@@ -278,7 +278,7 @@ class MyGoogleWTS(GoogleWTS):
             url = self._image_url(tile)
             try:
                 headers = {"User-Agent": self.user_agent, "Referer": "https://app.airsports.no/"}
-                response = requests.get(url, headers=headers, timeout=1)
+                response = requests.get(url, headers=headers, timeout=5)
                 im_data = io.BytesIO(response.content)
                 img = Image.open(im_data)
 

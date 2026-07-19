@@ -623,22 +623,23 @@ class UnifiedMapSelectionViewTests(TestCase):
             {"key": "osm", "label": "OSM", "min_zoom": 0, "max_zoom": 19, "default_zoom": 12},
         ]
 
-        with patch("display.views.MapForm.is_valid", return_value=True), \
-             patch("display.views.MapForm.cleaned_data", new_callable=property, return_value={
-                 "size": "A4",
-                 "zoom_level": 12,
-                 "orientation": "landscape",
-                 "plot_track_between_waypoints": True,
-                 "include_meridians_and_parallels_lines": True,
-                 "include_openaip_overlay": True,
-                 "scale": "100000",
-                 "map_source": "osm",
-                 "dpi": 150,
-                 "line_width": 0.5,
-                 "colour": "#0000ff",
-             }):
-            response = self.client.post(reverse("navigationtask_map", kwargs={"pk": self.navigation_task.pk}), {})
+        response = self.client.post(
+            reverse("navigationtask_map", kwargs={"pk": self.navigation_task.pk}),
+            {
+                "size": "A4",
+                "zoom_level": 12,
+                "orientation": "landscape",
+                "plot_track_between_waypoints": True,
+                "include_meridians_and_parallels_lines": True,
+                "include_openaip_overlay": True,
+                "scale": "100",
+                "map_source": "osm",
+                "dpi": 150,
+                "line_width": 0.5,
+                "colour": "#0000ff",
+            },
+        )
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 302, response.content)
         args = generate_map_async_mock.delay.call_args.args
         self.assertTrue(args[2]["include_openaip_overlay"])
