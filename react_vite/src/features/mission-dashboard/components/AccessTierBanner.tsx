@@ -27,7 +27,7 @@ const AccessTierBanner: React.FC<Props> = ({ accessStatus }) => {
                     <span className="text-xs opacity-70">Source: {accessStatus.source_type}</span>
                 </div>
                 <div className="text-sm opacity-80">
-                    Teams: {accessStatus.contestants_used} / {formatLimit(accessStatus.contestant_limit)} · Tasks: {accessStatus.tasks_used} / {formatLimit(accessStatus.task_limit)}
+                    Contestants: {accessStatus.contestants_used} / {formatLimit(accessStatus.contestant_limit)} · Tasks: {accessStatus.tasks_used} / {formatLimit(accessStatus.task_limit)}
                 </div>
                 <div className="text-xs opacity-70">{message}</div>
             </div>

@@ -1,7 +1,30 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from display.models import ContestTokenAssignment, UserTokenGrant
+from display.models import ContestTokenAssignment, UserTokenGrant, ContestUsageLedger, Contestant
+
+
+def _backfill_historical_usage_for_existing_contest(contest):
+    started_contestants = Contestant.objects.filter(
+        navigation_task__contest=contest,
+        contestanttrack__calculator_started=True,
+    ).select_related("navigation_task").distinct()
+    for contestant in started_contestants:
+        ContestUsageLedger.objects.get_or_create(
+            contest=contest,
+            contestant=contestant,
+            kind=ContestUsageLedger.CONTESTANT_STARTED,
+            defaults={"navigation_task": contestant.navigation_task},
+        )
+    started_tasks = contest.navigationtask_set.filter(
+        contestant__contestanttrack__calculator_started=True
+    ).distinct()
+    for task in started_tasks:
+        ContestUsageLedger.objects.get_or_create(
+            contest=contest,
+            navigation_task=task,
+            kind=ContestUsageLedger.TASK_STARTED,
+        )
 
 
 @transaction.atomic
@@ -19,6 +42,7 @@ def assign_token_to_contest(contest, acting_user, token_grant_id: int):
     token_grant.full_clean()
     token_grant.save(update_fields=["quantity_consumed", "updated_at"])
 
+    _backfill_historical_usage_for_existing_contest(contest)
     assignment = ContestTokenAssignment.objects.create(
         contest=contest,
         token_grant=token_grant,

@@ -11,6 +11,9 @@ interface Props {
 
 const ContestTokenPanel: React.FC<Props> = ({ grants = [], currentTokenGrantId, onAssign, onReplace, disabled = false }) => {
     if (!grants.length) {
+        if (currentTokenGrantId) {
+            return null;
+        }
         return (
             <div className="alert alert-warning shadow-sm">
                 <div>

@@ -9,7 +9,18 @@ from display.models import (
     ContestTokenAssignment,
     TokenType,
     UserTokenGrant,
+    ContestUsageLedger,
+    NavigationTask,
+    Route,
+    Scorecard,
+    Contestant,
+    ContestantTrack,
+    Team,
+    Crew,
+    Person,
+    Aeroplane,
 )
+from display.services.access_resolver import resolve_contest_access
 from display.services.token_assignment import assign_token_to_contest
 
 
@@ -58,6 +69,50 @@ class TestTokenAssignment(TestCase):
         self.assertEqual(grant, assignment.token_grant)
         self.assertEqual(self.token_type, assignment.token_type)
         self.assertEqual(ContestTokenAssignment.objects.get(contest=self.contest), assignment)
+
+    def test_assign_token_to_contest_backfills_started_usage_for_existing_contest(self):
+        grant = UserTokenGrant.objects.create(
+            user=self.user,
+            token_type=self.token_type,
+            quantity_total=2,
+            quantity_consumed=0,
+        )
+        scorecard = Scorecard.objects.create(name="Backfill card", shortcut_name="backfill-card")
+        person = Person.objects.create(first_name="Pilot", last_name="One", email="pilot-backfill@example.com")
+        team = Team.objects.create(
+            crew=Crew.objects.create(member1=person),
+            aeroplane=Aeroplane.objects.create(registration="LN-BACKFILL"),
+        )
+        task = NavigationTask.objects.create(
+            name="Backfill Task",
+            contest=self.contest,
+            route=Route.objects.create(name="Backfill Route"),
+            original_scorecard=scorecard,
+            start_time=datetime.datetime(2026, 6, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 6, 1, 17, 0, tzinfo=datetime.timezone.utc),
+        )
+        contestant = Contestant.objects.create(
+            team=team,
+            navigation_task=task,
+            contestant_number=1,
+            takeoff_time=datetime.datetime(2026, 6, 1, 10, 0, tzinfo=datetime.timezone.utc),
+            tracker_start_time=datetime.datetime(2026, 6, 1, 9, 50, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2026, 6, 1, 12, 0, tzinfo=datetime.timezone.utc),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+        ContestantTrack.objects.get(contestant=contestant).set_calculator_started()
+
+        assign_token_to_contest(self.contest, self.user, grant.id)
+
+        resolution = resolve_contest_access(self.contest)
+        self.assertEqual(1, resolution.contestants_used)
+        self.assertEqual(1, resolution.tasks_used)
+        self.assertEqual(1, ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.CONTESTANT_STARTED).count())
+        self.assertEqual(1, ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.TASK_STARTED).count())
 
     def test_assign_token_to_contest_rejects_exhausted_grant(self):
         grant = UserTokenGrant.objects.create(
