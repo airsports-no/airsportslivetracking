@@ -28,6 +28,16 @@ def _backfill_historical_usage_for_existing_contest(contest):
 
 
 @transaction.atomic
+def revert_token_assignment_for_support(assignment, acting_user):
+    token_grant = UserTokenGrant.objects.select_for_update().get(pk=assignment.token_grant_id)
+    token_grant.quantity_consumed = max(token_grant.quantity_consumed - 1, 0)
+    token_grant.full_clean()
+    token_grant.save(update_fields=["quantity_consumed", "updated_at"])
+    assignment.delete()
+    return token_grant
+
+
+@transaction.atomic
 def assign_token_to_contest(contest, acting_user, token_grant_id: int):
     token_grant = UserTokenGrant.objects.select_for_update().select_related("token_type").get(pk=token_grant_id)
 

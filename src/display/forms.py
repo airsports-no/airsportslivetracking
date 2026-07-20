@@ -6,6 +6,7 @@ from typing import Iterable, Optional
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, ButtonHolder, Submit, Fieldset, Field, HTML
 from django import forms
+from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
@@ -424,7 +425,7 @@ class ContestForm(forms.ModelForm):
         token_grant_queryset = kwargs.pop("token_grant_queryset", UserTokenGrant.objects.none())
         managed_club_queryset = kwargs.pop("managed_club_queryset", Club.objects.none())
         super().__init__(*args, **kwargs)
-        self.fields["initial_token_grant"].queryset = token_grant_queryset
+        self.fields["initial_token_grant"].queryset = token_grant_queryset.filter(quantity_total__gt=models.F("quantity_consumed"))
         self.fields["initial_token_grant"].label = "Initial token grant (optional)"
         self.fields["initial_token_grant"].help_text = "Assign a token immediately when creating the contest. Spent tokens are never restored."
         self.fields["organizing_club"].queryset = managed_club_queryset

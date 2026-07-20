@@ -21,7 +21,7 @@ from display.models import (
     Aeroplane,
 )
 from display.services.access_resolver import resolve_contest_access
-from display.services.token_assignment import assign_token_to_contest
+from display.services.token_assignment import assign_token_to_contest, revert_token_assignment_for_support
 
 
 class TestTokenAssignment(TestCase):
@@ -113,6 +113,21 @@ class TestTokenAssignment(TestCase):
         self.assertEqual(1, resolution.tasks_used)
         self.assertEqual(1, ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.CONTESTANT_STARTED).count())
         self.assertEqual(1, ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.TASK_STARTED).count())
+
+    def test_support_revert_token_assignment_refunds_token_and_removes_assignment(self):
+        grant = UserTokenGrant.objects.create(
+            user=self.user,
+            token_type=self.token_type,
+            quantity_total=2,
+            quantity_consumed=0,
+        )
+        assignment = assign_token_to_contest(self.contest, self.user, grant.id)
+
+        reverted_grant = revert_token_assignment_for_support(assignment, self.user)
+        reverted_grant.refresh_from_db()
+
+        self.assertEqual(0, reverted_grant.quantity_consumed)
+        self.assertFalse(ContestTokenAssignment.objects.filter(pk=assignment.pk).exists())
 
     def test_assign_token_to_contest_rejects_exhausted_grant(self):
         grant = UserTokenGrant.objects.create(

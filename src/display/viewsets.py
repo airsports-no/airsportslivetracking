@@ -1427,6 +1427,7 @@ class ClubViewSet(ModelViewSet):
             club=club,
             user=self.request.user,
             is_active=True,
+            role=ClubManagerMembership.OWNER,
         ).exists()
 
     @action(detail=False, methods=["get"], url_path="managed")

@@ -34,6 +34,8 @@ from display.models import (
     MyUser,
     EditableRoute,
     Contest,
+    ContestTokenAssignment,
+    UserTokenGrant,
 )
 from display.models.scorecard_and_gate_score import Scorecard
 from display.utilities.traccar_factory import get_traccar_instance
@@ -70,6 +72,9 @@ def invalidate_contest_list_cache(sender, **kwargs):
 @receiver(post_delete, sender=ContestTeam)
 @receiver(post_save, sender=Contestant)
 @receiver(post_delete, sender=Contestant)
+@receiver(post_save, sender=ContestTokenAssignment)
+@receiver(post_delete, sender=ContestTokenAssignment)
+@receiver(post_save, sender=UserTokenGrant)
 def invalid_cache_handler(sender, **kwargs):
     invalidate_contest_list_cache(sender, **kwargs)
 

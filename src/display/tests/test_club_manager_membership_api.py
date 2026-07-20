@@ -10,10 +10,12 @@ from display.models import Club, ClubManagerMembership, Contest
 class TestClubManagerMembershipApi(APITestCase):
     def setUp(self):
         self.owner = get_user_model().objects.create(email="club-owner@example.com")
+        self.manager = get_user_model().objects.create(email="club-manager@example.com")
         self.other_user = get_user_model().objects.create(email="other-user@example.com")
         self.stranger = get_user_model().objects.create(email="stranger@example.com")
         self.club = Club.objects.create(name="Club API Club")
         ClubManagerMembership.objects.create(club=self.club, user=self.owner, role=ClubManagerMembership.OWNER)
+        ClubManagerMembership.objects.create(club=self.club, user=self.manager, role=ClubManagerMembership.MANAGER)
 
         self.contest = Contest.objects.create(
             name="Club Contest",
@@ -36,7 +38,7 @@ class TestClubManagerMembershipApi(APITestCase):
         self.assertEqual(status.HTTP_200_OK, response.status_code)
         self.assertEqual(1, len(response.data))
         self.assertEqual(self.club.pk, response.data[0]["id"])
-        self.assertEqual(self.owner.email, response.data[0]["manager_memberships"][0]["user_email"])
+        self.assertEqual(2, len(response.data[0]["manager_memberships"]))
 
     def test_owner_can_add_manager_membership_by_email(self):
         self.client.force_login(self.owner)
@@ -64,6 +66,15 @@ class TestClubManagerMembershipApi(APITestCase):
 
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
+    def test_non_owner_manager_cannot_add_manager_membership(self):
+        self.client.force_login(self.manager)
+        url = reverse("clubs-managers", kwargs={"pk": self.club.pk})
+
+        response = self.client.post(url, {"user_id": self.other_user.pk, "role": ClubManagerMembership.MANAGER}, format="json")
+
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+        self.assertFalse(ClubManagerMembership.objects.filter(club=self.club, user=self.other_user, is_active=True).exists())
+
     def test_owner_can_deactivate_manager_membership(self):
         membership = ClubManagerMembership.objects.create(club=self.club, user=self.other_user, role=ClubManagerMembership.MANAGER)
         self.client.force_login(self.owner)
@@ -74,3 +85,14 @@ class TestClubManagerMembershipApi(APITestCase):
         self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
         membership.refresh_from_db()
         self.assertFalse(membership.is_active)
+
+    def test_non_owner_manager_cannot_deactivate_manager_membership(self):
+        membership = ClubManagerMembership.objects.create(club=self.club, user=self.other_user, role=ClubManagerMembership.MANAGER)
+        self.client.force_login(self.manager)
+        url = reverse("clubs-manager-detail", kwargs={"pk": self.club.pk, "membership_pk": membership.pk})
+
+        response = self.client.delete(url)
+
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+        membership.refresh_from_db()
+        self.assertTrue(membership.is_active)

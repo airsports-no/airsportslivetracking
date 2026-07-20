@@ -1269,7 +1269,11 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs["token_grant_queryset"] = UserTokenGrant.objects.filter(user=self.request.user).select_related("token_type")
+        kwargs["token_grant_queryset"] = UserTokenGrant.objects.filter(
+            user=self.request.user,
+            token_type__is_active=True,
+            quantity_consumed__lt=F("quantity_total"),
+        ).select_related("token_type")
         kwargs["managed_club_queryset"] = Club.objects.filter(
             clubmanagermembership__user=self.request.user,
             clubmanagermembership__is_active=True,

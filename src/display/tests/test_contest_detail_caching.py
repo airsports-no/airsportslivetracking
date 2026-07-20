@@ -26,8 +26,9 @@ class TestContestDetailCaching(APITestCase):
             is_featured=True,
         )
         assign_perm("view_contest", self.user, self.contest)
-        token_type = TokenType.objects.create(name="Cache token", contestant_limit=10, task_limit=1)
-        UserTokenGrant.objects.create(user=self.user, token_type=token_type, quantity_total=1)
+        assign_perm("change_contest", self.user, self.contest)
+        self.token_type = TokenType.objects.create(name="Cache token", contestant_limit=10, task_limit=1)
+        self.token_grant = UserTokenGrant.objects.create(user=self.user, token_type=self.token_type, quantity_total=1)
 
     def test_public_contest_detail_with_authenticated_user_is_private_cache(self):
         self.client.force_login(self.user)
@@ -35,3 +36,17 @@ class TestContestDetailCaching(APITestCase):
 
         self.assertEqual(status.HTTP_200_OK, response.status_code)
         self.assertEqual("private, no-cache", response["Cache-Control"])
+
+    def test_token_assignment_changes_contest_detail_etag(self):
+        self.client.force_login(self.user)
+        detail_url = reverse("contests-detail", kwargs={"pk": self.contest.id})
+        first = self.client.get(detail_url)
+        first_etag = first["ETag"]
+
+        assign_url = reverse("contests-assign-token", kwargs={"pk": self.contest.id})
+        assign_response = self.client.post(assign_url, {"token_grant_id": self.token_grant.id}, format="json")
+        self.assertEqual(status.HTTP_200_OK, assign_response.status_code)
+
+        second = self.client.get(detail_url, HTTP_IF_NONE_MATCH=first_etag)
+        self.assertEqual(status.HTTP_200_OK, second.status_code)
+        self.assertNotEqual(first_etag, second["ETag"])

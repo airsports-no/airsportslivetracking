@@ -10,6 +10,7 @@ from display.admin import (
     UserTokenGrantAdmin,
 )
 from display.models import AccessGrant, Club, ClubManagerMembership, Contest, ContestTokenAssignment, UserTokenGrant
+from display.services.token_assignment import revert_token_assignment_for_support
 
 
 class TestAccessControlAdmin(SimpleTestCase):
@@ -34,3 +35,7 @@ class TestAccessControlAdmin(SimpleTestCase):
         self.assertIn("updated_by", admin.site._registry[AccessGrant].exclude)
         self.assertIn("created_by", admin.site._registry[UserTokenGrant].exclude)
         self.assertIn("updated_by", admin.site._registry[UserTokenGrant].exclude)
+
+    def test_contest_token_assignment_admin_has_support_refund_action(self):
+        actions = admin.site._registry[ContestTokenAssignment].actions
+        self.assertIn("revert_assignment_and_refund", actions)

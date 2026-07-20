@@ -5,6 +5,7 @@ from django_use_email_as_username.admin import BaseUserAdmin
 from guardian.admin import GuardedModelAdmin
 from guardian.shortcuts import assign_perm
 
+from display.services.token_assignment import revert_token_assignment_for_support
 from display.models import (
     NavigationTask,
     Route,
@@ -176,6 +177,12 @@ class UserTokenGrantAdmin(admin.ModelAdmin):
 class ContestTokenAssignmentAdmin(admin.ModelAdmin):
     list_display = ("contest", "token_grant", "token_type", "assigned_by", "assigned_at")
     search_fields = ("contest__name", "token_grant__user__email", "token_type__name", "assigned_by__email")
+    actions = ["revert_assignment_and_refund"]
+
+    @admin.action(description="Revert assignment and refund token")
+    def revert_assignment_and_refund(self, request, queryset):
+        for assignment in queryset:
+            revert_token_assignment_for_support(assignment, request.user)
 
 
 admin.site.register(get_user_model(), BaseUserAdmin)
