@@ -238,9 +238,9 @@
                             <h2 class="card-title text-lg">Token Management</h2>
                             {% if current_token_assignment %}
                                 <div class="rounded-lg bg-base-100 p-3 text-sm mb-3">
-                                    <div class="font-semibold">Current token</div>
+                                    <div class="font-semibold">Current token package</div>
                                     <div>{{ current_token_assignment.token_type }}</div>
-                                    <div class="opacity-70">Grant {{ current_token_assignment.token_grant_id }}</div>
+                                    <div class="opacity-70">Assigned from a token grant you own. Remaining in that grant after this assignment: {{ current_token_assignment.token_grant.quantity_remaining }} of {{ current_token_assignment.token_grant.quantity_total }}.</div>
                                 </div>
                             {% else %}
                                 <div class="text-sm opacity-70 mb-3">No token is currently assigned to this contest.</div>

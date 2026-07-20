@@ -60,6 +60,6 @@ class TestContestDetailViewContext(TestCase):
         self.assertContains(response, "Annual club pass")
         self.assertContains(response, "club_pass")
         self.assertContains(response, "Token Management")
-        self.assertContains(response, "Club Managers")
+        self.assertContains(response, "No token is currently assigned to this contest.")
         self.assertContains(response, self.change_user.email)
         self.assertContains(response, "Assign token")
