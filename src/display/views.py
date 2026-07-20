@@ -25,9 +25,11 @@ from django.contrib.auth.mixins import (
 from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.services.token_assignment import assign_token_to_contest
-from live_tracking_map import settings
+from display.models import UserTokenGrant, ClubManagerMembership
 from playback_tools.playback import validate_gpx_file
 import rest_framework.exceptions as drf_exceptions
+from live_tracking_map import settings
+
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
@@ -136,6 +138,7 @@ from display.models import (
     ActualGateTime,
     GateCumulativeScore,
     UserTokenGrant,
+    Club,
 )
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.tasks import (
@@ -1267,8 +1270,13 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["token_grant_queryset"] = UserTokenGrant.objects.filter(user=self.request.user).select_related("token_type")
+        kwargs["managed_club_queryset"] = Club.objects.filter(
+            clubmanagermembership__user=self.request.user,
+            clubmanagermembership__is_active=True,
+        ).distinct().order_by("name")
         return kwargs
 
+    @transaction.atomic
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
         instance.country = form.cleaned_data["country_code"]

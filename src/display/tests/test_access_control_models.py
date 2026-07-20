@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import TestCase
 
-from display.models import Contest, Club, MyUser, AccessGrant, ClubManagerMembership
+from display.models import Contest, Club, MyUser, AccessGrant, ClubManagerMembership, TokenType, UserTokenGrant, ContestTokenAssignment
 
 
 class TestAccessControlModels(TestCase):
@@ -85,3 +85,10 @@ class TestAccessControlModels(TestCase):
         self.assertTrue(active_grant.is_active)
         self.assertFalse(expired_grant.is_active)
         self.assertFalse(cancelled_grant.is_active)
+
+    def test_new_access_models_expose_help_text(self):
+        self.assertTrue(ClubManagerMembership._meta.get_field("club").help_text)
+        self.assertTrue(TokenType._meta.get_field("description").help_text)
+        self.assertTrue(UserTokenGrant._meta.get_field("token_type").help_text)
+        self.assertTrue(ContestTokenAssignment._meta.get_field("token_grant").help_text)
+        self.assertTrue(AccessGrant._meta.get_field("tier").help_text)

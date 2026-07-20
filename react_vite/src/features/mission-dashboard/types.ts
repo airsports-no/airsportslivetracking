@@ -34,6 +34,7 @@ export interface Contest {
     latitude: number;
     longitude: number;
     is_editor: boolean;
+    organizing_club?: number | null;
     summary_score_sorting_direction: string;
     autosum_scores: boolean;
     name: string;
@@ -145,12 +146,21 @@ export interface Person {
     last_seen: string;
 }
 
+export interface ClubManagerMembership {
+    id: number;
+    user: number;
+    user_email: string;
+    role: string;
+    is_active: boolean;
+}
+
 export interface Club {
     id: number;
     country_flag_url: string;
     country: string;
     name: string;
     logo: string;
+    manager_memberships?: ClubManagerMembership[];
 }
 
 export interface TrackerIdDisplay {

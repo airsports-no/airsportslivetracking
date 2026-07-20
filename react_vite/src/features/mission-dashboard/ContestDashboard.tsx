@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useLayoutEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Contest, NavigationTask, ContestResults, MyContestTeam } from './types';
+import { Contest, NavigationTask, ContestResults, MyContestTeam, Club } from './types';
 import { Contestant } from '../competition-map/types';
 import { Loading } from '../route-editor/components/basicComponents';
 import TaskCard from './components/TaskCard';
@@ -13,12 +13,13 @@ import UpcomingFlights from './components/UpcomingFlights';
 import PublicityIcon from './components/PublicityIcon';
 import AccessTierBanner from './components/AccessTierBanner';
 import ContestTokenPanel from './components/ContestTokenPanel';
+import ManagedClubPanel from './components/ManagedClubPanel';
 import { HelpCircle } from 'lucide-react'; // Import HelpCircle
 import { reverse, generatePath } from '../../urls';
 import { useMissionDashboardStore } from './store';
 import { fetchNavigationTask } from '../competition-map/api';
 import { formatDateInterval } from '../../utils';
-import { assignContestToken, replaceContestToken } from './api';
+import { assignContestToken, replaceContestToken, fetchManagedClubs, addClubManager, deactivateClubManager } from './api';
 
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
@@ -58,9 +59,21 @@ const ContestDashboard = () => {
     const [showScheduleForm, setShowScheduleForm] = useState<NavigationTask | null>(null);
     const [viewingScoresForTask, setViewingScoresForTask] = useState<NavigationTask | null>(null);
     const [loadingTaskScores, setLoadingTaskScores] = useState(false);
-
+    const [managedClub, setManagedClub] = useState<Club | null>(null);
 
     const canManageThisContest = contest?.is_editor || document.configuration.is_superuser;
+
+    useEffect(() => {
+        if (contest?.organizing_club && canManageThisContest) {
+            fetchManagedClubs().then(clubs => {
+                const match = clubs.find(c => c.id === contest.organizing_club);
+                setManagedClub(match || null);
+            }).catch(() => setManagedClub(null));
+        } else {
+            setManagedClub(null);
+        }
+    }, [contest?.organizing_club, canManageThisContest]);
+
 
     const hasFutureFlightsScheduled = useMemo(() => {
         if (!contest || !myFutureFlights) return false;
@@ -337,6 +350,27 @@ const ContestDashboard = () => {
                         currentTokenGrantId={contest.access_status?.token_grant_id}
                         onAssign={handleAssignToken}
                         onReplace={handleReplaceToken}
+                    />
+                </div>
+            )}
+
+            {canManageThisContest && managedClub && (
+                <div className="mb-8">
+                    <ManagedClubPanel
+                        clubName={managedClub.name}
+                        memberships={managedClub.manager_memberships}
+                        onAddManager={async (identifier, role) => {
+                            await addClubManager(managedClub.id, identifier, role);
+                            const refreshed = await fetchManagedClubs();
+                            const match = refreshed.find(c => c.id === managedClub.id) || null;
+                            setManagedClub(match);
+                        }}
+                        onDeactivateManager={async (membershipId) => {
+                            await deactivateClubManager(managedClub.id, membershipId);
+                            const refreshed = await fetchManagedClubs();
+                            const match = refreshed.find(c => c.id === managedClub.id) || null;
+                            setManagedClub(match);
+                        }}
                     />
                 </div>
             )}

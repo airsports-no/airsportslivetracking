@@ -55,6 +55,8 @@ from display.models import (
     Photo,
     Aeroplane,
     Club,
+    ClubManagerMembership,
+    MyUser,
     ANOMALY,
     Task,
     TaskTest,
@@ -120,6 +122,8 @@ from display.serialisers import (
     RouteSerialiser,
     AeroplaneSerialiser,
     ClubSerialiser,
+    ClubManagerMembershipSerializer,
+    ClubManagerMembershipCreateSerializer,
     ContestantSerialiser,
     ContestantTrackWithTrackPointsSerialiser,
     GpxTrackSerialiser,
@@ -535,8 +539,8 @@ class ContestViewSet(ModelViewSet):
         response = super().retrieve(request, *args, **kwargs)
 
         response["ETag"] = etag
-        if instance.is_public and instance.is_featured:
-            # Public data can be cached by CDN but MUST be revalidated via ETag.
+        if instance.is_public and instance.is_featured and not request.user.is_authenticated:
+            # Public anonymous data can be cached by CDN but MUST be revalidated via ETag.
             # stale-while-revalidate=86400: Serve stale data while fetching fresh in background
             response["Cache-Control"] = "public, no-cache, stale-while-revalidate=86400"
             if "Vary" in response:
@@ -1403,7 +1407,60 @@ class ClubViewSet(ModelViewSet):
     queryset = Club.objects.all()
     serializer_class = ClubSerialiser
     permission_classes = [permissions.IsAuthenticated]
-    http_method_names = ["get"]
+    http_method_names = ["get", "post", "delete"]
+
+    def get_queryset(self):
+        if self.action == "managed":
+            return Club.objects.filter(
+                clubmanagermembership__user=self.request.user,
+                clubmanagermembership__is_active=True,
+            ).distinct().order_by("name")
+        return Club.objects.all().order_by("name")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
+
+    def _can_manage_club(self, club):
+        return self.request.user.is_superuser or ClubManagerMembership.objects.filter(
+            club=club,
+            user=self.request.user,
+            is_active=True,
+        ).exists()
+
+    @action(detail=False, methods=["get"], url_path="managed")
+    def managed(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="managers")
+    def managers(self, request, *args, **kwargs):
+        club = self.get_object()
+        if not self._can_manage_club(club):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        serializer = ClubManagerMembershipCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        managed_user = serializer.context["managed_user"]
+        membership, _created = ClubManagerMembership.objects.update_or_create(
+            club=club,
+            user=managed_user,
+            defaults={
+                "role": serializer.validated_data["role"],
+                "is_active": True,
+            },
+        )
+        return Response(ClubManagerMembershipSerializer(membership).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["delete"], url_path=r"managers/(?P<membership_pk>\d+)")
+    def manager_detail(self, request, membership_pk=None, *args, **kwargs):
+        club = self.get_object()
+        if not self._can_manage_club(club):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        membership = get_object_or_404(ClubManagerMembership, pk=membership_pk, club=club)
+        membership.is_active = False
+        membership.save(update_fields=["is_active", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ContestantTeamIdViewSet(ModelViewSet):

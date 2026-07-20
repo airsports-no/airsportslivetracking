@@ -12,6 +12,7 @@ interface MissionDashboardState {
     myContestTeams: MyContestTeam[];
     results: Record<number, ContestResults>;
     clubs: Club[];
+    managedClubs: Club[];
     aircrafts: Aircraft[];
     pilots: Copilot[];
     
@@ -24,6 +25,7 @@ interface MissionDashboardState {
     fetchMyContestTeams: (force?: boolean) => Promise<void>;
     fetchContestResults: (contestId: number, force?: boolean) => Promise<void>;
     fetchClubs: () => Promise<void>;
+    fetchManagedClubs: (force?: boolean) => Promise<void>;
     fetchAircrafts: () => Promise<void>;
     fetchPilots: () => Promise<void>;
 
@@ -42,6 +44,7 @@ export const useMissionDashboardStore = create<MissionDashboardState>((set, get)
     myContestTeams: [],
     results: {},
     clubs: [],
+    managedClubs: [],
     aircrafts: [],
     pilots: [],
 
@@ -125,6 +128,13 @@ export const useMissionDashboardStore = create<MissionDashboardState>((set, get)
     fetchClubs: async () => {
         const clubs = await api.fetchClubs();
         set({ clubs });
+    },
+    fetchManagedClubs: async (force) => {
+        if (!force && get().managedClubs.length > 0) {
+            return;
+        }
+        const managedClubs = await api.fetchManagedClubs();
+        set({ managedClubs });
     },
     fetchAircrafts: async () => {
         const aircrafts = await api.fetchAircrafts();

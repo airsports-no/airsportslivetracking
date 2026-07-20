@@ -1,4 +1,4 @@
-import { OngoingNavigation, PaginatedContests, MyParticipatingContest, Club, Aircraft, Copilot, ScheduleFlightPayload, RegisterTeamPayload, Contest, NavigationTask, ContestResults, MyContestTeam, Team } from './types';
+import { OngoingNavigation, PaginatedContests, MyParticipatingContest, Club, ClubManagerMembership, Aircraft, Copilot, ScheduleFlightPayload, RegisterTeamPayload, Contest, NavigationTask, ContestResults, MyContestTeam, Team } from './types';
 import { Contestant } from '../competition-map/types';
 import { getCookie } from '../../utils/csrf';
 import { reverse } from '../../urls';
@@ -171,6 +171,43 @@ export const fetchClubs = async (): Promise<Club[]> => {
         throw new Error(`Failed to fetch clubs: ${errorMessages}`);
     }
     return response.json();
+};
+
+export const fetchManagedClubs = async (): Promise<Club[]> => {
+    const url = reverse('clubs-managed');
+    const response = await fetch(url, { headers: getAuthHeaders() });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to fetch managed clubs: ${errorMessages}`);
+    }
+    return response.json();
+};
+
+export const addClubManager = async (clubId: number, identifier: string, role: string): Promise<ClubManagerMembership> => {
+    const url = reverse('clubs-managers', clubId);
+    const payload = /^\d+$/.test(identifier) ? { user_id: Number(identifier), role } : { user_id: identifier, role };
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to add club manager: ${errorMessages}`);
+    }
+    return response.json();
+};
+
+export const deactivateClubManager = async (clubId: number, membershipId: number): Promise<void> => {
+    const url = reverse('clubs-manager-detail', clubId, membershipId);
+    const response = await fetch(url, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to remove club manager: ${errorMessages}`);
+    }
 };
 
 export const fetchAircrafts = async (): Promise<Aircraft[]> => {

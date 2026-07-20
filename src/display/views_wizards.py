@@ -4,6 +4,7 @@ from typing import Optional
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage
+from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -15,6 +16,7 @@ from guardian.shortcuts import get_objects_for_user
 
 from display.forms import NavigationTaskForm, ContestForm, TrackingDataForm, PersonForm
 from display.services.token_assignment import assign_token_to_contest
+from display.services.capacity_enforcement import assert_can_add_navigation_task
 from display.forms_wizards import (
     TaskTypeForm,
     ANRCorridorImportRouteForm,
@@ -341,9 +343,6 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
             form.fields["initial_token_grant"].queryset = UserTokenGrant.objects.filter(user=self.request.user).select_related("token_type")
         return form
 
-    # def get_form(self, step=None, data=None, files=None):
-    #     form = super().get_form(step, data, files)
-
     def create_route(self, scorecard: Scorecard) -> Route:
         task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
         rounded_corners = False
@@ -357,6 +356,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
             rounded_corners = initial_step_data["rounded_corners"]
         return self.editable_route.create_route(task_type, scorecard, rounded_corners, corridor_width)
 
+    @transaction.atomic
     def done(self, form_list, **kwargs):
         """
         The wizard is complete, so create the route and navigation task. Redirects to the navigation task detail page.
@@ -384,6 +384,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
             for warning in self.editable_route.get_validation_errors(corridor_width=corridor_width):
                 messages.warning(self.request, warning)
 
+            assert_can_add_navigation_task(contest)
             navigation_task = NavigationTask.create(
                 name=task_name,
                 contest=contest,

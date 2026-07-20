@@ -72,9 +72,25 @@ class ContestTokenAssignmentInline(admin.TabularInline):
 
 
 class ContestAdmin(GuardedModelAdmin):
-    list_display = ("name", "organizing_club", "created_by", "start_time", "finish_time")
+    list_display = (
+        "name",
+        "organizing_club",
+        "created_by",
+        "current_token_grant",
+        "current_token_type",
+        "start_time",
+        "finish_time",
+    )
     search_fields = ("name", "organizing_club__name", "created_by__email")
     inlines = (ContestTokenAssignmentInline,)
+
+    def current_token_grant(self, obj):
+        assignment = ContestTokenAssignment.objects.filter(contest=obj).select_related("token_grant").first()
+        return assignment.token_grant if assignment else None
+
+    def current_token_type(self, obj):
+        assignment = ContestTokenAssignment.objects.filter(contest=obj).select_related("token_type").first()
+        return assignment.token_type if assignment else None
 
     def save_model(self, request, obj, form, change):
         result = super().save_model(request, obj, form, change)
@@ -93,6 +109,13 @@ class AccessGrantInline(admin.TabularInline):
     model = AccessGrant
     extra = 0
     fk_name = "club"
+    exclude = ("created_by", "updated_by")
+
+    def save_model(self, request, obj, form, change):
+        if not obj.created_by_id:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
 
 
 class ClubAdmin(admin.ModelAdmin):
@@ -115,6 +138,14 @@ class AccessGrantAdmin(admin.ModelAdmin):
     )
     list_filter = ("tier", "status")
     search_fields = ("club__name", "contest__name", "invoice_reference")
+    exclude = ("created_by", "updated_by")
+    readonly_fields = ("created_by", "updated_by")
+
+    def save_model(self, request, obj, form, change):
+        if not obj.created_by_id:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
 
 
 class ClubManagerMembershipAdmin(admin.ModelAdmin):
@@ -132,6 +163,19 @@ class TokenTypeAdmin(admin.ModelAdmin):
 class UserTokenGrantAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "token_type", "quantity_total", "quantity_consumed", "quantity_remaining")
     search_fields = ("user__email", "token_type__name", "purchase_reference")
+    exclude = ("created_by", "updated_by")
+    readonly_fields = ("created_by", "updated_by")
+
+    def save_model(self, request, obj, form, change):
+        if not obj.created_by_id:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+class ContestTokenAssignmentAdmin(admin.ModelAdmin):
+    list_display = ("contest", "token_grant", "token_type", "assigned_by", "assigned_at")
+    search_fields = ("contest__name", "token_grant__user__email", "token_type__name", "assigned_by__email")
 
 
 admin.site.register(get_user_model(), BaseUserAdmin)
@@ -153,6 +197,7 @@ admin.site.register(AccessGrant, AccessGrantAdmin)
 admin.site.register(ClubManagerMembership, ClubManagerMembershipAdmin)
 admin.site.register(TokenType, TokenTypeAdmin)
 admin.site.register(UserTokenGrant, UserTokenGrantAdmin)
+admin.site.register(ContestTokenAssignment, ContestTokenAssignmentAdmin)
 
 
 class NewsletterSubscriberAdmin(admin.ModelAdmin):

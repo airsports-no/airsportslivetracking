@@ -19,6 +19,14 @@ class TestRouteToTaskWizardTokenCreation(TestCase):
         self.editable_route = EditableRoute.objects.create(name="Wizard Route", route={"features": []})
         self.token_type = TokenType.objects.create(name="Wizard token", contestant_limit=25, task_limit=2)
         self.token_grant = UserTokenGrant.objects.create(user=self.user, token_type=self.token_type, quantity_total=2)
+        self.existing_contest = Contest.objects.create(
+            name="Existing contest for wizard",
+            time_zone="Europe/Oslo",
+            start_time="2026-10-01T09:00:00+00:00",
+            finish_time="2026-10-01T17:00:00+00:00",
+            location="60,11",
+            created_by=self.user,
+        )
 
     def test_contest_creation_form_can_receive_user_token_grants_for_wizard_usage(self):
         form = ContestForm(token_grant_queryset=UserTokenGrant.objects.filter(user=self.user))
@@ -62,3 +70,28 @@ class TestRouteToTaskWizardTokenCreation(TestCase):
         self.assertIsInstance(response, HttpResponseRedirect)
         self.assertTrue(ContestTokenAssignment.objects.filter(contest=created_contest, token_grant=self.token_grant).exists())
         self.assertEqual(1, self.token_grant.quantity_consumed)
+
+    @patch("display.views_wizards.assert_can_add_navigation_task")
+    @patch("display.views_wizards.NavigationTask.create")
+    @patch.object(RouteToTaskWizard, "create_route")
+    @patch("display.views_wizards.Scorecard.get_originals")
+    def test_done_checks_task_limit_for_existing_contest(self, mock_get_originals, mock_create_route, mock_navigation_task_create, mock_guard):
+        mock_get_originals.return_value = [SimpleNamespace(task_type=[AIRSPORTS])]
+        mock_create_route.return_value = Route.objects.create()
+        mock_navigation_task_create.return_value = SimpleNamespace(pk=456)
+
+        request = RequestFactory().get("/")
+        request.user = self.user
+        request.session = {}
+        request._messages = MagicMock()
+        wizard = RouteToTaskWizard()
+        wizard.request = request
+        wizard.editable_route = self.editable_route
+        wizard.get_cleaned_data_for_step = lambda step: {
+            "contest_selection": {"task_type": AIRSPORTS, "navigation_task_name": "Existing Contest Task", "contest": self.existing_contest},
+            "airsports_parameters": {"rounded_corners": False},
+        }.get(step)
+
+        wizard.done([])
+
+        mock_guard.assert_called_once_with(self.existing_contest)

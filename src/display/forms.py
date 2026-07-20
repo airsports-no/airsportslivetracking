@@ -41,6 +41,7 @@ from display.models import (
     UserUploadedMap,
     TokenType,
     UserTokenGrant,
+    Club,
 )
 
 from display.models.user_uploaded_map import validate_file_size
@@ -421,10 +422,14 @@ class ContestForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         token_grant_queryset = kwargs.pop("token_grant_queryset", UserTokenGrant.objects.none())
+        managed_club_queryset = kwargs.pop("managed_club_queryset", Club.objects.none())
         super().__init__(*args, **kwargs)
         self.fields["initial_token_grant"].queryset = token_grant_queryset
         self.fields["initial_token_grant"].label = "Initial token grant (optional)"
         self.fields["initial_token_grant"].help_text = "Assign a token immediately when creating the contest. Spent tokens are never restored."
+        self.fields["organizing_club"].queryset = managed_club_queryset
+        self.fields["organizing_club"].required = False
+        self.fields["organizing_club"].help_text = "Optional club whose annual pass or access grants should apply to this contest."
         datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
         self.fields["start_time"].widget = datetime_widget
         self.fields["finish_time"].widget = datetime_widget

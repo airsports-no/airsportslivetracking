@@ -6,7 +6,7 @@ from typing import Optional
 import dateutil
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import transaction
+from django.db import transaction, models
 from django.db.models import Q, Prefetch
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -63,8 +63,10 @@ from display.models import (
     GATE_TYPES,
     NewsletterSubscriber,
     UserTokenGrant,
+    ClubManagerMembership,
 )
 from display.services.access_resolver import resolve_contest_access
+from display.services.capacity_enforcement import assert_can_add_navigation_task
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
@@ -202,13 +204,51 @@ class PersonSerialiserExcludingTracking(CountryFieldMixin, serializers.ModelSeri
         exclude = ("app_tracking_id", "simulator_tracking_id")
 
 
+class ClubManagerMembershipSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = ClubManagerMembership
+        fields = ("id", "user", "user_email", "role", "is_active")
+        read_only_fields = ("id", "user_email", "is_active")
+
+
+class ClubManagerMembershipCreateSerializer(serializers.Serializer):
+    user_id = serializers.CharField()
+    role = serializers.ChoiceField(choices=ClubManagerMembership.ROLES, default=ClubManagerMembership.MANAGER)
+
+    def validate_user_id(self, value):
+        if isinstance(value, str) and value.strip().isdigit():
+            user = MyUser.objects.filter(pk=int(value.strip())).first()
+        else:
+            user = MyUser.objects.filter(email__iexact=str(value).strip()).first()
+        if user is None:
+            raise serializers.ValidationError("User not found")
+        self.context["managed_user"] = user
+        return value
+
+
 class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
+    manager_memberships = SerializerMethodField()
 
     class Meta:
         model = Club
         fields = "__all__"
+
+    def get_manager_memberships(self, club):
+        request = self.context.get("request")
+        if not request or not getattr(request.user, "is_authenticated", False):
+            return []
+        if request.user.is_superuser or ClubManagerMembership.objects.filter(
+            club=club,
+            user=request.user,
+            is_active=True,
+        ).exists():
+            memberships = club.clubmanagermembership_set.filter(is_active=True).select_related("user").order_by("user__email")
+            return ClubManagerMembershipSerializer(memberships, many=True).data
+        return []
 
 
 class AvailableTokenGrantSerializer(serializers.ModelSerializer):
@@ -699,7 +739,11 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         request = self.context.get("request")
         if not request or not getattr(request.user, "is_authenticated", False):
             return []
-        grants = UserTokenGrant.objects.filter(user=request.user).select_related("token_type").order_by("-created_at")
+        grants = UserTokenGrant.objects.filter(
+            user=request.user,
+            token_type__is_active=True,
+            quantity_consumed__lt=models.F("quantity_total"),
+        ).select_related("token_type").order_by("-created_at")
         return AvailableTokenGrantSerializer(grants, many=True).data
 
     def validate(self, validated_data):
@@ -1468,6 +1512,7 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
             except KeyError:
                 raise Http404("Contest not found")
 
+            assert_can_add_navigation_task(validated_data["contest"])
             validated_data["route"] = route
             assign_perm("view_route", user, route)
             assign_perm("delete_route", user, route)
@@ -1521,6 +1566,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             except KeyError:
                 raise Http404("Contest not found")
 
+            assert_can_add_navigation_task(validated_data["contest"])
             validated_data["route"] = route
             assign_perm("view_route", user, route)
             assign_perm("delete_route", user, route)

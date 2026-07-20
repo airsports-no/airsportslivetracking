@@ -81,7 +81,42 @@ src/static/css/tailwindcss -i src/static/css/input.css -o src/static/css/output.
 ## MSFS 2020 client
 Source code is available at [asltmsfs](https://github.com/airsports-no/asltmsfs).  Binary distribution is available at [Airsports MSFS client](https://drive.google.com/drive/folders/1Nj54XMtQ3HOBNJs_PEudNyfFpeH6Aekk?usp=sharing) together with user documentation. It can be used to compete in Air Sports Live Tracking tasks using Microsoft Flight Simulator 2020. By modifying the traccar server address can also be used to test locally.
 
-# CDN Caching & Invalidation Strategy
+## Access control and free-tier configuration
+
+ASLT now supports multiple access paths for contest capacity:
+- free tier
+- annual club pass
+- single-event access grant
+- manual override
+- token-backed contest access
+
+The free tier is configured through Django settings / environment, not through admin.
+
+Relevant settings:
+- `ACCESS_ENFORCEMENT_MODE`
+  - `warn`: include capacity information in the UI/API but do not block actions
+  - `enforce`: block task creation / registration once limits are reached
+- `DEFAULT_FREE_CONTESTANT_LIMIT`
+  - default contestant cap for contests that do not have a club pass, access grant, or token
+- `DEFAULT_FREE_TASK_LIMIT`
+  - default task cap for contests that do not have a club pass, access grant, or token
+
+Semantics:
+- if a contest has no paid/override access path, these free-tier defaults are used
+- if a value is unset / null / unlimited-equivalent, the corresponding limit is treated as uncapped
+- contest creation and task/contestant registration consult the resolved access tier before allowing the action when enforcement mode is `enforce`
+
+Operational recommendation:
+- use `warn` while tuning limits or onboarding clubs
+- switch to `enforce` once the desired pricing/capacity model is stable
+
+Admin models involved:
+- `AccessGrant`: annual pass, single-event pass, manual override, explicit grant records
+- `ClubManagerMembership`: who may create/manage contests on behalf of a club
+- `TokenType`: defines contestant/task capacity for a token package
+- `UserTokenGrant`: grants token inventory to a user
+- `ContestTokenAssignment`: binds a consumed token grant to a contest
+
 ASLT is optimized for Google Cloud CDN. The caching strategy relies on three levels of invalidation:
 
 1.  **Application Version (Global):**
