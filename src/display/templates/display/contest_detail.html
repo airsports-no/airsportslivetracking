@@ -76,9 +76,108 @@
                 </div>
             </div>
 
+            <!-- Tasks List -->
+            <div class="mt-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for navigation_task in object.navigationtask_set.all %}
+                    <div class="card bg-base-200/50 shadow-sm border border-base-300">
+                        <div class="card-body p-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h3 class="font-bold text-lg flex-1">
+                                            {% if "view_contest" in contest_permissions %}
+                                                <a href="{% url 'navigationtask_detail' navigation_task.id %}" class="link link-hover">{{ navigation_task.name }}</a>
+                                            {% else %}
+                                                {{ navigation_task.name }}
+                                            {% endif %}
+                                        </h3>
+                                        <a href="{% fe_url 'COMPETITION_MAP_DETAIL' contestId=object.pk navigationTaskId=navigation_task.pk %}" class="btn btn-xs btn-outline btn-info gap-1 whitespace-nowrap">
+                                            {% lucide "map-pin" size=12 class="lucide lucide-map-pin" %}
+                                            Live Map
+                                        </a>
+                                    </div>
+                                    <div class="flex items-center gap-1 mt-1">
+                                        {% render_publicity_icon navigation_task.is_public navigation_task.is_featured class_name="inline-block" %}
+                                        <span class="text-xs opacity-70">({{ navigation_task.share_string }})</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 gap-2 text-sm">
+                                <div class="bg-base-100 p-2 rounded flex justify-between">
+                                    <span class="opacity-70">Start:</span>
+                                    <span class="font-mono text-xs">{{ navigation_task.start_time|date:"Y-m-d H:i" }}</span>
+                                </div>
+                                <div class="bg-base-100 p-2 rounded flex justify-between">
+                                    <span class="opacity-70">Finish:</span>
+                                    <span class="font-mono text-xs">{{ navigation_task.finish_time|date:"Y-m-d H:i" }}</span>
+                                </div>
+                                <div class="bg-base-100 p-2 rounded">
+                                    <div class="opacity-70 mb-1">Scorecard:</div>
+                                    <div class="truncate">{{ navigation_task.original_scorecard }}</div>
+                                </div>
+                                {% if "change_contest" in contest_permissions %}
+                                <div class="mt-4">
+                                    {% if navigation_task.allow_self_management %}
+                                    <a href="{% url 'hangar_flyer' navigation_task.pk %}" class="btn btn-xs btn-outline w-full gap-1">
+                                        {% lucide "file-text" size=12 %}
+                                        Hangar Flyer
+                                    </a>
+                                    {% else %}
+                                    <div class="tooltip tooltip-bottom w-full" data-tip="Enable 'Allow self-management' in task settings to use the flyer">
+                                        <button class="btn btn-xs btn-outline w-full gap-1" disabled>
+                                            {% lucide "file-text" size=12 %}
+                                            Hangar Flyer
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                        {% if "change_contest" in contest_permissions and not user_has_routes %}
+                        <div class="col-span-full">
+                            <div class="bg-base-200 p-8 md:p-12 rounded-3xl text-center border-2 border-dashed border-base-300">
+                                <div class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                                    {% lucide "route" size=32 %}
+                                </div>
+                                <h3 class="text-xl md:text-2xl font-bold mb-4 italic">Ready to host your first task?</h3>
+                                <p class="text-base-content/70 mb-8 max-w-lg mx-auto leading-relaxed">
+                                    Before you can create a <strong>Navigation Task</strong>, you need to define a <strong>Route</strong>. 
+                                    Routes are the geometric building blocks (start, finish, gates) that the scoring engine uses to track contestants.
+                                </p>
+                                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                                    <a href="{% fe_url 'ROUTE_EDITOR_CREATE' %}" class="btn btn-primary btn-lg px-8">
+                                        Create Your First Route
+                                    </a>
+                                    <a href="{% fe_url 'ROUTE_EDITOR_LIST' %}" class="btn btn-outline btn-lg px-8">
+                                        Browse Existing Routes
+                                    </a>
+                                </div>
+                                <div class="mt-8 text-xs opacity-50 max-w-md mx-auto italic">
+                                    Once your route is saved, return here to create a Navigation Task. You can manage and find links to all your routes at the <a href="{% fe_url 'ROUTE_EDITOR_LIST' %}" class="link">Route Management</a> page.
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% if "change_contest" in contest_permissions %}
+                <div class="flex justify-end mt-6">
+                    <a href="{% url 'navigationtaskwizard' object.pk %}" class="btn btn-primary">
+                        {% lucide "plus" size=18 %}
+                        Add New Navigation Task
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
             <!-- Access & management -->
             {% if "view_contest" in contest_permissions %}
-            <div class="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div class="mt-8 grid grid-cols-1 xl:grid-cols-3 gap-4">
                 <div class="xl:col-span-2 space-y-4">
                     <div class="card bg-info/10 border border-info/20 shadow-sm">
                         <div class="card-body p-5">
@@ -194,105 +293,6 @@
                 {% endif %}
             </div>
             {% endif %}
-
-            <!-- Tasks List -->
-            <div class="mt-8">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {% for navigation_task in object.navigationtask_set.all %}
-                    <div class="card bg-base-200/50 shadow-sm border border-base-300">
-                        <div class="card-body p-4">
-                            <div class="flex justify-between items-start mb-2">
-                                <div class="flex-1">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <h3 class="font-bold text-lg flex-1">
-                                            {% if "view_contest" in contest_permissions %}
-                                                <a href="{% url 'navigationtask_detail' navigation_task.id %}" class="link link-hover">{{ navigation_task.name }}</a>
-                                            {% else %}
-                                                {{ navigation_task.name }}
-                                            {% endif %}
-                                        </h3>
-                                        <a href="{% fe_url 'COMPETITION_MAP_DETAIL' contestId=object.pk navigationTaskId=navigation_task.pk %}" class="btn btn-xs btn-outline btn-info gap-1 whitespace-nowrap">
-                                            {% lucide "map-pin" size=12 class="lucide lucide-map-pin" %}
-                                            Live Map
-                                        </a>
-                                    </div>
-                                    <div class="flex items-center gap-1 mt-1">
-                                        {% render_publicity_icon navigation_task.is_public navigation_task.is_featured class_name="inline-block" %}
-                                        <span class="text-xs opacity-70">({{ navigation_task.share_string }})</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="grid grid-cols-1 gap-2 text-sm">
-                                <div class="bg-base-100 p-2 rounded flex justify-between">
-                                    <span class="opacity-70">Start:</span>
-                                    <span class="font-mono text-xs">{{ navigation_task.start_time|date:"Y-m-d H:i" }}</span>
-                                </div>
-                                <div class="bg-base-100 p-2 rounded flex justify-between">
-                                    <span class="opacity-70">Finish:</span>
-                                    <span class="font-mono text-xs">{{ navigation_task.finish_time|date:"Y-m-d H:i" }}</span>
-                                </div>
-                                <div class="bg-base-100 p-2 rounded">
-                                    <div class="opacity-70 mb-1">Scorecard:</div>
-                                    <div class="truncate">{{ navigation_task.original_scorecard }}</div>
-                                </div>
-                                {% if "change_contest" in contest_permissions %}
-                                <div class="mt-4">
-                                    {% if navigation_task.allow_self_management %}
-                                    <a href="{% url 'hangar_flyer' navigation_task.pk %}" class="btn btn-xs btn-outline w-full gap-1">
-                                        {% lucide "file-text" size=12 %}
-                                        Hangar Flyer
-                                    </a>
-                                    {% else %}
-                                    <div class="tooltip tooltip-bottom w-full" data-tip="Enable 'Allow self-management' in task settings to use the flyer">
-                                        <button class="btn btn-xs btn-outline w-full gap-1" disabled>
-                                            {% lucide "file-text" size=12 %}
-                                            Hangar Flyer
-                                        </button>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% empty %}
-                        {% if "change_contest" in contest_permissions and not user_has_routes %}
-                        <div class="col-span-full">
-                            <div class="bg-base-200 p-8 md:p-12 rounded-3xl text-center border-2 border-dashed border-base-300">
-                                <div class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
-                                    {% lucide "route" size=32 %}
-                                </div>
-                                <h3 class="text-xl md:text-2xl font-bold mb-4 italic">Ready to host your first task?</h3>
-                                <p class="text-base-content/70 mb-8 max-w-lg mx-auto leading-relaxed">
-                                    Before you can create a <strong>Navigation Task</strong>, you need to define a <strong>Route</strong>. 
-                                    Routes are the geometric building blocks (start, finish, gates) that the scoring engine uses to track contestants.
-                                </p>
-                                <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                                    <a href="{% fe_url 'ROUTE_EDITOR_CREATE' %}" class="btn btn-primary btn-lg px-8">
-                                        Create Your First Route
-                                    </a>
-                                    <a href="{% fe_url 'ROUTE_EDITOR_LIST' %}" class="btn btn-outline btn-lg px-8">
-                                        Browse Existing Routes
-                                    </a>
-                                </div>
-                                <div class="mt-8 text-xs opacity-50 max-w-md mx-auto italic">
-                                    Once your route is saved, return here to create a Navigation Task. You can manage and find links to all your routes at the <a href="{% fe_url 'ROUTE_EDITOR_LIST' %}" class="link">Route Management</a> page.
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-                {% if "change_contest" in contest_permissions %}
-                <div class="flex justify-end mt-6">
-                    <a href="{% url 'navigationtaskwizard' object.pk %}" class="btn btn-primary">
-                        {% lucide "plus" size=18 %}
-                        Add New Navigation Task
-                    </a>
-                </div>
-                {% endif %}
-            </div>
         </div>
     </div>
 </div>
