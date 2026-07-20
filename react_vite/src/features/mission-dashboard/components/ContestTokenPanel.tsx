@@ -26,7 +26,7 @@ const ContestTokenPanel: React.FC<Props> = ({ grants = [], currentTokenGrantId, 
             <div className="card-body p-4 gap-3">
                 <h3 className="card-title text-lg">Contest token</h3>
                 <div className="text-sm opacity-75">
-                    Choose which token package defines this contest’s limits. Replacing a token consumes the new token as well; spent tokens are never restored, even if the contest is deleted.
+                    Choose which token package defines this contest’s limits. Replacing a token consumes the new token as well; spent tokens are never restored, even if the contest is deleted. Contestant and task usage now reflects historical started usage, so deleting started flights or used tasks does not refund capacity.
                 </div>
                 <div className="space-y-2">
                     {grants.map(grant => {

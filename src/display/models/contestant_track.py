@@ -150,8 +150,25 @@ class ContestantTrack(models.Model):
         self.__push_change()
 
     def set_calculator_started(self):
+        from display.models import ContestUsageLedger
+
+        if self.calculator_started:
+            self.__push_change()
+            return
         self.calculator_started = True
         self.save(update_fields=["calculator_started"])
+        contest = self.contestant.navigation_task.contest
+        ContestUsageLedger.objects.get_or_create(
+            contest=contest,
+            contestant=self.contestant,
+            kind=ContestUsageLedger.CONTESTANT_STARTED,
+            defaults={"navigation_task": self.contestant.navigation_task},
+        )
+        ContestUsageLedger.objects.get_or_create(
+            contest=contest,
+            navigation_task=self.contestant.navigation_task,
+            kind=ContestUsageLedger.TASK_STARTED,
+        )
         self.__push_change()
 
     def set_passed_starting_gate(self):

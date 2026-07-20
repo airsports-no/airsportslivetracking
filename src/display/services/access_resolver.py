@@ -5,13 +5,20 @@ from display.models import (
     ClubManagerMembership,
     Contest,
     ContestTokenAssignment,
+    ContestUsageLedger,
 )
 
 
 
 def resolve_contest_access(contest: Contest) -> AccessResolution:
-    contestants_used = contest.contestteam_set.count()
-    tasks_used = contest.navigationtask_set.count()
+    contestants_used = ContestUsageLedger.objects.filter(
+        contest=contest,
+        kind=ContestUsageLedger.CONTESTANT_STARTED,
+    ).count()
+    tasks_used = ContestUsageLedger.objects.filter(
+        contest=contest,
+        kind=ContestUsageLedger.TASK_STARTED,
+    ).count()
 
     token_assignment = _contest_token_assignment(contest)
     if token_assignment is not None:

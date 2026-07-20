@@ -14,10 +14,10 @@ const AccessTierBanner: React.FC<Props> = ({ accessStatus }) => {
     const isClubPass = accessStatus.source_type === 'club_pass';
     const badgeClass = isToken ? 'badge badge-primary' : isClubPass ? 'badge badge-success' : 'badge badge-info';
     const message = isToken
-        ? 'This contest is using a dedicated token package. Replacing the token will consume a new token; previous tokens stay spent.'
+        ? 'This contest is using a dedicated token package. Replacing the token will consume a new token; previous tokens stay spent. The used counts below are historical started usage, not just currently existing teams or tasks.'
         : isClubPass
-            ? 'This contest inherits access from an active club pass.'
-            : 'This contest is currently using the default free/pass fallback rules.';
+            ? 'This contest inherits access from an active club pass. The used counts below are historical started usage, not just currently existing teams or tasks.'
+            : 'This contest is currently using the default free/pass fallback rules. The used counts below are historical started usage, not just currently existing teams or tasks.';
 
     return (
         <div className="alert alert-info mb-4 shadow-sm">
