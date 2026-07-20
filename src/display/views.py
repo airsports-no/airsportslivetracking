@@ -1315,6 +1315,19 @@ class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, U
     permission_required = ("display.change_contest",)
     form_class = ContestForm
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["managed_club_queryset"] = Club.objects.filter(
+            clubmanagermembership__user=self.request.user,
+            clubmanagermembership__is_active=True,
+        ).distinct().order_by("name")
+        kwargs["token_grant_queryset"] = UserTokenGrant.objects.filter(
+            user=self.request.user,
+            token_type__is_active=True,
+            quantity_consumed__lt=F("quantity_total"),
+        ).select_related("token_type")
+        return kwargs
+
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
         instance.country = form.cleaned_data["country_code"]

@@ -64,7 +64,7 @@ class TestAccessResolver(TestCase):
         self.assertEqual(25, resolution.contestant_limit)
         self.assertEqual(3, resolution.task_limit)
 
-    def test_club_level_grant_requires_active_manager_membership(self):
+    def test_club_level_grant_requires_active_membership(self):
         now = datetime.datetime.now(datetime.timezone.utc)
         AccessGrant.objects.create(
             club=self.club,
@@ -79,9 +79,34 @@ class TestAccessResolver(TestCase):
         without_membership = resolve_contest_access(self.contest)
         self.assertEqual("free", without_membership.tier_code)
 
-        ClubManagerMembership.objects.create(club=self.club, user=self.user, is_active=True)
-        with_membership = resolve_contest_access(self.contest)
+        ClubManagerMembership.objects.create(
+            club=self.club,
+            user=self.user,
+            is_active=True,
+            role=ClubManagerMembership.MANAGER,
+        )
+        with_manager_membership = resolve_contest_access(self.contest)
 
-        self.assertEqual("annual_club_pass", with_membership.tier_code)
-        self.assertEqual("club_pass", with_membership.source_type)
-        self.assertEqual(10, with_membership.task_limit)
+        self.assertEqual("annual_club_pass", with_manager_membership.tier_code)
+        self.assertEqual("club_pass", with_manager_membership.source_type)
+        self.assertEqual(10, with_manager_membership.task_limit)
+
+    def test_club_level_grant_applies_for_owner_role(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        AccessGrant.objects.create(
+            club=self.club,
+            tier=AccessGrant.ANNUAL_CLUB_PASS,
+            status=AccessGrant.ACTIVE,
+            starts_at=now - datetime.timedelta(days=1),
+            expires_at=now + datetime.timedelta(days=1),
+            contestant_limit=15,
+            task_limit=4,
+        )
+        ClubManagerMembership.objects.create(club=self.club, user=self.user, is_active=True, role=ClubManagerMembership.OWNER)
+
+        resolution = resolve_contest_access(self.contest)
+
+        self.assertEqual("annual_club_pass", resolution.tier_code)
+        self.assertEqual("club_pass", resolution.source_type)
+        self.assertEqual(15, resolution.contestant_limit)
+        self.assertEqual(4, resolution.task_limit)

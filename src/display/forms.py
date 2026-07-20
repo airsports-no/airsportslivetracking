@@ -430,7 +430,6 @@ class ContestForm(forms.ModelForm):
         self.fields["initial_token_grant"].help_text = "Assign a token immediately when creating the contest. Spent tokens are never restored."
         self.fields["organizing_club"].queryset = managed_club_queryset
         self.fields["organizing_club"].required = False
-        self.fields["organizing_club"].help_text = "Optional club whose annual pass or access grants should apply to this contest."
         datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
         self.fields["start_time"].widget = datetime_widget
         self.fields["finish_time"].widget = datetime_widget
@@ -444,6 +443,7 @@ class ContestForm(forms.ModelForm):
                 "time_zone",
                 "start_time",
                 "finish_time",
+                "organizing_club",
                 "initial_token_grant",
             ),
             Fieldset(

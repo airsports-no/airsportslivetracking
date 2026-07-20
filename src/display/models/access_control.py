@@ -170,10 +170,26 @@ class AccessGrant(models.Model):
     class Meta:
         ordering = ("-created_at",)
 
+    def derive_tier(self) -> str | None:
+        if self.club_id:
+            return self.ANNUAL_CLUB_PASS
+        if self.contest_id:
+            return self.SINGLE_EVENT
+        return None
+
     def clean(self):
         super().clean()
         if bool(self.club_id) == bool(self.contest_id):
             raise ValidationError("AccessGrant must target exactly one of club or contest")
+        derived_tier = self.derive_tier()
+        if derived_tier is not None:
+            self.tier = derived_tier
+
+    def save(self, *args, **kwargs):
+        derived_tier = self.derive_tier()
+        if derived_tier is not None:
+            self.tier = derived_tier
+        super().save(*args, **kwargs)
 
     @property
     def is_active(self) -> bool:

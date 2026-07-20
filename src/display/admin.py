@@ -139,8 +139,33 @@ class AccessGrantAdmin(admin.ModelAdmin):
     )
     list_filter = ("tier", "status")
     search_fields = ("club__name", "contest__name", "invoice_reference")
-    exclude = ("created_by", "updated_by")
-    readonly_fields = ("created_by", "updated_by")
+    exclude = ("created_by", "updated_by", "tier")
+    readonly_fields = ("created_by", "updated_by", "derived_tier_display")
+    fields = (
+        "club",
+        "contest",
+        "derived_tier_display",
+        "status",
+        "starts_at",
+        "expires_at",
+        "contestant_limit",
+        "task_limit",
+        "notes",
+        "invoice_reference",
+        "created_by",
+        "updated_by",
+    )
+
+    def derived_tier_display(self, obj):
+        if obj and obj.pk:
+            return obj.get_tier_display()
+        if obj and obj.club_id:
+            return AccessGrant.ANNUAL_CLUB_PASS.replace("_", " ").title()
+        if obj and obj.contest_id:
+            return AccessGrant.SINGLE_EVENT.replace("_", " ").title()
+        return "Determined automatically after choosing club or contest"
+
+    derived_tier_display.short_description = "Tier"
 
     def save_model(self, request, obj, form, change):
         if not obj.created_by_id:

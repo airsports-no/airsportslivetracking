@@ -33,6 +33,7 @@ class TestAccessControlAdmin(SimpleTestCase):
     def test_access_and_token_admin_hide_audit_fields(self):
         self.assertIn("created_by", admin.site._registry[AccessGrant].exclude)
         self.assertIn("updated_by", admin.site._registry[AccessGrant].exclude)
+        self.assertIn("tier", admin.site._registry[AccessGrant].exclude)
         self.assertIn("created_by", admin.site._registry[UserTokenGrant].exclude)
         self.assertIn("updated_by", admin.site._registry[UserTokenGrant].exclude)
 

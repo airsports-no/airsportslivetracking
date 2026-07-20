@@ -124,7 +124,13 @@ class Contest(models.Model):
         help_text="The finish time of the contest. Used for sorting. All navigation tasks should ideally be within this time interval."
     )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
-    organizing_club = models.ForeignKey("Club", null=True, blank=True, on_delete=models.SET_NULL)
+    organizing_club = models.ForeignKey(
+        "Club",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        help_text="Optional club whose active club-level access grant should apply to this contest.",
+    )
     contest_teams = models.ManyToManyField("Team", blank=True, through=ContestTeam)
     is_public = models.BooleanField(
         default=False,
@@ -207,6 +213,7 @@ class Contest(models.Model):
         """
         Must be called when a contest is created in order to initialise correct time zones and permissions.
         """
+        self.created_by = user
         self.start_time = self.start_time.replace(tzinfo=self.time_zone)
         self.finish_time = self.finish_time.replace(tzinfo=self.time_zone)
         self.save()

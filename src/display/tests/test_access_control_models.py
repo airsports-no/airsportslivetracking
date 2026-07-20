@@ -56,7 +56,7 @@ class TestAccessControlModels(TestCase):
         now = datetime.datetime.now(datetime.timezone.utc)
         active_grant = AccessGrant.objects.create(
             club=self.club,
-            tier=AccessGrant.ANNUAL_CLUB_PASS,
+            tier=AccessGrant.SINGLE_EVENT,
             status=AccessGrant.ACTIVE,
             starts_at=now - datetime.timedelta(days=1),
             expires_at=now + datetime.timedelta(days=1),
@@ -65,7 +65,7 @@ class TestAccessControlModels(TestCase):
         )
         expired_grant = AccessGrant.objects.create(
             contest=self.contest,
-            tier=AccessGrant.SINGLE_EVENT,
+            tier=AccessGrant.ANNUAL_CLUB_PASS,
             status=AccessGrant.ACTIVE,
             starts_at=now - datetime.timedelta(days=3),
             expires_at=now - datetime.timedelta(days=1),
@@ -82,6 +82,9 @@ class TestAccessControlModels(TestCase):
             task_limit=6,
         )
 
+        self.assertEqual(AccessGrant.ANNUAL_CLUB_PASS, active_grant.tier)
+        self.assertEqual(AccessGrant.SINGLE_EVENT, expired_grant.tier)
+        self.assertEqual(AccessGrant.ANNUAL_CLUB_PASS, cancelled_grant.tier)
         self.assertTrue(active_grant.is_active)
         self.assertFalse(expired_grant.is_active)
         self.assertFalse(cancelled_grant.is_active)
