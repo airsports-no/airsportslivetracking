@@ -1,4 +1,4 @@
-from live_tracking_map import settings
+from django.conf import settings
 from display.models import (
     AccessGrant,
     AccessResolution,
@@ -7,7 +7,6 @@ from display.models import (
     ContestTokenAssignment,
     ContestUsageLedger,
 )
-
 
 
 def resolve_contest_access(contest: Contest) -> AccessResolution:
@@ -22,36 +21,42 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
 
     token_assignment = _contest_token_assignment(contest)
     if token_assignment is not None:
-        return AccessResolution(
-            tier_code=AccessGrant.TOKEN,
-            tier_label=token_assignment.token_type.name,
-            source_type="contest_token",
-            source_id=token_assignment.id,
-            contestant_limit=token_assignment.token_type.contestant_limit,
-            task_limit=token_assignment.token_type.task_limit,
-            contestants_used=contestants_used,
-            tasks_used=tasks_used,
-            enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
-            token_grant_id=token_assignment.token_grant_id,
-            token_type_id=token_assignment.token_type_id,
+        return _apply_more_advantageous_free_defaults(
+            AccessResolution(
+                tier_code=AccessGrant.TOKEN,
+                tier_label=token_assignment.token_type.name,
+                source_type="contest_token",
+                source_id=token_assignment.id,
+                contestant_limit=token_assignment.token_type.contestant_limit,
+                task_limit=token_assignment.token_type.task_limit,
+                contestants_used=contestants_used,
+                tasks_used=tasks_used,
+                enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
+                token_grant_id=token_assignment.token_grant_id,
+                token_type_id=token_assignment.token_type_id,
+            )
         )
 
     contest_grant = _first_active_contest_grant(contest)
     if contest_grant is not None:
-        return _resolution_from_grant(
-            contest_grant,
-            source_type="contest_override",
-            contestants_used=contestants_used,
-            tasks_used=tasks_used,
+        return _apply_more_advantageous_free_defaults(
+            _resolution_from_grant(
+                contest_grant,
+                source_type="contest_override",
+                contestants_used=contestants_used,
+                tasks_used=tasks_used,
+            )
         )
 
     club_grant = _first_active_club_grant(contest)
     if club_grant is not None:
-        return _resolution_from_grant(
-            club_grant,
-            source_type="club_pass",
-            contestants_used=contestants_used,
-            tasks_used=tasks_used,
+        return _apply_more_advantageous_free_defaults(
+            _resolution_from_grant(
+                club_grant,
+                source_type="club_pass",
+                contestants_used=contestants_used,
+                tasks_used=tasks_used,
+            )
         )
 
     return AccessResolution(
@@ -64,8 +69,9 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
         contestants_used=contestants_used,
         tasks_used=tasks_used,
         enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
+        free_contestant_limit=settings.DEFAULT_FREE_CONTESTANT_LIMIT,
+        free_task_limit=settings.DEFAULT_FREE_TASK_LIMIT,
     )
-
 
 
 def _contest_token_assignment(contest: Contest):
@@ -75,13 +81,11 @@ def _contest_token_assignment(contest: Contest):
         return None
 
 
-
 def _first_active_contest_grant(contest: Contest):
     for grant in AccessGrant.objects.filter(contest=contest).order_by("-created_at"):
         if grant.is_active:
             return grant
     return None
-
 
 
 def _first_active_club_grant(contest: Contest):
@@ -99,7 +103,6 @@ def _first_active_club_grant(contest: Contest):
     return None
 
 
-
 def _resolution_from_grant(grant: AccessGrant, *, source_type: str, contestants_used: int, tasks_used: int) -> AccessResolution:
     return AccessResolution(
         tier_code=grant.tier,
@@ -112,3 +115,33 @@ def _resolution_from_grant(grant: AccessGrant, *, source_type: str, contestants_
         tasks_used=tasks_used,
         enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
     )
+
+
+def _apply_more_advantageous_free_defaults(resolution: AccessResolution) -> AccessResolution:
+    effective_contestant_limit, contestant_uses_free = _most_advantageous_limit(
+        resolution.contestant_limit,
+        settings.DEFAULT_FREE_CONTESTANT_LIMIT,
+    )
+    effective_task_limit, task_uses_free = _most_advantageous_limit(
+        resolution.task_limit,
+        settings.DEFAULT_FREE_TASK_LIMIT,
+    )
+    resolution.package_contestant_limit = resolution.contestant_limit
+    resolution.package_task_limit = resolution.task_limit
+    resolution.free_contestant_limit = settings.DEFAULT_FREE_CONTESTANT_LIMIT
+    resolution.free_task_limit = settings.DEFAULT_FREE_TASK_LIMIT
+    resolution.contestant_limit = effective_contestant_limit
+    resolution.task_limit = effective_task_limit
+    resolution.contestant_limit_uses_free_default = contestant_uses_free
+    resolution.task_limit_uses_free_default = task_uses_free
+    return resolution
+
+
+def _most_advantageous_limit(package_limit: int | None, free_limit: int | None) -> tuple[int | None, bool]:
+    if package_limit is None:
+        return None, False
+    if free_limit is None:
+        return None, True
+    if free_limit > package_limit:
+        return free_limit, True
+    return package_limit, False

@@ -16,6 +16,7 @@ from display.views import (
     ContestCreateView,
     ContestUpdateView,
     ContestantDeleteView,
+    ContestTokenManagementView,
     ContestDeleteView,
     NavigationTaskDeleteView,
     ContestTeamList,
@@ -149,6 +150,7 @@ urlpatterns = [
     ),
     path("contest/<int:pk>/delete/", ContestDeleteView.as_view(), name="contest_delete"),
     path("contest/<int:pk>/update/", ContestUpdateView.as_view(), name="contest_update"),
+    path("contest/<int:pk>/token/<str:action>/", ContestTokenManagementView.as_view(), name="contest_token_management"),
     path("contest/<int:pk>/share/", share_contest, name="contest_share"),
     path("navigationtask/<int:pk>/", NavigationTaskDetailView.as_view(), name="navigationtask_detail"),
     path(

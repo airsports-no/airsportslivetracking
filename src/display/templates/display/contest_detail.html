@@ -76,6 +76,125 @@
                 </div>
             </div>
 
+            <!-- Access & management -->
+            {% if "view_contest" in contest_permissions %}
+            <div class="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-4">
+                <div class="xl:col-span-2 space-y-4">
+                    <div class="card bg-info/10 border border-info/20 shadow-sm">
+                        <div class="card-body p-5">
+                            <h2 class="card-title text-lg mb-2">Access & Limits</h2>
+                            <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                <span class="badge badge-info">{{ access_status.tier_label }}</span>
+                                <span class="text-xs opacity-70">Source: {{ access_status.source_type }}</span>
+                                {% if access_status.uses_more_advantageous_free_limits %}
+                                    <span class="badge badge-success badge-outline">Free-tier fallback improved the effective limits</span>
+                                {% endif %}
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                <div class="bg-base-100 rounded-lg p-3">
+                                    <div class="opacity-70">Contestants</div>
+                                    <div class="font-semibold">{{ access_status.contestants_used }} / {% if access_status.contestant_limit == None %}Unlimited{% else %}{{ access_status.contestant_limit }}{% endif %}</div>
+                                    {% if access_status.contestant_limit_uses_free_default %}
+                                        <div class="text-xs opacity-70 mt-1">Package limit {% if access_status.package_contestant_limit == None %}Unlimited{% else %}{{ access_status.package_contestant_limit }}{% endif %}, but free tier allows {% if access_status.free_contestant_limit == None %}Unlimited{% else %}{{ access_status.free_contestant_limit }}{% endif %}, so the more advantageous free-tier limit applies.</div>
+                                    {% endif %}
+                                </div>
+                                <div class="bg-base-100 rounded-lg p-3">
+                                    <div class="opacity-70">Tasks</div>
+                                    <div class="font-semibold">{{ access_status.tasks_used }} / {% if access_status.task_limit == None %}Unlimited{% else %}{{ access_status.task_limit }}{% endif %}</div>
+                                    {% if access_status.task_limit_uses_free_default %}
+                                        <div class="text-xs opacity-70 mt-1">Package limit {% if access_status.package_task_limit == None %}Unlimited{% else %}{{ access_status.package_task_limit }}{% endif %}, but free tier allows {% if access_status.free_task_limit == None %}Unlimited{% else %}{{ access_status.free_task_limit }}{% endif %}, so the more advantageous free-tier limit applies.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-xs opacity-70 mt-3">Usage reflects historical started activity, not just currently existing tasks or contestants.</div>
+                        </div>
+                    </div>
+
+                    {% if object.organizing_club %}
+                    <div class="card bg-base-200 shadow-sm border border-base-300">
+                        <div class="card-body p-5">
+                            <h2 class="card-title text-lg">Club Access</h2>
+                            <p class="text-sm opacity-80">This contest is attached to <span class="font-semibold">{{ object.organizing_club }}</span>.</p>
+                            {% if club_access_grants %}
+                                <div class="mt-3 space-y-2">
+                                    {% for grant in club_access_grants %}
+                                        <div class="rounded-lg bg-base-100 p-3 text-sm">
+                                            <div class="font-semibold">{{ grant.get_tier_display }}</div>
+                                            <div class="opacity-70">Contestants: {% if grant.contestant_limit == None %}Unlimited{% else %}{{ grant.contestant_limit }}{% endif %} · Tasks: {% if grant.task_limit == None %}Unlimited{% else %}{{ grant.task_limit }}{% endif %}</div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-sm opacity-70 mt-2">No active club-level access grants are currently attached to this club.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if "change_contest" in contest_permissions %}
+                <div class="space-y-4">
+                    <div class="card bg-base-200 shadow-sm border border-base-300">
+                        <div class="card-body p-5">
+                            <h2 class="card-title text-lg">Token Management</h2>
+                            {% if current_token_assignment %}
+                                <div class="rounded-lg bg-base-100 p-3 text-sm mb-3">
+                                    <div class="font-semibold">Current token</div>
+                                    <div>{{ current_token_assignment.token_type }}</div>
+                                    <div class="opacity-70">Grant {{ current_token_assignment.token_grant_id }}</div>
+                                </div>
+                            {% else %}
+                                <div class="text-sm opacity-70 mb-3">No token is currently assigned to this contest.</div>
+                            {% endif %}
+                            {% if available_token_grants %}
+                                <div class="space-y-2">
+                                    {% for grant in available_token_grants %}
+                                        {% if current_token_assignment %}
+                                            {% url 'contest_token_management' object.pk 'replace' as token_management_url %}
+                                        {% else %}
+                                            {% url 'contest_token_management' object.pk 'assign' as token_management_url %}
+                                        {% endif %}
+                                        <form method="post" action="{{ token_management_url }}" class="rounded-lg bg-base-100 p-3 space-y-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="token_grant_id" value="{{ grant.id }}">
+                                            <div class="text-sm">
+                                                <div class="font-semibold">{{ grant.token_type.name }}</div>
+                                                <div class="opacity-70">Remaining {{ grant.quantity_remaining }} / {{ grant.quantity_total }}</div>
+                                            </div>
+                                            <button type="submit" class="btn btn-sm btn-primary w-full">{% if current_token_assignment %}Replace token{% else %}Assign token{% endif %}</button>
+                                        </form>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-sm opacity-70">No token grants with remaining slots are available for this user.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if object.organizing_club %}
+                    <div class="card bg-base-200 shadow-sm border border-base-300">
+                        <div class="card-body p-5">
+                            <h2 class="card-title text-lg">Club Managers</h2>
+                            {% if club_manager_memberships %}
+                                <div class="space-y-2">
+                                    {% for membership in club_manager_memberships %}
+                                        <div class="rounded-lg bg-base-100 p-3 text-sm flex justify-between gap-2">
+                                            <span>{{ membership.user.email }}</span>
+                                            <span class="badge badge-ghost badge-sm">{{ membership.get_role_display }}</span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-sm opacity-70">No active club managers are currently listed.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
             <!-- Tasks List -->
             <div class="mt-8">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -733,6 +733,13 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             "enforcement_mode": resolution.enforcement_mode,
             "token_grant_id": resolution.token_grant_id,
             "token_type_id": resolution.token_type_id,
+            "package_contestant_limit": resolution.package_contestant_limit,
+            "package_task_limit": resolution.package_task_limit,
+            "free_contestant_limit": resolution.free_contestant_limit,
+            "free_task_limit": resolution.free_task_limit,
+            "contestant_limit_uses_free_default": resolution.contestant_limit_uses_free_default,
+            "task_limit_uses_free_default": resolution.task_limit_uses_free_default,
+            "uses_more_advantageous_free_limits": resolution.uses_more_advantageous_free_limits,
         }
 
     def get_available_token_grants(self, contest):

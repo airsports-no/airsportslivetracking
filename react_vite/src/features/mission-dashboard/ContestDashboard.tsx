@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useLayoutEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Contest, NavigationTask, ContestResults, MyContestTeam, Club } from './types';
+import { Contest, NavigationTask, ContestResults, MyContestTeam } from './types';
 import { Contestant } from '../competition-map/types';
 import { Loading } from '../route-editor/components/basicComponents';
 import TaskCard from './components/TaskCard';
@@ -11,15 +11,11 @@ import ScheduleFlightForm from './components/ScheduleFlightForm';
 import TaskScoreDisplay from './components/TaskScoreDisplay';
 import UpcomingFlights from './components/UpcomingFlights';
 import PublicityIcon from './components/PublicityIcon';
-import AccessTierBanner from './components/AccessTierBanner';
-import ContestTokenPanel from './components/ContestTokenPanel';
-import ManagedClubPanel from './components/ManagedClubPanel';
 import { HelpCircle } from 'lucide-react'; // Import HelpCircle
 import { reverse, generatePath } from '../../urls';
 import { useMissionDashboardStore } from './store';
 import { fetchNavigationTask } from '../competition-map/api';
 import { formatDateInterval } from '../../utils';
-import { assignContestToken, replaceContestToken, fetchManagedClubs, addClubManager, deactivateClubManager } from './api';
 
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
@@ -59,20 +55,8 @@ const ContestDashboard = () => {
     const [showScheduleForm, setShowScheduleForm] = useState<NavigationTask | null>(null);
     const [viewingScoresForTask, setViewingScoresForTask] = useState<NavigationTask | null>(null);
     const [loadingTaskScores, setLoadingTaskScores] = useState(false);
-    const [managedClub, setManagedClub] = useState<Club | null>(null);
 
     const canManageThisContest = contest?.is_editor || document.configuration.is_superuser;
-
-    useEffect(() => {
-        if (contest?.organizing_club && canManageThisContest) {
-            fetchManagedClubs().then(clubs => {
-                const match = clubs.find(c => c.id === contest.organizing_club);
-                setManagedClub(match || null);
-            }).catch(() => setManagedClub(null));
-        } else {
-            setManagedClub(null);
-        }
-    }, [contest?.organizing_club, canManageThisContest]);
 
 
     const hasFutureFlightsScheduled = useMemo(() => {
@@ -143,26 +127,6 @@ const ContestDashboard = () => {
     const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContantId: number) => {
         try {
             await cancelFlight(contestId, navigationTaskId, futureContantId);
-        } catch (error) {
-            setError((error as Error).message);
-        }
-    };
-
-    const handleAssignToken = async (tokenGrantId: number) => {
-        if (!contest) return;
-        try {
-            await assignContestToken(contest.id, tokenGrantId);
-            await fetchContest(contest.id, true);
-        } catch (error) {
-            setError((error as Error).message);
-        }
-    };
-
-    const handleReplaceToken = async (tokenGrantId: number) => {
-        if (!contest) return;
-        try {
-            await replaceContestToken(contest.id, tokenGrantId);
-            await fetchContest(contest.id, true);
         } catch (error) {
             setError((error as Error).message);
         }
@@ -271,7 +235,6 @@ const ContestDashboard = () => {
 
             {/* Contest Header */}
             <div className="mb-8">
-                <AccessTierBanner accessStatus={contest.access_status} />
                 {(contest.header_image || contest.logo) && (
                     <img
                         src={contest.header_image || contest.logo}
@@ -342,38 +305,6 @@ const ContestDashboard = () => {
                     </div>
                 </div>
             </div>
-
-            {canManageThisContest && (
-                <div className="mb-8">
-                    <ContestTokenPanel
-                        grants={contest.available_token_grants}
-                        currentTokenGrantId={contest.access_status?.token_grant_id}
-                        onAssign={handleAssignToken}
-                        onReplace={handleReplaceToken}
-                    />
-                </div>
-            )}
-
-            {canManageThisContest && managedClub && (
-                <div className="mb-8">
-                    <ManagedClubPanel
-                        clubName={managedClub.name}
-                        memberships={managedClub.manager_memberships}
-                        onAddManager={async (identifier, role) => {
-                            await addClubManager(managedClub.id, identifier, role);
-                            const refreshed = await fetchManagedClubs();
-                            const match = refreshed.find(c => c.id === managedClub.id) || null;
-                            setManagedClub(match);
-                        }}
-                        onDeactivateManager={async (membershipId) => {
-                            await deactivateClubManager(managedClub.id, membershipId);
-                            const refreshed = await fetchManagedClubs();
-                            const match = refreshed.find(c => c.id === managedClub.id) || null;
-                            setManagedClub(match);
-                        }}
-                    />
-                </div>
-            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Task Suite */}

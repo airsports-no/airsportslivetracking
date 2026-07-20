@@ -222,6 +222,12 @@ class AccessResolution:
         enforcement_mode: str,
         token_grant_id: int | None = None,
         token_type_id: int | None = None,
+        package_contestant_limit: int | None = None,
+        package_task_limit: int | None = None,
+        free_contestant_limit: int | None = None,
+        free_task_limit: int | None = None,
+        contestant_limit_uses_free_default: bool = False,
+        task_limit_uses_free_default: bool = False,
     ):
         self.tier_code = tier_code
         self.tier_label = tier_label
@@ -234,3 +240,13 @@ class AccessResolution:
         self.enforcement_mode = enforcement_mode
         self.token_grant_id = token_grant_id
         self.token_type_id = token_type_id
+        self.package_contestant_limit = package_contestant_limit if package_contestant_limit is not None else contestant_limit
+        self.package_task_limit = package_task_limit if package_task_limit is not None else task_limit
+        self.free_contestant_limit = free_contestant_limit
+        self.free_task_limit = free_task_limit
+        self.contestant_limit_uses_free_default = contestant_limit_uses_free_default
+        self.task_limit_uses_free_default = task_limit_uses_free_default
+
+    @property
+    def uses_more_advantageous_free_limits(self):
+        return self.contestant_limit_uses_free_default or self.task_limit_uses_free_default

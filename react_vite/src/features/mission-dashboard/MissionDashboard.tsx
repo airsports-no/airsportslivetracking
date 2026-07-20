@@ -16,7 +16,6 @@ import { Loading } from '../route-editor/components/basicComponents';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { reverse } from '../../urls';
 import { Map as MapIcon } from 'lucide-react';
-import ManagedClubPanel from './components/ManagedClubPanel';
 
 // Define NavigationTask interface based on likely API response structure
 interface NavigationTask {
@@ -38,7 +37,6 @@ const MissionDashboard = () => {
         myFutureFlights,
         myContestTeams,
         myEditorContests,
-        managedClubs,
         myPreviousFlights,
         fetchContests: fetchContestsFromStore,
         fetchOngoingNavigation: fetchOngoingNavigationFromStore,
@@ -46,7 +44,6 @@ const MissionDashboard = () => {
         fetchMyPreviousFlights: fetchMyPreviousFlightsFromStore,
         fetchMyContestTeams: fetchMyContestTeamsFromStore,
         fetchMyEditorContests: fetchMyEditorContestsFromStore,
-        fetchManagedClubs: fetchManagedClubsFromStore,
         cancelFlight: cancelFlightFromStore,
     } = useMissionDashboardStore();
 
@@ -208,7 +205,6 @@ const MissionDashboard = () => {
                 fetchPromises.push(fetchMyPreviousFlightsFromStore(true));
                 fetchPromises.push(fetchMyContestTeamsFromStore(true));
                 fetchPromises.push(fetchMyEditorContestsFromStore(true));
-                fetchPromises.push(fetchManagedClubsFromStore(true));
             }
 
             const now = new Date();
@@ -706,26 +702,6 @@ const MissionDashboard = () => {
                             <p className="text-center mt-2 sm:mt-4 col-span-full">No contests match your filters.</p>
                         )}
                     </div>
-                    {managedClubs.length > 0 && (
-                        <div className="mt-8 space-y-4">
-                            <h3 className="text-xl font-semibold">Managed Clubs</h3>
-                            {managedClubs.map((club) => (
-                                <ManagedClubPanel
-                                    key={club.id}
-                                    clubName={club.name}
-                                    memberships={club.manager_memberships}
-                                    onAddManager={async (identifier, role) => {
-                                        await api.addClubManager(club.id, identifier, role);
-                                        await fetchManagedClubsFromStore(true);
-                                    }}
-                                    onDeactivateManager={async (membershipId) => {
-                                        await api.deactivateClubManager(club.id, membershipId);
-                                        await fetchManagedClubsFromStore(true);
-                                    }}
-                                />
-                            ))}
-                        </div>
-                    )}
 
                     {/* My Contests Pagination UI */}
                     {totalMyPages > 1 && (

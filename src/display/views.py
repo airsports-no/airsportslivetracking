@@ -24,8 +24,8 @@ from django.contrib.auth.mixins import (
 
 from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculator_running_utilities import is_calculator_running
-from display.services.token_assignment import assign_token_to_contest
-from display.models import UserTokenGrant, ClubManagerMembership
+from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
+from display.models import UserTokenGrant, ClubManagerMembership, AccessGrant
 from playback_tools.playback import validate_gpx_file
 import rest_framework.exceptions as drf_exceptions
 from live_tracking_map import settings
@@ -103,6 +103,7 @@ from display.forms import (
     PersonForm,
     SignUpForm,
 )
+from display.services.access_resolver import resolve_contest_access
 from display.flight_order_and_maps.generate_flight_orders import (
     generate_flight_orders_latex,
     embed_map_in_pdf,
@@ -1301,12 +1302,52 @@ class ContestDetailView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, D
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        contest = self.get_object()
         if self.request.user.is_authenticated:
             context["user_has_routes"] = (
                 get_objects_for_user(self.request.user, "display.view_editableroute").exists()
             )
         else:
             context["user_has_routes"] = False
+
+        resolution = resolve_contest_access(contest)
+        context["access_status"] = {
+            "tier_code": resolution.tier_code,
+            "tier_label": resolution.tier_label,
+            "source_type": resolution.source_type,
+            "contestant_limit": resolution.contestant_limit,
+            "task_limit": resolution.task_limit,
+            "contestants_used": resolution.contestants_used,
+            "tasks_used": resolution.tasks_used,
+            "token_grant_id": resolution.token_grant_id,
+            "package_contestant_limit": resolution.package_contestant_limit,
+            "package_task_limit": resolution.package_task_limit,
+            "free_contestant_limit": resolution.free_contestant_limit,
+            "free_task_limit": resolution.free_task_limit,
+            "contestant_limit_uses_free_default": resolution.contestant_limit_uses_free_default,
+            "task_limit_uses_free_default": resolution.task_limit_uses_free_default,
+            "uses_more_advantageous_free_limits": resolution.uses_more_advantageous_free_limits,
+        }
+
+        if contest.organizing_club_id:
+            context["club_access_grants"] = AccessGrant.objects.filter(
+                club=contest.organizing_club,
+                status=AccessGrant.ACTIVE,
+            ).order_by("-created_at")
+
+        contest_permissions = get_user_perms(self.request.user, contest)
+        if "change_contest" in contest_permissions:
+            context["available_token_grants"] = UserTokenGrant.objects.filter(
+                user=self.request.user,
+                token_type__is_active=True,
+                quantity_consumed__lt=F("quantity_total"),
+            ).select_related("token_type").order_by("-created_at")
+            context["current_token_assignment"] = getattr(contest, "contesttokenassignment", None)
+            if contest.organizing_club_id:
+                context["club_manager_memberships"] = ClubManagerMembership.objects.filter(
+                    club=contest.organizing_club,
+                    is_active=True,
+                ).select_related("user").order_by("user__email")
         return context
 
 
@@ -1339,6 +1380,30 @@ class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, U
 
     def get_success_url(self):
         return reverse("contest_details", kwargs={"pk": self.get_object().pk})
+
+
+class ContestTokenManagementView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, View):
+    permission_required = ("display.change_contest",)
+
+    def get_permission_object(self):
+        return get_object_or_404(Contest, pk=self.kwargs["pk"])
+
+    def post(self, request, *args, **kwargs):
+        contest = self.get_permission_object()
+        token_grant_id = request.POST.get("token_grant_id")
+        action = self.kwargs["action"]
+        try:
+            if action == "assign":
+                assign_token_to_contest(contest, request.user, int(token_grant_id))
+                messages.success(request, "Token assigned to contest.")
+            elif action == "replace":
+                replace_token_for_contest(contest, request.user, int(token_grant_id))
+                messages.success(request, "Contest token replaced.")
+            else:
+                raise Http404()
+        except (ValidationError, ValueError) as exc:
+            messages.error(request, str(exc))
+        return HttpResponseRedirect(reverse("contest_details", kwargs={"pk": contest.pk}))
 
 
 class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
