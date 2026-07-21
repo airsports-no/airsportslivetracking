@@ -66,7 +66,6 @@ from display.models import (
     ClubManagerMembership,
 )
 from display.services.access_resolver import resolve_contest_access
-from display.services.capacity_enforcement import assert_can_add_navigation_task
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
@@ -727,18 +726,13 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             "source_type": resolution.source_type,
             "source_id": resolution.source_id,
             "contestant_limit": resolution.contestant_limit,
-            "task_limit": resolution.task_limit,
             "contestants_used": resolution.contestants_used,
-            "tasks_used": resolution.tasks_used,
             "enforcement_mode": resolution.enforcement_mode,
             "token_grant_id": resolution.token_grant_id,
             "token_type_id": resolution.token_type_id,
             "package_contestant_limit": resolution.package_contestant_limit,
-            "package_task_limit": resolution.package_task_limit,
             "free_contestant_limit": resolution.free_contestant_limit,
-            "free_task_limit": resolution.free_task_limit,
             "contestant_limit_uses_free_default": resolution.contestant_limit_uses_free_default,
-            "task_limit_uses_free_default": resolution.task_limit_uses_free_default,
             "uses_more_advantageous_free_limits": resolution.uses_more_advantageous_free_limits,
         }
 

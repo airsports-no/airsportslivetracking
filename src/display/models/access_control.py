@@ -27,8 +27,8 @@ class ClubManagerMembership(models.Model):
 class TokenType(models.Model):
     name = models.CharField(max_length=200, unique=True, help_text="Human-friendly name for the token package, shown in admin and contest UI.")
     description = models.TextField(blank=True, default="", help_text="Explain how this token package should be used and what its limits mean.")
-    contestant_limit = models.IntegerField(help_text="Maximum number of contestants that may be created under a contest using this token package.")
-    task_limit = models.IntegerField(help_text="Maximum number of navigation tasks that may exist under a contest using this token package.")
+    contestant_limit = models.IntegerField(help_text="Maximum number of unique guest pilots that may start under a contest using this token package.")
+    task_limit = models.IntegerField(default=0, help_text="Legacy field retained for compatibility. Navigation tasks are unlimited and this field is ignored.")
     validity_days = models.IntegerField(null=True, blank=True, help_text="Number of days the token remains valid after activation. Leave empty for no automatic expiry.")
     is_active = models.BooleanField(default=True, help_text="Inactive token types stay in history but cannot be offered for new grants or assignments.")
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this token type was created.")
@@ -153,7 +153,7 @@ class AccessGrant(models.Model):
     starts_at = models.DateTimeField(null=True, blank=True, help_text="Optional start time from which the grant becomes valid.")
     expires_at = models.DateTimeField(null=True, blank=True, help_text="Optional expiry time after which the grant no longer applies.")
     contestant_limit = models.IntegerField(null=True, blank=True, help_text="Contestant cap enforced by this grant. Leave empty for unlimited contestants.")
-    task_limit = models.IntegerField(null=True, blank=True, help_text="Task cap enforced by this grant. Leave empty for unlimited tasks.")
+    task_limit = models.IntegerField(null=True, blank=True, default=0, help_text="Legacy field retained for compatibility. Navigation tasks are unlimited and this field is ignored.")
     notes = models.TextField(blank=True, default="", help_text="Internal operator notes about the grant, agreement, or special handling.")
     invoice_reference = models.CharField(max_length=200, blank=True, default="", help_text="Optional accounting or payment reference for this grant.")
     created_by = models.ForeignKey(
@@ -224,37 +224,27 @@ class AccessResolution:
         source_type: str,
         source_id: int | None,
         contestant_limit: int | None,
-        task_limit: int | None,
         contestants_used: int,
-        tasks_used: int,
         enforcement_mode: str,
         token_grant_id: int | None = None,
         token_type_id: int | None = None,
         package_contestant_limit: int | None = None,
-        package_task_limit: int | None = None,
         free_contestant_limit: int | None = None,
-        free_task_limit: int | None = None,
         contestant_limit_uses_free_default: bool = False,
-        task_limit_uses_free_default: bool = False,
     ):
         self.tier_code = tier_code
         self.tier_label = tier_label
         self.source_type = source_type
         self.source_id = source_id
         self.contestant_limit = contestant_limit
-        self.task_limit = task_limit
         self.contestants_used = contestants_used
-        self.tasks_used = tasks_used
         self.enforcement_mode = enforcement_mode
         self.token_grant_id = token_grant_id
         self.token_type_id = token_type_id
         self.package_contestant_limit = package_contestant_limit if package_contestant_limit is not None else contestant_limit
-        self.package_task_limit = package_task_limit if package_task_limit is not None else task_limit
         self.free_contestant_limit = free_contestant_limit
-        self.free_task_limit = free_task_limit
         self.contestant_limit_uses_free_default = contestant_limit_uses_free_default
-        self.task_limit_uses_free_default = task_limit_uses_free_default
 
     @property
     def uses_more_advantageous_free_limits(self):
-        return self.contestant_limit_uses_free_default or self.task_limit_uses_free_default
+        return self.contestant_limit_uses_free_default

@@ -52,7 +52,7 @@ def assert_can_register_team(contest, team=None):
 
 
 def assert_can_self_register_contestant(navigation_task, contest_team):
-    return assert_can_register_team(navigation_task.contest, contest_team.team)
+    return resolve_contest_access(navigation_task.contest)
 
 
 def assert_can_start_contestant(contestant):

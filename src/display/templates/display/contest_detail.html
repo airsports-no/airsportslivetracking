@@ -76,6 +76,16 @@
                 </div>
             </div>
 
+            {% if archive_mode_info %}
+            <div class="alert alert-info mt-4 shadow-sm">
+                {% lucide "archive" class="stroke-current shrink-0 h-6 w-6" %}
+                <div class="text-sm">
+                    <div class="font-bold">Archive Mode</div>
+                    <div>This contest token expired on {{ archive_mode_info.expired_at|date:"Y-m-d H:i" }}. Historical results remain readable, but creating new tasks or launching new live sessions requires a new token or annual pass.</div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Tasks List -->
             <div class="mt-8">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -189,19 +199,12 @@
                                     <span class="badge badge-success badge-outline">Free-tier fallback improved the effective limits</span>
                                 {% endif %}
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div class="grid grid-cols-1 gap-3 text-sm">
                                 <div class="bg-base-100 rounded-lg p-3">
                                     <div class="opacity-70">Contestants</div>
                                     <div class="font-semibold">{{ access_status.contestants_used }} / {% if access_status.contestant_limit == None %}Unlimited{% else %}{{ access_status.contestant_limit }}{% endif %}</div>
                                     {% if access_status.contestant_limit_uses_free_default %}
                                         <div class="text-xs opacity-70 mt-1">Package limit {% if access_status.package_contestant_limit == None %}Unlimited{% else %}{{ access_status.package_contestant_limit }}{% endif %}, but free tier allows {% if access_status.free_contestant_limit == None %}Unlimited{% else %}{{ access_status.free_contestant_limit }}{% endif %}, so the more advantageous free-tier limit applies.</div>
-                                    {% endif %}
-                                </div>
-                                <div class="bg-base-100 rounded-lg p-3">
-                                    <div class="opacity-70">Tasks</div>
-                                    <div class="font-semibold">{{ access_status.tasks_used }} / {% if access_status.task_limit == None %}Unlimited{% else %}{{ access_status.task_limit }}{% endif %}</div>
-                                    {% if access_status.task_limit_uses_free_default %}
-                                        <div class="text-xs opacity-70 mt-1">Package limit {% if access_status.package_task_limit == None %}Unlimited{% else %}{{ access_status.package_task_limit }}{% endif %}, but free tier allows {% if access_status.free_task_limit == None %}Unlimited{% else %}{{ access_status.free_task_limit }}{% endif %}, so the more advantageous free-tier limit applies.</div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -219,7 +222,7 @@
                                     {% for grant in club_access_grants %}
                                         <div class="rounded-lg bg-base-100 p-3 text-sm">
                                             <div class="font-semibold">{{ grant.get_tier_display }}</div>
-                                            <div class="opacity-70">Contestants: {% if grant.contestant_limit == None %}Unlimited{% else %}{{ grant.contestant_limit }}{% endif %} · Tasks: {% if grant.task_limit == None %}Unlimited{% else %}{{ grant.task_limit }}{% endif %}</div>
+                                            <div class="opacity-70">Contestants: {% if grant.contestant_limit == None %}Unlimited{% else %}{{ grant.contestant_limit }}{% endif %}</div>
                                         </div>
                                     {% endfor %}
                                 </div>

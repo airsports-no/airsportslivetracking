@@ -16,10 +16,6 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
         contest=contest,
         kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
     ).count()
-    tasks_used = ContestUsageLedger.objects.filter(
-        contest=contest,
-        kind=ContestUsageLedger.TASK_PILOT_STARTED,
-    ).values("navigation_task_id").distinct().count()
 
     token_assignment = _contest_token_assignment(contest)
     if token_assignment is not None:
@@ -30,9 +26,7 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
                 source_type="contest_token",
                 source_id=token_assignment.id,
                 contestant_limit=token_assignment.token_type.contestant_limit,
-                task_limit=token_assignment.token_type.task_limit,
                 contestants_used=contestants_used,
-                tasks_used=tasks_used,
                 enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
                 token_grant_id=token_assignment.token_grant_id,
                 token_type_id=token_assignment.token_type_id,
@@ -46,7 +40,6 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
                 contest_grant,
                 source_type="contest_override",
                 contestants_used=contestants_used,
-                tasks_used=tasks_used,
             )
         )
 
@@ -57,7 +50,6 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
                 club_grant,
                 source_type="club_pass",
                 contestants_used=contestants_used,
-                tasks_used=tasks_used,
             )
         )
 
@@ -67,12 +59,9 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
         source_type="free_defaults",
         source_id=None,
         contestant_limit=settings.DEFAULT_FREE_CONTESTANT_LIMIT,
-        task_limit=settings.DEFAULT_FREE_TASK_LIMIT,
         contestants_used=contestants_used,
-        tasks_used=tasks_used,
         enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
         free_contestant_limit=settings.DEFAULT_FREE_CONTESTANT_LIMIT,
-        free_task_limit=settings.DEFAULT_FREE_TASK_LIMIT,
     )
 
 
@@ -110,16 +99,14 @@ def _first_active_club_grant(contest: Contest):
     return None
 
 
-def _resolution_from_grant(grant: AccessGrant, *, source_type: str, contestants_used: int, tasks_used: int) -> AccessResolution:
+def _resolution_from_grant(grant: AccessGrant, *, source_type: str, contestants_used: int) -> AccessResolution:
     return AccessResolution(
         tier_code=grant.tier,
         tier_label=grant.get_tier_display(),
         source_type=source_type,
         source_id=grant.id,
         contestant_limit=grant.contestant_limit,
-        task_limit=grant.task_limit,
         contestants_used=contestants_used,
-        tasks_used=tasks_used,
         enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
     )
 
@@ -129,18 +116,10 @@ def _apply_more_advantageous_free_defaults(resolution: AccessResolution) -> Acce
         resolution.contestant_limit,
         settings.DEFAULT_FREE_CONTESTANT_LIMIT,
     )
-    effective_task_limit, task_uses_free = _most_advantageous_limit(
-        resolution.task_limit,
-        settings.DEFAULT_FREE_TASK_LIMIT,
-    )
     resolution.package_contestant_limit = resolution.contestant_limit
-    resolution.package_task_limit = resolution.task_limit
     resolution.free_contestant_limit = settings.DEFAULT_FREE_CONTESTANT_LIMIT
-    resolution.free_task_limit = settings.DEFAULT_FREE_TASK_LIMIT
     resolution.contestant_limit = effective_contestant_limit
-    resolution.task_limit = effective_task_limit
     resolution.contestant_limit_uses_free_default = contestant_uses_free
-    resolution.task_limit_uses_free_default = task_uses_free
     return resolution
 
 

@@ -71,7 +71,7 @@ class TestCapacityEnforcement(TestCase):
         self.assertEqual(0, resolution.contestant_limit)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
-    def test_self_registration_reuses_contestant_limit_rule_for_guests(self, mock_resolve):
+    def test_self_registration_does_not_consume_or_block_guest_quota_before_start(self, mock_resolve):
         navigation_task = NavigationTask.objects.create(
             name="Task",
             contest=self.contest,
@@ -83,8 +83,9 @@ class TestCapacityEnforcement(TestCase):
         contest_team = ContestTeam.objects.create(contest=self.contest, team=self.team)
         mock_resolve.return_value = type("Resolution", (), {"task_limit": None, "tasks_used": 0, "contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
 
-        with self.assertRaises(ValidationError):
-            assert_can_self_register_contestant(navigation_task, contest_team)
+        resolution = assert_can_self_register_contestant(navigation_task, contest_team)
+
+        self.assertEqual(0, resolution.contestant_limit)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
     def test_self_registration_allows_owner_team_when_limit_is_zero(self, mock_resolve):

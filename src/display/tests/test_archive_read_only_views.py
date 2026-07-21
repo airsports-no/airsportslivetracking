@@ -46,9 +46,10 @@ class TestArchiveReadOnlyViews(TestCase):
         self.assignment.activated_at = datetime.datetime(2026, 10, 1, 9, 0, tzinfo=datetime.timezone.utc)
         self.assignment.expires_at = datetime.datetime(2026, 10, 15, 9, 0, tzinfo=datetime.timezone.utc)
         self.assignment.save(update_fields=["activated_at", "expires_at"])
+        self.expired_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
 
     def test_contest_detail_remains_readable_after_token_expiry(self):
-        self.assignment.expires_at = datetime.datetime(2026, 9, 30, 9, 0, tzinfo=datetime.timezone.utc)
+        self.assignment.expires_at = self.expired_at
         self.assignment.save(update_fields=["expires_at"])
         self.client.force_login(self.user)
 
@@ -56,9 +57,11 @@ class TestArchiveReadOnlyViews(TestCase):
 
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Archive Contest")
+        self.assertContains(response, "Archive Mode")
+        self.assertContains(response, "This contest token expired on")
 
     def test_navigationtask_detail_remains_readable_after_token_expiry(self):
-        self.assignment.expires_at = datetime.datetime(2026, 9, 30, 9, 0, tzinfo=datetime.timezone.utc)
+        self.assignment.expires_at = self.expired_at
         self.assignment.save(update_fields=["expires_at"])
         self.client.force_login(self.user)
 
@@ -66,3 +69,5 @@ class TestArchiveReadOnlyViews(TestCase):
 
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Archive Task")
+        self.assertContains(response, "Archive Mode")
+        self.assertContains(response, "This contest token expired on")

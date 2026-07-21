@@ -113,5 +113,7 @@ def replace_token_for_contest(contest, acting_user, token_grant_id: int):
     existing_assignment.token_grant = new_token_grant
     existing_assignment.token_type = new_token_grant.token_type
     existing_assignment.assigned_by = acting_user
-    existing_assignment.save(update_fields=["token_grant", "token_type", "assigned_by"])
+    existing_assignment.activated_at = None
+    existing_assignment.expires_at = None
+    existing_assignment.save(update_fields=["token_grant", "token_type", "assigned_by", "activated_at", "expires_at"])
     return existing_assignment

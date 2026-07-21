@@ -1317,18 +1317,20 @@ class ContestDetailView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, D
             "tier_label": resolution.tier_label,
             "source_type": resolution.source_type,
             "contestant_limit": resolution.contestant_limit,
-            "task_limit": resolution.task_limit,
             "contestants_used": resolution.contestants_used,
-            "tasks_used": resolution.tasks_used,
             "token_grant_id": resolution.token_grant_id,
             "package_contestant_limit": resolution.package_contestant_limit,
-            "package_task_limit": resolution.package_task_limit,
             "free_contestant_limit": resolution.free_contestant_limit,
-            "free_task_limit": resolution.free_task_limit,
             "contestant_limit_uses_free_default": resolution.contestant_limit_uses_free_default,
-            "task_limit_uses_free_default": resolution.task_limit_uses_free_default,
             "uses_more_advantageous_free_limits": resolution.uses_more_advantageous_free_limits,
         }
+        token_assignment = getattr(contest, "contesttokenassignment", None)
+        context["archive_mode_info"] = None
+        if token_assignment is not None and token_assignment.expires_at is not None and token_assignment.expires_at <= timezone.now():
+            context["archive_mode_info"] = {
+                "expired_at": token_assignment.expires_at,
+                "token_type_name": token_assignment.token_type.name,
+            }
 
         if contest.organizing_club_id:
             context["club_access_grants"] = AccessGrant.objects.filter(
@@ -1465,6 +1467,13 @@ class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRe
             kind=ContestUsageLedger.TASK_PILOT_STARTED,
         ).count()
         guest_capacity_limit = resolve_contest_access(contest).contestant_limit
+        token_assignment = getattr(contest, "contesttokenassignment", None)
+        context["archive_mode_info"] = None
+        if token_assignment is not None and token_assignment.expires_at is not None and token_assignment.expires_at <= timezone.now():
+            context["archive_mode_info"] = {
+                "expired_at": token_assignment.expires_at,
+                "token_type_name": token_assignment.token_type.name,
+            }
         context["guest_created_contestants"] = guest_created_contestants
         context["guest_started_slots"] = guest_started_slots
         context["guest_capacity_limit"] = guest_capacity_limit

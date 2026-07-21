@@ -35,6 +35,17 @@ class TestTokenAssignmentLifecycle(TestCase):
         self.assertNotEqual(first_assignment.token_type_id, replacement.token_type_id)
         self.assertEqual(replacement.id, ContestTokenAssignment.objects.get(contest=self.contest).id)
 
+    def test_replacing_token_resets_lifecycle_for_fresh_activation_window(self):
+        first_assignment = assign_token_to_contest(self.contest, self.user, self.small_grant.id)
+        first_assignment.activated_at = datetime.datetime(2026, 9, 1, 9, 0, tzinfo=datetime.timezone.utc)
+        first_assignment.expires_at = datetime.datetime(2026, 9, 15, 9, 0, tzinfo=datetime.timezone.utc)
+        first_assignment.save(update_fields=["activated_at", "expires_at"])
+
+        replacement = replace_token_for_contest(self.contest, self.user, self.large_grant.id)
+
+        self.assertIsNone(replacement.activated_at)
+        self.assertIsNone(replacement.expires_at)
+
     def test_cannot_reassign_with_same_grant(self):
         assign_token_to_contest(self.contest, self.user, self.small_grant.id)
 

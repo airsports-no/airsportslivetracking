@@ -138,6 +138,15 @@
                 </div>
             </div>
             {% endif %}
+            {% if archive_mode_info %}
+            <div class="alert alert-info shadow-sm mt-4 text-sm">
+                {% lucide "archive" class="stroke-current flex-shrink-0 w-6 h-6" %}
+                <div>
+                    <div class="font-bold">Archive Mode</div>
+                    <div>This contest token expired on {{ archive_mode_info.expired_at|date:"Y-m-d H:i" }}. Historical results remain readable, but creating new tasks or launching new live sessions requires a new token or annual pass.</div>
+                </div>
+            </div>
+            {% endif %}
             <script>
                 function toggleContestantInfo() {
                     const content = document.getElementById('contestant-info-content');

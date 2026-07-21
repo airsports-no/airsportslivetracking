@@ -123,7 +123,14 @@ class TestTokenAssignment(TestCase):
 
         resolution = resolve_contest_access(self.contest)
         self.assertEqual(1, resolution.contestants_used)
-        self.assertEqual(1, resolution.tasks_used)
+        self.assertTrue(
+            ContestUsageLedger.objects.filter(
+                contest=self.contest,
+                navigation_task=task,
+                kind=ContestUsageLedger.TASK_PILOT_STARTED,
+                pilot=person,
+            ).exists()
+        )
         self.assertEqual(1, ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.CONTEST_PILOT_STARTED).count())
         self.assertEqual(1, ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.TASK_PILOT_STARTED).count())
 

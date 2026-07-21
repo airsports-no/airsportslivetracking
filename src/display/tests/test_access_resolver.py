@@ -31,7 +31,6 @@ class TestAccessResolver(TestCase):
         self.assertEqual("free", resolution.tier_code)
         self.assertEqual("free_defaults", resolution.source_type)
         self.assertIsNone(resolution.contestant_limit)
-        self.assertIsNone(resolution.task_limit)
         self.assertEqual("audit", resolution.enforcement_mode)
 
     def test_contest_level_grant_takes_precedence_over_club_grant(self):
@@ -62,11 +61,8 @@ class TestAccessResolver(TestCase):
         self.assertEqual("contest_override", resolution.source_type)
         self.assertEqual(contest_grant.id, resolution.source_id)
         self.assertIsNone(resolution.contestant_limit)
-        self.assertIsNone(resolution.task_limit)
         self.assertEqual(25, resolution.package_contestant_limit)
-        self.assertEqual(3, resolution.package_task_limit)
         self.assertTrue(resolution.contestant_limit_uses_free_default)
-        self.assertTrue(resolution.task_limit_uses_free_default)
 
     def test_club_level_grant_requires_active_membership(self):
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -93,9 +89,6 @@ class TestAccessResolver(TestCase):
 
         self.assertEqual("annual_club_pass", with_manager_membership.tier_code)
         self.assertEqual("club_pass", with_manager_membership.source_type)
-        self.assertIsNone(with_manager_membership.task_limit)
-        self.assertEqual(10, with_manager_membership.package_task_limit)
-        self.assertTrue(with_manager_membership.task_limit_uses_free_default)
 
     def test_club_level_grant_applies_for_owner_role(self):
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -115,11 +108,8 @@ class TestAccessResolver(TestCase):
         self.assertEqual("annual_club_pass", resolution.tier_code)
         self.assertEqual("club_pass", resolution.source_type)
         self.assertIsNone(resolution.contestant_limit)
-        self.assertIsNone(resolution.task_limit)
         self.assertEqual(15, resolution.package_contestant_limit)
-        self.assertEqual(4, resolution.package_task_limit)
         self.assertTrue(resolution.contestant_limit_uses_free_default)
-        self.assertTrue(resolution.task_limit_uses_free_default)
 
     @override_settings(DEFAULT_FREE_CONTESTANT_LIMIT=20, DEFAULT_FREE_TASK_LIMIT=5)
     def test_more_advantageous_free_limits_override_stricter_club_package(self):
@@ -139,8 +129,5 @@ class TestAccessResolver(TestCase):
         self.assertEqual("annual_club_pass", resolution.tier_code)
         self.assertEqual("club_pass", resolution.source_type)
         self.assertEqual(20, resolution.contestant_limit)
-        self.assertEqual(5, resolution.task_limit)
         self.assertEqual(10, resolution.package_contestant_limit)
-        self.assertEqual(2, resolution.package_task_limit)
         self.assertTrue(resolution.contestant_limit_uses_free_default)
-        self.assertTrue(resolution.task_limit_uses_free_default)
