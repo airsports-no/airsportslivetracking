@@ -8,22 +8,29 @@ def _backfill_historical_usage_for_existing_contest(contest):
     started_contestants = Contestant.objects.filter(
         navigation_task__contest=contest,
         contestanttrack__calculator_started=True,
-    ).select_related("navigation_task").distinct()
+    ).select_related("navigation_task", "team").distinct()
+    owner_person_id = None
+    if contest.created_by_id:
+        try:
+            owner_person_id = contest.created_by.person.id
+        except Exception:
+            owner_person_id = None
     for contestant in started_contestants:
+        if owner_person_id is not None and contestant.team.crew.member1_id == owner_person_id:
+            continue
         ContestUsageLedger.objects.get_or_create(
             contest=contest,
+            team=contestant.team,
             contestant=contestant,
-            kind=ContestUsageLedger.CONTESTANT_STARTED,
+            kind=ContestUsageLedger.CONTEST_TEAM_STARTED,
             defaults={"navigation_task": contestant.navigation_task},
         )
-    started_tasks = contest.navigationtask_set.filter(
-        contestant__contestanttrack__calculator_started=True
-    ).distinct()
-    for task in started_tasks:
         ContestUsageLedger.objects.get_or_create(
             contest=contest,
-            navigation_task=task,
-            kind=ContestUsageLedger.TASK_STARTED,
+            navigation_task=contestant.navigation_task,
+            team=contestant.team,
+            contestant=contestant,
+            kind=ContestUsageLedger.TASK_TEAM_STARTED,
         )
 
 

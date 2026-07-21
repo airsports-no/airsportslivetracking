@@ -8,10 +8,15 @@ from display.services.access_resolver import resolve_contest_access
 class TestHistoricalUsageAccounting(TestCase):
     def setUp(self):
         self.user = MyUser.objects.create(email="usage-owner@example.com")
+        self.owner_person = Person.objects.create(first_name="Owner", last_name="Pilot", email=self.user.email)
         self.person = Person.objects.create(first_name="Pilot", last_name="One", email="pilot@example.com")
         self.team = Team.objects.create(
             crew=Crew.objects.create(member1=self.person),
             aeroplane=Aeroplane.objects.create(registration="LN-HIST"),
+        )
+        self.owner_team = Team.objects.create(
+            crew=Crew.objects.create(member1=self.owner_person),
+            aeroplane=Aeroplane.objects.create(registration="LN-OWNER"),
         )
         self.contest = Contest.objects.create(
             name="Historical Usage Contest",
@@ -47,19 +52,36 @@ class TestHistoricalUsageAccounting(TestCase):
             wind_direction=0,
             gate_times={},
         )
+        self.owner_contestant = Contestant.objects.create(
+            team=self.owner_team,
+            navigation_task=self.task,
+            contestant_number=2,
+            takeoff_time=takeoff,
+            tracker_start_time=takeoff - timezone.timedelta(minutes=10),
+            finished_by_time=takeoff + timezone.timedelta(hours=2),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
 
     def _start_contestant(self):
         track = ContestantTrack.objects.get(contestant=self.contestant)
         track.set_calculator_started()
 
-    def test_starting_contestant_consumes_contestant_slot_and_task_slot(self):
+    def _start_owner_contestant(self):
+        track = ContestantTrack.objects.get(contestant=self.owner_contestant)
+        track.set_calculator_started()
+
+    def test_starting_contestant_consumes_contest_team_slot_and_task_team_slot(self):
         self._start_contestant()
 
         resolution = resolve_contest_access(self.contest)
         self.assertEqual(1, resolution.contestants_used)
         self.assertEqual(1, resolution.tasks_used)
-        self.assertTrue(ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.CONTESTANT_STARTED, contestant=self.contestant).exists())
-        self.assertTrue(ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.TASK_STARTED, navigation_task=self.task).exists())
+        self.assertTrue(ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.CONTEST_TEAM_STARTED, team=self.team).exists())
+        self.assertTrue(ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.TASK_TEAM_STARTED, navigation_task=self.task, team=self.team).exists())
 
     def test_restarting_same_contestant_does_not_double_count(self):
         self._start_contestant()
@@ -68,8 +90,8 @@ class TestHistoricalUsageAccounting(TestCase):
         resolution = resolve_contest_access(self.contest)
         self.assertEqual(1, resolution.contestants_used)
         self.assertEqual(1, resolution.tasks_used)
-        self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.CONTESTANT_STARTED).count())
-        self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.TASK_STARTED).count())
+        self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.CONTEST_TEAM_STARTED).count())
+        self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.TASK_TEAM_STARTED).count())
 
     def test_deleting_started_contestant_does_not_remove_historical_usage(self):
         self._start_contestant()
@@ -78,7 +100,7 @@ class TestHistoricalUsageAccounting(TestCase):
 
         resolution = resolve_contest_access(self.contest)
         self.assertEqual(1, resolution.contestants_used)
-        self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.CONTESTANT_STARTED).count())
+        self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.CONTEST_TEAM_STARTED).count())
 
     def test_deleting_task_with_started_contestant_does_not_remove_historical_usage(self):
         self._start_contestant()
@@ -87,4 +109,10 @@ class TestHistoricalUsageAccounting(TestCase):
 
         resolution = resolve_contest_access(self.contest)
         self.assertEqual(1, resolution.tasks_used)
-        self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.TASK_STARTED).count())
+        self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.TASK_TEAM_STARTED).count())
+
+    def test_owner_started_contestant_does_not_consume_guest_usage(self):
+        self._start_owner_contestant()
+
+        resolution = resolve_contest_access(self.contest)
+        self.assertEqual(0, resolution.contestants_used)

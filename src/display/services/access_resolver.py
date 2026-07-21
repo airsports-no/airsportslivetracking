@@ -12,12 +12,12 @@ from display.models import (
 def resolve_contest_access(contest: Contest) -> AccessResolution:
     contestants_used = ContestUsageLedger.objects.filter(
         contest=contest,
-        kind=ContestUsageLedger.CONTESTANT_STARTED,
+        kind=ContestUsageLedger.CONTEST_TEAM_STARTED,
     ).count()
     tasks_used = ContestUsageLedger.objects.filter(
         contest=contest,
-        kind=ContestUsageLedger.TASK_STARTED,
-    ).count()
+        kind=ContestUsageLedger.TASK_TEAM_STARTED,
+    ).values("navigation_task_id").distinct().count()
 
     token_assignment = _contest_token_assignment(contest)
     if token_assignment is not None:

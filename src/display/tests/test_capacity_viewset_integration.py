@@ -47,7 +47,7 @@ class TestCapacityViewsetIntegration(APITestCase):
         self.navigation_task.save()
 
     @patch("display.viewsets.assert_can_register_team")
-    def test_signup_calls_capacity_guard(self, mock_guard, *_args):
+    def test_signup_no_longer_calls_capacity_guard(self, mock_guard, *_args):
         url = reverse("contests-signup", kwargs={"pk": self.contest.id})
         response = self.client.post(
             url,
@@ -61,7 +61,7 @@ class TestCapacityViewsetIntegration(APITestCase):
         )
 
         self.assertNotEqual(status.HTTP_500_INTERNAL_SERVER_ERROR, response.status_code)
-        mock_guard.assert_called_once()
+        mock_guard.assert_not_called()
 
     @patch("display.viewsets.assert_can_self_register_contestant")
     def test_self_registration_calls_capacity_guard(self, mock_guard, *_args):

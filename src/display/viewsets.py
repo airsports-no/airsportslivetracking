@@ -1006,7 +1006,6 @@ class ContestViewSet(ModelViewSet):
     )
     def signup(self, request, *args, **kwargs):
         contest = self.get_object()
-        assert_can_register_team(contest)
         if request.method == "POST":
             contest = None
         serialiser = self.get_serializer(instance=contest, data=request.data)

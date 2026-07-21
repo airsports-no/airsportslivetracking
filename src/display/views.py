@@ -140,6 +140,7 @@ from display.models import (
     GateCumulativeScore,
     UserTokenGrant,
     Club,
+    ContestUsageLedger,
 )
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.tasks import (
@@ -1446,6 +1447,31 @@ class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRe
 
     def get_permission_object(self):
         return self.get_object().contest
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        navigation_task = self.get_object()
+        contest = navigation_task.contest
+        owner_person_id = None
+        if contest.created_by_id:
+            try:
+                owner_person_id = contest.created_by.person.id
+            except Exception:
+                owner_person_id = None
+        guest_created_contestants = navigation_task.contestant_set.exclude(team__crew__member1_id=owner_person_id).count()
+        guest_started_slots = ContestUsageLedger.objects.filter(
+            contest=contest,
+            navigation_task=navigation_task,
+            kind=ContestUsageLedger.TASK_TEAM_STARTED,
+        ).count()
+        guest_capacity_limit = resolve_contest_access(contest).contestant_limit
+        context["guest_created_contestants"] = guest_created_contestants
+        context["guest_started_slots"] = guest_started_slots
+        context["guest_capacity_limit"] = guest_capacity_limit
+        context["show_guest_capacity_warning"] = (
+            guest_capacity_limit is not None and guest_created_contestants > guest_capacity_limit
+        )
+        return context
 
 
 class NavigationTaskUpdateView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
