@@ -22,7 +22,6 @@ class TestTokenSerialization(TestCase):
         self.token_type = TokenType.objects.create(
             name="Large token",
             contestant_limit=50,
-            task_limit=5,
         )
         self.token_grant = UserTokenGrant.objects.create(
             user=self.user,

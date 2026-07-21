@@ -34,9 +34,8 @@ class TestContestDetailViewContext(TestCase):
             club=self.club,
             status=AccessGrant.ACTIVE,
             contestant_limit=10,
-            task_limit=2,
         )
-        self.token_type = TokenType.objects.create(name="Detail token", contestant_limit=8, task_limit=1)
+        self.token_type = TokenType.objects.create(name="Detail token", contestant_limit=8)
         self.token_grant = UserTokenGrant.objects.create(user=self.change_user, token_type=self.token_type, quantity_total=2)
 
     def test_view_permission_gets_read_only_access_context(self):

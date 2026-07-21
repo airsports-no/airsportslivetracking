@@ -9,7 +9,6 @@ from display.services.access_resolver import resolve_contest_access
 
 @override_settings(
     DEFAULT_FREE_CONTESTANT_LIMIT=None,
-    DEFAULT_FREE_TASK_LIMIT=None,
     ACCESS_ENFORCEMENT_MODE="audit",
 )
 class TestTokenAccessResolver(TestCase):
@@ -26,7 +25,6 @@ class TestTokenAccessResolver(TestCase):
         self.token_type = TokenType.objects.create(
             name="Small token",
             contestant_limit=12,
-            task_limit=2,
         )
         self.token_grant = UserTokenGrant.objects.create(
             user=self.user,
@@ -46,7 +44,8 @@ class TestTokenAccessResolver(TestCase):
 
         self.assertEqual("token", resolution.tier_code)
         self.assertEqual("contest_token", resolution.source_type)
-        self.assertEqual(self.token_type.contestant_limit, resolution.contestant_limit)
-        self.assertEqual(self.token_type.task_limit, resolution.task_limit)
+        self.assertIsNone(resolution.contestant_limit)
+        self.assertEqual(12, resolution.package_contestant_limit)
+        self.assertTrue(resolution.contestant_limit_uses_free_default)
         self.assertEqual(self.token_grant.id, resolution.token_grant_id)
         self.assertEqual(self.token_type.id, resolution.token_type_id)

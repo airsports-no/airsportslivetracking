@@ -28,7 +28,6 @@ class TokenType(models.Model):
     name = models.CharField(max_length=200, unique=True, help_text="Human-friendly name for the token package, shown in admin and contest UI.")
     description = models.TextField(blank=True, default="", help_text="Explain how this token package should be used and what its limits mean.")
     contestant_limit = models.IntegerField(help_text="Maximum number of unique guest pilots that may start under a contest using this token package.")
-    task_limit = models.IntegerField(default=0, help_text="Legacy field retained for compatibility. Navigation tasks are unlimited and this field is ignored.")
     validity_days = models.IntegerField(null=True, blank=True, help_text="Number of days the token remains valid after activation. Leave empty for no automatic expiry.")
     is_active = models.BooleanField(default=True, help_text="Inactive token types stay in history but cannot be offered for new grants or assignments.")
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this token type was created.")
@@ -153,7 +152,6 @@ class AccessGrant(models.Model):
     starts_at = models.DateTimeField(null=True, blank=True, help_text="Optional start time from which the grant becomes valid.")
     expires_at = models.DateTimeField(null=True, blank=True, help_text="Optional expiry time after which the grant no longer applies.")
     contestant_limit = models.IntegerField(null=True, blank=True, help_text="Contestant cap enforced by this grant. Leave empty for unlimited contestants.")
-    task_limit = models.IntegerField(null=True, blank=True, default=0, help_text="Legacy field retained for compatibility. Navigation tasks are unlimited and this field is ignored.")
     notes = models.TextField(blank=True, default="", help_text="Internal operator notes about the grant, agreement, or special handling.")
     invoice_reference = models.CharField(max_length=200, blank=True, default="", help_text="Optional accounting or payment reference for this grant.")
     created_by = models.ForeignKey(

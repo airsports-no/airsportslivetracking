@@ -36,7 +36,10 @@ class TestHistoricalUsageAccounting(TestCase):
             location="60.0,11.0",
             created_by=self.user,
         )
-        self.token_type = TokenType.objects.create(name="History token", contestant_limit=2, task_limit=1)
+        self.token_type = TokenType.objects.create(
+            name="History token",
+            contestant_limit=2,
+        )
         self.token_grant = UserTokenGrant.objects.create(user=self.user, token_type=self.token_type, quantity_total=1, quantity_consumed=0)
         ContestTokenAssignment.objects.create(contest=self.contest, token_grant=self.token_grant, token_type=self.token_type)
         self.scorecard = Scorecard.objects.create(name="History card", shortcut_name="hist-card")
@@ -89,7 +92,6 @@ class TestHistoricalUsageAccounting(TestCase):
 
         resolution = resolve_contest_access(self.contest)
         self.assertEqual(1, resolution.contestants_used)
-        self.assertEqual(1, resolution.tasks_used)
         self.assertTrue(ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.CONTEST_PILOT_STARTED, pilot=self.person).exists())
         self.assertTrue(ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.TASK_PILOT_STARTED, navigation_task=self.task, pilot=self.person).exists())
 
@@ -99,7 +101,6 @@ class TestHistoricalUsageAccounting(TestCase):
 
         resolution = resolve_contest_access(self.contest)
         self.assertEqual(1, resolution.contestants_used)
-        self.assertEqual(1, resolution.tasks_used)
         self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.CONTEST_PILOT_STARTED).count())
         self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.TASK_PILOT_STARTED).count())
 
@@ -117,8 +118,6 @@ class TestHistoricalUsageAccounting(TestCase):
 
         self.task.delete()
 
-        resolution = resolve_contest_access(self.contest)
-        self.assertEqual(1, resolution.tasks_used)
         self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.TASK_PILOT_STARTED).count())
 
     def test_owner_started_contestant_does_not_consume_guest_usage(self):

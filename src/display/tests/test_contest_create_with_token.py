@@ -13,7 +13,7 @@ class TestContestCreateWithToken(APITestCase):
         self.user = get_user_model().objects.create(email="creator-token@example.com")
         self.user.user_permissions.add(Permission.objects.get(codename="add_contest"))
         self.client.force_login(self.user)
-        self.token_type = TokenType.objects.create(name="Create token", contestant_limit=30, task_limit=3)
+        self.token_type = TokenType.objects.create(name="Create token", contestant_limit=30)
         self.token_grant = UserTokenGrant.objects.create(user=self.user, token_type=self.token_type, quantity_total=2)
 
     def test_create_contest_can_assign_initial_token(self):
@@ -45,7 +45,6 @@ class TestContestCreateWithToken(APITestCase):
             club=club,
             status=AccessGrant.ACTIVE,
             contestant_limit=12,
-            task_limit=3,
         )
 
         response = self.client.post(
@@ -70,5 +69,6 @@ class TestContestCreateWithToken(APITestCase):
         resolution = resolve_contest_access(contest)
         self.assertEqual(AccessGrant.ANNUAL_CLUB_PASS, resolution.tier_code)
         self.assertEqual("club_pass", resolution.source_type)
-        self.assertEqual(12, resolution.contestant_limit)
-        self.assertEqual(3, resolution.task_limit)
+        self.assertIsNone(resolution.contestant_limit)
+        self.assertEqual(12, resolution.package_contestant_limit)
+        self.assertTrue(resolution.contestant_limit_uses_free_default)

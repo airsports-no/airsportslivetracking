@@ -37,7 +37,6 @@ class TestContestTokenAssignmentApi(APITestCase):
         self.token_type = TokenType.objects.create(
             name="Token 20/2",
             contestant_limit=20,
-            task_limit=2,
         )
         self.token_grant = UserTokenGrant.objects.create(
             user=self.user,
@@ -72,7 +71,7 @@ class TestContestTokenAssignmentApi(APITestCase):
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
 
     @patch("display.viewsets.assert_can_register_team")
-    def test_existing_capacity_integration_still_runs(self, mock_guard, *_args):
+    def test_existing_capacity_integration_no_longer_runs_at_signup(self, mock_guard, *_args):
         person = Person.objects.create(first_name="Pilot", last_name="One", email=self.user.email)
         team = Team.objects.create(
             crew=Crew.objects.create(member1=person),
@@ -85,11 +84,12 @@ class TestContestTokenAssignmentApi(APITestCase):
             url,
             {
                 "club_name": "Club",
-                "aircraft_registration": "LN-INT",
+                "aircraft_registration": "LN-NEW",
+                "pilot_id": person.id,
                 "airspeed": 70,
                 "copilot_id": None,
             },
             format="json",
         )
 
-        mock_guard.assert_called_once()
+        mock_guard.assert_not_called()

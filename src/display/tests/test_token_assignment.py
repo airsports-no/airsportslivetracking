@@ -44,13 +44,11 @@ class TestTokenAssignment(TestCase):
         self.token_type = TokenType.objects.create(
             name="Club event 25/3",
             contestant_limit=25,
-            task_limit=3,
             validity_days=14,
         )
         self.annual_token_type = TokenType.objects.create(
             name="Annual club pass 15",
             contestant_limit=15,
-            task_limit=10,
             validity_days=365,
         )
 
@@ -378,7 +376,6 @@ class TestTokenAssignment(TestCase):
             club=club,
             status=AccessGrant.ACTIVE,
             contestant_limit=12,
-            task_limit=None,
         )
         grant = UserTokenGrant.objects.create(
             user=self.user,

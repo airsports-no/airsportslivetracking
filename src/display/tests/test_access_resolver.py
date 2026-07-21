@@ -8,7 +8,6 @@ from display.services.access_resolver import resolve_contest_access
 
 @override_settings(
     DEFAULT_FREE_CONTESTANT_LIMIT=None,
-    DEFAULT_FREE_TASK_LIMIT=None,
     ACCESS_ENFORCEMENT_MODE="audit",
 )
 class TestAccessResolver(TestCase):
@@ -43,7 +42,6 @@ class TestAccessResolver(TestCase):
             starts_at=now - datetime.timedelta(days=1),
             expires_at=now + datetime.timedelta(days=1),
             contestant_limit=None,
-            task_limit=None,
         )
         contest_grant = AccessGrant.objects.create(
             contest=self.contest,
@@ -52,7 +50,6 @@ class TestAccessResolver(TestCase):
             starts_at=now - datetime.timedelta(days=1),
             expires_at=now + datetime.timedelta(days=1),
             contestant_limit=25,
-            task_limit=3,
         )
 
         resolution = resolve_contest_access(self.contest)
@@ -73,7 +70,6 @@ class TestAccessResolver(TestCase):
             starts_at=now - datetime.timedelta(days=1),
             expires_at=now + datetime.timedelta(days=1),
             contestant_limit=None,
-            task_limit=10,
         )
 
         without_membership = resolve_contest_access(self.contest)
@@ -99,7 +95,6 @@ class TestAccessResolver(TestCase):
             starts_at=now - datetime.timedelta(days=1),
             expires_at=now + datetime.timedelta(days=1),
             contestant_limit=15,
-            task_limit=4,
         )
         ClubManagerMembership.objects.create(club=self.club, user=self.user, is_active=True, role=ClubManagerMembership.OWNER)
 
@@ -111,7 +106,7 @@ class TestAccessResolver(TestCase):
         self.assertEqual(15, resolution.package_contestant_limit)
         self.assertTrue(resolution.contestant_limit_uses_free_default)
 
-    @override_settings(DEFAULT_FREE_CONTESTANT_LIMIT=20, DEFAULT_FREE_TASK_LIMIT=5)
+    @override_settings(DEFAULT_FREE_CONTESTANT_LIMIT=20)
     def test_more_advantageous_free_limits_override_stricter_club_package(self):
         now = datetime.datetime.now(datetime.timezone.utc)
         AccessGrant.objects.create(
@@ -120,7 +115,6 @@ class TestAccessResolver(TestCase):
             starts_at=now - datetime.timedelta(days=1),
             expires_at=now + datetime.timedelta(days=1),
             contestant_limit=10,
-            task_limit=2,
         )
         ClubManagerMembership.objects.create(club=self.club, user=self.user, is_active=True, role=ClubManagerMembership.OWNER)
 

@@ -39,7 +39,6 @@ class TestAccessControlModels(TestCase):
                 tier=AccessGrant.FREE,
                 status=AccessGrant.ACTIVE,
                 contestant_limit=10,
-                task_limit=2,
             ).full_clean()
 
         with self.assertRaises(ValidationError):
@@ -49,7 +48,6 @@ class TestAccessControlModels(TestCase):
                 tier=AccessGrant.ANNUAL_CLUB_PASS,
                 status=AccessGrant.ACTIVE,
                 contestant_limit=None,
-                task_limit=None,
             ).full_clean()
 
     def test_access_grant_is_active_only_when_status_and_time_window_match(self):
@@ -61,7 +59,6 @@ class TestAccessControlModels(TestCase):
             starts_at=now - datetime.timedelta(days=1),
             expires_at=now + datetime.timedelta(days=1),
             contestant_limit=None,
-            task_limit=None,
         )
         expired_grant = AccessGrant.objects.create(
             contest=self.contest,
@@ -70,7 +67,6 @@ class TestAccessControlModels(TestCase):
             starts_at=now - datetime.timedelta(days=3),
             expires_at=now - datetime.timedelta(days=1),
             contestant_limit=25,
-            task_limit=3,
         )
         cancelled_grant = AccessGrant.objects.create(
             club=self.club,
@@ -79,7 +75,6 @@ class TestAccessControlModels(TestCase):
             starts_at=now - datetime.timedelta(days=1),
             expires_at=now + datetime.timedelta(days=1),
             contestant_limit=50,
-            task_limit=6,
         )
 
         self.assertEqual(AccessGrant.ANNUAL_CLUB_PASS, active_grant.tier)

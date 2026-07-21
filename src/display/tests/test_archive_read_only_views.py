@@ -38,7 +38,6 @@ class TestArchiveReadOnlyViews(TestCase):
         self.token_type = TokenType.objects.create(
             name="Archive token",
             contestant_limit=8,
-            task_limit=1,
             validity_days=14,
         )
         self.token_grant = UserTokenGrant.objects.create(user=self.user, token_type=self.token_type, quantity_total=1)

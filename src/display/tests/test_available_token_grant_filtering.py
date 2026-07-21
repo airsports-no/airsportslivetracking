@@ -17,8 +17,8 @@ class TestAvailableTokenGrantFiltering(TestCase):
             location="60.0,11.0",
             created_by=self.user,
         )
-        active_type = TokenType.objects.create(name="Active token", contestant_limit=10, task_limit=1, is_active=True)
-        inactive_type = TokenType.objects.create(name="Inactive token", contestant_limit=10, task_limit=1, is_active=False)
+        active_type = TokenType.objects.create(name="Active token", contestant_limit=10, is_active=True)
+        inactive_type = TokenType.objects.create(name="Inactive token", contestant_limit=10, is_active=False)
         UserTokenGrant.objects.create(user=self.user, token_type=active_type, quantity_total=2, quantity_consumed=0)
         UserTokenGrant.objects.create(user=self.user, token_type=active_type, quantity_total=1, quantity_consumed=1)
         UserTokenGrant.objects.create(user=self.user, token_type=inactive_type, quantity_total=2, quantity_consumed=0)

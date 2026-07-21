@@ -133,7 +133,6 @@ class AccessGrantAdmin(admin.ModelAdmin):
         "club",
         "contest",
         "contestant_limit",
-        "task_limit",
         "starts_at",
         "expires_at",
     )
@@ -149,7 +148,6 @@ class AccessGrantAdmin(admin.ModelAdmin):
         "starts_at",
         "expires_at",
         "contestant_limit",
-        "task_limit",
         "notes",
         "invoice_reference",
         "created_by",
@@ -181,7 +179,7 @@ class ClubManagerMembershipAdmin(admin.ModelAdmin):
 
 
 class TokenTypeAdmin(admin.ModelAdmin):
-    list_display = ("name", "contestant_limit", "task_limit", "is_active")
+    list_display = ("name", "contestant_limit", "is_active")
     list_filter = ("is_active",)
     search_fields = ("name",)
 

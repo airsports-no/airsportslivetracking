@@ -19,8 +19,8 @@ class TestTokenAssignmentLifecycle(TestCase):
             location="60.0,11.0",
             created_by=self.user,
         )
-        self.token_type_small = TokenType.objects.create(name="Small token", contestant_limit=10, task_limit=1)
-        self.token_type_large = TokenType.objects.create(name="Large token", contestant_limit=40, task_limit=4)
+        self.token_type_small = TokenType.objects.create(name="Small token", contestant_limit=10)
+        self.token_type_large = TokenType.objects.create(name="Large token", contestant_limit=40)
         self.small_grant = UserTokenGrant.objects.create(user=self.user, token_type=self.token_type_small, quantity_total=2)
         self.large_grant = UserTokenGrant.objects.create(user=self.user, token_type=self.token_type_large, quantity_total=2)
 

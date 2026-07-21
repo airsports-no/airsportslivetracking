@@ -12,10 +12,8 @@ from display.services.capacity_enforcement import (
     assert_can_start_contestant,
 )
 
-
 @override_settings(
     DEFAULT_FREE_CONTESTANT_LIMIT=1,
-    DEFAULT_FREE_TASK_LIMIT=1,
     ACCESS_ENFORCEMENT_MODE="enforce",
 )
 class TestCapacityEnforcement(TestCase):
@@ -48,23 +46,23 @@ class TestCapacityEnforcement(TestCase):
         )
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
-    def test_navigation_task_creation_is_not_blocked_by_task_limit(self, mock_resolve):
-        mock_resolve.return_value = type("Resolution", (), {"task_limit": 1, "tasks_used": 1, "contestant_limit": None, "contestants_used": 0, "enforcement_mode": "enforce"})()
+    def test_navigation_task_creation_is_not_blocked_when_contestant_limit_exists(self, mock_resolve):
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": None, "contestants_used": 0, "enforcement_mode": "enforce"})()
 
         resolution = assert_can_add_navigation_task(self.contest)
 
-        self.assertEqual(1, resolution.task_limit)
+        self.assertIsNone(resolution.contestant_limit)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
     def test_blocks_guest_team_registration_when_contestant_limit_reached(self, mock_resolve):
-        mock_resolve.return_value = type("Resolution", (), {"task_limit": None, "tasks_used": 0, "contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
 
         with self.assertRaises(ValidationError):
             assert_can_register_team(self.contest, self.team)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
     def test_owner_team_is_exempt_from_contestant_limit(self, mock_resolve):
-        mock_resolve.return_value = type("Resolution", (), {"task_limit": None, "tasks_used": 0, "contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
 
         resolution = assert_can_register_team(self.contest, self.owner_team)
 
@@ -81,7 +79,7 @@ class TestCapacityEnforcement(TestCase):
             finish_time="2026-03-01T17:00:00+00:00",
         )
         contest_team = ContestTeam.objects.create(contest=self.contest, team=self.team)
-        mock_resolve.return_value = type("Resolution", (), {"task_limit": None, "tasks_used": 0, "contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
 
         resolution = assert_can_self_register_contestant(navigation_task, contest_team)
 
@@ -98,7 +96,7 @@ class TestCapacityEnforcement(TestCase):
             finish_time="2026-03-01T17:00:00+00:00",
         )
         owner_contest_team = ContestTeam.objects.create(contest=self.contest, team=self.owner_team)
-        mock_resolve.return_value = type("Resolution", (), {"task_limit": None, "tasks_used": 0, "contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
 
         resolution = assert_can_self_register_contestant(navigation_task, owner_contest_team)
 
@@ -132,7 +130,7 @@ class TestCapacityEnforcement(TestCase):
             pilot=other_pilot,
             kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
         )
-        mock_resolve.return_value = type("Resolution", (), {"task_limit": None, "tasks_used": 0, "contestant_limit": 1, "contestants_used": 1, "enforcement_mode": "enforce"})()
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 1, "enforcement_mode": "enforce"})()
 
         with self.assertRaises(ValidationError):
             assert_can_start_contestant(contestant)
@@ -166,7 +164,7 @@ class TestCapacityEnforcement(TestCase):
             pilot=other_pilot,
             kind=ContestUsageLedger.TASK_PILOT_STARTED,
         )
-        mock_resolve.return_value = type("Resolution", (), {"task_limit": None, "tasks_used": 0, "contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
 
         with self.assertRaises(ValidationError):
             assert_can_start_contestant(contestant)
@@ -207,7 +205,7 @@ class TestCapacityEnforcement(TestCase):
             contestant=contestant,
             kind=ContestUsageLedger.TASK_PILOT_STARTED,
         )
-        mock_resolve.return_value = type("Resolution", (), {"task_limit": None, "tasks_used": 0, "contestant_limit": 1, "contestants_used": 1, "enforcement_mode": "enforce"})()
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 1, "enforcement_mode": "enforce"})()
 
         resolution = assert_can_start_contestant(contestant)
 

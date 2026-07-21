@@ -37,12 +37,14 @@ class TestContestAccessStatusSerialization(TestCase):
                 "source_type": "club_pass",
                 "source_id": 7,
                 "contestant_limit": None,
-                "task_limit": 10,
                 "contestants_used": 2,
-                "tasks_used": 1,
                 "enforcement_mode": "audit",
                 "token_grant_id": None,
                 "token_type_id": None,
+                "package_contestant_limit": None,
+                "free_contestant_limit": None,
+                "contestant_limit_uses_free_default": False,
+                "uses_more_advantageous_free_limits": False,
             },
         )()
         mock_token_model.objects.filter.return_value.select_related.return_value.order_by.return_value = []
@@ -53,5 +55,4 @@ class TestContestAccessStatusSerialization(TestCase):
         self.assertEqual("annual_club_pass", data["access_status"]["tier_code"])
         self.assertEqual("Annual Club Pass", data["access_status"]["tier_label"])
         self.assertEqual("club_pass", data["access_status"]["source_type"])
-        self.assertEqual(10, data["access_status"]["task_limit"])
         self.assertEqual(2, data["access_status"]["contestants_used"])

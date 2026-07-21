@@ -32,9 +32,9 @@ class TestContestDetailCaching(APITestCase):
         assign_perm("view_contest", self.user, self.contest)
         assign_perm("view_contest", self.change_user, self.contest)
         assign_perm("change_contest", self.change_user, self.contest)
-        self.token_type = TokenType.objects.create(name="Cache token", contestant_limit=10, task_limit=1)
+        self.token_type = TokenType.objects.create(name="Cache token", contestant_limit=10)
         self.token_grant = UserTokenGrant.objects.create(user=self.change_user, token_type=self.token_type, quantity_total=1)
-        AccessGrant.objects.create(club=self.club, status=AccessGrant.ACTIVE, contestant_limit=10, task_limit=2)
+        AccessGrant.objects.create(club=self.club, status=AccessGrant.ACTIVE, contestant_limit=10)
 
     def test_public_contest_detail_with_authenticated_user_is_private_cache(self):
         self.client.force_login(self.user)
