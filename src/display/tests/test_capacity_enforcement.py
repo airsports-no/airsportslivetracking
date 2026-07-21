@@ -33,9 +33,14 @@ class TestCapacityEnforcement(TestCase):
         self.scorecard = Scorecard.get_originals().first() or Scorecard.objects.create(name="Test scorecard")
         self.route = Route.objects.create(name="Route")
         self.person = Person.objects.create(first_name="Pilot", last_name="One", email="pilot@example.com")
+        self.alt_copilot = Person.objects.create(first_name="Copilot", last_name="Alt", email="copilot-alt@example.com")
         self.team = Team.objects.create(
             crew=Crew.objects.create(member1=self.person),
             aeroplane=Aeroplane.objects.create(registration="LN-TEST"),
+        )
+        self.same_pilot_new_team = Team.objects.create(
+            crew=Crew.objects.create(member1=self.person, member2=self.alt_copilot),
+            aeroplane=Aeroplane.objects.create(registration="LN-TEST-2"),
         )
         self.owner_team = Team.objects.create(
             crew=Crew.objects.create(member1=self.owner_person),
@@ -43,11 +48,12 @@ class TestCapacityEnforcement(TestCase):
         )
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
-    def test_blocks_navigation_task_creation_when_task_limit_reached(self, mock_resolve):
+    def test_navigation_task_creation_is_not_blocked_by_task_limit(self, mock_resolve):
         mock_resolve.return_value = type("Resolution", (), {"task_limit": 1, "tasks_used": 1, "contestant_limit": None, "contestants_used": 0, "enforcement_mode": "enforce"})()
 
-        with self.assertRaises(ValidationError):
-            assert_can_add_navigation_task(self.contest)
+        resolution = assert_can_add_navigation_task(self.contest)
+
+        self.assertEqual(1, resolution.task_limit)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
     def test_blocks_guest_team_registration_when_contestant_limit_reached(self, mock_resolve):
@@ -119,13 +125,11 @@ class TestCapacityEnforcement(TestCase):
             wind_direction=0,
             gate_times={},
         )
+        other_pilot = Person.objects.create(first_name="Other", last_name="Pilot", email="other@example.com")
         ContestUsageLedger.objects.create(
             contest=self.contest,
-            team=Team.objects.create(
-                crew=Crew.objects.create(member1=Person.objects.create(first_name="Other", last_name="Pilot", email="other@example.com")),
-                aeroplane=Aeroplane.objects.create(registration="LN-OTHER"),
-            ),
-            kind=ContestUsageLedger.CONTEST_TEAM_STARTED,
+            pilot=other_pilot,
+            kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
         )
         mock_resolve.return_value = type("Resolution", (), {"task_limit": None, "tasks_used": 0, "contestant_limit": 1, "contestants_used": 1, "enforcement_mode": "enforce"})()
 
@@ -133,15 +137,16 @@ class TestCapacityEnforcement(TestCase):
             assert_can_start_contestant(contestant)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
-    def test_start_time_allows_same_team_recreation_when_slots_already_burned(self, mock_resolve):
+    def test_start_time_blocks_new_guest_team_when_task_limit_reached(self, mock_resolve):
         navigation_task = NavigationTask.objects.create(
-            name="Restart Task",
+            name="Task Full",
             contest=self.contest,
             route=self.route,
             original_scorecard=self.scorecard,
             start_time="2026-03-01T09:00:00+00:00",
             finish_time="2026-03-01T17:00:00+00:00",
         )
+        other_pilot = Person.objects.create(first_name="Other", last_name="TaskPilot", email="taskfull@example.com")
         contestant = navigation_task.contestant_set.create(
             team=self.team,
             contestant_number=1,
@@ -156,17 +161,50 @@ class TestCapacityEnforcement(TestCase):
         )
         ContestUsageLedger.objects.create(
             contest=self.contest,
-            team=self.team,
+            navigation_task=navigation_task,
+            pilot=other_pilot,
+            kind=ContestUsageLedger.TASK_PILOT_STARTED,
+        )
+        mock_resolve.return_value = type("Resolution", (), {"task_limit": None, "tasks_used": 0, "contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
+
+        with self.assertRaises(ValidationError):
+            assert_can_start_contestant(contestant)
+
+    @patch("display.services.capacity_enforcement.resolve_contest_access")
+    def test_start_time_allows_same_primary_pilot_new_team_when_slot_already_burned(self, mock_resolve):
+        navigation_task = NavigationTask.objects.create(
+            name="Restart Task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=self.scorecard,
+            start_time="2026-03-01T09:00:00+00:00",
+            finish_time="2026-03-01T17:00:00+00:00",
+        )
+        contestant = navigation_task.contestant_set.create(
+            team=self.same_pilot_new_team,
+            contestant_number=1,
+            takeoff_time=datetime.datetime(2026, 3, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            tracker_start_time=datetime.datetime(2026, 3, 1, 8, 50, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2026, 3, 1, 11, 0, tzinfo=datetime.timezone.utc),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+        ContestUsageLedger.objects.create(
+            contest=self.contest,
+            pilot=self.person,
             contestant=contestant,
-            kind=ContestUsageLedger.CONTEST_TEAM_STARTED,
+            kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
             navigation_task=navigation_task,
         )
         ContestUsageLedger.objects.create(
             contest=self.contest,
             navigation_task=navigation_task,
-            team=self.team,
+            pilot=self.person,
             contestant=contestant,
-            kind=ContestUsageLedger.TASK_TEAM_STARTED,
+            kind=ContestUsageLedger.TASK_PILOT_STARTED,
         )
         mock_resolve.return_value = type("Resolution", (), {"task_limit": None, "tasks_used": 0, "contestant_limit": 1, "contestants_used": 1, "enforcement_mode": "enforce"})()
 

@@ -29,6 +29,7 @@ class TokenType(models.Model):
     description = models.TextField(blank=True, default="", help_text="Explain how this token package should be used and what its limits mean.")
     contestant_limit = models.IntegerField(help_text="Maximum number of contestants that may be created under a contest using this token package.")
     task_limit = models.IntegerField(help_text="Maximum number of navigation tasks that may exist under a contest using this token package.")
+    validity_days = models.IntegerField(null=True, blank=True, help_text="Number of days the token remains valid after activation. Leave empty for no automatic expiry.")
     is_active = models.BooleanField(default=True, help_text="Inactive token types stay in history but cannot be offered for new grants or assignments.")
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this token type was created.")
     updated_at = models.DateTimeField(auto_now=True, help_text="When this token type definition was last updated.")
@@ -100,9 +101,16 @@ class ContestTokenAssignment(models.Model):
         help_text="Backend user who assigned or replaced the token for this contest.",
     )
     assigned_at = models.DateTimeField(auto_now_add=True, help_text="When this token was assigned to the contest.")
+    activated_at = models.DateTimeField(null=True, blank=True, help_text="When the first billable guest start activated this token assignment.")
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="When this contest token assignment expires and the contest enters archive mode.")
 
     class Meta:
         ordering = ("-assigned_at",)
+
+    @property
+    def is_active_now(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return self.expires_at is None or self.expires_at > now
 
     def clean(self):
         super().clean()

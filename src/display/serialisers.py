@@ -1519,7 +1519,6 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
             except KeyError:
                 raise Http404("Contest not found")
 
-            assert_can_add_navigation_task(validated_data["contest"])
             validated_data["route"] = route
             assign_perm("view_route", user, route)
             assign_perm("delete_route", user, route)
@@ -1573,7 +1572,6 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
             except KeyError:
                 raise Http404("Contest not found")
 
-            assert_can_add_navigation_task(validated_data["contest"])
             validated_data["route"] = route
             assign_perm("view_route", user, route)
             assign_perm("delete_route", user, route)

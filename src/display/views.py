@@ -1462,7 +1462,7 @@ class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRe
         guest_started_slots = ContestUsageLedger.objects.filter(
             contest=contest,
             navigation_task=navigation_task,
-            kind=ContestUsageLedger.TASK_TEAM_STARTED,
+            kind=ContestUsageLedger.TASK_PILOT_STARTED,
         ).count()
         guest_capacity_limit = resolve_contest_access(contest).contestant_limit
         context["guest_created_contestants"] = guest_created_contestants

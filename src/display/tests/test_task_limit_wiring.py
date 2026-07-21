@@ -32,7 +32,7 @@ class TestTaskLimitWiring(TestCase):
         self.scorecard = get_default_scorecard()
 
     @patch("display.serialisers.assert_can_add_navigation_task")
-    def test_navigation_task_serializer_create_calls_capacity_guard(self, mock_guard):
+    def test_navigation_task_serializer_create_no_longer_calls_capacity_guard(self, mock_guard):
         serializer = NavigationTaskEditableRoutReferenceSerialiser(
             data={
                 "name": "Limited Task",
@@ -49,4 +49,11 @@ class TestTaskLimitWiring(TestCase):
 
         serializer.save()
 
-        mock_guard.assert_called_once_with(self.contest)
+        mock_guard.assert_not_called()
+
+    def test_navigation_task_capacity_guard_no_longer_blocks_creation(self):
+        from display.services.capacity_enforcement import assert_can_add_navigation_task
+
+        resolution = assert_can_add_navigation_task(self.contest)
+
+        self.assertIsNotNone(resolution)

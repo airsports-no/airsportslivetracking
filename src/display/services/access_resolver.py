@@ -1,3 +1,5 @@
+import datetime
+
 from django.conf import settings
 from display.models import (
     AccessGrant,
@@ -12,11 +14,11 @@ from display.models import (
 def resolve_contest_access(contest: Contest) -> AccessResolution:
     contestants_used = ContestUsageLedger.objects.filter(
         contest=contest,
-        kind=ContestUsageLedger.CONTEST_TEAM_STARTED,
+        kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
     ).count()
     tasks_used = ContestUsageLedger.objects.filter(
         contest=contest,
-        kind=ContestUsageLedger.TASK_TEAM_STARTED,
+        kind=ContestUsageLedger.TASK_PILOT_STARTED,
     ).values("navigation_task_id").distinct().count()
 
     token_assignment = _contest_token_assignment(contest)
@@ -76,7 +78,12 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
 
 def _contest_token_assignment(contest: Contest):
     try:
-        return ContestTokenAssignment.objects.filter(contest=contest).select_related("token_grant", "token_type").first()
+        assignment = ContestTokenAssignment.objects.filter(contest=contest).select_related("token_grant", "token_type").first()
+        if assignment is None:
+            return None
+        if assignment.expires_at is not None and assignment.expires_at <= datetime.datetime.now(datetime.timezone.utc):
+            return None
+        return assignment
     except Exception:
         return None
 

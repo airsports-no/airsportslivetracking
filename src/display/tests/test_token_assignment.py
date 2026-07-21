@@ -2,7 +2,9 @@ import datetime
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.test import TestCase
+from django.utils import timezone
 
 from display.models import (
     Contest,
@@ -19,14 +21,18 @@ from display.models import (
     Crew,
     Person,
     Aeroplane,
+    Club,
+    AccessGrant,
 )
 from display.services.access_resolver import resolve_contest_access
+from display.services.capacity_enforcement import assert_can_add_navigation_task, assert_can_start_contestant
 from display.services.token_assignment import assign_token_to_contest, revert_token_assignment_for_support
 
 
 class TestTokenAssignment(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create(email="token-owner@example.com")
+        self.owner_person = Person.objects.create(first_name="Owner", last_name="Pilot", email=self.user.email)
         self.contest = Contest.objects.create(
             name="Token Contest",
             time_zone="Europe/Oslo",
@@ -39,6 +45,13 @@ class TestTokenAssignment(TestCase):
             name="Club event 25/3",
             contestant_limit=25,
             task_limit=3,
+            validity_days=14,
+        )
+        self.annual_token_type = TokenType.objects.create(
+            name="Annual club pass 15",
+            contestant_limit=15,
+            task_limit=10,
+            validity_days=365,
         )
 
     def test_user_token_grant_reports_remaining_quantity(self):
@@ -111,8 +124,8 @@ class TestTokenAssignment(TestCase):
         resolution = resolve_contest_access(self.contest)
         self.assertEqual(1, resolution.contestants_used)
         self.assertEqual(1, resolution.tasks_used)
-        self.assertEqual(1, ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.CONTESTANT_STARTED).count())
-        self.assertEqual(1, ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.TASK_STARTED).count())
+        self.assertEqual(1, ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.CONTEST_PILOT_STARTED).count())
+        self.assertEqual(1, ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.TASK_PILOT_STARTED).count())
 
     def test_support_revert_token_assignment_refunds_token_and_removes_assignment(self):
         grant = UserTokenGrant.objects.create(
@@ -151,3 +164,227 @@ class TestTokenAssignment(TestCase):
 
         with self.assertRaises(ValidationError):
             assign_token_to_contest(self.contest, self.user, grant.id)
+
+    def test_assignment_starts_inactive_until_first_guest_start(self):
+        grant = UserTokenGrant.objects.create(
+            user=self.user,
+            token_type=self.token_type,
+            quantity_total=1,
+            quantity_consumed=0,
+        )
+        assignment = assign_token_to_contest(self.contest, self.user, grant.id)
+
+        self.assertIsNone(getattr(assignment, "activated_at", None))
+        self.assertIsNone(getattr(assignment, "expires_at", None))
+
+    def test_owner_only_start_does_not_activate_token(self):
+        grant = UserTokenGrant.objects.create(
+            user=self.user,
+            token_type=self.token_type,
+            quantity_total=1,
+            quantity_consumed=0,
+        )
+        assignment = assign_token_to_contest(self.contest, self.user, grant.id)
+        scorecard = Scorecard.objects.create(name="Owner card", shortcut_name="owner-card")
+        task = NavigationTask.objects.create(
+            name="Owner Task",
+            contest=self.contest,
+            route=Route.objects.create(name="Owner Route"),
+            original_scorecard=scorecard,
+            start_time=timezone.now(),
+            finish_time=timezone.now() + timezone.timedelta(hours=2),
+        )
+        owner_team = Team.objects.create(
+            crew=Crew.objects.create(member1=self.owner_person),
+            aeroplane=Aeroplane.objects.create(registration="LN-OWNER-TTL"),
+        )
+        owner_contestant = Contestant.objects.create(
+            team=owner_team,
+            navigation_task=task,
+            contestant_number=1,
+            takeoff_time=timezone.now(),
+            tracker_start_time=timezone.now() - timezone.timedelta(minutes=10),
+            finished_by_time=timezone.now() + timezone.timedelta(hours=2),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+
+        ContestantTrack.objects.get(contestant=owner_contestant).set_calculator_started()
+        assignment.refresh_from_db()
+
+        self.assertIsNone(getattr(assignment, "activated_at", None))
+        self.assertIsNone(getattr(assignment, "expires_at", None))
+
+    def test_first_guest_start_activates_token_and_sets_expiry(self):
+        grant = UserTokenGrant.objects.create(
+            user=self.user,
+            token_type=self.token_type,
+            quantity_total=1,
+            quantity_consumed=0,
+        )
+        assignment = assign_token_to_contest(self.contest, self.user, grant.id)
+        scorecard = Scorecard.objects.create(name="Guest card", shortcut_name="guest-card")
+        task = NavigationTask.objects.create(
+            name="Guest Task",
+            contest=self.contest,
+            route=Route.objects.create(name="Guest Route"),
+            original_scorecard=scorecard,
+            start_time=timezone.now(),
+            finish_time=timezone.now() + timezone.timedelta(hours=2),
+        )
+        pilot = Person.objects.create(first_name="Guest", last_name="Pilot", email="guest-ttl@example.com")
+        guest_team = Team.objects.create(
+            crew=Crew.objects.create(member1=pilot),
+            aeroplane=Aeroplane.objects.create(registration="LN-GUEST-TTL"),
+        )
+        guest_contestant = Contestant.objects.create(
+            team=guest_team,
+            navigation_task=task,
+            contestant_number=1,
+            takeoff_time=timezone.now(),
+            tracker_start_time=timezone.now() - timezone.timedelta(minutes=10),
+            finished_by_time=timezone.now() + timezone.timedelta(hours=2),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+
+        ContestantTrack.objects.get(contestant=guest_contestant).set_calculator_started()
+        assignment.refresh_from_db()
+
+        self.assertIsNotNone(assignment.activated_at)
+        self.assertIsNotNone(assignment.expires_at)
+        self.assertEqual(14, (assignment.expires_at - assignment.activated_at).days)
+
+    def test_first_guest_start_activates_annual_token_for_365_days(self):
+        grant = UserTokenGrant.objects.create(
+            user=self.user,
+            token_type=self.annual_token_type,
+            quantity_total=1,
+            quantity_consumed=0,
+        )
+        assignment = assign_token_to_contest(self.contest, self.user, grant.id)
+        scorecard = Scorecard.objects.create(name="Annual guest card", shortcut_name="annual-guest-card")
+        task = NavigationTask.objects.create(
+            name="Annual Guest Task",
+            contest=self.contest,
+            route=Route.objects.create(name="Annual Guest Route"),
+            original_scorecard=scorecard,
+            start_time=timezone.now(),
+            finish_time=timezone.now() + timezone.timedelta(hours=2),
+        )
+        pilot = Person.objects.create(first_name="Annual", last_name="Pilot", email="annual-guest@example.com")
+        guest_team = Team.objects.create(
+            crew=Crew.objects.create(member1=pilot),
+            aeroplane=Aeroplane.objects.create(registration="LN-ANNUAL-TTL"),
+        )
+        guest_contestant = Contestant.objects.create(
+            team=guest_team,
+            navigation_task=task,
+            contestant_number=1,
+            takeoff_time=timezone.now(),
+            tracker_start_time=timezone.now() - timezone.timedelta(minutes=10),
+            finished_by_time=timezone.now() + timezone.timedelta(hours=2),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+
+        ContestantTrack.objects.get(contestant=guest_contestant).set_calculator_started()
+        assignment.refresh_from_db()
+
+        self.assertIsNotNone(assignment.activated_at)
+        self.assertIsNotNone(assignment.expires_at)
+        self.assertEqual(365, (assignment.expires_at - assignment.activated_at).days)
+
+    def test_expired_token_blocks_new_guest_start(self):
+        grant = UserTokenGrant.objects.create(
+            user=self.user,
+            token_type=self.token_type,
+            quantity_total=1,
+            quantity_consumed=0,
+        )
+        assignment = assign_token_to_contest(self.contest, self.user, grant.id)
+        assignment.activated_at = timezone.now() - timezone.timedelta(days=15)
+        assignment.expires_at = timezone.now() - timezone.timedelta(days=1)
+        assignment.save(update_fields=["activated_at", "expires_at"])
+        scorecard = Scorecard.objects.create(name="Expired card", shortcut_name="expired-card")
+        task = NavigationTask.objects.create(
+            name="Expired Task",
+            contest=self.contest,
+            route=Route.objects.create(name="Expired Route"),
+            original_scorecard=scorecard,
+            start_time=timezone.now(),
+            finish_time=timezone.now() + timezone.timedelta(hours=2),
+        )
+        pilot = Person.objects.create(first_name="Expired", last_name="Pilot", email="expired-pilot@example.com")
+        guest_team = Team.objects.create(
+            crew=Crew.objects.create(member1=pilot),
+            aeroplane=Aeroplane.objects.create(registration="LN-EXP-TTL"),
+        )
+        guest_contestant = Contestant.objects.create(
+            team=guest_team,
+            navigation_task=task,
+            contestant_number=1,
+            takeoff_time=timezone.now(),
+            tracker_start_time=timezone.now() - timezone.timedelta(minutes=10),
+            finished_by_time=timezone.now() + timezone.timedelta(hours=2),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+
+        with self.assertRaises(ValidationError):
+            assert_can_start_contestant(guest_contestant)
+
+    def test_expired_token_blocks_new_task_creation(self):
+        grant = UserTokenGrant.objects.create(
+            user=self.user,
+            token_type=self.token_type,
+            quantity_total=1,
+            quantity_consumed=0,
+        )
+        assignment = assign_token_to_contest(self.contest, self.user, grant.id)
+        assignment.activated_at = timezone.now() - timezone.timedelta(days=15)
+        assignment.expires_at = timezone.now() - timezone.timedelta(days=1)
+        assignment.save(update_fields=["activated_at", "expires_at"])
+
+        with self.assertRaises(DRFValidationError):
+            assert_can_add_navigation_task(self.contest)
+
+    def test_expired_token_falls_through_to_active_club_pass_in_resolver(self):
+        club = Club.objects.create(name="Archive Club")
+        self.contest.organizing_club = club
+        self.contest.save(update_fields=["organizing_club"])
+        from display.models import ClubManagerMembership
+        ClubManagerMembership.objects.create(club=club, user=self.user, role=ClubManagerMembership.OWNER, is_active=True)
+        AccessGrant.objects.create(
+            club=club,
+            status=AccessGrant.ACTIVE,
+            contestant_limit=12,
+            task_limit=None,
+        )
+        grant = UserTokenGrant.objects.create(
+            user=self.user,
+            token_type=self.token_type,
+            quantity_total=1,
+            quantity_consumed=0,
+        )
+        assignment = assign_token_to_contest(self.contest, self.user, grant.id)
+        assignment.activated_at = timezone.now() - timezone.timedelta(days=15)
+        assignment.expires_at = timezone.now() - timezone.timedelta(days=1)
+        assignment.save(update_fields=["activated_at", "expires_at"])
+
+        resolution = resolve_contest_access(self.contest)
+
+        self.assertEqual("club_pass", resolution.source_type)
+        self.assertEqual("annual_club_pass", resolution.tier_code)

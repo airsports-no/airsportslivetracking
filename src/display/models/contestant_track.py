@@ -167,19 +167,26 @@ class ContestantTrack(models.Model):
             except Exception:
                 is_owner_team = False
         if not is_owner_team:
+            pilot = self.contestant.team.crew.member1
             ContestUsageLedger.objects.get_or_create(
                 contest=contest,
-                team=self.contestant.team,
-                contestant=self.contestant,
-                kind=ContestUsageLedger.CONTEST_TEAM_STARTED,
-                defaults={"navigation_task": self.contestant.navigation_task},
+                pilot=pilot,
+                kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
+                defaults={
+                    "navigation_task": self.contestant.navigation_task,
+                    "team": self.contestant.team,
+                    "contestant": self.contestant,
+                },
             )
             ContestUsageLedger.objects.get_or_create(
                 contest=contest,
                 navigation_task=self.contestant.navigation_task,
-                team=self.contestant.team,
-                contestant=self.contestant,
-                kind=ContestUsageLedger.TASK_TEAM_STARTED,
+                pilot=pilot,
+                kind=ContestUsageLedger.TASK_PILOT_STARTED,
+                defaults={
+                    "team": self.contestant.team,
+                    "contestant": self.contestant,
+                },
             )
         self.__push_change()
 

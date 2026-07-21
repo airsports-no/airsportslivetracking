@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 from display.models import ContestTokenAssignment, UserTokenGrant, ContestUsageLedger, Contestant
 
@@ -8,7 +9,7 @@ def _backfill_historical_usage_for_existing_contest(contest):
     started_contestants = Contestant.objects.filter(
         navigation_task__contest=contest,
         contestanttrack__calculator_started=True,
-    ).select_related("navigation_task", "team").distinct()
+    ).select_related("navigation_task", "team__crew").distinct()
     owner_person_id = None
     if contest.created_by_id:
         try:
@@ -18,20 +19,42 @@ def _backfill_historical_usage_for_existing_contest(contest):
     for contestant in started_contestants:
         if owner_person_id is not None and contestant.team.crew.member1_id == owner_person_id:
             continue
+        pilot = contestant.team.crew.member1
         ContestUsageLedger.objects.get_or_create(
             contest=contest,
-            team=contestant.team,
-            contestant=contestant,
-            kind=ContestUsageLedger.CONTEST_TEAM_STARTED,
-            defaults={"navigation_task": contestant.navigation_task},
+            pilot=pilot,
+            kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
+            defaults={
+                "navigation_task": contestant.navigation_task,
+                "team": contestant.team,
+                "contestant": contestant,
+            },
         )
         ContestUsageLedger.objects.get_or_create(
             contest=contest,
             navigation_task=contestant.navigation_task,
-            team=contestant.team,
-            contestant=contestant,
-            kind=ContestUsageLedger.TASK_TEAM_STARTED,
+            pilot=pilot,
+            kind=ContestUsageLedger.TASK_PILOT_STARTED,
+            defaults={
+                "team": contestant.team,
+                "contestant": contestant,
+            },
         )
+
+
+def ensure_token_assignment_active_for_guest_start(contest):
+    assignment = ContestTokenAssignment.objects.select_for_update().select_related("token_type").filter(contest=contest).first()
+    if assignment is None:
+        return None
+    now = timezone.now()
+    if assignment.expires_at is not None and assignment.expires_at <= now:
+        raise ValidationError("This contest token has expired. The contest is now in archive mode until a new token or annual pass is applied.")
+    if assignment.activated_at is None:
+        assignment.activated_at = now
+        if assignment.token_type.validity_days is not None:
+            assignment.expires_at = now + timezone.timedelta(days=assignment.token_type.validity_days)
+        assignment.save(update_fields=["activated_at", "expires_at"])
+    return assignment
 
 
 @transaction.atomic
