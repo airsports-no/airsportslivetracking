@@ -176,6 +176,14 @@ class ClubManagerMembershipAdmin(admin.ModelAdmin):
     list_display = ("club", "user", "role", "is_active")
     list_filter = ("role", "is_active")
     search_fields = ("club__name", "user__email")
+    exclude = ("created_by", "updated_by")
+    readonly_fields = ("created_by", "updated_by")
+
+    def save_model(self, request, obj, form, change):
+        if not obj.created_by_id:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
 
 
 class TokenTypeAdmin(admin.ModelAdmin):

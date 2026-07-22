@@ -1448,8 +1448,12 @@ class ClubViewSet(ModelViewSet):
             defaults={
                 "role": serializer.validated_data["role"],
                 "is_active": True,
+                "updated_by": request.user,
             },
         )
+        if membership.created_by_id is None:
+            membership.created_by = request.user
+            membership.save(update_fields=["created_by", "updated_at"])
         return Response(ClubManagerMembershipSerializer(membership).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["delete"], url_path=r"managers/(?P<membership_pk>\d+)")
@@ -1459,7 +1463,9 @@ class ClubViewSet(ModelViewSet):
             return Response(status=status.HTTP_403_FORBIDDEN)
         membership = get_object_or_404(ClubManagerMembership, pk=membership_pk, club=club)
         membership.is_active = False
-        membership.save(update_fields=["is_active", "updated_at"])
+        membership.updated_by = request.user
+        membership.full_clean()
+        membership.save(update_fields=["is_active", "updated_by", "updated_at"])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

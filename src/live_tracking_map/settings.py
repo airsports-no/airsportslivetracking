@@ -87,8 +87,8 @@ MBTILES_RELOAD_LOCAL_URL = os.environ.get("MBTILES_RELOAD_LOCAL_URL", "")
 BUILD_ID = os.environ.get("BUILD_ID", "latest")
 
 
-def _parse_optional_int_env(name: str):
-    value = os.environ.get(name, "")
+def _parse_optional_int_env(name: str, default: int = None) -> int | None:
+    value = os.environ.get(name, str(default))
     if value is None:
         return None
     value = value.strip()
@@ -97,13 +97,12 @@ def _parse_optional_int_env(name: str):
     return int(value)
 
 
-DEFAULT_FREE_CONTESTANT_LIMIT = _parse_optional_int_env("DEFAULT_FREE_CONTESTANT_LIMIT")
-DEFAULT_FREE_TASK_LIMIT = _parse_optional_int_env("DEFAULT_FREE_TASK_LIMIT")
+DEFAULT_FREE_CONTESTANT_LIMIT = _parse_optional_int_env("DEFAULT_FREE_CONTESTANT_LIMIT", 5)
 # ACCESS_ENFORCEMENT_MODE controls whether contestant-capacity limits are only surfaced
 # for visibility or actively enforced at runtime.
 # - "audit": expose limits/status in UI and APIs but do not block actions.
 # - "enforce": block quota-consuming actions when the effective contestant limit is exhausted.
-ACCESS_ENFORCEMENT_MODE = os.environ.get("ACCESS_ENFORCEMENT_MODE", "audit")
+ACCESS_ENFORCEMENT_MODE = os.environ.get("ACCESS_ENFORCEMENT_MODE", "limit")
 
 MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
 

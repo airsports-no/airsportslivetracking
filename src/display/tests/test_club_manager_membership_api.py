@@ -56,7 +56,10 @@ class TestClubManagerMembershipApi(APITestCase):
         response = self.client.post(url, {"user_id": self.other_user.pk, "role": ClubManagerMembership.MANAGER}, format="json")
 
         self.assertEqual(status.HTTP_201_CREATED, response.status_code)
-        self.assertTrue(ClubManagerMembership.objects.filter(club=self.club, user=self.other_user, is_active=True).exists())
+        membership = ClubManagerMembership.objects.get(club=self.club, user=self.other_user)
+        self.assertTrue(membership.is_active)
+        self.assertEqual(self.owner, membership.created_by)
+        self.assertEqual(self.owner, membership.updated_by)
 
     def test_non_manager_cannot_add_manager_membership(self):
         self.client.force_login(self.stranger)
@@ -85,6 +88,18 @@ class TestClubManagerMembershipApi(APITestCase):
         self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
         membership.refresh_from_db()
         self.assertFalse(membership.is_active)
+        self.assertEqual(self.owner, membership.updated_by)
+
+    def test_owner_cannot_deactivate_last_active_owner_membership(self):
+        self.client.force_login(self.owner)
+        owner_membership = ClubManagerMembership.objects.get(club=self.club, user=self.owner)
+        url = reverse("clubs-manager-detail", kwargs={"pk": self.club.pk, "membership_pk": owner_membership.pk})
+
+        response = self.client.delete(url)
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        owner_membership.refresh_from_db()
+        self.assertTrue(owner_membership.is_active)
 
     def test_non_owner_manager_cannot_deactivate_manager_membership(self):
         membership = ClubManagerMembership.objects.create(club=self.club, user=self.other_user, role=ClubManagerMembership.MANAGER)

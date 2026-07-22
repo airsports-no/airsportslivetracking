@@ -98,8 +98,6 @@ Relevant settings:
   - `enforce`: block task creation / registration once limits are reached
 - `DEFAULT_FREE_CONTESTANT_LIMIT`
   - default contestant cap for contests that do not have a club pass, access grant, or token
-- `DEFAULT_FREE_TASK_LIMIT`
-  - default task cap for contests that do not have a club pass, access grant, or token
 
 Semantics:
 - if a contest has no paid/override access path, these free-tier defaults are used

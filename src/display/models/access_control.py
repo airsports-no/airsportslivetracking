@@ -14,11 +14,38 @@ class ClubManagerMembership(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, help_text="Logged-in user who may manage contests and access for this club.")
     role = models.CharField(max_length=20, choices=ROLES, default=MANAGER, help_text="Whether this user is a general manager or the primary owner for the club.")
     is_active = models.BooleanField(default=True, help_text="If false, this membership is ignored when resolving club-based access rights.")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_club_manager_memberships",
+        help_text="Backend user who created this club manager membership.",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_club_manager_memberships",
+        help_text="Backend user who last updated this club manager membership.",
+    )
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this club manager membership was created.")
     updated_at = models.DateTimeField(auto_now=True, help_text="When this club manager membership was last updated.")
 
     class Meta:
         unique_together = ("club", "user")
+
+    def clean(self):
+        super().clean()
+        if self.role == self.OWNER and not self.is_active:
+            active_owner_exists = ClubManagerMembership.objects.filter(
+                club=self.club,
+                role=self.OWNER,
+                is_active=True,
+            ).exclude(pk=self.pk).exists()
+            if not active_owner_exists:
+                raise ValidationError("A club must always retain at least one active owner membership")
 
     def __str__(self):
         return f"{self.user} manages {self.club}"
@@ -27,7 +54,7 @@ class ClubManagerMembership(models.Model):
 class TokenType(models.Model):
     name = models.CharField(max_length=200, unique=True, help_text="Human-friendly name for the token package, shown in admin and contest UI.")
     description = models.TextField(blank=True, default="", help_text="Explain how this token package should be used and what its limits mean.")
-    contestant_limit = models.IntegerField(help_text="Maximum number of unique guest pilots that may start under a contest using this token package.")
+    contestant_limit = models.IntegerField(help_text="Maximum number of competing pilots that may start under a contest using this token package.")
     validity_days = models.IntegerField(null=True, blank=True, help_text="Number of days the token remains valid after activation. Leave empty for no automatic expiry.")
     is_active = models.BooleanField(default=True, help_text="Inactive token types stay in history but cannot be offered for new grants or assignments.")
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this token type was created.")
@@ -151,7 +178,7 @@ class AccessGrant(models.Model):
     status = models.CharField(max_length=20, choices=STATUSES, default=DRAFT, help_text="Operational state of the grant. Only active grants inside their time window are enforced.")
     starts_at = models.DateTimeField(null=True, blank=True, help_text="Optional start time from which the grant becomes valid.")
     expires_at = models.DateTimeField(null=True, blank=True, help_text="Optional expiry time after which the grant no longer applies.")
-    contestant_limit = models.IntegerField(null=True, blank=True, help_text="Contestant cap enforced by this grant. Leave empty for unlimited contestants.")
+    contestant_limit = models.IntegerField(null=True, blank=True, help_text="Competing pilot cap enforced by this grant. Leave empty for unlimited competing pilots.")
     notes = models.TextField(blank=True, default="", help_text="Internal operator notes about the grant, agreement, or special handling.")
     invoice_reference = models.CharField(max_length=200, blank=True, default="", help_text="Optional accounting or payment reference for this grant.")
     created_by = models.ForeignKey(

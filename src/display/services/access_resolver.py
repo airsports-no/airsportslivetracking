@@ -85,13 +85,7 @@ def _first_active_contest_grant(contest: Contest):
 
 
 def _first_active_club_grant(contest: Contest):
-    if contest.organizing_club is None or contest.created_by is None:
-        return None
-    if not ClubManagerMembership.objects.filter(
-        club=contest.organizing_club,
-        user=contest.created_by,
-        is_active=True,
-    ).exists():
+    if contest.organizing_club is None:
         return None
     for grant in AccessGrant.objects.filter(club=contest.organizing_club).order_by("-created_at"):
         if grant.is_active:

@@ -61,7 +61,7 @@ class TestAccessResolver(TestCase):
         self.assertEqual(25, resolution.package_contestant_limit)
         self.assertTrue(resolution.contestant_limit_uses_free_default)
 
-    def test_club_level_grant_requires_active_membership(self):
+    def test_club_level_grant_applies_from_organizing_club_without_creator_membership_check(self):
         now = datetime.datetime.now(datetime.timezone.utc)
         AccessGrant.objects.create(
             club=self.club,
@@ -72,19 +72,10 @@ class TestAccessResolver(TestCase):
             contestant_limit=None,
         )
 
-        without_membership = resolve_contest_access(self.contest)
-        self.assertEqual("free", without_membership.tier_code)
+        resolution = resolve_contest_access(self.contest)
 
-        ClubManagerMembership.objects.create(
-            club=self.club,
-            user=self.user,
-            is_active=True,
-            role=ClubManagerMembership.MANAGER,
-        )
-        with_manager_membership = resolve_contest_access(self.contest)
-
-        self.assertEqual("annual_club_pass", with_manager_membership.tier_code)
-        self.assertEqual("club_pass", with_manager_membership.source_type)
+        self.assertEqual("annual_club_pass", resolution.tier_code)
+        self.assertEqual("club_pass", resolution.source_type)
 
     def test_club_level_grant_applies_for_owner_role(self):
         now = datetime.datetime.now(datetime.timezone.utc)
