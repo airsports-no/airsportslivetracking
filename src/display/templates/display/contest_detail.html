@@ -201,10 +201,10 @@
                             </div>
                             <div class="grid grid-cols-1 gap-3 text-sm">
                                 <div class="bg-base-100 rounded-lg p-3">
-                                    <div class="opacity-70">Contestants</div>
+                                    <div class="opacity-70">Competing pilots</div>
                                     <div class="font-semibold">{{ access_status.contestants_used }} / {% if access_status.contestant_limit == None %}Unlimited{% else %}{{ access_status.contestant_limit }}{% endif %}</div>
                                     {% if access_status.contestant_limit_uses_free_default %}
-                                        <div class="text-xs opacity-70 mt-1">Package limit {% if access_status.package_contestant_limit == None %}Unlimited{% else %}{{ access_status.package_contestant_limit }}{% endif %}, but free tier allows {% if access_status.free_contestant_limit == None %}Unlimited{% else %}{{ access_status.free_contestant_limit }}{% endif %}, so the more advantageous free-tier limit applies.</div>
+                                        <div class="text-xs opacity-70 mt-1">Package limit {% if access_status.package_contestant_limit == None %}Unlimited{% else %}{{ access_status.package_contestant_limit }}{% endif %} pilots, but free tier allows {% if access_status.free_contestant_limit == None %}Unlimited{% else %}{{ access_status.free_contestant_limit }}{% endif %}, so the more advantageous free-tier pilot limit applies.</div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -222,7 +222,7 @@
                                     {% for grant in club_access_grants %}
                                         <div class="rounded-lg bg-base-100 p-3 text-sm">
                                             <div class="font-semibold">{{ grant.get_tier_display }}</div>
-                                            <div class="opacity-70">Contestants: {% if grant.contestant_limit == None %}Unlimited{% else %}{{ grant.contestant_limit }}{% endif %}</div>
+                                            <div class="opacity-70">Competing pilots: {% if grant.contestant_limit == None %}Unlimited{% else %}{{ grant.contestant_limit }}{% endif %}</div>
                                         </div>
                                     {% endfor %}
                                 </div>

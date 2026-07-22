@@ -133,8 +133,8 @@
             <div class="alert alert-warning shadow-sm mt-4 text-sm">
                 {% lucide "triangle-alert" class="stroke-current flex-shrink-0 w-6 h-6" %}
                 <div>
-                    <div class="font-bold">Contestant capacity warning</div>
-                    <div>More guest contestants have been created for this task than are guaranteed to be supported if they all take off. Created guest contestants: {{ guest_created_contestants }}. Historical guest slots already burned in this task: {{ guest_started_slots }}. Effective guest capacity: {% if guest_capacity_limit == None %}Unlimited{% else %}{{ guest_capacity_limit }}{% endif %}. The contest owner remains exempt.</div>
+                    <div class="font-bold">Pilot capacity warning</div>
+                    <div>More guest pilots have been created for this task than are guaranteed to be supported if they all take off. Created guest pilots: {{ guest_created_contestants }}. Historical guest pilot slots already burned in this task: {{ guest_started_slots }}. Effective guest pilot capacity: {% if guest_capacity_limit == None %}Unlimited{% else %}{{ guest_capacity_limit }}{% endif %}. The contest owner remains exempt.</div>
                 </div>
             </div>
             {% endif %}
