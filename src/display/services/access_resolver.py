@@ -4,10 +4,10 @@ from django.conf import settings
 from display.models import (
     AccessGrant,
     AccessResolution,
-    ClubManagerMembership,
     Contest,
     ContestTokenAssignment,
     ContestUsageLedger,
+    Contestant,
 )
 
 
@@ -16,6 +16,8 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
         contest=contest,
         kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
     ).count()
+    if contestants_used == 0:
+        contestants_used = _backfill_missing_historical_usage(contest)
 
     token_assignment = _contest_token_assignment(contest)
     if token_assignment is not None:
@@ -63,6 +65,47 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
         enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
         free_contestant_limit=settings.DEFAULT_FREE_CONTESTANT_LIMIT,
     )
+
+
+def _backfill_missing_historical_usage(contest: Contest) -> int:
+    started_contestants = Contestant.objects.filter(
+        navigation_task__contest=contest,
+        contestanttrack__calculator_started=True,
+    ).select_related("navigation_task", "team__crew").distinct()
+    owner_person_id = None
+    if contest.created_by_id:
+        try:
+            owner_person_id = contest.created_by.person.id
+        except Exception:
+            owner_person_id = None
+    for contestant in started_contestants:
+        if owner_person_id is not None and contestant.team.crew.member1_id == owner_person_id:
+            continue
+        pilot = contestant.team.crew.member1
+        ContestUsageLedger.objects.get_or_create(
+            contest=contest,
+            pilot=pilot,
+            kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
+            defaults={
+                "navigation_task": contestant.navigation_task,
+                "team": contestant.team,
+                "contestant": contestant,
+            },
+        )
+        ContestUsageLedger.objects.get_or_create(
+            contest=contest,
+            navigation_task=contestant.navigation_task,
+            pilot=pilot,
+            kind=ContestUsageLedger.TASK_PILOT_STARTED,
+            defaults={
+                "team": contestant.team,
+                "contestant": contestant,
+            },
+        )
+    return ContestUsageLedger.objects.filter(
+        contest=contest,
+        kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
+    ).count()
 
 
 def _contest_token_assignment(contest: Contest):

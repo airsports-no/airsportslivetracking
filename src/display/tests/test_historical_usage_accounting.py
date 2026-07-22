@@ -120,6 +120,16 @@ class TestHistoricalUsageAccounting(TestCase):
 
         self.assertEqual(1, ContestUsageLedger.objects.filter(kind=ContestUsageLedger.TASK_PILOT_STARTED).count())
 
+    def test_resolve_contest_access_backfills_missing_historical_usage_ledgers(self):
+        self._start_contestant()
+        ContestUsageLedger.objects.all().delete()
+
+        resolution = resolve_contest_access(self.contest)
+
+        self.assertEqual(1, resolution.contestants_used)
+        self.assertTrue(ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.CONTEST_PILOT_STARTED, pilot=self.person).exists())
+        self.assertTrue(ContestUsageLedger.objects.filter(contest=self.contest, kind=ContestUsageLedger.TASK_PILOT_STARTED, navigation_task=self.task, pilot=self.person).exists())
+
     def test_owner_started_contestant_does_not_consume_guest_usage(self):
         self._start_owner_contestant()
 
