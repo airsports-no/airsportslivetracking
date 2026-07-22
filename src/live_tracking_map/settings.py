@@ -99,6 +99,10 @@ def _parse_optional_int_env(name: str):
 
 DEFAULT_FREE_CONTESTANT_LIMIT = _parse_optional_int_env("DEFAULT_FREE_CONTESTANT_LIMIT")
 DEFAULT_FREE_TASK_LIMIT = _parse_optional_int_env("DEFAULT_FREE_TASK_LIMIT")
+# ACCESS_ENFORCEMENT_MODE controls whether contestant-capacity limits are only surfaced
+# for visibility or actively enforced at runtime.
+# - "audit": expose limits/status in UI and APIs but do not block actions.
+# - "enforce": block quota-consuming actions when the effective contestant limit is exhausted.
 ACCESS_ENFORCEMENT_MODE = os.environ.get("ACCESS_ENFORCEMENT_MODE", "audit")
 
 MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
@@ -150,8 +154,8 @@ INSTALLED_APPS = [
     "corsheaders",
 ]
 IS_UNIT_TESTING = (
-    any(s in sys.argv for s in ("test", "jenkins", "pytest")) 
-    or "pytest" in sys.modules 
+    any(s in sys.argv for s in ("test", "jenkins", "pytest"))
+    or "pytest" in sys.modules
     or os.environ.get("PYTEST_CURRENT_TEST") is not None
     or os.environ.get("DISABLE_FIREBASE") == "1"
 )
@@ -247,8 +251,8 @@ REST_FRAMEWORK = {
 
 # API & Cache Versioning
 # SPECTACULAR_SETTINGS["VERSION"] serves as the Application Version.
-# Bumping this version will automatically invalidate ALL CDN and browser caches 
-# for contest lists and details (ETag mismatch). Use this when releasing 
+# Bumping this version will automatically invalidate ALL CDN and browser caches
+# for contest lists and details (ETag mismatch). Use this when releasing
 # code changes that modify API serialization or data structures.
 SPECTACULAR_SETTINGS = {
     "TITLE": "Airsports tracking API",
@@ -355,7 +359,6 @@ if not (IS_UNIT_TESTING or os.environ.get("MODE") == "dev"):
 
 STATIC_URL = "/static/"
 STATIC_ROOT = "/static"
-
 
 
 TEMPORARY_FOLDER = "/tmp"
