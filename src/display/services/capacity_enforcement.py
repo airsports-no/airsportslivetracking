@@ -1,7 +1,7 @@
 from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 
-from display.models import ContestUsageLedger
+from display.models import ContestUsageLedger, Contestant
 from display.services.access_resolver import resolve_contest_access
 from display.services.token_assignment import ensure_token_assignment_active_for_guest_start
 
@@ -34,6 +34,71 @@ def _guest_pilot_has_task_slot(contest, navigation_task, pilot) -> bool:
     ).exists()
 
 
+def _contestant_limit_error_message(resolution):
+    limit = resolution.contestant_limit
+    used = resolution.contestants_used
+    if limit is None:
+        return "This contest cannot accept more pilots right now."
+    remaining = max(limit - used, 0)
+    return (
+        f"This contestant would exceed the active pilot capacity for the contest. "
+        f"Capacity: {used} / {limit} competing pilots already reserved or historically used. "
+        f"Remaining available pilot slots: {remaining}. "
+        f"To proceed, reuse an already-counted pilot, remove an unstarted contestant, or apply a larger token or club pass."
+    )
+
+
+def _task_reserved_guest_pilots(contest, navigation_task, current_contestant=None):
+    owner_person_id = None
+    if contest.created_by_id:
+        try:
+            owner_person_id = contest.created_by.person.id
+        except Exception:
+            owner_person_id = None
+
+    started_pilot_ids = set(
+        ContestUsageLedger.objects.filter(
+            contest=contest,
+            navigation_task=navigation_task,
+            kind=ContestUsageLedger.TASK_PILOT_STARTED,
+        ).values_list("pilot_id", flat=True)
+    )
+    started_pilot_ids.discard(None)
+
+    registered_contestants = Contestant.objects.filter(
+        navigation_task=navigation_task,
+    )
+    if current_contestant is not None and current_contestant.pk is not None:
+        registered_contestants = registered_contestants.exclude(pk=current_contestant.pk)
+    registered_pilot_ids = set(registered_contestants.values_list("team__crew__member1_id", flat=True))
+    registered_pilot_ids.discard(None)
+    if owner_person_id is not None:
+        registered_pilot_ids.discard(owner_person_id)
+        started_pilot_ids.discard(owner_person_id)
+
+    return started_pilot_ids | registered_pilot_ids
+
+
+def _assert_can_reserve_task_slot(navigation_task, team, resolution, current_contestant=None):
+    contest = navigation_task.contest
+    if _is_owner_team(contest, team):
+        return resolution
+    if not _should_enforce(resolution) or resolution.contestant_limit is None:
+        return resolution
+
+    pilot = team.crew.member1
+    if _guest_pilot_has_task_slot(contest, navigation_task, pilot):
+        return resolution
+
+    reserved_pilot_ids = _task_reserved_guest_pilots(contest, navigation_task, current_contestant=current_contestant)
+    if pilot.id in reserved_pilot_ids:
+        return resolution
+
+    if len(reserved_pilot_ids) >= resolution.contestant_limit:
+        raise ValidationError(_contestant_limit_error_message(resolution))
+    return resolution
+
+
 def assert_can_add_navigation_task(contest):
     resolution = resolve_contest_access(contest)
     token_assignment = getattr(contest, "contesttokenassignment", None)
@@ -47,12 +112,13 @@ def assert_can_register_team(contest, team=None):
     if _is_owner_team(contest, team):
         return resolution
     if _should_enforce(resolution) and resolution.contestant_limit is not None and resolution.contestants_used >= resolution.contestant_limit:
-        raise ValidationError("Free sandbox covers the contest owner only. Inviting additional pilots requires a token or club pass.")
+        raise ValidationError(_contestant_limit_error_message(resolution))
     return resolution
 
 
 def assert_can_self_register_contestant(navigation_task, contest_team):
-    return resolve_contest_access(navigation_task.contest)
+    resolution = resolve_contest_access(navigation_task.contest)
+    return _assert_can_reserve_task_slot(navigation_task, contest_team.team, resolution)
 
 
 def assert_can_start_contestant(contestant):
@@ -61,6 +127,7 @@ def assert_can_start_contestant(contestant):
     pilot = team.crew.member1
     navigation_task = contestant.navigation_task
     resolution = resolve_contest_access(contest)
+    _assert_can_reserve_task_slot(navigation_task, team, resolution)
     if _is_owner_team(contest, team):
         return resolution
     ensure_token_assignment_active_for_guest_start(contest)
@@ -73,7 +140,7 @@ def assert_can_start_contestant(contestant):
     ).count()
     if _should_enforce(resolution) and resolution.contestant_limit is not None:
         if task_started_pilots >= resolution.contestant_limit:
-            raise ValidationError("Free sandbox covers the contest owner only. Inviting additional pilots requires a token or club pass.")
+            raise ValidationError(_contestant_limit_error_message(resolution))
         if resolution.contestants_used >= resolution.contestant_limit and not _guest_pilot_has_contest_slot(contest, pilot):
-            raise ValidationError("Free sandbox covers the contest owner only. Inviting additional pilots requires a token or club pass.")
+            raise ValidationError(_contestant_limit_error_message(resolution))
     return resolution

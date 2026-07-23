@@ -104,6 +104,7 @@ from display.forms import (
     SignUpForm,
 )
 from display.services.access_resolver import resolve_contest_access
+from display.services.capacity_enforcement import assert_can_self_register_contestant, _assert_can_reserve_task_slot
 from display.flight_order_and_maps.generate_flight_orders import (
     generate_flight_orders_latex,
     embed_map_in_pdf,
@@ -1477,9 +1478,7 @@ class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRe
         context["guest_created_contestants"] = guest_created_contestants
         context["guest_started_slots"] = guest_started_slots
         context["guest_capacity_limit"] = guest_capacity_limit
-        context["show_guest_capacity_warning"] = (
-            guest_capacity_limit is not None and guest_created_contestants > guest_capacity_limit
-        )
+        context["show_guest_capacity_warning"] = guest_capacity_limit is not None
         return context
 
 
@@ -1834,6 +1833,8 @@ class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMi
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contestant
         instance.predefined_gate_times = None
+        resolution = resolve_contest_access(instance.navigation_task.contest)
+        _assert_can_reserve_task_slot(instance.navigation_task, instance.team, resolution, current_contestant=self.get_object())
         instance.save()
         self.object = instance
         for warning in self.object.get_overlap_warnings():
@@ -1878,6 +1879,8 @@ class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
 
     def form_valid(self, form):
         contest_team = form.cleaned_data["contest_team"]
+        resolution = resolve_contest_access(self.navigation_task.contest)
+        _assert_can_reserve_task_slot(self.navigation_task, contest_team.team, resolution)
         starting_point_time = form.cleaned_data["starting_point_time"]
         adaptive_start = form.cleaned_data["adaptive_start"]
         existing_contestants = self.navigation_task.contestant_set.all()
@@ -1968,6 +1971,8 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
     def form_valid(self, form):
         object = form.save(commit=False)  # type: Contestant
         object.navigation_task = self.navigation_task
+        resolution = resolve_contest_access(self.navigation_task.contest)
+        _assert_can_reserve_task_slot(self.navigation_task, object.team, resolution)
         object.save()
         for warning in object.get_overlap_warnings():
             messages.warning(self.request, warning)

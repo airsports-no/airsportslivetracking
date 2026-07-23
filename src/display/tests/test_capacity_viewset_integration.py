@@ -63,8 +63,9 @@ class TestCapacityViewsetIntegration(APITestCase):
         self.assertNotEqual(status.HTTP_500_INTERNAL_SERVER_ERROR, response.status_code)
         mock_guard.assert_not_called()
 
+    @patch("display.viewsets._assert_can_reserve_task_slot")
     @patch("display.viewsets.assert_can_self_register_contestant")
-    def test_self_registration_calls_capacity_guard(self, mock_guard, *_args):
+    def test_self_registration_calls_capacity_guard(self, mock_guard, mock_task_guard, *_args):
         url = reverse(
             "navigationtasks-contestant-self-registration",
             kwargs={"contest_pk": self.contest.id, "pk": self.navigation_task.id},
@@ -83,3 +84,4 @@ class TestCapacityViewsetIntegration(APITestCase):
 
         self.assertEqual(status.HTTP_201_CREATED, response.status_code)
         mock_guard.assert_called_once()
+        mock_task_guard.assert_not_called()

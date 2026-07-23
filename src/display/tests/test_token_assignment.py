@@ -3,7 +3,7 @@ import datetime
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from display.models import (
@@ -308,6 +308,85 @@ class TestTokenAssignment(TestCase):
         self.assertIsNotNone(assignment.activated_at)
         self.assertIsNotNone(assignment.expires_at)
         self.assertEqual(365, (assignment.expires_at - assignment.activated_at).days)
+
+    @override_settings(DEFAULT_FREE_CONTESTANT_LIMIT=0, ACCESS_ENFORCEMENT_MODE="enforce")
+    def test_removing_token_assignment_does_not_delete_existing_flights_and_only_blocks_new_starts(self):
+        grant = UserTokenGrant.objects.create(
+            user=self.user,
+            token_type=self.token_type,
+            quantity_total=1,
+            quantity_consumed=0,
+        )
+        assignment = assign_token_to_contest(self.contest, self.user, grant.id)
+        scorecard = Scorecard.objects.create(name="Removal card", shortcut_name="removal-card")
+        task = NavigationTask.objects.create(
+            name="Removal Task",
+            contest=self.contest,
+            route=Route.objects.create(name="Removal Route"),
+            original_scorecard=scorecard,
+            start_time=timezone.now(),
+            finish_time=timezone.now() + timezone.timedelta(hours=2),
+        )
+        first_pilot = Person.objects.create(first_name="Existing", last_name="Pilot", email="existing-flight@example.com")
+        first_team = Team.objects.create(
+            crew=Crew.objects.create(member1=first_pilot),
+            aeroplane=Aeroplane.objects.create(registration="LN-KEEP-FLIGHT"),
+        )
+        started_contestant = Contestant.objects.create(
+            team=first_team,
+            navigation_task=task,
+            contestant_number=1,
+            takeoff_time=timezone.now(),
+            tracker_start_time=timezone.now() - timezone.timedelta(minutes=10),
+            finished_by_time=timezone.now() + timezone.timedelta(hours=2),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+        ContestantTrack.objects.get(contestant=started_contestant).set_calculator_started()
+
+        reverted_grant = revert_token_assignment_for_support(assignment, self.user)
+        reverted_grant.refresh_from_db()
+        started_contestant.refresh_from_db()
+
+        self.assertEqual(0, reverted_grant.quantity_consumed)
+        self.assertFalse(ContestTokenAssignment.objects.filter(pk=assignment.pk).exists())
+        self.assertTrue(Contestant.objects.filter(pk=started_contestant.pk).exists())
+        self.assertTrue(
+            ContestUsageLedger.objects.filter(
+                contest=self.contest,
+                navigation_task=task,
+                pilot=first_pilot,
+                kind=ContestUsageLedger.TASK_PILOT_STARTED,
+            ).exists()
+        )
+
+        resolution = resolve_contest_access(self.contest)
+        self.assertEqual(1, resolution.contestants_used)
+
+        second_pilot = Person.objects.create(first_name="Blocked", last_name="Pilot", email="blocked-after-removal@example.com")
+        second_team = Team.objects.create(
+            crew=Crew.objects.create(member1=second_pilot),
+            aeroplane=Aeroplane.objects.create(registration="LN-BLOCK-RM"),
+        )
+        blocked_contestant = Contestant.objects.create(
+            team=second_team,
+            navigation_task=task,
+            contestant_number=2,
+            takeoff_time=timezone.now(),
+            tracker_start_time=timezone.now() - timezone.timedelta(minutes=10),
+            finished_by_time=timezone.now() + timezone.timedelta(hours=2),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+
+        with self.assertRaises(DRFValidationError):
+            assert_can_start_contestant(blocked_contestant)
 
     def test_expired_token_blocks_new_guest_start(self):
         grant = UserTokenGrant.objects.create(

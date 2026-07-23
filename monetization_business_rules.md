@@ -25,20 +25,26 @@
 * Uploading custom geo-referenced maps and competition overlays is **unlimited and free across all tiers** (including Free / Sandbox).
 * **Upload Constraint:** Enforce a maximum file size of **100 MB per map file** (no hard limit on the total number of maps uploaded per contest/task).
 
-#### Rule D: Dual-Ceiling Capacity Gates ($N$)
+#### Rule D: Upfront Task Capacity Gate ($N$)
 
 A tier or token grants a capacity limit of $N$ unique guest pilots. This single parameter $N$ enforces two concurrent ceilings:
 
-1. **Task Simultaneous/Historical Limit:** A single `NavigationTask` can have at most $N$ non-owner contestants who have started (including all historic contestants recorded on the task ledger).
+1. **Upfront Task Reservation Limit:** A single `NavigationTask` may reserve at most $N$ non-owner primary pilots at any time, counting:
+   - historic started guest pilots already stamped on that task, plus
+   - currently registered/scheduled guest pilots on that task whose primary pilot has not already been stamped for the same task.
 2. **Contest Unique Limit:** An overarching `Contest` can have at most $N$ unique guest pilots across all of its tasks combined.
+3. **No Over-subscription:** Organizers cannot add new non-owner contestants to a task once all guest pilot slots for that task are reserved, unless they are reusing an already-counted primary pilot.
 
-#### Rule E: Quota Consumption, Historical Ledgering & Re-creation
+#### Rule E: Slot Lifecycle, Historical Ledgering & Re-creation
 
-* **Trigger Point (Calculator Start):** Adding a team to a task or pre-scheduling them does **not** consume a billable slot. A team claims a slot **only when the scoring calculator actually starts / initializes processing** for that contestant's task flight.
-* **Irreversible Slot Usage & Historic Counting:** Once the calculator has started for a contestant in a task, that contestant's slot is permanently stamped in the task’s usage ledger as a historic contestant. Even if the contestant is later deleted or removed from the UI/task, **the consumed slot remains permanently burned and counts toward the task's historic total**.
+* **Upfront Reservation:** Adding a contestant to a task reserves 1 guest pilot slot for that task unless the contestant reuses a primary pilot who is already counted for the same task.
+* **Permanent Stamp (Calculator Start):** Once the scoring calculator actually starts / initializes processing for a contestant's task flight, that contestant's primary pilot becomes permanently stamped in the task’s historical usage ledger.
+* **Deletion Before Start:** If a contestant is deleted from a task before their calculator starts, their reservation is released back into the task's available capacity pool.
+* **Deletion After Start:** If a contestant is deleted after their calculator has started, their slot remains permanently burned as a historic pilot slot and continues to count toward the task limit $N$.
 * **Primary Pilot Identity (`Person`):** Billable slots are bound directly to the **Primary Pilot `Person` record** (`team.crew.member1`), rather than the transient `Team` object ID.
-* **Team Modifications (Aircraft / Copilot Swap):** If a team's composition changes (e.g., swapping the copilot or changing the aircraft tail number), resulting in a new `Team` ID, the system evaluates slot usage via the Primary Pilot `Person`. As long as that `Person` matches an existing stamped ledger entry for that task/contest, re-creating or updating the contestant with the new `Team` ID **reuses the existing consumed slot** at zero additional cost.
-* **Primary Pilot Replacement:** If the Primary Pilot `Person` changes, it is treated as a distinct contestant entry. The original pilot's slot remains permanently burned once their calculator has started, and the new pilot consumes an additional slot.
+* **Same-Pilot Re-creation / Re-assignment (`Person`):** If a deleted historic contestant is re-added or updated using the same Primary Pilot `Person` (even with a new team/aircraft ID), the system re-links them to their existing stamped slot at zero additional quota cost.
+* **Team Modifications (Aircraft / Copilot Swap):** If a team's composition changes without changing the Primary Pilot `Person`, the existing reservation or historic slot is reused.
+* **Primary Pilot Replacement:** If the Primary Pilot `Person` changes, it is treated as a distinct contestant entry. The original pilot's started slot remains permanently burned once their calculator has started, and the new pilot consumes an additional slot.
 * **Multi-Task Recycling Across Contest:** Once a unique primary pilot `Person` is stamped on the contest-level usage ledger, they can participate in Task 2, Task 3, Task 4, etc., within that same contest at **zero additional contest-level quota cost**.
 * *Example:* If 20 unique pilots start Task 1, and the *exact same* 20 pilots start Task 2, total contest-level quota consumed is **20 slots** (not 40). If 20 pilots start Task 1 and 20 *different* pilots start Task 2, total contest-level quota consumed is **40 slots**.
 

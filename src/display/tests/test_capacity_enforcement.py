@@ -4,7 +4,7 @@ import datetime
 from django.test import TestCase, override_settings
 from rest_framework.exceptions import ValidationError
 
-from display.models import Contest, NavigationTask, Scorecard, Route, ContestTeam, Team, Crew, Person, Aeroplane, MyUser, ContestUsageLedger
+from display.models import Contest, NavigationTask, Scorecard, Route, ContestTeam, Team, Crew, Person, Aeroplane, MyUser, ContestUsageLedger, Contestant
 from display.services.capacity_enforcement import (
     assert_can_add_navigation_task,
     assert_can_register_team,
@@ -69,7 +69,7 @@ class TestCapacityEnforcement(TestCase):
         self.assertEqual(0, resolution.contestant_limit)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
-    def test_self_registration_does_not_consume_or_block_guest_quota_before_start(self, mock_resolve):
+    def test_self_registration_blocks_guest_pilot_when_limit_is_zero(self, mock_resolve):
         navigation_task = NavigationTask.objects.create(
             name="Task",
             contest=self.contest,
@@ -81,9 +81,72 @@ class TestCapacityEnforcement(TestCase):
         contest_team = ContestTeam.objects.create(contest=self.contest, team=self.team)
         mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
 
+        with self.assertRaises(ValidationError):
+            assert_can_self_register_contestant(navigation_task, contest_team)
+
+    @patch("display.services.capacity_enforcement.resolve_contest_access")
+    def test_self_registration_blocks_new_guest_pilot_when_task_capacity_already_reserved(self, mock_resolve):
+        navigation_task = NavigationTask.objects.create(
+            name="Task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=self.scorecard,
+            start_time="2026-03-01T09:00:00+00:00",
+            finish_time="2026-03-01T17:00:00+00:00",
+        )
+        contest_team = ContestTeam.objects.create(contest=self.contest, team=self.team)
+        reserved_pilot = Person.objects.create(first_name="Reserved", last_name="Pilot", email="reserved@example.com")
+        reserved_team = Team.objects.create(
+            crew=Crew.objects.create(member1=reserved_pilot),
+            aeroplane=Aeroplane.objects.create(registration="LN-RESERVED"),
+        )
+        Contestant.objects.create(
+            team=reserved_team,
+            navigation_task=navigation_task,
+            contestant_number=1,
+            takeoff_time=datetime.datetime(2026, 3, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            tracker_start_time=datetime.datetime(2026, 3, 1, 8, 50, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2026, 3, 1, 11, 0, tzinfo=datetime.timezone.utc),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
+
+        with self.assertRaises(ValidationError):
+            assert_can_self_register_contestant(navigation_task, contest_team)
+
+    @patch("display.services.capacity_enforcement.resolve_contest_access")
+    def test_self_registration_allows_same_pilot_re_registration_when_slot_already_reserved(self, mock_resolve):
+        navigation_task = NavigationTask.objects.create(
+            name="Task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=self.scorecard,
+            start_time="2026-03-01T09:00:00+00:00",
+            finish_time="2026-03-01T17:00:00+00:00",
+        )
+        contest_team = ContestTeam.objects.create(contest=self.contest, team=self.team)
+        Contestant.objects.create(
+            team=self.same_pilot_new_team,
+            navigation_task=navigation_task,
+            contestant_number=1,
+            takeoff_time=datetime.datetime(2026, 3, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            tracker_start_time=datetime.datetime(2026, 3, 1, 8, 50, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2026, 3, 1, 11, 0, tzinfo=datetime.timezone.utc),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
+
         resolution = assert_can_self_register_contestant(navigation_task, contest_team)
 
-        self.assertEqual(0, resolution.contestant_limit)
+        self.assertEqual(1, resolution.contestant_limit)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
     def test_self_registration_allows_owner_team_when_limit_is_zero(self, mock_resolve):
@@ -170,6 +233,88 @@ class TestCapacityEnforcement(TestCase):
             assert_can_start_contestant(contestant)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
+    def test_update_reservation_blocks_switch_to_new_pilot_when_task_is_full(self, mock_resolve):
+        navigation_task = NavigationTask.objects.create(
+            name="Update Task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=self.scorecard,
+            start_time="2026-03-01T09:00:00+00:00",
+            finish_time="2026-03-01T17:00:00+00:00",
+        )
+        existing_reserved_pilot = Person.objects.create(first_name="Reserved", last_name="Pilot", email="reserved2@example.com")
+        existing_reserved_team = Team.objects.create(
+            crew=Crew.objects.create(member1=existing_reserved_pilot),
+            aeroplane=Aeroplane.objects.create(registration="LN-RES2"),
+        )
+        contestant = Contestant.objects.create(
+            team=self.same_pilot_new_team,
+            navigation_task=navigation_task,
+            contestant_number=1,
+            takeoff_time=datetime.datetime(2026, 3, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            tracker_start_time=datetime.datetime(2026, 3, 1, 8, 50, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2026, 3, 1, 11, 0, tzinfo=datetime.timezone.utc),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+        Contestant.objects.create(
+            team=existing_reserved_team,
+            navigation_task=navigation_task,
+            contestant_number=2,
+            takeoff_time=datetime.datetime(2026, 3, 1, 9, 5, tzinfo=datetime.timezone.utc),
+            tracker_start_time=datetime.datetime(2026, 3, 1, 8, 55, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2026, 3, 1, 11, 5, tzinfo=datetime.timezone.utc),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+        new_pilot = Person.objects.create(first_name="New", last_name="Pilot", email="newpilot@example.com")
+        new_team = Team.objects.create(
+            crew=Crew.objects.create(member1=new_pilot),
+            aeroplane=Aeroplane.objects.create(registration="LN-NEWPILOT"),
+        )
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
+
+        with self.assertRaises(ValidationError):
+            from display.services.capacity_enforcement import _assert_can_reserve_task_slot
+            _assert_can_reserve_task_slot(navigation_task, new_team, mock_resolve.return_value, current_contestant=contestant)
+
+    @patch("display.services.capacity_enforcement.resolve_contest_access")
+    def test_update_reservation_allows_switch_to_same_already_reserved_pilot(self, mock_resolve):
+        navigation_task = NavigationTask.objects.create(
+            name="Update Task Reuse",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=self.scorecard,
+            start_time="2026-03-01T09:00:00+00:00",
+            finish_time="2026-03-01T17:00:00+00:00",
+        )
+        contestant = Contestant.objects.create(
+            team=self.same_pilot_new_team,
+            navigation_task=navigation_task,
+            contestant_number=1,
+            takeoff_time=datetime.datetime(2026, 3, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            tracker_start_time=datetime.datetime(2026, 3, 1, 8, 50, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2026, 3, 1, 11, 0, tzinfo=datetime.timezone.utc),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
+
+        from display.services.capacity_enforcement import _assert_can_reserve_task_slot
+        resolution = _assert_can_reserve_task_slot(navigation_task, self.team, mock_resolve.return_value, current_contestant=contestant)
+
+        self.assertEqual(1, resolution.contestant_limit)
+
+    @patch("display.services.capacity_enforcement.resolve_contest_access")
     def test_start_time_allows_same_primary_pilot_new_team_when_slot_already_burned(self, mock_resolve):
         navigation_task = NavigationTask.objects.create(
             name="Restart Task",
@@ -205,7 +350,7 @@ class TestCapacityEnforcement(TestCase):
             contestant=contestant,
             kind=ContestUsageLedger.TASK_PILOT_STARTED,
         )
-        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 1, "enforcement_mode": "enforce"})()
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
 
         resolution = assert_can_start_contestant(contestant)
 

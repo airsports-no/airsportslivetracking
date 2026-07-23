@@ -90,7 +90,9 @@ from display.services.capacity_enforcement import (
     assert_can_add_navigation_task,
     assert_can_register_team,
     assert_can_self_register_contestant,
+    _assert_can_reserve_task_slot,
 )
+from display.services.access_resolver import resolve_contest_access
 from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
 from display.serialisers import (
     ContestantTrackSerialiser,
@@ -1657,6 +1659,11 @@ class ContestantViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serialiser = self.get_serializer(data=request.data)
         if serialiser.is_valid():
+            navigation_task = serialiser.context.get("navigation_task")
+            team = serialiser.validated_data.get("team")
+            if navigation_task is not None and team is not None:
+                resolution = resolve_contest_access(navigation_task.contest)
+                _assert_can_reserve_task_slot(navigation_task, team, resolution)
             serialiser.save()
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1670,6 +1677,11 @@ class ContestantViewSet(ModelViewSet):
         partial = kwargs.pop("partial", False)
         serialiser = self.get_serializer(instance=instance, data=request.data, partial=partial)
         if serialiser.is_valid():
+            navigation_task = serialiser.context.get("navigation_task")
+            team = serialiser.validated_data.get("team")
+            if navigation_task is not None and team is not None:
+                resolution = resolve_contest_access(navigation_task.contest)
+                _assert_can_reserve_task_slot(navigation_task, team, resolution, current_contestant=instance)
             serialiser.save()
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
