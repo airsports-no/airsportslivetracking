@@ -37,6 +37,7 @@ from display.tasks import (
     generate_and_maybe_notify_flight_order,
 )
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
+from display.services.capacity_enforcement import scheduling_capacity_preview
 import dateutil.parser
 
 from display.models import (
@@ -1214,6 +1215,29 @@ class NavigationTaskViewSet(ModelViewSet):
 
     @action(
         detail=True,
+        methods=["get"],
+        url_path="schedule_capacity_preview",
+        permission_classes=[permissions.IsAuthenticated & NavigationTaskContestPermissions],
+    )
+    def schedule_capacity_preview(self, request, pk=None, **kwargs):
+        navigation_task = self.get_object()
+        contest_teams_param = request.query_params.get("contest_teams", "")
+        contest_teams_pks = [int(item) for item in contest_teams_param.split(",") if item]
+        first_takeoff_time_raw = request.query_params.get("first_takeoff_time")
+        first_takeoff_time = None
+        if first_takeoff_time_raw:
+            first_takeoff_time = dateutil.parser.parse(first_takeoff_time_raw)
+            if first_takeoff_time.tzinfo is None:
+                first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
+        preview = scheduling_capacity_preview(
+            navigation_task,
+            contest_teams_pks,
+            first_takeoff_time=first_takeoff_time,
+        )
+        return Response(preview, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
         methods=["post"],
         permission_classes=[permissions.IsAuthenticated & NavigationTaskContestPermissions],
     )
@@ -1227,6 +1251,25 @@ class NavigationTaskViewSet(ModelViewSet):
             first_takeoff_time = dateutil.parser.parse(data.get("first_takeoff_time"))
             if first_takeoff_time.tzinfo is None:
                 first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
+
+            capacity_preview = scheduling_capacity_preview(
+                navigation_task,
+                contest_teams_pks,
+                first_takeoff_time=first_takeoff_time,
+            )
+            if capacity_preview["would_exceed"]:
+                limit = capacity_preview["contestant_limit"]
+                raise drf_exceptions.ValidationError(
+                    {
+                        "detail": (
+                            f"Scheduling these teams would exceed the guest pilot capacity for this task. "
+                            f"Reserved now: {capacity_preview['reserved_before_count']} / {limit}. "
+                            f"After scheduling: {capacity_preview['reserved_after_count']} / {limit}. "
+                            f"New pilot reservations from the selected teams: {capacity_preview['additional_selected_count']}. "
+                            f"Remove an unstarted contestant, deselect teams that introduce new pilots, reuse an already-counted pilot, or apply a larger token or club pass."
+                        )
+                    }
+                )
 
             success, messages = schedule_and_create_contestants(
                 navigation_task=navigation_task,

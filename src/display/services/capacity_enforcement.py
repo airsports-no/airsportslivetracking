@@ -1,7 +1,7 @@
 from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 
-from display.models import ContestUsageLedger, Contestant
+from display.models import ContestUsageLedger, Contestant, ContestTeam
 from display.services.access_resolver import resolve_contest_access
 from display.services.token_assignment import ensure_token_assignment_active_for_guest_start
 
@@ -32,6 +32,62 @@ def _guest_pilot_has_task_slot(contest, navigation_task, pilot) -> bool:
         pilot=pilot,
         kind=ContestUsageLedger.TASK_PILOT_STARTED,
     ).exists()
+
+
+def scheduling_capacity_preview(navigation_task, selected_contest_team_ids, first_takeoff_time=None):
+    contest = navigation_task.contest
+    resolution = resolve_contest_access(contest)
+    limit = resolution.contestant_limit
+    owner_person_id = None
+    if contest.created_by_id:
+        try:
+            owner_person_id = contest.created_by.person.id
+        except Exception:
+            owner_person_id = None
+
+    existing_contestants = navigation_task.contestant_set.all()
+    if first_takeoff_time is not None:
+        existing_contestants = existing_contestants.filter(
+            finished_by_time__gte=first_takeoff_time,
+        )
+
+    started_pilot_ids = set(
+        ContestUsageLedger.objects.filter(
+            contest=contest,
+            navigation_task=navigation_task,
+            kind=ContestUsageLedger.TASK_PILOT_STARTED,
+        ).values_list("pilot_id", flat=True)
+    )
+    started_pilot_ids.discard(None)
+
+    existing_registered_pilot_ids = set(existing_contestants.values_list("team__crew__member1_id", flat=True))
+    existing_registered_pilot_ids.discard(None)
+
+    selected_contest_teams = ContestTeam.objects.filter(pk__in=selected_contest_team_ids).select_related("team__crew")
+    selected_pilot_ids = {
+        ct.team.crew.member1_id
+        for ct in selected_contest_teams
+        if ct.team_id and ct.team.crew_id and ct.team.crew.member1_id is not None
+    }
+
+    if owner_person_id is not None:
+        started_pilot_ids.discard(owner_person_id)
+        existing_registered_pilot_ids.discard(owner_person_id)
+        selected_pilot_ids.discard(owner_person_id)
+
+    reserved_before = started_pilot_ids | existing_registered_pilot_ids
+    reserved_after = started_pilot_ids | existing_registered_pilot_ids | selected_pilot_ids
+    additional_selected_pilot_ids = selected_pilot_ids - reserved_before
+
+    return {
+        "contestant_limit": limit,
+        "reserved_before_count": len(reserved_before),
+        "reserved_after_count": len(reserved_after),
+        "additional_selected_count": len(additional_selected_pilot_ids),
+        "remaining_before_count": None if limit is None else max(limit - len(reserved_before), 0),
+        "remaining_after_count": None if limit is None else max(limit - len(reserved_after), 0),
+        "would_exceed": False if limit is None else len(reserved_after) > limit,
+    }
 
 
 def _contestant_limit_error_message(resolution):

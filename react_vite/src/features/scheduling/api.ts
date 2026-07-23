@@ -1,6 +1,32 @@
 import { reverse } from "../../urls";
 import { getCookie } from "../../utils/csrf";
 
+export const fetchScheduleCapacityPreview = async (
+    contestId: number,
+    navigationTaskId: number,
+    contestTeamIds: number[],
+    firstTakeoffTime?: string,
+) => {
+    const url = new URL(reverse("navigationtasks-schedule-capacity-preview", contestId, navigationTaskId), window.location.origin);
+    if (contestTeamIds.length > 0) {
+        url.searchParams.set("contest_teams", contestTeamIds.join(","));
+    }
+    if (firstTakeoffTime) {
+        url.searchParams.set("first_takeoff_time", firstTakeoffTime);
+    }
+    const response = await fetch(url.toString(), {
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")!,
+        },
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || errorData.error || "Failed to fetch schedule capacity preview");
+    }
+    return response.json();
+};
+
 export const scheduleContestants = async (
     contestId: number,
     navigationTaskId: number,

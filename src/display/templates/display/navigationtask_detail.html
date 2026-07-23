@@ -130,11 +130,19 @@
                 </div>
             </div>
             {% if show_guest_capacity_warning %}
-            <div class="alert alert-info shadow-sm mt-4 text-sm">
-                {% lucide "info" class="stroke-current flex-shrink-0 w-6 h-6" %}
+            <div class="alert {% if guest_capacity_full %}alert-warning{% else %}alert-info{% endif %} shadow-sm mt-4 text-sm">
+                {% if guest_capacity_full %}
+                    {% lucide "triangle-alert" class="stroke-current flex-shrink-0 w-6 h-6" %}
+                {% else %}
+                    {% lucide "info" class="stroke-current flex-shrink-0 w-6 h-6" %}
+                {% endif %}
                 <div>
                     <div class="font-bold">Pilot capacity status</div>
-                    <div>This task currently has {{ guest_created_contestants }} registered guest pilot slot{% if guest_created_contestants != 1 %}s{% endif %}. Historical guest pilot slots already burned in this task: {{ guest_started_slots }}. Total guest pilot capacity for this task: {% if guest_capacity_limit == None %}Unlimited{% else %}{{ guest_capacity_limit }}{% endif %}. New contestants are blocked once all guest pilot slots are reserved, except when reusing an already-counted pilot. The contest owner remains exempt.</div>
+                    {% if guest_capacity_full %}
+                        <div>{{ guest_created_contestants }} / {{ guest_capacity_limit }} guest pilot slots are now reserved on this task. The contest owner is exempt. To enable more slots, remove an unstarted contestant that is holding a reservation, reuse an already-counted pilot, or apply a larger token or club pass.</div>
+                    {% else %}
+                        <div>{{ guest_created_contestants }} / {{ guest_capacity_limit }} guest pilot slots are reserved on this task. The contest owner is exempt.</div>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}

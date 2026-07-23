@@ -1478,6 +1478,9 @@ class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRe
         context["guest_created_contestants"] = guest_created_contestants
         context["guest_started_slots"] = guest_started_slots
         context["guest_capacity_limit"] = guest_capacity_limit
+        context["guest_capacity_full"] = (
+            guest_capacity_limit is not None and guest_created_contestants >= guest_capacity_limit
+        )
         context["show_guest_capacity_warning"] = guest_capacity_limit is not None
         return context
 

@@ -8,7 +8,7 @@ import datetime
 from display.models import Contest, NavigationTask, Route, Scorecard, Team, Crew, Person, Aeroplane, ContestUsageLedger
 
 
-@override_settings(DEFAULT_FREE_CONTESTANT_LIMIT=1)
+@override_settings(DEFAULT_FREE_CONTESTANT_LIMIT=3)
 class TestNavigationTaskDetailWarnings(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create(email="task-owner@example.com")
@@ -82,14 +82,15 @@ class TestNavigationTaskDetailWarnings(TestCase):
         ContestUsageLedger.objects.create(
             contest=self.contest,
             navigation_task=self.navigation_task,
-            team=self.guest_team_1,
-            kind=ContestUsageLedger.TASK_TEAM_STARTED,
+            pilot=self.guest_team_1.crew.member1,
+            kind=ContestUsageLedger.TASK_PILOT_STARTED,
         )
 
-    def test_navigation_task_detail_shows_warning_when_created_guests_exceed_supported_capacity(self):
+    def test_navigation_task_detail_shows_capacity_status_below_limit(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("navigationtask_detail", kwargs={"pk": self.navigation_task.pk}))
 
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Contestant capacity warning")
-        self.assertContains(response, "More guest contestants have been created for this task than are guaranteed to be supported if they all take off")
+        self.assertContains(response, "Pilot capacity status")
+        self.assertContains(response, "2 / 3 guest pilot slots are reserved on this task")
+        self.assertContains(response, "The contest owner is exempt.")
