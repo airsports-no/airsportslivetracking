@@ -97,7 +97,7 @@ def _parse_optional_int_env(name: str, default: int = None) -> int | None:
     return int(value)
 
 
-DEFAULT_FREE_CONTESTANT_LIMIT = _parse_optional_int_env("DEFAULT_FREE_CONTESTANT_LIMIT", 5)
+DEFAULT_FREE_CONTESTANT_LIMIT = _parse_optional_int_env("DEFAULT_FREE_CONTESTANT_LIMIT")
 # ACCESS_ENFORCEMENT_MODE controls whether contestant-capacity limits are only surfaced
 # for visibility or actively enforced at runtime.
 # - "audit": expose limits/status in UI and APIs but do not block actions.

@@ -119,6 +119,48 @@ class TestCapacityEnforcement(TestCase):
             assert_can_self_register_contestant(navigation_task, contest_team)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
+    def test_self_registration_blocks_new_guest_pilot_when_contest_capacity_is_already_reserved_across_tasks(self, mock_resolve):
+        navigation_task = NavigationTask.objects.create(
+            name="Contest Full Task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=self.scorecard,
+            start_time="2026-03-01T09:00:00+00:00",
+            finish_time="2026-03-01T17:00:00+00:00",
+        )
+        other_task = NavigationTask.objects.create(
+            name="Other Task",
+            contest=self.contest,
+            route=Route.objects.create(name="Other Route"),
+            original_scorecard=self.scorecard,
+            start_time="2026-03-01T09:00:00+00:00",
+            finish_time="2026-03-01T17:00:00+00:00",
+        )
+        contest_team = ContestTeam.objects.create(contest=self.contest, team=self.team)
+        reserved_pilot = Person.objects.create(first_name="Contest", last_name="Reserved", email="contest-reserved@example.com")
+        reserved_team = Team.objects.create(
+            crew=Crew.objects.create(member1=reserved_pilot),
+            aeroplane=Aeroplane.objects.create(registration="LN-CRES"),
+        )
+        Contestant.objects.create(
+            team=reserved_team,
+            navigation_task=other_task,
+            contestant_number=1,
+            takeoff_time=datetime.datetime(2026, 3, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            tracker_start_time=datetime.datetime(2026, 3, 1, 8, 50, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2026, 3, 1, 11, 0, tzinfo=datetime.timezone.utc),
+            air_speed=70,
+            minutes_to_starting_point=5,
+            wind_speed=0,
+            wind_direction=0,
+            gate_times={},
+        )
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
+
+        with self.assertRaises(ValidationError):
+            assert_can_self_register_contestant(navigation_task, contest_team)
+
+    @patch("display.services.capacity_enforcement.resolve_contest_access")
     def test_self_registration_allows_same_pilot_re_registration_when_slot_already_reserved(self, mock_resolve):
         navigation_task = NavigationTask.objects.create(
             name="Task",

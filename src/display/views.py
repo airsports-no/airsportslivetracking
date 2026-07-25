@@ -1883,7 +1883,11 @@ class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
     def form_valid(self, form):
         contest_team = form.cleaned_data["contest_team"]
         resolution = resolve_contest_access(self.navigation_task.contest)
-        _assert_can_reserve_task_slot(self.navigation_task, contest_team.team, resolution)
+        try:
+            _assert_can_reserve_task_slot(self.navigation_task, contest_team.team, resolution)
+        except (ValidationError, drf_exceptions.ValidationError) as exc:
+            form.add_error(None, exc)
+            return self.form_invalid(form)
         starting_point_time = form.cleaned_data["starting_point_time"]
         adaptive_start = form.cleaned_data["adaptive_start"]
         existing_contestants = self.navigation_task.contestant_set.all()
@@ -1975,7 +1979,11 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
         object = form.save(commit=False)  # type: Contestant
         object.navigation_task = self.navigation_task
         resolution = resolve_contest_access(self.navigation_task.contest)
-        _assert_can_reserve_task_slot(self.navigation_task, object.team, resolution)
+        try:
+            _assert_can_reserve_task_slot(self.navigation_task, object.team, resolution)
+        except (ValidationError, drf_exceptions.ValidationError) as exc:
+            form.add_error(None, exc)
+            return self.form_invalid(form)
         object.save()
         for warning in object.get_overlap_warnings():
             messages.warning(self.request, warning)

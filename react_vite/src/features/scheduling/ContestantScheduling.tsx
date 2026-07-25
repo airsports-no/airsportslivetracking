@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { fetchContestTeams, fetchNavigationTask, fetchScheduleCapacityPreview, scheduleContestants, updateContestant, fetchTeam, fetchContestant, deleteContestant } from './api';
 import SchedulingForm from './SchedulingForm';
@@ -67,7 +67,7 @@ const ContestantScheduling = () => {
         }
     }, []);
 
-    const refreshCapacityPreview = async (selectedContestTeamIds: number[], firstTakeoffIso?: string | null) => {
+    const refreshCapacityPreview = useCallback(async (selectedContestTeamIds: number[], firstTakeoffIso?: string | null) => {
         if (!contestId || !navigationTaskId) return;
         try {
             const preview = await fetchScheduleCapacityPreview(
@@ -80,7 +80,7 @@ const ContestantScheduling = () => {
         } catch (error: any) {
             console.error("Failed to fetch capacity preview", error);
         }
-    };
+    }, [contestId, navigationTaskId]);
 
     useEffect(() => {
         if (!navigationTask || !firstTakeoffTime) return;

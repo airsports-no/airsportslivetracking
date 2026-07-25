@@ -135,6 +135,37 @@ def _task_reserved_guest_pilots(contest, navigation_task, current_contestant=Non
     return started_pilot_ids | registered_pilot_ids
 
 
+def _contest_reserved_guest_pilots(contest, current_contestant=None):
+    owner_person_id = None
+    if contest.created_by_id:
+        try:
+            owner_person_id = contest.created_by.person.id
+        except Exception:
+            owner_person_id = None
+
+    started_pilot_ids = set(
+        ContestUsageLedger.objects.filter(
+            contest=contest,
+            kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
+        ).values_list("pilot_id", flat=True)
+    )
+    started_pilot_ids.discard(None)
+
+    registered_contestants = Contestant.objects.filter(
+        navigation_task__contest=contest,
+    )
+    if current_contestant is not None and current_contestant.pk is not None:
+        registered_contestants = registered_contestants.exclude(pk=current_contestant.pk)
+    registered_pilot_ids = set(registered_contestants.values_list("team__crew__member1_id", flat=True))
+    registered_pilot_ids.discard(None)
+
+    if owner_person_id is not None:
+        started_pilot_ids.discard(owner_person_id)
+        registered_pilot_ids.discard(owner_person_id)
+
+    return started_pilot_ids | registered_pilot_ids
+
+
 def _assert_can_reserve_task_slot(navigation_task, team, resolution, current_contestant=None):
     contest = navigation_task.contest
     if _is_owner_team(contest, team):
@@ -150,7 +181,13 @@ def _assert_can_reserve_task_slot(navigation_task, team, resolution, current_con
     if pilot.id in reserved_pilot_ids:
         return resolution
 
+    contest_reserved_pilot_ids = _contest_reserved_guest_pilots(contest, current_contestant=current_contestant)
+    if pilot.id in contest_reserved_pilot_ids:
+        return resolution
+
     if len(reserved_pilot_ids) >= resolution.contestant_limit:
+        raise ValidationError(_contestant_limit_error_message(resolution))
+    if len(contest_reserved_pilot_ids) >= resolution.contestant_limit:
         raise ValidationError(_contestant_limit_error_message(resolution))
     return resolution
 
