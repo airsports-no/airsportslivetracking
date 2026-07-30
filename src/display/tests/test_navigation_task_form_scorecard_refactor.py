@@ -1,0 +1,99 @@
+import datetime
+
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+
+from display.default_scorecards.create_scorecards import create_scorecards
+from display.forms import NavigationTaskForm, ScorecardForm
+from display.models import Contest, EditableRoute, NavigationTask, Scorecard
+from display.utilities.cima_task_type_definitions import ANR_CATALOGUE, CIRCLE, DURATION, LIMITED_FUEL_TURNPOINT_HUNT
+
+
+class TestNavigationTaskFormScorecardRefactor(TestCase):
+    def setUp(self):
+        create_scorecards()
+        self.user = get_user_model().objects.create(email="scorecard-refactor@example.com")
+        self.contest = Contest.objects.create(
+            name="Scorecard Refactor Contest",
+            time_zone="Europe/Oslo",
+            start_time=datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 8, 1, 17, 0, tzinfo=datetime.timezone.utc),
+            location="60.0,11.0",
+            created_by=self.user,
+        )
+        self.scorecard = Scorecard.get_originals().get(shortcut_name="FAI Precision")
+        with open("display/tests/NM.csv", "r") as file:
+            editable_route, _ = EditableRoute.create_from_csv("ScorecardRefactorRoute", file.readlines()[1:])
+            self.editable_route = editable_route
+            self.route = editable_route.create_precision_route(True, self.scorecard)
+
+    def test_navigation_task_form_no_longer_exposes_task_specific_runtime_fields(self):
+        form = NavigationTaskForm()
+        self.assertNotIn("compulsory_timing_tolerance_seconds", form.fields)
+        self.assertNotIn("maximum_task_duration_minutes", form.fields)
+        self.assertNotIn("maximum_task_duration_penalty", form.fields)
+        self.assertNotIn("fuel_deadline_penalty", form.fields)
+        self.assertNotIn("duration_normalization_policy", form.fields)
+        self.assertNotIn("duration_landing_area_polygon", form.fields)
+        self.assertNotIn("duration_residual_fuel_required", form.fields)
+        self.assertNotIn("circle_radius_min_m", form.fields)
+        self.assertNotIn("circle_radius_max_m", form.fields)
+
+    def test_scorecard_form_exposes_turnpoint_hunt_runtime_fields_for_turnpoint_hunt_task(self):
+        navigation_task = NavigationTask.create(
+            name="Turnpoint Hunt Task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=self.scorecard,
+            start_time=datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 8, 1, 17, 0, tzinfo=datetime.timezone.utc),
+            task_subtype=LIMITED_FUEL_TURNPOINT_HUNT,
+        )
+        form = ScorecardForm(instance=navigation_task.scorecard)
+        self.assertIn("compulsory_timing_tolerance_seconds", form.fields)
+        self.assertIn("maximum_task_duration_minutes", form.fields)
+        self.assertIn("maximum_task_duration_penalty", form.fields)
+        self.assertIn("fuel_deadline_penalty", form.fields)
+
+    def test_scorecard_form_exposes_duration_runtime_fields_for_duration_task(self):
+        navigation_task = NavigationTask.create(
+            name="Duration Task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=self.scorecard,
+            start_time=datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 8, 1, 17, 0, tzinfo=datetime.timezone.utc),
+            task_subtype=DURATION,
+        )
+        form = ScorecardForm(instance=navigation_task.scorecard)
+        self.assertIn("duration_normalization_policy", form.fields)
+        self.assertIn("duration_residual_fuel_required", form.fields)
+        self.assertNotIn("duration_landing_area_polygon", form.fields)
+
+    def test_scorecard_form_exposes_circle_runtime_fields_for_circle_task(self):
+        navigation_task = NavigationTask.create(
+            name="Circle Task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=self.scorecard,
+            start_time=datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 8, 1, 17, 0, tzinfo=datetime.timezone.utc),
+            task_subtype=CIRCLE,
+        )
+        form = ScorecardForm(instance=navigation_task.scorecard)
+        self.assertIn("circle_radius_min_m", form.fields)
+        self.assertIn("circle_radius_max_m", form.fields)
+
+    def test_scorecard_form_exposes_anr_auxiliary_route_penalties_for_anr_catalogue_task(self):
+        navigation_task = NavigationTask.create(
+            name="ANR Catalogue Task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=Scorecard.get_originals().get(shortcut_name="FAI ANR"),
+            start_time=datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 8, 1, 17, 0, tzinfo=datetime.timezone.utc),
+            task_subtype=ANR_CATALOGUE,
+        )
+        form = ScorecardForm(instance=navigation_task.scorecard)
+        self.assertIn("anr_route_to_sp_penalty", form.fields)
+        self.assertIn("anr_route_from_fp_penalty", form.fields)

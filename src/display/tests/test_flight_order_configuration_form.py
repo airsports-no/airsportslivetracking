@@ -201,7 +201,14 @@ class FlightOrderConfigurationFormTests(TestCase):
 
         self.assertEqual(kwargs["map_source"], "user_uploaded:42")
         self.assertTrue(kwargs["include_openaip_overlay"])
+        self.assertTrue(kwargs["include_contestant_declarations"])
         self.assertNotIn("user_map_source", kwargs)
+
+    def test_contestant_declaration_toggle_defaults_to_enabled(self):
+        form = FlightOrderConfigurationForm(instance=self.configuration)
+
+        self.assertIn("map_include_contestant_declarations", form.fields)
+        self.assertTrue(form.fields["map_include_contestant_declarations"].initial)
 
     def test_resolve_map_source_definition_for_uploaded_map_uses_uploaded_metadata(self):
         class UploadedMap:

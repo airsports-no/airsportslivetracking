@@ -105,6 +105,41 @@ from display.forms import (
 )
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import assert_can_self_register_contestant, _assert_can_reserve_task_slot
+from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.administrative_penalties import AdministrativePenaltyService
+
+ADMINISTRATIVE_PENALTY_CATEGORIES = {
+    "quarantine": {
+        "gate": "ADMIN-QUAR",
+        "default_reason": "quarantine breach",
+        "category": "quarantine",
+        "label": "Quarantine",
+    },
+    "fuel": {
+        "gate": "ADMIN-FUEL",
+        "default_reason": "fuel-check breach",
+        "category": "fuel",
+        "label": "Fuel check",
+    },
+    "instructions": {
+        "gate": "ADMIN-INSTR",
+        "default_reason": "intention not to follow task instructions",
+        "category": "instructions",
+        "label": "Task instructions",
+    },
+    "observation": {
+        "gate": "ADMIN-OBS",
+        "default_reason": "observation evidence issue",
+        "category": "observation",
+        "label": "Observation evidence",
+    },
+    "map": {
+        "gate": "ADMIN-MAP",
+        "default_reason": "map-placement evidence issue",
+        "category": "map",
+        "label": "Map placement",
+    },
+}
 from display.flight_order_and_maps.generate_flight_orders import (
     generate_flight_orders_latex,
     embed_map_in_pdf,
@@ -591,6 +626,7 @@ def get_contestant_map(request, pk):
                 "zoom_level": int(form.cleaned_data["zoom_level"]),
                 "landscape": form.cleaned_data["orientation"] == LANDSCAPE,
                 "annotations": form.cleaned_data["include_annotations"],
+                "include_contestant_declarations": form.cleaned_data["include_contestant_declarations"],
                 "waypoints_only": not form.cleaned_data["plot_track_between_waypoints"],
                 "dpi": form.cleaned_data["dpi"],
                 "scale": int(form.cleaned_data["scale"]),
@@ -629,6 +665,7 @@ def get_contestant_map(request, pk):
                 "map_source": configuration.map_source,
                 "include_openaip_overlay": configuration.map_include_openaip_overlay,
                 "include_annotations": configuration.map_include_annotations,
+                "include_contestant_declarations": configuration.map_include_contestant_declarations,
                 "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
                 "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
                 "include_openaip_overlay": configuration.map_include_openaip_overlay,
@@ -708,6 +745,7 @@ def get_contestant_default_map(request, pk):
         "zoom_level": configuration.map_zoom_level,
         "landscape": configuration.map_orientation == LANDSCAPE,
         "annotations": configuration.map_include_annotations,
+        "include_contestant_declarations": configuration.map_include_contestant_declarations,
         "waypoints_only": not configuration.map_plot_track_between_waypoints,
         "dpi": configuration.map_dpi,
         "scale": configuration.map_scale,
@@ -1324,6 +1362,9 @@ class ContestDetailView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, D
             "free_contestant_limit": resolution.free_contestant_limit,
             "contestant_limit_uses_free_default": resolution.contestant_limit_uses_free_default,
             "uses_more_advantageous_free_limits": resolution.uses_more_advantageous_free_limits,
+            "allowed_task_type_groups": resolution.allowed_task_type_groups,
+            "package_task_type_groups": resolution.package_task_type_groups,
+            "free_task_type_groups": resolution.free_task_type_groups,
         }
         token_assignment = getattr(contest, "contesttokenassignment", None)
         context["archive_mode_info"] = None
@@ -1598,6 +1639,43 @@ def delete_score_item(request, pk):
     return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
 
 
+@transaction.atomic
+@guardian_permission_required(
+    "display.change_contest",
+    (Contest, "navigationtask__contestant__pk", "pk"),
+)
+def apply_contestant_quarantine_penalty(request, pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    if request.method != "POST":
+        return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
+
+    reason = request.POST.get("reason", "").strip() or "quarantine breach"
+    points_raw = request.POST.get("points", "100")
+    category = request.POST.get("category", "quarantine")
+    category_config = ADMINISTRATIVE_PENALTY_CATEGORIES.get(category)
+    if category_config is None:
+        messages.error(request, "Unknown penalty category.")
+        return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
+    if not reason:
+        reason = category_config["default_reason"]
+    try:
+        points = float(points_raw)
+    except ValueError:
+        messages.error(request, "Penalty points must be numeric.")
+        return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
+
+    AdministrativePenaltyService.apply_contestant_penalty(
+        contestant=contestant,
+        points=points,
+        reason=reason,
+        gate=category_config["gate"],
+        category=category_config["category"],
+        actor=request.user,
+    )
+    messages.success(request, "Administrative penalty applied.")
+    return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
+
+
 class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     """
     View that displays the planned (and actual if available) gate times for a user. It also includes any score logs that have been generated, with
@@ -1635,6 +1713,48 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
         for item in self.object.actualgatetime_set.all():
             actual_times[item.gate] = item.time
         context["actual_times"] = actual_times
+        context["can_apply_quarantine_penalty"] = "change_contest" in get_user_perms(self.request.user, self.object.navigation_task.contest)
+        context["administrative_penalty_categories"] = ADMINISTRATIVE_PENALTY_CATEGORIES
+        if hasattr(self.object, "contestanttaskconfiguration") and self.object.contestanttaskconfiguration.is_valid:
+            payload = self.object.contestanttaskconfiguration.compiled_effective_route_payload or {}
+            context["compiled_evidence"] = {
+                "compiled_auxiliary_paths": payload.get("compiled_auxiliary_paths", {}),
+                "observation_judging_mode": payload.get("observation_judging_mode"),
+                "manual_adjudication_categories": payload.get("manual_adjudication_categories", []),
+                "observation_photos": [
+                    {
+                        **item,
+                        "evidence_category": "observation",
+                    }
+                    for item in payload.get("observation_photos", [])
+                ],
+                "hidden_gate_names": payload.get("hidden_gate_names", []),
+                "unknown_leg_names": payload.get("unknown_leg_names", []),
+            }
+            fuel_metadata = payload.get("fuel_metadata") or {}
+            duration_review = payload.get("duration_review") or {}
+            declared_endurance_minutes = fuel_metadata.get("declared_endurance_minutes")
+            if declared_endurance_minutes is not None:
+                context["compiled_fuel_review"] = {
+                    "declared_endurance_minutes": declared_endurance_minutes,
+                    "fuel_deadline": self.object.takeoff_time + datetime.timedelta(minutes=int(declared_endurance_minutes)),
+                }
+            elif duration_review.get("duration_residual_fuel_required"):
+                context["compiled_fuel_review"] = {
+                    "duration_residual_fuel_required": True,
+                }
+            else:
+                context["compiled_fuel_review"] = None
+        else:
+            context["compiled_evidence"] = {
+                "compiled_auxiliary_paths": {},
+                "observation_judging_mode": None,
+                "manual_adjudication_categories": [],
+                "observation_photos": [],
+                "hidden_gate_names": [],
+                "unknown_leg_names": [],
+            }
+            context["compiled_fuel_review"] = None
         return context
 
 
@@ -1839,6 +1959,7 @@ class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMi
         resolution = resolve_contest_access(instance.navigation_task.contest)
         _assert_can_reserve_task_slot(instance.navigation_task, instance.team, resolution, current_contestant=self.get_object())
         instance.save()
+        ContestantTaskCompiler(instance).compile(declaration_payload=form.get_declaration_payload(), force=True)
         self.object = instance
         for warning in self.object.get_overlap_warnings():
             messages.warning(self.request, warning)
@@ -1939,6 +2060,7 @@ class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
             contestant.finished_by_time = contestant.landing_time + datetime.timedelta(minutes=5)
 
         contestant.save()
+        ContestantTaskCompiler(contestant).compile(declaration_payload=form.get_declaration_payload(), force=True)
         messages.success(self.request, "Contestant created successfully")
         for warning in contestant.get_overlap_warnings():
             messages.warning(self.request, warning)
@@ -1985,6 +2107,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
             form.add_error(None, exc)
             return self.form_invalid(form)
         object.save()
+        ContestantTaskCompiler(object).compile(declaration_payload=form.get_declaration_payload(), force=True)
         for warning in object.get_overlap_warnings():
             messages.warning(self.request, warning)
         return HttpResponseRedirect(self.get_success_url())

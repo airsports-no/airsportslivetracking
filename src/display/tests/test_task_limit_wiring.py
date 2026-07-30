@@ -31,8 +31,7 @@ class TestTaskLimitWiring(TestCase):
         assign_perm("change_editableroute", self.user, self.route)
         self.scorecard = get_default_scorecard()
 
-    @patch("display.serialisers.assert_can_add_navigation_task")
-    def test_navigation_task_serializer_create_no_longer_calls_capacity_guard(self, mock_guard):
+    def test_navigation_task_serializer_create_succeeds_without_capacity_guard_hook(self):
         serializer = NavigationTaskEditableRoutReferenceSerialiser(
             data={
                 "name": "Limited Task",
@@ -47,13 +46,155 @@ class TestTaskLimitWiring(TestCase):
         serializer.fields["editable_route"].queryset = EditableRoute.objects.filter(pk=self.route.pk)
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
-        serializer.save()
+        navigation_task = serializer.save()
 
-        mock_guard.assert_not_called()
+        self.assertEqual(navigation_task.name, "Limited Task")
+
+    def test_navigation_task_serializer_accepts_turnpoint_hunt_task_config(self):
+        serializer = NavigationTaskEditableRoutReferenceSerialiser(
+            data={
+                "name": "Turnpoint Hunt Task",
+                "original_scorecard": "FAI Precision",
+                "start_time": "2026-10-01T09:00:00Z",
+                "finish_time": "2026-10-01T17:00:00Z",
+                "allow_self_management": True,
+                "editable_route": self.route.pk,
+                "task_subtype": "limited_fuel_turnpoint_hunt",
+                "task_config": {
+                    "maximum_task_duration_minutes": 45,
+                    "maximum_task_duration_penalty": 123,
+                    "fuel_deadline_penalty": 77,
+                    "compulsory_timing_tolerance_seconds": 8,
+                },
+            },
+            context={"request": self.request, "contest": self.contest},
+        )
+        serializer.fields["editable_route"].queryset = EditableRoute.objects.filter(pk=self.route.pk)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        navigation_task = serializer.save()
+        self.assertEqual(navigation_task.task_subtype, "limited_fuel_turnpoint_hunt")
+        self.assertEqual(
+            navigation_task.task_config,
+            {
+                "maximum_task_duration_minutes": 45,
+                "maximum_task_duration_penalty": 123,
+                "fuel_deadline_penalty": 77,
+                "compulsory_timing_tolerance_seconds": 8,
+            },
+        )
+
+    def test_navigation_task_serializer_accepts_duration_task_config(self):
+        serializer = NavigationTaskEditableRoutReferenceSerialiser(
+            data={
+                "name": "Duration Task",
+                "original_scorecard": "FAI Precision",
+                "start_time": "2026-10-01T09:00:00Z",
+                "finish_time": "2026-10-01T17:00:00Z",
+                "allow_self_management": True,
+                "editable_route": self.route.pk,
+                "task_subtype": "duration",
+                "task_config": {
+                    "duration_normalization_policy": "raw_minutes",
+                },
+            },
+            context={"request": self.request, "contest": self.contest},
+        )
+        serializer.fields["editable_route"].queryset = EditableRoute.objects.filter(pk=self.route.pk)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        navigation_task = serializer.save()
+        self.assertEqual(navigation_task.task_subtype, "duration")
+        self.assertEqual(
+            navigation_task.task_config,
+            {
+                "duration_normalization_policy": "raw_minutes",
+            },
+        )
+
+    def test_navigation_task_serializer_accepts_duration_landing_area_polygon(self):
+        serializer = NavigationTaskEditableRoutReferenceSerialiser(
+            data={
+                "name": "Duration Landing Area Task",
+                "original_scorecard": "FAI Precision",
+                "start_time": "2026-10-01T09:00:00Z",
+                "finish_time": "2026-10-01T17:00:00Z",
+                "allow_self_management": True,
+                "editable_route": self.route.pk,
+                "task_subtype": "duration",
+                "task_config": {
+                    "duration_landing_area_polygon": [[11.0, 60.0], [11.2, 60.0], [11.2, 60.2], [11.0, 60.2]],
+                },
+            },
+            context={"request": self.request, "contest": self.contest},
+        )
+        serializer.fields["editable_route"].queryset = EditableRoute.objects.filter(pk=self.route.pk)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        navigation_task = serializer.save()
+        self.assertEqual(navigation_task.task_subtype, "duration")
+        self.assertEqual(
+            navigation_task.task_config,
+            {
+                "duration_landing_area_polygon": [[11.0, 60.0], [11.2, 60.0], [11.2, 60.2], [11.0, 60.2]],
+            },
+        )
+
+    def test_navigation_task_serializer_accepts_duration_residual_fuel_required(self):
+        serializer = NavigationTaskEditableRoutReferenceSerialiser(
+            data={
+                "name": "Duration Residual Fuel Task",
+                "original_scorecard": "FAI Precision",
+                "start_time": "2026-10-01T09:00:00Z",
+                "finish_time": "2026-10-01T17:00:00Z",
+                "allow_self_management": True,
+                "editable_route": self.route.pk,
+                "task_subtype": "duration",
+                "task_config": {
+                    "duration_residual_fuel_required": True,
+                },
+            },
+            context={"request": self.request, "contest": self.contest},
+        )
+        serializer.fields["editable_route"].queryset = EditableRoute.objects.filter(pk=self.route.pk)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        navigation_task = serializer.save()
+        self.assertEqual(navigation_task.task_subtype, "duration")
+        self.assertEqual(
+            navigation_task.task_config,
+            {
+                "duration_residual_fuel_required": True,
+            },
+        )
+
+    def test_navigation_task_serializer_accepts_circle_radius_config(self):
+        serializer = NavigationTaskEditableRoutReferenceSerialiser(
+            data={
+                "name": "Circle Task",
+                "original_scorecard": "FAI Precision",
+                "start_time": "2026-10-01T09:00:00Z",
+                "finish_time": "2026-10-01T17:00:00Z",
+                "allow_self_management": True,
+                "editable_route": self.route.pk,
+                "task_subtype": "circle",
+                "task_config": {
+                    "circle_radius_min_m": 250,
+                    "circle_radius_max_m": 800,
+                },
+            },
+            context={"request": self.request, "contest": self.contest},
+        )
+        serializer.fields["editable_route"].queryset = EditableRoute.objects.filter(pk=self.route.pk)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["task_subtype"], "circle")
+        self.assertEqual(
+            serializer.validated_data["task_config"],
+            {
+                "circle_radius_min_m": 250,
+                "circle_radius_max_m": 800,
+            },
+        )
 
     def test_navigation_task_capacity_guard_no_longer_blocks_creation(self):
         from display.services.capacity_enforcement import assert_can_add_navigation_task
 
-        resolution = assert_can_add_navigation_task(self.contest)
+        resolution = assert_can_add_navigation_task(self.contest, task_type=self.scorecard.calculator, task_subtype="")
 
         self.assertIsNotNone(resolution)

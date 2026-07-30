@@ -102,7 +102,13 @@ DEFAULT_FREE_CONTESTANT_LIMIT = _parse_optional_int_env("DEFAULT_FREE_CONTESTANT
 # for visibility or actively enforced at runtime.
 # - "audit": expose limits/status in UI and APIs but do not block actions.
 # - "enforce": block quota-consuming actions when the effective contestant limit is exhausted.
-ACCESS_ENFORCEMENT_MODE = os.environ.get("ACCESS_ENFORCEMENT_MODE", "limit")
+ACCESS_ENFORCEMENT_MODE = os.environ.get("ACCESS_ENFORCEMENT_MODE", "audit")
+if ACCESS_ENFORCEMENT_MODE not in {"audit", "enforce"}:
+    ACCESS_ENFORCEMENT_MODE = "audit"
+
+DEFAULT_FREE_TASK_TYPE_GROUPS = [
+    item.strip() for item in os.environ.get("DEFAULT_FREE_TASK_TYPE_GROUPS", "legacy,cima").split(",") if item.strip()
+]
 
 MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
 

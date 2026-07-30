@@ -7,6 +7,7 @@ import urllib.request
 from io import BytesIO
 from subprocess import CalledProcessError
 from tempfile import NamedTemporaryFile
+from types import SimpleNamespace
 from typing import List, Literal
 
 import matplotlib
@@ -25,10 +26,11 @@ from pylatex.utils import bold, italic
 from shapely.geometry import Polygon
 
 from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
-from display.utilities.coordinate_utilities import utm_from_lat_lon, normalise_bearing
+from display.utilities.coordinate_utilities import utm_from_lat_lon, normalise_bearing, calculate_distance_lat_lon
 from display.flight_order_and_maps.map_constants import LANDSCAPE, A4, A3
 from display.flight_order_and_maps.map_plotter import plot_route
 from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_image
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.models import Contestant
 from display.utilities.gate_definitions import DUMMY, SECRETPOINT, UNKNOWN_LEG
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
@@ -73,6 +75,7 @@ def build_flight_order_map_plot_kwargs(navigation_task, flight_order_configurati
         "zoom_level": flight_order_configuration.map_zoom_level,
         "landscape": flight_order_configuration.map_orientation == LANDSCAPE,
         "contestant": contestant,
+        "include_contestant_declarations": flight_order_configuration.map_include_contestant_declarations,
         "annotations": flight_order_configuration.map_include_annotations,
         "waypoints_only": not flight_order_configuration.map_plot_track_between_waypoints,
         "dpi": flight_order_configuration.map_dpi,
@@ -224,11 +227,10 @@ def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_
 
 
 def insert_turning_point_images_latex(
-    contestant, document: Document, flight_order_configuration: FlightOrderConfiguration
+    contestant, document: Document, flight_order_configuration: FlightOrderConfiguration, waypoints: List[Waypoint]
 ):
-    navigation = contestant.navigation_task  # type: NavigationTask
     render_turning_point_images(
-        navigation.route.waypoints,
+        waypoints,
         document,
         flight_order_configuration,
         "Turning point and time gate",
@@ -237,10 +239,9 @@ def insert_turning_point_images_latex(
 
 
 def insert_unknown_leg_images_latex(
-    contestant, document: Document, flight_order_configuration: FlightOrderConfiguration
+    contestant, document: Document, flight_order_configuration: FlightOrderConfiguration, waypoints: List[Waypoint]
 ):
-    navigation = contestant.navigation_task  # type: NavigationTask
-    render_waypoints = [waypoint for waypoint in navigation.route.waypoints if waypoint.type == UNKNOWN_LEG]
+    render_waypoints = [waypoint for waypoint in waypoints if waypoint.type == UNKNOWN_LEG]
     random.shuffle(render_waypoints)
     render_turning_point_images(
         render_waypoints, document, flight_order_configuration, "Unknown legs", is_unknown_leg=True
@@ -262,7 +263,34 @@ def insert_photos_latex(contestant, document: Document, flight_order_configurati
                     tmp.write(src.read())
                     return tmp.name
 
+    compiled_photos = []
+    if hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
+        payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+        compiled_photos = payload.get("observation_photos", []) or []
+
     photos = list(contestant.navigation_task.route.photo_set.all().order_by("name"))
+    if not photos and compiled_photos:
+        fallback_waypoints = get_effective_route_waypoints(
+            contestant.navigation_task,
+            contestant=contestant,
+            include_contestant_declarations=bool(flight_order_configuration.map_include_contestant_declarations),
+        )
+        fallback_waypoint = fallback_waypoints[0] if fallback_waypoints else None
+        synthesised = []
+        for item in compiled_photos:
+            coordinates = item.get("coordinates") or []
+            if len(coordinates) != 2 or fallback_waypoint is None:
+                continue
+            lon, lat = coordinates
+            photo_stub = SimpleNamespace(
+                name=item.get("name") or item.get("target_name") or "Photo",
+                latitude=lat,
+                longitude=lon,
+                file=None,
+                leg=fallback_waypoint,
+            )
+            synthesised.append(photo_stub)
+        photos = synthesised
 
     if flight_order_configuration.document_size == A3:
         cols, rows, figure_width = 3, 4, 0.3
@@ -288,9 +316,10 @@ def insert_photos_latex(contestant, document: Document, flight_order_configurati
             row_photos = page_photos[j : j + cols]
             with document.create(Figure(position="!ht")) as fig:
                 for photo in row_photos:
-                    if waypoint := photo.leg:
+                    waypoint = getattr(photo, "leg", None)
+                    if waypoint:
                         with fig.create(MiniPage(width=rf"{figure_width}\textwidth")) as mp:
-                            if photo.file:
+                            if getattr(photo, "file", None):
                                 image_filename = resolve_photo_filename(photo)
                             else:
                                 image_file = generate_photo(photo, waypoint, meters_across, zoom_level)
@@ -553,10 +582,15 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     with document.create(Center()):
         document.append(HugeText(bold("Good Luck!")))
     document.append(VerticalSpace("10pt"))
+    effective_waypoints = get_effective_route_waypoints(
+        contestant.navigation_task,
+        contestant=contestant,
+        include_contestant_declarations=bool(flight_order_configuration.map_include_contestant_declarations),
+    )
     waypoints = list(
         filter(
             lambda waypoint: waypoint.type != "dummy",
-            contestant.navigation_task.route.waypoints,
+            effective_waypoints,
         )
     )
     starting_point_image_file = get_turning_point_image(
@@ -621,7 +655,7 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
                 previous_waypoint = None
                 last_recorded_time = None
                 waypoint: Waypoint
-                for waypoint in contestant.navigation_task.route.waypoints:
+                for waypoint in waypoints:
                     if not first_line:
                         accumulated_distance += waypoint.distance_previous
                     if waypoint.type not in ("secret", "dummy", "ul") or (
@@ -728,10 +762,10 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     document.change_document_style("header")
     # document.change_document_style("turningpointheader")
     if flight_order_configuration.include_turning_point_images:
-        insert_turning_point_images_latex(contestant, document, flight_order_configuration)
+        insert_turning_point_images_latex(contestant, document, flight_order_configuration, waypoints)
 
-    if any(waypoint.type == UNKNOWN_LEG for waypoint in contestant.navigation_task.route.waypoints):
-        insert_unknown_leg_images_latex(contestant, document, flight_order_configuration)
+    if any(waypoint.type == UNKNOWN_LEG for waypoint in waypoints):
+        insert_unknown_leg_images_latex(contestant, document, flight_order_configuration, waypoints)
     if contestant.navigation_task.route.photo_set.all().count() > 0:
         insert_photos_latex(contestant, document, flight_order_configuration)
     # Produce the output

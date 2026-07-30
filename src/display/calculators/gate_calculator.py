@@ -24,9 +24,10 @@ from display.calculators.positions_and_gates import Gate, round_seconds
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.models import ANOMALY, INFORMATION
+from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
 from websocket_channels import WebsocketFacade
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon, calculate_speed_between_points
-from display.utilities.route_building_utilities import calculate_extended_gate
+from display.utilities.route_building_utilities import calculate_extended_gate, build_waypoint
 
 logger = logging.getLogger(__name__)
 
@@ -64,13 +65,14 @@ class GateCalculator(Calculator):
         self.last_backwards = None
         self.has_scored_adaptive_start = False
         self.scored_gates = set()
+        self.scored_turnpoint_hunt_compulsory_gates = set()
         self.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
 
     def create_gates(self) -> List[Gate]:
         """
         Helper function to create gates from the waypoints defined in a route
         """
-        waypoints = self.contestant.navigation_task.route.waypoints
+        waypoints = self._get_effective_waypoints()
         expected_times = self.contestant.gate_times
         gates = []
         for item in waypoints:  # type: Waypoint
@@ -91,6 +93,85 @@ class GateCalculator(Calculator):
                 waypoints[0], expected_times[waypoints[0].name], calculate_extended_gate(waypoints[0], self.scorecard)
             )
         return gates
+
+    def _get_effective_waypoints(self):
+        route_waypoints = self.contestant.navigation_task.route.waypoints
+        if hasattr(self.contestant, "contestanttaskconfiguration") and self.contestant.contestanttaskconfiguration.is_valid:
+            payload = self.contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+            effective_waypoints_payload = payload.get("effective_waypoints")
+            if isinstance(effective_waypoints_payload, list) and len(effective_waypoints_payload) > 0:
+                effective_waypoints = []
+                for item in effective_waypoints_payload:
+                    waypoint = build_waypoint(
+                        item["name"],
+                        item["latitude"],
+                        item["longitude"],
+                        item["type"],
+                        item["width"],
+                        item["time_check"],
+                        item["gate_check"],
+                    )
+                    waypoint.elevation = item.get("elevation", 0)
+                    waypoint.gate_line = item.get("gate_line", [])
+                    waypoint.distance_next = item.get("distance_next", -1)
+                    waypoint.distance_previous = item.get("distance_previous", -1)
+                    waypoint.bearing_next = item.get("bearing_next", -1)
+                    waypoint.bearing_from_previous = item.get("bearing_from_previous", -1)
+                    waypoint.inside_distance = item.get("inside_distance", 0)
+                    waypoint.outside_distance = item.get("outside_distance", 0)
+                    waypoint.is_procedure_turn = item.get("is_procedure_turn", False)
+                    waypoint.is_steep_turn = item.get("is_steep_turn", False)
+                    waypoint.end_curved = item.get("end_curved", False)
+                    effective_waypoints.append(waypoint)
+                return effective_waypoints
+
+        effective_names = self.contestant.get_effective_waypoint_names()
+        if not effective_names:
+            return route_waypoints
+
+        by_name = {item.name: item for item in route_waypoints}
+        effective_waypoints = []
+        for name in effective_names:
+            if name in by_name:
+                effective_waypoints.append(by_name[name])
+                continue
+            if name == "MP":
+                mp = type(route_waypoints[0])(name) if route_waypoints else None
+                if mp is not None:
+                    base = route_waypoints[min(1, len(route_waypoints) - 1)] if route_waypoints else None
+                    if base is not None:
+                        mp.latitude = base.latitude
+                        mp.longitude = base.longitude
+                        mp.elevation = getattr(base, "elevation", 0)
+                        mp.gate_line = getattr(base, "gate_line", [])
+                        mp.width = getattr(base, "width", 0)
+                        mp.time_check = True
+                        mp.gate_check = True
+                        mp.type = "tp"
+                        mp.distance_next = getattr(base, "distance_next", -1)
+                        mp.distance_previous = getattr(base, "distance_previous", -1)
+                        mp.bearing_next = getattr(base, "bearing_next", -1)
+                        mp.bearing_from_previous = getattr(base, "bearing_from_previous", -1)
+                        mp.end_curved = getattr(base, "end_curved", False)
+                    effective_waypoints.append(mp)
+            elif route_waypoints:
+                base = route_waypoints[min(1, len(route_waypoints) - 1)]
+                clone = type(base)(name)
+                clone.latitude = base.latitude
+                clone.longitude = base.longitude
+                clone.elevation = getattr(base, "elevation", 0)
+                clone.gate_line = getattr(base, "gate_line", [])
+                clone.width = getattr(base, "width", 0)
+                clone.time_check = True
+                clone.gate_check = True
+                clone.type = "tp"
+                clone.distance_next = getattr(base, "distance_next", -1)
+                clone.distance_previous = getattr(base, "distance_previous", -1)
+                clone.bearing_next = getattr(base, "bearing_next", -1)
+                clone.bearing_from_previous = getattr(base, "bearing_from_previous", -1)
+                clone.end_curved = getattr(base, "end_curved", False)
+                effective_waypoints.append(clone)
+        return effective_waypoints or route_waypoints
 
     def initiate_gates(self):
         self.gates = self.create_gates()
@@ -417,25 +498,14 @@ class GateCalculator(Calculator):
                         f"{self.contestant}: Detected missed gate {state.in_range_of_gate} due to going out of range without passing"
                     )
                     events.append(GateMissedEvent(prev_gate, state.in_range_of_gate, last_position))
-
-                    # If this was our expected next gate, pop it
-                    if self.outstanding_gates and self.outstanding_gates[0] == state.in_range_of_gate:
-                        self.outstanding_gates.pop(0)
-                        events.append(NextGateExpectedEvent(self._get_next_gate(), last_position))
-
-                events.append(InRangeUpdatedEvent(None, last_position))
-        else:
-            next_gate = self.outstanding_gates[0]
-            if next_gate in already_handled_gates:
                 return
 
-            if next_gate.type not in ("secret", "sp", "fp", "tp"):
-                return
-
+        # Find next gate in range if none is active
+        next_gate = self._get_next_gate()
+        if next_gate and next_gate not in already_handled_gates:
             if next_gate.center_x is None:
                 next_gate.pre_project(state.projector)
 
-            # Throttle distance check if far away
             dist_sq = (p_x - next_gate.center_x) ** 2 + (p_y - next_gate.center_y) ** 2
             # If further than 5km, only check every 5 seconds
             if dist_sq > 5000**2 and now < self.last_estimation_time + datetime.timedelta(seconds=4):
@@ -505,6 +575,37 @@ class GateCalculator(Calculator):
         )
         passing_position = event.gate.infinite_passing_position or event.position
 
+        if self._is_invalid_post_mp_contract_crossing(event.gate, passing_time):
+            event.gate.missed = True
+            self.update_gate_score(
+                passing_position,
+                event.gate,
+                0,
+                GATE_SCORE_TYPE,
+                "invalid post-MP point flown before MP time",
+                ANOMALY,
+                event.gate.expected_time,
+                passing_time,
+            )
+            return
+
+        if self._is_curve_navigation_repeated_crossing(event.gate):
+            event.gate.missed = True
+            repeated_crossing_score = self.scorecard.get_gate_timing_score_for_gate_type(
+                event.gate.type, event.gate.expected_time, None
+            )
+            self.update_gate_score(
+                passing_position,
+                event.gate,
+                repeated_crossing_score,
+                "curve_navigation_repeated_crossing",
+                "gate invalidated by repeated crossing",
+                ANOMALY,
+                event.gate.expected_time,
+                event.gate.passing_time,
+            )
+            return
+
         # Mark the gate as passed internally
         event.gate.pass_gate(passing_time, passing_position)
 
@@ -539,54 +640,196 @@ class GateCalculator(Calculator):
                 event.gate.expected_time,
                 passing_time,
             )
+        self._score_turnpoint_hunt_compulsory_timing(event.gate, passing_position, passing_time)
+        self._score_turnpoint_hunt_target_value(event.gate, passing_position, passing_time)
+        self._score_limited_fuel_deadline(event.gate, passing_position, passing_time)
+        self._score_turnpoint_hunt_maximum_duration(event.gate, passing_position, passing_time)
 
-    def on_landing_passed(self, event: LandingPassedEvent):
-        pass
+    def _is_curve_navigation_repeated_crossing(self, gate: Gate) -> bool:
+        return (
+            self.contestant.navigation_task.task_subtype == "curve_navigation_time_estimation"
+            and gate.type == "secret"
+            and getattr(gate, "passing_time", None) is not None
+        )
 
-    def on_takeoff_passed(self, event: TakeoffPassedEvent):
-        pass
+    def _score_turnpoint_hunt_compulsory_timing(self, gate: Gate, position, passing_time: datetime.datetime):
+        subtype = self.contestant.navigation_task.task_subtype
+        if subtype not in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
+            return
+        if not hasattr(self.contestant, "contestanttaskconfiguration"):
+            return
+        config = self.contestant.contestanttaskconfiguration
+        if not config.is_valid:
+            return
+        payload = config.compiled_effective_route_payload or {}
+        compulsory_names = payload.get("compulsory_timing_gate_names") or []
+        if gate.name not in compulsory_names:
+            return
+        if gate.name in self.scored_turnpoint_hunt_compulsory_gates:
+            return
+        self.scored_turnpoint_hunt_compulsory_gates.add(gate.name)
+        tolerance_seconds = int(payload.get("compulsory_timing_tolerance_seconds", 10) or 10)
+        diff_seconds = abs((passing_time - gate.expected_time).total_seconds())
+        if diff_seconds <= tolerance_seconds:
+            score = 0
+            message = f"compulsory timing gate within {tolerance_seconds} s"
+            annotation_type = INFORMATION
+        else:
+            score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, passing_time)
+            message = f"compulsory timing gate outside {tolerance_seconds} s"
+            annotation_type = ANOMALY
+        self.update_gate_score(
+            position,
+            gate,
+            score,
+            "turnpoint_hunt_compulsory_timing",
+            message,
+            annotation_type,
+            gate.expected_time,
+            passing_time,
+        )
 
-    def on_starting_line_passed(self, event: StartingLinePassedEvent):
-        logger.info(f"{self.contestant}: Scoring starting line {event.gate}")
-        if self.contestant.adaptive_start and not self.has_scored_adaptive_start:
-            self.has_scored_adaptive_start = True
-            # Use a slightly earlier time to ensure it appears before the timing score in the log
-            passing_time = event.gate.passing_time or event.gate.infinite_passing_time or event.position.time
-            passing_position = event.gate.infinite_passing_position or event.position
-            entry_time = passing_time - datetime.timedelta(seconds=1)
-            self.update_gate_score(
-                passing_position,
-                event.gate,
-                0,
-                ADAPTIVE_TIMING_START_SCORE_TYPE,
-                "crossing infinite starting line and starting adaptive timing",
-                INFORMATION,
-                actual=entry_time,
-            )
+    def _score_turnpoint_hunt_target_value(self, gate: Gate, position, passing_time: datetime.datetime):
+        subtype = self.contestant.navigation_task.task_subtype
+        if subtype not in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
+            return
+        if not hasattr(self.contestant, "contestanttaskconfiguration"):
+            return
+        config = self.contestant.contestanttaskconfiguration
+        if not config.is_valid:
+            return
+        payload = config.compiled_effective_route_payload or {}
+        scored_values = payload.get("scored_target_values") or {}
+        if gate.name not in scored_values:
+            return
+        self.update_gate_score(
+            position,
+            gate,
+            float(scored_values[gate.name]),
+            "turnpoint_hunt_target_value",
+            "catalogue target collected",
+            INFORMATION,
+            gate.expected_time,
+            passing_time,
+        )
 
-    def on_adaptive_start(self, event: AdaptiveStartEvent):
-        """
-        Update expected times for gates based on adaptive start time.
-        """
-        if not event.gate_times:
-            new_start_time = event.intersection_time
-            event.gate_times = self.contestant.calculate_missing_gate_times({}, round_time_minute(new_start_time))
+    def _score_limited_fuel_deadline(self, gate: Gate, position, passing_time: datetime.datetime):
+        if self.contestant.navigation_task.task_subtype != "limited_fuel_turnpoint_hunt":
+            return
+        if not hasattr(self.contestant, "contestanttaskconfiguration"):
+            return
+        config = self.contestant.contestanttaskconfiguration
+        if not config.is_valid:
+            return
+        payload = config.compiled_effective_route_payload or {}
+        fuel_deadline = payload.get("fuel_deadline")
+        if not fuel_deadline:
+            return
+        deadline_dt = datetime.datetime.fromisoformat(fuel_deadline)
+        if passing_time <= deadline_dt:
+            return
+        if any(score_type == "limited_fuel_deadline" for _, score_type in self.scored_gates if _ == gate.name):
+            return
+        penalty = float(getattr(self.scorecard, "fuel_deadline_penalty", 100) or 100)
+        self.update_gate_score(
+            position,
+            gate,
+            penalty,
+            "limited_fuel_deadline_exceeded",
+            "fuel endurance exceeded",
+            ANOMALY,
+            deadline_dt,
+            passing_time,
+        )
 
-        gate_times = event.gate_times
-
-        for gate in self.gates:
-            if gate.name in gate_times:
-                gate.expected_time = gate_times[gate.name]
+    def _score_turnpoint_hunt_maximum_duration(self, gate: Gate, position, passing_time: datetime.datetime):
+        subtype = self.contestant.navigation_task.task_subtype
+        if subtype not in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
+            return
+        if not hasattr(self.contestant, "contestanttaskconfiguration"):
+            return
+        config = self.contestant.contestanttaskconfiguration
+        if not config.is_valid:
+            return
+        payload = config.compiled_effective_route_payload or {}
+        deadline = payload.get("maximum_task_duration_deadline")
+        if not deadline:
+            return
+        deadline_dt = datetime.datetime.fromisoformat(deadline)
+        if passing_time <= deadline_dt:
+            return
+        if any(score_type == "turnpoint_hunt_maximum_duration" for _, score_type in self.scored_gates if _ == gate.name):
+            return
+        penalty = float(getattr(self.scorecard, "maximum_task_duration_penalty", 100) or 100)
+        self.update_gate_score(
+            position,
+            gate,
+            penalty,
+            "turnpoint_hunt_maximum_duration_exceeded",
+            "maximum task duration exceeded",
+            ANOMALY,
+            deadline_dt,
+            passing_time,
+        )
 
     def on_starting_line_extended_passed_wrong_direction(self, event: StartingLineExtendedPassedWrongDirectionEvent):
-        logger.info(f"{self.contestant}: Scoring starting line wrong direction {event.gate}")
-        score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type("sp")
-        if score != 0:
+        if self.starting_line.type == "sp":
             self.update_gate_score(
                 event.position,
-                event.gate,
-                score,
+                self.starting_line,
+                self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type(self.starting_line.type),
                 BACKWARD_STARTING_LINE_SCORE_TYPE,
-                "crossing extended starting gate backwards",
+                "backwards starting line",
                 ANOMALY,
+                self.starting_line.expected_time,
+                event.position.time,
             )
+
+    def on_starting_line_passed(self, event: StartingLinePassedEvent):
+        self.on_gate_passed(event)
+
+    def on_adaptive_start(self, event: AdaptiveStartEvent):
+        if self.has_scored_adaptive_start:
+            return
+        self.has_scored_adaptive_start = True
+        self.update_score(
+            UpdateScoreMessage(
+                event.intersection_time,
+                self.starting_line,
+                0,
+                "adaptive start set",
+                event.position.latitude,
+                event.position.longitude,
+                INFORMATION,
+                ADAPTIVE_TIMING_START_SCORE_TYPE,
+                planned=event.intersection_time,
+                actual=event.intersection_time,
+            )
+        )
+
+    def _is_invalid_post_mp_contract_crossing(self, gate: Gate, passing_time: datetime.datetime) -> bool:
+        if self.contestant.navigation_task.task_subtype != CONTRACT_NAVIGATION_TIME_CONTROLS:
+            return False
+        if not hasattr(self.contestant, "contestanttaskconfiguration"):
+            return False
+        config = self.contestant.contestanttaskconfiguration
+        if not config.is_valid:
+            return False
+        payload = config.compiled_effective_route_payload or {}
+        declared_sequence = payload.get("declared_sequence") or []
+        time_model = payload.get("time_model") or {}
+        after_mp = set(time_model.get("after_mp_sequence") or [])
+        if gate.name not in after_mp:
+            return False
+        mp_time_iso = self.contestant.gate_times.get("MP")
+        if isinstance(mp_time_iso, datetime.datetime):
+            mp_time = mp_time_iso
+        else:
+            mp_time = None
+        if mp_time is None and "MP" in (self.contestant.contestanttaskconfiguration.compiled_gate_times_payload or {}):
+            mp_time = datetime.datetime.fromisoformat(
+                self.contestant.contestanttaskconfiguration.compiled_gate_times_payload["MP"]
+            )
+        if mp_time is None:
+            return False
+        return passing_time < mp_time

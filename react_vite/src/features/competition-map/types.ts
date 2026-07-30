@@ -161,6 +161,8 @@ export interface Scorecard {
 export interface Contestant {
   id: number;
   contest_id: number;
+  declaration_payload?: Record<string, any>;
+  compiled_effective_route_payload?: Record<string, any>;
   team: Team;
   contestanttrack: ContestantTrackSummary;
   contestant_number: number;
@@ -193,11 +195,24 @@ export interface Contestant {
   }[];
 }
 
+export interface NavigationTaskCatalogueTarget {
+  name: string;
+  coordinates: [number, number];
+}
+
 export interface NavigationTask {
   id: number;
   route: RouteData;
+  task_catalogue_targets?: NavigationTaskCatalogueTarget[];
   scorecard: Scorecard;
   contestant_set: Contestant[];
+  task_subtype?: string | null;
+  task_subtype_definition?: {
+    key: string;
+    display_name: string;
+    coarse_family: string;
+    requires_contestant_configuration: boolean;
+  } | null;
   name: string;
   display_background_map: boolean;
   display_secrets: boolean;

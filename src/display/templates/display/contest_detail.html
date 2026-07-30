@@ -207,6 +207,19 @@
                                         <div class="text-xs opacity-70 mt-1">Package limit {% if access_status.package_contestant_limit == None %}Unlimited{% else %}{{ access_status.package_contestant_limit }}{% endif %} pilots, but free tier allows {% if access_status.free_contestant_limit == None %}Unlimited{% else %}{{ access_status.free_contestant_limit }}{% endif %}, so the more advantageous free-tier pilot limit applies.</div>
                                     {% endif %}
                                 </div>
+                                <div class="bg-base-100 rounded-lg p-3">
+                                    <div class="opacity-70">Allowed task groups</div>
+                                    <div class="font-semibold">
+                                        {% if access_status.allowed_task_type_groups %}
+                                            {{ access_status.allowed_task_type_groups|join:", " }}
+                                        {% else %}
+                                            none
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-xs opacity-70 mt-1">
+                                        Package: {% if access_status.package_task_type_groups %}{{ access_status.package_task_type_groups|join:", " }}{% else %}none{% endif %}. Free tier: {% if access_status.free_task_type_groups %}{{ access_status.free_task_type_groups|join:", " }}{% else %}none{% endif %}.
+                                    </div>
+                                </div>
                             </div>
                             <div class="text-xs opacity-70 mt-3">Usage reflects historical started activity, not just currently existing contestants.</div>
                         </div>
@@ -223,6 +236,7 @@
                                         <div class="rounded-lg bg-base-100 p-3 text-sm">
                                             <div class="font-semibold">{{ grant.get_tier_display }}</div>
                                             <div class="opacity-70">Competing pilots: {% if grant.contestant_limit == None %}Unlimited{% else %}{{ grant.contestant_limit }}{% endif %}</div>
+                                            <div class="opacity-70">Allowed task groups: {% if grant.task_type_groups %}{{ grant.task_type_groups|join:", " }}{% else %}none{% endif %}</div>
                                         </div>
                                     {% endfor %}
                                 </div>
@@ -259,9 +273,10 @@
                                         <form method="post" action="{{ token_management_url }}" class="rounded-lg bg-base-100 p-3 space-y-2">
                                             {% csrf_token %}
                                             <input type="hidden" name="token_grant_id" value="{{ grant.id }}">
-                                            <div class="text-sm">
+                                        <div class="text-sm">
                                                 <div class="font-semibold">{{ grant.token_type.name }}</div>
                                                 <div class="opacity-70">Remaining {{ grant.quantity_remaining }} / {{ grant.quantity_total }}</div>
+                                                <div class="opacity-70">Allowed task groups: {% if grant.task_type_groups %}{{ grant.task_type_groups|join:", " }}{% else %}none{% endif %}</div>
                                             </div>
                                             <button type="submit" class="btn btn-sm btn-primary w-full">{% if current_token_assignment %}Replace token{% else %}Assign token{% endif %}</button>
                                         </form>

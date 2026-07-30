@@ -2,6 +2,8 @@ from .contest import *
 from .contestant import *
 from .contestant_track import *
 from .contestant_utility_models import *
+from .contestant_task_configuration import *
+from .compiled_navigation_task import *
 from .editable_route import *
 from .email_map_link import *
 from .flight_order_configuration import *

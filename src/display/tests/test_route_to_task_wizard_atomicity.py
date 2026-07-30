@@ -15,7 +15,7 @@ class TestRouteToTaskWizardAtomicity(TestCase):
         self.user = get_user_model().objects.create(email="wizard-atomic@example.com")
         self.user.user_permissions.add(Permission.objects.get(codename="change_editableroute"))
         self.editable_route = EditableRoute.objects.create(name="Atomic Wizard Route", route={"features": []})
-        self.token_type = TokenType.objects.create(name="Atomic Wizard Token", contestant_limit=25, task_limit=2)
+        self.token_type = TokenType.objects.create(name="Atomic Wizard Token", contestant_limit=25)
         self.token_grant = UserTokenGrant.objects.create(user=self.user, token_type=self.token_type, quantity_total=2)
 
     @patch.object(Contest, "initialise")

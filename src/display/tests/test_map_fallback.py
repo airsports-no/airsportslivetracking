@@ -56,3 +56,52 @@ class MapFallbackTests(TestCase):
                 pass
                 
         mock_osm.assert_called()
+
+    @patch('display.flight_order_and_maps.map_plotter.plot_catalogue_targets')
+    @patch('display.flight_order_and_maps.map_plotter.get_task_catalogue_targets', return_value=[{"name": "A", "coordinates": [11.0, 60.0]}])
+    @patch('display.flight_order_and_maps.map_plotter.get_effective_route_waypoints', return_value=[])
+    @patch('display.flight_order_and_maps.map_plotter.plot_prohibited_zones')
+    @patch('display.flight_order_and_maps.map_plotter.plot_precision_track', return_value=[])
+    @patch('display.flight_order_and_maps.map_plotter.scale_bar_y')
+    @patch('display.flight_order_and_maps.map_plotter.utm_from_lat_lon')
+    @patch('display.flight_order_and_maps.map_plotter.OSM')
+    @patch('display.flight_order_and_maps.map_plotter.plt')
+    @patch('display.flight_order_and_maps.map_plotter.ccrs')
+    def test_plot_route_adds_catalogue_targets_for_generic_task_map(
+        self,
+        mock_ccrs,
+        mock_plt,
+        mock_osm,
+        mock_utm,
+        _mock_scale_bar,
+        mock_plot_precision_track,
+        _mock_plot_prohibited,
+        mock_get_effective_waypoints,
+        mock_get_catalogue_targets,
+        mock_plot_catalogue_targets,
+    ):
+        from unittest.mock import MagicMock
+        from display.flight_order_and_maps.map_constants import A4
+
+        mock_osm_instance = MagicMock()
+        mock_osm.return_value = mock_osm_instance
+        mock_ax = MagicMock()
+        mock_fig = MagicMock()
+        mock_fig.patch = MagicMock()
+        mock_plt.figure.return_value = mock_fig
+        mock_fig.add_axes.return_value = mock_ax
+        mock_ccrs.PlateCarree.return_value = MagicMock()
+        mock_ax.get_extent.return_value = (10.0, 11.0, 60.0, 61.0)
+        mock_utm_instance = MagicMock()
+        mock_utm_instance.transform_point.side_effect = [(0, 0), (1000, 1000), (10.0, 60.0), (11.0, 61.0)]
+        mock_utm.return_value = mock_utm_instance
+
+        try:
+            plot_route(self.task, A4, scale=0)
+        except Exception:
+            pass
+
+        mock_get_effective_waypoints.assert_called_once()
+        mock_get_catalogue_targets.assert_called_once_with(self.task)
+        mock_plot_catalogue_targets.assert_called_once()
+        self.assertEqual(mock_plot_precision_track.call_args.kwargs["render_waypoints"], [])

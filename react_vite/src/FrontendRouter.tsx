@@ -10,6 +10,7 @@ const ContestDashboard = lazy(() => import("./features/mission-dashboard/Contest
 const CompetitionMapPage = lazy(() => import("./features/competition-map/CompetitionMapPage"));
 const ContestResultsTable = lazy(() => import("./features/contest-results/ContestResultsTable").then(module => ({ default: module.ContestResultsTable })));
 const ContestantScheduling = lazy(() => import("./features/scheduling/ContestantScheduling"));
+const ContestantDeclarationPage = lazy(() => import("./features/scheduling/ContestantDeclarationPage"));
 const PhotoManagementPage = lazy(() => import("./features/competition-map/PhotoManagementPage"));
 const ScheduleFlightPage = lazy(() => import("./features/mission-dashboard/ScheduleFlightPage"));
 const UpgradeOrganizer = lazy(() => import("./features/mission-dashboard/UpgradeOrganizer"));
@@ -32,6 +33,7 @@ export const FrontendRouter = () => {
                     <Route path={routes.CONTEST_RESULTS_TABLE} element={<ContestResultsTable />} />
                     <Route path={routes.SCHEDULE_FLIGHT} element={<ScheduleFlightPage />} />
                     <Route path={routes.CONTESTANT_SCHEDULING} element={<ContestantScheduling />} />
+                    <Route path={routes.CONTESTANT_DECLARATION} element={<ContestantDeclarationPage />} />
                     <Route path={routes.UPGRADE_ORGANIZER} element={<UpgradeOrganizer />} />
                     <Route path={routes.UPGRADE_SUCCESS} element={<UpgradeSuccess />} />
                     <Route path={routes.NOT_FOUND} element={

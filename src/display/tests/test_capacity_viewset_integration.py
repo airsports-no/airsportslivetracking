@@ -8,7 +8,9 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Contest, NavigationTask, EditableRoute, ContestTeam, Crew, Person, Team, Aeroplane
+from display.default_scorecards.create_scorecards import create_scorecards
+from display.models import Contest, NavigationTask, EditableRoute, ContestTeam, Crew, Person, Team, Aeroplane, Contestant
+from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from utilities.mock_utilities import TraccarMock
 
@@ -17,6 +19,7 @@ from utilities.mock_utilities import TraccarMock
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class TestCapacityViewsetIntegration(APITestCase):
     def setUp(self):
+        create_scorecards()
         self.user = get_user_model().objects.create(email="owner@example.com")
         self.client.force_login(self.user)
         self.contest = Contest.objects.create(
@@ -49,6 +52,18 @@ class TestCapacityViewsetIntegration(APITestCase):
             start_time="2026-04-01T09:00:00+00:00",
             finish_time="2026-04-01T17:00:00+00:00",
             allow_self_management=True,
+        )
+        self.editable_route = EditableRoute.objects.create(
+            name="Integration contract primitives",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
+                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "cat-2", "name": "MP", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
+                    {"type": "Feature", "properties": {"id": "cat-3", "name": "C", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                ],
+            },
         )
         self.navigation_task.is_public = True
         self.navigation_task.save()
@@ -119,3 +134,36 @@ class TestCapacityViewsetIntegration(APITestCase):
         self.assertEqual(status.HTTP_201_CREATED, response.status_code)
         mock_guard.assert_called_once()
         mock_task_guard.assert_not_called()
+
+    def test_self_registration_persists_contract_declaration_payload(self, *_args):
+        self.navigation_task.task_subtype = CONTRACT_NAVIGATION_TIME_CONTROLS
+        self.navigation_task.task_config = {"contract_time_seconds": 600}
+        self.navigation_task.editable_route = self.editable_route
+        self.navigation_task.save(update_fields=["task_subtype", "task_config", "editable_route"])
+
+        url = reverse(
+            "navigationtasks-contestant-self-registration",
+            kwargs={"contest_pk": self.contest.id, "pk": self.navigation_task.id},
+        )
+        response = self.client.put(
+            url,
+            {
+                "starting_point_time": "2026-04-01T10:00:00Z",
+                "contest_team": self.contest_team.pk,
+                "adaptive_start": False,
+                "wind_speed": 5,
+                "wind_direction": 170,
+                "declaration_payload": {
+                    "declared_before_mp": ["A"],
+                    "declared_after_mp": ["C"],
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_201_CREATED, response.status_code)
+        contestant = Contestant.objects.get(navigation_task=self.navigation_task, team=self.team)
+        self.assertEqual(
+            contestant.contestanttaskconfiguration.declaration_payload,
+            {"declared_sequence": ["A", "MP", "C", "FP"]},
+        )

@@ -55,6 +55,28 @@ class ScoreLogEntry(models.Model):
         return entry
 
 
+class AdministrativePenalty(models.Model):
+    CATEGORY_QUARANTINE = "quarantine"
+    CATEGORY_FUEL = "fuel"
+    CATEGORY_INSTRUCTIONS = "instructions"
+    CATEGORY_OBSERVATION = "observation"
+    CATEGORY_MAP = "map"
+    CATEGORY_CHOICES = (
+        (CATEGORY_QUARANTINE, "Quarantine"),
+        (CATEGORY_FUEL, "Fuel check"),
+        (CATEGORY_INSTRUCTIONS, "Task instructions"),
+        (CATEGORY_OBSERVATION, "Observation evidence"),
+        (CATEGORY_MAP, "Map placement"),
+    )
+
+    score_log_entry = models.OneToOneField(ScoreLogEntry, on_delete=models.CASCADE)
+    contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
+    actor = models.ForeignKey("MyUser", on_delete=models.SET_NULL, null=True, blank=True)
+    category = models.CharField(max_length=40, choices=CATEGORY_CHOICES)
+    reason = models.TextField(default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class TrackAnnotation(models.Model):
     """
     Holds a data point that should  be displayed on the tracking map for the user. Goes hand-in-hand with ScoreLogEntry,

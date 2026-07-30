@@ -114,6 +114,7 @@ from display.models import (
     EditableRoute,
     UserUploadedMap,
 )
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints, get_task_catalogue_targets
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
@@ -972,16 +973,19 @@ def plot_precision_track(
     minute_mark_line_width: float,
     colour: str,
     task_type: List[str] = [],
+    render_waypoints: Optional[List[Waypoint]] = None,
 ):
+    if render_waypoints is None:
+        render_waypoints = list(route.waypoints)
     tracks = [[]]
     previous_waypoint = None  # type: Optional[Waypoint]
-    includes_unknown_legs = any(waypoint.type == "ul" for waypoint in route.waypoints)
+    includes_unknown_legs = any(waypoint.type == "ul" for waypoint in render_waypoints)
     on_unknown_leg = False
     is_poker = POKER in task_type
     
-    for index, waypoint in enumerate(route.waypoints):
-        if index < len(route.waypoints) - 1:
-            next_waypoint = route.waypoints[index + 1]
+    for index, waypoint in enumerate(render_waypoints):
+        if index < len(render_waypoints) - 1:
+            next_waypoint = render_waypoints[index + 1]
         else:
             next_waypoint = None
         if waypoint.type == "ul":
@@ -1126,6 +1130,35 @@ def plot_precision_track(
     return paths
 
 
+def plot_catalogue_targets(targets: list[dict], colour: str):
+    for target in targets:
+        coordinates = target.get("coordinates") or []
+        if len(coordinates) != 2:
+            continue
+        lon, lat = coordinates
+        plt.plot(
+            lon,
+            lat,
+            transform=ccrs.PlateCarree(),
+            color=colour,
+            marker="o",
+            markersize=10,
+            fillstyle="none",
+        )
+        plt.text(
+            lon,
+            lat,
+            " " + (target.get("name") or ""),
+            verticalalignment="center",
+            color=colour,
+            horizontalalignment="left",
+            transform=ccrs.PlateCarree(),
+            fontsize=8,
+            family="monospace",
+            clip_on=True,
+        )
+
+
 # def add_geotiff_background(path: str, ax):
 #     import xarray as xr
 #     from affine import Affine
@@ -1221,6 +1254,7 @@ def plot_route(
     line_width: float = 0.5,
     minute_mark_line_width: float = 0.5,
     colour: str = "#0000ff",
+    include_contestant_declarations: bool = True,
     include_meridians_and_parallels_lines: bool = True,
     include_openaip_overlay: bool = False,
     margins_mm: float = 0,
@@ -1292,6 +1326,11 @@ def plot_route(
     if include_openaip_overlay and provider != "openaip":
         ax.add_image(OpenAIP(desired_tile_form="RGBA"), zoom_level)
     ax.set_aspect("auto")
+    render_waypoints = get_effective_route_waypoints(
+        task,
+        contestant=contestant,
+        include_contestant_declarations=include_contestant_declarations,
+    )
     if PRECISION in task.scorecard.task_type or POKER in task.scorecard.task_type:
         paths = plot_precision_track(
             route,
@@ -1302,6 +1341,7 @@ def plot_route(
             minute_mark_line_width,
             colour,
             task.scorecard.task_type,
+            render_waypoints=render_waypoints,
         )
     elif ANR_CORRIDOR in task.scorecard.task_type:
         paths = plot_anr_corridor_track(
@@ -1325,6 +1365,8 @@ def plot_route(
         )
     else:
         paths = []
+    if contestant is None:
+        plot_catalogue_targets(get_task_catalogue_targets(task), colour)
     plot_prohibited_zones(route, imagery.crs, ax)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:

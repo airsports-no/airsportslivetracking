@@ -6,6 +6,7 @@ from rest_framework.test import APIRequestFactory
 
 from display.models import Contest, TokenType, UserTokenGrant
 from display.serialisers import ContestSerialiser
+from display.utilities.task_type_group_definitions import CIMA_TASK_TYPE_GROUP
 
 
 class TestTokenSerialization(TestCase):
@@ -22,6 +23,7 @@ class TestTokenSerialization(TestCase):
         self.token_type = TokenType.objects.create(
             name="Large token",
             contestant_limit=50,
+            task_type_groups=[CIMA_TASK_TYPE_GROUP],
         )
         self.token_grant = UserTokenGrant.objects.create(
             user=self.user,
@@ -40,3 +42,4 @@ class TestTokenSerialization(TestCase):
         self.assertEqual(self.token_grant.id, item["id"])
         self.assertEqual("Large token", item["token_type_name"])
         self.assertEqual(2, item["quantity_remaining"])
+        self.assertEqual([CIMA_TASK_TYPE_GROUP], item["task_type_groups"])

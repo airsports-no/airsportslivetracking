@@ -5,7 +5,7 @@ import {
   Settings,
   HelpCircle,
   X,
-  RefreshCcw, // Added RefreshCcw import
+  RefreshCcw,
 } from 'lucide-react';
 import EditPointView from './EditPointView';
 import EditGateView from './EditGateView';
@@ -13,10 +13,12 @@ import EditObservationView from './EditObservationView';
 import EditPolygonView from './EditPolygonView';
 import RouteListView from './RouteListView';
 import HelpView from './HelpView';
+import TaskWizardPanel from './TaskWizardPanel';
 import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../../../types';
 
 interface SidebarProps {
   routePoints: RoutePoint[];
+  standalonePoints: RoutePoint[];
   gates: Gate[];
   observationMarkers: ObservationMarker[];
   polygons: Polygon[];
@@ -45,11 +47,15 @@ interface SidebarProps {
   isAuthenticated: boolean;
   isDirty: boolean;
   totalLength: number;
+  selectedTaskTemplateId: string | null;
+  setSelectedTaskTemplateId: (id: string | null) => void;
+  startWizardStep: (stepKey: string) => void;
+  currentWizardActionLabel: string | null;
 }
-
 
 const Sidebar: React.FC<SidebarProps> = ({
   routePoints,
+  standalonePoints,
   gates,
   observationMarkers,
   polygons,
@@ -77,16 +83,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   setRouteName,
   isAuthenticated,
   isDirty,
-  totalLength
+  totalLength,
+  selectedTaskTemplateId,
+  setSelectedTaskTemplateId,
+  startWizardStep,
+  currentWizardActionLabel,
 }) => {
-
   const renderContent = () => {
     const selectedPoint = routePoints.find(p => p.id === selectedId);
     const selectedGate = gates.find(g => g.id === selectedId);
     const selectedObs = observationMarkers.find(m => m.id === selectedId);
     const selectedPolygon = polygons?.find(p => p.id === selectedId);
 
-    if (selectionType === 'point' && selectedPoint) {
+    if ((selectionType === 'point' || selectionType === 'standalone_point') && selectedPoint) {
       return <EditPointView
         point={selectedPoint}
         updatePoint={updateSelectedPoint}
@@ -119,6 +128,21 @@ const Sidebar: React.FC<SidebarProps> = ({
         polygon={selectedPolygon}
         updatePolygon={updateSelectedPolygon}
         deletePolygon={deleteSelected}
+        onClose={() => { setSelectedId(null); setSelectionType(null); }}
+      />;
+    }
+
+    if (selectionType === 'wizard') {
+      return <TaskWizardPanel
+        selectedTaskTemplateId={selectedTaskTemplateId}
+        setSelectedTaskTemplateId={setSelectedTaskTemplateId}
+        routePoints={routePoints}
+        standalonePoints={standalonePoints}
+        gates={gates}
+        observationMarkers={observationMarkers}
+        polygons={polygons}
+        startWizardStep={startWizardStep}
+        currentWizardActionLabel={currentWizardActionLabel}
         onClose={() => { setSelectedId(null); setSelectionType(null); }}
       />;
     }
@@ -178,9 +202,9 @@ const Sidebar: React.FC<SidebarProps> = ({
       return <HelpView onClose={() => { setSelectedId(null); setSelectionType(null); }} />;
     }
 
-    // Default View (List)
     return <RouteListView
       routePoints={routePoints}
+      standalonePoints={standalonePoints}
       gates={gates}
       observationMarkers={observationMarkers}
       polygons={polygons}
@@ -191,7 +215,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-base-100 border-r">
-
       <div className="flex-1 overflow-y-auto p-4">
         <input
           type="text"
@@ -204,30 +227,14 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex flex-col mb-6 p-4 bg-base-200/50 rounded-xl border border-base-300">
           <div className="flex items-baseline justify-between mb-2">
             <span className="text-sm font-bold text-gray-500 uppercase">Total Route Length</span>
-              <span className="text-sm font-bold font-black text-primary">{(totalLength / 1852).toFixed(2)}</span>
-              <span className="text-sm font-bold opacity-70">NM</span>
+            <span className="text-sm font-bold font-black text-primary">{(totalLength / 1852).toFixed(2)}</span>
+            <span className="text-sm font-bold opacity-70">NM</span>
           </div>
-          
-          {/* <div className="grid grid-cols-3 gap-2 mt-1">
-            <div className="flex flex-col items-center p-2 rounded-lg bg-base-100 border border-base-300/50 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-500 uppercase">ANR</span>
-              <span className="text-xs font-mono font-bold text-primary">15-35</span>
-            </div>
-            <div className="flex flex-col items-center p-2 rounded-lg bg-base-100 border border-base-300/50 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-500 uppercase">Rally</span>
-              <span className="text-xs font-mono font-bold text-primary">80-120</span>
-            </div>
-            <div className="flex flex-col items-center p-2 rounded-lg bg-base-100 border border-base-300/50 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-500 uppercase">Prec</span>
-              <span className="text-xs font-mono font-bold text-primary">60-100</span>
-            </div>
-          </div> */}
         </div>
 
         {renderContent()}
       </div>
 
-      {/* Import/Export Footer */}
       <div className="p-4 border-t bg-base-200 space-y-2">
         {isAuthenticated ? (
           <div className="flex flex-col gap-2">

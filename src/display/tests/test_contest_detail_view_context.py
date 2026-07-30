@@ -3,8 +3,11 @@ from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.urls import reverse
 from guardian.shortcuts import assign_perm
+from rest_framework.test import APIRequestFactory
 
 from display.models import Contest, Club, AccessGrant, ClubManagerMembership, TokenType, UserTokenGrant
+from display.serialisers import ContestSerialiser
+from display.utilities.task_type_group_definitions import CIMA_TASK_TYPE_GROUP
 
 
 class TestContestDetailViewContext(TestCase):
@@ -34,8 +37,9 @@ class TestContestDetailViewContext(TestCase):
             club=self.club,
             status=AccessGrant.ACTIVE,
             contestant_limit=10,
+            task_type_groups=[CIMA_TASK_TYPE_GROUP],
         )
-        self.token_type = TokenType.objects.create(name="Detail token", contestant_limit=8)
+        self.token_type = TokenType.objects.create(name="Detail token", contestant_limit=8, task_type_groups=[CIMA_TASK_TYPE_GROUP])
         self.token_grant = UserTokenGrant.objects.create(user=self.change_user, token_type=self.token_type, quantity_total=2)
 
     def test_view_permission_gets_read_only_access_context(self):
@@ -47,6 +51,8 @@ class TestContestDetailViewContext(TestCase):
         self.assertContains(response, "Annual club pass")
         self.assertContains(response, "club_pass")
         self.assertContains(response, "Competing pilots")
+        self.assertContains(response, "Allowed task groups")
+        self.assertContains(response, CIMA_TASK_TYPE_GROUP)
         self.assertNotContains(response, ">Tasks<", html=False)
         self.assertNotContains(response, "Token Management")
         self.assertNotContains(response, "Club managers")
@@ -64,4 +70,37 @@ class TestContestDetailViewContext(TestCase):
         self.assertContains(response, self.change_user.email)
         self.assertContains(response, "Assign token")
         self.assertContains(response, "Competing pilots")
+        self.assertContains(response, "Allowed task groups")
+        self.assertContains(response, CIMA_TASK_TYPE_GROUP)
         self.assertNotContains(response, ">Tasks<", html=False)
+
+
+class TestContestAccessStatusSerializationWithTaskGroups(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create(email="serializer@example.com")
+        self.club = Club.objects.create(name="Serializer Club")
+        self.contest = Contest.objects.create(
+            name="Serializer Contest",
+            time_zone="Europe/Oslo",
+            start_time="2026-05-01T09:00:00+00:00",
+            finish_time="2026-05-01T17:00:00+00:00",
+            location="60.0,11.0",
+            created_by=self.user,
+            organizing_club=self.club,
+        )
+        self.request = APIRequestFactory().get("/")
+        self.request.user = self.user
+
+    def test_contest_serializer_emits_task_type_group_access_status(self):
+        AccessGrant.objects.create(
+            club=self.club,
+            status=AccessGrant.ACTIVE,
+            contestant_limit=None,
+            task_type_groups=[CIMA_TASK_TYPE_GROUP],
+        )
+        data = ContestSerialiser(self.contest, context={"request": self.request}).data
+
+        self.assertIn(CIMA_TASK_TYPE_GROUP, data["access_status"]["allowed_task_type_groups"])
+        self.assertIn("legacy", data["access_status"]["allowed_task_type_groups"])
+        self.assertEqual([CIMA_TASK_TYPE_GROUP], data["access_status"]["package_task_type_groups"])
+        self.assertIn("legacy", data["access_status"]["free_task_type_groups"])

@@ -8,9 +8,29 @@ from django.db.models import Q
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.contestant_scheduling.contestant_scheduler import TeamDefinition, Solver
 from display.models import NavigationTask, ContestTeam, Contestant
+from display.services.task_compiler import TaskCompiler
+from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.utilities.navigation_task_type_definitions import LANDING
 
 logger = logging.getLogger(__name__)
+
+def _build_default_declaration_payload(navigation_task: NavigationTask) -> dict:
+    if not navigation_task.requires_contestant_task_configuration():
+        return {}
+    compiled_task = TaskCompiler(navigation_task).compile()
+    if not compiled_task.is_valid:
+        return {}
+    primitives = compiled_task.get_compiled_primitives()
+    if navigation_task.task_subtype == "contract_navigation_time_controls":
+        catalogue_turnpoints = [name for name in primitives.get("catalogue_turnpoint", []) if name not in ("MP", "FP")]
+        if not catalogue_turnpoints:
+            return {}
+        declared_sequence = [catalogue_turnpoints[0], "MP"]
+        if len(catalogue_turnpoints) > 1:
+            declared_sequence.append(catalogue_turnpoints[1])
+        declared_sequence.append("FP")
+        return {"declared_sequence": declared_sequence}
+    return {}
 
 
 def schedule_and_create_contestants(
@@ -80,8 +100,12 @@ def schedule_and_create_contestants_landing_task(
             contestant.finished_by_time = navigation_task.finish_time
             contestant.tracker_start_time = navigation_task.start_time
             contestant.save()
+            ContestantTaskCompiler(contestant).compile(
+                declaration_payload=_build_default_declaration_payload(navigation_task),
+                force=True,
+            )
         except ObjectDoesNotExist:
-            Contestant.objects.create(
+            contestant = Contestant.objects.create(
                 takeoff_time=next_takeoff_time,
                 finished_by_time=navigation_task.finish_time,
                 air_speed=contest_team.air_speed,
@@ -95,6 +119,10 @@ def schedule_and_create_contestants_landing_task(
                 tracking_device=contest_team.tracking_device,
                 tracker_start_time=navigation_task.start_time,
                 contestant_number=index + 1,
+            )
+            ContestantTaskCompiler(contestant).compile(
+                declaration_payload=_build_default_declaration_payload(navigation_task),
+                force=True,
             )
     return True, []
 
@@ -314,6 +342,10 @@ def schedule_and_create_contestants_navigation_tasks(
                         10000 + new_contestants_created + 1
                     )  # Temporary large numbercontestant
                     contestant.save()
+                    ContestantTaskCompiler(contestant).compile(
+                        declaration_payload=_build_default_declaration_payload(navigation_task),
+                        force=True,
+                    )
                     contestant.reset_gate_times()
                     optimisation_messages.extend(contestant.get_overlap_warnings())
 
@@ -335,6 +367,10 @@ def schedule_and_create_contestants_navigation_tasks(
                     tracking_device=contest_team.tracking_device,
                     tracker_start_time=tracking_start_time,
                     contestant_number=10000 + new_contestants_created + 1,  # Temporary large number
+                )
+                ContestantTaskCompiler(contestant).compile(
+                    declaration_payload=_build_default_declaration_payload(navigation_task),
+                    force=True,
                 )
                 optimisation_messages.extend(contestant.get_overlap_warnings())
             new_contestants_created += 1

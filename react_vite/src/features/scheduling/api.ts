@@ -99,7 +99,6 @@ export const updateContestant = async (contestId: number, navigationTaskId: numb
 
     if (!response.ok) {
         const errorData = await response.json();
-        // Extract error message from DRF response
         let errorMessage = "Failed to update contestant";
         if (errorData && typeof errorData === 'object') {
              const keys = Object.keys(errorData);
@@ -116,6 +115,17 @@ export const updateContestant = async (contestId: number, navigationTaskId: numb
     }
 
     return response.json();
+};
+
+export const updateContestantDeclaration = async (
+    contestId: number,
+    navigationTaskId: number,
+    contestantId: number,
+    declarationPayload: any,
+) => {
+    return updateContestant(contestId, navigationTaskId, contestantId, {
+        declaration_payload: declarationPayload,
+    });
 };
 
 export const deleteContestant = async (contestId: number, navigationTaskId: number, contestantId: number) => {

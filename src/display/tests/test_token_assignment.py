@@ -437,13 +437,14 @@ class TestTokenAssignment(TestCase):
             quantity_total=1,
             quantity_consumed=0,
         )
+        scorecard = Scorecard.objects.create(name="Expired task card", shortcut_name="expired-task-card")
         assignment = assign_token_to_contest(self.contest, self.user, grant.id)
         assignment.activated_at = timezone.now() - timezone.timedelta(days=15)
         assignment.expires_at = timezone.now() - timezone.timedelta(days=1)
         assignment.save(update_fields=["activated_at", "expires_at"])
 
         with self.assertRaises(DRFValidationError):
-            assert_can_add_navigation_task(self.contest)
+            assert_can_add_navigation_task(self.contest, task_type=scorecard.calculator, task_subtype="")
 
     def test_expired_token_falls_through_to_active_club_pass_in_resolver(self):
         club = Club.objects.create(name="Archive Club")

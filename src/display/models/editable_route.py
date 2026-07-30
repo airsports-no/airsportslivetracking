@@ -161,6 +161,50 @@ class EditableRoute(models.Model):
     def get_track_waypoints(self) -> list[dict]:
         return self.get_features_type("route_waypoint")
 
+    def get_catalogue_turnpoints(self) -> list[dict]:
+        return self.get_features_type("catalogue_turnpoint")
+
+    def get_circle_center_markers(self) -> list[dict]:
+        return self.get_features_type("circle_center_marker")
+
+    def get_circle_start_markers(self) -> list[dict]:
+        return self.get_features_type("circle_start_marker")
+
+    def get_circle_entry_markers(self) -> list[dict]:
+        return self.get_features_type("circle_entry_marker")
+
+    def get_circle_exit_markers(self) -> list[dict]:
+        return self.get_features_type("circle_exit_marker")
+
+    def get_route_to_sp_paths(self) -> list[dict]:
+        return self.get_features_type("route_to_sp_path")
+
+    def get_route_from_fp_paths(self) -> list[dict]:
+        return self.get_features_type("route_from_fp_path")
+
+    def get_known_time_gates(self) -> list[dict]:
+        return self.get_features_type("known_time_gate")
+
+    def get_hidden_gates(self) -> list[dict]:
+        return self.get_features_type("hidden_gate")
+
+    def get_unknown_leg_waypoints(self) -> list[dict]:
+        return [
+            item
+            for item in self.get_track_waypoints()
+            if item.get("properties", {}).get("pointType") == UNKNOWN_LEG
+        ]
+
+    def get_observation_photos(self) -> list[dict]:
+        return self.get_features_type("observation_photo")
+
+    def get_duration_landing_area_polygons(self) -> list[dict]:
+        return [
+            item
+            for item in self.get_features_type("zone")
+            if item.get("properties", {}).get("polygonType") == "duration_landing_area"
+        ]
+
     def get_ordered_track_waypoints(self) -> list[dict]:
         """
         Returns track waypoints sorted by their sequence number.

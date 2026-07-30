@@ -4,6 +4,7 @@ import time
 from io import BytesIO
 from typing import Optional
 
+import dateutil
 import numpy as np
 import matplotlib.pyplot as plt
 from django.contrib.auth import get_user_model
@@ -708,10 +709,12 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     def _get_takeoff_and_landing_times(self) -> dict[str, datetime.datetime]:
         crossing_times = {}
+        takeoff_time = self.takeoff_time.astimezone(datetime.timezone.utc)
+        finished_by_time = self.finished_by_time.astimezone(datetime.timezone.utc)
         for gate in self.navigation_task.route.takeoff_gates:
-            crossing_times[gate.name] = self.takeoff_time
+            crossing_times[gate.name] = takeoff_time
         for gate in self.navigation_task.route.landing_gates:
-            crossing_times[gate.name] = self.finished_by_time - datetime.timedelta(minutes=1)
+            crossing_times[gate.name] = finished_by_time - datetime.timedelta(minutes=1)
         return crossing_times
 
     def calculate_missing_gate_times(
@@ -758,12 +761,26 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         """
         Returns the stored gate times.  Calculate any missing times and store the result.
         """
+        if hasattr(self, "contestanttaskconfiguration") and self.contestanttaskconfiguration.is_valid:
+            payload = self.contestanttaskconfiguration.compiled_gate_times_payload or {}
+            if payload:
+                return {
+                    key: dateutil.parser.parse(value) if isinstance(value, str) else value for key, value in payload.items()
+                }
         if not self.predefined_gate_times or not len(self.predefined_gate_times):
             self.predefined_gate_times = round_gate_times(self.calculate_missing_gate_times({}))
             if self.pk is not None:
                 Contestant.objects.filter(pk=self.pk).update(predefined_gate_times=self.predefined_gate_times)
             return self.predefined_gate_times
         return self.predefined_gate_times
+
+    def get_effective_waypoint_names(self) -> list[str]:
+        if hasattr(self, "contestanttaskconfiguration") and self.contestanttaskconfiguration.is_valid:
+            payload = self.contestanttaskconfiguration.compiled_effective_route_payload or {}
+            names = payload.get("effective_waypoint_names")
+            if isinstance(names, list) and len(names) > 0:
+                return names
+        return [item.name for item in self.navigation_task.route.waypoints]
 
     @gate_times.setter
     def gate_times(self, value):

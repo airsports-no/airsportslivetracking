@@ -4,6 +4,7 @@ from rest_framework.test import APIRequestFactory
 
 from display.models import Contest, TokenType, UserTokenGrant
 from display.serialisers import ContestSerialiser
+from display.utilities.task_type_group_definitions import CIMA_TASK_TYPE_GROUP
 
 
 class TestAvailableTokenGrantFiltering(TestCase):
@@ -17,7 +18,7 @@ class TestAvailableTokenGrantFiltering(TestCase):
             location="60.0,11.0",
             created_by=self.user,
         )
-        active_type = TokenType.objects.create(name="Active token", contestant_limit=10, is_active=True)
+        active_type = TokenType.objects.create(name="Active token", contestant_limit=10, is_active=True, task_type_groups=[CIMA_TASK_TYPE_GROUP])
         inactive_type = TokenType.objects.create(name="Inactive token", contestant_limit=10, is_active=False)
         UserTokenGrant.objects.create(user=self.user, token_type=active_type, quantity_total=2, quantity_consumed=0)
         UserTokenGrant.objects.create(user=self.user, token_type=active_type, quantity_total=1, quantity_consumed=1)
@@ -30,3 +31,4 @@ class TestAvailableTokenGrantFiltering(TestCase):
 
         self.assertEqual(1, len(data["available_token_grants"]))
         self.assertEqual("Active token", data["available_token_grants"][0]["token_type_name"])
+        self.assertEqual([CIMA_TASK_TYPE_GROUP], data["available_token_grants"][0]["task_type_groups"])

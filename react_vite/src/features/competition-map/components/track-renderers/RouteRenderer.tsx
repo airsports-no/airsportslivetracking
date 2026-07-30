@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { NavigationTask, Waypoint, Contestant, RouteData } from '../../types';
+import type { NavigationTask, Waypoint, Contestant, RouteData, NavigationTaskCatalogueTarget } from '../../types';
 import './WaypointLabel.css';
 
 function formatTime(dt: Date): string {
@@ -76,6 +76,7 @@ function renderWaypointLabels(
 interface Props {
   map: L.Map | null;
   route: RouteData | null;
+  taskCatalogueTargets?: NavigationTaskCatalogueTarget[];
   taskType: string[] | null;
   navTaskDisplaySecrets: boolean;
   displaySecrets: boolean; // User preference
@@ -210,11 +211,53 @@ function renderPokerRoute(map: L.Map, route: RouteData): L.Layer[] {
 }
 
 
-export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
+function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarget[]): L.Layer[] {
+  const layers: L.Layer[] = [];
+
+  targets.forEach((target) => {
+    const [lng, lat] = target.coordinates;
+    const circle = L.circleMarker([lat, lng], {
+      radius: 8,
+      color: 'blue',
+      weight: 2,
+      fill: false,
+    }).addTo(map);
+    circle.bindTooltip(target.name, {
+      permanent: true,
+      direction: 'right',
+      offset: [8, 0],
+      className: 'waypoint-label'
+    });
+    layers.push(circle);
+  });
+
+  return layers;
+}
+
+function getRenderedRoute(route: RouteData, contestants: Record<number, Contestant>, selectedContestantId: number | null): RouteData {
+  if (selectedContestantId === null) {
+    return route;
+  }
+
+  const contestant = contestants[selectedContestantId];
+  const effectiveWaypoints = contestant?.compiled_effective_route_payload?.effective_waypoints;
+  if (!Array.isArray(effectiveWaypoints) || effectiveWaypoints.length === 0) {
+    return route;
+  }
+
+  return {
+    ...route,
+    waypoints: effectiveWaypoints as Waypoint[],
+  };
+}
+
+export default function RouteRenderer({ map, route, taskCatalogueTargets, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
   const layersRef = useRef<L.Layer[]>([]);
 
   useEffect(() => {
     if (!map || !route || !taskType) return;
+
+    const renderedRoute = getRenderedRoute(route, contestants, selectedContestantId);
 
     // Clear previous layers
     layersRef.current.forEach(layer => layer.remove());
@@ -223,21 +266,24 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
     let layers: L.Layer[] = [];
 
     if (taskType.includes("poker")) {
-        layers = layers.concat(renderPokerRoute(map, route));
+        layers = layers.concat(renderPokerRoute(map, renderedRoute));
     } else if (taskType.includes("precision")) {
-      layers = layers.concat(renderPrecisionRoute(map, route, navTaskDisplaySecrets, displaySecrets));
+      layers = layers.concat(renderPrecisionRoute(map, renderedRoute, navTaskDisplaySecrets, displaySecrets));
     }
     if (taskType.includes("airsports") || taskType.includes("airsportchallenge")) {
-      layers = layers.concat(renderAirsportsRoute(map, route, false, navTaskDisplaySecrets, displaySecrets));
+      layers = layers.concat(renderAirsportsRoute(map, renderedRoute, false, navTaskDisplaySecrets, displaySecrets));
     }
     if (taskType.includes("anr_corridor")) {
-      layers = layers.concat(renderAirsportsRoute(map, route, true, navTaskDisplaySecrets, displaySecrets));
+      layers = layers.concat(renderAirsportsRoute(map, renderedRoute, true, navTaskDisplaySecrets, displaySecrets));
     }
     if (taskType.includes("landing")) {
-      layers = layers.concat(renderLandingRoute(map, route));
+      layers = layers.concat(renderLandingRoute(map, renderedRoute));
+    }
+    if (selectedContestantId === null && taskCatalogueTargets && taskCatalogueTargets.length > 0) {
+      layers = layers.concat(renderCatalogueTargets(map, taskCatalogueTargets));
     }
     
-    const waypointsToLabel = route.waypoints.filter((w: Waypoint) => 
+    const waypointsToLabel = renderedRoute.waypoints.filter((w: Waypoint) => 
         (w.gate_check || w.time_check) && 
         ((navTaskDisplaySecrets && displaySecrets) || w.type !== "secret") && 
         w.type !== "dummy"
@@ -273,7 +319,7 @@ export default function RouteRenderer({ map, route, taskType, navTaskDisplaySecr
       map.off('zoomend', handleZoom);
       map.getContainer().classList.remove('hide-waypoint-labels');
     };
-  }, [map, route, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit]);
+  }, [map, route, taskCatalogueTargets, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit]);
 
   return null;
 }

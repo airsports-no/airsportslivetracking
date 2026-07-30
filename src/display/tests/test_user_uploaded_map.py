@@ -643,3 +643,52 @@ class UnifiedMapSelectionViewTests(TestCase):
         self.assertEqual(response.status_code, 302, response.content)
         args = generate_map_async_mock.delay.call_args.args
         self.assertTrue(args[2]["include_openaip_overlay"])
+
+    @patch("display.tasks.generate_map_async")
+    @patch("display.views.get_available_map_source_definitions_for_navigation_task")
+    def test_contestant_map_includes_contestant_declaration_flag_in_async_payload(self, mock_get_sources, generate_map_async_mock):
+        from display.models import Contestant, Team, Crew, Aeroplane, Person
+        import datetime
+
+        mock_get_sources.return_value = [
+            {"key": "osm", "label": "OSM", "min_zoom": 0, "max_zoom": 19, "default_zoom": 12},
+        ]
+        pilot = Person.objects.create(first_name="Pilot", last_name="One", country="NO")
+        crew = Crew.objects.create(member1=pilot)
+        aeroplane = Aeroplane.objects.create(registration="LN-MAP")
+        team = Team.objects.create(crew=crew, aeroplane=aeroplane)
+        contestant = Contestant.objects.create(
+            navigation_task=self.navigation_task,
+            team=team,
+            contestant_number=1,
+            air_speed=80,
+            wind_speed=0,
+            wind_direction=0,
+            takeoff_time=datetime.datetime(2024, 1, 1, 10, 0, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2024, 1, 1, 11, 0, tzinfo=datetime.timezone.utc),
+            tracker_start_time=datetime.datetime(2024, 1, 1, 9, 50, tzinfo=datetime.timezone.utc),
+        )
+
+        response = self.client.post(
+            reverse("contestant_map", kwargs={"pk": contestant.pk}),
+            {
+                "size": "A4",
+                "dpi": 150,
+                "zoom_level": 12,
+                "orientation": "portrait",
+                "scale": "100",
+                "map_source": "osm",
+                "include_openaip_overlay": False,
+                "include_annotations": True,
+                "include_contestant_declarations": False,
+                "plot_track_between_waypoints": True,
+                "include_meridians_and_parallels_lines": True,
+                "line_width": 0.5,
+                "minute_mark_line_width": 0.5,
+                "colour": "#0000ff",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302, response.content)
+        args = generate_map_async_mock.delay.call_args.args
+        self.assertFalse(args[2]["include_contestant_declarations"])

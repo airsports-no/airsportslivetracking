@@ -36,6 +36,16 @@ const EditObservationView: React.FC<EditObservationViewProps> = ({ observation, 
       </div>
 
       <div>
+        <label className="block text-xs font-semibold text-gray-500 uppercase">Linked Catalogue Turnpoint</label>
+        <input
+          className="input input-bordered input-sm w-full"
+          value={observation.targetName || ''}
+          onChange={(e) => updateObservation('targetName', e.target.value)}
+          placeholder="Optional target name"
+        />
+      </div>
+
+      <div>
         <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Satellite View (~500m)</label>
         <ObservationThumbnail lat={observation.lat} lng={observation.lng} />
         <p className="text-[10px] text-gray-400 mt-1 text-center">Circle Radius: 100m</p>

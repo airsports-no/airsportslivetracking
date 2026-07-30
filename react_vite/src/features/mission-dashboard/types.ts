@@ -71,6 +71,13 @@ export interface NavigationTask {
     start_time: string;
     finish_time: string;
     tracking_link: string;
+    task_subtype?: string | null;
+    task_subtype_definition?: {
+        key: string;
+        display_name: string;
+        coarse_family: string;
+        requires_contestant_configuration: boolean;
+    } | null;
     allow_self_management: boolean;
     future_contestants?: any[];
     contestant_set: ContestantResult[];
@@ -224,6 +231,8 @@ export interface ContestantTrack {
 
 export interface ContestantResult {
     id: number;
+    declaration_payload?: Record<string, any>;
+    compiled_effective_route_payload?: Record<string, any>;
     gate_times: { [key: string]: string };
     scorecard_rules: any[];
     tracker_id_display: TrackerIdDisplay[];
@@ -254,6 +263,8 @@ export interface Contestant {
     id: number;
     contest_id: number;
     navigation_task: number;
+    declaration_payload?: Record<string, any>;
+    compiled_effective_route_payload?: Record<string, any>;
     gate_times: { [key: string]: string };
     scorecard_rules: any[];
     tracker_id_display: TrackerIdDisplay[];

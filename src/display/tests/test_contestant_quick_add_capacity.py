@@ -7,11 +7,14 @@ from django.test import TestCase
 from guardian.shortcuts import assign_perm
 from django.core.exceptions import ValidationError
 
-from display.models import Contest, NavigationTask, Route, Scorecard, ContestTeam, Team, Crew, Person, Aeroplane, Contestant
+from display.default_scorecards.create_scorecards import create_scorecards
+from display.models import Contest, NavigationTask, Route, Scorecard, ContestTeam, Team, Crew, Person, Aeroplane, Contestant, EditableRoute
+from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
 
 
 class TestContestantQuickAddCapacity(TestCase):
     def setUp(self):
+        create_scorecards()
         self.user = get_user_model().objects.create(email="quickadd-owner@example.com")
         self.owner_person = Person.objects.create(first_name="Owner", last_name="Pilot", email=self.user.email)
         self.contest = Contest.objects.create(
@@ -44,6 +47,18 @@ class TestContestantQuickAddCapacity(TestCase):
         self.contest_team = ContestTeam.objects.create(contest=self.contest, team=guest_team, air_speed=70)
         self.url = reverse("contestant_quick_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
         self.create_url = reverse("contestant_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
+        self.editable_route = EditableRoute.objects.create(
+            name="Quick Add Capacity primitives",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
+                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "cat-2", "name": "MP", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
+                    {"type": "Feature", "properties": {"id": "cat-3", "name": "C", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                ],
+            },
+        )
 
     @patch("display.views._assert_can_reserve_task_slot")
     def test_quick_add_calls_reservation_guard(self, mock_guard):
@@ -181,3 +196,23 @@ class TestContestantQuickAddCapacity(TestCase):
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "active pilot capacity")
         self.assertFalse(Contestant.objects.filter(navigation_task=self.navigation_task, team=self.contest_team.team).exists())
+
+    def test_quick_add_keeps_contract_declaration_empty_until_dedicated_editor_is_used(self):
+        self.navigation_task.task_subtype = CONTRACT_NAVIGATION_TIME_CONTROLS
+        self.navigation_task.task_config = {"contract_time_seconds": 600}
+        self.navigation_task.editable_route = self.editable_route
+        self.navigation_task.save(update_fields=["task_subtype", "task_config", "editable_route"])
+
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            {
+                "contest_team": self.contest_team.pk,
+                "starting_point_time": "2026-08-01T10:00",
+                "adaptive_start": False,
+            },
+        )
+
+        self.assertEqual(302, response.status_code)
+        contestant = Contestant.objects.get(navigation_task=self.navigation_task, team=self.contest_team.team)
+        self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})

@@ -55,6 +55,11 @@ class TokenType(models.Model):
     name = models.CharField(max_length=200, unique=True, help_text="Human-friendly name for the token package, shown in admin and contest UI.")
     description = models.TextField(blank=True, default="", help_text="Explain how this token package should be used and what its limits mean.")
     contestant_limit = models.IntegerField(help_text="Maximum number of competing pilots that may start under a contest using this token package.")
+    task_type_groups = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Task-type groups this token package may be used for. Leave empty to keep the default free-tier task-group availability only.",
+    )
     validity_days = models.IntegerField(null=True, blank=True, help_text="Number of days the token remains valid after activation. Leave empty for no automatic expiry.")
     is_active = models.BooleanField(default=True, help_text="Inactive token types stay in history but cannot be offered for new grants or assignments.")
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this token type was created.")
@@ -179,6 +184,11 @@ class AccessGrant(models.Model):
     starts_at = models.DateTimeField(null=True, blank=True, help_text="Optional start time from which the grant becomes valid.")
     expires_at = models.DateTimeField(null=True, blank=True, help_text="Optional expiry time after which the grant no longer applies.")
     contestant_limit = models.IntegerField(null=True, blank=True, help_text="Competing pilot cap enforced by this grant. Leave empty for unlimited competing pilots.")
+    task_type_groups = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Task-type groups this access grant allows. Leave empty to keep the default free-tier task-group availability only.",
+    )
     notes = models.TextField(blank=True, default="", help_text="Internal operator notes about the grant, agreement, or special handling.")
     invoice_reference = models.CharField(max_length=200, blank=True, default="", help_text="Optional accounting or payment reference for this grant.")
     created_by = models.ForeignKey(
@@ -256,6 +266,9 @@ class AccessResolution:
         package_contestant_limit: int | None = None,
         free_contestant_limit: int | None = None,
         contestant_limit_uses_free_default: bool = False,
+        allowed_task_type_groups: list[str] | None = None,
+        package_task_type_groups: list[str] | None = None,
+        free_task_type_groups: list[str] | None = None,
     ):
         self.tier_code = tier_code
         self.tier_label = tier_label
@@ -269,6 +282,9 @@ class AccessResolution:
         self.package_contestant_limit = package_contestant_limit if package_contestant_limit is not None else contestant_limit
         self.free_contestant_limit = free_contestant_limit
         self.contestant_limit_uses_free_default = contestant_limit_uses_free_default
+        self.allowed_task_type_groups = allowed_task_type_groups or []
+        self.package_task_type_groups = package_task_type_groups or []
+        self.free_task_type_groups = free_task_type_groups or []
 
     @property
     def uses_more_advantageous_free_limits(self):

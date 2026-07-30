@@ -49,7 +49,7 @@ class TestCapacityEnforcement(TestCase):
     def test_navigation_task_creation_is_not_blocked_when_contestant_limit_exists(self, mock_resolve):
         mock_resolve.return_value = type("Resolution", (), {"contestant_limit": None, "contestants_used": 0, "enforcement_mode": "enforce"})()
 
-        resolution = assert_can_add_navigation_task(self.contest)
+        resolution = assert_can_add_navigation_task(self.contest, task_type=self.scorecard.calculator, task_subtype="")
 
         self.assertIsNone(resolution.contestant_limit)
 

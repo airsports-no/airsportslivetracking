@@ -94,6 +94,7 @@ from display.services.capacity_enforcement import (
     _assert_can_reserve_task_slot,
 )
 from display.services.access_resolver import resolve_contest_access
+from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
 from display.serialisers import (
     ContestantTrackSerialiser,
@@ -1206,11 +1207,34 @@ class NavigationTaskViewSet(ModelViewSet):
     def photos(self, request, pk=None, contest_pk=None):
         navigation_task = self.get_object()
         photos = navigation_task.route.photo_set.all().order_by("name")
+        contestant_id = request.query_params.get("contestant")
+        contestant = None
+        if contestant_id:
+            try:
+                contestant = navigation_task.contestant_set.get(pk=contestant_id)
+            except Contestant.DoesNotExist:
+                raise ValidationError({"contestant": "Contestant not found for this navigation task."})
+        if contestant and not photos.exists() and hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
+            payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+            observation_photos = payload.get("observation_photos", [])
+            if observation_photos:
+                return Response(
+                    [
+                        {
+                            "id": None,
+                            "name": item.get("name"),
+                            "file": None,
+                            "compiled_coordinates": item.get("coordinates"),
+                            "evidence_category": "observation",
+                        }
+                        for item in observation_photos
+                    ]
+                )
         # If the user has change permission, show everything. Otherwise show public version.
         if navigation_task.user_has_change_permissions(request.user):
             serializer = PhotoSerialiser(photos, many=True)
         else:
-            serializer = PhotoPublicSerialiser(photos, many=True)
+            serializer = PhotoPublicSerialiser(photos, many=True, context={"contestant": contestant})
         return Response(serializer.data)
 
     @action(
@@ -1356,6 +1380,10 @@ class NavigationTaskViewSet(ModelViewSet):
             logger.debug(f"Finished by time is {contestant.finished_by_time}")
 
             contestant.save()
+            declaration_payload = ContestantTaskCompiler(contestant).build_declaration_payload_from_input(
+                serialiser.validated_data.get("declaration_payload")
+            )
+            ContestantTaskCompiler(contestant).compile(declaration_payload=declaration_payload, force=True)
             logger.debug("Updated contestant")
             # mail_link = EmailMapLink.objects.create(contestant=contestant)
             # mail_link.send_email(request.user.email, request.user.first_name)
@@ -1597,6 +1625,19 @@ def generate_score_data(contestant_pk):
                 "contestant": entry.contestant_id,
             }
         )
+    administrative_penalties = []
+    for penalty in contestant.administrativepenalty_set.select_related("score_log_entry", "actor").all():
+        administrative_penalties.append(
+            {
+                "id": penalty.id,
+                "score_log_entry": penalty.score_log_entry_id,
+                "category": penalty.category,
+                "reason": penalty.reason,
+                "actor_id": penalty.actor_id,
+                "actor_email": penalty.actor.email if penalty.actor else None,
+                "created_at": penalty.created_at.isoformat() if hasattr(penalty.created_at, "isoformat") else penalty.created_at,
+            }
+        )
 
     gate_scores = []
     for gs in contestant.gatecumulativescore_set.all():
@@ -1646,6 +1687,9 @@ def generate_score_data(contestant_pk):
         contestant_track_data=track_data,
         gate_times=contestant.gate_times,
     )
+    data["administrative_penalties"] = administrative_penalties
+    if hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
+        data["compiled_effective_route_payload"] = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
 
     return data
 
@@ -1670,9 +1714,10 @@ class ContestantViewSet(ModelViewSet):
 
     def get_queryset(self):
         navigation_task_id = self.kwargs.get("navigationtask_pk")
+        permission_name = "display.view_contest" if self.request.method in permissions.SAFE_METHODS else "display.change_contest"
         contests = get_objects_for_user(
             self.request.user,
-            "display.change_contest",
+            permission_name,
             klass=Contest,
             accept_global_perms=False,
         )
@@ -1997,6 +2042,36 @@ class ContestantViewSet(ModelViewSet):
             del response["Vary"]
 
         return response
+
+    @action(detail=True, methods=["get"])
+    def compiled_evidence(self, request, pk=None, **kwargs):
+        contestant = self.get_object()
+        if hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
+            payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+            return Response(
+                {
+                    "observation_photos": [
+                        {
+                            **item,
+                            "evidence_category": "observation",
+                        }
+                        for item in payload.get("observation_photos", [])
+                    ],
+                    "observation_judging_mode": payload.get("observation_judging_mode"),
+                    "manual_adjudication_categories": payload.get("manual_adjudication_categories", []),
+                    "hidden_gate_names": payload.get("hidden_gate_names", []),
+                    "unknown_leg_names": payload.get("unknown_leg_names", []),
+                }
+            )
+        return Response(
+            {
+                "observation_photos": [],
+                "observation_judging_mode": None,
+                "manual_adjudication_categories": [],
+                "hidden_gate_names": [],
+                "unknown_leg_names": [],
+            }
+        )
 
     @action(detail=True, methods=["post"])
     def gpx_track(self, request, pk=None, **kwargs):

@@ -9,6 +9,7 @@ from display.models import (
     ContestUsageLedger,
     Contestant,
 )
+from display.utilities.task_type_group_definitions import LEGACY_TASK_TYPE_GROUP
 
 
 def resolve_contest_access(contest: Contest) -> AccessResolution:
@@ -32,6 +33,7 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
                 enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
                 token_grant_id=token_assignment.token_grant_id,
                 token_type_id=token_assignment.token_type_id,
+                allowed_task_type_groups=list(token_assignment.token_type.task_type_groups or []),
             )
         )
 
@@ -64,6 +66,7 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
         contestants_used=contestants_used,
         enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
         free_contestant_limit=settings.DEFAULT_FREE_CONTESTANT_LIMIT,
+        allowed_task_type_groups=_free_task_type_groups(),
     )
 
 
@@ -145,6 +148,7 @@ def _resolution_from_grant(grant: AccessGrant, *, source_type: str, contestants_
         contestant_limit=grant.contestant_limit,
         contestants_used=contestants_used,
         enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
+        allowed_task_type_groups=list(grant.task_type_groups or []),
     )
 
 
@@ -157,6 +161,9 @@ def _apply_more_advantageous_free_defaults(resolution: AccessResolution) -> Acce
     resolution.free_contestant_limit = settings.DEFAULT_FREE_CONTESTANT_LIMIT
     resolution.contestant_limit = effective_contestant_limit
     resolution.contestant_limit_uses_free_default = contestant_uses_free
+    resolution.package_task_type_groups = list(resolution.allowed_task_type_groups)
+    resolution.free_task_type_groups = _free_task_type_groups()
+    resolution.allowed_task_type_groups = sorted(set(resolution.allowed_task_type_groups) | set(resolution.free_task_type_groups))
     return resolution
 
 
@@ -168,3 +175,10 @@ def _most_advantageous_limit(package_limit: int | None, free_limit: int | None) 
     if free_limit > package_limit:
         return free_limit, True
     return package_limit, False
+
+
+def _free_task_type_groups() -> list[str]:
+    configured = getattr(settings, "DEFAULT_FREE_TASK_TYPE_GROUPS", None)
+    if configured is None:
+        return [LEGACY_TASK_TYPE_GROUP]
+    return list(configured)

@@ -135,6 +135,115 @@
         if (teamSelector) teamSelector.addEventListener("change", teamChanged);
         if (trackingDeviceSelector) trackingDeviceSelector.addEventListener("change", changedTrackingDevice);
         if (trackingServiceSelector) trackingServiceSelector.addEventListener("change", changedTrackingService);
+
+        function updateDeclarationSelectOptions(prefix) {
+            const selects = Array.from(document.querySelectorAll(`select[id^="id_${prefix}_"]`));
+            const selectedValues = selects.map(s => s.value).filter(v => v);
+            selects.forEach(currentSelect => {
+                Array.from(currentSelect.options).forEach(option => {
+                    if (!option.value) {
+                        option.disabled = false;
+                        return;
+                    }
+                    option.disabled = selectedValues.includes(option.value) && currentSelect.value !== option.value;
+                });
+            });
+        }
+
+        const beforeMpSelects = document.querySelectorAll('select[id^="id_declared_before_mp_"]');
+        const afterMpSelects = document.querySelectorAll('select[id^="id_declared_after_mp_"]');
+        const addBeforeMpSlot = document.getElementById('add-before-mp-slot');
+        const removeBeforeMpSlot = document.getElementById('remove-before-mp-slot');
+        const addAfterMpSlot = document.getElementById('add-after-mp-slot');
+        const removeAfterMpSlot = document.getElementById('remove-after-mp-slot');
+
+        function updateSlotVisibility(prefix, addTriggerId, removeTriggerId) {
+            const selects = Array.from(document.querySelectorAll(`select[id^="id_${prefix}_"]`));
+            let lastVisibleIndex = 0;
+            selects.forEach((select, index) => {
+                const wrapper = select.closest('.form-control');
+                if (!wrapper) return;
+                const shouldShow = index === 0 || selects[index - 1].value || index <= lastVisibleIndex;
+                if (shouldShow) {
+                    wrapper.style.display = '';
+                    lastVisibleIndex = index;
+                } else {
+                    wrapper.style.display = 'none';
+                    select.value = '';
+                }
+            });
+            const addTrigger = document.getElementById(addTriggerId);
+            if (addTrigger) {
+                const allVisible = selects.every(select => {
+                    const wrapper = select.closest('.form-control');
+                    return wrapper && wrapper.style.display !== 'none';
+                });
+                addTrigger.style.display = allVisible ? 'none' : '';
+            }
+            const removeTrigger = document.getElementById(removeTriggerId);
+            if (removeTrigger) {
+                const visibleCount = selects.filter(select => {
+                    const wrapper = select.closest('.form-control');
+                    return wrapper && wrapper.style.display !== 'none';
+                }).length;
+                removeTrigger.style.display = visibleCount > 1 ? '' : 'none';
+            }
+        }
+
+        beforeMpSelects.forEach(select => select.addEventListener('change', () => {
+            updateDeclarationSelectOptions('declared_before_mp');
+            updateSlotVisibility('declared_before_mp', 'add-before-mp-slot', 'remove-before-mp-slot');
+        }));
+        afterMpSelects.forEach(select => select.addEventListener('change', () => {
+            updateDeclarationSelectOptions('declared_after_mp');
+            updateSlotVisibility('declared_after_mp', 'add-after-mp-slot', 'remove-after-mp-slot');
+        }));
+        if (addBeforeMpSlot) {
+            addBeforeMpSlot.addEventListener('click', () => {
+                const hidden = Array.from(beforeMpSelects).find(select => select.closest('.form-control').style.display === 'none');
+                if (hidden) hidden.closest('.form-control').style.display = '';
+                updateSlotVisibility('declared_before_mp', 'add-before-mp-slot', 'remove-before-mp-slot');
+            });
+        }
+        if (removeBeforeMpSlot) {
+            removeBeforeMpSlot.addEventListener('click', () => {
+                const visible = Array.from(beforeMpSelects).filter(select => select.closest('.form-control').style.display !== 'none');
+                if (visible.length > 1) {
+                    const target = visible[visible.length - 1];
+                    target.value = '';
+                    target.closest('.form-control').style.display = 'none';
+                    updateDeclarationSelectOptions('declared_before_mp');
+                    updateSlotVisibility('declared_before_mp', 'add-before-mp-slot', 'remove-before-mp-slot');
+                }
+            });
+        }
+        if (addAfterMpSlot) {
+            addAfterMpSlot.addEventListener('click', () => {
+                const hidden = Array.from(afterMpSelects).find(select => select.closest('.form-control').style.display === 'none');
+                if (hidden) hidden.closest('.form-control').style.display = '';
+                updateSlotVisibility('declared_after_mp', 'add-after-mp-slot', 'remove-after-mp-slot');
+            });
+        }
+        if (removeAfterMpSlot) {
+            removeAfterMpSlot.addEventListener('click', () => {
+                const visible = Array.from(afterMpSelects).filter(select => select.closest('.form-control').style.display !== 'none');
+                if (visible.length > 1) {
+                    const target = visible[visible.length - 1];
+                    target.value = '';
+                    target.closest('.form-control').style.display = 'none';
+                    updateDeclarationSelectOptions('declared_after_mp');
+                    updateSlotVisibility('declared_after_mp', 'add-after-mp-slot', 'remove-after-mp-slot');
+                }
+            });
+        }
+        if (beforeMpSelects.length) {
+            updateDeclarationSelectOptions('declared_before_mp');
+            updateSlotVisibility('declared_before_mp', 'add-before-mp-slot', 'remove-before-mp-slot');
+        }
+        if (afterMpSelects.length) {
+            updateDeclarationSelectOptions('declared_after_mp');
+            updateSlotVisibility('declared_after_mp', 'add-after-mp-slot', 'remove-after-mp-slot');
+        }
         
         // Initial state
         changedTrackingDevice();

@@ -1,6 +1,7 @@
 from string import Template
 
 import datetime
+import json
 from typing import Iterable, Optional
 
 from crispy_forms.helper import FormHelper
@@ -49,6 +50,18 @@ from display.models.user_uploaded_map import validate_file_size
 from display.models.my_user import MyUser
 from display.poker.poker_cards import PLAYING_CARDS
 from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
+from display.utilities.cima_task_type_definitions import (
+    ANR_CATALOGUE,
+    CONTRACT_NAVIGATION_TIME_CONTROLS,
+    CURVE_NAVIGATION_TIME_ESTIMATION,
+    DURATION,
+    LIMITED_FUEL_TURNPOINT_HUNT,
+    PRECISION_NAVIGATION,
+    TURNPOINT_HUNT,
+    CIRCLE,
+    get_task_subtypes_for_family,
+)
+from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, NAVIGATION_TASK_TYPES, PRECISION
 
 FILE_TYPE_CSV = "csv"
 FILE_TYPE_FLIGHTCONTEST_GPX = "fcgpx"
@@ -162,6 +175,11 @@ class ContestantMapForm(forms.Form):
     zoom_level = forms.TypedChoiceField(coerce=int, initial=12, choices=[(i, i) for i in range(1, 15)])
 
     include_annotations = forms.BooleanField(initial=True, required=False)
+    include_contestant_declarations = forms.BooleanField(
+        initial=True,
+        required=False,
+        help_text="If enabled, contestant-specific declaration route data will be rendered when available. Disable to render the generic task route.",
+    )
     plot_track_between_waypoints = forms.BooleanField(initial=True, required=False)
     include_meridians_and_parallels_lines = forms.BooleanField(
         initial=True,
@@ -194,6 +212,7 @@ class ContestantMapForm(forms.Form):
                 "include_openaip_overlay",
                 "zoom_level",
                 "include_annotations",
+                "include_contestant_declarations",
                 "plot_track_between_waypoints",
                 "include_meridians_and_parallels_lines",
                 "line_width",
@@ -301,6 +320,7 @@ class FlightOrderConfigurationForm(forms.ModelForm):
                 "map_scale",
                 "map_dpi",
                 "map_include_annotations",
+                "map_include_contestant_declarations",
                 "map_plot_track_between_waypoints",
                 "map_include_meridians_and_parallels_lines",
                 "map_include_openaip_overlay",
@@ -338,6 +358,8 @@ class FlightOrderConfigurationForm(forms.ModelForm):
 
 
 class NavigationTaskForm(forms.ModelForm):
+    task_subtype = forms.ChoiceField(required=False, choices=[])
+
     class Meta:
         model = NavigationTask
         fields = (
@@ -349,6 +371,7 @@ class NavigationTaskForm(forms.ModelForm):
             "minutes_to_starting_point",
             "planning_time",
             "original_scorecard",
+            "task_subtype",
             "minutes_to_landing",
             "wind_speed",
             "wind_direction",
@@ -357,11 +380,21 @@ class NavigationTaskForm(forms.ModelForm):
         )
 
     def __init__(self, *args, **kwargs):
+        task_family = kwargs.pop("task_family", None)
         super().__init__(*args, **kwargs)
         self.fields["original_scorecard"].queryset = Scorecard.get_originals()
         instance = getattr(self, "instance", None)
         if instance and instance.pk:
             self.fields["original_scorecard"].disabled = True
+
+        subtype_choices = [("", "---------")]
+        family_labels = dict(NAVIGATION_TASK_TYPES)
+        subtype_families = [task_family] if task_family else [PRECISION, ANR_CORRIDOR]
+        for family in subtype_families:
+            family_subtypes = [(item.key, item.display_name) for item in get_task_subtypes_for_family(family)]
+            if family_subtypes:
+                subtype_choices.append((family_labels.get(family, family), family_subtypes))
+        self.fields["task_subtype"].choices = subtype_choices
 
         datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
         self.fields["start_time"].widget = datetime_widget
@@ -375,6 +408,7 @@ class NavigationTaskForm(forms.ModelForm):
                 "start_time",
                 "finish_time",
                 "original_scorecard",
+                "task_subtype",
                 "allow_self_management",
                 "planning_time",
             ),
@@ -388,6 +422,12 @@ class NavigationTaskForm(forms.ModelForm):
             ),
             ButtonHolder(Submit("submit", "Submit")),
         )
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+        return instance
 
 
 # class BasicScoreOverrideForm(forms.ModelForm):
@@ -566,10 +606,45 @@ class PersonForm(forms.ModelForm):
         fields = "__all__"
 
 
+DECLARATION_SLOT_COUNT = 4
+
+
+def _local_datetime_to_utc_iso(value):
+    if value in (None, ""):
+        return None
+    dt = value if isinstance(value, datetime.datetime) else datetime.datetime.fromisoformat(str(value))
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt, timezone.get_current_timezone())
+    return dt.astimezone(datetime.timezone.utc).isoformat()
+
+
+def _catalogue_turnpoint_choices(navigation_task):
+    editable_route = navigation_task.editable_route
+    if editable_route is None:
+        return []
+    choices = []
+    for item in editable_route.get_catalogue_turnpoints():
+        name = item.get("properties", {}).get("name")
+        if name and name not in {"SP", "MP", "FP"}:
+            choices.append((name, name))
+    return choices
+
+
+def _known_time_gate_names(navigation_task):
+    editable_route = navigation_task.editable_route
+    if editable_route is None:
+        return []
+    result = []
+    for item in editable_route.get_known_time_gates():
+        name = item.get("properties", {}).get("name")
+        if name:
+            result.append(name)
+    return result
+
+
 class ContestantForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
-        self.navigation_task = kwargs.pop("navigation_task")  # type: NavigationTask
-
+        self.navigation_task = kwargs.pop("navigation_task")
         super().__init__(*args, **kwargs)
         self.fields["team"].queryset = self.navigation_task.contest.contest_teams.all()
         self.fields["contestant_number"].initial = (
@@ -586,9 +661,58 @@ class ContestantForm(forms.ModelForm):
         self.fields["tracker_start_time"].widget = datetime_widget
         self.fields["finished_by_time"].widget = datetime_widget
 
+        declaration_fields = []
+        subtype = self.navigation_task.task_subtype
+        existing_payload = {}
+        if self.instance.pk and hasattr(self.instance, "contestanttaskconfiguration"):
+            existing_payload = self.instance.contestanttaskconfiguration.declaration_payload or {}
+        self._existing_declaration_payload = existing_payload
+
+        if subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
+            choices = [("", "---------")] + _catalogue_turnpoint_choices(self.navigation_task)
+            before_values = []
+            after_values = []
+            seen_mp = False
+            for item in existing_payload.get("declared_sequence", []):
+                if item == "MP":
+                    seen_mp = True
+                    continue
+                if item == "FP":
+                    continue
+                if seen_mp:
+                    after_values.append(item)
+                else:
+                    before_values.append(item)
+            for index in range(DECLARATION_SLOT_COUNT):
+                before_name = f"declared_before_mp_{index + 1}"
+                after_name = f"declared_after_mp_{index + 1}"
+                self.fields[before_name] = forms.ChoiceField(required=False, choices=choices, label=f"Declared point before MP #{index + 1}")
+                self.fields[after_name] = forms.ChoiceField(required=False, choices=choices, label=f"Declared point after MP #{index + 1}")
+                self.fields[before_name].initial = before_values[index] if index < len(before_values) else ""
+                self.fields[after_name].initial = after_values[index] if index < len(after_values) else ""
+                declaration_fields.extend([before_name, after_name])
+            declaration_fields.extend([
+                HTML('<div class="flex gap-2 mt-2"><button type="button" id="add-before-mp-slot" class="btn btn-xs btn-outline">Add before MP</button><button type="button" id="remove-before-mp-slot" class="btn btn-xs btn-ghost">Remove before MP</button></div>'),
+                HTML('<div class="flex gap-2 mt-2"><button type="button" id="add-after-mp-slot" class="btn btn-xs btn-outline">Add after MP</button><button type="button" id="remove-after-mp-slot" class="btn btn-xs btn-ghost">Remove after MP</button></div>'),
+            ])
+        elif subtype in (CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION):
+            prediction_payload = existing_payload.get("known_time_gate_predictions", {})
+            prediction_names = (
+                _known_time_gate_names(self.navigation_task)
+                if subtype == CURVE_NAVIGATION_TIME_ESTIMATION
+                else [item.name for item in self.navigation_task.route.waypoints if getattr(item, "name", None)]
+            )
+            for name in prediction_names:
+                field_name = f"known_time_gate_prediction_{name}"
+                self.fields[field_name] = forms.DateTimeField(required=False, widget=datetime_widget, label=f"Prediction for {name}")
+                if prediction_payload.get(name):
+                    parsed = datetime.datetime.fromisoformat(prediction_payload[name].replace("Z", "+00:00"))
+                    self.fields[field_name].initial = timezone.localtime(parsed).strftime("%Y-%m-%dT%H:%M")
+                declaration_fields.append(field_name)
+
         self.helper = FormHelper()
         self.helper.attrs = {"enctype": "multipart/form-data"}
-        self.helper.layout = Layout(
+        layout_items = [
             Fieldset(
                 "Contestant",
                 "contestant_number",
@@ -603,9 +727,7 @@ class ContestantForm(forms.ModelForm):
             Fieldset(
                 "Tracking",
                 HTML(
-                    "The below fields can mostly be left alone. Tracker start time and finished by time are calculated "
-                    "automatically to ten minutes prior to the takeoff time with an assumed flight time of maximum two hours with "
-                    "fixed start and five hours with adaptive start. Overwrite this as necessary."
+                    "The below fields can mostly be left alone. Tracker start time and finished by time are calculated automatically to ten minutes prior to the takeoff time with an assumed flight time of maximum two hours with fixed start and five hours with adaptive start. Overwrite this as necessary."
                 ),
                 "tracking_service",
                 "tracking_device",
@@ -613,8 +735,70 @@ class ContestantForm(forms.ModelForm):
                 "tracker_start_time",
                 "finished_by_time",
             ),
-            ButtonHolder(Submit("submit", "Submit")),
-        )
+        ]
+        if declaration_fields:
+            layout_items.append(Fieldset("Task-specific declaration", *declaration_fields))
+        self.helper.layout = Layout(*layout_items, ButtonHolder(Submit("submit", "Submit")))
+
+    def clean(self):
+        cleaned_data = super().clean()
+        subtype = self.navigation_task.task_subtype
+        if subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
+            before = [cleaned_data.get(f"declared_before_mp_{i}") for i in range(1, DECLARATION_SLOT_COUNT + 1)]
+            after = [cleaned_data.get(f"declared_after_mp_{i}") for i in range(1, DECLARATION_SLOT_COUNT + 1)]
+            seen_before = set()
+            for i, value in enumerate(before, start=1):
+                if value and value in seen_before:
+                    self.add_error(f"declared_before_mp_{i}", "Duplicate turnpoints are not allowed before MP.")
+                if value:
+                    seen_before.add(value)
+            seen_after = set()
+            for i, value in enumerate(after, start=1):
+                if value and value in seen_after:
+                    self.add_error(f"declared_after_mp_{i}", "Duplicate turnpoints are not allowed after MP.")
+                if value:
+                    seen_after.add(value)
+            used_before = {value for value in before if value}
+            for i, value in enumerate(after, start=1):
+                if value and value in used_before:
+                    self.add_error(f"declared_after_mp_{i}", "Turnpoints may not be reused across both sides of MP.")
+        elif subtype in (CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION):
+            prediction_names = (
+                _known_time_gate_names(self.navigation_task)
+                if subtype == CURVE_NAVIGATION_TIME_ESTIMATION
+                else [item.name for item in self.navigation_task.route.waypoints if getattr(item, "name", None)]
+            )
+            fields = [f"known_time_gate_prediction_{name}" for name in prediction_names]
+            if fields and not any(cleaned_data.get(field) for field in fields):
+                self.add_error(fields[0], "At least one known time gate prediction is required.")
+        return cleaned_data
+
+    def get_declaration_payload(self):
+        subtype = self.navigation_task.task_subtype
+        if subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
+            return {
+                "declared_sequence": [
+                    *[self.cleaned_data.get(f"declared_before_mp_{i}") for i in range(1, DECLARATION_SLOT_COUNT + 1) if self.cleaned_data.get(f"declared_before_mp_{i}")],
+                    "MP",
+                    *[self.cleaned_data.get(f"declared_after_mp_{i}") for i in range(1, DECLARATION_SLOT_COUNT + 1) if self.cleaned_data.get(f"declared_after_mp_{i}")],
+                    "FP",
+                ]
+            }
+        if subtype in (CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION):
+            predictions = {}
+            prediction_names = (
+                _known_time_gate_names(self.navigation_task)
+                if subtype == CURVE_NAVIGATION_TIME_ESTIMATION
+                else [item.name for item in self.navigation_task.route.waypoints if getattr(item, "name", None)]
+            )
+            for name in prediction_names:
+                normalized = _local_datetime_to_utc_iso(self.cleaned_data.get(f"known_time_gate_prediction_{name}"))
+                if normalized:
+                    predictions[name] = normalized
+            return {"known_time_gate_predictions": predictions} if predictions else {}
+        if subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
+            return self._existing_declaration_payload if self.instance.pk else {}
+        return {}
 
     class Meta:
         model = Contestant
@@ -649,19 +833,29 @@ class ContestantQuickAddForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["contest_team"].queryset = self.navigation_task.contest.contestteam_set.all()
         self.fields["starting_point_time"].initial = timezone.localtime()
+
+        declaration_fields = []
+
         self.helper = FormHelper()
-        self.helper.layout = Layout(
+        layout_items = [
             Fieldset(
                 "Quick Add Contestant",
                 "contest_team",
                 "starting_point_time",
                 "adaptive_start",
-            ),
-            ButtonHolder(Submit("submit", "Create")),
-        )
+            )
+        ]
+        if declaration_fields:
+            layout_items.append(Fieldset("Task-specific declaration", *declaration_fields))
+        self.helper.layout = Layout(*layout_items, ButtonHolder(Submit("submit", "Create")))
+
+    def clean(self):
+        return super().clean()
+
+    def get_declaration_payload(self):
+        return {}
 
 
-import datetime
 from django import forms
 from django.db.models import QuerySet
 from crispy_forms.helper import FormHelper
@@ -837,6 +1031,42 @@ class ScorecardForm(forms.ModelForm):
             kwargs["initial"] = {"corridor_width": instance.corridor_width}
         super().__init__(*args, **kwargs)
 
+        navigation_task = getattr(self.instance, "navigation_task_override", None)
+        if navigation_task and navigation_task.task_subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
+            self.instance.included_fields.append(
+                [
+                    "Turnpoint hunt configuration",
+                    "compulsory_timing_tolerance_seconds",
+                    "maximum_task_duration_minutes",
+                    "maximum_task_duration_penalty",
+                    "fuel_deadline_penalty",
+                ]
+            )
+        if navigation_task and navigation_task.task_subtype == ANR_CATALOGUE:
+            self.instance.included_fields.append(
+                [
+                    "ANR catalogue configuration",
+                    "anr_route_to_sp_penalty",
+                    "anr_route_from_fp_penalty",
+                ]
+            )
+        if navigation_task and navigation_task.task_subtype == DURATION:
+            self.instance.included_fields.append(
+                [
+                    "Duration configuration",
+                    "duration_normalization_policy",
+                    "duration_residual_fuel_required",
+                ]
+            )
+        if navigation_task and navigation_task.task_subtype == CIRCLE:
+            self.instance.included_fields.append(
+                [
+                    "Circle configuration",
+                    "circle_radius_min_m",
+                    "circle_radius_max_m",
+                ]
+            )
+
         self.helper = FormHelper()
         self.helper.form_class = "form mt-4"
         self.helper.layout = Layout(
@@ -944,22 +1174,25 @@ class DeleteUserForm(forms.Form):
 
 
 class SignUpForm(forms.Form):
-    first_name = forms.CharField(max_length=200, label="First name")
-    last_name = forms.CharField(max_length=200, label="Last name")
-    email = forms.EmailField(label="Email address")
-    password = forms.CharField(widget=forms.PasswordInput, label="Password")
-    password_confirm = forms.CharField(widget=forms.PasswordInput, label="Confirm password")
+    first_name = forms.CharField(max_length=255)
+    last_name = forms.CharField(max_length=255)
+    email = forms.EmailField(max_length=255)
+    country = forms.ChoiceField(choices=[])
+    password = forms.CharField(widget=forms.PasswordInput)
+    password_confirm = forms.CharField(widget=forms.PasswordInput)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["country"].choices = Person._meta.get_field("country").choices
         self.helper = FormHelper()
-        self.helper.form_class = "form mt-4"
+        self.helper.form_class = "form"
         self.helper.layout = Layout(
             Fieldset(
                 "Personal Information",
                 "first_name",
                 "last_name",
                 "email",
+                "country",
             ),
             Fieldset(
                 "Security",

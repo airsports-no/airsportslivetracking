@@ -1,13 +1,20 @@
 from rest_framework.exceptions import ValidationError
+from django.conf import settings
 from django.utils import timezone
 
 from display.models import ContestUsageLedger, Contestant, ContestTeam
 from display.services.access_resolver import resolve_contest_access
 from display.services.token_assignment import ensure_token_assignment_active_for_guest_start
+from display.utilities.task_type_group_definitions import get_task_type_group
 
 
 def _should_enforce(resolution) -> bool:
     return resolution.enforcement_mode == "enforce"
+
+
+def _normalized_enforcement_mode() -> str:
+    configured = getattr(settings, "ACCESS_ENFORCEMENT_MODE", "audit")
+    return configured if configured in {"audit", "enforce"} else "audit"
 
 
 def _is_owner_team(contest, team) -> bool:
@@ -104,6 +111,14 @@ def _contestant_limit_error_message(resolution):
     )
 
 
+def _task_type_group_error_message(task_type_group):
+    task_group_label = task_type_group.replace("_", " ")
+    return (
+        f"This task requires the {task_group_label} task package, but the current contest only has access to other task groups. "
+        f"To create this task, apply a token or annual club pass that includes {task_group_label} access, or ask an organizer with access to update the contest package."
+    )
+
+
 def _task_reserved_guest_pilots(contest, navigation_task, current_contestant=None):
     owner_person_id = None
     if contest.created_by_id:
@@ -192,11 +207,18 @@ def _assert_can_reserve_task_slot(navigation_task, team, resolution, current_con
     return resolution
 
 
-def assert_can_add_navigation_task(contest):
+def assert_can_add_navigation_task(contest, task_type=None, task_subtype=None):
     resolution = resolve_contest_access(contest)
+    normalized_mode = _normalized_enforcement_mode()
+    if getattr(resolution, "enforcement_mode", normalized_mode) != normalized_mode:
+        resolution.enforcement_mode = normalized_mode
     token_assignment = getattr(contest, "contesttokenassignment", None)
     if token_assignment is not None and token_assignment.expires_at is not None and token_assignment.expires_at <= timezone.now():
         raise ValidationError("This contest token has expired. The contest is now in archive mode until a new token or annual pass is applied.")
+    task_type_group = get_task_type_group(task_type=task_type, task_subtype=task_subtype)
+    allowed_task_type_groups = getattr(resolution, "allowed_task_type_groups", ["legacy"])
+    if task_type_group not in allowed_task_type_groups:
+        raise ValidationError(_task_type_group_error_message(task_type_group))
     return resolution
 
 

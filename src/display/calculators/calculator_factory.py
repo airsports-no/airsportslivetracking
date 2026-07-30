@@ -7,6 +7,8 @@ if TYPE_CHECKING:
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
 from display.calculators.backtracking_and_procedure_turns import BacktrackingAndProcedureTurnsCalculator
 from display.calculators.gate_calculator import GateCalculator
+from display.calculators.circle_calculator import CircleCalculator
+from display.calculators.duration_calculator import DurationCalculator
 from display.calculators.orchestrator import Orchestrator
 from display.calculators.takeoff_and_landing_gate_calculator import TakeoffAndLandingGateCalculator
 from display.calculators.landing_pattern_calculator import LandingPatternCalculator
@@ -31,17 +33,22 @@ def calculator_factory(
     live_processing: bool = True,
     projector: Optional["Projector"] = None,
 ) -> "Orchestrator":
+        precision_calculators = [
+            GateCalculator,
+            TakeoffAndLandingGateCalculator,
+            BacktrackingAndProcedureTurnsCalculator,
+            ProhibitedZoneCalculator,
+            PenaltyZoneCalculator,
+        ]
+        if contestant.navigation_task.task_subtype == "circle":
+            precision_calculators.insert(1, CircleCalculator)
+        if contestant.navigation_task.task_subtype == "duration":
+            precision_calculators.insert(2, DurationCalculator)
         if contestant.navigation_task.scorecard.calculator == PRECISION:
             return Orchestrator(
                 contestant,
                 score_processing_queue,
-                [
-                    GateCalculator,
-                    TakeoffAndLandingGateCalculator,
-                    BacktrackingAndProcedureTurnsCalculator,
-                    ProhibitedZoneCalculator,
-                    PenaltyZoneCalculator,
-                ],
+                precision_calculators,
                 live_processing=live_processing,
                 projector=projector,
             )

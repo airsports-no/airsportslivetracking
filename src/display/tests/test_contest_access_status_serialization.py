@@ -45,6 +45,9 @@ class TestContestAccessStatusSerialization(TestCase):
                 "free_contestant_limit": None,
                 "contestant_limit_uses_free_default": False,
                 "uses_more_advantageous_free_limits": False,
+                "allowed_task_type_groups": ["legacy", "cima"],
+                "package_task_type_groups": ["cima"],
+                "free_task_type_groups": ["legacy"],
             },
         )()
         mock_token_model.objects.filter.return_value.select_related.return_value.order_by.return_value = []
@@ -56,3 +59,6 @@ class TestContestAccessStatusSerialization(TestCase):
         self.assertEqual("Annual Club Pass", data["access_status"]["tier_label"])
         self.assertEqual("club_pass", data["access_status"]["source_type"])
         self.assertEqual(2, data["access_status"]["contestants_used"])
+        self.assertEqual(["legacy", "cima"], data["access_status"]["allowed_task_type_groups"])
+        self.assertEqual(["cima"], data["access_status"]["package_task_type_groups"])
+        self.assertEqual(["legacy"], data["access_status"]["free_task_type_groups"])

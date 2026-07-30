@@ -33,6 +33,10 @@ class FlightOrderConfiguration(models.Model):
         default=True,
         help_text="If this if set, the generated map will include minute marks and leg headings for the contestant so that no map preparation is necessary.",
     )
+    map_include_contestant_declarations = models.BooleanField(
+        default=True,
+        help_text="If this is set, contestant-specific maps and flight orders will render declaration-compiled contestant route data when available. Disable to use the generic task map instead.",
+    )
     map_plot_track_between_waypoints = models.BooleanField(
         default=True,
         help_text="For precision and Air Sport competition types this will draw a line between the waypoints of the track. Without this the precision map will only contain the waypoints, and the Air Sport maps will only contain the corridor without a centreline.",
