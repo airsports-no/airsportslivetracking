@@ -29,6 +29,7 @@ import {
   getMinimumObservationDistance,
   normalizeRoutePointsBeforeAppend,
 } from '../routeEditorMapClickHelpers';
+import { getWizardStep, getWizardTransition } from '../routeEditorWizardTransitions';
 
 const getAngleDiff = (a: number, b: number) => {
   let diff = a - b;
@@ -448,59 +449,27 @@ export default function RouteEditor() {
 
   const startWizardStep = useCallback((stepKey: string) => {
     const template = getTaskTemplateById(selectedTaskTemplateId);
-    const step = template?.steps.find((item) => item.key === stepKey);
+    const step = getWizardStep(template, stepKey);
     if (!step) return;
 
     setSelectedId(null);
 
-    if (step.kind === 'route') {
-      setCurrentWizardActionLabel(step.help);
-      setMode('add_point');
-      return;
+    const transition = getWizardTransition(step, getWizardRouteInsertLabel);
+    setCurrentWizardActionLabel(transition.currentWizardActionLabel);
+    setWizardRouteInsertType(transition.wizardRouteInsertType as RoutePoint['type'] | null);
+    setWizardRouteInsertFeatureType(transition.wizardRouteInsertFeatureType as RoutePoint['featureType'] | undefined);
+    setWizardPolygonType(transition.wizardPolygonType as Polygon['type'] | null);
+    if (transition.clearSelectionType) {
+      setSelectionType(null);
     }
-
-    if (step.kind === 'point') {
-      setCurrentWizardActionLabel(step.help);
-      if (step.placement === 'route_insert') {
-        setWizardRouteInsertType(step.pointType ?? null);
-        setWizardRouteInsertFeatureType(step.featureType);
-        alert(getWizardRouteInsertLabel(step));
-        setMode('add_point');
-        return;
-      }
-
-      if (step.featureType === 'catalogue_turnpoint') {
-        setSelectionType(null);
-        setMode('add_catalogue_turnpoint');
-        return;
-      }
-
-      return;
-    }
-
-    if (step.kind === 'observation') {
-      setCurrentWizardActionLabel(step.help);
-      setMode('add_observation');
-      return;
-    }
-
-    if (step.kind === 'takeoff_gate') {
-      setCurrentWizardActionLabel(step.help);
-      setMode('add_takeoff');
-      return;
-    }
-
-    if (step.kind === 'landing_gate') {
-      setCurrentWizardActionLabel(step.help);
-      setMode('add_landing');
-      return;
-    }
-
-    if (step.kind === 'polygon') {
-      setCurrentWizardActionLabel(step.help);
-      setWizardPolygonType(step.polygonType ?? null);
+    if (transition.resetTempPolygonPoints) {
       setTempPolygonPoints([]);
-      setMode('add_polygon');
+    }
+    if (transition.routeInsertPrompt) {
+      alert(transition.routeInsertPrompt);
+    }
+    if (transition.mode) {
+      setMode(transition.mode);
     }
   }, [selectedTaskTemplateId]);
 
