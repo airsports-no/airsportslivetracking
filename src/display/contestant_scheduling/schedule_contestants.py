@@ -14,6 +14,12 @@ from display.utilities.navigation_task_type_definitions import LANDING
 
 logger = logging.getLogger(__name__)
 
+# Scheduler-created contract-navigation contestants are seeded with a conservative
+# placeholder declaration so downstream compilation has an explicit T contract.
+# Organizers are expected to review/edit the declaration in the dedicated editor
+# before using the contestant for real competition operations.
+DEFAULT_CONTRACT_NAVIGATION_T_SECONDS = 600
+
 def _build_default_declaration_payload(navigation_task: NavigationTask) -> dict:
     if not navigation_task.requires_contestant_task_configuration():
         return {}
@@ -29,7 +35,7 @@ def _build_default_declaration_payload(navigation_task: NavigationTask) -> dict:
         if len(catalogue_turnpoints) > 1:
             declared_sequence.append(catalogue_turnpoints[1])
         declared_sequence.append("FP")
-        return {"declared_sequence": declared_sequence, "declared_t_seconds": 600}
+        return {"declared_sequence": declared_sequence, "declared_t_seconds": DEFAULT_CONTRACT_NAVIGATION_T_SECONDS}
     return {}
 
 

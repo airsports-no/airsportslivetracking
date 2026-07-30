@@ -81,6 +81,21 @@ class TestCompiledEffectiveRouteAccess(TestCase):
                     },
                     {
                         "type": "Feature",
+                        "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "sequence": 0},
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "sequence": 1},
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "sequence": 2},
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
                         "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"},
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
@@ -91,7 +106,7 @@ class TestCompiledEffectiveRouteAccess(TestCase):
         self.navigation_task.editable_route = editable_route
         self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
         ContestantTaskCompiler(self.contestant).compile(
-            declaration_payload={"declared_sequence": ["A", "MP", "FP"]},
+            declaration_payload={"declared_sequence": ["A", "MP", "FP"], "declared_t_seconds": 600},
             force=True,
         )
 
@@ -113,6 +128,21 @@ class TestCompiledEffectiveRouteAccess(TestCase):
                     },
                     {
                         "type": "Feature",
+                        "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "sequence": 0},
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "sequence": 1},
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "sequence": 2},
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
                         "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"},
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
@@ -123,7 +153,7 @@ class TestCompiledEffectiveRouteAccess(TestCase):
         self.navigation_task.editable_route = editable_route
         self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
         ContestantTaskCompiler(self.contestant).compile(
-            declaration_payload={"declared_sequence": ["A", "MP", "FP"]},
+            declaration_payload={"declared_sequence": ["A", "MP", "FP"], "declared_t_seconds": 600},
             force=True,
         )
 
@@ -154,6 +184,21 @@ class TestCompiledEffectiveRouteAccess(TestCase):
                     },
                     {
                         "type": "Feature",
+                        "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "sequence": 0},
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "sequence": 1},
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "sequence": 2},
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
                         "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"},
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
@@ -164,7 +209,7 @@ class TestCompiledEffectiveRouteAccess(TestCase):
         self.navigation_task.editable_route = editable_route
         self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
         ContestantTaskCompiler(self.contestant).compile(
-            declaration_payload={"declared_sequence": ["A", "MP", "FP"]},
+            declaration_payload={"declared_sequence": ["A", "MP", "FP"], "declared_t_seconds": 600},
             force=True,
         )
 

@@ -27,7 +27,8 @@ from display.models import ANOMALY, INFORMATION
 from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
 from websocket_channels import WebsocketFacade
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon, calculate_speed_between_points
-from display.utilities.route_building_utilities import calculate_extended_gate, build_waypoint
+from display.utilities.route_building_utilities import calculate_extended_gate
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 
 logger = logging.getLogger(__name__)
 
@@ -95,83 +96,13 @@ class GateCalculator(Calculator):
         return gates
 
     def _get_effective_waypoints(self):
-        route_waypoints = self.contestant.navigation_task.route.waypoints
-        if hasattr(self.contestant, "contestanttaskconfiguration") and self.contestant.contestanttaskconfiguration.is_valid:
-            payload = self.contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
-            effective_waypoints_payload = payload.get("effective_waypoints")
-            if isinstance(effective_waypoints_payload, list) and len(effective_waypoints_payload) > 0:
-                effective_waypoints = []
-                for item in effective_waypoints_payload:
-                    waypoint = build_waypoint(
-                        item["name"],
-                        item["latitude"],
-                        item["longitude"],
-                        item["type"],
-                        item["width"],
-                        item["time_check"],
-                        item["gate_check"],
-                    )
-                    waypoint.elevation = item.get("elevation", 0)
-                    waypoint.gate_line = item.get("gate_line", [])
-                    waypoint.distance_next = item.get("distance_next", -1)
-                    waypoint.distance_previous = item.get("distance_previous", -1)
-                    waypoint.bearing_next = item.get("bearing_next", -1)
-                    waypoint.bearing_from_previous = item.get("bearing_from_previous", -1)
-                    waypoint.inside_distance = item.get("inside_distance", 0)
-                    waypoint.outside_distance = item.get("outside_distance", 0)
-                    waypoint.is_procedure_turn = item.get("is_procedure_turn", False)
-                    waypoint.is_steep_turn = item.get("is_steep_turn", False)
-                    waypoint.end_curved = item.get("end_curved", False)
-                    effective_waypoints.append(waypoint)
-                return effective_waypoints
-
-        effective_names = self.contestant.get_effective_waypoint_names()
-        if not effective_names:
-            return route_waypoints
-
-        by_name = {item.name: item for item in route_waypoints}
-        effective_waypoints = []
-        for name in effective_names:
-            if name in by_name:
-                effective_waypoints.append(by_name[name])
-                continue
-            if name == "MP":
-                mp = type(route_waypoints[0])(name) if route_waypoints else None
-                if mp is not None:
-                    base = route_waypoints[min(1, len(route_waypoints) - 1)] if route_waypoints else None
-                    if base is not None:
-                        mp.latitude = base.latitude
-                        mp.longitude = base.longitude
-                        mp.elevation = getattr(base, "elevation", 0)
-                        mp.gate_line = getattr(base, "gate_line", [])
-                        mp.width = getattr(base, "width", 0)
-                        mp.time_check = True
-                        mp.gate_check = True
-                        mp.type = "tp"
-                        mp.distance_next = getattr(base, "distance_next", -1)
-                        mp.distance_previous = getattr(base, "distance_previous", -1)
-                        mp.bearing_next = getattr(base, "bearing_next", -1)
-                        mp.bearing_from_previous = getattr(base, "bearing_from_previous", -1)
-                        mp.end_curved = getattr(base, "end_curved", False)
-                    effective_waypoints.append(mp)
-            elif route_waypoints:
-                base = route_waypoints[min(1, len(route_waypoints) - 1)]
-                clone = type(base)(name)
-                clone.latitude = base.latitude
-                clone.longitude = base.longitude
-                clone.elevation = getattr(base, "elevation", 0)
-                clone.gate_line = getattr(base, "gate_line", [])
-                clone.width = getattr(base, "width", 0)
-                clone.time_check = True
-                clone.gate_check = True
-                clone.type = "tp"
-                clone.distance_next = getattr(base, "distance_next", -1)
-                clone.distance_previous = getattr(base, "distance_previous", -1)
-                clone.bearing_next = getattr(base, "bearing_next", -1)
-                clone.bearing_from_previous = getattr(base, "bearing_from_previous", -1)
-                clone.end_curved = getattr(base, "end_curved", False)
-                effective_waypoints.append(clone)
-        return effective_waypoints or route_waypoints
+        # Calculators consume a shared effective-route seam so declaration-aware
+        # maps, PDFs, and scoring all reconstruct waypoint objects the same way.
+        return get_effective_route_waypoints(
+            self.contestant.navigation_task,
+            contestant=self.contestant,
+            include_contestant_declarations=True,
+        )
 
     def initiate_gates(self):
         self.gates = self.create_gates()

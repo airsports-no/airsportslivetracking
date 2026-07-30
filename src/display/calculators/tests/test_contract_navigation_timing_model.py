@@ -88,7 +88,7 @@ class TestContractNavigationTimingModel(TestCase):
         self.navigation_task.save(update_fields=["editable_route"])
 
         compiled = ContestantTaskCompiler(self.contestant).compile(
-            declaration_payload={"declared_sequence": ["A", "MP", "FP"]},
+            declaration_payload={"declared_sequence": ["A", "MP", "FP"], "declared_t_seconds": 600},
             force=True,
         )
         sp_time = datetime.datetime.fromisoformat(compiled.compiled_gate_times_payload["SP"])
@@ -103,7 +103,7 @@ class TestContractNavigationTimingModel(TestCase):
         self.navigation_task.editable_route = editable_route
         self.navigation_task.save(update_fields=["editable_route"])
         ContestantTaskCompiler(self.contestant).compile(
-            declaration_payload={"declared_sequence": ["A", "MP", "FP"]},
+            declaration_payload={"declared_sequence": ["A", "MP", "FP"], "declared_t_seconds": 600},
             force=True,
         )
 
@@ -129,7 +129,7 @@ class TestContractNavigationTimingModel(TestCase):
         self.navigation_task.save(update_fields=["editable_route"])
 
         compiled = ContestantTaskCompiler(self.contestant).compile(
-            declaration_payload={"declared_sequence": ["A", "MP", "C", "FP"]},
+            declaration_payload={"declared_sequence": ["A", "MP", "C", "FP"], "declared_t_seconds": 600},
             force=True,
         )
         self.assertEqual(compiled.compiled_effective_route_payload["time_model"]["before_mp_sequence"], ["A"])
@@ -140,7 +140,7 @@ class TestContractNavigationTimingModel(TestCase):
         self.navigation_task.editable_route = editable_route
         self.navigation_task.save(update_fields=["editable_route"])
         compiled = ContestantTaskCompiler(self.contestant).compile(
-            declaration_payload={"declared_sequence": ["A", "MP", "C", "FP"]},
+            declaration_payload={"declared_sequence": ["A", "MP", "C", "FP"], "declared_t_seconds": 600},
             force=True,
         )
 
@@ -157,7 +157,7 @@ class TestContractNavigationTimingModel(TestCase):
         self.navigation_task.editable_route = editable_route
         self.navigation_task.save(update_fields=["editable_route"])
         ContestantTaskCompiler(self.contestant).compile(
-            declaration_payload={"declared_sequence": ["A", "MP", "C", "FP"]},
+            declaration_payload={"declared_sequence": ["A", "MP", "C", "FP"], "declared_t_seconds": 600},
             force=True,
         )
 

@@ -29,6 +29,46 @@ def _serialised_waypoint_to_runtime_waypoint(item: dict):
     return waypoint
 
 
+def _clone_reference_waypoint(reference_waypoint, name: str):
+    clone = type(reference_waypoint)(name)
+    clone.latitude = reference_waypoint.latitude
+    clone.longitude = reference_waypoint.longitude
+    clone.elevation = getattr(reference_waypoint, "elevation", 0)
+    clone.gate_line = getattr(reference_waypoint, "gate_line", [])
+    clone.width = getattr(reference_waypoint, "width", 0)
+    clone.time_check = True
+    clone.gate_check = True
+    clone.type = "tp"
+    clone.distance_next = getattr(reference_waypoint, "distance_next", -1)
+    clone.distance_previous = getattr(reference_waypoint, "distance_previous", -1)
+    clone.bearing_next = getattr(reference_waypoint, "bearing_next", -1)
+    clone.bearing_from_previous = getattr(reference_waypoint, "bearing_from_previous", -1)
+    clone.end_curved = getattr(reference_waypoint, "end_curved", False)
+    return clone
+
+
+def _build_effective_route_waypoints_from_names(route_waypoints, effective_names: list[str]):
+    if not effective_names:
+        return route_waypoints
+    if not route_waypoints:
+        return []
+
+    by_name = {item.name: item for item in route_waypoints}
+    reference_waypoint = route_waypoints[min(1, len(route_waypoints) - 1)]
+
+    # Compatibility fallback for older compiled payloads that only persisted
+    # effective waypoint names. We clone the first interior waypoint geometry so
+    # downstream calculators and renderers still receive gate-capable waypoint
+    # objects until every declaration-bearing path writes full effective payloads.
+    effective_waypoints = []
+    for name in effective_names:
+        if name in by_name:
+            effective_waypoints.append(by_name[name])
+        else:
+            effective_waypoints.append(_clone_reference_waypoint(reference_waypoint, name))
+    return effective_waypoints or route_waypoints
+
+
 def get_task_catalogue_targets(navigation_task) -> list[dict[str, Any]]:
     editable_route = getattr(navigation_task, "editable_route", None)
     if editable_route is None:
@@ -56,4 +96,8 @@ def get_effective_route_waypoints(navigation_task, contestant=None, include_cont
             effective_waypoints = payload.get("effective_waypoints") or []
             if isinstance(effective_waypoints, list) and effective_waypoints:
                 return [_serialised_waypoint_to_runtime_waypoint(item) for item in effective_waypoints if isinstance(item, dict)]
+            return _build_effective_route_waypoints_from_names(
+                list(navigation_task.route.waypoints),
+                contestant.get_effective_waypoint_names(),
+            )
     return list(navigation_task.route.waypoints)

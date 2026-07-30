@@ -1288,6 +1288,9 @@ class ContestantSerialiser(serializers.ModelSerializer):
             ):
                 validated_data["air_speed"] = contest_team.air_speed
 
+        # Ordering is deliberate: create contestant first, then apply any gate
+        # time overrides, then normalize/compile declaration payload against the
+        # saved contestant/task context, and finally sync ContestTeam defaults.
         contestant = Contestant.objects.create(**validated_data)
         if provided_gate_times:
             contestant.gate_times = provided_gate_times
@@ -1340,6 +1343,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
                     or validated_data["air_speed"] == ""
                 ):
                     validated_data["air_speed"] = contest_team.air_speed
+        # Ordering is deliberate here too: persist base contestant fields,
+        # refresh/apply gate-time overrides, then recompile declaration-derived
+        # contestant state, and only afterwards mirror the resolved tracking/
+        # speed defaults back onto ContestTeam.
         Contestant.objects.filter(pk=instance.pk).update(**validated_data)
         instance.refresh_from_db()
         instance.gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}

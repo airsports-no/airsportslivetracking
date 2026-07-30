@@ -15,20 +15,21 @@ class TaskCompiler:
 
     def compile(self, force: bool = False) -> CompiledNavigationTask:
         effective_subtype = self._get_effective_task_subtype()
+        current_signature = self._calculate_source_signature()
         compiled, created = CompiledNavigationTask.objects.get_or_create(
             navigation_task=self.navigation_task,
             defaults={
                 "compiled_family_route": self.navigation_task.route,
                 "task_subtype": effective_subtype,
                 "compiled_payload": self._build_compiled_payload(),
-                "source_signature": self._calculate_source_signature(),
+                "source_signature": current_signature,
             },
         )
-        if force or not created:
+        if force or created or compiled.source_signature != current_signature:
             compiled.compiled_family_route = self.navigation_task.route
             compiled.task_subtype = effective_subtype
             compiled.compiled_payload = self._build_compiled_payload()
-            compiled.source_signature = self._calculate_source_signature()
+            compiled.source_signature = current_signature
             compiled.save()
         return compiled
 
