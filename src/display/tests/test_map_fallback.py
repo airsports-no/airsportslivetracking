@@ -123,7 +123,7 @@ class MapFallbackTests(TestCase):
 
         mock_text.assert_not_called()
 
-    def test_waypoint_centre_track_segments_use_procedure_turn_points(self):
+    def test_waypoint_centre_track_segments_keep_procedure_turn_as_single_point(self):
         from display.waypoint import Waypoint
 
         waypoint = Waypoint("PT")
@@ -135,5 +135,5 @@ class MapFallbackTests(TestCase):
 
         segments = waypoint.get_centre_track_segments()
 
-        self.assertGreater(len(segments), 1)
-        self.assertTrue(any(point != segments[0] for point in segments[1:]))
+        self.assertEqual(segments, [(60.0, 11.0)])
+        self.assertGreater(len(waypoint.procedure_turn_points), 1)

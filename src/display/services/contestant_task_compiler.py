@@ -380,6 +380,8 @@ class ContestantTaskCompiler:
             feature = primitive_by_name.get(item)
             if feature:
                 lon, lat = feature["geometry"]["coordinates"]
+                # Declared catalogue turnpoints are route/gate checkpoints only.
+                # Contract timing still belongs exclusively to SP, MP, and FP.
                 waypoint = build_waypoint(item, lat, lon, "tp", reference.width, False, True)
                 waypoint.gate_line = [list(reference.gate_line[0]), list(reference.gate_line[1])] if reference.gate_line else []
                 waypoint.elevation = getattr(reference, "elevation", 0)

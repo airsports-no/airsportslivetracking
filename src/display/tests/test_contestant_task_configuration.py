@@ -211,6 +211,8 @@ class TestContestantTaskConfiguration(TestCase):
         effective_waypoints = list(payload.get("effective_waypoints", []))  # type: ignore[attr-defined]
         self.assertTrue(any(item.get("procedure_turn_points") for item in effective_waypoints if item.get("is_procedure_turn")))
         a_waypoint = next(item for item in effective_waypoints if item["name"] == "A")
+        self.assertFalse(a_waypoint["time_check"])
+        self.assertTrue(a_waypoint["gate_check"])
         self.assertEqual(len(a_waypoint["gate_line"]), 2)
         self.assertNotEqual(a_waypoint["gate_line"][0], a_waypoint["gate_line"][1])
 

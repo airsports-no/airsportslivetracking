@@ -36,7 +36,10 @@ def _clone_reference_waypoint(reference_waypoint, name: str):
     clone.elevation = getattr(reference_waypoint, "elevation", 0)
     clone.gate_line = getattr(reference_waypoint, "gate_line", [])
     clone.width = getattr(reference_waypoint, "width", 0)
-    clone.time_check = True
+    # Compatibility-only placeholder for older payloads that persisted names
+    # without full waypoint semantics. Declared catalogue waypoints are gate
+    # checks only; only SP/MP/FP are timed in contract navigation.
+    clone.time_check = name in {"SP", "MP", "FP"}
     clone.gate_check = True
     clone.type = "tp"
     clone.distance_next = getattr(reference_waypoint, "distance_next", -1)

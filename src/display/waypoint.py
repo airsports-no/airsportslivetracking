@@ -85,8 +85,11 @@ class Waypoint:
         :param waypoint2:
         :return: Each waypoint is represented in a returned list of track segments
         """
-        if self.is_procedure_turn:
-            return list(self.procedure_turn_points)
+        # Minute-mark and relative-timing calculations intentionally treat a
+        # procedure turn as a one-minute pause at the turning point rather than
+        # following the rendered procedure-turn geometry. The rendered turn can
+        # vary with layout, but the planning contract is a fixed one-minute
+        # offset before the next leg starts.
         return [(self.latitude, self.longitude)]
 
     def is_gate_line_pointing_right(self, original: bool = False):
