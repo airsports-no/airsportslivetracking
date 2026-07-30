@@ -19,6 +19,16 @@ import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mo
 import { Map } from 'leaflet';
 import { getTaskTemplateById, getWizardRouteInsertLabel } from '../taskTemplates';
 import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
+import {
+  createBackboneRoutePoint,
+  createCatalogueTurnpoint,
+  createInsertedRoutePoint,
+  createObservationMarker,
+  createStandaloneWizardPoint,
+  createTakeoffLandingGate,
+  getMinimumObservationDistance,
+  normalizeRoutePointsBeforeAppend,
+} from '../routeEditorMapClickHelpers';
 
 const getAngleDiff = (a: number, b: number) => {
   let diff = a - b;
@@ -26,12 +36,6 @@ const getAngleDiff = (a: number, b: number) => {
   while (diff < -180) diff += 360;
   return diff;
 };
-
-const THREE_POINT_BACKBONE_TEMPLATE: Array<Pick<RoutePoint, 'name' | 'type' | 'featureType'>> = [
-  { name: 'SP', type: 'sp', featureType: 'route_waypoint' },
-  { name: 'MP', type: 'tp', featureType: 'route_waypoint' },
-  { name: 'FP', type: 'fp', featureType: 'route_waypoint' },
-];
 
 export default function RouteEditor() {
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([]);
@@ -174,20 +178,7 @@ export default function RouteEditor() {
     if (mode === 'add_catalogue_turnpoint') {
       setStandalonePoints(prev => {
         const catalogueCount = prev.filter((point) => point.type === 'catalogue_turnpoint').length + 1;
-        const newPoint: RoutePoint = {
-          id: crypto.randomUUID(),
-          lat: latlng.lat,
-          lng: latlng.lng,
-          name: `TP ${catalogueCount}`,
-          type: 'catalogue_turnpoint',
-          featureType: 'catalogue_turnpoint',
-          width: 1852,
-          isTiming: false,
-          isPassing: true,
-          isSecret: false,
-          segmentType: 'straight',
-          scoreValue: null,
-        };
+        const newPoint = createCatalogueTurnpoint(latlng, catalogueCount);
         setSelectedId(null);
         setSelectionType(null);
         return [...prev, newPoint];
@@ -198,19 +189,12 @@ export default function RouteEditor() {
 
     if (isCircleStandaloneTask && mode === 'add_point' && wizardRouteInsertType && standalonePointTypes.has(wizardRouteInsertType)) {
       setStandalonePoints(prev => {
-        const newPoint: RoutePoint = {
-          id: crypto.randomUUID(),
-          lat: latlng.lat,
-          lng: latlng.lng,
-          name: currentWizardActionLabel || `${wizardRouteInsertType}`,
-          type: wizardRouteInsertType,
-          featureType: wizardRouteInsertFeatureType,
-          width: 1852,
-          isTiming: false,
-          isPassing: true,
-          isSecret: false,
-          segmentType: 'straight',
-        };
+        const newPoint = createStandaloneWizardPoint(
+          latlng,
+          wizardRouteInsertType,
+          wizardRouteInsertFeatureType,
+          currentWizardActionLabel,
+        );
         setSelectedId(newPoint.id);
         setSelectionType('standalone_point');
         return [...prev, newPoint];
@@ -230,19 +214,13 @@ export default function RouteEditor() {
           const newPoints = [...prev];
           const lastRoutePointIndex = newPoints.length - 1;
           const insertIndex = lastRoutePointIndex == null ? newPoints.length : lastRoutePointIndex;
-          const newPoint: RoutePoint = {
-            id: crypto.randomUUID(),
-            lat: latlng.lat,
-            lng: latlng.lng,
-            name: currentWizardActionLabel || `${wizardRouteInsertType} ${count}`,
-            type: wizardRouteInsertType,
-            featureType: wizardRouteInsertFeatureType,
-            width: 1852,
-            isTiming: wizardRouteInsertType === 'known_time_gate',
-            isPassing: true,
-            isSecret: false,
-            segmentType: 'straight',
-          };
+          const newPoint = createInsertedRoutePoint(
+            latlng,
+            wizardRouteInsertType,
+            wizardRouteInsertFeatureType,
+            currentWizardActionLabel,
+            count,
+          );
           newPoints.splice(insertIndex, 0, newPoint);
           setSelectedId(newPoint.id);
           setSelectionType('point');
@@ -257,50 +235,13 @@ export default function RouteEditor() {
       }
 
       setRoutePoints(prev => {
-        const newPoints = [...prev];
-        if (isThreePointBackboneTask && newPoints.length >= 3) {
+        if (isThreePointBackboneTask && prev.length >= 3) {
           alert('This task template uses exactly three route backbone points: SP, MP, and FP. Add extra targets as standalone points instead.');
           return prev;
         }
 
-        const count = newPoints.length;
-
-        if (!isThreePointBackboneTask && count > 0) {
-          const lastRoutePointIndex = newPoints.length - 1;
-          if (lastRoutePointIndex != null && newPoints[lastRoutePointIndex].type === 'fp') {
-            newPoints[lastRoutePointIndex] = { ...newPoints[lastRoutePointIndex], type: 'tp', featureType: 'route_waypoint', name: `WP ${count}` };
-          }
-        }
-
-        let segmentType: 'straight' | 'curved' = 'straight';
-        let controlLat = 0;
-        let controlLng = 0;
-
-        if (addCurveMode && count > 0) {
-          const prevPoint = newPoints[count - 1];
-          segmentType = 'curved';
-          const midLat = (prevPoint.lat + latlng.lat) / 2;
-          const midLng = (prevPoint.lng + latlng.lng) / 2;
-          controlLat = midLat + (latlng.lng - prevPoint.lng) * 0.2;
-          controlLng = midLng - (latlng.lat - prevPoint.lat) * 0.2;
-        }
-
-        const templatePoint = isThreePointBackboneTask ? THREE_POINT_BACKBONE_TEMPLATE[count] : null;
-        const newPoint: RoutePoint = {
-          id: crypto.randomUUID(),
-          lat: latlng.lat,
-          lng: latlng.lng,
-          name: templatePoint?.name || (count === 0 ? 'Start' : 'Finish'),
-          type: templatePoint?.type || (count === 0 ? 'sp' : 'fp'),
-          featureType: templatePoint?.featureType || 'route_waypoint',
-          width: 1852,
-          isTiming: true,
-          isPassing: true,
-          isSecret: false,
-          segmentType,
-          controlLat,
-          controlLng
-        };
+        const newPoints = normalizeRoutePointsBeforeAppend(prev, isThreePointBackboneTask);
+        const newPoint = createBackboneRoutePoint(latlng, newPoints, isThreePointBackboneTask, addCurveMode);
         return [...newPoints, newPoint];
       });
       setIsDirty(true);
@@ -313,14 +254,7 @@ export default function RouteEditor() {
       if (!tempGatePoint) {
         setTempGatePoint(latlng);
       } else {
-        const newGate: Gate = {
-          id: crypto.randomUUID(),
-          name: `${gateType === 'landing' ? 'L' : 'TO'} Gate ${gates.length + 1}`,
-          type: gateType,
-          p1: tempGatePoint,
-          p2: latlng,
-          width: 50
-        };
+        const newGate = createTakeoffLandingGate(latlng, tempGatePoint, gateType, gates.length + 1);
         setGates(prev => [...prev, newGate]);
         setTempGatePoint(null);
         setMode('view');
@@ -336,44 +270,14 @@ export default function RouteEditor() {
         return;
       }
 
-      let minDist = Infinity;
-      for (let i = 0; i < routePoints.length - 1; i++) {
-        const p1 = routePoints[i];
-        const p2 = routePoints[i + 1];
-        let d = Infinity;
-
-        if (p2.segmentType === 'curved' && p2.controlLat != null && p2.controlLng != null) {
-          const steps = 20;
-          let prevPoint: LatLng = { lat: p1.lat, lng: p1.lng };
-          for (let j = 1; j <= steps; j++) {
-            const t = j / steps;
-            const invT = 1 - t;
-            const lat = (invT * invT * p1.lat) + (2 * invT * t * p2.controlLat) + (t * t * p2.lat);
-            const lng = (invT * invT * p1.lng) + (2 * invT * t * p2.controlLng) + (t * t * p2.lng);
-            const curr: LatLng = { lat, lng };
-            const segDist = getDistanceFromLine(latlng, prevPoint, curr);
-            if (segDist < d) d = segDist;
-            prevPoint = curr;
-          }
-        } else {
-          d = getDistanceFromLine(latlng, p1, p2);
-        }
-
-        if (d < minDist) minDist = d;
-      }
+      const minDist = getMinimumObservationDistance(latlng, routePoints);
 
       if (minDist > maxObsDist) {
         alert(`Observation markers must be within ${(maxObsDist / 1852).toFixed(2)} NM of the route line.`);
         return;
       }
 
-      setObservationMarkers(prev => [...prev, {
-        id: crypto.randomUUID(),
-        lat: latlng.lat,
-        lng: latlng.lng,
-        name: `Obs ${prev.length + 1}`,
-        targetName: '',
-      }]);
+      setObservationMarkers(prev => [...prev, createObservationMarker(latlng, prev.length + 1)]);
       setIsDirty(true);
       setCurrentWizardActionLabel(null);
       return;
