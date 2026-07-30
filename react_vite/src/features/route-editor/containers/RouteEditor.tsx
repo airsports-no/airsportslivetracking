@@ -18,6 +18,7 @@ import {
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { Map } from 'leaflet';
 import { getTaskTemplateById, getWizardRouteInsertLabel } from '../taskTemplates';
+import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
 
 const getAngleDiff = (a: number, b: number) => {
   let diff = a - b;
@@ -31,13 +32,6 @@ const THREE_POINT_BACKBONE_TEMPLATE: Array<Pick<RoutePoint, 'name' | 'type' | 'f
   { name: 'MP', type: 'tp', featureType: 'route_waypoint' },
   { name: 'FP', type: 'fp', featureType: 'route_waypoint' },
 ];
-
-const CIRCLE_STANDALONE_TYPES = new Set<RoutePoint['type']>([
-  'circle_center',
-  'circle_start',
-  'circle_entry',
-  'circle_exit',
-]);
 
 export default function RouteEditor() {
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([]);
@@ -73,11 +67,7 @@ export default function RouteEditor() {
 
   const isCircleStandaloneTask = selectedTaskTemplateId === 'cima_a7';
   const standalonePointTypes = useMemo(() => {
-    const types = new Set<RoutePoint['type']>(['catalogue_turnpoint']);
-    if (isCircleStandaloneTask) {
-      CIRCLE_STANDALONE_TYPES.forEach((type) => types.add(type));
-    }
-    return types;
+    return createStandalonePointTypeSet(isCircleStandaloneTask);
   }, [isCircleStandaloneTask]);
 
   const totalLength = useMemo(() => {
@@ -118,123 +108,14 @@ export default function RouteEditor() {
 
   const loadRouteData = useCallback((json: any) => {
     try {
-      const newPoints: RoutePoint[] = [];
-      const newStandalone: RoutePoint[] = [];
-      const newGates: Gate[] = [];
-      const newObs: ObservationMarker[] = [];
-      const newPolys: Polygon[] = [];
-
-      if (json.type === 'FeatureCollection') {
-        const features = json.features;
-
-        const pointFeatures = features.filter((f: any) => (
-          f.geometry.type === 'Point' && [
-            'route_waypoint',
-            'catalogue_turnpoint',
-            'circle_center_marker',
-            'circle_start_marker',
-            'circle_entry_marker',
-            'circle_exit_marker',
-            'known_time_gate',
-            'hidden_gate'
-          ].includes(f.properties.featureType)
-        )).sort((a: any, b: any) => (a.properties.sequence ?? 999999) - (b.properties.sequence ?? 999999));
-
-        pointFeatures.forEach((f: any) => {
-          const parsedPoint = {
-            id: f.properties.id || crypto.randomUUID(),
-            lat: f.geometry.coordinates[1],
-            lng: f.geometry.coordinates[0],
-            name: f.properties.name || 'Unnamed',
-            type: f.properties.pointType || 'tp',
-            featureType: f.properties.featureType || 'route_waypoint',
-            segmentType: f.properties.segmentType || 'straight',
-            controlLat: f.properties.controlLat,
-            controlLng: f.properties.controlLng,
-            width: f.properties.width || 1852,
-            isTiming: typeof f.properties.isTiming === 'boolean' ? f.properties.isTiming : true,
-            isPassing: typeof f.properties.isPassing === 'boolean' ? f.properties.isPassing : true,
-            scoreValue: f.properties.scoreValue ?? null,
-          } as RoutePoint;
-          if (standalonePointTypes.has(parsedPoint.type)) {
-            newStandalone.push(parsedPoint);
-          } else {
-            newPoints.push(parsedPoint);
-          }
-        });
-
-        const gateFeatures = features.filter((f: any) => f.geometry.type === 'LineString' && f.properties.gateType);
-        gateFeatures.forEach((f: any) => {
-          newGates.push({
-            id: f.properties.id || crypto.randomUUID(),
-            name: f.properties.name || 'Gate',
-            type: f.properties.gateType,
-            p1: { lng: f.geometry.coordinates[0][0], lat: f.geometry.coordinates[0][1] },
-            p2: { lng: f.geometry.coordinates[1][0], lat: f.geometry.coordinates[1][1] },
-            width: f.properties.width || 50
-          });
-        });
-
-        const obsFeatures = features.filter((f: any) => f.geometry.type === 'Point' && f.properties.featureType === 'observation_photo');
-        obsFeatures.forEach((f: any) => {
-          newObs.push({
-            id: f.properties.id || crypto.randomUUID(),
-            lat: f.geometry.coordinates[1],
-            lng: f.geometry.coordinates[0],
-            name: f.properties.name || 'Obs',
-            targetName: f.properties.targetName || ''
-          });
-        });
-
-        const polyFeatures = features.filter((f: any) => f.geometry.type === 'Polygon' && (f.properties.featureType === 'zone' || f.properties.featureType === 'waypoint_polygon'));
-        polyFeatures.forEach((f: any) => {
-          const coords = f.geometry.coordinates[0];
-          if (coords.length > 0 && coords[0][0] === coords[coords.length - 1][0] && coords[0][1] === coords[coords.length - 1][1]) {
-            coords.pop();
-          }
-          const polygonType = f.properties.polygonType || 'prohibited';
-          if (polygonType !== 'waypoint') {
-            newPolys.push({
-              id: f.properties.id || crypto.randomUUID(),
-              name: f.properties.name || 'Zone',
-              type: polygonType as Polygon['type'],
-              points: coords.map((c: any) => ({ lng: c[0], lat: c[1] }))
-            });
-          }
-        });
-
-        setRoutePoints(newPoints);
-        setStandalonePoints(newStandalone);
-        setGates(newGates);
-        setObservationMarkers(newObs);
-        setPolygons(newPolys);
-
-        let minLat = Infinity;
-        let maxLat = -Infinity;
-        let minLng = Infinity;
-        let maxLng = -Infinity;
-        let hasPoints = false;
-
-        const extend = (lat: number, lng: number) => {
-          if (lat < minLat) minLat = lat;
-          if (lat > maxLat) maxLat = lat;
-          if (lng < minLng) minLng = lng;
-          if (lng > maxLng) maxLng = lng;
-          hasPoints = true;
-        };
-
-        newPoints.forEach(p => extend(p.lat, p.lng));
-        newStandalone.forEach(p => extend(p.lat, p.lng));
-        newGates.forEach(g => {
-          extend(g.p1.lat, g.p1.lng);
-          extend(g.p2.lat, g.p2.lng);
-        });
-        newObs.forEach(o => extend(o.lat, o.lng));
-        newPolys.forEach(p => p.points.forEach(pt => extend(pt.lat, pt.lng)));
-
-        if (hasPoints) {
-          setPendingBounds([[minLat, minLng], [maxLat, maxLng]]);
-        }
+      const parsed = parseRouteEditorFeatureCollection(json, standalonePointTypes);
+      setRoutePoints(parsed.routePoints);
+      setStandalonePoints(parsed.standalonePoints);
+      setGates(parsed.gates);
+      setObservationMarkers(parsed.observationMarkers);
+      setPolygons(parsed.polygons);
+      if (parsed.bounds) {
+        setPendingBounds(parsed.bounds);
       }
     } catch (err) {
       console.error('Error parsing route data', err);
@@ -315,7 +196,7 @@ export default function RouteEditor() {
       return;
     }
 
-    if (isCircleStandaloneTask && mode === 'add_point' && wizardRouteInsertType && CIRCLE_STANDALONE_TYPES.has(wizardRouteInsertType)) {
+    if (isCircleStandaloneTask && mode === 'add_point' && wizardRouteInsertType && standalonePointTypes.has(wizardRouteInsertType)) {
       setStandalonePoints(prev => {
         const newPoint: RoutePoint = {
           id: crypto.randomUUID(),
