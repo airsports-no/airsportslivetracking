@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch
 import requests
 from display.flight_order_and_maps.map_plotter import LocalMapServer, plot_route
+from display.utilities.route_building_utilities import build_waypoint
 from display.models import NavigationTask, Route, Contest
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from django.test import TestCase
@@ -105,3 +106,34 @@ class MapFallbackTests(TestCase):
         mock_get_catalogue_targets.assert_called_once_with(self.task)
         mock_plot_catalogue_targets.assert_called_once()
         self.assertEqual(mock_plot_precision_track.call_args.kwargs["render_waypoints"], [])
+
+    def test_plot_leg_bearing_skips_zero_length_leg(self):
+        from display.flight_order_and_maps.map_plotter import plot_leg_bearing
+
+        start = build_waypoint("A", 60.0, 11.0, "tp", 1.0, False, True)
+        finish = build_waypoint("B", 60.0, 11.0, "tp", 1.0, False, True)
+        start.bearing_next = 90
+        start.gate_line = [(60.0, 11.0), (60.0, 11.0)]
+        start.original_gate_line = start.gate_line
+        finish.gate_line = [(60.0, 11.0), (60.0, 11.0)]
+        finish.original_gate_line = finish.gate_line
+
+        with patch('display.flight_order_and_maps.map_plotter.plt.text') as mock_text:
+            plot_leg_bearing(start, finish, 80, 0, 0)
+
+        mock_text.assert_not_called()
+
+    def test_waypoint_centre_track_segments_use_procedure_turn_points(self):
+        from display.waypoint import Waypoint
+
+        waypoint = Waypoint("PT")
+        waypoint.latitude = 60.0
+        waypoint.longitude = 11.0
+        waypoint.is_procedure_turn = True
+        waypoint.bearing_from_previous = 0
+        waypoint.bearing_next = 90
+
+        segments = waypoint.get_centre_track_segments()
+
+        self.assertGreater(len(segments), 1)
+        self.assertTrue(any(point != segments[0] for point in segments[1:]))

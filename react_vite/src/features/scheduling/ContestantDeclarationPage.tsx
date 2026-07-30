@@ -15,6 +15,7 @@ type DeclarationFormState = {
     compulsoryPointTimes: Record<string, string>;
     declaredEnduranceMinutes: string;
     contractNavigation: ContractNavigationFormState;
+    contractDeclaredTSeconds: string;
 };
 
 const toDatetimeLocalValue = (value?: string | null) => {
@@ -45,18 +46,57 @@ type ContractNavigationEditorProps = {
     onChange: (value: ContractNavigationFormState) => void;
 };
 
+const moveItem = (items: string[], fromIndex: number, toIndex: number) => {
+    const next = [...items];
+    const [item] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, item);
+    return next;
+};
+
 const ContractNavigationEditor: React.FC<ContractNavigationEditorProps> = ({ availableTurnpoints, value, disabled = false, onChange }) => {
     const [draggedToken, setDraggedToken] = useState<string | null>(null);
 
     const used = new Set([...value.beforeMp, ...value.afterMp]);
     const unassigned = availableTurnpoints.filter((item) => !used.has(item));
 
+    const updateLane = (lane: 'beforeMp' | 'afterMp', updater: (items: string[]) => string[]) => {
+        onChange({
+            ...value,
+            [lane]: updater(lane === 'beforeMp' ? value.beforeMp : value.afterMp),
+        });
+    };
+
+    const addToLane = (lane: 'beforeMp' | 'afterMp', token: string) => {
+        if (disabled) return;
+        const target = lane === 'beforeMp' ? value.beforeMp : value.afterMp;
+        onChange({
+            ...value,
+            [lane]: [...target, token],
+        });
+    };
+
+    const removeFromLanes = (token: string) => {
+        onChange({
+            beforeMp: value.beforeMp.filter((item) => item !== token),
+            afterMp: value.afterMp.filter((item) => item !== token),
+        });
+    };
+
+    const moveAcrossLanes = (token: string, targetLane: 'beforeMp' | 'afterMp') => {
+        if (disabled) return;
+        const nextBefore = value.beforeMp.filter((item) => item !== token);
+        const nextAfter = value.afterMp.filter((item) => item !== token);
+        if (targetLane === 'beforeMp') {
+            nextBefore.push(token);
+        } else {
+            nextAfter.push(token);
+        }
+        onChange({ beforeMp: nextBefore, afterMp: nextAfter });
+    };
+
     const handleDropToPool = () => {
         if (!draggedToken || disabled) return;
-        onChange({
-            beforeMp: value.beforeMp.filter((item) => item !== draggedToken),
-            afterMp: value.afterMp.filter((item) => item !== draggedToken),
-        });
+        removeFromLanes(draggedToken);
         setDraggedToken(null);
     };
 
@@ -98,11 +138,19 @@ const ContractNavigationEditor: React.FC<ContractNavigationEditorProps> = ({ ava
                         unassigned.map((token) => (
                             <div
                                 key={`pool-${token}`}
-                                className="rounded border border-base-300 bg-base-100 px-3 py-2 text-sm"
+                                className="rounded border border-base-300 bg-base-100 px-3 py-2 text-sm flex items-center gap-2"
                                 draggable={!disabled}
                                 onDragStart={() => setDraggedToken(token)}
                             >
-                                {token}
+                                <span>{token}</span>
+                                <div className="flex gap-1">
+                                    <button type="button" className="btn btn-xs btn-outline" disabled={disabled} onClick={() => addToLane('beforeMp', token)}>
+                                        + Before MP
+                                    </button>
+                                    <button type="button" className="btn btn-xs btn-outline" disabled={disabled} onClick={() => addToLane('afterMp', token)}>
+                                        + After MP
+                                    </button>
+                                </div>
                             </div>
                         ))
                     ) : (
@@ -117,6 +165,7 @@ const ContractNavigationEditor: React.FC<ContractNavigationEditorProps> = ({ ava
                     ['afterMp', 'After MP'],
                 ] as const).map(([lane, label]) => {
                     const items = lane === 'beforeMp' ? value.beforeMp : value.afterMp;
+                    const otherLane = lane === 'beforeMp' ? 'afterMp' : 'beforeMp';
                     return (
                         <div key={lane}>
                             <div className="label">
@@ -136,7 +185,7 @@ const ContractNavigationEditor: React.FC<ContractNavigationEditorProps> = ({ ava
                                     items.map((token, index) => (
                                         <div
                                             key={`${lane}-${token}`}
-                                            className="rounded border border-base-300 bg-base-200/60 px-3 py-2 text-sm"
+                                            className="rounded border border-base-300 bg-base-200/60 px-3 py-2 text-sm flex items-center justify-between gap-2"
                                             draggable={!disabled}
                                             onDragStart={() => setDraggedToken(token)}
                                             onDragOver={(event) => event.preventDefault()}
@@ -145,7 +194,24 @@ const ContractNavigationEditor: React.FC<ContractNavigationEditorProps> = ({ ava
                                                 handleDropToLane(lane, index);
                                             }}
                                         >
-                                            {token}
+                                            <div className="flex items-center gap-2">
+                                                <span className="badge badge-outline">{index + 1}</span>
+                                                <span>{token}</span>
+                                            </div>
+                                            <div className="flex gap-1 flex-wrap justify-end">
+                                                <button type="button" className="btn btn-xs btn-outline" disabled={disabled || index === 0} onClick={() => updateLane(lane, (current) => moveItem(current, index, index - 1))}>
+                                                    ↑
+                                                </button>
+                                                <button type="button" className="btn btn-xs btn-outline" disabled={disabled || index === items.length - 1} onClick={() => updateLane(lane, (current) => moveItem(current, index, index + 1))}>
+                                                    ↓
+                                                </button>
+                                                <button type="button" className="btn btn-xs btn-outline" disabled={disabled} onClick={() => moveAcrossLanes(token, otherLane)}>
+                                                    Move to {otherLane === 'beforeMp' ? 'Before' : 'After'} MP
+                                                </button>
+                                                <button type="button" className="btn btn-xs btn-outline" disabled={disabled} onClick={() => removeFromLanes(token)}>
+                                                    Remove
+                                                </button>
+                                            </div>
                                         </div>
                                     ))
                                 )}
@@ -168,6 +234,7 @@ const ContestantDeclarationPage: React.FC = () => {
         compulsoryPointTimes: {},
         declaredEnduranceMinutes: '',
         contractNavigation: { beforeMp: [], afterMp: [] },
+        contractDeclaredTSeconds: '',
     });
     const [error, setError] = useState<string | null>(null);
     const { showToast, ToastContainer, toasts, removeToast } = useToast();
@@ -197,6 +264,9 @@ const ContestantDeclarationPage: React.FC = () => {
                 const pointTimes = declarationPayload.compulsory_point_times || {};
                 const fuelMetadata = declarationPayload.fuel_metadata || {};
                 const contractNavigation = splitContractNavigationDeclaration(declarationPayload.declared_sequence);
+                const contractDeclaredTSeconds = declarationPayload.declared_t_seconds != null
+                    ? String(declarationPayload.declared_t_seconds)
+                    : String(compiledPayload.time_model?.t_seconds ?? '');
                 const compulsoryPointTimes = compulsoryPointNames.reduce((acc: Record<string, string>, name: string) => {
                     acc[name] = toDatetimeLocalValue(pointTimes[name]);
                     return acc;
@@ -205,6 +275,7 @@ const ContestantDeclarationPage: React.FC = () => {
                     compulsoryPointTimes,
                     declaredEnduranceMinutes: fuelMetadata.declared_endurance_minutes ? String(fuelMetadata.declared_endurance_minutes) : '',
                     contractNavigation,
+                    contractDeclaredTSeconds,
                 });
             } catch (err: any) {
                 if (!cancelled) {
@@ -227,14 +298,22 @@ const ContestantDeclarationPage: React.FC = () => {
     const freeTargets: Array<any> = compiledPayload.free_targets || [];
     const isLimitedFuel = navigationTask?.task_subtype === 'limited_fuel_turnpoint_hunt';
     const isContractNavigation = navigationTask?.task_subtype === 'contract_navigation_time_controls';
-    const availableContractTurnpoints: string[] = compiledPayload.compiled_task_primitives?.catalogue_turnpoint || [];
+    const availableContractTurnpoints: string[] = (
+        compiledPayload.free_target_names
+        || compiledPayload.compiled_task_primitives?.catalogue_turnpoint
+        || navigationTask?.task_catalogue_targets?.map((item: any) => item.name)
+        || []
+    ).filter((item: string) => item !== 'SP' && item !== 'MP' && item !== 'FP');
 
     const canSave = useMemo(() => {
         if (isContractNavigation) {
-            return formState.contractNavigation.beforeMp.length + formState.contractNavigation.afterMp.length > 0;
+            return (
+                formState.contractNavigation.beforeMp.length + formState.contractNavigation.afterMp.length > 0
+                && Number(formState.contractDeclaredTSeconds) > 0
+            );
         }
         return compulsoryPointNames.every((name) => !!formState.compulsoryPointTimes[name]);
-    }, [compulsoryPointNames, formState.compulsoryPointTimes, formState.contractNavigation, isContractNavigation]);
+    }, [compulsoryPointNames, formState.compulsoryPointTimes, formState.contractNavigation, formState.contractDeclaredTSeconds, isContractNavigation]);
 
     const handleTimeChange = (name: string, value: string) => {
         setFormState((prev) => ({
@@ -260,6 +339,7 @@ const ContestantDeclarationPage: React.FC = () => {
                     ...formState.contractNavigation.afterMp,
                     'FP',
                 ];
+                declarationPayload.declared_t_seconds = Number(formState.contractDeclaredTSeconds);
             } else {
                 declarationPayload.compulsory_point_times = Object.fromEntries(
                     Object.entries(formState.compulsoryPointTimes).filter(([, value]) => !!value),
@@ -317,12 +397,26 @@ const ContestantDeclarationPage: React.FC = () => {
                         <h2 className="card-title">{isContractNavigation ? 'Declaration sequence' : 'Compulsory point declaration'}</h2>
                         <form className="space-y-4" onSubmit={handleSubmit}>
                             {isContractNavigation ? (
-                                <ContractNavigationEditor
-                                    availableTurnpoints={availableContractTurnpoints}
-                                    value={formState.contractNavigation}
-                                    onChange={(contractNavigation) => setFormState((prev) => ({ ...prev, contractNavigation }))}
-                                    disabled={saving}
-                                />
+                                <div className="space-y-4">
+                                    <label className="form-control w-full">
+                                        <span className="label-text font-medium">Declared T: time from SP to MP (seconds)</span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            step="1"
+                                            className="input input-bordered w-full"
+                                            value={formState.contractDeclaredTSeconds}
+                                            onChange={(e) => setFormState((prev) => ({ ...prev, contractDeclaredTSeconds: e.target.value }))}
+                                            required
+                                        />
+                                    </label>
+                                    <ContractNavigationEditor
+                                        availableTurnpoints={availableContractTurnpoints}
+                                        value={formState.contractNavigation}
+                                        onChange={(contractNavigation) => setFormState((prev) => ({ ...prev, contractNavigation }))}
+                                        disabled={saving}
+                                    />
+                                </div>
                             ) : (
                                 compulsoryPointNames.map((name) => (
                                     <label className="form-control w-full" key={name}>
@@ -366,11 +460,19 @@ const ContestantDeclarationPage: React.FC = () => {
                             <>
                                 <h2 className="card-title">Declaration preview</h2>
                                 <div className="rounded-lg bg-base-200/60 p-4 text-sm space-y-2">
+                                    <div><span className="font-medium">Declared T:</span> {formState.contractDeclaredTSeconds || '—'} s</div>
                                     <div><span className="font-medium">SP</span></div>
                                     <div><span className="font-medium">Before MP:</span> {formState.contractNavigation.beforeMp.join(', ') || '—'}</div>
                                     <div><span className="font-medium">MP</span></div>
                                     <div><span className="font-medium">After MP:</span> {formState.contractNavigation.afterMp.join(', ') || '—'}</div>
                                     <div><span className="font-medium">FP</span></div>
+                                    <div><span className="font-medium">Full sequence:</span> {[
+                                        'SP',
+                                        ...formState.contractNavigation.beforeMp,
+                                        'MP',
+                                        ...formState.contractNavigation.afterMp,
+                                        'FP',
+                                    ].join(' → ')}</div>
                                 </div>
                             </>
                         ) : (

@@ -156,6 +156,7 @@ class TestCapacityViewsetIntegration(APITestCase):
                 "declaration_payload": {
                     "declared_before_mp": ["A"],
                     "declared_after_mp": ["C"],
+                    "declared_t_seconds": 600,
                 },
             },
             format="json",
@@ -165,5 +166,5 @@ class TestCapacityViewsetIntegration(APITestCase):
         contestant = Contestant.objects.get(navigation_task=self.navigation_task, team=self.team)
         self.assertEqual(
             contestant.contestanttaskconfiguration.declaration_payload,
-            {"declared_sequence": ["A", "MP", "C", "FP"]},
+            {"declared_sequence": ["A", "MP", "C", "FP"], "declared_t_seconds": 600},
         )

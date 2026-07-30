@@ -103,6 +103,7 @@ class TestContractNavigationContestantTeamIdApi(TestCase):
                 "declaration_payload": {
                     "declared_before_mp": ["A"],
                     "declared_after_mp": ["C"],
+                    "declared_t_seconds": 82,
                 },
             },
             content_type="application/json",
@@ -111,5 +112,5 @@ class TestContractNavigationContestantTeamIdApi(TestCase):
         contestant = Contestant.objects.get(navigation_task=self.navigation_task, team=self.contest_team.team)
         self.assertEqual(
             contestant.contestanttaskconfiguration.declaration_payload,
-            {"declared_sequence": ["A", "MP", "C", "FP"]},
+            {"declared_sequence": ["A", "MP", "C", "FP"], "declared_t_seconds": 82},
         )

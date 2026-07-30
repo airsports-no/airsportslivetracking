@@ -85,6 +85,8 @@ class Waypoint:
         :param waypoint2:
         :return: Each waypoint is represented in a returned list of track segments
         """
+        if self.is_procedure_turn:
+            return list(self.procedure_turn_points)
         return [(self.latitude, self.longitude)]
 
     def is_gate_line_pointing_right(self, original: bool = False):

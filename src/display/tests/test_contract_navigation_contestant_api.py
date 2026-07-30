@@ -102,6 +102,7 @@ class TestContractNavigationContestantApi(TestCase):
                 "declaration_payload": {
                     "declared_before_mp": ["A"],
                     "declared_after_mp": ["C"],
+                    "declared_t_seconds": 82,
                 },
             },
             content_type="application/json",
@@ -110,7 +111,7 @@ class TestContractNavigationContestantApi(TestCase):
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
         self.assertEqual(
             contestant.contestanttaskconfiguration.declaration_payload,
-            {"declared_sequence": ["A", "MP", "C", "FP"]},
+            {"declared_sequence": ["A", "MP", "C", "FP"], "declared_t_seconds": 82},
         )
 
     @patch("display.viewsets._assert_can_reserve_task_slot")
@@ -134,6 +135,7 @@ class TestContractNavigationContestantApi(TestCase):
                 "declaration_payload": {
                     "declared_before_mp": ["A"],
                     "declared_after_mp": ["C"],
+                    "declared_t_seconds": 82,
                 },
             },
             content_type="application/json",
@@ -150,5 +152,5 @@ class TestContractNavigationContestantApi(TestCase):
         self.assertEqual(200, detail_response.status_code, detail_response.content)
         self.assertEqual(
             detail_response.json().get("declaration_payload"),
-            {"declared_sequence": ["A", "MP", "C", "FP"]},
+            {"declared_sequence": ["A", "MP", "C", "FP"], "declared_t_seconds": 82},
         )

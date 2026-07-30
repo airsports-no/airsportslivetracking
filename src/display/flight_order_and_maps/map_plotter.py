@@ -590,6 +590,8 @@ def plot_leg_bearing(
 ):
     left_of_leg_start = current_waypoint.get_gate_position_left_of_track(True)
     left_of_leg_finish = next_waypoint.get_gate_position_left_of_track(True)
+    if calculate_distance_lat_lon(left_of_leg_start, left_of_leg_finish) == 0:
+        return
 
     bearing = current_waypoint.bearing_next
     course_position = calculate_fractional_distance_point_lat_lon(left_of_leg_start, left_of_leg_finish, 0.5)

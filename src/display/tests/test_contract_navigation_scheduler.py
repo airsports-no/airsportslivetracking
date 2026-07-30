@@ -71,7 +71,7 @@ class TestContractNavigationScheduler(TestCase):
     ):
         first_takeoff_time = datetime.datetime(2026, 8, 1, 10, 0, tzinfo=datetime.timezone.utc)
         mock_gate_times.return_value = [("SP", datetime.timedelta()), ("FP", datetime.timedelta(minutes=30))]
-        mock_default_payload.return_value = {"declared_sequence": ["A", "MP", "C", "FP"]}
+        mock_default_payload.return_value = {"declared_sequence": ["A", "MP", "C", "FP"], "declared_t_seconds": 600}
         mock_solver.return_value.optimisation_messages = []
         mock_solver.return_value.schedule_teams.return_value = [
             SimpleNamespace(
@@ -100,7 +100,7 @@ class TestContractNavigationScheduler(TestCase):
         contestant = Contestant.objects.get(navigation_task=self.navigation_task, team=self.contest_team.team)
         self.assertEqual(
             contestant.contestanttaskconfiguration.declaration_payload,
-            {"declared_sequence": ["A", "MP", "C", "FP"]},
+            {"declared_sequence": ["A", "MP", "C", "FP"], "declared_t_seconds": 600},
         )
 
     @patch("display.contestant_scheduling.schedule_contestants._build_default_declaration_payload")
@@ -127,7 +127,7 @@ class TestContractNavigationScheduler(TestCase):
             wind_direction=0,
         )
         mock_gate_times.return_value = [("SP", datetime.timedelta()), ("FP", datetime.timedelta(minutes=30))]
-        mock_default_payload.return_value = {"declared_sequence": ["B", "MP", "D", "FP"]}
+        mock_default_payload.return_value = {"declared_sequence": ["B", "MP", "D", "FP"], "declared_t_seconds": 600}
         mock_solver.return_value.optimisation_messages = []
         mock_solver.return_value.schedule_teams.return_value = [
             SimpleNamespace(
@@ -155,5 +155,5 @@ class TestContractNavigationScheduler(TestCase):
         existing.refresh_from_db()
         self.assertEqual(
             existing.contestanttaskconfiguration.declaration_payload,
-            {"declared_sequence": ["B", "MP", "D", "FP"]},
+            {"declared_sequence": ["B", "MP", "D", "FP"], "declared_t_seconds": 600},
         )

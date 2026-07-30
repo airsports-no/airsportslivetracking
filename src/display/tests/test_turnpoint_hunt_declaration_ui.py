@@ -155,3 +155,9 @@ class TestTurnpointHuntDeclarationUI(TestCase):
         self.navigation_task.save(update_fields=["task_subtype"])
         form = ContestantForm(navigation_task=self.navigation_task)
         self.assertNotIn("fuel_declared_endurance_minutes", form.fields)
+
+    def test_turnpoint_hunt_create_view_does_not_render_task_specific_declaration_section(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.create_url)
+        self.assertEqual(200, response.status_code)
+        self.assertNotContains(response, "Task-specific declaration")

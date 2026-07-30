@@ -1959,7 +1959,7 @@ class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMi
         resolution = resolve_contest_access(instance.navigation_task.contest)
         _assert_can_reserve_task_slot(instance.navigation_task, instance.team, resolution, current_contestant=self.get_object())
         instance.save()
-        ContestantTaskCompiler(instance).compile(declaration_payload=form.get_declaration_payload(), force=True)
+        ContestantTaskCompiler(instance).compile(force=True)
         self.object = instance
         for warning in self.object.get_overlap_warnings():
             messages.warning(self.request, warning)
@@ -2060,7 +2060,7 @@ class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
             contestant.finished_by_time = contestant.landing_time + datetime.timedelta(minutes=5)
 
         contestant.save()
-        ContestantTaskCompiler(contestant).compile(declaration_payload=form.get_declaration_payload(), force=True)
+        ContestantTaskCompiler(contestant).compile(force=True)
         messages.success(self.request, "Contestant created successfully")
         for warning in contestant.get_overlap_warnings():
             messages.warning(self.request, warning)
@@ -2107,7 +2107,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
             form.add_error(None, exc)
             return self.form_invalid(form)
         object.save()
-        ContestantTaskCompiler(object).compile(declaration_payload=form.get_declaration_payload(), force=True)
+        ContestantTaskCompiler(object).compile(force=True)
         for warning in object.get_overlap_warnings():
             messages.warning(self.request, warning)
         return HttpResponseRedirect(self.get_success_url())

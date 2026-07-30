@@ -83,14 +83,14 @@ class TestContractNavigationDeclarationUI(TestCase):
         self.create_url = reverse("contestant_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
         self.update_url = None
 
-    def test_contract_navigation_form_exposes_repeatable_structured_declared_sequence_fields(self):
+    def test_contract_navigation_form_does_not_expose_declared_sequence_fields(self):
         form = ContestantForm(navigation_task=self.navigation_task)
-        self.assertIn("declared_before_mp_1", form.fields)
-        self.assertIn("declared_before_mp_2", form.fields)
-        self.assertIn("declared_after_mp_1", form.fields)
-        self.assertIn("declared_after_mp_2", form.fields)
+        self.assertNotIn("declared_before_mp_1", form.fields)
+        self.assertNotIn("declared_before_mp_2", form.fields)
+        self.assertNotIn("declared_after_mp_1", form.fields)
+        self.assertNotIn("declared_after_mp_2", form.fields)
 
-    def test_curve_navigation_form_exposes_per_gate_prediction_fields(self):
+    def test_curve_navigation_form_does_not_expose_prediction_fields(self):
         curve_route = EditableRoute.objects.create(
             name="Curve declaration primitives",
             route={
@@ -106,17 +106,17 @@ class TestContractNavigationDeclarationUI(TestCase):
         self.navigation_task.editable_route = curve_route
         self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
         form = ContestantForm(navigation_task=self.navigation_task)
-        self.assertIn("known_time_gate_prediction_KT1", form.fields)
+        self.assertNotIn("known_time_gate_prediction_KT1", form.fields)
 
-    def test_precision_navigation_form_exposes_per_waypoint_prediction_fields(self):
+    def test_precision_navigation_form_does_not_expose_per_waypoint_prediction_fields(self):
         self.navigation_task.task_subtype = PRECISION_NAVIGATION
         self.navigation_task.save(update_fields=["task_subtype"])
         form = ContestantForm(navigation_task=self.navigation_task)
-        self.assertIn("known_time_gate_prediction_SP", form.fields)
-        self.assertIn("known_time_gate_prediction_TP1", form.fields)
-        self.assertIn("known_time_gate_prediction_FP", form.fields)
+        self.assertNotIn("known_time_gate_prediction_SP", form.fields)
+        self.assertNotIn("known_time_gate_prediction_TP1", form.fields)
+        self.assertNotIn("known_time_gate_prediction_FP", form.fields)
 
-    def test_create_view_persists_multiple_contract_navigation_points(self):
+    def test_create_view_persists_empty_contract_navigation_declaration_until_editor_is_used(self):
         self.client.force_login(self.user)
         response = self.client.post(
             self.create_url,
@@ -134,112 +134,26 @@ class TestContractNavigationDeclarationUI(TestCase):
                 "air_speed": 70,
                 "wind_direction": 0,
                 "wind_speed": 0,
-                "declared_before_mp_1": "A",
-                "declared_before_mp_2": "B",
-                "declared_after_mp_1": "C",
-                "declared_after_mp_2": "D",
             },
         )
         if response.status_code != 302:
             self.fail(str(response.context["form"].errors))
         self.assertEqual(302, response.status_code)
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
-        self.assertEqual(
-            contestant.contestanttaskconfiguration.declaration_payload,
-            {"declared_sequence": ["A", "B", "MP", "C", "D", "FP"]},
-        )
+        self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
 
-    def test_contract_navigation_form_rejects_duplicate_points_within_same_side(self):
-        form = ContestantForm(
-            navigation_task=self.navigation_task,
-            data={
-                "contestant_number": 1,
-                "team": self.contest_team.team.pk,
-                "tracking_service": str(self.contest_team.tracking_service),
-                "tracking_device": self.contest_team.tracking_device or "",
-                "tracker_device_id": self.contest_team.tracker_device_id or "",
-                "takeoff_time": "2026-08-01T09:55",
-                "adaptive_start": False,
-                "tracker_start_time": "2026-08-01T09:45",
-                "finished_by_time": "2026-08-01T11:30",
-                "minutes_to_starting_point": 5,
-                "air_speed": 70,
-                "wind_direction": 0,
-                "wind_speed": 0,
-                "declared_before_mp_1": "A",
-                "declared_before_mp_2": "A",
-            },
-        )
-        self.assertFalse(form.is_valid())
-        self.assertIn("declared_before_mp_2", form.errors)
-
-    def test_contract_navigation_form_rejects_duplicate_points_after_mp(self):
-        form = ContestantForm(
-            navigation_task=self.navigation_task,
-            data={
-                "contestant_number": 1,
-                "team": self.contest_team.team.pk,
-                "tracking_service": str(self.contest_team.tracking_service),
-                "tracking_device": self.contest_team.tracking_device or "",
-                "tracker_device_id": self.contest_team.tracker_device_id or "",
-                "takeoff_time": "2026-08-01T09:55",
-                "adaptive_start": False,
-                "tracker_start_time": "2026-08-01T09:45",
-                "finished_by_time": "2026-08-01T11:30",
-                "minutes_to_starting_point": 5,
-                "air_speed": 70,
-                "wind_direction": 0,
-                "wind_speed": 0,
-                "declared_after_mp_1": "C",
-                "declared_after_mp_2": "C",
-            },
-        )
-        self.assertFalse(form.is_valid())
-        self.assertIn("declared_after_mp_2", form.errors)
-
-    def test_contract_navigation_form_rejects_cross_side_reuse(self):
-        form = ContestantForm(
-            navigation_task=self.navigation_task,
-            data={
-                "contestant_number": 1,
-                "team": self.contest_team.team.pk,
-                "tracking_service": str(self.contest_team.tracking_service),
-                "tracking_device": self.contest_team.tracking_device or "",
-                "tracker_device_id": self.contest_team.tracker_device_id or "",
-                "takeoff_time": "2026-08-01T09:55",
-                "adaptive_start": False,
-                "tracker_start_time": "2026-08-01T09:45",
-                "finished_by_time": "2026-08-01T11:30",
-                "minutes_to_starting_point": 5,
-                "air_speed": 70,
-                "wind_direction": 0,
-                "wind_speed": 0,
-                "declared_before_mp_1": "A",
-                "declared_after_mp_1": "A",
-            },
-        )
-        self.assertFalse(form.is_valid())
-        self.assertIn("declared_after_mp_1", form.errors)
-
-    def test_create_view_renders_progressive_slot_controls(self):
+    def test_create_view_does_not_render_progressive_slot_controls(self):
         self.client.force_login(self.user)
         response = self.client.get(self.create_url)
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, 'id="add-before-mp-slot"')
-        self.assertContains(response, 'id="remove-before-mp-slot"')
-        self.assertContains(response, 'id="add-after-mp-slot"')
-        self.assertContains(response, 'id="remove-after-mp-slot"')
-        self.assertContains(response, "wrapper.style.display = 'none'")
+        self.assertNotContains(response, 'id="add-before-mp-slot"')
+        self.assertNotContains(response, 'id="remove-before-mp-slot"')
+        self.assertNotContains(response, 'id="add-after-mp-slot"')
+        self.assertNotContains(response, 'id="remove-after-mp-slot"')
+        self.assertNotContains(response, 'id="id_declared_before_mp_1"')
+        self.assertNotContains(response, 'id="id_declared_after_mp_1"')
 
-    def test_create_view_hides_later_slots_until_progressively_added(self):
-        self.client.force_login(self.user)
-        response = self.client.get(self.create_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "wrapper.style.display = 'none'")
-        self.assertContains(response, "remove-before-mp-slot")
-        self.assertContains(response, "remove-after-mp-slot")
-
-    def test_update_view_restores_existing_slot_values(self):
+    def test_update_view_does_not_render_existing_slot_values(self):
         self.client.force_login(self.user)
         response = self.client.post(
             self.create_url,
@@ -257,22 +171,16 @@ class TestContractNavigationDeclarationUI(TestCase):
                 "air_speed": 70,
                 "wind_direction": 0,
                 "wind_speed": 0,
-                "declared_before_mp_1": "A",
-                "declared_before_mp_2": "B",
-                "declared_after_mp_1": "C",
-                "declared_after_mp_2": "D",
             },
         )
         self.assertEqual(302, response.status_code)
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
         update_url = reverse("contestant_update", kwargs={"pk": contestant.pk})
         response = self.client.get(update_url)
-        self.assertContains(response, 'name="declared_before_mp_2"')
-        self.assertContains(response, 'name="declared_after_mp_2"')
-        self.assertContains(response, '<option value="B"  selected')
-        self.assertContains(response, '<option value="D"  selected')
+        self.assertNotContains(response, 'name="declared_before_mp_2"')
+        self.assertNotContains(response, 'name="declared_after_mp_2"')
 
-    def test_create_view_persists_curve_navigation_predictions(self):
+    def test_create_view_persists_empty_curve_navigation_predictions_until_editor_is_used(self):
         curve_route = EditableRoute.objects.create(
             name="Curve declaration save primitives",
             route={
@@ -305,12 +213,11 @@ class TestContractNavigationDeclarationUI(TestCase):
                 "air_speed": 70,
                 "wind_direction": 0,
                 "wind_speed": 0,
-                "known_time_gate_prediction_KT1": "2026-08-01T10:07",
             },
         )
         self.assertEqual(302, response.status_code)
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
-        self.assertIn("KT1", contestant.contestanttaskconfiguration.declaration_payload["known_time_gate_predictions"])
+        self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
 
     def test_navigation_task_detail_shows_edit_declaration_link_for_contract_navigation(self):
         self.client.force_login(self.user)
@@ -330,8 +237,6 @@ class TestContractNavigationDeclarationUI(TestCase):
                 "air_speed": 70,
                 "wind_direction": 0,
                 "wind_speed": 0,
-                "declared_before_mp_1": "A",
-                "declared_after_mp_1": "C",
             },
         )
         self.assertEqual(302, create_response.status_code)
@@ -344,3 +249,31 @@ class TestContractNavigationDeclarationUI(TestCase):
             detail_response,
             f"/contestant-declaration/{self.contest.pk}/{self.navigation_task.pk}/{contestant.pk}",
         )
+
+
+    def test_contract_navigation_compiler_requires_declared_t_seconds(self):
+        from display.models import Contestant
+        from display.services.contestant_task_compiler import ContestantTaskCompiler
+
+        contestant = Contestant.objects.create(
+            navigation_task=self.navigation_task,
+            team=self.contest_team.team,
+            contestant_number=99,
+            tracking_service=self.contest_team.tracking_service,
+            tracking_device=self.contest_team.tracking_device or "",
+            tracker_device_id=self.contest_team.tracker_device_id or "",
+            takeoff_time=datetime.datetime(2026, 8, 1, 9, 55, tzinfo=datetime.timezone.utc),
+            adaptive_start=False,
+            tracker_start_time=datetime.datetime(2026, 8, 1, 9, 45, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2026, 8, 1, 11, 30, tzinfo=datetime.timezone.utc),
+            minutes_to_starting_point=5,
+            air_speed=70,
+            wind_direction=0,
+            wind_speed=0,
+        )
+        compiled = ContestantTaskCompiler(contestant).compile(
+            declaration_payload={"declared_sequence": ["A", "MP", "C", "FP"]},
+            force=True,
+        )
+        self.assertFalse(compiled.is_valid)
+        self.assertIn("Contract navigation requires declared_t_seconds.", compiled.validation_errors)

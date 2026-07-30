@@ -661,55 +661,6 @@ class ContestantForm(forms.ModelForm):
         self.fields["tracker_start_time"].widget = datetime_widget
         self.fields["finished_by_time"].widget = datetime_widget
 
-        declaration_fields = []
-        subtype = self.navigation_task.task_subtype
-        existing_payload = {}
-        if self.instance.pk and hasattr(self.instance, "contestanttaskconfiguration"):
-            existing_payload = self.instance.contestanttaskconfiguration.declaration_payload or {}
-        self._existing_declaration_payload = existing_payload
-
-        if subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
-            choices = [("", "---------")] + _catalogue_turnpoint_choices(self.navigation_task)
-            before_values = []
-            after_values = []
-            seen_mp = False
-            for item in existing_payload.get("declared_sequence", []):
-                if item == "MP":
-                    seen_mp = True
-                    continue
-                if item == "FP":
-                    continue
-                if seen_mp:
-                    after_values.append(item)
-                else:
-                    before_values.append(item)
-            for index in range(DECLARATION_SLOT_COUNT):
-                before_name = f"declared_before_mp_{index + 1}"
-                after_name = f"declared_after_mp_{index + 1}"
-                self.fields[before_name] = forms.ChoiceField(required=False, choices=choices, label=f"Declared point before MP #{index + 1}")
-                self.fields[after_name] = forms.ChoiceField(required=False, choices=choices, label=f"Declared point after MP #{index + 1}")
-                self.fields[before_name].initial = before_values[index] if index < len(before_values) else ""
-                self.fields[after_name].initial = after_values[index] if index < len(after_values) else ""
-                declaration_fields.extend([before_name, after_name])
-            declaration_fields.extend([
-                HTML('<div class="flex gap-2 mt-2"><button type="button" id="add-before-mp-slot" class="btn btn-xs btn-outline">Add before MP</button><button type="button" id="remove-before-mp-slot" class="btn btn-xs btn-ghost">Remove before MP</button></div>'),
-                HTML('<div class="flex gap-2 mt-2"><button type="button" id="add-after-mp-slot" class="btn btn-xs btn-outline">Add after MP</button><button type="button" id="remove-after-mp-slot" class="btn btn-xs btn-ghost">Remove after MP</button></div>'),
-            ])
-        elif subtype in (CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION):
-            prediction_payload = existing_payload.get("known_time_gate_predictions", {})
-            prediction_names = (
-                _known_time_gate_names(self.navigation_task)
-                if subtype == CURVE_NAVIGATION_TIME_ESTIMATION
-                else [item.name for item in self.navigation_task.route.waypoints if getattr(item, "name", None)]
-            )
-            for name in prediction_names:
-                field_name = f"known_time_gate_prediction_{name}"
-                self.fields[field_name] = forms.DateTimeField(required=False, widget=datetime_widget, label=f"Prediction for {name}")
-                if prediction_payload.get(name):
-                    parsed = datetime.datetime.fromisoformat(prediction_payload[name].replace("Z", "+00:00"))
-                    self.fields[field_name].initial = timezone.localtime(parsed).strftime("%Y-%m-%dT%H:%M")
-                declaration_fields.append(field_name)
-
         self.helper = FormHelper()
         self.helper.attrs = {"enctype": "multipart/form-data"}
         layout_items = [
@@ -736,68 +687,12 @@ class ContestantForm(forms.ModelForm):
                 "finished_by_time",
             ),
         ]
-        if declaration_fields:
-            layout_items.append(Fieldset("Task-specific declaration", *declaration_fields))
         self.helper.layout = Layout(*layout_items, ButtonHolder(Submit("submit", "Submit")))
 
     def clean(self):
-        cleaned_data = super().clean()
-        subtype = self.navigation_task.task_subtype
-        if subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
-            before = [cleaned_data.get(f"declared_before_mp_{i}") for i in range(1, DECLARATION_SLOT_COUNT + 1)]
-            after = [cleaned_data.get(f"declared_after_mp_{i}") for i in range(1, DECLARATION_SLOT_COUNT + 1)]
-            seen_before = set()
-            for i, value in enumerate(before, start=1):
-                if value and value in seen_before:
-                    self.add_error(f"declared_before_mp_{i}", "Duplicate turnpoints are not allowed before MP.")
-                if value:
-                    seen_before.add(value)
-            seen_after = set()
-            for i, value in enumerate(after, start=1):
-                if value and value in seen_after:
-                    self.add_error(f"declared_after_mp_{i}", "Duplicate turnpoints are not allowed after MP.")
-                if value:
-                    seen_after.add(value)
-            used_before = {value for value in before if value}
-            for i, value in enumerate(after, start=1):
-                if value and value in used_before:
-                    self.add_error(f"declared_after_mp_{i}", "Turnpoints may not be reused across both sides of MP.")
-        elif subtype in (CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION):
-            prediction_names = (
-                _known_time_gate_names(self.navigation_task)
-                if subtype == CURVE_NAVIGATION_TIME_ESTIMATION
-                else [item.name for item in self.navigation_task.route.waypoints if getattr(item, "name", None)]
-            )
-            fields = [f"known_time_gate_prediction_{name}" for name in prediction_names]
-            if fields and not any(cleaned_data.get(field) for field in fields):
-                self.add_error(fields[0], "At least one known time gate prediction is required.")
-        return cleaned_data
+        return super().clean()
 
     def get_declaration_payload(self):
-        subtype = self.navigation_task.task_subtype
-        if subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
-            return {
-                "declared_sequence": [
-                    *[self.cleaned_data.get(f"declared_before_mp_{i}") for i in range(1, DECLARATION_SLOT_COUNT + 1) if self.cleaned_data.get(f"declared_before_mp_{i}")],
-                    "MP",
-                    *[self.cleaned_data.get(f"declared_after_mp_{i}") for i in range(1, DECLARATION_SLOT_COUNT + 1) if self.cleaned_data.get(f"declared_after_mp_{i}")],
-                    "FP",
-                ]
-            }
-        if subtype in (CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION):
-            predictions = {}
-            prediction_names = (
-                _known_time_gate_names(self.navigation_task)
-                if subtype == CURVE_NAVIGATION_TIME_ESTIMATION
-                else [item.name for item in self.navigation_task.route.waypoints if getattr(item, "name", None)]
-            )
-            for name in prediction_names:
-                normalized = _local_datetime_to_utc_iso(self.cleaned_data.get(f"known_time_gate_prediction_{name}"))
-                if normalized:
-                    predictions[name] = normalized
-            return {"known_time_gate_predictions": predictions} if predictions else {}
-        if subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
-            return self._existing_declaration_payload if self.instance.pk else {}
         return {}
 
     class Meta:

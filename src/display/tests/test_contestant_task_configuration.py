@@ -193,7 +193,7 @@ class TestContestantTaskConfiguration(TestCase):
         self.navigation_task.save(update_fields=["task_subtype", "task_config", "editable_route"])
 
         compiled = ContestantTaskCompiler(self.contestant).compile(
-            declaration_payload={"declared_sequence": ["A", "B", "MP", "FP"]},
+            declaration_payload={"declared_sequence": ["A", "B", "MP", "FP"], "declared_t_seconds": 82},
             force=True,
         )
         self.assertTrue(compiled.is_valid)
@@ -205,7 +205,14 @@ class TestContestantTaskConfiguration(TestCase):
             compiled.compiled_effective_route_payload["effective_waypoint_names"],
             ["SP", "A", "B", "MP", "FP"],
         )
-        self.assertEqual(compiled.compiled_effective_route_payload["time_model"]["t_seconds"], 600)
+        self.assertEqual(compiled.declaration_payload["declared_t_seconds"], 82)
+        self.assertGreater(compiled.compiled_effective_route_payload["time_model"]["t_seconds"], 0)
+        payload = compiled.compiled_effective_route_payload  # type: ignore[assignment]
+        effective_waypoints = list(payload.get("effective_waypoints", []))  # type: ignore[attr-defined]
+        self.assertTrue(any(item.get("procedure_turn_points") for item in effective_waypoints if item.get("is_procedure_turn")))
+        a_waypoint = next(item for item in effective_waypoints if item["name"] == "A")
+        self.assertEqual(len(a_waypoint["gate_line"]), 2)
+        self.assertNotEqual(a_waypoint["gate_line"][0], a_waypoint["gate_line"][1])
 
     def test_turnpoint_hunt_compiles_compulsory_point_times_without_predicted_sequence(self):
         editable_route = EditableRoute.objects.create(

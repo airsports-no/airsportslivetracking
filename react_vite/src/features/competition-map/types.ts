@@ -93,6 +93,7 @@ export interface Waypoint {
   bearing_from_previous: number;
   procedure_turn_points?: [number, number][];
   is_procedure_turn: boolean;
+  is_steep_turn?: boolean;
   outer_corner_position?: any[];
 }
 

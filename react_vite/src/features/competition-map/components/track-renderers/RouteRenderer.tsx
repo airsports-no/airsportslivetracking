@@ -120,9 +120,12 @@ function renderPrecisionRoute(map: L.Map, route: RouteData, navTaskDisplaySecret
     }
     if (!typesToIgnore.includes(waypoint.type)) {
         if (waypoint.is_procedure_turn) {
-            // procedure_turn_points is not on waypoint type. Assume it exists from old code.
-            // @ts-ignore
-            currentTrack.push(...waypoint.procedure_turn_points);
+            const procedureTurnPoints = (waypoint as any).procedure_turn_points;
+            if (Array.isArray(procedureTurnPoints) && procedureTurnPoints.length > 0) {
+                currentTrack.push(...procedureTurnPoints);
+            } else {
+                currentTrack.push([waypoint.latitude, waypoint.longitude]);
+            }
         } else {
             currentTrack.push([waypoint.latitude, waypoint.longitude]);
         }

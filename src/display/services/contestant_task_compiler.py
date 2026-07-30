@@ -14,7 +14,15 @@ from display.utilities.cima_task_type_definitions import (
     TURNPOINT_HUNT,
     UNKNOWN_LEGS,
 )
-from display.utilities.route_building_utilities import build_waypoint, calculate_and_update_legs, insert_gate_ranges
+from display.utilities.route_building_utilities import (
+    build_waypoint,
+    calculate_and_update_legs,
+    correct_gate_directions_to_the_right,
+    create_perpendicular_line_at_end_gates,
+    create_perpendicular_line_at_end_lonlat,
+    insert_gate_ranges,
+)
+
 
 
 class ContestantTaskCompiler:
@@ -24,8 +32,12 @@ class ContestantTaskCompiler:
     def compile(self, declaration_payload: dict | None = None, force: bool = False) -> ContestantTaskConfiguration:
         declaration_payload = declaration_payload or {}
         compiled_task = TaskCompiler(self.contestant.navigation_task).compile()
-        compiled_gate_times_payload = self._build_gate_times_payload(declaration_payload)
         compiled_effective_route_payload = self._build_effective_route_payload(compiled_task, declaration_payload)
+        compiled_gate_times_payload = self._build_gate_times_payload(
+            declaration_payload,
+            compiled_task,
+            compiled_effective_route_payload,
+        )
         validation_errors = self._validate_declaration(declaration_payload, compiled_task)
         validation_errors.extend(compiled_task.compiled_payload.get("validation_errors", []))
         is_valid = len(validation_errors) == 0
@@ -113,6 +125,17 @@ class ContestantTaskCompiler:
                     errors.append("Contract navigation requires exactly one FP in declared_sequence.")
                 if declared_sequence[-1] != "FP":
                     errors.append("Contract navigation requires FP to be the last declared sequence item.")
+
+            declared_t_seconds = declaration_payload.get("declared_t_seconds")
+            if declared_t_seconds in (None, ""):
+                errors.append("Contract navigation requires declared_t_seconds.")
+            else:
+                try:
+                    if float(declared_t_seconds) <= 0:
+                        errors.append("Contract navigation declared_t_seconds must be greater than zero.")
+                except (TypeError, ValueError):
+                    errors.append("Contract navigation declared_t_seconds must be numeric.")
+
         return errors
 
     def _build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
@@ -131,9 +154,12 @@ class ContestantTaskCompiler:
             declared_sequence = declaration_payload.get("declared_sequence", [])
             effective_waypoints = self._build_contract_navigation_effective_waypoints(compiled_task, declared_sequence)
             payload["declared_sequence"] = declared_sequence
+            declared_t_seconds = declaration_payload.get("declared_t_seconds")
+            if declared_t_seconds not in (None, ""):
+                payload["declared_t_seconds"] = int(float(declared_t_seconds))
             payload["effective_waypoint_names"] = [item["name"] for item in effective_waypoints]
             payload["effective_waypoints"] = effective_waypoints
-            payload["time_model"] = self._build_contract_navigation_time_model(declared_sequence)
+            payload["time_model"] = self._build_contract_navigation_time_model(declared_sequence, declared_t_seconds)
         elif subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
             compulsory_point_names = self._get_turnpoint_hunt_compulsory_point_names(compiled_task)
             compulsory_point_times = self._get_turnpoint_hunt_compulsory_point_times(declaration_payload)
@@ -336,12 +362,13 @@ class ContestantTaskCompiler:
             effective_waypoints.append(fp)
 
         calculate_and_update_legs(effective_waypoints, self.contestant.navigation_task.route.use_procedure_turns)
+        self._apply_effective_gate_lines(effective_waypoints)
         insert_gate_ranges(effective_waypoints)
 
         return [self._serialise_waypoint(waypoint) for waypoint in effective_waypoints]
 
-    def _build_contract_navigation_time_model(self, declared_sequence: list) -> dict:
-        t_seconds = int(self.contestant.navigation_task.task_config.get("contract_time_seconds", 0) or 0)
+    def _build_contract_navigation_time_model(self, declared_sequence: list, declared_t_seconds=None) -> dict:
+        t_seconds = int(float(declared_t_seconds)) if declared_t_seconds not in (None, "") else 0
         before_mp = []
         after_mp = []
         seen_mp = False
@@ -365,6 +392,7 @@ class ContestantTaskCompiler:
             "before_mp_sequence": before_mp,
             "after_mp_sequence": after_mp,
         }
+
 
     def _build_turnpoint_hunt_effective_waypoints(self, compiled_task, compulsory_point_names: list[str]) -> list[dict]:
         base_waypoints = self.contestant.navigation_task.route.waypoints
@@ -396,6 +424,7 @@ class ContestantTaskCompiler:
             effective_waypoints.append(fp)
 
         calculate_and_update_legs(effective_waypoints, self.contestant.navigation_task.route.use_procedure_turns)
+        self._apply_effective_gate_lines(effective_waypoints)
         insert_gate_ranges(effective_waypoints)
 
         return [self._serialise_waypoint(waypoint) for waypoint in effective_waypoints]
@@ -414,6 +443,7 @@ class ContestantTaskCompiler:
             "distance_previous": waypoint.distance_previous,
             "bearing_next": waypoint.bearing_next,
             "bearing_from_previous": waypoint.bearing_from_previous,
+            "procedure_turn_points": waypoint.procedure_turn_points,
             "inside_distance": waypoint.inside_distance,
             "outside_distance": waypoint.outside_distance,
             "is_procedure_turn": waypoint.is_procedure_turn,
@@ -422,7 +452,36 @@ class ContestantTaskCompiler:
             "elevation": waypoint.elevation,
         }
 
-    def _build_gate_times_payload(self, declaration_payload: dict) -> dict[str, str]:
+    def _apply_effective_gate_lines(self, effective_waypoints) -> None:
+        if len(effective_waypoints) < 2:
+            return
+
+        for index, waypoint in enumerate(effective_waypoints):
+            width_nm = getattr(waypoint, "width", 0.1)
+            if index == 0:
+                next_waypoint = effective_waypoints[index + 1]
+                line = create_perpendicular_line_at_end_lonlat(
+                    next_waypoint.longitude,
+                    next_waypoint.latitude,
+                    waypoint.longitude,
+                    waypoint.latitude,
+                    width_nm * 1852,
+                )
+                line[0].reverse()
+                line[1].reverse()
+                line.reverse()
+                waypoint.gate_line = line
+                continue
+
+            waypoint.gate_line = create_perpendicular_line_at_end_gates(
+                effective_waypoints[index - 1],
+                waypoint,
+                width_nm,
+            )
+
+        correct_gate_directions_to_the_right(effective_waypoints)
+
+    def _build_gate_times_payload(self, declaration_payload: dict, compiled_task, compiled_effective_route_payload: dict) -> dict[str, str]:
         gate_times = {
             key: value.isoformat() for key, value in self.contestant.calculate_missing_gate_times({}).items()
         }
@@ -456,7 +515,11 @@ class ContestantTaskCompiler:
 
         if self.contestant.navigation_task.task_subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
             declared_sequence = declaration_payload.get("declared_sequence", [])
-            time_model = self._build_contract_navigation_time_model(declared_sequence)
+            declared_t_seconds = declaration_payload.get("declared_t_seconds")
+            time_model = compiled_effective_route_payload.get("time_model") or self._build_contract_navigation_time_model(
+                declared_sequence,
+                declared_t_seconds,
+            )
             base_time = self.contestant.takeoff_time + datetime.timedelta(minutes=self.contestant.minutes_to_starting_point)
             gate_times["SP"] = base_time.isoformat()
             gate_times["MP"] = (base_time + datetime.timedelta(seconds=time_model["mp_offset_seconds"])).isoformat()
@@ -501,6 +564,7 @@ class ContestantTaskCompiler:
 
         if subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
             declared_sequence = declaration_input.get("declared_sequence")
+            declared_t_seconds = declaration_input.get("declared_t_seconds")
             if declared_sequence is None:
                 before_values = declaration_input.get("declared_before_mp") or []
                 after_values = declaration_input.get("declared_after_mp") or []
@@ -515,7 +579,13 @@ class ContestantTaskCompiler:
             if not isinstance(declared_sequence, list):
                 raise serializers.ValidationError({"declared_sequence": "Expected a list of declared turnpoints."})
             normalized_sequence = [item for item in declared_sequence if item not in (None, "")]
-            return {"declared_sequence": normalized_sequence} if normalized_sequence else {}
+            payload: dict = {"declared_sequence": normalized_sequence} if normalized_sequence else {}
+            if declared_t_seconds not in (None, ""):
+                try:
+                    payload["declared_t_seconds"] = int(float(declared_t_seconds))
+                except (TypeError, ValueError):
+                    raise serializers.ValidationError({"declared_t_seconds": "Expected a numeric T in seconds."})
+            return payload
 
         if subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
             compulsory_point_times = declaration_input.get("compulsory_point_times")

@@ -29,7 +29,7 @@ def _build_default_declaration_payload(navigation_task: NavigationTask) -> dict:
         if len(catalogue_turnpoints) > 1:
             declared_sequence.append(catalogue_turnpoints[1])
         declared_sequence.append("FP")
-        return {"declared_sequence": declared_sequence}
+        return {"declared_sequence": declared_sequence, "declared_t_seconds": 600}
     return {}
 
 
