@@ -68,6 +68,10 @@ from display.models import (
 )
 from display.services.access_resolver import resolve_contest_access
 from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.contestant_persistence import (
+    create_contestant_with_related_state,
+    update_contestant_with_related_state,
+)
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
@@ -1250,121 +1254,25 @@ class ContestantSerialiser(serializers.ModelSerializer):
             navigation_task = self.context["navigation_task"]
         except KeyError:
             raise Http404("Navigation task not found")
-        validated_data["navigation_task"] = navigation_task
-        for field_name in ("takeoff_time", "tracker_start_time", "finished_by_time"):
-            value = validated_data.get(field_name)
-            if isinstance(value, datetime.datetime) and value.tzinfo is not None:
-                validated_data[field_name] = value.astimezone(datetime.timezone.utc)
         provided_gate_times = validated_data.pop("gate_times", {})
         declaration_input = validated_data.pop("declaration_payload", None)
-        provided_gate_times = {
-            key: dateutil.parser.parse(value) for key, value in provided_gate_times.items()
-        }
-        # gate_times = validated_data.pop("gate_times", {})
-        team = validated_data["team"]
-        if contest_team := ContestTeam.objects.filter(contest=navigation_task.contest, team=team).first():
-            if (
-                "tracking_service" not in validated_data
-                or validated_data["tracking_service"] is None
-                or validated_data["tracking_service"] == ""
-            ):
-                validated_data["tracking_service"] = contest_team.tracking_service
-            if (
-                "tracking_device" not in validated_data
-                or validated_data["tracking_device"] is None
-                or validated_data["tracking_device"] == ""
-            ):
-                validated_data["tracking_device"] = contest_team.tracking_device
-            if (
-                "tracker_device_id" not in validated_data
-                or validated_data["tracker_device_id"] is None
-                or validated_data["tracker_device_id"] == ""
-            ):
-                validated_data["tracker_device_id"] = contest_team.tracker_device_id
-            if (
-                "air_speed" not in validated_data
-                or validated_data["air_speed"] is None
-                or validated_data["air_speed"] == ""
-            ):
-                validated_data["air_speed"] = contest_team.air_speed
-
-        # Ordering is deliberate: create contestant first, then apply any gate
-        # time overrides, then normalize/compile declaration payload against the
-        # saved contestant/task context, and finally sync ContestTeam defaults.
-        contestant = Contestant.objects.create(**validated_data)
-        if provided_gate_times:
-            contestant.gate_times = provided_gate_times
-            contestant.save(update_fields=["predefined_gate_times"])
-        declaration_payload = ContestantTaskCompiler(contestant).build_declaration_payload_from_input(declaration_input)
-        if declaration_payload or contestant.navigation_task.task_subtype:
-            ContestantTaskCompiler(contestant).compile(declaration_payload=declaration_payload, force=True)
-        if not ContestTeam.objects.filter(contest=contestant.navigation_task.contest, team=contestant.team).exists():
-            ContestTeam.objects.create(
-                contest=contestant.navigation_task.contest,
-                team=contestant.team,
-                tracker_device_id=contestant.tracker_device_id,
-                tracking_service=contestant.tracking_service,
-                air_speed=contestant.air_speed,
-            )
-
-        return contestant
+        return create_contestant_with_related_state(
+            navigation_task,
+            validated_data,
+            gate_times=provided_gate_times,
+            declaration_input=declaration_input,
+        )
 
     def update(self, instance, validated_data):
         gate_times = validated_data.pop("gate_times", {})
         declaration_input = validated_data.pop("declaration_payload", None)
-        for field_name in ("takeoff_time", "tracker_start_time", "finished_by_time"):
-            value = validated_data.get(field_name)
-            if isinstance(value, datetime.datetime) and value.tzinfo is not None:
-                validated_data[field_name] = value.astimezone(datetime.timezone.utc)
-        if not self.partial:
-            team = validated_data["team"]
-            if contest_team := ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=team).first():
-                if (
-                    "tracking_service" not in validated_data
-                    or validated_data["tracking_service"] is None
-                    or validated_data["tracking_service"] == ""
-                ):
-                    validated_data["tracking_service"] = contest_team.tracking_service
-                if (
-                    "tracking_device" not in validated_data
-                    or validated_data["tracking_device"] is None
-                    or validated_data["tracking_device"] == ""
-                ):
-                    validated_data["tracking_device"] = contest_team.tracking_device
-                if (
-                    "tracker_device_id" not in validated_data
-                    or validated_data["tracker_device_id"] is None
-                    or validated_data["tracker_device_id"] == ""
-                ):
-                    validated_data["tracker_device_id"] = contest_team.tracker_device_id
-                if (
-                    "air_speed" not in validated_data
-                    or validated_data["air_speed"] is None
-                    or validated_data["air_speed"] == ""
-                ):
-                    validated_data["air_speed"] = contest_team.air_speed
-        # Ordering is deliberate here too: persist base contestant fields,
-        # refresh/apply gate-time overrides, then recompile declaration-derived
-        # contestant state, and only afterwards mirror the resolved tracking/
-        # speed defaults back onto ContestTeam.
-        Contestant.objects.filter(pk=instance.pk).update(**validated_data)
-        instance.refresh_from_db()
-        instance.gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
-        instance.save()
-        declaration_payload = ContestantTaskCompiler(instance).build_declaration_payload_from_input(declaration_input)
-        if declaration_payload or instance.navigation_task.task_subtype:
-            ContestantTaskCompiler(instance).compile(declaration_payload=declaration_payload, force=True)
-        ContestTeam.objects.update_or_create(
-            defaults={
-                "tracker_device_id": instance.tracker_device_id,
-                "tracking_service": instance.tracking_service,
-                "tracking_device": instance.tracking_device,
-                "air_speed": instance.air_speed,
-            },
-            contest=instance.navigation_task.contest,
-            team=instance.team,
+        return update_contestant_with_related_state(
+            instance,
+            validated_data,
+            gate_times=gate_times,
+            declaration_input=declaration_input,
+            partial=self.partial,
         )
-        return instance
 
 
 class OngoingNavigationSerialiser(serializers.ModelSerializer):

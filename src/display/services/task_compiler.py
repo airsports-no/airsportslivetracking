@@ -1,3 +1,6 @@
+import hashlib
+import json
+
 from display.models import CompiledNavigationTask
 from display.utilities.cima_task_type_definitions import (
     CONTRACT_NAVIGATION_TIME_CONTROLS,
@@ -182,4 +185,30 @@ class TaskCompiler:
     def _calculate_source_signature(self) -> str:
         route_pk = getattr(self.navigation_task.route, "pk", "")
         editable_route_pk = getattr(self.navigation_task.editable_route, "pk", "")
-        return f"task:{self.navigation_task.pk}:route:{route_pk}:editable_route:{editable_route_pk}:subtype:{self.navigation_task.task_subtype or ''}"
+        # The signature tracks every persisted configuration input that can
+        # change compiled subtype semantics without forcing callers to pass
+        # force=True. We intentionally include both task_config and relevant
+        # scorecard runtime knobs in addition to route/editable-route identity.
+        scorecard = getattr(self.navigation_task, "scorecard", None)
+        scorecard_signature = (
+            getattr(scorecard, "compulsory_timing_tolerance_seconds", None),
+            getattr(scorecard, "maximum_task_duration_minutes", None),
+            getattr(scorecard, "maximum_task_duration_penalty", None),
+            getattr(scorecard, "fuel_deadline_penalty", None),
+            getattr(scorecard, "duration_normalization_policy", None),
+            getattr(scorecard, "duration_residual_fuel_required", None),
+            getattr(scorecard, "circle_radius_min_m", None),
+            getattr(scorecard, "circle_radius_max_m", None),
+            getattr(scorecard, "anr_route_to_sp_penalty", None),
+            getattr(scorecard, "anr_route_from_fp_penalty", None),
+        )
+        payload = {
+            "task": self.navigation_task.pk,
+            "route": route_pk,
+            "editable_route": editable_route_pk,
+            "subtype": self.navigation_task.task_subtype or "",
+            "task_config": self.navigation_task.task_config,
+            "scorecard": scorecard_signature,
+        }
+        canonical = json.dumps(payload, sort_keys=True, default=str, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
