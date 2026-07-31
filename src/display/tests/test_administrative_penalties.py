@@ -418,6 +418,41 @@ class TestAdministrativePenalties(TestCase):
         self.assertContains(response, "Route to SP")
         self.assertContains(response, "Route from FP")
 
+    def test_gate_times_view_uses_effective_waypoints_for_total_distance_and_cards(self):
+        editable_route = EditableRoute.objects.create(
+            name="Gate times contract distance primitives",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.0, 60.8]]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.0, 60.4]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.0, 60.8]}},
+                    {"type": "Feature", "properties": {"id": "cat-a", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.0, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "cat-b", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.0, 60.6]}},
+                ],
+            },
+        )
+        self.navigation_task.task_subtype = "contract_navigation_time_controls"
+        self.navigation_task.editable_route = editable_route
+        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
+        self.client.force_login(self.user)
+
+        from display.services.contestant_task_compiler import ContestantTaskCompiler
+
+        ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={"declared_sequence": ["A", "MP", "B", "FP"], "declared_t_seconds": 600},
+            force=True,
+        )
+        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        rendered_names = [gate.name for gate in response.context["rendered_waypoints"]]
+        self.assertEqual(rendered_names, ["SP", "A", "MP", "B", "FP"])
+        self.assertContains(response, "A")
+        self.assertContains(response, "B")
+        self.assertGreater(response.context["total_distance"], 0)
+
     def test_gate_times_view_exposes_fuel_review_for_limited_fuel_turnpoint_hunt(self):
         editable_route = EditableRoute.objects.create(
             name="Gate times fuel primitives",

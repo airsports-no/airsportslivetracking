@@ -50,7 +50,7 @@ class TestCompiledNavigationTask(TestCase):
         self.assertEqual(compiled.compiled_family_route, self.navigation_task.route)
         self.assertEqual(compiled.compiled_payload["coarse_task_family"], "precision")
         self.assertEqual(compiled.compiled_payload["task_config"], {"source": "test"})
-        self.assertEqual(compiled.compiled_payload["primitives"], {})
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"], {})
 
     def test_task_compiler_reuses_existing_compiled_navigation_task(self):
         first = TaskCompiler(self.navigation_task).compile()
@@ -85,8 +85,8 @@ class TestCompiledNavigationTask(TestCase):
         self.navigation_task.save(update_fields=["editable_route"])
 
         compiled = TaskCompiler(self.navigation_task).compile(force=True)
-        self.assertEqual(compiled.compiled_payload["primitives"]["known_time_gate"], ["KT1"])
-        self.assertEqual(compiled.compiled_payload["primitives"]["hidden_gate"], ["HG1"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["known_time_gate"], ["KT1"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["hidden_gate"], ["HG1"])
 
     def test_task_compiler_marks_missing_required_primitives_invalid(self):
         self.navigation_task.task_subtype = CURVE_NAVIGATION_TIME_ESTIMATION
@@ -235,8 +235,8 @@ class TestCompiledNavigationTask(TestCase):
         self.navigation_task.save(update_fields=["editable_route", "task_subtype"])
 
         compiled = TaskCompiler(self.navigation_task).compile(force=True)
-        self.assertEqual(compiled.compiled_payload["primitives"]["observation_photo"], ["Photo 1"])
-        self.assertEqual(compiled.compiled_payload["primitives"]["unknown_leg"], ["UL1"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["observation_photo"], ["Photo 1"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["unknown_leg"], ["UL1"])
 
     def test_task_compiler_marks_known_circuit_missing_observation_photo_invalid(self):
         self.navigation_task.task_subtype = KNOWN_CIRCUIT
@@ -347,8 +347,8 @@ class TestCompiledNavigationTask(TestCase):
         self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
 
         compiled = TaskCompiler(self.navigation_task).compile(force=True)
-        self.assertEqual(compiled.compiled_payload["primitives"]["route_to_sp_path"], ["Route to SP"])
-        self.assertEqual(compiled.compiled_payload["primitives"]["route_from_fp_path"], ["Route from FP"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["route_to_sp_path"], ["Route to SP"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["route_from_fp_path"], ["Route from FP"])
         self.assertEqual(
             compiled.compiled_payload["compiled_auxiliary_paths"]["route_to_sp_path"],
             [[[10.9, 59.9], [11.0, 60.0]]],

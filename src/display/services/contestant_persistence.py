@@ -95,6 +95,9 @@ def update_contestant_with_related_state(instance: Contestant, validated_data: d
     with transaction.atomic():
         Contestant.objects.filter(pk=instance.pk).update(**normalized_data)
         instance.refresh_from_db()
+        # Serializer/view callers pass gate_times=None when they intend to
+        # clear predefined overrides, so updates always rewrite the persisted
+        # gate-time payload instead of silently preserving stale values.
         instance.gate_times = parsed_gate_times
         instance.save()
         _compile_contestant_configuration(instance, declaration_input)

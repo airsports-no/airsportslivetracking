@@ -74,6 +74,8 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_map_zoom_levels_for_definitions,
     get_available_map_source_definitions_for_navigation_task,
 )
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
+from display.flight_order_and_maps.map_plotter import build_effective_route_distance
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.forms import (
@@ -1693,12 +1695,17 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
         context = super().get_context_data(**kwargs)
         log = {}
         distances = {}
-        total_distance = 0
-        for waypoint in self.object.navigation_task.route.waypoints:  # type: Waypoint
+        rendered_waypoints = get_effective_route_waypoints(
+            self.object.navigation_task,
+            contestant=self.object,
+            include_contestant_declarations=True,
+        )
+        for waypoint in rendered_waypoints:  # type: Waypoint
             distances[waypoint.name] = waypoint.distance_previous
-            total_distance += waypoint.distance_previous if waypoint.distance_previous > 0 else 0
+        total_distance = build_effective_route_distance(rendered_waypoints)
         context["distances"] = distances
         context["total_distance"] = total_distance
+        context["rendered_waypoints"] = rendered_waypoints
         for item in self.object.scorelogentry_set.all():  # type: ScoreLogEntry
             if item.gate not in log:
                 log[item.gate] = []
@@ -1715,8 +1722,10 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
         context["actual_times"] = actual_times
         context["can_apply_quarantine_penalty"] = "change_contest" in get_user_perms(self.request.user, self.object.navigation_task.contest)
         context["administrative_penalty_categories"] = ADMINISTRATIVE_PENALTY_CATEGORIES
-        if hasattr(self.object, "contestanttaskconfiguration") and self.object.contestanttaskconfiguration.is_valid:
+        payload = {}
+        if hasattr(self.object, "contestanttaskconfiguration"):
             payload = self.object.contestanttaskconfiguration.compiled_effective_route_payload or {}
+        if payload:
             context["compiled_evidence"] = {
                 "compiled_auxiliary_paths": payload.get("compiled_auxiliary_paths", {}),
                 "observation_judging_mode": payload.get("observation_judging_mode"),

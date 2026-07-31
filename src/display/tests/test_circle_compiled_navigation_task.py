@@ -72,10 +72,10 @@ class TestCircleCompiledNavigationTask(TestCase):
         self.navigation_task.save(update_fields=["editable_route"])
 
         compiled = TaskCompiler(self.navigation_task).compile(force=True)
-        self.assertEqual(compiled.compiled_payload["primitives"]["circle_center_marker"], ["CM"])
-        self.assertEqual(compiled.compiled_payload["primitives"]["circle_start_marker"], ["SP"])
-        self.assertEqual(compiled.compiled_payload["primitives"]["circle_entry_marker"], ["X"])
-        self.assertEqual(compiled.compiled_payload["primitives"]["circle_exit_marker"], ["WP"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["circle_center_marker"], ["CM"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["circle_start_marker"], ["SP"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["circle_entry_marker"], ["X"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["circle_exit_marker"], ["WP"])
 
     def test_task_compiler_marks_circle_missing_start_entry_exit_invalid(self):
         editable_route = EditableRoute.objects.create(

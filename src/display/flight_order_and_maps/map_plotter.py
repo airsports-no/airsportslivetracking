@@ -191,6 +191,7 @@ def create_minute_lines_track(
     end_offset: Optional[float] = None,
     resolution_seconds: int = 60,
     line_width_nm=0.5,
+    leg_total_seconds: Optional[float] = None,
 ) -> List[
     Tuple[
         Tuple[Tuple[float, float], Tuple[float, float]],
@@ -219,13 +220,19 @@ def create_minute_lines_track(
         time_to_next_line += resolution_seconds
     accumulated_time = 0
     lines = []
+    total_track_distance_nm = 0.0
+    for index in range(0, len(track) - 1):
+        total_track_distance_nm += calculate_distance_lat_lon(track[index], track[index + 1]) / 1852
     for index in range(0, len(track) - 1):
         start = track[index]
         finish = track[index + 1]
         bearing = calculate_bearing(start, finish)
-        ground_speed = calculate_ground_speed_combined(bearing, air_speed, wind_speed, wind_direction)
         length = calculate_distance_lat_lon(start, finish) / 1852
-        leg_time = 3600 * length / ground_speed  # seconds
+        if leg_total_seconds is not None and total_track_distance_nm > 0:
+            leg_time = leg_total_seconds * length / total_track_distance_nm
+        else:
+            ground_speed = calculate_ground_speed_combined(bearing, air_speed, wind_speed, wind_direction)
+            leg_time = 3600 * length / ground_speed  # seconds
         while time_to_next_line < leg_time + accumulated_time:
             internal_leg_time = time_to_next_line - accumulated_time
             fraction = internal_leg_time / leg_time
@@ -259,6 +266,13 @@ def create_minute_lines_track(
     for line in lines:
         logger.debug(line)
     return lines
+
+
+def build_effective_route_distance(route_waypoints: List[Waypoint]) -> float:
+    total_distance = 0.0
+    for index in range(1, len(route_waypoints)):
+        total_distance += float(route_waypoints[index].distance_previous or 0.0)
+    return total_distance
 
 
 first = True
@@ -908,7 +922,9 @@ def plot_minute_marks(
     mark_offset=1,
     line_width_nm: float = 0.5,
     adaptive: bool = False,
+    route_start_time: Optional[datetime.datetime] = None,
 ):
+
     """
 
     :param waypoint:
@@ -926,6 +942,11 @@ def plot_minute_marks(
     gate_start_time = contestant.gate_times.get(waypoint.name)
     if waypoint.is_procedure_turn:
         gate_start_time += datetime.timedelta(minutes=1)
+    next_gate_time = contestant.gate_times.get(next_waypoint.name)
+    base_route_start_time = route_start_time if route_start_time is not None else contestant.gate_times.get(track[0].name)
+    if gate_start_time is None or base_route_start_time is None or next_gate_time is None:
+        return
+    planned_leg_seconds = max((next_gate_time - gate_start_time).total_seconds(), 0.0)
     first_segments = waypoint.get_centre_track_segments()
     last_segments = track[index + 1].get_centre_track_segments()
     track_points = first_segments[len(first_segments) // 2 :] + last_segments[: (len(last_segments) // 2) + 1]
@@ -938,10 +959,11 @@ def plot_minute_marks(
         contestant.wind_speed,
         contestant.wind_direction,
         gate_start_time,
-        contestant.gate_times.get(track[0].name),
+        base_route_start_time,
         line_width_nm=line_width_nm,
         start_offset=waypoint.width if adaptive else line_width_nm,
         end_offset=next_waypoint.width if adaptive else None,
+        leg_total_seconds=planned_leg_seconds,
     )
     for mark_line, text_position, timestamp in minute_lines:
         xs, ys = np.array(mark_line).T  # Already comes in the format lon, lat
@@ -1024,6 +1046,7 @@ def plot_precision_track(
             tracks[-1].append(waypoint)
         previous_waypoint = waypoint
     paths = []
+    route_start_time = contestant.gate_times.get(tracks[0][0].name) if contestant is not None and tracks and tracks[0] else None
     for track in tracks:  # type: List[Waypoint]
         line = []
         for index, waypoint in enumerate(track):  # type: int, Waypoint
@@ -1111,6 +1134,7 @@ def plot_precision_track(
                                 index,
                                 minute_mark_line_width,
                                 colour,
+                                route_start_time=route_start_time,
                             )
 
             if waypoint.is_procedure_turn and waypoint.type != UNKNOWN_LEG:

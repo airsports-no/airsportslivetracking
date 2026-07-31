@@ -47,9 +47,11 @@ class TaskCompiler:
             "task_subtype": self._get_effective_task_subtype(),
             "task_config": self.navigation_task.task_config,
             "compiled_sequence": [],
+            # compiled_primitives is the canonical compiled-task contract.
+            # Keep new consumers on this key so older compatibility aliases can
+            # be removed once the remaining tests/callers migrate.
             "compiled_primitives": primitives,
             "compiled_auxiliary_paths": self._build_compiled_auxiliary_paths(),
-            "primitives": primitives,
             "validation_errors": validation_errors,
             "is_valid": len(validation_errors) == 0,
         }
@@ -97,6 +99,10 @@ class TaskCompiler:
             return []
         definition = get_task_subtype_definition(str(subtype))
         errors = []
+        # required_primitives only checks authored primitive presence. Subtype-
+        # specific structure rules (for example SP/MP/FP ordering) are layered
+        # below so the registry stays declarative and the stricter shape checks
+        # remain close to the subtype-specific semantics.
         for primitive in definition.required_primitives:
             values = primitives.get(primitive, [])
             if primitive == "route_path":
@@ -172,13 +178,6 @@ class TaskCompiler:
         free_targets = [name for name in primitives.get("catalogue_turnpoint", []) if name]
         if len(free_targets) < 1:
             errors.append("Turnpoint hunt requires at least one free catalogue target.")
-
-        evidence_by_target = {}
-        for photo in editable_route.get_observation_photos():
-            properties = photo.get("properties", {})
-            target_name = properties.get("targetName") or properties.get("name")
-            if target_name:
-                evidence_by_target.setdefault(target_name, []).append(properties.get("name") or target_name)
 
         return errors
 

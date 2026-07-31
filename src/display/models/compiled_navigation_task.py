@@ -19,4 +19,6 @@ class CompiledNavigationTask(models.Model):
 
     def get_compiled_primitives(self) -> dict:
         payload = self.compiled_payload or {}
-        return payload.get("compiled_primitives", {})
+        # compiled_primitives is the canonical key; primitives remains a
+        # compatibility fallback for older persisted payloads during migration.
+        return payload.get("compiled_primitives") or payload.get("primitives", {})

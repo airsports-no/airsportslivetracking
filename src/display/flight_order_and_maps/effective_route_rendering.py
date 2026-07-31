@@ -1,7 +1,16 @@
 from __future__ import annotations
 
+"""Shared contestant-aware route reconstruction helpers.
+
+This module is the single sanctioned seam for rebuilding runtime waypoint
+objects from compiled contestant/task payloads. Maps, flight orders, and
+calculators should all come through here so declaration-aware routes keep one
+consistent reconstruction contract.
+"""
+
 from typing import Any
 
+from display.utilities.coordinate_utilities import calculate_bearing, calculate_distance_lat_lon
 from display.utilities.route_building_utilities import build_waypoint
 
 
@@ -29,6 +38,31 @@ def _serialised_waypoint_to_runtime_waypoint(item: dict):
     return waypoint
 
 
+def _recompute_leg_geometry(waypoints):
+    for index in range(0, len(waypoints) - 1):
+        current_waypoint = waypoints[index]
+        next_waypoint = waypoints[index + 1]
+        current_waypoint.distance_next = calculate_distance_lat_lon(
+            (current_waypoint.latitude, current_waypoint.longitude),
+            (next_waypoint.latitude, next_waypoint.longitude),
+        )
+        current_waypoint.bearing_next = calculate_bearing(
+            (current_waypoint.latitude, current_waypoint.longitude),
+            (next_waypoint.latitude, next_waypoint.longitude),
+        )
+    for index in range(1, len(waypoints)):
+        current_waypoint = waypoints[index]
+        previous_waypoint = waypoints[index - 1]
+        current_waypoint.distance_previous = calculate_distance_lat_lon(
+            (current_waypoint.latitude, current_waypoint.longitude),
+            (previous_waypoint.latitude, previous_waypoint.longitude),
+        )
+        current_waypoint.bearing_from_previous = calculate_bearing(
+            (previous_waypoint.latitude, previous_waypoint.longitude),
+            (current_waypoint.latitude, current_waypoint.longitude),
+        )
+
+
 def _clone_reference_waypoint(reference_waypoint, name: str):
     clone = type(reference_waypoint)(name)
     clone.latitude = reference_waypoint.latitude
@@ -50,7 +84,7 @@ def _clone_reference_waypoint(reference_waypoint, name: str):
     return clone
 
 
-def _build_effective_route_waypoints_from_names(route_waypoints, effective_names: list[str]):
+def _build_compat_effective_route_waypoints_from_names(route_waypoints, effective_names: list[str]):
     if not effective_names:
         return route_waypoints
     if not route_waypoints:
@@ -69,6 +103,7 @@ def _build_effective_route_waypoints_from_names(route_waypoints, effective_names
             effective_waypoints.append(by_name[name])
         else:
             effective_waypoints.append(_clone_reference_waypoint(reference_waypoint, name))
+    _recompute_leg_geometry(effective_waypoints)
     return effective_waypoints or route_waypoints
 
 
@@ -98,8 +133,14 @@ def get_effective_route_waypoints(navigation_task, contestant=None, include_cont
             payload = config.compiled_effective_route_payload or {}
             effective_waypoints = payload.get("effective_waypoints") or []
             if isinstance(effective_waypoints, list) and effective_waypoints:
-                return [_serialised_waypoint_to_runtime_waypoint(item) for item in effective_waypoints if isinstance(item, dict)]
-            return _build_effective_route_waypoints_from_names(
+                runtime_waypoints = [_serialised_waypoint_to_runtime_waypoint(item) for item in effective_waypoints if isinstance(item, dict)]
+                _recompute_leg_geometry(runtime_waypoints)
+                return runtime_waypoints
+            # Names-only payloads are an older compatibility format; keep the
+            # fallback centralized here so every downstream consumer agrees on
+            # how that legacy data is rehydrated until the migration is fully
+            # retired.
+            return _build_compat_effective_route_waypoints_from_names(
                 list(navigation_task.route.waypoints),
                 contestant.get_effective_waypoint_names(),
             )

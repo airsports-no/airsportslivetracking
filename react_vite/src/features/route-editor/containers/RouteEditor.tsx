@@ -20,6 +20,15 @@ import { Map } from 'leaflet';
 import { getTaskTemplateById, getWizardRouteInsertLabel } from '../taskTemplates';
 import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
 import {
+  deleteItemById,
+  normalizeDeletedBackboneRoutePoints,
+  renumberRoutePoints,
+  reorderItemsById,
+  reverseRoutePoints,
+  updateItemById,
+} from '../routeEditorMutations';
+import { buildRouteEditorSavePayload, validateRouteEditorState } from '../routeEditorValidation';
+import {
   createBackboneRoutePoint,
   createCatalogueTurnpoint,
   createInsertedRoutePoint,
@@ -95,6 +104,8 @@ export default function RouteEditor() {
   const modeRef = useRef(mode);
   const [mapInstance, setMapInstance] = useState<Map | null>(null);
   const [pendingBounds, setPendingBounds] = useState<L.LatLngBoundsExpression | null>(null);
+
+  const markDirty = useCallback(() => setIsDirty(true), []);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -329,35 +340,23 @@ export default function RouteEditor() {
   };
 
   const updateSelectedStandalonePoint = (field: keyof RoutePoint, value: any) => {
-    setIsDirty(true);
-    setStandalonePoints(points => points.map(point => {
-      if (point.id !== selectedId) return point;
-      return { ...point, [field]: value };
-    }));
+    markDirty();
+    setStandalonePoints((points) => updateItemById(points, selectedId, (point) => ({ ...point, [field]: value })));
   };
 
   const updateSelectedGate = (field: keyof Gate, value: any) => {
-    setIsDirty(true);
-    setGates(gts => gts.map(g => {
-      if (g.id !== selectedId) return g;
-      return { ...g, [field]: value };
-    }));
+    markDirty();
+    setGates((gatesState) => updateItemById(gatesState, selectedId, (gate) => ({ ...gate, [field]: value })));
   };
 
   const updateSelectedObservation = (field: keyof ObservationMarker, value: any) => {
-    setIsDirty(true);
-    setObservationMarkers(markers => markers.map(m => {
-      if (m.id !== selectedId) return m;
-      return { ...m, [field]: value };
-    }));
+    markDirty();
+    setObservationMarkers((markers) => updateItemById(markers, selectedId, (marker) => ({ ...marker, [field]: value })));
   };
 
   const updateSelectedPolygon = (field: keyof Polygon, value: any) => {
-    setIsDirty(true);
-    setPolygons(polys => polys.map(p => {
-      if (p.id !== selectedId) return p;
-      return { ...p, [field]: value };
-    }));
+    markDirty();
+    setPolygons((polygonsState) => updateItemById(polygonsState, selectedId, (polygon) => ({ ...polygon, [field]: value })));
   };
 
   const toggleCurve = () => {
@@ -398,53 +397,31 @@ export default function RouteEditor() {
   };
 
   const deleteSelected = () => {
-    setIsDirty(true);
+    markDirty();
     if (selectionType === 'point') {
-      const newPoints = routePoints.filter(p => p.id !== selectedId);
-      if (newPoints.length > 0) {
-        newPoints[0] = { ...newPoints[0], type: 'sp', featureType: 'route_waypoint', name: 'SP' };
-        newPoints[newPoints.length - 1] = { ...newPoints[newPoints.length - 1], type: 'fp', featureType: 'route_waypoint', name: 'FP' };
-      }
-      setRoutePoints(newPoints);
+      setRoutePoints(normalizeDeletedBackboneRoutePoints(deleteItemById(routePoints, selectedId)));
     } else if (selectionType === 'standalone_point') {
-      setStandalonePoints(standalonePoints.filter(p => p.id !== selectedId));
+      setStandalonePoints(deleteItemById(standalonePoints, selectedId));
     } else if (selectionType === 'gate') {
-      setGates(gates.filter(g => g.id !== selectedId));
+      setGates(deleteItemById(gates, selectedId));
     } else if (selectionType === 'observation') {
-      setObservationMarkers(observationMarkers.filter(m => m.id !== selectedId));
+      setObservationMarkers(deleteItemById(observationMarkers, selectedId));
     } else if (selectionType === 'polygon') {
-      setPolygons(polygons.filter(p => p.id !== selectedId));
+      setPolygons(deleteItemById(polygons, selectedId));
     }
     setSelectedId(null);
     setSelectionType(null);
   };
 
   const movePointOrder = (direction: 'up' | 'down') => {
-    setIsDirty(true);
+    markDirty();
     if (selectionType === 'standalone_point') {
-      const idx = standalonePoints.findIndex(p => p.id === selectedId);
-      if (idx === -1) return;
-      const newPoints = [...standalonePoints];
-      if (direction === 'up' && idx > 0) {
-        [newPoints[idx], newPoints[idx - 1]] = [newPoints[idx - 1], newPoints[idx]];
-      } else if (direction === 'down' && idx < newPoints.length - 1) {
-        [newPoints[idx], newPoints[idx + 1]] = [newPoints[idx + 1], newPoints[idx]];
-      }
-      setStandalonePoints(newPoints);
+      setStandalonePoints(reorderItemsById(standalonePoints, selectedId, direction));
       return;
     }
 
     if (selectionType !== 'point') return;
-    const idx = routePoints.findIndex(p => p.id === selectedId);
-    if (idx === -1) return;
-
-    const newPoints = [...routePoints];
-    if (direction === 'up' && idx > 0) {
-      [newPoints[idx], newPoints[idx - 1]] = [newPoints[idx - 1], newPoints[idx]];
-    } else if (direction === 'down' && idx < newPoints.length - 1) {
-      [newPoints[idx], newPoints[idx + 1]] = [newPoints[idx + 1], newPoints[idx]];
-    }
-    setRoutePoints(newPoints);
+    setRoutePoints(reorderItemsById(routePoints, selectedId, direction));
   };
 
   const startWizardStep = useCallback((stepKey: string) => {
@@ -473,84 +450,11 @@ export default function RouteEditor() {
     }
   }, [selectedTaskTemplateId]);
 
-  const validationErrors = useMemo(() => {
-    const errors: string[] = [];
-
-    if (!isCircleStandaloneTask) {
-      if (routePoints.length < 2) {
-        errors.push('Route must have at least 2 backbone points.');
-      } else {
-        if (routePoints[0].type !== 'sp') errors.push("First route backbone point must be type 'Start'.");
-        if (routePoints[routePoints.length - 1].type !== 'fp') errors.push("Last route backbone point must be type 'Finish'.");
-
-        for (let i = 1; i < routePoints.length - 1; i++) {
-          if (routePoints[i].type === 'sp') errors.push(`Backbone point ${i + 1} cannot be Start (middle of route).`);
-          if (routePoints[i].type === 'fp') errors.push(`Backbone point ${i + 1} cannot be Finish (middle of route).`);
-        }
-      }
-    }
-
-    if (isThreePointBackboneTask && routePoints.length !== 3) {
-      errors.push('This task requires exactly three route backbone points: SP, MP, and FP.');
-    }
-
-    if (isCircleStandaloneTask && routePoints.length > 0) {
-      errors.push('Circle tasks should not use a route backbone. Place all circle markers as standalone points.');
-    }
-
-    routePoints.forEach((p, i) => {
-      if (p.type === 'secret') {
-        if (i === 0 || i === routePoints.length - 1) {
-          errors.push(`Secret point "${p.name}" cannot be Start or Finish.`);
-        } else {
-          const prev = routePoints[i - 1];
-          const next = routePoints[i + 1];
-          const isCurved = p.segmentType === 'curved' || next.segmentType === 'curved';
-
-          if (!isCurved && !isCollinear(prev, p, next)) {
-            errors.push(`Secret point "${p.name}" is not on a straight line between previous and next points.`);
-          }
-        }
-      }
-    });
-
-    if (!isCircleStandaloneTask && routePoints.length >= 3) {
-      for (let i = 1; i < routePoints.length - 1; i++) {
-        const p = routePoints[i];
-
-        if (p.name.startsWith('Curve')) continue;
-
-        const prev = routePoints[i - 1];
-        const next = routePoints[i + 1];
-
-        const b1 = getBearing(prev, p);
-        const b2 = getBearing(p, next);
-        const diff = getAngleDiff(b2, b1);
-
-        const miterFactor = Math.min(1 / Math.cos(toRad(diff / 2)), 5);
-        const miterLength = (p.width / 2) * miterFactor;
-
-        const distPrev = getDistance(prev, p);
-        const distNext = getDistance(p, next);
-
-        if (miterLength > distPrev) {
-          errors.push(`Waypoint "${p.name}" turn is too sharp for the corridor width and the previous leg length (${(distPrev / 1852).toFixed(2)} NM). Rendering may break.`);
-        } else if (miterLength > distPrev * 0.7) {
-          errors.push(`Waypoint "${p.name}" turn is nearly too sharp for the previous leg. Rendering might be distorted.`);
-        }
-
-        if (miterLength > distNext) {
-          const msg = `Waypoint "${p.name}" turn is too sharp for the corridor width and the next leg length (${(distNext / 1852).toFixed(2)} NM). Rendering may break.`;
-          if (!errors.includes(msg)) errors.push(msg);
-        } else if (miterLength > distNext * 0.7) {
-          const msg = `Waypoint "${p.name}" turn is nearly too sharp for the next leg. Rendering might be distorted.`;
-          if (!errors.includes(msg)) errors.push(msg);
-        }
-      }
-    }
-
-    return errors;
-  }, [routePoints, isThreePointBackboneTask, isCircleStandaloneTask]);
+  const validationErrors = useMemo(() => validateRouteEditorState(
+    routePoints,
+    isThreePointBackboneTask,
+    isCircleStandaloneTask,
+  ), [routePoints, isThreePointBackboneTask, isCircleStandaloneTask]);
 
   const handleSave = async () => {
     if (!routeName || !routeName.trim()) {
@@ -562,114 +466,18 @@ export default function RouteEditor() {
       if (!confirm('Route has validation errors. Save anyway?')) return;
     }
 
-    const routePathCoordinates = routePoints.map(p => [p.lng, p.lat]);
-
-    const geoJson = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          properties: { featureType: 'route_path' },
-          geometry: {
-            type: 'LineString',
-            coordinates: routePathCoordinates
-          }
-        },
-        ...routePoints.map((p, i) => ({
-          type: 'Feature',
-          properties: {
-            id: p.id,
-            name: p.name,
-            pointType: p.type,
-            featureType: p.featureType || 'route_waypoint',
-            segmentType: p.segmentType || 'straight',
-            controlLat: p.controlLat,
-            controlLng: p.controlLng,
-            width: p.width,
-            isTiming: p.isTiming,
-            isPassing: p.isPassing,
-            scoreValue: p.scoreValue ?? undefined,
-            sequence: i
-          },
-          geometry: {
-            type: 'Point',
-            coordinates: [p.lng, p.lat]
-          }
-        })),
-        ...standalonePoints.map((p, i) => ({
-          type: 'Feature',
-          properties: {
-            id: p.id,
-            name: p.name,
-            pointType: p.type,
-            featureType: p.featureType,
-            segmentType: p.segmentType || 'straight',
-            width: p.width,
-            isTiming: p.isTiming,
-            isPassing: p.isPassing,
-            scoreValue: p.scoreValue ?? undefined,
-            sequence: routePoints.length + i
-          },
-          geometry: {
-            type: 'Point',
-            coordinates: [p.lng, p.lat]
-          }
-        })),
-        ...gates.map(g => ({
-          type: 'Feature',
-          properties: {
-            id: g.id,
-            name: g.name,
-            gateType: g.type,
-            featureType: g.type === 'landing' ? 'landing_gate' : 'takeoff_gate',
-            width: g.width
-          },
-          geometry: {
-            type: 'LineString',
-            coordinates: [
-              [g.p1.lng, g.p1.lat],
-              [g.p2.lng, g.p2.lat]
-            ]
-          }
-        })),
-        ...observationMarkers.map(m => ({
-          type: 'Feature',
-          properties: {
-            id: m.id,
-            name: m.name,
-            targetName: m.targetName || undefined,
-            featureType: 'observation_photo'
-          },
-          geometry: { type: 'Point', coordinates: [m.lng, m.lat] }
-        })),
-        ...polygons.map(p => ({
-          type: 'Feature',
-          properties: {
-            id: p.id,
-            name: p.name,
-            polygonType: p.type,
-            featureType: 'zone'
-          },
-          geometry: {
-            type: 'Polygon',
-            coordinates: [
-              [...p.points.map(pt => [pt.lng, pt.lat]), [p.points[0].lng, p.points[0].lat]]
-            ]
-          }
-        }))
-      ]
-    };
-
-    const payload: SavePayload = {
-      name: routeName,
-      route: geoJson,
-      settings: {
-        showCorridor: showCorridor,
-        maxObsDist: maxObsDist,
-        hideLabels: hideLabels,
-        selectedTaskTemplateId,
-      }
-    };
+    const payload: SavePayload = buildRouteEditorSavePayload({
+      routeName,
+      routePoints,
+      standalonePoints,
+      gates,
+      observationMarkers,
+      polygons,
+      showCorridor,
+      maxObsDist,
+      hideLabels,
+      selectedTaskTemplateId,
+    });
 
     try {
       const result = await saveRoute(routeId, payload);
@@ -687,89 +495,17 @@ export default function RouteEditor() {
   };
 
   const handleReverseRoute = useCallback(() => {
-    setIsDirty(true);
-    setRoutePoints(prevPoints => {
-      if (prevPoints.length < 2) {
-        return prevPoints;
-      }
-
-      const reversedPoints = [...prevPoints].reverse();
-      const segmentInfo = prevPoints.slice(1).map(p => ({
-        segmentType: p.segmentType,
-        controlLat: p.controlLat,
-        controlLng: p.controlLng
-      }));
-      const reversedSegmentInfo = segmentInfo.reverse();
-
-      const newPoints = reversedPoints.map((point, index) => {
-        const newPoint = { ...point };
-
-        if (index === 0) {
-          newPoint.type = 'sp';
-          newPoint.name = 'SP';
-        } else if (index === reversedPoints.length - 1) {
-          newPoint.type = 'fp';
-          newPoint.name = 'FP';
-        } else if (isThreePointBackboneTask && index === 1) {
-          newPoint.type = 'tp';
-          newPoint.name = 'MP';
-        } else if (newPoint.type !== 'secret') {
-          newPoint.type = 'tp';
-        }
-
-        if (index > 0) {
-          const segment = reversedSegmentInfo[index - 1];
-          newPoint.segmentType = segment.segmentType || 'straight';
-          newPoint.controlLat = segment.controlLat;
-          newPoint.controlLng = segment.controlLng;
-        } else {
-          newPoint.segmentType = 'straight';
-          delete newPoint.controlLat;
-          delete newPoint.controlLng;
-        }
-
-        return newPoint;
-      });
-
-      return renumberPoints(newPoints);
-    });
-  }, [isThreePointBackboneTask]);
-
-  const renumberPoints = (points: RoutePoint[]) => {
-    let wpCounter = 0;
-    let secretCounter = 1;
-
-    return points.map((p, index) => {
-      const newPoint = { ...p };
-      if (index === 0) {
-        newPoint.type = 'sp';
-        newPoint.name = 'SP';
-        wpCounter = 0;
-        secretCounter = 1;
-      } else if (index === points.length - 1) {
-        newPoint.type = 'fp';
-        newPoint.name = 'FP';
-      } else if (isThreePointBackboneTask && index === 1) {
-        newPoint.type = 'tp';
-        newPoint.name = 'MP';
-      } else if (p.type === 'secret') {
-        newPoint.name = `Secret ${wpCounter}.${secretCounter++}`;
-      } else {
-        wpCounter++;
-        newPoint.name = `WP ${wpCounter}`;
-        if (newPoint.featureType === 'route_waypoint' || !newPoint.featureType) {
-          newPoint.type = 'tp';
-        }
-        secretCounter = 1;
-      }
-      return newPoint;
-    });
-  };
+    markDirty();
+    // Reverse/renumber keeps backbone semantics stable for 3-point tasks:
+    // after reversal the authored backbone is still normalized back to SP/MP/FP
+    // before persistence, rather than preserving literal pre-reverse labels.
+    setRoutePoints((prevPoints) => reverseRoutePoints(prevPoints, isThreePointBackboneTask));
+  }, [isThreePointBackboneTask, markDirty]);
 
   const handleRenumberWaypoints = useCallback(() => {
-    setIsDirty(true);
-    setRoutePoints(prev => renumberPoints(prev));
-  }, [isThreePointBackboneTask]);
+    markDirty();
+    setRoutePoints((prev) => renumberRoutePoints(prev, isThreePointBackboneTask));
+  }, [isThreePointBackboneTask, markDirty]);
 
   return (
     <div className="flex w-full h-[calc(100vh-66px)] bg-base-200 font-sans text-base-content overflow-hidden">

@@ -17,6 +17,7 @@ from display.calculators.poker_calculator import PokerCalculator
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 
 from display.models import Contestant
+from display.utilities.cima_task_type_definitions import CIRCLE, DURATION
 from display.utilities.navigation_task_type_definitions import (
     PRECISION,
     POKER,
@@ -27,75 +28,86 @@ from display.utilities.navigation_task_type_definitions import (
 )
 
 
+def _build_precision_calculators(contestant: "Contestant"):
+    calculators = [
+        GateCalculator,
+        TakeoffAndLandingGateCalculator,
+        BacktrackingAndProcedureTurnsCalculator,
+        ProhibitedZoneCalculator,
+        PenaltyZoneCalculator,
+    ]
+    # Ordering matters here: circle scoring consumes gate events early in the
+    # precision pipeline, while duration scoring depends on the regular gate
+    # calculators still running afterwards.
+    if contestant.navigation_task.task_subtype == CIRCLE:
+        calculators.insert(1, CircleCalculator)
+    if contestant.navigation_task.task_subtype == DURATION:
+        calculators.insert(2, DurationCalculator)
+    return calculators
+
+
 def calculator_factory(
     contestant: "Contestant",
     score_processing_queue: Queue,
     live_processing: bool = True,
     projector: Optional["Projector"] = None,
 ) -> "Orchestrator":
-        precision_calculators = [
-            GateCalculator,
-            TakeoffAndLandingGateCalculator,
-            BacktrackingAndProcedureTurnsCalculator,
-            ProhibitedZoneCalculator,
-            PenaltyZoneCalculator,
-        ]
-        if contestant.navigation_task.task_subtype == "circle":
-            precision_calculators.insert(1, CircleCalculator)
-        if contestant.navigation_task.task_subtype == "duration":
-            precision_calculators.insert(2, DurationCalculator)
-        if contestant.navigation_task.scorecard.calculator == PRECISION:
-            return Orchestrator(
-                contestant,
-                score_processing_queue,
-                precision_calculators,
-                live_processing=live_processing,
-                projector=projector,
-            )
-        if contestant.navigation_task.scorecard.calculator in (
-            ANR_CORRIDOR,
-            AIRSPORTS,
-            AIRSPORT_CHALLENGE,
-        ):
-            return Orchestrator(
-                contestant,
-                score_processing_queue,
-                [
-                    GateCalculator,
-                    TakeoffAndLandingGateCalculator,
-                    BacktrackingAndProcedureTurnsCalculator,
-                    AnrCorridorCalculator,
-                    ProhibitedZoneCalculator,
-                    PenaltyZoneCalculator,
-                ],
-                live_processing=live_processing,
-                projector=projector,
-            )
-        if contestant.navigation_task.scorecard.calculator == LANDING:
-            return Orchestrator(
-                contestant,
-                score_processing_queue,
-                [LandingPatternCalculator],
-                live_processing=live_processing,
-                projector=projector,
-            )
-        if contestant.navigation_task.scorecard.calculator == POKER:
-            return Orchestrator(
-                contestant,
-                score_processing_queue,
-                [
-                    PokerCalculator,
-                    ProhibitedZoneCalculator,
-                    PenaltyZoneCalculator,
-                ],
-                live_processing=live_processing,
-                projector=projector,
-            )
+    if contestant.navigation_task.scorecard.calculator == PRECISION:
         return Orchestrator(
             contestant,
             score_processing_queue,
-            [GateCalculator],
+            _build_precision_calculators(contestant),
             live_processing=live_processing,
             projector=projector,
         )
+
+    if contestant.navigation_task.scorecard.calculator in (
+        ANR_CORRIDOR,
+        AIRSPORTS,
+        AIRSPORT_CHALLENGE,
+    ):
+        return Orchestrator(
+            contestant,
+            score_processing_queue,
+            [
+                GateCalculator,
+                TakeoffAndLandingGateCalculator,
+                BacktrackingAndProcedureTurnsCalculator,
+                AnrCorridorCalculator,
+                ProhibitedZoneCalculator,
+                PenaltyZoneCalculator,
+            ],
+            live_processing=live_processing,
+            projector=projector,
+        )
+
+    if contestant.navigation_task.scorecard.calculator == LANDING:
+        return Orchestrator(
+            contestant,
+            score_processing_queue,
+            [LandingPatternCalculator],
+            live_processing=live_processing,
+            projector=projector,
+        )
+
+    if contestant.navigation_task.scorecard.calculator == POKER:
+        return Orchestrator(
+            contestant,
+            score_processing_queue,
+            [
+                PokerCalculator,
+                ProhibitedZoneCalculator,
+                PenaltyZoneCalculator,
+            ],
+            live_processing=live_processing,
+            projector=projector,
+        )
+
+    return Orchestrator(
+        contestant,
+        score_processing_queue,
+        [GateCalculator],
+        live_processing=live_processing,
+        projector=projector,
+    )
 

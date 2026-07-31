@@ -2,7 +2,6 @@ import datetime
 import logging
 from multiprocessing import Queue
 
-import matplotlib.pyplot as plt
 from typing import List, Optional, Tuple
 import numpy as np
 from shapely.geometry import Point, LineString
@@ -147,12 +146,18 @@ class AnrCorridorCalculator(Calculator):
         payload = {}
         if hasattr(self.contestant, "contestanttaskconfiguration") and self.contestant.contestanttaskconfiguration.is_valid:
             payload = self.contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+        # Auxiliary route compliance intentionally consumes compiled contestant
+        # payloads rather than re-reading editable_route directly, so scoring
+        # follows the same compiled-task snapshot that maps and declarations use.
         compiled = payload.get("compiled_auxiliary_paths", {}).get(key, [])
         if not compiled:
             return None
         coordinates = compiled[0]
         if len(coordinates) < 2:
             return None
+        # Reuse the ANR corridor width for auxiliary route compliance so the
+        # pre-start/post-finish checks follow the same corridor semantics as
+        # the main route body.
         half_width_m = float(self.route.corridor_width) * 1852 / 2
         projected = []
         for lon, lat in coordinates:
@@ -161,11 +166,6 @@ class AnrCorridorCalculator(Calculator):
         line_string = LineString(projected)
         return line_string.buffer(half_width_m, cap_style=2, join_style=2)
 
-    def plot_polygon(self):
-        fig, ax = plt.subplots()
-        ax.set_aspect("equal")
-        ax.plot(*self.track_polygon.exterior.xy)
-        plt.savefig("polygon.png", dpi=100)
 
     def _check_inside_polygon(self, position: ContestantReceivedPosition) -> bool:
         x = getattr(position, "projected_x", None)
@@ -202,6 +202,9 @@ class AnrCorridorCalculator(Calculator):
         if getattr(self.contestant.navigation_task, "task_subtype", None) != ANR_CATALOGUE or not track:
             return
         position = track[-1]
+        # These penalties are one-shot phase checks: once the contestant leaves
+        # the compiled auxiliary corridor before start or after finish, the
+        # corresponding score entry is emitted exactly once.
         if before_start and not self.route_to_sp_scored and not self._is_inside_auxiliary_polygon(position, self.route_to_sp_polygon):
             self.route_to_sp_scored = True
             gate = self.route.first_takeoff_gate or self.route.waypoints[0]

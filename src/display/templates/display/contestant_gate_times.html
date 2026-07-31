@@ -148,7 +148,7 @@
                         {% endfor %}
                         
                         <!-- Route Waypoints -->
-                        {% for gate in object.navigation_task.route.waypoints %}
+                        {% for gate in rendered_waypoints %}
                             {% if not gate.on_curved_segment %}
                                 {% include "display/contestant_gate_times_mobile_card.html" with gate=gate gate_times=gate_times actual_times=actual_times object=object log=log contest_permissions=contest_permissions %}
                             {% endif %}

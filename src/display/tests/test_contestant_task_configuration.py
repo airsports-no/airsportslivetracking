@@ -171,6 +171,24 @@ class TestContestantTaskConfiguration(TestCase):
         self.assertFalse(compiled.is_valid)
         self.assertIn("Curve navigation declarations may not exceed Tmax.", compiled.validation_errors)
 
+    def test_curve_navigation_build_declaration_payload_from_input_normalizes_predictions(self):
+        payload = ContestantTaskCompiler(self.contestant).build_declaration_payload_from_input(
+            {"known_time_gate_prediction": {"SP": datetime.datetime(2020, 8, 1, 8, 11, tzinfo=datetime.timezone.utc)}}
+        )
+
+        self.assertEqual(
+            payload,
+            {"known_time_gate_predictions": {"SP": "2020-08-01T08:11:00+00:00"}},
+        )
+
+    def test_curve_navigation_gate_times_include_declared_predictions(self):
+        compiled = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={"known_time_gate_predictions": {"FP": "2020-08-01T08:20:00Z"}},
+            force=True,
+        )
+
+        self.assertEqual(compiled.compiled_gate_times_payload["FP"], "2020-08-01T08:20:00+00:00")
+
     def test_contract_navigation_compiles_declared_sequence_from_catalogue_turnpoints(self):
         editable_route = EditableRoute.objects.create(
             name="Contract nav primitives",
@@ -215,6 +233,58 @@ class TestContestantTaskConfiguration(TestCase):
         self.assertTrue(a_waypoint["gate_check"])
         self.assertEqual(len(a_waypoint["gate_line"]), 2)
         self.assertNotEqual(a_waypoint["gate_line"][0], a_waypoint["gate_line"][1])
+
+    def test_contract_navigation_build_declaration_payload_from_input_uses_before_after_lists(self):
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(task_subtype=CONTRACT_NAVIGATION_TIME_CONTROLS)
+        self.navigation_task.refresh_from_db(fields=["task_subtype"])
+
+        payload = ContestantTaskCompiler(self.contestant).build_declaration_payload_from_input(
+            {
+                "declared_before_mp": ["A", ""],
+                "declared_after_mp": ["B"],
+                "declared_t_seconds": "82",
+            }
+        )
+
+        self.assertEqual(
+            payload,
+            {"declared_sequence": ["A", "MP", "B", "FP"], "declared_t_seconds": 82},
+        )
+
+    def test_contract_navigation_declared_gate_times_follow_declared_leg_distances(self):
+        editable_route = EditableRoute.objects.create(
+            name="Contract nav distance timing",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.0, 60.8]]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.0, 60.4]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.0, 60.8]}},
+                    {"type": "Feature", "properties": {"id": "cat-a", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.0, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "cat-b", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.0, 60.6]}},
+                ],
+            },
+        )
+        self.navigation_task.task_subtype = CONTRACT_NAVIGATION_TIME_CONTROLS
+        self.navigation_task.editable_route = editable_route
+        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
+
+        compiled = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={"declared_sequence": ["A", "MP", "B", "FP"], "declared_t_seconds": 600},
+            force=True,
+        )
+
+        sp_time = datetime.datetime.fromisoformat(compiled.compiled_gate_times_payload["SP"])
+        a_time = datetime.datetime.fromisoformat(compiled.compiled_gate_times_payload["A"])
+        mp_time = datetime.datetime.fromisoformat(compiled.compiled_gate_times_payload["MP"])
+        b_time = datetime.datetime.fromisoformat(compiled.compiled_gate_times_payload["B"])
+        fp_time = datetime.datetime.fromisoformat(compiled.compiled_gate_times_payload["FP"])
+
+        self.assertEqual((mp_time - sp_time).total_seconds(), 600)
+        self.assertEqual((fp_time - mp_time).total_seconds(), 600)
+        self.assertAlmostEqual((a_time - sp_time).total_seconds(), 300, delta=5)
+        self.assertAlmostEqual((b_time - mp_time).total_seconds(), 300, delta=5)
 
     def test_turnpoint_hunt_compiles_compulsory_point_times_without_predicted_sequence(self):
         editable_route = EditableRoute.objects.create(
@@ -288,6 +358,31 @@ class TestContestantTaskConfiguration(TestCase):
         self.assertEqual(compiled.compiled_effective_route_payload["fuel_metadata"], {"declared_endurance_minutes": 95})
         self.assertEqual(compiled.compiled_gate_times_payload["CP1"], "2020-08-01T08:16:00+00:00")
         self.assertEqual(compiled.compiled_effective_route_payload["compulsory_timing_gate_names"], ["CP1", "CP2", "CP3"])
+
+    def test_turnpoint_hunt_build_declaration_payload_from_input_normalizes_predictions(self):
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(task_subtype=TURNPOINT_HUNT)
+        self.navigation_task.refresh_from_db(fields=["task_subtype"])
+
+        payload = ContestantTaskCompiler(self.contestant).build_declaration_payload_from_input(
+            {
+                "predicted_gate_times": {
+                    "CP1": datetime.datetime(2020, 8, 1, 8, 15, tzinfo=datetime.timezone.utc),
+                    "CP2": "2020-08-01T08:16:00Z",
+                },
+                "fuel_metadata": {"declared_endurance_minutes": 95},
+            }
+        )
+
+        self.assertEqual(
+            payload,
+            {
+                "compulsory_point_times": {
+                    "CP1": "2020-08-01T08:15:00+00:00",
+                    "CP2": "2020-08-01T08:16:00+00:00",
+                },
+                "fuel_metadata": {"declared_endurance_minutes": 95},
+            },
+        )
 
     def test_turnpoint_hunt_requires_exactly_three_compulsory_point_times(self):
         editable_route = EditableRoute.objects.create(
