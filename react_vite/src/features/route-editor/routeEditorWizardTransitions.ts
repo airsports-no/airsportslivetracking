@@ -8,6 +8,7 @@ export type WizardTransition = {
   wizardRouteInsertFeatureType: string | undefined;
   wizardPolygonType: string | null;
   clearSelectionType: boolean;
+  nextSelectionType: 'wizard' | 'point' | 'standalone_point' | null;
   resetTempPolygonPoints: boolean;
   routeInsertPrompt: string | null;
 };
@@ -19,6 +20,7 @@ const DEFAULT_TRANSITION: WizardTransition = {
   wizardRouteInsertFeatureType: undefined,
   wizardPolygonType: null,
   clearSelectionType: false,
+  nextSelectionType: null,
   resetTempPolygonPoints: false,
   routeInsertPrompt: null,
 };
@@ -54,6 +56,19 @@ export function getWizardTransition(step: WizardStep | undefined, routeInsertLab
         mode: 'add_catalogue_turnpoint',
         currentWizardActionLabel: step.help,
         clearSelectionType: true,
+        nextSelectionType: 'wizard',
+      };
+    }
+
+    if (step.placement === 'free_map') {
+      return {
+        ...DEFAULT_TRANSITION,
+        mode: 'add_point',
+        currentWizardActionLabel: step.help,
+        wizardRouteInsertType: step.pointType ?? null,
+        wizardRouteInsertFeatureType: step.featureType,
+        clearSelectionType: true,
+        nextSelectionType: 'wizard',
       };
     }
 

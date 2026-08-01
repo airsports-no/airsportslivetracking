@@ -29,12 +29,13 @@ export function createStandaloneWizardPoint(
   pointType: RoutePoint['type'],
   featureType: RoutePoint['featureType'] | undefined,
   label: string | null,
+  count = 1,
 ): RoutePoint {
   return {
     id: crypto.randomUUID(),
     lat: latlng.lat,
     lng: latlng.lng,
-    name: label || `${pointType}`,
+    name: label || `${pointType} ${count}`,
     type: pointType,
     featureType,
     width: 1852,

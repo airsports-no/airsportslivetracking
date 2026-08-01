@@ -27,11 +27,9 @@ export type ParsedRouteEditorData = {
   bounds: [[number, number], [number, number]] | null;
 };
 
-export function createStandalonePointTypeSet(isCircleStandaloneTask: boolean): Set<RoutePoint['type']> {
+export function createStandalonePointTypeSet(_isCircleStandaloneTask: boolean): Set<RoutePoint['type']> {
   const types = new Set<RoutePoint['type']>(['catalogue_turnpoint']);
-  if (isCircleStandaloneTask) {
-    CIRCLE_STANDALONE_TYPES.forEach((type) => types.add(type));
-  }
+  CIRCLE_STANDALONE_TYPES.forEach((type) => types.add(type));
   return types;
 }
 

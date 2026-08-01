@@ -164,6 +164,39 @@ class AssignContestTokenSerializer(serializers.Serializer):
     token_grant_id = serializers.IntegerField()
 
 
+def _normalize_contest_team_ids(values):
+    if values in (None, "", []):
+        return []
+
+    iterable = values.split(",") if isinstance(values, str) else values
+    normalized_ids = []
+    for item in iterable:
+        if item in (None, ""):
+            continue
+        try:
+            normalized_ids.append(int(item))
+        except (TypeError, ValueError):
+            raise ValidationError("contest_teams must be a comma-separated list of integer ContestTeam IDs.")
+
+    return list(OrderedDict.fromkeys(normalized_ids))
+
+
+class ScheduleCapacityPreviewQuerySerializer(serializers.Serializer):
+    contest_teams = serializers.CharField(required=False, allow_blank=True, default="")
+    first_takeoff_time = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate_contest_teams(self, value):
+        return _normalize_contest_team_ids(value)
+
+    def validate_first_takeoff_time(self, value):
+        if value in (None, ""):
+            return None
+        try:
+            return dateutil.parser.parse(value)
+        except (TypeError, ValueError, dateutil.parser.ParserError) as exc:
+            raise ValidationError(str(exc))
+
+
 class UserPersonViewSet(GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_classes = {
@@ -1244,7 +1277,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 name="contest_teams",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
-                description="Comma-separated ContestTeam IDs to preview against this task.",
+                description="Comma-separated ContestTeam IDs to preview against this task. Duplicate IDs are deduplicated in order.",
             ),
             OpenApiParameter(
                 name="first_takeoff_time",
@@ -1282,32 +1315,20 @@ class NavigationTaskViewSet(ModelViewSet):
     def schedule_capacity_preview(self, request, pk=None, **kwargs):
         """Return projected pilot-capacity usage for a proposed schedule."""
         navigation_task = self.get_object()
-        contest_teams_param = request.query_params.get("contest_teams", "")
+        query_serializer = ScheduleCapacityPreviewQuerySerializer(data=request.query_params)
+        query_serializer.is_valid(raise_exception=True)
+        contest_teams_pks = query_serializer.validated_data["contest_teams"]
+        first_takeoff_time = query_serializer.validated_data.get("first_takeoff_time")
+        if first_takeoff_time is not None and first_takeoff_time.tzinfo is None:
+            first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
         try:
-            contest_teams_pks = [int(item) for item in contest_teams_param.split(",") if item]
-        except ValueError:
-            return Response(
-                {"detail": "contest_teams must be a comma-separated list of integer ContestTeam IDs."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        first_takeoff_time_raw = request.query_params.get("first_takeoff_time")
-        first_takeoff_time = None
-        try:
-            if first_takeoff_time_raw:
-                first_takeoff_time = dateutil.parser.parse(first_takeoff_time_raw)
-                if first_takeoff_time.tzinfo is None:
-                    first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
             preview = scheduling_capacity_preview(
                 navigation_task,
                 contest_teams_pks,
                 first_takeoff_time=first_takeoff_time,
             )
-        except (TypeError, ValueError, dateutil.parser.ParserError) as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        except (ValidationError, DjangoValidationError) as exc:
-            detail = exc.detail if isinstance(exc, ValidationError) else exc.message
-            if isinstance(detail, (list, tuple)):
-                detail = detail[0]
+        except DjangoValidationError as exc:
+            detail = exc.message
             return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
         return Response(preview, status=status.HTTP_200_OK)
 
@@ -1321,7 +1342,7 @@ class NavigationTaskViewSet(ModelViewSet):
         data = request.data
 
         try:
-            contest_teams_pks = data.get("contest_teams", [])
+            contest_teams_pks = _normalize_contest_team_ids(data.get("contest_teams", []))
 
             first_takeoff_time = dateutil.parser.parse(data.get("first_takeoff_time"))
             if first_takeoff_time.tzinfo is None:

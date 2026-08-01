@@ -146,7 +146,7 @@ class TestCapacityViewsetIntegration(APITestCase):
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
         self.assertEqual(
             "One or more selected contest teams do not belong to this contest.",
-            response.data["detail"],
+            response.data[0],
         )
 
     def test_schedule_capacity_preview_rejects_malformed_contest_team_ids(self, *_args):
@@ -166,7 +166,7 @@ class TestCapacityViewsetIntegration(APITestCase):
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
         self.assertEqual(
             "contest_teams must be a comma-separated list of integer ContestTeam IDs.",
-            response.data["detail"],
+            response.data["contest_teams"][0],
         )
 
     def test_schedule_capacity_preview_rejects_invalid_first_takeoff_time(self, *_args):
@@ -184,7 +184,38 @@ class TestCapacityViewsetIntegration(APITestCase):
         )
 
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
-        self.assertIn("Unknown string format", response.data["detail"])
+        self.assertIn("Unknown string format", response.data["first_takeoff_time"][0])
+
+    @patch("display.viewsets.scheduling_capacity_preview")
+    def test_schedule_capacity_preview_deduplicates_repeated_contest_team_ids(self, mock_preview, *_args):
+        mock_preview.return_value = {
+            "contestant_limit": 2,
+            "reserved_before_count": 1,
+            "reserved_after_count": 2,
+            "additional_selected_count": 1,
+            "remaining_before_count": 1,
+            "remaining_after_count": 0,
+            "would_exceed": False,
+        }
+        url = reverse(
+            "navigationtasks-schedule-capacity-preview",
+            kwargs={"contest_pk": self.contest.id, "pk": self.navigation_task.id},
+        )
+
+        response = self.client.get(
+            url,
+            {
+                "contest_teams": f"{self.contest_team.pk},{self.contest_team.pk}",
+                "first_takeoff_time": "2026-04-01T10:00:00Z",
+            },
+        )
+
+        self.assertEqual(status.HTTP_200_OK, response.status_code)
+        mock_preview.assert_called_once_with(
+            self.navigation_task,
+            [self.contest_team.pk],
+            first_takeoff_time=datetime.datetime(2026, 4, 1, 10, 0, tzinfo=datetime.timezone.utc),
+        )
 
     @patch("display.viewsets.scheduling_capacity_preview")
     @patch("display.viewsets.schedule_and_create_contestants")
@@ -221,6 +252,45 @@ class TestCapacityViewsetIntegration(APITestCase):
             "Scheduling failed due to an internal error. Please try again or contact support.",
             response.data["error"],
         )
+
+    @patch("display.viewsets.scheduling_capacity_preview")
+    @patch("display.viewsets.schedule_and_create_contestants")
+    @patch("display.permissions.NavigationTaskContestPermissions.has_object_permission", return_value=True)
+    def test_schedule_contestants_deduplicates_repeated_contest_team_ids(self, _mock_permission, mock_schedule, mock_preview, *_args):
+        mock_preview.return_value = {
+            "contestant_limit": 2,
+            "reserved_before_count": 1,
+            "reserved_after_count": 1,
+            "additional_selected_count": 0,
+            "remaining_before_count": 1,
+            "remaining_after_count": 1,
+            "would_exceed": False,
+        }
+        mock_schedule.return_value = (True, ["ok"])
+        self.navigation_task.make_public()
+        self.navigation_task.save(update_fields=["is_public"])
+        url = reverse(
+            "navigationtasks-schedule-contestants",
+            kwargs={"contest_pk": self.contest.id, "pk": self.navigation_task.id},
+        )
+
+        response = self.client.post(
+            url,
+            {
+                "contest_teams": [self.contest_team.pk, self.contest_team.pk],
+                "first_takeoff_time": "2026-04-01T10:00:00Z",
+            },
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_200_OK, response.status_code)
+        mock_preview.assert_called_once_with(
+            self.navigation_task,
+            [self.contest_team.pk],
+            first_takeoff_time=datetime.datetime(2026, 4, 1, 10, 0, tzinfo=datetime.timezone.utc),
+        )
+        mock_schedule.assert_called_once()
+        self.assertEqual([self.contest_team.pk], mock_schedule.call_args.kwargs["contest_teams_pks"])
 
     @patch("display.viewsets._assert_can_reserve_task_slot")
     @patch("display.viewsets.assert_can_self_register_contestant")

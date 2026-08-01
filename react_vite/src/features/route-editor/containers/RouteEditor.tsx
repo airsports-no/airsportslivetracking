@@ -40,6 +40,13 @@ import {
 } from '../routeEditorMapClickHelpers';
 import { getWizardStep, getWizardTransition } from '../routeEditorWizardTransitions';
 
+const getCircleStepMaxCount = (selectedTaskTemplateId: string | null, wizardRouteInsertType: RoutePoint['type'] | null) => {
+  if (selectedTaskTemplateId !== 'cima_a7' || !wizardRouteInsertType) return null;
+  const template = getTaskTemplateById(selectedTaskTemplateId);
+  const step = template?.steps.find((item) => item.pointType === wizardRouteInsertType && item.placement === 'free_map');
+  return step?.maxCount ?? null;
+};
+
 const getAngleDiff = (a: number, b: number) => {
   let diff = a - b;
   while (diff > 180) diff -= 360;
@@ -192,7 +199,9 @@ export default function RouteEditor() {
         const catalogueCount = prev.filter((point) => point.type === 'catalogue_turnpoint').length + 1;
         const newPoint = createCatalogueTurnpoint(latlng, catalogueCount);
         setSelectedId(null);
-        setSelectionType(null);
+        if (selectionType !== 'wizard') {
+          setSelectionType(null);
+        }
         return [...prev, newPoint];
       });
       setIsDirty(true);
@@ -200,22 +209,33 @@ export default function RouteEditor() {
     }
 
     if (isCircleStandaloneTask && mode === 'add_point' && wizardRouteInsertType && standalonePointTypes.has(wizardRouteInsertType)) {
+      const circleMarkerCount = standalonePoints.filter((point) => point.type === wizardRouteInsertType).length;
+      const maxCircleMarkerCount = getCircleStepMaxCount(selectedTaskTemplateId, wizardRouteInsertType);
+      if (maxCircleMarkerCount != null && circleMarkerCount >= maxCircleMarkerCount) {
+        alert(`This circle task allows no more than ${maxCircleMarkerCount} ${wizardRouteInsertType.replace('circle_', '').replaceAll('_', ' ')} marker${maxCircleMarkerCount === 1 ? '' : 's'}.`);
+        return;
+      }
+      const nextCircleMarkerCount = circleMarkerCount + 1;
+      const wizardPointLabel = wizardRouteInsertType === 'circle_start'
+        ? 'SP'
+        : wizardRouteInsertType === 'circle_center'
+          ? 'CM'
+          : wizardRouteInsertType === 'circle_entry'
+            ? 'X'
+            : wizardRouteInsertType === 'circle_exit'
+              ? 'WP'
+              : currentWizardActionLabel;
       setStandalonePoints(prev => {
         const newPoint = createStandaloneWizardPoint(
           latlng,
           wizardRouteInsertType,
           wizardRouteInsertFeatureType,
-          currentWizardActionLabel,
+          wizardPointLabel,
+          nextCircleMarkerCount,
         );
-        setSelectedId(newPoint.id);
-        setSelectionType('standalone_point');
         return [...prev, newPoint];
       });
       setIsDirty(true);
-      setMode('view');
-      setWizardRouteInsertType(null);
-      setWizardRouteInsertFeatureType(undefined);
-      setCurrentWizardActionLabel(null);
       return;
     }
 
@@ -299,7 +319,22 @@ export default function RouteEditor() {
       setTempPolygonPoints(prev => [...prev, latlng]);
       return;
     }
-  }, [mode, routePoints, gates.length, tempGatePoint, maxObsDist, addCurveMode, wizardRouteInsertType, wizardRouteInsertFeatureType, currentWizardActionLabel, isThreePointBackboneTask, isCircleStandaloneTask]);
+  }, [
+    mode,
+    routePoints,
+    standalonePoints,
+    gates.length,
+    tempGatePoint,
+    maxObsDist,
+    addCurveMode,
+    wizardRouteInsertType,
+    wizardRouteInsertFeatureType,
+    currentWizardActionLabel,
+    isThreePointBackboneTask,
+    isCircleStandaloneTask,
+    selectedTaskTemplateId,
+    selectionType,
+  ]);
 
   const updateSelectedPoint = (field: keyof RoutePoint, value: any) => {
     setIsDirty(true);
@@ -436,7 +471,10 @@ export default function RouteEditor() {
     setWizardRouteInsertType(transition.wizardRouteInsertType as RoutePoint['type'] | null);
     setWizardRouteInsertFeatureType(transition.wizardRouteInsertFeatureType as RoutePoint['featureType'] | undefined);
     setWizardPolygonType(transition.wizardPolygonType as Polygon['type'] | null);
-    if (transition.clearSelectionType) {
+    if (transition.nextSelectionType) {
+      setSelectionType(transition.nextSelectionType);
+    }
+    if (transition.clearSelectionType && !transition.nextSelectionType) {
       setSelectionType(null);
     }
     if (transition.resetTempPolygonPoints) {

@@ -23,6 +23,28 @@ const RouteListView: React.FC<RouteListViewProps> = ({
 }) => {
   const orderedRoutePoints = routePoints.filter((p) => (p.featureType || 'route_waypoint') === 'route_waypoint');
   const catalogueTurnpoints = standalonePoints.filter((p) => p.featureType === 'catalogue_turnpoint');
+  const circleMarkers = standalonePoints.filter((p) => (
+    p.featureType === 'circle_center_marker'
+    || p.featureType === 'circle_start_marker'
+    || p.featureType === 'circle_entry_marker'
+    || p.featureType === 'circle_exit_marker'
+  ));
+
+  const getStandaloneBadge = (point: RoutePoint) => {
+    switch (point.featureType) {
+      case 'circle_center_marker':
+        return 'center';
+      case 'circle_start_marker':
+        return 'start';
+      case 'circle_entry_marker':
+        return 'entry';
+      case 'circle_exit_marker':
+        return 'exit';
+      default:
+        return point.type;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className={`alert ${validationErrors.length > 0 ? 'alert-warning' : 'alert-success'} shadow-sm text-sm py-2`}>
@@ -103,6 +125,29 @@ const RouteListView: React.FC<RouteListViewProps> = ({
                 <div className="text-[11px] text-gray-500">
                   {p.scoreValue != null ? `Score ${p.scoreValue}` : 'No score value'}
                 </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
+        <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Circle Markers</h3>
+        {circleMarkers.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">No circle markers.</p>
+        ) : (
+          <ul className="space-y-1">
+            {circleMarkers.map((p) => (
+              <li
+                key={p.id}
+                className="p-2 bg-base-100 border rounded hover:bg-base-200 cursor-pointer text-sm space-y-1"
+                onClick={() => onSelect(p.id, 'standalone_point')}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium truncate" title={p.name}>{p.name}</span>
+                  <span className="badge badge-sm badge-accent uppercase text-[9px] h-4 leading-none font-bold">{getStandaloneBadge(p)}</span>
+                </div>
+                <div className="text-[11px] text-gray-500">{p.featureType?.replace('_marker', '').replaceAll('_', ' ')}</div>
               </li>
             ))}
           </ul>

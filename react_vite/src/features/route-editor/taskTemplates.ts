@@ -24,6 +24,7 @@ export interface WizardStep {
   help: string;
   kind: WizardStepKind;
   minCount: number;
+  maxCount?: number;
   pointType?: RoutePoint['type'];
   featureType?: NonNullable<RoutePoint['featureType']>;
   polygonType?: Polygon['type'];
@@ -60,6 +61,7 @@ const pointStep = (
   featureType: NonNullable<RoutePoint['featureType']>,
   placement: 'route_insert' | 'free_map',
   minCount = 1,
+  maxCount?: number,
   countMode: WizardStepCountMode = 'strict',
 ): WizardStep => ({
   key,
@@ -67,6 +69,7 @@ const pointStep = (
   help,
   kind: 'point',
   minCount,
+  maxCount,
   pointType,
   featureType,
   placement,
@@ -225,10 +228,10 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     group: 'CIMA',
     description: 'Explicit circle markers: start, center, entry, and exit.',
     steps: [
-      pointStep('circle_start', 'Circle start', 'Place the circle start marker (SP).', 'circle_start', 'circle_start_marker', 'free_map'),
-      pointStep('circle_center', 'Circle center', 'Place the circle center marker (CM).', 'circle_center', 'circle_center_marker', 'free_map'),
-      pointStep('circle_entry', 'Circle entry', 'Place the circle entry marker (X).', 'circle_entry', 'circle_entry_marker', 'free_map'),
-      pointStep('circle_exit', 'Circle exit', 'Place the circle exit marker (WP).', 'circle_exit', 'circle_exit_marker', 'free_map'),
+      pointStep('circle_start', 'Circle start', 'Place the circle start marker (SP).', 'circle_start', 'circle_start_marker', 'free_map', 1, 1),
+      pointStep('circle_center', 'Circle center', 'Place the circle center marker (CM).', 'circle_center', 'circle_center_marker', 'free_map', 1, 1),
+      pointStep('circle_entry', 'Circle entry', 'Place the circle entry marker (X).', 'circle_entry', 'circle_entry_marker', 'free_map', 1, 1),
+      pointStep('circle_exit', 'Circle exit', 'Place the circle exit marker (WP).', 'circle_exit', 'circle_exit_marker', 'free_map', 1, 1),
     ],
   },
   {
