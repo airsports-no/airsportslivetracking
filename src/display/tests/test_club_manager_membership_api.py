@@ -47,6 +47,7 @@ class TestClubManagerMembershipApi(APITestCase):
         response = self.client.post(url, {"name": "New Club", "country": "NO"}, format="json")
 
         self.assertEqual(status.HTTP_405_METHOD_NOT_ALLOWED, response.status_code)
+        self.assertEqual("method_not_allowed", response.data["detail"].code)
         self.assertFalse(Club.objects.filter(name="New Club").exists())
 
     def test_generic_club_delete_endpoint_is_not_allowed(self):
@@ -56,6 +57,7 @@ class TestClubManagerMembershipApi(APITestCase):
         response = self.client.delete(url)
 
         self.assertEqual(status.HTTP_405_METHOD_NOT_ALLOWED, response.status_code)
+        self.assertEqual("method_not_allowed", response.data["detail"].code)
         self.assertTrue(Club.objects.filter(pk=self.club.pk).exists())
 
     def test_owner_can_add_manager_membership_by_email(self):

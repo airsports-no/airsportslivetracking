@@ -250,7 +250,6 @@ class TestContractNavigationDeclarationUI(TestCase):
             f"/contestant-declaration/{self.contest.pk}/{self.navigation_task.pk}/{contestant.pk}",
         )
 
-
     def test_contract_navigation_compiler_requires_declared_t_seconds(self):
         from display.models import Contestant
         from display.services.contestant_task_compiler import ContestantTaskCompiler
@@ -258,22 +257,20 @@ class TestContractNavigationDeclarationUI(TestCase):
         contestant = Contestant.objects.create(
             navigation_task=self.navigation_task,
             team=self.contest_team.team,
-            contestant_number=99,
-            tracking_service=self.contest_team.tracking_service,
-            tracking_device=self.contest_team.tracking_device or "",
-            tracker_device_id=self.contest_team.tracker_device_id or "",
             takeoff_time=datetime.datetime(2026, 8, 1, 9, 55, tzinfo=datetime.timezone.utc),
-            adaptive_start=False,
             tracker_start_time=datetime.datetime(2026, 8, 1, 9, 45, tzinfo=datetime.timezone.utc),
             finished_by_time=datetime.datetime(2026, 8, 1, 11, 30, tzinfo=datetime.timezone.utc),
+            contestant_number=1,
             minutes_to_starting_point=5,
             air_speed=70,
             wind_direction=0,
             wind_speed=0,
         )
+
         compiled = ContestantTaskCompiler(contestant).compile(
             declaration_payload={"declared_sequence": ["A", "MP", "C", "FP"]},
             force=True,
         )
+
         self.assertFalse(compiled.is_valid)
         self.assertIn("Contract navigation requires declared_t_seconds.", compiled.validation_errors)

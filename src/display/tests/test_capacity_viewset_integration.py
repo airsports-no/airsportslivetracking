@@ -146,8 +146,45 @@ class TestCapacityViewsetIntegration(APITestCase):
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
         self.assertEqual(
             "One or more selected contest teams do not belong to this contest.",
-            response.data[0],
+            response.data["detail"],
         )
+
+    def test_schedule_capacity_preview_rejects_malformed_contest_team_ids(self, *_args):
+        url = reverse(
+            "navigationtasks-schedule-capacity-preview",
+            kwargs={"contest_pk": self.contest.id, "pk": self.navigation_task.id},
+        )
+
+        response = self.client.get(
+            url,
+            {
+                "contest_teams": f"{self.contest_team.pk},abc",
+                "first_takeoff_time": "2026-04-01T10:00:00Z",
+            },
+        )
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        self.assertEqual(
+            "contest_teams must be a comma-separated list of integer ContestTeam IDs.",
+            response.data["detail"],
+        )
+
+    def test_schedule_capacity_preview_rejects_invalid_first_takeoff_time(self, *_args):
+        url = reverse(
+            "navigationtasks-schedule-capacity-preview",
+            kwargs={"contest_pk": self.contest.id, "pk": self.navigation_task.id},
+        )
+
+        response = self.client.get(
+            url,
+            {
+                "contest_teams": str(self.contest_team.pk),
+                "first_takeoff_time": "not-a-datetime",
+            },
+        )
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        self.assertIn("Unknown string format", response.data["detail"])
 
     @patch("display.viewsets.scheduling_capacity_preview")
     @patch("display.viewsets.schedule_and_create_contestants")

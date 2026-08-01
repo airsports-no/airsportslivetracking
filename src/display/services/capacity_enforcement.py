@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.exceptions import ValidationError
 from django.conf import settings
 from django.utils import timezone
@@ -6,6 +7,15 @@ from display.models import ContestUsageLedger, Contestant, ContestTeam
 from display.services.access_resolver import resolve_contest_access
 from display.services.token_assignment import ensure_token_assignment_active_for_guest_start
 from display.utilities.task_type_group_definitions import get_task_type_group
+
+
+def _get_owner_person_id(contest):
+    if not contest.created_by_id:
+        return None
+    try:
+        return contest.created_by.person.id
+    except ObjectDoesNotExist:
+        return None
 
 
 def _should_enforce(resolution) -> bool:
@@ -45,12 +55,7 @@ def scheduling_capacity_preview(navigation_task, selected_contest_team_ids, firs
     contest = navigation_task.contest
     resolution = resolve_contest_access(contest)
     limit = resolution.contestant_limit
-    owner_person_id = None
-    if contest.created_by_id:
-        try:
-            owner_person_id = contest.created_by.person.id
-        except Exception:
-            owner_person_id = None
+    owner_person_id = _get_owner_person_id(contest)
 
     existing_contestants = navigation_task.contestant_set.all()
     if first_takeoff_time is not None:
@@ -126,12 +131,7 @@ def _task_type_group_error_message(task_type_group):
 
 
 def _task_reserved_guest_pilots(contest, navigation_task, current_contestant=None):
-    owner_person_id = None
-    if contest.created_by_id:
-        try:
-            owner_person_id = contest.created_by.person.id
-        except Exception:
-            owner_person_id = None
+    owner_person_id = _get_owner_person_id(contest)
 
     started_pilot_ids = set(
         ContestUsageLedger.objects.filter(
@@ -157,12 +157,7 @@ def _task_reserved_guest_pilots(contest, navigation_task, current_contestant=Non
 
 
 def _contest_reserved_guest_pilots(contest, current_contestant=None):
-    owner_person_id = None
-    if contest.created_by_id:
-        try:
-            owner_person_id = contest.created_by.person.id
-        except Exception:
-            owner_person_id = None
+    owner_person_id = _get_owner_person_id(contest)
 
     started_pilot_ids = set(
         ContestUsageLedger.objects.filter(

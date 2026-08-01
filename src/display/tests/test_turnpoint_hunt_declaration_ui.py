@@ -81,6 +81,29 @@ class TestTurnpointHuntDeclarationUI(TestCase):
         self.create_url = reverse("contestant_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
         self.quick_add_url = reverse("contestant_quick_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
 
+    def _create_contestant(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.create_url,
+            {
+                "contestant_number": 1,
+                "team": self.contest_team.team.pk,
+                "tracking_service": str(self.contest_team.tracking_service),
+                "tracking_device": self.contest_team.tracking_device or "",
+                "tracker_device_id": self.contest_team.tracker_device_id or "",
+                "takeoff_time": "2026-08-01T09:55",
+                "adaptive_start": False,
+                "tracker_start_time": "2026-08-01T09:45",
+                "finished_by_time": "2026-08-01T11:30",
+                "minutes_to_starting_point": 5,
+                "air_speed": 70,
+                "wind_direction": 0,
+                "wind_speed": 0,
+            },
+        )
+        self.assertEqual(302, response.status_code)
+        return self.navigation_task.contestant_set.get(team=self.contest_team.team)
+
     def test_turnpoint_hunt_form_does_not_expose_declaration_fields(self):
         form = ContestantForm(navigation_task=self.navigation_task)
         self.assertNotIn("predicted_sequence_1", form.fields)
@@ -108,27 +131,7 @@ class TestTurnpointHuntDeclarationUI(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
 
     def test_turnpoint_hunt_create_view_persists_empty_declaration_until_editor_is_used(self):
-        self.client.force_login(self.user)
-        response = self.client.post(
-            self.create_url,
-            {
-                "contestant_number": 1,
-                "team": self.contest_team.team.pk,
-                "tracking_service": str(self.contest_team.tracking_service),
-                "tracking_device": self.contest_team.tracking_device or "",
-                "tracker_device_id": self.contest_team.tracker_device_id or "",
-                "takeoff_time": "2026-08-01T09:55",
-                "adaptive_start": False,
-                "tracker_start_time": "2026-08-01T09:45",
-                "finished_by_time": "2026-08-01T11:30",
-                "minutes_to_starting_point": 5,
-                "air_speed": 70,
-                "wind_direction": 0,
-                "wind_speed": 0,
-            },
-        )
-        self.assertEqual(302, response.status_code)
-        contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
+        contestant = self._create_contestant()
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
 
     def test_turnpoint_hunt_quick_add_form_does_not_expose_declaration_fields(self):

@@ -6,6 +6,26 @@ import { fetchContestant, fetchNavigationTask, updateContestantDeclaration } fro
 import { reverse } from '../../urls';
 import { useToast } from '../competition-map/hooks/useToast';
 
+type FreeTarget = {
+    name: string;
+    score_value?: number;
+    evidence?: { name: string }[];
+};
+
+type ContestantDeclarationData = {
+    declaration_payload?: Record<string, unknown>;
+    compiled_effective_route_payload?: {
+        compulsory_point_names?: string[];
+        compulsory_timing_gate_names?: string[];
+        free_targets?: FreeTarget[];
+        free_target_names?: string[];
+        time_model?: { t_seconds?: number };
+        compiled_task_primitives?: {
+            catalogue_turnpoint?: string[];
+        };
+    };
+};
+
 type ContractNavigationFormState = {
     beforeMp: string[];
     afterMp: string[];
@@ -16,6 +36,19 @@ type DeclarationFormState = {
     declaredEnduranceMinutes: string;
     contractNavigation: ContractNavigationFormState;
     contractDeclaredTSeconds: string;
+};
+
+type DeclarationPageData = {
+    navigationTask: Record<string, any> | null;
+    contestant: (Record<string, any> & ContestantDeclarationData) | null;
+    formState: DeclarationFormState;
+};
+
+const EMPTY_FORM_STATE: DeclarationFormState = {
+    compulsoryPointTimes: {},
+    declaredEnduranceMinutes: '',
+    contractNavigation: { beforeMp: [], afterMp: [] },
+    contractDeclaredTSeconds: '',
 };
 
 const toDatetimeLocalValue = (value?: string | null) => {
@@ -38,6 +71,103 @@ const splitContractNavigationDeclaration = (declaredSequence: unknown): Contract
         afterMp: values.slice(mpIndex + 1, fpIndex),
     };
 };
+
+const getCompiledPayload = (contestant: ContestantDeclarationData | null | undefined) => (
+    contestant?.compiled_effective_route_payload || {}
+);
+
+const getCompulsoryPointNames = (contestant: ContestantDeclarationData | null | undefined): string[] => {
+    const compiledPayload = getCompiledPayload(contestant);
+    return compiledPayload.compulsory_point_names || compiledPayload.compulsory_timing_gate_names || [];
+};
+
+const buildFormState = (contestantData: ContestantDeclarationData): DeclarationFormState => {
+    const compiledPayload = getCompiledPayload(contestantData);
+    const declarationPayload = contestantData.declaration_payload || {};
+    const compulsoryPointNames = getCompulsoryPointNames(contestantData);
+    const pointTimes = declarationPayload.compulsory_point_times as Record<string, string> | undefined;
+    const fuelMetadata = declarationPayload.fuel_metadata as { declared_endurance_minutes?: number } | undefined;
+    const declaredTSeconds = declarationPayload.declared_t_seconds;
+
+    const compulsoryPointTimes = compulsoryPointNames.reduce((acc: Record<string, string>, name: string) => {
+        acc[name] = toDatetimeLocalValue(pointTimes?.[name]);
+        return acc;
+    }, {});
+
+    return {
+        compulsoryPointTimes,
+        declaredEnduranceMinutes: fuelMetadata?.declared_endurance_minutes ? String(fuelMetadata.declared_endurance_minutes) : '',
+        contractNavigation: splitContractNavigationDeclaration(declarationPayload.declared_sequence),
+        contractDeclaredTSeconds: declaredTSeconds != null
+            ? String(declaredTSeconds)
+            : String(compiledPayload.time_model?.t_seconds ?? ''),
+    };
+};
+
+function useContestantDeclarationData(
+    contestId: string | undefined,
+    navigationTaskId: string | undefined,
+    contestantId: string | undefined,
+    showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void,
+) {
+    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState<DeclarationPageData>({
+        navigationTask: null,
+        contestant: null,
+        formState: EMPTY_FORM_STATE,
+    });
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            if (!contestId || !navigationTaskId || !contestantId) {
+                setError('Missing declaration route parameters.');
+                setLoading(false);
+                return;
+            }
+            setLoading(true);
+            setError(null);
+            try {
+                const [task, contestantData] = await Promise.all([
+                    fetchNavigationTask(Number(contestId), Number(navigationTaskId)),
+                    fetchContestant(Number(contestId), Number(navigationTaskId), Number(contestantId)),
+                ]);
+                if (cancelled) return;
+                setData({
+                    navigationTask: task,
+                    contestant: contestantData,
+                    formState: buildFormState(contestantData),
+                });
+            } catch (err: any) {
+                if (!cancelled) {
+                    const message = err?.message || 'Failed to load declaration data.';
+                    setError(message);
+                    showToast(message, 'error');
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [contestId, navigationTaskId, contestantId, showToast]);
+
+    return {
+        loading,
+        error,
+        setError,
+        data,
+        setNavigationTask: (navigationTask: Record<string, any> | null) => setData((prev) => ({ ...prev, navigationTask })),
+        setContestant: (contestant: (Record<string, any> & ContestantDeclarationData) | null) => setData((prev) => ({ ...prev, contestant })),
+        setFormState: (next: React.SetStateAction<DeclarationFormState>) => setData((prev) => ({
+            ...prev,
+            formState: typeof next === 'function' ? (next as (current: DeclarationFormState) => DeclarationFormState)(prev.formState) : next,
+        })),
+    };
+}
 
 type ContractNavigationEditorProps = {
     availableTurnpoints: string[];
@@ -224,78 +354,176 @@ const ContractNavigationEditor: React.FC<ContractNavigationEditorProps> = ({ ava
     );
 };
 
+type ContractNavigationFormProps = {
+    declaredTSeconds: string;
+    contractNavigation: ContractNavigationFormState;
+    availableTurnpoints: string[];
+    disabled: boolean;
+    onDeclaredTSecondsChange: (value: string) => void;
+    onContractNavigationChange: (value: ContractNavigationFormState) => void;
+};
+
+function ContractNavigationForm({
+    declaredTSeconds,
+    contractNavigation,
+    availableTurnpoints,
+    disabled,
+    onDeclaredTSecondsChange,
+    onContractNavigationChange,
+}: ContractNavigationFormProps) {
+    return (
+        <div className="space-y-4">
+            <label className="form-control w-full">
+                <span className="label-text font-medium">Declared T: time from SP to MP (seconds)</span>
+                <input
+                    type="number"
+                    min={1}
+                    step="1"
+                    className="input input-bordered w-full"
+                    value={declaredTSeconds}
+                    onChange={(e) => onDeclaredTSecondsChange(e.target.value)}
+                    required
+                />
+            </label>
+            <ContractNavigationEditor
+                availableTurnpoints={availableTurnpoints}
+                value={contractNavigation}
+                onChange={onContractNavigationChange}
+                disabled={disabled}
+            />
+        </div>
+    );
+}
+
+type TurnpointHuntFormProps = {
+    compulsoryPointNames: string[];
+    compulsoryPointTimes: Record<string, string>;
+    declaredEnduranceMinutes: string;
+    isLimitedFuel: boolean;
+    onTimeChange: (name: string, value: string) => void;
+    onDeclaredEnduranceMinutesChange: (value: string) => void;
+};
+
+function TurnpointHuntForm({
+    compulsoryPointNames,
+    compulsoryPointTimes,
+    declaredEnduranceMinutes,
+    isLimitedFuel,
+    onTimeChange,
+    onDeclaredEnduranceMinutesChange,
+}: TurnpointHuntFormProps) {
+    return (
+        <>
+            {compulsoryPointNames.map((name) => (
+                <label className="form-control w-full" key={name}>
+                    <span className="label-text font-medium">Predicted time for {name}</span>
+                    <input
+                        type="datetime-local"
+                        step={60}
+                        className="input input-bordered w-full"
+                        value={compulsoryPointTimes[name] || ''}
+                        onChange={(e) => onTimeChange(name, e.target.value)}
+                        required
+                    />
+                </label>
+            ))}
+            {isLimitedFuel && (
+                <label className="form-control w-full">
+                    <span className="label-text font-medium">Declared fuel endurance (minutes)</span>
+                    <input
+                        type="number"
+                        min={1}
+                        className="input input-bordered w-full"
+                        value={declaredEnduranceMinutes}
+                        onChange={(e) => onDeclaredEnduranceMinutesChange(e.target.value)}
+                    />
+                </label>
+            )}
+        </>
+    );
+}
+
+type DeclarationPreviewProps = {
+    isContractNavigation: boolean;
+    contractDeclaredTSeconds: string;
+    contractNavigation: ContractNavigationFormState;
+    freeTargets: FreeTarget[];
+};
+
+function DeclarationPreview({
+    isContractNavigation,
+    contractDeclaredTSeconds,
+    contractNavigation,
+    freeTargets,
+}: DeclarationPreviewProps) {
+    if (isContractNavigation) {
+        return (
+            <>
+                <h2 className="card-title">Declaration preview</h2>
+                <div className="rounded-lg bg-base-200/60 p-4 text-sm space-y-2">
+                    <div><span className="font-medium">Declared T:</span> {contractDeclaredTSeconds || '—'} s</div>
+                    <div><span className="font-medium">SP</span></div>
+                    <div><span className="font-medium">Before MP:</span> {contractNavigation.beforeMp.join(', ') || '—'}</div>
+                    <div><span className="font-medium">MP</span></div>
+                    <div><span className="font-medium">After MP:</span> {contractNavigation.afterMp.join(', ') || '—'}</div>
+                    <div><span className="font-medium">FP</span></div>
+                    <div><span className="font-medium">Full sequence:</span> {[
+                        'SP',
+                        ...contractNavigation.beforeMp,
+                        'MP',
+                        ...contractNavigation.afterMp,
+                        'FP',
+                    ].join(' → ')}</div>
+                </div>
+            </>
+        );
+    }
+
+    return (
+        <>
+            <h2 className="card-title">Free targets</h2>
+            <p className="text-sm opacity-70">Free targets are unordered and require photo evidence.</p>
+            <div className="overflow-x-auto mt-2">
+                <table className="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Target</th>
+                            <th>Score</th>
+                            <th>Photo evidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {freeTargets.map((target) => (
+                            <tr key={target.name}>
+                                <td className="font-medium">{target.name}</td>
+                                <td>{target.score_value ?? '—'}</td>
+                                <td>{target.evidence?.length ? target.evidence.map((item) => item.name).join(', ') : 'Missing'}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </>
+    );
+}
+
 const ContestantDeclarationPage: React.FC = () => {
     const { contestId, navigationTaskId, contestantId } = useParams();
-    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [navigationTask, setNavigationTask] = useState<any | null>(null);
-    const [contestant, setContestant] = useState<any | null>(null);
-    const [formState, setFormState] = useState<DeclarationFormState>({
-        compulsoryPointTimes: {},
-        declaredEnduranceMinutes: '',
-        contractNavigation: { beforeMp: [], afterMp: [] },
-        contractDeclaredTSeconds: '',
-    });
-    const [error, setError] = useState<string | null>(null);
     const { showToast, ToastContainer, toasts, removeToast } = useToast();
+    const {
+        loading,
+        error,
+        setError,
+        data,
+        setContestant,
+        setFormState,
+    } = useContestantDeclarationData(contestId, navigationTaskId, contestantId, showToast);
 
-    useEffect(() => {
-        let cancelled = false;
-        const load = async () => {
-            if (!contestId || !navigationTaskId || !contestantId) {
-                setError('Missing declaration route parameters.');
-                setLoading(false);
-                return;
-            }
-            setLoading(true);
-            setError(null);
-            try {
-                const [task, contestantData] = await Promise.all([
-                    fetchNavigationTask(Number(contestId), Number(navigationTaskId)),
-                    fetchContestant(Number(contestId), Number(navigationTaskId), Number(contestantId)),
-                ]);
-                if (cancelled) return;
-                setNavigationTask(task);
-                setContestant(contestantData);
-
-                const compiledPayload = contestantData.compiled_effective_route_payload || {};
-                const compulsoryPointNames: string[] = compiledPayload.compulsory_point_names || compiledPayload.compulsory_timing_gate_names || [];
-                const declarationPayload = contestantData.declaration_payload || {};
-                const pointTimes = declarationPayload.compulsory_point_times || {};
-                const fuelMetadata = declarationPayload.fuel_metadata || {};
-                const contractNavigation = splitContractNavigationDeclaration(declarationPayload.declared_sequence);
-                const contractDeclaredTSeconds = declarationPayload.declared_t_seconds != null
-                    ? String(declarationPayload.declared_t_seconds)
-                    : String(compiledPayload.time_model?.t_seconds ?? '');
-                const compulsoryPointTimes = compulsoryPointNames.reduce((acc: Record<string, string>, name: string) => {
-                    acc[name] = toDatetimeLocalValue(pointTimes[name]);
-                    return acc;
-                }, {});
-                setFormState({
-                    compulsoryPointTimes,
-                    declaredEnduranceMinutes: fuelMetadata.declared_endurance_minutes ? String(fuelMetadata.declared_endurance_minutes) : '',
-                    contractNavigation,
-                    contractDeclaredTSeconds,
-                });
-            } catch (err: any) {
-                if (!cancelled) {
-                    const message = err?.message || 'Failed to load declaration data.';
-                    setError(message);
-                    showToast(message, 'error');
-                }
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        };
-        load();
-        return () => {
-            cancelled = true;
-        };
-    }, [contestId, navigationTaskId, contestantId, showToast]);
-
-    const compiledPayload = contestant?.compiled_effective_route_payload || {};
-    const compulsoryPointNames: string[] = compiledPayload.compulsory_point_names || compiledPayload.compulsory_timing_gate_names || [];
-    const freeTargets: Array<any> = compiledPayload.free_targets || [];
+    const { navigationTask, contestant, formState } = data;
+    const compiledPayload = getCompiledPayload(contestant);
+    const compulsoryPointNames = getCompulsoryPointNames(contestant);
+    const freeTargets = compiledPayload.free_targets || [];
     const isLimitedFuel = navigationTask?.task_subtype === 'limited_fuel_turnpoint_hunt';
     const isContractNavigation = navigationTask?.task_subtype === 'contract_navigation_time_controls';
     const availableContractTurnpoints: string[] = (
@@ -357,6 +585,7 @@ const ContestantDeclarationPage: React.FC = () => {
                 declarationPayload,
             );
             setContestant(updatedContestant);
+            setFormState(buildFormState(updatedContestant));
             showToast('Declaration saved.', 'success');
         } catch (err: any) {
             const message = err?.message || 'Failed to save declaration.';
@@ -397,52 +626,23 @@ const ContestantDeclarationPage: React.FC = () => {
                         <h2 className="card-title">{isContractNavigation ? 'Declaration sequence' : 'Compulsory point declaration'}</h2>
                         <form className="space-y-4" onSubmit={handleSubmit}>
                             {isContractNavigation ? (
-                                <div className="space-y-4">
-                                    <label className="form-control w-full">
-                                        <span className="label-text font-medium">Declared T: time from SP to MP (seconds)</span>
-                                        <input
-                                            type="number"
-                                            min={1}
-                                            step="1"
-                                            className="input input-bordered w-full"
-                                            value={formState.contractDeclaredTSeconds}
-                                            onChange={(e) => setFormState((prev) => ({ ...prev, contractDeclaredTSeconds: e.target.value }))}
-                                            required
-                                        />
-                                    </label>
-                                    <ContractNavigationEditor
-                                        availableTurnpoints={availableContractTurnpoints}
-                                        value={formState.contractNavigation}
-                                        onChange={(contractNavigation) => setFormState((prev) => ({ ...prev, contractNavigation }))}
-                                        disabled={saving}
-                                    />
-                                </div>
+                                <ContractNavigationForm
+                                    declaredTSeconds={formState.contractDeclaredTSeconds}
+                                    contractNavigation={formState.contractNavigation}
+                                    availableTurnpoints={availableContractTurnpoints}
+                                    disabled={saving}
+                                    onDeclaredTSecondsChange={(value) => setFormState((prev) => ({ ...prev, contractDeclaredTSeconds: value }))}
+                                    onContractNavigationChange={(contractNavigation) => setFormState((prev) => ({ ...prev, contractNavigation }))}
+                                />
                             ) : (
-                                compulsoryPointNames.map((name) => (
-                                    <label className="form-control w-full" key={name}>
-                                        <span className="label-text font-medium">Predicted time for {name}</span>
-                                        <input
-                                            type="datetime-local"
-                                            step={60}
-                                            className="input input-bordered w-full"
-                                            value={formState.compulsoryPointTimes[name] || ''}
-                                            onChange={(e) => handleTimeChange(name, e.target.value)}
-                                            required
-                                        />
-                                    </label>
-                                ))
-                            )}
-                            {!isContractNavigation && isLimitedFuel && (
-                                <label className="form-control w-full">
-                                    <span className="label-text font-medium">Declared fuel endurance (minutes)</span>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        className="input input-bordered w-full"
-                                        value={formState.declaredEnduranceMinutes}
-                                        onChange={(e) => setFormState((prev) => ({ ...prev, declaredEnduranceMinutes: e.target.value }))}
-                                    />
-                                </label>
+                                <TurnpointHuntForm
+                                    compulsoryPointNames={compulsoryPointNames}
+                                    compulsoryPointTimes={formState.compulsoryPointTimes}
+                                    declaredEnduranceMinutes={formState.declaredEnduranceMinutes}
+                                    isLimitedFuel={isLimitedFuel}
+                                    onTimeChange={handleTimeChange}
+                                    onDeclaredEnduranceMinutesChange={(value) => setFormState((prev) => ({ ...prev, declaredEnduranceMinutes: value }))}
+                                />
                             )}
                             {error && <div className="alert alert-error text-sm">{error}</div>}
                             <div className="card-actions justify-end">
@@ -456,55 +656,12 @@ const ContestantDeclarationPage: React.FC = () => {
 
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
-                        {isContractNavigation ? (
-                            <>
-                                <h2 className="card-title">Declaration preview</h2>
-                                <div className="rounded-lg bg-base-200/60 p-4 text-sm space-y-2">
-                                    <div><span className="font-medium">Declared T:</span> {formState.contractDeclaredTSeconds || '—'} s</div>
-                                    <div><span className="font-medium">SP</span></div>
-                                    <div><span className="font-medium">Before MP:</span> {formState.contractNavigation.beforeMp.join(', ') || '—'}</div>
-                                    <div><span className="font-medium">MP</span></div>
-                                    <div><span className="font-medium">After MP:</span> {formState.contractNavigation.afterMp.join(', ') || '—'}</div>
-                                    <div><span className="font-medium">FP</span></div>
-                                    <div><span className="font-medium">Full sequence:</span> {[
-                                        'SP',
-                                        ...formState.contractNavigation.beforeMp,
-                                        'MP',
-                                        ...formState.contractNavigation.afterMp,
-                                        'FP',
-                                    ].join(' → ')}</div>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <h2 className="card-title">Free targets</h2>
-                                <p className="text-sm opacity-70">Free targets are unordered and require photo evidence.</p>
-                                <div className="overflow-x-auto mt-2">
-                                    <table className="table table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th>Target</th>
-                                                <th>Score</th>
-                                                <th>Photo evidence</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {freeTargets.map((target) => (
-                                                <tr key={target.name}>
-                                                    <td className="font-medium">{target.name}</td>
-                                                    <td>{target.score_value ?? '—'}</td>
-                                                    <td>
-                                                        {target.evidence?.length
-                                                            ? target.evidence.map((item: any) => item.name).join(', ')
-                                                            : 'Missing'}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        )}
+                        <DeclarationPreview
+                            isContractNavigation={isContractNavigation}
+                            contractDeclaredTSeconds={formState.contractDeclaredTSeconds}
+                            contractNavigation={formState.contractNavigation}
+                            freeTargets={freeTargets}
+                        />
                     </div>
                 </div>
             </div>

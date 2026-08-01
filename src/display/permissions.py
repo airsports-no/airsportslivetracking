@@ -252,7 +252,7 @@ class NavigationTaskContestPermissions(permissions.BasePermission):
         if request.method in ["GET"]:
             return request.user.has_perm("view_contest", obj.contest)
         if request.method in ["POST"]:
-            return request.user.has_perm("add_contest", obj.contest)
+            return request.user.has_perm("change_contest", obj.contest)
         if request.method in ["PUT", "PATCH"]:
             return request.user.has_perm("change_contest", obj.contest)
         if request.method in ["DELETE"]:

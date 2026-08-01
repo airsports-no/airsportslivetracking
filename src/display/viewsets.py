@@ -24,8 +24,9 @@ from rest_framework.response import Response
 from rest_framework.pagination import CursorPagination
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 import rest_framework.exceptions as drf_exceptions
-from rest_framework.exceptions import MethodNotAllowed, ValidationError
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.exceptions import ValidationError
+from drf_spectacular.utils import extend_schema, OpenApiParameter, inline_serializer
 from drf_spectacular.types import OpenApiTypes
 from urllib import parse
 
@@ -1237,6 +1238,41 @@ class NavigationTaskViewSet(ModelViewSet):
             serializer = PhotoPublicSerialiser(photos, many=True, context={"contestant": contestant})
         return Response(serializer.data)
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="contest_teams",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Comma-separated ContestTeam IDs to preview against this task.",
+            ),
+            OpenApiParameter(
+                name="first_takeoff_time",
+                type=OpenApiTypes.DATETIME,
+                location=OpenApiParameter.QUERY,
+                description="Optional ISO-8601 takeoff time used to filter overlapping existing contestants.",
+            ),
+        ],
+        responses={
+            200: inline_serializer(
+                name="ScheduleCapacityPreviewResponse",
+                fields={
+                    "contestant_limit": serializers.IntegerField(allow_null=True),
+                    "reserved_before_count": serializers.IntegerField(),
+                    "reserved_after_count": serializers.IntegerField(),
+                    "additional_selected_count": serializers.IntegerField(),
+                    "remaining_before_count": serializers.IntegerField(allow_null=True),
+                    "remaining_after_count": serializers.IntegerField(allow_null=True),
+                    "would_exceed": serializers.BooleanField(),
+                },
+            ),
+            400: inline_serializer(
+                name="ScheduleCapacityPreviewError",
+                fields={"detail": serializers.CharField()},
+            ),
+        },
+        description="Return projected pilot-capacity usage for a proposed schedule before contestants are created.",
+    )
     @action(
         detail=True,
         methods=["get"],
@@ -1244,20 +1280,35 @@ class NavigationTaskViewSet(ModelViewSet):
         permission_classes=[permissions.IsAuthenticated & NavigationTaskContestPermissions],
     )
     def schedule_capacity_preview(self, request, pk=None, **kwargs):
+        """Return projected pilot-capacity usage for a proposed schedule."""
         navigation_task = self.get_object()
         contest_teams_param = request.query_params.get("contest_teams", "")
-        contest_teams_pks = [int(item) for item in contest_teams_param.split(",") if item]
+        try:
+            contest_teams_pks = [int(item) for item in contest_teams_param.split(",") if item]
+        except ValueError:
+            return Response(
+                {"detail": "contest_teams must be a comma-separated list of integer ContestTeam IDs."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         first_takeoff_time_raw = request.query_params.get("first_takeoff_time")
         first_takeoff_time = None
-        if first_takeoff_time_raw:
-            first_takeoff_time = dateutil.parser.parse(first_takeoff_time_raw)
-            if first_takeoff_time.tzinfo is None:
-                first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
-        preview = scheduling_capacity_preview(
-            navigation_task,
-            contest_teams_pks,
-            first_takeoff_time=first_takeoff_time,
-        )
+        try:
+            if first_takeoff_time_raw:
+                first_takeoff_time = dateutil.parser.parse(first_takeoff_time_raw)
+                if first_takeoff_time.tzinfo is None:
+                    first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
+            preview = scheduling_capacity_preview(
+                navigation_task,
+                contest_teams_pks,
+                first_takeoff_time=first_takeoff_time,
+            )
+        except (TypeError, ValueError, dateutil.parser.ParserError) as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValidationError, DjangoValidationError) as exc:
+            detail = exc.detail if isinstance(exc, ValidationError) else exc.message
+            if isinstance(detail, (list, tuple)):
+                detail = detail[0]
+            return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
         return Response(preview, status=status.HTTP_200_OK)
 
     @action(
@@ -1482,11 +1533,10 @@ class AircraftViewSet(ModelViewSet):
     http_method_names = ["get"]
 
 
-class ClubViewSet(ModelViewSet):
+class ClubViewSet(ReadOnlyModelViewSet):
     queryset = Club.objects.all()
     serializer_class = ClubSerialiser
     permission_classes = [permissions.IsAuthenticated]
-    http_method_names = ["get", "post", "delete"]
 
     def get_queryset(self):
         if self.action == "managed":
@@ -1495,12 +1545,6 @@ class ClubViewSet(ModelViewSet):
                 clubmanagermembership__is_active=True,
             ).distinct().order_by("name")
         return Club.objects.all().order_by("name")
-
-    def create(self, request, *args, **kwargs):
-        raise MethodNotAllowed("POST")
-
-    def destroy(self, request, *args, **kwargs):
-        raise MethodNotAllowed("DELETE")
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -1743,6 +1787,16 @@ class ContestantViewSet(ModelViewSet):
         )
         if navigation_task_id:
             qs = qs.filter(navigation_task_id=navigation_task_id)
+        if self.request.method in permissions.SAFE_METHODS:
+            qs = qs.select_related(
+                "navigation_task__contest",
+                "team__crew__member1",
+                "team__crew__member2",
+                "team__aeroplane",
+                "team__club",
+                "contestanttrack",
+                "contestanttaskconfiguration",
+            )
         return qs
 
     def get_serializer_context(self):
@@ -1791,6 +1845,10 @@ class ContestantViewSet(ModelViewSet):
     def update_with_team(self, request, *args, **kwargs):
         return super().update(request, *args, **kwargs)
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+        description="Return consolidated score data, including compiled task payload and administrative penalties, for the contestant score view.",
+    )
     @action(detail=True, methods=["get"])
     def score_data(self, request, *args, **kwargs):
         """
@@ -1836,8 +1894,16 @@ class ContestantViewSet(ModelViewSet):
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.PATH,
                 description="Minute index to inspect",
-            )
-        ]
+            ),
+            OpenApiParameter(
+                name="count",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Number of contiguous one-minute slices to return. Must be between 1 and 60.",
+            ),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+        description="Return one or more cached minute-aligned telemetry slices for a contestant track.",
     )
     @action(detail=True, methods=["get"], url_path=r"slice/(?P<minute_index>\d+)")
     def slice(self, request, minute_index, **kwargs):
@@ -2007,6 +2073,10 @@ class ContestantViewSet(ModelViewSet):
 
         yield "]"
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+        description="Alias for score_data that returns the contestant score payload expected by the score view.",
+    )
     @action(detail=True, methods=["get"])
     def score(self, request, pk=None, **kwargs):
         """
@@ -2056,8 +2126,24 @@ class ContestantViewSet(ModelViewSet):
 
         return response
 
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                name="CompiledEvidenceResponse",
+                fields={
+                    "observation_photos": serializers.ListField(child=serializers.DictField(), required=True),
+                    "observation_judging_mode": serializers.CharField(allow_null=True),
+                    "manual_adjudication_categories": serializers.ListField(child=serializers.CharField()),
+                    "hidden_gate_names": serializers.ListField(child=serializers.CharField()),
+                    "unknown_leg_names": serializers.ListField(child=serializers.CharField()),
+                },
+            )
+        },
+        description="Return organizer-facing compiled evidence metadata derived from the contestant's effective route payload.",
+    )
     @action(detail=True, methods=["get"])
     def compiled_evidence(self, request, pk=None, **kwargs):
+        """Return organizer-facing compiled evidence metadata for the contestant."""
         contestant = self.get_object()
         if hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
             payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
