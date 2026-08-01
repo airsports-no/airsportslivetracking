@@ -34,6 +34,7 @@ from display.utilities.navigation_task_type_definitions import (
 )
 from display.utilities.traccar_factory import get_traccar_instance
 from display.utilities.track_merger import merge_tracks
+from display.utilities.task_information import build_navigation_task_rules_latex
 from display.utilities.tracking_definitions import (
     TRACKING_PILOT_AND_COPILOT,
     TRACKING_DEVICES,
@@ -397,15 +398,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         Returns a long formatted string that describes the rules for this specific contestant in the navigation task.
         :return:
         """
-        if self.navigation_task.scorecard.calculator == PRECISION:
-            return self._precision_rule_description()
-        if self.navigation_task.scorecard.calculator == ANR_CORRIDOR:
-            return self._anr_rule_description()
-        if self.navigation_task.scorecard.calculator in (AIRSPORTS, AIRSPORT_CHALLENGE):
-            return self._air_sports_rule_description()
-        if self.navigation_task.scorecard.calculator == POKER:
-            return self._poker_rule_description()
-        return "Missing rules"
+        return build_navigation_task_rules_latex(self.navigation_task)
 
     def __str__(self):
         return "{} - {}".format(self.contestant_number, self.team)

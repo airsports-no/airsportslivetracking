@@ -5,11 +5,13 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.http import HttpResponseRedirect
 from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
 from display.forms import ContestForm
 from display.models import Contest, ContestTokenAssignment, EditableRoute, Route, TokenType, UserTokenGrant
 from display.views_wizards import RouteToTaskWizard
 from display.utilities.navigation_task_type_definitions import AIRSPORTS
+from display.utilities.cima_task_type_definitions import CIRCLE
 
 
 class TestRouteToTaskWizardTokenCreation(TestCase):
@@ -90,10 +92,76 @@ class TestRouteToTaskWizardTokenCreation(TestCase):
         wizard.editable_route = self.editable_route
         wizard.get_cleaned_data_for_step = lambda step: {
             "contest_selection": {"task_type": AIRSPORTS, "navigation_task_name": "Existing Contest Task", "contest": self.existing_contest},
-            "task_content": {"original_scorecard": MagicMock(), "task_subtype": ""},
+            "task_content": {"original_scorecard": MagicMock(), "task_subtype": "", "name": "Existing Contest Task"},
             "airsports_parameters": {"rounded_corners": False},
         }.get(step)
 
         wizard.done([])
 
         mock_guard.assert_called_once_with(self.existing_contest, task_type=AIRSPORTS, task_subtype="")
+
+    @patch("display.views_wizards.assert_can_add_navigation_task")
+    @patch("display.views_wizards.NavigationTask.create")
+    @patch.object(RouteToTaskWizard, "create_route")
+    @patch("display.views_wizards.Scorecard.get_originals")
+    def test_done_does_not_pass_duplicate_name_to_navigation_task_create(self, mock_get_originals, mock_create_route, mock_navigation_task_create, mock_guard):
+        mock_get_originals.return_value = [SimpleNamespace(task_type=[AIRSPORTS])]
+        mock_create_route.return_value = Route.objects.create()
+        mock_navigation_task_create.return_value = SimpleNamespace(pk=789)
+
+        request = RequestFactory().get("/")
+        request.user = self.user
+        request.session = {}
+        request._messages = MagicMock()
+        wizard = RouteToTaskWizard()
+        wizard.request = request
+        wizard.editable_route = self.editable_route
+        wizard.get_cleaned_data_for_step = lambda step: {
+            "contest_selection": {"task_type": AIRSPORTS, "navigation_task_name": "Wizard Selected Name", "contest": self.existing_contest},
+            "task_content": {
+                "original_scorecard": MagicMock(),
+                "task_subtype": "",
+                "name": "Form Task Name",
+                "start_time": "2026-10-02T09:30:00+00:00",
+                "finish_time": "2026-10-02T17:30:00+00:00",
+            },
+            "airsports_parameters": {"rounded_corners": False},
+        }.get(step)
+
+        wizard.done([])
+
+        _, kwargs = mock_navigation_task_create.call_args
+        self.assertEqual(kwargs["name"], "Form Task Name")
+        self.assertEqual(kwargs["start_time"], "2026-10-02T09:30:00+00:00")
+        self.assertEqual(kwargs["finish_time"], "2026-10-02T17:30:00+00:00")
+
+    @patch("display.views_wizards.messages.error")
+    @patch("display.views_wizards.assert_can_add_navigation_task")
+    @patch("display.views_wizards.NavigationTask.create")
+    @patch.object(RouteToTaskWizard, "create_route")
+    @patch("display.views_wizards.Scorecard.get_originals")
+    def test_done_rejects_missing_route_with_user_friendly_message(self, mock_get_originals, mock_create_route, mock_navigation_task_create, mock_guard, mock_messages_error):
+        mock_get_originals.return_value = [SimpleNamespace(task_type=[AIRSPORTS])]
+        mock_create_route.return_value = None
+        mock_navigation_task_create.return_value = SimpleNamespace(pk=999)
+
+        request = RequestFactory().post("/")
+        request.user = self.user
+        request.session = {}
+        request._messages = MagicMock()
+        wizard = RouteToTaskWizard()
+        wizard.request = request
+        wizard.editable_route = self.editable_route
+        wizard.get_cleaned_data_for_step = lambda step: {
+            "contest_selection": {"task_type": AIRSPORTS, "navigation_task_name": "Broken Route Task", "contest": self.existing_contest},
+            "task_content": {"original_scorecard": MagicMock(), "task_subtype": CIRCLE, "name": "Broken Route Task"},
+            "airsports_parameters": {"rounded_corners": False},
+        }.get(step)
+
+        response = wizard.done([])
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("contest_details", kwargs={"pk": self.existing_contest.pk}))
+        mock_navigation_task_create.assert_not_called()
+        mock_messages_error.assert_called_once()
+        self.assertIn("Unable to create navigation task route", mock_messages_error.call_args.args[1])

@@ -77,6 +77,7 @@ interface Props {
   map: L.Map | null;
   route: RouteData | null;
   taskCatalogueTargets?: NavigationTaskCatalogueTarget[];
+  taskConfig?: Record<string, any>;
   taskType: string[] | null;
   navTaskDisplaySecrets: boolean;
   displaySecrets: boolean; // User preference
@@ -216,23 +217,113 @@ function renderPokerRoute(map: L.Map, route: RouteData): L.Layer[] {
 
 function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarget[]): L.Layer[] {
   const layers: L.Layer[] = [];
+  const markerStyleByKind: Record<string, { radius: number; color: string; fillColor: string; fillOpacity: number; shape?: 'circle' | 'square'; html?: string; className?: string }> = {
+    catalogue_turnpoint: { radius: 8, color: 'blue', fillColor: 'white', fillOpacity: 0 },
+    circle_center_marker: { radius: 7, color: '#7c3aed', fillColor: '#7c3aed', fillOpacity: 0.2 },
+    circle_start_marker: { radius: 8, color: '#16a34a', fillColor: 'white', fillOpacity: 0 },
+    circle_entry_marker: { radius: 8, color: '#ea580c', fillColor: '#ea580c', fillOpacity: 0.15, html: '▶', className: 'text-xs font-bold text-orange-600' },
+    circle_exit_marker: { radius: 8, color: '#dc2626', fillColor: 'white', fillOpacity: 0, shape: 'square' },
+  };
 
   targets.forEach((target) => {
     const [lng, lat] = target.coordinates;
-    const circle = L.circleMarker([lat, lng], {
-      radius: 8,
-      color: 'blue',
-      weight: 2,
-      fill: false,
-    }).addTo(map);
-    circle.bindTooltip(target.name, {
+    const style = markerStyleByKind[target.kind || 'catalogue_turnpoint'] || markerStyleByKind.catalogue_turnpoint;
+    let layer: L.Layer;
+
+    if (style.html) {
+      const marker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: 'leaflet-div-icon-empty',
+          html: `<div class="${style.className}">${style.html}</div>`,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+        }),
+      }).addTo(map);
+      layer = marker;
+    } else if (style.shape === 'square') {
+      const marker = L.rectangle(
+        [
+          [lat - 0.00035, lng - 0.00035],
+          [lat + 0.00035, lng + 0.00035],
+        ],
+        {
+          color: style.color,
+          weight: 2,
+          fillOpacity: style.fillOpacity,
+          fillColor: style.fillColor,
+        }
+      ).addTo(map);
+      layer = marker;
+    } else {
+      const marker = L.circleMarker([lat, lng], {
+        radius: style.radius,
+        color: style.color,
+        weight: 2,
+        fillColor: style.fillColor,
+        fillOpacity: style.fillOpacity,
+      }).addTo(map);
+      layer = marker;
+    }
+
+    (layer as any).bindTooltip(target.name, {
       permanent: true,
       direction: 'right',
       offset: [8, 0],
       className: 'waypoint-label'
     });
-    layers.push(circle);
+    layers.push(layer);
   });
+
+  return layers;
+}
+
+function renderCircleTaskGeometry(map: L.Map, targets: NavigationTaskCatalogueTarget[], taskConfig?: Record<string, any>): L.Layer[] {
+  const layers: L.Layer[] = [];
+  const byKind = new Map((targets || []).map((target) => [target.kind, target]));
+  const center = byKind.get('circle_center_marker');
+  const start = byKind.get('circle_start_marker');
+  const entry = byKind.get('circle_entry_marker');
+  const exit = byKind.get('circle_exit_marker');
+
+  if (!center) {
+    return layers;
+  }
+
+  const [centerLng, centerLat] = center.coordinates;
+  const minRadiusM = Number(taskConfig?.circle_radius_min_m ?? 200);
+  const maxRadiusM = Number(taskConfig?.circle_radius_max_m ?? 750);
+
+  const innerBoundary = L.circle([centerLat, centerLng], {
+    radius: minRadiusM,
+    color: '#16a34a',
+    weight: 2,
+    dashArray: '6 6',
+    fill: false,
+  }).addTo(map);
+  const outerBoundary = L.circle([centerLat, centerLng], {
+    radius: maxRadiusM,
+    color: '#dc2626',
+    weight: 2,
+    dashArray: '10 6',
+    fill: false,
+  }).addTo(map);
+  layers.push(innerBoundary, outerBoundary);
+
+  const segmentStyle = { color: '#2563eb', weight: 3, dashArray: '8 6' };
+  const spokeStyle = { color: '#7c3aed', weight: 2, dashArray: '4 4' };
+  if (start && entry) {
+    const [startLng, startLat] = start.coordinates;
+    const [entryLng, entryLat] = entry.coordinates;
+    layers.push(L.polyline([[startLat, startLng], [entryLat, entryLng]], segmentStyle).addTo(map));
+  }
+  if (entry) {
+    const [entryLng, entryLat] = entry.coordinates;
+    layers.push(L.polyline([[entryLat, entryLng], [centerLat, centerLng]], spokeStyle).addTo(map));
+  }
+  if (exit) {
+    const [exitLng, exitLat] = exit.coordinates;
+    layers.push(L.polyline([[centerLat, centerLng], [exitLat, exitLng]], spokeStyle).addTo(map));
+  }
 
   return layers;
 }
@@ -254,7 +345,7 @@ function getRenderedRoute(route: RouteData, contestants: Record<number, Contesta
   };
 }
 
-export default function RouteRenderer({ map, route, taskCatalogueTargets, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
+export default function RouteRenderer({ map, route, taskCatalogueTargets, taskConfig, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
   const layersRef = useRef<L.Layer[]>([]);
 
   useEffect(() => {
@@ -284,6 +375,10 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, taskTy
     }
     if (selectedContestantId === null && taskCatalogueTargets && taskCatalogueTargets.length > 0) {
       layers = layers.concat(renderCatalogueTargets(map, taskCatalogueTargets));
+      const circleTargets = taskCatalogueTargets.filter((target) => target.kind?.startsWith('circle_'));
+      if (circleTargets.length > 0) {
+        layers = layers.concat(renderCircleTaskGeometry(map, circleTargets, taskConfig));
+      }
     }
     
     const waypointsToLabel = renderedRoute.waypoints.filter((w: Waypoint) => 

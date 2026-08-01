@@ -1157,19 +1157,27 @@ def plot_precision_track(
 
 
 def plot_catalogue_targets(targets: list[dict], colour: str):
+    marker_style_by_kind = {
+        "catalogue_turnpoint": {"marker": "o", "markersize": 10, "fillstyle": "none"},
+        "circle_center_marker": {"marker": "x", "markersize": 10, "fillstyle": "full"},
+        "circle_start_marker": {"marker": "o", "markersize": 10, "fillstyle": "none"},
+        "circle_entry_marker": {"marker": ">", "markersize": 10, "fillstyle": "full"},
+        "circle_exit_marker": {"marker": "s", "markersize": 9, "fillstyle": "none"},
+    }
     for target in targets:
         coordinates = target.get("coordinates") or []
         if len(coordinates) != 2:
             continue
         lon, lat = coordinates
+        marker_style = marker_style_by_kind.get(target.get("kind") or "catalogue_turnpoint", marker_style_by_kind["catalogue_turnpoint"])
         plt.plot(
             lon,
             lat,
             transform=ccrs.PlateCarree(),
             color=colour,
-            marker="o",
-            markersize=10,
-            fillstyle="none",
+            marker=marker_style["marker"],
+            markersize=marker_style["markersize"],
+            fillstyle=marker_style["fillstyle"],
         )
         plt.text(
             lon,

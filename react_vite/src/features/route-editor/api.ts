@@ -33,6 +33,22 @@ const getAuthHeaders = () => {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> => {
+    let timeoutId: number | undefined;
+    try {
+        return await Promise.race([
+            promise,
+            new Promise<T>((_, reject) => {
+                timeoutId = window.setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+            }),
+        ]);
+    } finally {
+        if (timeoutId !== undefined) {
+            window.clearTimeout(timeoutId);
+        }
+    }
+};
+
 const isTransientMapSourceError = (response: Response, errorMessages: ErrorMessage): boolean => {
     if (response.status === 502 || response.status === 503 || response.status === 504) return true;
     const normalized = Array.isArray(errorMessages) ? errorMessages.join(' ') : String(errorMessages || '');
@@ -91,11 +107,15 @@ export const saveRoute = async (routeId: string | null, payload: SavePayload): P
         method = 'PUT';
     }
 
-    const response = await fetch(url, {
-        method,
-        headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
-    });
+    const response = await withTimeout(
+        fetch(url, {
+            method,
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload)
+        }),
+        15000,
+        'Error saving route: request timed out. The server may be busy generating the route thumbnail or retrying external map tiles.',
+    );
 
     if (response.ok) {
         const result = await response.json();

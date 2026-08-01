@@ -8,6 +8,7 @@ from display.forms import FlightOrderConfigurationForm, MapForm, ContestantMapFo
 from display.flight_order_and_maps.generate_flight_orders import build_flight_order_map_plot_kwargs
 from display.flight_order_and_maps.map_plotter_shared_utilities import resolve_map_source_definition
 from display.models import Contest, NavigationTask, Route
+from display.utilities.task_information import build_navigation_task_information
 
 
 class FlightOrderConfigurationFormTests(TestCase):
@@ -235,3 +236,14 @@ class FlightOrderConfigurationFormTests(TestCase):
             source["tile_url"],
             "http://localhost:8001/services/user-uploaded-map-42/tiles/{z}/{x}/{y}.png",
         )
+
+    def test_build_navigation_task_information_uses_circle_task_overrides(self):
+        self.navigation_task.task_subtype = "circle"
+        self.navigation_task.task_config = {"circle_radius_min_m": 210, "circle_radius_max_m": 760}
+        self.navigation_task.save(update_fields=["task_subtype", "task_config"])
+
+        info = build_navigation_task_information(self.navigation_task)
+
+        self.assertEqual(info["subtype_display_name"], "2.A7 Circle")
+        self.assertEqual(info["family_display_name"], "Precision navigation")
+        self.assertIn("Configured radius band is 210 m to 760 m.", info["overrides"])

@@ -55,6 +55,7 @@ from display.utilities.navigation_task_type_definitions import (
     AIRSPORT_CHALLENGE,
     LANDING,
 )
+from display.utilities.cima_task_type_definitions import CIRCLE
 from live_tracking_map import settings
 
 
@@ -168,14 +169,26 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             return self.render_revalidation_failure("task_type", self.get_form_instance("task_type"), **kwargs)
 
     def create_route(self, scorecard: Scorecard) -> tuple[Route, Optional[EditableRoute]]:
-        task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
+        task_step = self.get_cleaned_data_for_step("task_type") or {}
+        task_type = task_step["task_type"]
+        task_subtype = task_step.get("task_subtype")
         editable_route = None
         route = None
         if task_type in (PRECISION, POKER):
             initial_step_data = self.get_cleaned_data_for_step("precision_route_import")
-            use_procedure_turns = self.get_cleaned_data_for_step("task_content")["original_scorecard"].use_procedure_turns
-            route = initial_step_data["internal_route"].create_precision_route(use_procedure_turns, scorecard)
-            editable_route = initial_step_data["internal_route"]
+            internal_route = initial_step_data["internal_route"]
+            if task_subtype == CIRCLE:
+                route = Route.objects.create(
+                    name=internal_route.name,
+                    waypoints=[],
+                    takeoff_gates=[],
+                    landing_gates=[],
+                    use_procedure_turns=False,
+                )
+            else:
+                use_procedure_turns = self.get_cleaned_data_for_step("task_content")["original_scorecard"].use_procedure_turns
+                route = internal_route.create_precision_route(use_procedure_turns, scorecard)
+            editable_route = internal_route
         elif task_type == ANR_CORRIDOR:
             initial_step_data = self.get_cleaned_data_for_step("anr_route_import")
             rounded_corners = initial_step_data["rounded_corners"]
@@ -357,9 +370,14 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
         else:
             contest = selected_task["contest"]
         try:
-            final_data = self.get_cleaned_data_for_step("task_content")
+            final_data = dict(self.get_cleaned_data_for_step("task_content") or {})
+            task_name = final_data.pop("name", task_name)
+            task_start_time = final_data.pop("start_time", contest.start_time)
+            task_finish_time = final_data.pop("finish_time", contest.finish_time)
             scorecard = final_data["original_scorecard"]
             route = self.create_route(scorecard)
+            if route is None:
+                raise ValidationError("Unable to create navigation task route from this editable route and task type.")
 
             corridor_width = None
             if task_type == ANR_CORRIDOR:
@@ -375,8 +393,8 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
                 contest=contest,
                 route=route,
                 editable_route=self.editable_route,
-                start_time=contest.start_time,
-                finish_time=contest.finish_time,
+                start_time=task_start_time,
+                finish_time=task_finish_time,
             )
             return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
         except IndexError:

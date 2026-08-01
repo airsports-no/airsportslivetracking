@@ -14,6 +14,7 @@ from display.utilities.cima_task_type_definitions import (
     get_task_subtype_definition,
     validate_subtype_family_compatibility,
 )
+from display.utilities.task_information import build_navigation_task_information, build_navigation_task_rules_latex
 
 
 class TestCimaTaskSubtypes(TestCase):
@@ -138,3 +139,41 @@ class TestCimaTaskSubtypes(TestCase):
         self.assertIsInstance(compiled, CompiledNavigationTask)
         self.assertEqual(compiled.task_subtype, LEGACY_ANR_CORRIDOR)
         self.assertEqual(compiled.compiled_payload["task_subtype"], LEGACY_ANR_CORRIDOR)
+
+    def test_build_navigation_task_information_includes_subtype_labels(self):
+        scorecard = Scorecard.get_originals().get(shortcut_name="FAI Precision")
+        task = NavigationTask.create(
+            name="Circle info task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=scorecard,
+            start_time=datetime.utcnow(),
+            finish_time=datetime.utcnow(),
+            task_subtype="circle",
+            task_config={"circle_radius_min_m": 250, "circle_radius_max_m": 800},
+        )
+
+        info = build_navigation_task_information(task)
+
+        self.assertEqual(info["family_display_name"], "Precision navigation")
+        self.assertEqual(info["subtype_display_name"], "2.A7 Circle")
+        self.assertIn("Configured radius band is 250 m to 800 m.", info["overrides"])
+
+    def test_build_navigation_task_rules_latex_contains_task_family_and_subtype(self):
+        scorecard = Scorecard.get_originals().get(shortcut_name="FAI Precision")
+        task = NavigationTask.create(
+            name="Circle rules task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=scorecard,
+            start_time=datetime.utcnow(),
+            finish_time=datetime.utcnow(),
+            task_subtype="circle",
+            task_config={"circle_radius_min_m": 250, "circle_radius_max_m": 800},
+        )
+
+        latex = build_navigation_task_rules_latex(task)
+
+        self.assertIn("Task family: Precision navigation", latex)
+        self.assertIn("Task subtype: 2.A7 Circle", latex)
+        self.assertIn("Configured radius band is 250 m to 800 m.", latex)

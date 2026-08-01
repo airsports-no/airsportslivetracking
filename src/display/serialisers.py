@@ -1361,6 +1361,7 @@ class FutureContestantNestedTeamSerialiser(ContestantNestedTeamSerialiser):
 class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiserWithContestantTrack(many=True, read_only=True)
     task_catalogue_targets = serializers.SerializerMethodField()
+    task_config = serializers.JSONField(required=False)
     original_scorecard = SlugRelatedField(
         slug_field="shortcut_name",
         queryset=Scorecard.get_originals(),
@@ -1375,6 +1376,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     share_string = serializers.CharField(read_only=True)
     effective_task_subtype = serializers.CharField(read_only=True)
     task_subtype_definition = serializers.SerializerMethodField()
+    task_information = serializers.SerializerMethodField()
     route = RouteSerialiser()
     time_zone = TimeZoneSerializerField(source="contest.time_zone", read_only=True)
     contest = serializers.PrimaryKeyRelatedField(read_only=True)
@@ -1425,6 +1427,9 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
             "coarse_family": definition.coarse_family,
             "requires_contestant_configuration": definition.requires_contestant_configuration,
         }
+
+    def get_task_information(self, navigation_task):
+        return navigation_task.task_information
 
     class Meta:
         model = NavigationTask

@@ -1,6 +1,38 @@
 import { reverse } from "../../urls";
 import { getCookie } from "../../utils/csrf";
 
+type ErrorMessage = string | string[];
+
+type ApiErrorPayload = {
+    detail?: ErrorMessage;
+    error?: ErrorMessage;
+    [key: string]: unknown;
+};
+
+const flattenErrorMessage = (value: unknown, fallbackLabel?: string): string | null => {
+    if (Array.isArray(value)) {
+        const parts = value.map((item) => flattenErrorMessage(item)).filter(Boolean);
+        if (parts.length === 0) return null;
+        return fallbackLabel ? `${fallbackLabel}: ${parts.join(', ')}` : parts.join(', ');
+    }
+    if (typeof value === "string") {
+        return fallbackLabel ? `${fallbackLabel}: ${value}` : value;
+    }
+    return null;
+};
+
+const getPrimaryApiErrorMessage = (errorData: ApiErrorPayload, fallback: string): string => {
+    const explicitMessage = flattenErrorMessage(errorData.detail) || flattenErrorMessage(errorData.error);
+    if (explicitMessage) return explicitMessage;
+
+    for (const [key, value] of Object.entries(errorData)) {
+        const message = flattenErrorMessage(value, key);
+        if (message) return message;
+    }
+
+    return fallback;
+};
+
 export const fetchScheduleCapacityPreview = async (
     contestId: number,
     navigationTaskId: number,
@@ -21,8 +53,8 @@ export const fetchScheduleCapacityPreview = async (
         },
     });
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || errorData.error || "Failed to fetch schedule capacity preview");
+        const errorData = await response.json() as ApiErrorPayload;
+        throw new Error(getPrimaryApiErrorMessage(errorData, "Failed to fetch schedule capacity preview"));
     }
     return response.json();
 };

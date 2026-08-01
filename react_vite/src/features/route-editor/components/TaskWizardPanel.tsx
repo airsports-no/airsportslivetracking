@@ -92,6 +92,8 @@ const TaskWizardPanel: React.FC<TaskWizardPanelProps> = ({
               {selectedTemplate.steps.map((step, index) => {
                 const count = countWizardStepMatches(step, routePoints, standalonePoints, gates, observationMarkers, polygons);
                 const complete = count >= step.minCount;
+                const maxCountReached = step.maxCount != null && count >= step.maxCount;
+                const actionLabel = step.kind === 'route' ? 'Start' : maxCountReached ? 'Done' : 'Add';
                 return (
                   <div key={step.key} className="p-3 rounded-lg border border-base-300 bg-base-50">
                     <div className="flex items-start justify-between gap-3">
@@ -106,15 +108,17 @@ const TaskWizardPanel: React.FC<TaskWizardPanelProps> = ({
                         </div>
                         <p className="text-xs text-gray-500 mt-1 ml-6">{step.help}</p>
                         <p className="text-[11px] text-gray-400 mt-1 ml-6">
-                          {count} / {step.minCount} required
+                          {count} / {step.minCount} required{step.maxCount != null ? ` · max ${step.maxCount}` : ''}
                         </p>
                       </div>
                       {!selectedTemplate.guideOnly && (
                         <button
                           onClick={() => startWizardStep(step.key)}
                           className="btn btn-primary btn-xs"
+                          disabled={maxCountReached}
+                          title={maxCountReached ? 'Required marker already placed.' : undefined}
                         >
-                          {step.kind === 'route' ? 'Start' : 'Add'}
+                          {actionLabel}
                         </button>
                       )}
                     </div>

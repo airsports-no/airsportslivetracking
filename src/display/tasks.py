@@ -236,6 +236,19 @@ def delete_old_flight_orders():
 
 
 @app.task
+def generate_editable_route_thumbnail(editable_route_id: int):
+    from display.models import EditableRoute
+
+    try:
+        editable_route = EditableRoute.objects.get(pk=editable_route_id)
+    except EditableRoute.DoesNotExist:
+        logger.warning(f"EditableRoute {editable_route_id} no longer exists, skipping thumbnail generation")
+        return
+
+    editable_route.update_thumbnail()
+
+
+@app.task
 def process_user_uploaded_map(map_id: int):
     """
     Generate the thumbnail and detect the zoom range for a newly uploaded or updated UserUploadedMap.

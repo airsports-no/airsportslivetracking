@@ -199,6 +199,7 @@ export interface Contestant {
 export interface NavigationTaskCatalogueTarget {
   name: string;
   coordinates: [number, number];
+  kind?: "catalogue_turnpoint" | "circle_center_marker" | "circle_start_marker" | "circle_entry_marker" | "circle_exit_marker";
 }
 
 export interface NavigationTask {
@@ -208,6 +209,17 @@ export interface NavigationTask {
   scorecard: Scorecard;
   contestant_set: Contestant[];
   task_subtype?: string | null;
+  task_config?: Record<string, any>;
+  task_information?: {
+    family_display_name: string;
+    subtype_key?: string | null;
+    subtype_display_name: string;
+    objective: string;
+    summary: string[];
+    scoring: string[];
+    penalties: string[];
+    overrides: string[];
+  };
   task_subtype_definition?: {
     key: string;
     display_name: string;

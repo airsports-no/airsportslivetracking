@@ -59,7 +59,7 @@ class MapFallbackTests(TestCase):
         mock_osm.assert_called()
 
     @patch('display.flight_order_and_maps.map_plotter.plot_catalogue_targets')
-    @patch('display.flight_order_and_maps.map_plotter.get_task_catalogue_targets', return_value=[{"name": "A", "coordinates": [11.0, 60.0]}])
+    @patch('display.flight_order_and_maps.map_plotter.get_task_catalogue_targets', return_value=[{"name": "A", "coordinates": [11.0, 60.0], "kind": "catalogue_turnpoint"}])
     @patch('display.flight_order_and_maps.map_plotter.get_effective_route_waypoints', return_value=[])
     @patch('display.flight_order_and_maps.map_plotter.plot_prohibited_zones')
     @patch('display.flight_order_and_maps.map_plotter.plot_precision_track', return_value=[])
@@ -106,6 +106,60 @@ class MapFallbackTests(TestCase):
         mock_get_catalogue_targets.assert_called_once_with(self.task)
         mock_plot_catalogue_targets.assert_called_once()
         self.assertEqual(mock_plot_precision_track.call_args.kwargs["render_waypoints"], [])
+
+    def test_get_task_catalogue_targets_includes_circle_markers(self):
+        from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
+        from display.utilities.cima_task_type_definitions import CIRCLE
+        from display.models import EditableRoute
+
+        editable_route = EditableRoute.objects.create(
+            name="Circle target source",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "cm-1", "name": "CM", "pointType": "circle_center", "featureType": "circle_center_marker"},
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "cs-1", "name": "SP-C", "pointType": "circle_start", "featureType": "circle_start_marker"},
+                        "geometry": {"type": "Point", "coordinates": [11.21, 60.21]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ce-1", "name": "IN", "pointType": "circle_entry", "featureType": "circle_entry_marker"},
+                        "geometry": {"type": "Point", "coordinates": [11.22, 60.22]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "cx-1", "name": "OUT", "pointType": "circle_exit", "featureType": "circle_exit_marker"},
+                        "geometry": {"type": "Point", "coordinates": [11.23, 60.23]},
+                    },
+                ],
+            },
+        )
+        self.task.editable_route = editable_route
+        self.task.task_subtype = CIRCLE
+        self.task.save(update_fields=["editable_route", "task_subtype"])
+
+        targets = get_task_catalogue_targets(self.task)
+
+        self.assertEqual(
+            targets,
+            [
+                {"name": "CM", "coordinates": [11.2, 60.2], "kind": "circle_center_marker"},
+                {"name": "SP-C", "coordinates": [11.21, 60.21], "kind": "circle_start_marker"},
+                {"name": "IN", "coordinates": [11.22, 60.22], "kind": "circle_entry_marker"},
+                {"name": "OUT", "coordinates": [11.23, 60.23], "kind": "circle_exit_marker"},
+            ],
+        )
 
     def test_plot_leg_bearing_skips_zero_length_leg(self):
         from display.flight_order_and_maps.map_plotter import plot_leg_bearing

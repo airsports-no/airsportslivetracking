@@ -121,8 +121,28 @@ def get_task_catalogue_targets(navigation_task) -> list[dict[str, Any]]:
             {
                 "name": properties.get("name") or "",
                 "coordinates": coordinates,
+                "kind": "catalogue_turnpoint",
             }
         )
+    circle_feature_groups = [
+        (editable_route.get_circle_center_markers(), "circle_center_marker"),
+        (editable_route.get_circle_start_markers(), "circle_start_marker"),
+        (editable_route.get_circle_entry_markers(), "circle_entry_marker"),
+        (editable_route.get_circle_exit_markers(), "circle_exit_marker"),
+    ]
+    for features, kind in circle_feature_groups:
+        for feature in features:
+            properties = feature.get("properties", {})
+            coordinates = feature.get("geometry", {}).get("coordinates", [])
+            if len(coordinates) != 2:
+                continue
+            targets.append(
+                {
+                    "name": properties.get("name") or "",
+                    "coordinates": coordinates,
+                    "kind": kind,
+                }
+            )
     return targets
 
 

@@ -12,9 +12,9 @@ from django.urls import reverse
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.forms import NavigationTaskForm
 from display.forms_wizards import ContestSelectForm, TaskTypeForm
-from display.models import Contest, EditableRoute
+from display.models import Contest, EditableRoute, Route
 from display.services.capacity_enforcement import assert_can_add_navigation_task
-from display.utilities.cima_task_type_definitions import ANR_CATALOGUE, CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.cima_task_type_definitions import ANR_CATALOGUE, CONTRACT_NAVIGATION_TIME_CONTROLS, CIRCLE
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
 from display.views_wizards import NewNavigationTaskWizard, RouteToTaskWizard
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -198,3 +198,34 @@ class TestNavigationTaskWizardCimaUi(TestCase):
         self.assertEqual(response.url, reverse("contest_details", kwargs={"pk": self.contest.pk}))
         messages = [message.message for message in get_messages(request)]
         self.assertTrue(any("This task requires the cima task package" in message for message in messages), messages)
+
+    def test_new_navigation_task_wizard_creates_placeholder_route_for_circle_subtype(self):
+        request = RequestFactory().get("/")
+        request.user = self.user
+        request.session = {}
+        request._messages = MagicMock()
+        wizard = NewNavigationTaskWizard()
+        wizard.request = request
+        wizard.contest = self.contest
+        wizard.get_cleaned_data_for_step = lambda step: {
+            "task_type": {
+                "task_type": PRECISION,
+                "task_subtype": CIRCLE,
+            },
+            "task_content": {
+                "original_scorecard": MagicMock(use_procedure_turns=True),
+            },
+            "precision_route_import": {
+                "internal_route": self.editable_route,
+            },
+        }.get(step)
+
+        route, editable_route = wizard.create_route(MagicMock())
+
+        self.assertIsInstance(route, Route)
+        self.assertIsNotNone(route.pk)
+        self.assertEqual(route.waypoints, [])
+        self.assertEqual(route.takeoff_gates, [])
+        self.assertEqual(route.landing_gates, [])
+        self.assertFalse(route.use_procedure_turns)
+        self.assertEqual(editable_route, self.editable_route)

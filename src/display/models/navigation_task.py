@@ -23,6 +23,7 @@ from display.utilities.navigation_task_type_definitions import (
     AIRSPORT_CHALLENGE,
 )
 from display.utilities.cima_task_type_definitions import get_default_task_subtype_for_family
+from display.utilities.task_information import build_navigation_task_information
 
 if typing.TYPE_CHECKING:
     from display.models import UserUploadedMap
@@ -95,6 +96,10 @@ class NavigationTask(models.Model):
         if definition is None:
             return False
         return definition.requires_contestant_configuration
+
+    @property
+    def task_information(self) -> dict:
+        return build_navigation_task_information(self)
 
     start_time = models.DateTimeField(
         help_text="The start time of the navigation task. Determines the time interval where the navigation task is available for self registration if selected."

@@ -36,6 +36,7 @@ from display.filters import ContestFilter, NavigationTaskFilter
 from display.tasks import (
     import_gpx_track,
     generate_and_maybe_notify_flight_order,
+    generate_editable_route_thumbnail,
 )
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.services.capacity_enforcement import scheduling_capacity_preview
@@ -467,20 +468,13 @@ class EditableRouteViewSet(ModelViewSet):
 
     def perform_update(self, serializer):
         super().perform_update(serializer)
-        self.get_object().update_thumbnail()
+        editable_route = serializer.instance
+        transaction.on_commit(lambda: generate_editable_route_thumbnail.delay(editable_route.pk))
 
     def perform_create(self, serializer):
         super().perform_create(serializer)
-        try:
-            thumbnail_data = serializer.instance.create_thumbnail()
-            if thumbnail_data:
-                serializer.instance.thumbnail.save(
-                    serializer.instance.name + "_thumbnail.png",
-                    ContentFile(thumbnail_data.getvalue()),
-                    save=True,
-                )
-        except Exception:
-            logger.exception(f"Failed creating thumbnail for EditableRoute {serializer.instance.pk}")
+        editable_route = serializer.instance
+        transaction.on_commit(lambda: generate_editable_route_thumbnail.delay(editable_route.pk))
 
     @action(detail=False, methods=["get"], url_path="global-map-sources")
     def global_map_sources(self, request, *args, **kwargs):
