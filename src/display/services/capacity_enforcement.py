@@ -70,7 +70,13 @@ def scheduling_capacity_preview(navigation_task, selected_contest_team_ids, firs
     existing_registered_pilot_ids = set(existing_contestants.values_list("team__crew__member1_id", flat=True))
     existing_registered_pilot_ids.discard(None)
 
-    selected_contest_teams = ContestTeam.objects.filter(pk__in=selected_contest_team_ids).select_related("team__crew")
+    selected_team_ids = {int(team_id) for team_id in selected_contest_team_ids}
+    selected_contest_teams = ContestTeam.objects.filter(
+        contest=contest,
+        pk__in=selected_team_ids,
+    ).select_related("team__crew")
+    if selected_contest_teams.count() != len(selected_team_ids):
+        raise ValidationError("One or more selected contest teams do not belong to this contest.")
     selected_pilot_ids = {
         ct.team.crew.member1_id
         for ct in selected_contest_teams

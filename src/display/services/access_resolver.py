@@ -1,6 +1,7 @@
 import datetime
 
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from display.models import (
     AccessGrant,
     AccessResolution,
@@ -79,7 +80,7 @@ def _backfill_missing_historical_usage(contest: Contest) -> int:
     if contest.created_by_id:
         try:
             owner_person_id = contest.created_by.person.id
-        except Exception:
+        except ObjectDoesNotExist:
             owner_person_id = None
     for contestant in started_contestants:
         if owner_person_id is not None and contestant.team.crew.member1_id == owner_person_id:
@@ -112,15 +113,12 @@ def _backfill_missing_historical_usage(contest: Contest) -> int:
 
 
 def _contest_token_assignment(contest: Contest):
-    try:
-        assignment = ContestTokenAssignment.objects.filter(contest=contest).select_related("token_grant", "token_type").first()
-        if assignment is None:
-            return None
-        if assignment.expires_at is not None and assignment.expires_at <= datetime.datetime.now(datetime.timezone.utc):
-            return None
-        return assignment
-    except Exception:
+    assignment = ContestTokenAssignment.objects.filter(contest=contest).select_related("token_grant", "token_type").first()
+    if assignment is None:
         return None
+    if assignment.expires_at is not None and assignment.expires_at <= datetime.datetime.now(datetime.timezone.utc):
+        return None
+    return assignment
 
 
 def _first_active_contest_grant(contest: Contest):

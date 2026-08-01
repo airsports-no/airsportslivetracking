@@ -24,7 +24,7 @@ from rest_framework.response import Response
 from rest_framework.pagination import CursorPagination
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 import rest_framework.exceptions as drf_exceptions
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import MethodNotAllowed, ValidationError
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from urllib import parse
@@ -1313,9 +1313,16 @@ class NavigationTaskViewSet(ModelViewSet):
             else:
                 return Response({"status": "error", "messages": messages}, status=status.HTTP_400_BAD_REQUEST)
 
-        except Exception as e:
-            logger.exception("Scheduling failed")
+        except drf_exceptions.ValidationError:
+            raise
+        except (TypeError, ValueError, dateutil.parser.ParserError) as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Scheduling failed")
+            return Response(
+                {"error": "Scheduling failed due to an internal error. Please try again or contact support."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @action(
         detail=True,
@@ -1488,6 +1495,12 @@ class ClubViewSet(ModelViewSet):
                 clubmanagermembership__is_active=True,
             ).distinct().order_by("name")
         return Club.objects.all().order_by("name")
+
+    def create(self, request, *args, **kwargs):
+        raise MethodNotAllowed("POST")
+
+    def destroy(self, request, *args, **kwargs):
+        raise MethodNotAllowed("DELETE")
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

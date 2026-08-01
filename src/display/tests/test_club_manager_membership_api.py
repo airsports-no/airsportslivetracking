@@ -40,6 +40,24 @@ class TestClubManagerMembershipApi(APITestCase):
         self.assertEqual(self.club.pk, response.data[0]["id"])
         self.assertEqual(2, len(response.data[0]["manager_memberships"]))
 
+    def test_generic_club_create_endpoint_is_not_allowed(self):
+        self.client.force_login(self.owner)
+        url = reverse("clubs-list")
+
+        response = self.client.post(url, {"name": "New Club", "country": "NO"}, format="json")
+
+        self.assertEqual(status.HTTP_405_METHOD_NOT_ALLOWED, response.status_code)
+        self.assertFalse(Club.objects.filter(name="New Club").exists())
+
+    def test_generic_club_delete_endpoint_is_not_allowed(self):
+        self.client.force_login(self.owner)
+        url = reverse("clubs-detail", kwargs={"pk": self.club.pk})
+
+        response = self.client.delete(url)
+
+        self.assertEqual(status.HTTP_405_METHOD_NOT_ALLOWED, response.status_code)
+        self.assertTrue(Club.objects.filter(pk=self.club.pk).exists())
+
     def test_owner_can_add_manager_membership_by_email(self):
         self.client.force_login(self.owner)
         url = reverse("clubs-managers", kwargs={"pk": self.club.pk})

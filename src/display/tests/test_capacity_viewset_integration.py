@@ -112,6 +112,79 @@ class TestCapacityViewsetIntegration(APITestCase):
         self.assertEqual(True, response.data["would_exceed"])
         self.assertEqual(3, response.data["reserved_after_count"])
 
+    def test_schedule_capacity_preview_rejects_foreign_contest_team_ids(self, *_args):
+        other_contest = Contest.objects.create(
+            name="Other Contest",
+            time_zone="Europe/Oslo",
+            start_time=datetime.datetime(2026, 4, 2, 9, 0, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 4, 2, 17, 0, tzinfo=datetime.timezone.utc),
+            location="61.0,12.0",
+            created_by=self.user,
+        )
+        other_contest.make_public()
+        assign_perm("view_contest", self.user, other_contest)
+        assign_perm("change_contest", self.user, other_contest)
+        other_person = Person.objects.create(first_name="Pilot", last_name="Two", email="pilot-two@example.com")
+        other_team = Team.objects.create(
+            crew=Crew.objects.create(member1=other_person),
+            aeroplane=Aeroplane.objects.create(registration="LN-OTH"),
+        )
+        foreign_contest_team = ContestTeam.objects.create(contest=other_contest, team=other_team)
+        url = reverse(
+            "navigationtasks-schedule-capacity-preview",
+            kwargs={"contest_pk": self.contest.id, "pk": self.navigation_task.id},
+        )
+
+        response = self.client.get(
+            url,
+            {
+                "contest_teams": str(foreign_contest_team.pk),
+                "first_takeoff_time": "2026-04-01T10:00:00Z",
+            },
+        )
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        self.assertEqual(
+            "One or more selected contest teams do not belong to this contest.",
+            response.data[0],
+        )
+
+    @patch("display.viewsets.scheduling_capacity_preview")
+    @patch("display.viewsets.schedule_and_create_contestants")
+    @patch("display.permissions.NavigationTaskContestPermissions.has_object_permission", return_value=True)
+    def test_schedule_contestants_hides_unexpected_exception_details(self, _mock_permission, mock_schedule, mock_preview, *_args):
+        mock_preview.return_value = {
+            "contestant_limit": 2,
+            "reserved_before_count": 1,
+            "reserved_after_count": 1,
+            "additional_selected_count": 0,
+            "remaining_before_count": 1,
+            "remaining_after_count": 1,
+            "would_exceed": False,
+        }
+        mock_schedule.side_effect = RuntimeError("secret internal details")
+        self.navigation_task.make_public()
+        self.navigation_task.save(update_fields=["is_public"])
+        url = reverse(
+            "navigationtasks-schedule-contestants",
+            kwargs={"contest_pk": self.contest.id, "pk": self.navigation_task.id},
+        )
+
+        response = self.client.post(
+            url,
+            {
+                "contest_teams": [self.contest_team.pk],
+                "first_takeoff_time": "2026-04-01T10:00:00Z",
+            },
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_500_INTERNAL_SERVER_ERROR, response.status_code)
+        self.assertEqual(
+            "Scheduling failed due to an internal error. Please try again or contact support.",
+            response.data["error"],
+        )
+
     @patch("display.viewsets._assert_can_reserve_task_slot")
     @patch("display.viewsets.assert_can_self_register_contestant")
     def test_self_registration_calls_capacity_guard(self, mock_guard, mock_task_guard, *_args):
