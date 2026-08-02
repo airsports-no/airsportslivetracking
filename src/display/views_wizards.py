@@ -18,6 +18,7 @@ from guardian.shortcuts import get_objects_for_user
 from display.forms import NavigationTaskForm, ContestForm, TrackingDataForm, PersonForm
 from display.services.token_assignment import assign_token_to_contest
 from display.services.capacity_enforcement import assert_can_add_navigation_task
+from display.services.task_type_visibility import can_user_see_cima_task_types
 from display.forms_wizards import (
     TaskTypeForm,
     ANRCorridorImportRouteForm,
@@ -31,6 +32,7 @@ from display.forms_wizards import (
     Member2SearchForm,
     AeroplaneSearchForm,
     ClubSearchForm,
+    _task_template_choices,
 )
 from display.models import (
     Contest,
@@ -240,11 +242,14 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         return context
 
     def get_form(self, step=None, data=None, files=None):
-        form = super().get_form(step, data, files)
         current_step = step or self.steps.current
+        form = super().get_form(step, data, files)
+        if current_step == "task_type":
+            form.fields["task_template"].choices = _task_template_choices(self.request.user)
+            form.visible_cima = can_user_see_cima_task_types(self.request.user)
         if current_step == "task_content":
             selected = self.get_cleaned_data_for_step("task_type") or {}
-            form = self.form_list[current_step](data=data, files=files, prefix=self.get_form_prefix(current_step, self.form_list[current_step]), initial=self.get_form_initial(current_step), task_family=selected.get("task_type"))
+            form = self.form_list[current_step](data=data, files=files, prefix=self.get_form_prefix(current_step, self.form_list[current_step]), initial=self.get_form_initial(current_step), task_family=selected.get("task_type"), user=self.request.user)
         if "internal_route" in form.fields:
             form.fields["internal_route"].queryset = EditableRoute.get_for_user(self.request.user)
         return form
@@ -316,6 +321,8 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
                 "display.change_contest",
                 accept_global_perms=False,
             ).order_by("name")
+            form.fields["task_template"].choices = _task_template_choices(self.request.user)
+            form.visible_cima = can_user_see_cima_task_types(self.request.user)
         if self.steps.current == "task_content":
             selected = self.get_cleaned_data_for_step("contest_selection") or {}
             useful_cards = []
@@ -336,6 +343,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
                 prefix=self.get_form_prefix(current_step, NavigationTaskForm),
                 initial=self.get_form_initial(current_step),
                 task_family=selected.get("task_type"),
+                user=self.request.user,
             )
         form = super().get_form(step, data, files)
         if current_step == "contest_creation" and "initial_token_grant" in form.fields:

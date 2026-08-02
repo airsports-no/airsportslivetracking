@@ -12,7 +12,7 @@ from django.urls import reverse
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.forms import NavigationTaskForm
 from display.forms_wizards import ContestSelectForm, TaskTypeForm
-from display.models import Contest, EditableRoute, Route
+from display.models import Contest, EditableRoute, Route, Club, ClubManagerMembership, AccessGrant, TokenType, UserTokenGrant
 from display.services.capacity_enforcement import assert_can_add_navigation_task
 from display.utilities.cima_task_type_definitions import ANR_CATALOGUE, CONTRACT_NAVIGATION_TIME_CONTROLS, CIRCLE
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
@@ -45,8 +45,62 @@ class TestNavigationTaskWizardCimaUi(TestCase):
                 values.append(value)
         return values
 
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_task_type_form_hides_cima_templates_without_access(self):
+        form = TaskTypeForm(user=self.user)
+        choice_values = self._flatten_choice_values(form.fields["task_template"].choices)
+        self.assertNotIn(CONTRACT_NAVIGATION_TIME_CONTROLS, choice_values)
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_task_type_form_shows_cima_templates_with_token_access(self):
+        token_type = TokenType.objects.create(name="Wizard CIMA token", contestant_limit=10, task_type_groups=["cima"])
+        UserTokenGrant.objects.create(user=self.user, token_type=token_type, quantity_total=1, quantity_consumed=0)
+
+        form = TaskTypeForm(user=self.user)
+        choice_values = self._flatten_choice_values(form.fields["task_template"].choices)
+        self.assertIn(CONTRACT_NAVIGATION_TIME_CONTROLS, choice_values)
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_contest_select_form_hides_cima_templates_without_access(self):
+        form = ContestSelectForm(user=self.user)
+        choice_values = self._flatten_choice_values(form.fields["task_template"].choices)
+        self.assertNotIn(ANR_CATALOGUE, choice_values)
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_navigation_task_form_hides_cima_subtypes_without_access(self):
+        form = NavigationTaskForm(task_family=PRECISION, user=self.user)
+        subtype_values = self._flatten_choice_values(form.fields["task_subtype"].choices)
+        self.assertNotIn(CONTRACT_NAVIGATION_TIME_CONTROLS, subtype_values)
+        self.assertNotIn(CIRCLE, subtype_values)
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_navigation_task_form_shows_cima_subtypes_with_club_pass(self):
+        club = Club.objects.create(name="Wizard club")
+        self.contest.organizing_club = club
+        self.contest.save(update_fields=["organizing_club"])
+        ClubManagerMembership.objects.create(club=club, user=self.user, role=ClubManagerMembership.OWNER, is_active=True)
+        AccessGrant.objects.create(club=club, status=AccessGrant.ACTIVE, contestant_limit=None, task_type_groups=["cima"])
+
+        form = NavigationTaskForm(task_family=PRECISION, user=self.user)
+        subtype_values = self._flatten_choice_values(form.fields["task_subtype"].choices)
+        self.assertIn(CONTRACT_NAVIGATION_TIME_CONTROLS, subtype_values)
+        self.assertIn(CIRCLE, subtype_values)
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=False, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_task_type_form_shows_cima_templates_when_gate_disabled(self):
+        form = TaskTypeForm(user=self.user)
+        choice_values = self._flatten_choice_values(form.fields["task_template"].choices)
+        self.assertIn(CONTRACT_NAVIGATION_TIME_CONTROLS, choice_values)
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=False, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_navigation_task_form_shows_cima_subtypes_when_gate_disabled(self):
+        form = NavigationTaskForm(task_family=PRECISION, user=self.user)
+        subtype_values = self._flatten_choice_values(form.fields["task_subtype"].choices)
+        self.assertIn(CONTRACT_NAVIGATION_TIME_CONTROLS, subtype_values)
+        self.assertIn(CIRCLE, subtype_values)
+
     def test_task_type_form_maps_cima_template_to_precision_family_and_subtype(self):
-        form = TaskTypeForm(data={"task_template": CONTRACT_NAVIGATION_TIME_CONTROLS})
+        form = TaskTypeForm(data={"task_template": CONTRACT_NAVIGATION_TIME_CONTROLS}, user=self.user)
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data["task_type"], PRECISION)
         self.assertEqual(form.cleaned_data["task_subtype"], CONTRACT_NAVIGATION_TIME_CONTROLS)
@@ -57,7 +111,8 @@ class TestNavigationTaskWizardCimaUi(TestCase):
                 "contest": self.contest.pk,
                 "task_template": ANR_CATALOGUE,
                 "navigation_task_name": "ANR Catalogue Task",
-            }
+            },
+            user=self.user,
         )
         form.fields["contest"].queryset = Contest.objects.filter(pk=self.contest.pk)
         self.assertTrue(form.is_valid(), form.errors)
@@ -65,7 +120,7 @@ class TestNavigationTaskWizardCimaUi(TestCase):
         self.assertEqual(form.cleaned_data["task_subtype"], ANR_CATALOGUE)
 
     def test_navigation_task_form_includes_anr_catalogue_choice_for_anr_family(self):
-        form = NavigationTaskForm(task_family=ANR_CORRIDOR)
+        form = NavigationTaskForm(task_family=ANR_CORRIDOR, user=self.user)
         subtype_values = self._flatten_choice_values(form.fields["task_subtype"].choices)
         self.assertIn(ANR_CATALOGUE, subtype_values)
         self.assertNotIn(CONTRACT_NAVIGATION_TIME_CONTROLS, subtype_values)
@@ -140,7 +195,7 @@ class TestNavigationTaskWizardCimaUi(TestCase):
                 "navigation_task_name": "ANR Task",
             }
         }.get(step)
-        form = NavigationTaskForm(task_family=ANR_CORRIDOR, initial=wizard.get_form_initial("task_content"))
+        form = NavigationTaskForm(task_family=ANR_CORRIDOR, initial=wizard.get_form_initial("task_content"), user=self.user)
         context = wizard.get_context_data(form=form)
         queryset = context["form"].fields["original_scorecard"].queryset
         self.assertTrue(queryset.filter(name="FAI ANR 2022").exists())

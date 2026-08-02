@@ -20,6 +20,9 @@
         isOrganizer: false,
         {% endif %}
         createRouteUrl: "{% fe_url 'ROUTE_EDITOR_CREATE' %}",
+        showCimaTaskTypes: {{ show_cima_task_types|yesno:"true,false" }},
+        visibleTaskTypeGroups: {{ visible_task_type_groups|safe }},
+        gateCimaTaskVisibility: {{ gate_cima_task_visibility|yesno:"true,false" }},
 
         }
 </script>

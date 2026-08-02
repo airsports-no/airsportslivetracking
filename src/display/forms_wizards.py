@@ -7,16 +7,22 @@ from phonenumber_field.formfields import PhoneNumberField
 
 from display.forms import PictureWidget, kml_description
 from display.models import EditableRoute, Contest, Aeroplane, Club
+from display.services.task_type_visibility import can_user_see_cima_task_types
 from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
 from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES
 
 
-def _task_template_choices():
-    grouped = {"Legacy": [], "CIMA": []}
+def _task_template_choices(user=None):
+    show_cima = True if user is None else can_user_see_cima_task_types(user)
+    grouped = {"Legacy": []}
+    if show_cima:
+        grouped["CIMA"] = []
     for key, label in NAVIGATION_TASK_TYPES:
         grouped["Legacy"].append((key, label))
     for definition in TASK_SUBTYPE_DEFINITIONS.values():
         if definition.key.startswith("legacy_"):
+            continue
+        if not show_cima:
             continue
         grouped["CIMA"].append((definition.key, definition.display_name))
     return [(group, choices) for group, choices in grouped.items() if choices]
@@ -35,7 +41,7 @@ def _normalize_task_template_selection(value):
 
 class TaskTypeForm(forms.Form):
     task_template = forms.ChoiceField(
-        choices=_task_template_choices(),
+        choices=(),
         help_text="Choose either a legacy task family or a specific CIMA task.",
     )
     task_type = forms.ChoiceField(
@@ -54,7 +60,10 @@ class TaskTypeForm(forms.Form):
         return cleaned_data
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
+        self.visible_cima = can_user_see_cima_task_types(user)
+        self.fields["task_template"].choices = _task_template_choices(user)
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset(
@@ -138,7 +147,7 @@ class ContestSelectForm(forms.Form):
         help_text="Choose an existing contest for the new task. If no contest is chosen, you will be prompted to create a new one on the next screen",
     )
     task_template = forms.ChoiceField(
-        choices=_task_template_choices(),
+        choices=(),
         help_text="Choose either a legacy task family or a specific CIMA task.",
     )
     task_type = forms.ChoiceField(
@@ -158,7 +167,10 @@ class ContestSelectForm(forms.Form):
         return cleaned_data
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
+        self.visible_cima = can_user_see_cima_task_types(user)
+        self.fields["task_template"].choices = _task_template_choices(user)
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset(

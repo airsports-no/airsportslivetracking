@@ -61,6 +61,8 @@ from display.utilities.cima_task_type_definitions import (
     CIRCLE,
     get_task_subtypes_for_family,
 )
+from display.services.task_type_visibility import can_user_see_cima_task_types
+from display.utilities.task_type_group_definitions import CIMA_TASK_TYPE_GROUP, get_task_type_group
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, NAVIGATION_TASK_TYPES, PRECISION
 
 FILE_TYPE_CSV = "csv"
@@ -381,6 +383,7 @@ class NavigationTaskForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         task_family = kwargs.pop("task_family", None)
+        user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         self.fields["original_scorecard"].queryset = Scorecard.get_originals()
         instance = getattr(self, "instance", None)
@@ -390,8 +393,13 @@ class NavigationTaskForm(forms.ModelForm):
         subtype_choices = [("", "---------")]
         family_labels = dict(NAVIGATION_TASK_TYPES)
         subtype_families = [task_family] if task_family else [PRECISION, ANR_CORRIDOR]
+        show_cima = True if user is None else can_user_see_cima_task_types(user)
         for family in subtype_families:
-            family_subtypes = [(item.key, item.display_name) for item in get_task_subtypes_for_family(family)]
+            family_subtypes = [
+                (item.key, item.display_name)
+                for item in get_task_subtypes_for_family(family)
+                if show_cima or get_task_type_group(task_type=family, task_subtype=item.key) != CIMA_TASK_TYPE_GROUP
+            ]
             if family_subtypes:
                 subtype_choices.append((family_labels.get(family, family), family_subtypes))
         self.fields["task_subtype"].choices = subtype_choices
@@ -646,6 +654,8 @@ class ContestantForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.navigation_task = kwargs.pop("navigation_task")
         super().__init__(*args, **kwargs)
+        if not can_user_see_cima_task_types(getattr(self.navigation_task.contest, "created_by", None)):
+            pass
         self.fields["team"].queryset = self.navigation_task.contest.contest_teams.all()
         self.fields["contestant_number"].initial = (
             max([item.contestant_number for item in self.navigation_task.contestant_set.all()]) + 1

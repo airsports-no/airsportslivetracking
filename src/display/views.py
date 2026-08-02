@@ -32,6 +32,7 @@ from live_tracking_map import settings
 
 
 from django.core.cache import cache
+from django.conf import settings
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
@@ -108,6 +109,7 @@ from display.forms import (
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import assert_can_self_register_contestant, _assert_can_reserve_task_slot
 from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.task_type_visibility import can_user_see_cima_task_types, get_visible_task_type_groups_for_user
 from display.services.administrative_penalties import AdministrativePenaltyService
 
 ADMINISTRATIVE_PENALTY_CATEGORIES = {
@@ -2334,6 +2336,13 @@ class FrontEndView(TemplateView):
     """
 
     template_name = "display/frontend.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["show_cima_task_types"] = can_user_see_cima_task_types(self.request.user)
+        context["visible_task_type_groups"] = get_visible_task_type_groups_for_user(self.request.user)
+        context["gate_cima_task_visibility"] = bool(getattr(settings, "GATE_CIMA_TASK_VISIBILITY", False))
+        return context
 
 
 class CombinedFrontEndView(View):

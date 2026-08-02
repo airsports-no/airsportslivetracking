@@ -80,6 +80,13 @@ export default function RouteEditor() {
   const [wizardRouteInsertFeatureType, setWizardRouteInsertFeatureType] = useState<RoutePoint['featureType'] | undefined>(undefined);
   const [wizardPolygonType, setWizardPolygonType] = useState<Polygon['type'] | null>(null);
   const [currentWizardActionLabel, setCurrentWizardActionLabel] = useState<string | null>(null);
+  const visibleTaskTypeGroups = useMemo(() => {
+    const groups = document.configuration.visibleTaskTypeGroups;
+    if (Array.isArray(groups) && groups.length > 0) {
+      return groups;
+    }
+    return document.configuration.showCimaTaskTypes ? ['legacy', 'cima'] : ['legacy'];
+  }, []);
 
   const isThreePointBackboneTask = useMemo(
     () => ['cima_a3', 'cima_a6', 'cima_b2'].includes(selectedTaskTemplateId || ''),
@@ -598,6 +605,7 @@ export default function RouteEditor() {
           }}
           startWizardStep={startWizardStep}
           currentWizardActionLabel={currentWizardActionLabel}
+          visibleTaskTypeGroups={visibleTaskTypeGroups}
         />
       </div>
 

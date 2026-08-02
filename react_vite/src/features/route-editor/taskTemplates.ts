@@ -1,5 +1,7 @@
 import { Gate, ObservationMarker, Polygon, RoutePoint } from '../../types';
 
+export type TaskTemplateGroup = 'Legacy' | 'CIMA';
+
 export type TaskTemplateId =
   | 'precision'
   | 'anr'
@@ -35,7 +37,7 @@ export interface WizardStep {
 export interface TaskTemplate {
   id: TaskTemplateId;
   label: string;
-  group: 'Legacy' | 'CIMA';
+  group: TaskTemplateGroup;
   description: string;
   steps: WizardStep[];
   guideOnly?: boolean;
@@ -266,6 +268,11 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     ],
   },
 ];
+
+export const getTaskTemplatesForGroups = (groups: TaskTemplateGroup[]): TaskTemplate[] => {
+  const allowed = new Set(groups);
+  return TASK_TEMPLATES.filter((template) => allowed.has(template.group));
+};
 
 export const getTaskTemplateById = (id: string | null | undefined): TaskTemplate | undefined =>
   TASK_TEMPLATES.find((template) => template.id === id);

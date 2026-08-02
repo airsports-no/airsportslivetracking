@@ -1,11 +1,12 @@
 import React from 'react';
 import { CheckCircle2, Circle, Wand2, X } from 'lucide-react';
-import { TaskTemplate, TASK_TEMPLATES, countWizardStepMatches } from '../taskTemplates';
 import { Gate, ObservationMarker, Polygon, RoutePoint } from '../../../types';
+import { countWizardStepMatches, getTaskTemplatesForGroups, TaskTemplate, TASK_TEMPLATES, TaskTemplateGroup } from '../taskTemplates';
 
 interface TaskWizardPanelProps {
   selectedTaskTemplateId: string | null;
   setSelectedTaskTemplateId: (id: string | null) => void;
+  visibleTaskTypeGroups?: string[];
   routePoints: RoutePoint[];
   standalonePoints: RoutePoint[];
   gates: Gate[];
@@ -19,6 +20,7 @@ interface TaskWizardPanelProps {
 const TaskWizardPanel: React.FC<TaskWizardPanelProps> = ({
   selectedTaskTemplateId,
   setSelectedTaskTemplateId,
+  visibleTaskTypeGroups,
   routePoints,
   standalonePoints,
   gates,
@@ -29,8 +31,12 @@ const TaskWizardPanel: React.FC<TaskWizardPanelProps> = ({
   onClose,
 }) => {
   const selectedTemplate = TASK_TEMPLATES.find((template) => template.id === selectedTaskTemplateId) ?? null;
+  const allowedGroups = ((visibleTaskTypeGroups?.includes('cima') ?? document.configuration.showCimaTaskTypes ?? true)
+    ? ['Legacy', 'CIMA']
+    : ['Legacy']) as TaskTemplateGroup[];
+  const visibleTemplates = getTaskTemplatesForGroups(allowedGroups);
 
-  const grouped = TASK_TEMPLATES.reduce<Record<string, TaskTemplate[]>>((acc, template) => {
+  const grouped = visibleTemplates.reduce<Record<string, TaskTemplate[]>>((acc, template) => {
     acc[template.group] = acc[template.group] || [];
     acc[template.group].push(template);
     return acc;

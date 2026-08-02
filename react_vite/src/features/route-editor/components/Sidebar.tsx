@@ -51,6 +51,7 @@ interface SidebarProps {
   setSelectedTaskTemplateId: (id: string | null) => void;
   startWizardStep: (stepKey: string) => void;
   currentWizardActionLabel: string | null;
+  visibleTaskTypeGroups?: string[];
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -88,6 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   setSelectedTaskTemplateId,
   startWizardStep,
   currentWizardActionLabel,
+  visibleTaskTypeGroups,
 }) => {
   const renderContent = () => {
     const selectedPoint = routePoints.find(p => p.id === selectedId);
@@ -136,6 +138,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       return <TaskWizardPanel
         selectedTaskTemplateId={selectedTaskTemplateId}
         setSelectedTaskTemplateId={setSelectedTaskTemplateId}
+        visibleTaskTypeGroups={visibleTaskTypeGroups}
         routePoints={routePoints}
         standalonePoints={standalonePoints}
         gates={gates}

@@ -2,13 +2,14 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from guardian.shortcuts import assign_perm
 from rest_framework.test import APIRequestFactory
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Contest, EditableRoute
+from display.models import Contest, EditableRoute, TokenType, UserTokenGrant
 from display.serialisers import NavigationTaskEditableRoutReferenceSerialiser
+from display.services.task_type_visibility import can_user_see_cima_task_types
 
 
 class TestTaskLimitWiring(TestCase):
@@ -198,3 +199,14 @@ class TestTaskLimitWiring(TestCase):
         resolution = assert_can_add_navigation_task(self.contest, task_type=self.scorecard.calculator, task_subtype="")
 
         self.assertIsNotNone(resolution)
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_task_type_visibility_helper_hides_cima_without_access(self):
+        self.assertFalse(can_user_see_cima_task_types(self.user))
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_task_type_visibility_helper_allows_cima_with_token(self):
+        token_type = TokenType.objects.create(name="Visible CIMA token", contestant_limit=10, task_type_groups=["cima"])
+        UserTokenGrant.objects.create(user=self.user, token_type=token_type, quantity_total=1, quantity_consumed=0)
+
+        self.assertTrue(can_user_see_cima_task_types(self.user))
