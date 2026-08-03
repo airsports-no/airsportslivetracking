@@ -97,6 +97,7 @@ from display.services.capacity_enforcement import (
 )
 from display.services.access_resolver import resolve_contest_access
 from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
 from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
 from display.serialisers import (
     ContestantTrackSerialiser,
@@ -1234,7 +1235,7 @@ class NavigationTaskViewSet(ModelViewSet):
     )
     def photos(self, request, pk=None, contest_pk=None):
         navigation_task = self.get_object()
-        photos = navigation_task.route.photo_set.all().order_by("name")
+        photos = sync_navigation_task_photo_targets(navigation_task)
         contestant_id = request.query_params.get("contestant")
         contestant = None
         if contestant_id:
@@ -1242,23 +1243,30 @@ class NavigationTaskViewSet(ModelViewSet):
                 contestant = navigation_task.contestant_set.get(pk=contestant_id)
             except Contestant.DoesNotExist:
                 raise ValidationError({"contestant": "Contestant not found for this navigation task."})
-        if contestant and not photos.exists() and hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
+        if contestant and hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
             payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
             observation_photos = payload.get("observation_photos", [])
-            if observation_photos:
-                return Response(
-                    [
-                        {
-                            "id": None,
-                            "name": item.get("name"),
-                            "file": None,
-                            "compiled_coordinates": item.get("coordinates"),
-                            "evidence_category": "observation",
-                        }
-                        for item in observation_photos
-                    ]
-                )
-        # If the user has change permission, show everything. Otherwise show public version.
+            observation_names = {item.get("name") for item in observation_photos if item.get("name")}
+            if observation_names:
+                filtered = [photo for photo in photos if photo.name in observation_names]
+                if filtered:
+                    photos = filtered
+                else:
+                    return Response(
+                        [
+                            {
+                                "id": None,
+                                "name": item.get("name"),
+                                "file": None,
+                                "compiled_coordinates": item.get("coordinates"),
+                                "latitude": item.get("coordinates", [None, None])[1],
+                                "longitude": item.get("coordinates", [None, None])[0],
+                                "evidence_category": "observation",
+                                "target_kind": "observation",
+                            }
+                            for item in observation_photos
+                        ]
+                    )
         if navigation_task.user_has_change_permissions(request.user):
             serializer = PhotoSerialiser(photos, many=True)
         else:
@@ -1521,6 +1529,13 @@ class PhotoViewSet(ModelViewSet):
         if route_id:
             queryset = queryset.filter(route_id=route_id)
         return queryset
+
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated & PhotoPermissions])
+    def revert(self, request, pk=None):
+        photo = self.get_object()
+        revert_photo_to_satellite(photo)
+        serializer = self.get_serializer(photo)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def perform_create(self, serializer):
         photo = serializer.save()

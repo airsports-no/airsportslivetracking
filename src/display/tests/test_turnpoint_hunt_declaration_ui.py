@@ -1,4 +1,5 @@
 import datetime
+import json
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -16,9 +17,10 @@ from display.models import (
     EditableRoute,
     NavigationTask,
     Person,
-    Team,
     Scorecard,
+    Team,
 )
+from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.utilities.cima_task_type_definitions import LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
 from utilities.mock_utilities import TraccarMock
 
@@ -164,3 +166,42 @@ class TestTurnpointHuntDeclarationUI(TestCase):
         response = self.client.get(self.create_url)
         self.assertEqual(200, response.status_code)
         self.assertNotContains(response, "Task-specific declaration")
+
+    def test_turnpoint_hunt_contestant_detail_exposes_compiled_payload_even_before_declaration_is_valid(self):
+        contestant = self._create_contestant()
+        url = reverse(
+            "contestants-detail",
+            kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": contestant.pk},
+        )
+        self.client.force_login(self.user)
+        response = self.client.get(url)
+        self.assertEqual(200, response.status_code, response.content)
+        payload = json.loads(response.content).get("compiled_effective_route_payload", {})
+        self.assertEqual(payload.get("compulsory_point_names"), ["CP1", "CP2", "CP3"])
+        self.assertEqual(payload.get("declared_sequence"), [])
+        self.assertEqual(payload.get("free_target_names"), ["A", "B"])
+        self.assertEqual(payload.get("free_target_evidence"), {"A": ["A"], "B": ["B"]})
+
+    def test_turnpoint_hunt_live_shape_with_three_backbone_waypoints_surfaces_backbone_names(self):
+        editable_route = EditableRoute.objects.create(
+            name="Turnpoint hunt route-backed backbone",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
+                ],
+            },
+        )
+        self.navigation_task.editable_route = editable_route
+        self.navigation_task.task_subtype = "turnpoint_hunt"
+        self.navigation_task.save(update_fields=["editable_route", "task_subtype"])
+        compiled = ContestantTaskCompiler(self._create_contestant()).compile(force=True)
+        payload = compiled.compiled_effective_route_payload
+        if not isinstance(payload, dict):
+            payload = {}
+        self.assertEqual(payload.get("compulsory_point_names"), ["SP", "MP", "FP"])
+        self.assertEqual(payload.get("declared_sequence"), [])

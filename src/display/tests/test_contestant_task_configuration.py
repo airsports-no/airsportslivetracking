@@ -292,11 +292,12 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
-                    {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
-                    {"type": "Feature", "properties": {"id": "kt-2", "name": "CP2", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
-                    {"type": "Feature", "properties": {"id": "kt-3", "name": "CP3", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.45, 60.45]}},
                     {"type": "Feature", "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
                     {"type": "Feature", "properties": {"id": "obs-2", "name": "B", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.36, 60.36]}},
                 ],
@@ -309,17 +310,19 @@ class TestContestantTaskConfiguration(TestCase):
         compiled = ContestantTaskCompiler(self.contestant).compile(
             declaration_payload={
                 "compulsory_point_times": {
-                    "CP1": "2020-08-01T08:15:00Z",
-                    "CP2": "2020-08-01T08:16:00Z",
-                    "CP3": "2020-08-01T08:17:00Z",
+                    "SP": "2020-08-01T08:15:00Z",
+                    "MP": "2020-08-01T08:16:00Z",
+                    "FP": "2020-08-01T08:17:00Z",
                 },
             },
             force=True,
         )
 
         self.assertTrue(compiled.is_valid)
-        self.assertEqual(compiled.compiled_gate_times_payload["CP1"], "2020-08-01T08:15:00+00:00")
-        self.assertEqual(compiled.compiled_effective_route_payload["compulsory_point_names"], ["CP1", "CP2", "CP3"])
+        self.assertEqual(compiled.compiled_gate_times_payload["SP"], "2020-08-01T08:15:00+00:00")
+        self.assertEqual(compiled.compiled_effective_route_payload["compulsory_point_names"], ["SP", "MP", "FP"])
+        self.assertEqual(compiled.compiled_effective_route_payload["declared_sequence"], [])
+        self.assertEqual(compiled.compiled_effective_route_payload["effective_waypoint_names"], ["SP", "SC 1/1", "TP1"])
         self.assertEqual(compiled.compiled_effective_route_payload["free_target_names"], ["A", "B"])
         self.assertEqual(compiled.compiled_effective_route_payload["free_target_evidence"], {"A": ["A"], "B": ["B"]})
 
@@ -329,10 +332,11 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
-                    {"type": "Feature", "properties": {"id": "kt-2", "name": "CP2", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
-                    {"type": "Feature", "properties": {"id": "kt-3", "name": "CP3", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.45, 60.45]}},
                     {"type": "Feature", "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
                 ],
             },
@@ -344,9 +348,9 @@ class TestContestantTaskConfiguration(TestCase):
         compiled = ContestantTaskCompiler(self.contestant).compile(
             declaration_payload={
                 "compulsory_point_times": {
-                    "CP1": "2020-08-01T08:16:00Z",
-                    "CP2": "2020-08-01T08:17:00Z",
-                    "CP3": "2020-08-01T08:18:00Z",
+                    "SP": "2020-08-01T08:16:00Z",
+                    "MP": "2020-08-01T08:17:00Z",
+                    "FP": "2020-08-01T08:18:00Z",
                 },
                 "fuel_metadata": {"declared_endurance_minutes": 95},
             },
@@ -356,8 +360,8 @@ class TestContestantTaskConfiguration(TestCase):
         self.assertTrue(compiled.is_valid)
         self.assertEqual(compiled.declaration_payload["fuel_metadata"], {"declared_endurance_minutes": 95})
         self.assertEqual(compiled.compiled_effective_route_payload["fuel_metadata"], {"declared_endurance_minutes": 95})
-        self.assertEqual(compiled.compiled_gate_times_payload["CP1"], "2020-08-01T08:16:00+00:00")
-        self.assertEqual(compiled.compiled_effective_route_payload["compulsory_timing_gate_names"], ["CP1", "CP2", "CP3"])
+        self.assertEqual(compiled.compiled_gate_times_payload["SP"], "2020-08-01T08:16:00+00:00")
+        self.assertEqual(compiled.compiled_effective_route_payload["compulsory_timing_gate_names"], ["SP", "SC 1/1", "TP1"])
 
     def test_turnpoint_hunt_build_declaration_payload_from_input_normalizes_predictions(self):
         NavigationTask.objects.filter(pk=self.navigation_task.pk).update(task_subtype=TURNPOINT_HUNT)
@@ -368,7 +372,9 @@ class TestContestantTaskConfiguration(TestCase):
                 "predicted_gate_times": {
                     "CP1": datetime.datetime(2020, 8, 1, 8, 15, tzinfo=datetime.timezone.utc),
                     "CP2": "2020-08-01T08:16:00Z",
+                    "CP3": "2020-08-01T08:17:00Z",
                 },
+                "predicted_sequence": ["A", "CP1", "B", "CP2", "CP3"],
                 "fuel_metadata": {"declared_endurance_minutes": 95},
             }
         )
@@ -379,7 +385,9 @@ class TestContestantTaskConfiguration(TestCase):
                 "compulsory_point_times": {
                     "CP1": "2020-08-01T08:15:00+00:00",
                     "CP2": "2020-08-01T08:16:00+00:00",
+                    "CP3": "2020-08-01T08:17:00+00:00",
                 },
+                "declared_sequence": ["A", "CP1", "B", "CP2", "CP3"],
                 "fuel_metadata": {"declared_endurance_minutes": 95},
             },
         )
@@ -390,10 +398,11 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
-                    {"type": "Feature", "properties": {"id": "kt-2", "name": "CP2", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
-                    {"type": "Feature", "properties": {"id": "kt-3", "name": "CP3", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.45, 60.45]}},
                     {"type": "Feature", "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
                 ],
             },
@@ -405,8 +414,8 @@ class TestContestantTaskConfiguration(TestCase):
         compiled = ContestantTaskCompiler(self.contestant).compile(
             declaration_payload={
                 "compulsory_point_times": {
-                    "CP1": "2020-08-01T08:15:00Z",
-                    "CP2": "2020-08-01T08:16:00Z",
+                    "SP": "2020-08-01T08:15:00Z",
+                    "MP": "2020-08-01T08:16:00Z",
                 },
             },
             force=True,
@@ -414,7 +423,123 @@ class TestContestantTaskConfiguration(TestCase):
 
         self.assertFalse(compiled.is_valid)
         joined_errors = " ".join(compiled.validation_errors)
+        self.assertIn("Missing compulsory point time(s): FP", joined_errors)
         self.assertIn("exactly three compulsory point times", joined_errors)
+
+    def test_turnpoint_hunt_declared_sequence_requires_compulsory_points_in_time_order(self):
+        editable_route = EditableRoute.objects.create(
+            name="Turnpoint hunt time-order validation primitives",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.2, 60.2], [11.1, 60.1], [11.3, 60.3], [11.4, 60.4]]}},
+                    {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "kt-2", "name": "CP2", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "kt-3", "name": "CP3", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
+                    {"type": "Feature", "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                    {"type": "Feature", "properties": {"id": "obs-2", "name": "B", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.36, 60.36]}},
+                ],
+            },
+        )
+        self.navigation_task.task_subtype = TURNPOINT_HUNT
+        self.navigation_task.editable_route = editable_route
+        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
+
+        normalized = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={
+                "compulsory_point_times": {
+                    "CP2": "2020-08-01T08:15:00Z",
+                    "CP1": "2020-08-01T08:16:00Z",
+                    "CP3": "2020-08-01T08:17:00Z",
+                },
+                "declared_sequence": ["CP1", "A", "CP2", "CP3"],
+            },
+            force=True,
+        )
+        self.assertTrue(normalized.is_valid)
+        self.assertEqual(normalized.declaration_payload["declared_sequence"], ["CP2", "A", "CP1", "CP3"])
+
+        ordered = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={
+                "compulsory_point_times": {
+                    "CP2": "2020-08-01T08:15:00Z",
+                    "CP1": "2020-08-01T08:16:00Z",
+                    "CP3": "2020-08-01T08:17:00Z",
+                },
+                "declared_sequence": ["A", "CP2", "B", "CP1", "CP3"],
+            },
+            force=True,
+        )
+        self.assertTrue(ordered.is_valid)
+        payload = ordered.compiled_effective_route_payload
+        if not isinstance(payload, dict):
+            payload = {}
+        self.assertEqual(payload.get("compulsory_point_names"), ["CP1", "CP2", "CP3"])
+        self.assertEqual(payload.get("declared_sequence"), ["A", "CP2", "B", "CP1", "CP3"])
+
+        duplicate = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={
+                "compulsory_point_times": {
+                    "CP2": "2020-08-01T08:15:00Z",
+                    "CP1": "2020-08-01T08:16:00Z",
+                    "CP3": "2020-08-01T08:17:00Z",
+                },
+                "declared_sequence": ["A", "CP2", "A", "CP1", "CP3"],
+            },
+            force=True,
+        )
+        self.assertFalse(duplicate.is_valid)
+        self.assertIn("Duplicate turnpoint hunt target(s): A", " ".join(duplicate.validation_errors))
+
+        unknown = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={
+                "compulsory_point_times": {
+                    "CP2": "2020-08-01T08:15:00Z",
+                    "CP1": "2020-08-01T08:16:00Z",
+                    "CP3": "2020-08-01T08:17:00Z",
+                },
+                "declared_sequence": ["Z", "CP2", "CP1", "CP3"],
+            },
+            force=True,
+        )
+        self.assertFalse(unknown.is_valid)
+        self.assertIn("Unknown turnpoint hunt target(s): Z", " ".join(unknown.validation_errors))
+
+    def test_turnpoint_hunt_compile_normalizes_compulsory_order_from_predicted_times(self):
+        editable_route = EditableRoute.objects.create(
+            name="Turnpoint hunt compile normalization primitives",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.2, 60.2], [11.1, 60.1], [11.3, 60.3], [11.4, 60.4]]}},
+                    {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "kt-2", "name": "CP2", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "kt-3", "name": "CP3", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
+                ],
+            },
+        )
+        self.navigation_task.task_subtype = TURNPOINT_HUNT
+        self.navigation_task.editable_route = editable_route
+        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
+
+        compiled = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={
+                "compulsory_point_times": {
+                    "CP2": "2020-08-01T08:15:00Z",
+                    "CP1": "2020-08-01T08:16:00Z",
+                    "CP3": "2020-08-01T08:17:00Z",
+                },
+                "declared_sequence": ["A", "CP1", "B", "CP2", "CP3"],
+            },
+            force=True,
+        )
+
+        self.assertTrue(compiled.is_valid)
+        self.assertEqual(compiled.declaration_payload["declared_sequence"], ["A", "CP2", "B", "CP1", "CP3"])
 
     def test_anr_catalogue_includes_auxiliary_paths_in_effective_payload(self):
         editable_route = EditableRoute.objects.create(

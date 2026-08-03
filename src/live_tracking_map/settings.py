@@ -109,6 +109,7 @@ if ACCESS_ENFORCEMENT_MODE not in {"audit", "enforce"}:
 DEFAULT_FREE_TASK_TYPE_GROUPS = [
     item.strip() for item in os.environ.get("DEFAULT_FREE_TASK_TYPE_GROUPS", "legacy,cima").split(",") if item.strip()
 ]
+GATE_CIMA_TASK_VISIBILITY = os.environ.get("GATE_CIMA_TASK_VISIBILITY", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
 

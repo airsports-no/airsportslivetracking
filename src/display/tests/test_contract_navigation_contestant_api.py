@@ -148,7 +148,6 @@ class TestContractNavigationContestantApi(TestCase):
             kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": contestant.pk},
         )
         detail_response = self.client.get(detail_url)
-
         self.assertEqual(200, detail_response.status_code, detail_response.content)
         self.assertEqual(
             detail_response.json().get("declaration_payload"),

@@ -2,11 +2,85 @@ from django.utils import timezone
 import unittest
 from unittest.mock import patch
 import requests
-from display.flight_order_and_maps.map_plotter import LocalMapServer, plot_route
+from display.flight_order_and_maps.map_plotter import LocalMapServer, plot_route, get_plot_extent
 from display.utilities.route_building_utilities import build_waypoint
-from display.models import NavigationTask, Route, Contest
+from display.models import NavigationTask, Route, Contest, EditableRoute
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from django.test import TestCase
+from display.models import Photo
+from display.services.photo_management import get_navigation_task_photo_targets, revert_photo_to_satellite
+
+
+class PhotoManagementPageTargetsTest(TestCase):
+    def test_turnpoint_hunt_photo_targets_include_backbone_and_catalogue_turnpoints(self):
+        now = timezone.now()
+        contest = Contest.objects.create(
+            name="Photo target contest",
+            start_time=now,
+            finish_time=now + timezone.timedelta(days=1),
+            time_zone="Europe/Oslo",
+        )
+        route = Route.objects.create(name="Photo target route")
+        task = NavigationTask.objects.create(
+            name="Photo target task",
+            route=route,
+            contest=contest,
+            original_scorecard=get_default_scorecard(),
+            start_time=now,
+            finish_time=now + timezone.timedelta(days=1),
+            task_subtype="turnpoint_hunt",
+        )
+        editable_route = EditableRoute.objects.create(
+            name="Photo target primitives",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "cat-1", "name": "TP 1", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
+                ],
+            },
+        )
+        task.editable_route = editable_route
+        task.save(update_fields=["editable_route"])
+
+        targets = get_navigation_task_photo_targets(task)
+
+        self.assertEqual(
+            [(item["name"], item["target_kind"]) for item in targets],
+            [
+                ("SP", "route_waypoint"),
+                ("MP", "route_waypoint"),
+                ("FP", "route_waypoint"),
+                ("TP 1", "catalogue_turnpoint"),
+            ],
+        )
+
+    def test_revert_photo_to_satellite_regenerates_generated_image(self):
+        route = Route.objects.create(name="Generated photo route")
+        photo = Photo.objects.create(name="SP", route=route, latitude=60.0, longitude=11.0)
+
+        class DummyFile:
+            def __init__(self):
+                self.deleted = False
+
+            def delete(self, save=False):
+                self.deleted = True
+
+        dummy_file = DummyFile()
+        photo.file = dummy_file  # type: ignore[assignment]
+
+        with patch.object(photo, "save") as mock_save, patch.object(photo, "generate_image") as mock_generate, patch.object(photo, "refresh_from_db") as mock_refresh:
+            reverted = revert_photo_to_satellite(photo)
+
+        self.assertIs(reverted, photo)
+        self.assertTrue(dummy_file.deleted)
+        self.assertFalse(bool(photo.file))
+        mock_save.assert_called_once_with(update_fields=["file"])
+        mock_generate.assert_called_once_with(force=True)
+        mock_refresh.assert_called_once_with()
 
 class MapFallbackTests(TestCase):
     def setUp(self):
@@ -160,6 +234,26 @@ class MapFallbackTests(TestCase):
                 {"name": "OUT", "coordinates": [11.23, 60.23], "kind": "circle_exit_marker"},
             ],
         )
+
+    def test_get_plot_extent_uses_rendered_waypoints_and_catalogue_targets(self):
+        from unittest.mock import MagicMock
+
+        route = MagicMock()
+        route.waypoints = []
+        route.prohibited_set.all.return_value = []
+        route.get_extent.return_value = (60.0, 60.0, 11.0, 11.0)
+        visible = build_waypoint("SP", 60.0, 11.0, "tp", 1.0, True, True)
+        visible.gate_line = [(59.99, 10.99), (60.01, 11.01)]
+        declared = build_waypoint("A", 60.6, 11.6, "tp", 1.0, False, True)
+        declared.gate_line = [(60.59, 11.59), (60.61, 11.61)]
+
+        extent = get_plot_extent(
+            route,
+            render_waypoints=[visible, declared],
+            task_catalogue_targets=[{"name": "CAT", "coordinates": [12.0, 61.0], "kind": "catalogue_turnpoint"}],
+        )
+
+        self.assertEqual(extent, (59.99, 61.0, 10.99, 12.0))
 
     def test_plot_leg_bearing_skips_zero_length_leg(self):
         from display.flight_order_and_maps.map_plotter import plot_leg_bearing

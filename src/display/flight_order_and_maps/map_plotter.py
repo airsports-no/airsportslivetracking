@@ -275,6 +275,56 @@ def build_effective_route_distance(route_waypoints: List[Waypoint]) -> float:
     return total_distance
 
 
+def get_plot_extent(
+    route: Route,
+    render_waypoints: Optional[List[Waypoint]] = None,
+    task_catalogue_targets: Optional[list[dict]] = None,
+) -> tuple[float, float, float, float]:
+    """
+    Build the plotted extent from the actual rendered geometry rather than only
+    the shared persisted route backbone.
+
+    This keeps declaration-aware contestant maps/flight-order maps aligned with
+    gate-times/live-map rendering by ensuring contestant-specific effective
+    waypoints can expand the plotted bounds. Generic task maps also include
+    standalone catalogue/circle targets so authored off-backbone primitives are
+    not clipped out of view.
+    """
+    latitudes = []
+    longitudes = []
+
+    for waypoint in list(render_waypoints or route.waypoints):
+        latitude = getattr(waypoint, "latitude", None)
+        longitude = getattr(waypoint, "longitude", None)
+        if latitude is not None and longitude is not None:
+            latitudes.append(latitude)
+            longitudes.append(longitude)
+
+        gate_line = getattr(waypoint, "gate_line", []) or []
+        for point in gate_line:
+            if len(point) != 2:
+                continue
+            latitudes.append(point[0])
+            longitudes.append(point[1])
+
+    for prohibited in route.prohibited_set.all():
+        latitudes.extend([item[1] for item in prohibited.path])
+        longitudes.extend([item[0] for item in prohibited.path])
+
+    for target in task_catalogue_targets or []:
+        coordinates = target.get("coordinates") or []
+        if len(coordinates) != 2:
+            continue
+        lon, lat = coordinates
+        latitudes.append(lat)
+        longitudes.append(lon)
+
+    if not latitudes or not longitudes:
+        return route.get_extent()
+
+    return min(latitudes), max(latitudes), min(longitudes), max(longitudes)
+
+
 first = True
 
 
@@ -1365,6 +1415,9 @@ def plot_route(
         contestant=contestant,
         include_contestant_declarations=include_contestant_declarations,
     )
+    task_catalogue_targets = []
+    if contestant is None:
+        task_catalogue_targets = get_task_catalogue_targets(task)
     if PRECISION in task.scorecard.task_type or POKER in task.scorecard.task_type:
         paths = plot_precision_track(
             route,
@@ -1400,7 +1453,7 @@ def plot_route(
     else:
         paths = []
     if contestant is None:
-        plot_catalogue_targets(get_task_catalogue_targets(task), colour)
+        plot_catalogue_targets(task_catalogue_targets, colour)
     plot_prohibited_zones(route, imagery.crs, ax)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:
@@ -1423,7 +1476,11 @@ def plot_route(
         )
 
     # print(f"Figure size (cm): ({figure_width}, {figure_height})")
-    minimum_latitude, maximum_latitude, minimum_longitude, maximum_longitude = route.get_extent()
+    minimum_latitude, maximum_latitude, minimum_longitude, maximum_longitude = get_plot_extent(
+        route,
+        render_waypoints=render_waypoints,
+        task_catalogue_targets=task_catalogue_targets,
+    )
     # print(f"minimum: {minimum_latitude}, {minimum_longitude}")
     # print(f"maximum: {maximum_latitude}, {maximum_longitude}")
     proj_pc = ccrs.PlateCarree()

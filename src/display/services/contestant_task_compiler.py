@@ -41,6 +41,9 @@ class ContestantTaskCompilerStrategy:
     def build_declaration_payload_from_input(self, declaration_input: dict) -> dict:
         return {}
 
+    def normalize_declaration_payload(self, declaration_payload: dict, compiled_task) -> dict:
+        return declaration_payload
+
 
 class CurveOrPrecisionNavigationStrategy(ContestantTaskCompilerStrategy):
     def __init__(self, compiler: "ContestantTaskCompiler", subtype: str):
@@ -195,17 +198,42 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
     def validate_declaration(self, declaration_payload: dict, compiled_task) -> list[str]:
         compulsory_point_names = self.compiler._get_turnpoint_hunt_compulsory_point_names(compiled_task)
         compulsory_point_times = self.compiler._get_turnpoint_hunt_compulsory_point_times(declaration_payload)
+        declared_sequence = declaration_payload.get("declared_sequence") or []
+        expected_free_targets = [item["name"] for item in self.compiler._build_turnpoint_hunt_targets_payload()]
         errors = []
         minimum_required = 0 if self.compiler.contestant.navigation_task.task_subtype == LIMITED_FUEL_TURNPOINT_HUNT else 3
-        if not isinstance(compulsory_point_times, dict) or len(compulsory_point_times) < minimum_required:
+        if not isinstance(compulsory_point_times, dict):
             errors.append("Turnpoint hunt requires exactly three compulsory point times.")
         else:
-            unexpected = sorted(set(compulsory_point_times.keys()) - set(compulsory_point_names))
+            expected_names = set(compulsory_point_names)
+            provided_names = set(compulsory_point_times.keys())
+            unexpected = sorted(provided_names - expected_names)
             missing = [name for name in compulsory_point_names if name not in compulsory_point_times]
             if unexpected:
                 errors.append(f"Unknown compulsory point time(s): {', '.join(unexpected)}")
-            if missing and minimum_required > 0:
+            if minimum_required > 0 and missing:
                 errors.append(f"Missing compulsory point time(s): {', '.join(missing)}")
+            if minimum_required > 0 and len(provided_names) != len(expected_names):
+                errors.append("Turnpoint hunt requires exactly three compulsory point times.")
+        if declared_sequence:
+            if not isinstance(declared_sequence, list):
+                errors.append("Turnpoint hunt declared_sequence must be a list.")
+            else:
+                normalized_sequence = [item for item in declared_sequence if isinstance(item, str)]
+                allowed_compulsory_names = set(compulsory_point_names)
+                unknown = [item for item in normalized_sequence if item not in expected_free_targets and item not in allowed_compulsory_names]
+                if unknown:
+                    errors.append(f"Unknown turnpoint hunt target(s): {', '.join(unknown)}")
+                duplicates = sorted({item for item in normalized_sequence if normalized_sequence.count(item) > 1})
+                if duplicates:
+                    errors.append(f"Duplicate turnpoint hunt target(s): {', '.join(duplicates)}")
+                compulsory_sequence = [item for item in normalized_sequence if item in allowed_compulsory_names]
+                if sorted(compulsory_sequence) != sorted(compulsory_point_names):
+                    errors.append("Turnpoint hunt declared_sequence must include each compulsory point exactly once.")
+                else:
+                    ordered_compulsory_names = self.compiler._get_turnpoint_hunt_ordered_compulsory_point_names(compulsory_point_times, compulsory_point_names)
+                    if compulsory_sequence != ordered_compulsory_names:
+                        errors.append("Turnpoint hunt compulsory points must appear in predicted-time order.")
         fuel_metadata = declaration_payload.get("fuel_metadata") or {}
         if fuel_metadata and not isinstance(fuel_metadata, dict):
             errors.append("Fuel metadata must be a dictionary.")
@@ -214,14 +242,18 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
     def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
         compulsory_point_names = self.compiler._get_turnpoint_hunt_compulsory_point_names(compiled_task)
         compulsory_point_times = self.compiler._get_turnpoint_hunt_compulsory_point_times(declaration_payload)
-        effective_waypoints = self.compiler._build_turnpoint_hunt_effective_waypoints(compiled_task, compulsory_point_names)
+        effective_waypoints = self.compiler._build_turnpoint_hunt_effective_waypoints(compiled_task, compulsory_point_names, declaration_payload)
         free_targets = self.compiler._build_turnpoint_hunt_targets_payload()
+        declared_sequence = declaration_payload.get("declared_sequence", [])
+        effective_waypoint_names = [item["name"] for item in effective_waypoints]
+        compulsory_timing_gate_names = effective_waypoint_names[: len(compulsory_point_names)]
         payload = {
             "compulsory_point_names": compulsory_point_names,
             "compulsory_point_times": compulsory_point_times,
-            "effective_waypoint_names": [item["name"] for item in effective_waypoints],
+            "declared_sequence": declared_sequence,
+            "effective_waypoint_names": effective_waypoint_names,
             "effective_waypoints": effective_waypoints,
-            "compulsory_timing_gate_names": compulsory_point_names,
+            "compulsory_timing_gate_names": compulsory_timing_gate_names,
             "compulsory_timing_tolerance_seconds": int(
                 getattr(self.compiler.contestant.navigation_task.scorecard, "compulsory_timing_tolerance_seconds", 10) or 10
             ),
@@ -258,15 +290,7 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
         for key, value in compulsory_point_times.items():
             if isinstance(value, str):
                 gate_times[key] = parser.parse(value).isoformat()
-        base_time = self.compiler.contestant.takeoff_time + datetime.timedelta(minutes=self.compiler.contestant.minutes_to_starting_point)
-        free_targets = self.compiler._build_turnpoint_hunt_targets_payload()
-        offset_minutes = 0
-        for target in free_targets:
-            name = target.get("name")
-            if not isinstance(name, str) or name in gate_times:
-                continue
-            gate_times[name] = (base_time + datetime.timedelta(minutes=offset_minutes)).isoformat()
-            offset_minutes += 5
+        gate_times.update(self.compiler._build_turnpoint_hunt_declared_gate_times(compiled_effective_route_payload, declaration_payload))
         return gate_times
 
     def build_declaration_payload_from_input(self, declaration_input: dict) -> dict:
@@ -278,6 +302,9 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
             raise serializers.ValidationError({"compulsory_point_times": "Expected a dictionary of compulsory point times."})
         if not isinstance(fuel_metadata, dict):
             raise serializers.ValidationError({"fuel_metadata": "Expected a dictionary of fuel metadata."})
+        declared_sequence = declaration_input.get("declared_sequence") or declaration_input.get("predicted_sequence") or []
+        if declared_sequence and not isinstance(declared_sequence, list):
+            raise serializers.ValidationError({"declared_sequence": "Expected a list of declared turnpoints."})
         normalized_point_times = {}
         for key, value in compulsory_point_times.items():
             if value in (None, ""):
@@ -288,12 +315,44 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
                 normalized_point_times[key] = value.isoformat()
             else:
                 raise serializers.ValidationError({"compulsory_point_times": f"Invalid prediction value for {key}."})
+        normalized_sequence = [item for item in declared_sequence if isinstance(item, str) and item]
         payload = {}
         if normalized_point_times:
             payload["compulsory_point_times"] = normalized_point_times
+        if normalized_sequence:
+            payload["declared_sequence"] = normalized_sequence
         if fuel_metadata:
             payload["fuel_metadata"] = fuel_metadata
         return payload
+
+    def normalize_declaration_payload(self, declaration_payload: dict, compiled_task) -> dict:
+        normalized_payload = dict(declaration_payload or {})
+        compulsory_point_times = self.compiler._get_turnpoint_hunt_compulsory_point_times(normalized_payload)
+        declared_sequence = [item for item in (normalized_payload.get("declared_sequence") or []) if isinstance(item, str)]
+        compulsory_point_names = self.compiler._get_turnpoint_hunt_compulsory_point_names(compiled_task)
+        ordered_compulsory_names = self.compiler._get_turnpoint_hunt_ordered_compulsory_point_names(compulsory_point_times, compulsory_point_names)
+        if declared_sequence and ordered_compulsory_names:
+            declared_free_targets = [item for item in declared_sequence if item not in compulsory_point_names]
+            declared_compulsory_names = [item for item in declared_sequence if item in compulsory_point_names]
+            if sorted(declared_compulsory_names) == sorted(ordered_compulsory_names):
+                free_target_names = set(item["name"] for item in self.compiler._build_turnpoint_hunt_targets_payload())
+                free_targets_are_unique = len(set(declared_free_targets)) == len(declared_free_targets)
+                if free_targets_are_unique and all(item in free_target_names for item in declared_free_targets):
+                    relative_slots = []
+                    for target_name in declared_free_targets:
+                        target_index = declared_sequence.index(target_name)
+                        slot = len([name for name in declared_compulsory_names if declared_sequence.index(name) < target_index])
+                        relative_slots.append((slot, target_name))
+                    free_targets_by_slot = {}
+                    for slot, target_name in relative_slots:
+                        free_targets_by_slot.setdefault(slot, []).append(target_name)
+                    rebuilt_sequence = []
+                    for slot in range(0, len(ordered_compulsory_names) + 1):
+                        rebuilt_sequence.extend(free_targets_by_slot.get(slot, []))
+                        if slot < len(ordered_compulsory_names):
+                            rebuilt_sequence.append(ordered_compulsory_names[slot])
+                    normalized_payload["declared_sequence"] = rebuilt_sequence
+        return normalized_payload
 
 
 class DurationStrategy(ContestantTaskCompilerStrategy):
@@ -331,13 +390,15 @@ class ContestantTaskCompiler:
         declaration_payload = declaration_payload or {}
         # Dependency order matters here:
         # 1) compile shared task primitives first,
-        # 2) build contestant-specific effective route payload from those primitives,
-        # 3) derive gate times from the compiled effective payload,
-        # 4) validate against compiled primitives/effective data before persisting.
+        # 2) normalize declaration payload against the compiled task snapshot,
+        # 3) build contestant-specific effective route payload from those primitives,
+        # 4) derive gate times from the compiled effective payload,
+        # 5) validate against compiled primitives/effective data before persisting.
         # Every phase below intentionally uses the same compiled-task snapshot
         # so subtype validation, payload synthesis, and gate-time overrides all
         # depend on one authoritative view of task primitives/config.
         compiled_task = TaskCompiler(self.contestant.navigation_task).compile()
+        declaration_payload = self._get_strategy().normalize_declaration_payload(declaration_payload, compiled_task)
         compiled_effective_route_payload = self._build_effective_route_payload(compiled_task, declaration_payload)
         compiled_gate_times_payload = self._build_gate_times_payload(
             declaration_payload,
@@ -504,13 +565,37 @@ class ContestantTaskCompiler:
         }
 
     def _get_turnpoint_hunt_compulsory_point_names(self, compiled_task) -> list[str]:
-        return [name for name in compiled_task.get_compiled_primitives().get("known_time_gate", []) if name][:3]
+        primitive_names = [name for name in compiled_task.get_compiled_primitives().get("known_time_gate", []) if name]
+        if len(primitive_names) == 3:
+            return primitive_names
+        editable_route = self.contestant.navigation_task.editable_route
+        if editable_route is not None:
+            authored_waypoints = editable_route.get_ordered_track_waypoints()
+            if len(authored_waypoints) == 3:
+                return [
+                    item.get("properties", {}).get("name")
+                    for item in authored_waypoints
+                    if item.get("properties", {}).get("name")
+                ]
+        base_waypoints = self.contestant.navigation_task.route.waypoints
+        return [waypoint.name for waypoint in base_waypoints[:3] if getattr(waypoint, "name", None)]
 
     def _get_turnpoint_hunt_compulsory_point_times(self, declaration_payload: dict) -> dict:
         point_times = declaration_payload.get("compulsory_point_times")
         if point_times is None:
             point_times = declaration_payload.get("predicted_gate_times")
         return point_times or {}
+
+    def _get_turnpoint_hunt_ordered_compulsory_point_names(self, compulsory_point_times: dict, compulsory_point_names: list[str]) -> list[str]:
+        ordered_pairs = []
+        for index, name in enumerate(compulsory_point_names):
+            raw_value = compulsory_point_times.get(name)
+            if isinstance(raw_value, str):
+                ordered_pairs.append((parser.parse(raw_value), index, name))
+        if len(ordered_pairs) != len(compulsory_point_names):
+            return [name for name in compulsory_point_names if name in compulsory_point_times]
+        ordered_pairs.sort(key=lambda item: (item[0], item[1]))
+        return [item[2] for item in ordered_pairs]
 
     def _build_turnpoint_hunt_targets_payload(self) -> list[dict]:
         # This compiled target payload is the shared compatibility bridge for
@@ -715,34 +800,146 @@ class ContestantTaskCompiler:
         gate_times.update(build_segment_times(after_names, "FP", mp_time, float(t_seconds), after_distance))
         return gate_times
 
-    def _build_turnpoint_hunt_effective_waypoints(self, compiled_task, compulsory_point_names: list[str]) -> list[dict]:
+    def _build_turnpoint_hunt_declared_gate_times(self, compiled_effective_route_payload: dict, declaration_payload: dict) -> dict[str, str]:
+        gate_times: dict[str, str] = {}
+        compulsory_point_times = compiled_effective_route_payload.get("compulsory_point_times") or declaration_payload.get("compulsory_point_times") or {}
+        for key, value in compulsory_point_times.items():
+            if isinstance(value, str):
+                gate_times[key] = parser.parse(value).isoformat()
+
+        declared_sequence = [item for item in (compiled_effective_route_payload.get("declared_sequence") or []) if isinstance(item, str)]
+        effective_waypoints = compiled_effective_route_payload.get("effective_waypoints") or []
+        if not declared_sequence or not effective_waypoints:
+            return gate_times
+
+        by_name = {
+            item.get("name"): item
+            for item in effective_waypoints
+            if isinstance(item, dict) and item.get("name")
+        }
+        compulsory_point_names = [name for name in (compiled_effective_route_payload.get("compulsory_point_names") or []) if isinstance(name, str)]
+        ordered_compulsory_names = self._get_turnpoint_hunt_ordered_compulsory_point_names(compulsory_point_times, compulsory_point_names)
+        if len(ordered_compulsory_names) != 3:
+            return gate_times
+
+        first_compulsory, middle_compulsory, last_compulsory = ordered_compulsory_names
+        compulsory_indices = {name: index for index, name in enumerate(declared_sequence) if name in ordered_compulsory_names}
+        if any(name not in compulsory_indices for name in ordered_compulsory_names):
+            return gate_times
+        if not (compulsory_indices[first_compulsory] < compulsory_indices[middle_compulsory] < compulsory_indices[last_compulsory]):
+            return gate_times
+
+        before_names = declared_sequence[: compulsory_indices[middle_compulsory]]
+        between_names = declared_sequence[compulsory_indices[middle_compulsory] + 1 : compulsory_indices[last_compulsory]]
+        before_names = [name for name in before_names if name not in ordered_compulsory_names]
+        between_names = [name for name in between_names if name not in ordered_compulsory_names]
+        first_time_raw = compulsory_point_times.get(first_compulsory)
+        middle_time_raw = compulsory_point_times.get(middle_compulsory)
+        last_time_raw = compulsory_point_times.get(last_compulsory)
+        if not all(isinstance(value, str) for value in (first_time_raw, middle_time_raw, last_time_raw)):
+            return gate_times
+
+        first_time = parser.parse(first_time_raw)
+        middle_time = parser.parse(middle_time_raw)
+        last_time = parser.parse(last_time_raw)
+
+        def distance_for_leg(start_name: str, end_name: str, sequence: list[str]) -> float:
+            names = [start_name, *sequence, end_name]
+            distance = 0.0
+            for current_name, next_name in zip(names, names[1:]):
+                next_waypoint = by_name.get(next_name)
+                if not next_waypoint:
+                    continue
+                distance += float(next_waypoint.get("distance_previous") or 0.0)
+            return distance
+
+        before_distance = distance_for_leg(first_compulsory, middle_compulsory, before_names)
+        after_distance = distance_for_leg(middle_compulsory, last_compulsory, between_names)
+
+        def build_segment_times(sequence: list[str], end_name: str, start_time: datetime.datetime, end_time: datetime.datetime, segment_distance: float) -> None:
+            current_time = start_time
+            total_seconds = (end_time - start_time).total_seconds()
+            names = [*sequence, end_name]
+            for next_name in names:
+                next_waypoint = by_name.get(next_name)
+                if not next_waypoint:
+                    continue
+                leg_distance = float(next_waypoint.get("distance_previous") or 0.0)
+                leg_seconds = total_seconds * leg_distance / segment_distance if segment_distance > 0 and leg_distance > 0 else 0.0
+                current_time = current_time + datetime.timedelta(seconds=leg_seconds)
+                if next_name not in gate_times:
+                    gate_times[next_name] = current_time.isoformat()
+
+        build_segment_times(before_names, middle_compulsory, first_time, middle_time, before_distance)
+        build_segment_times(between_names, last_compulsory, middle_time, last_time, after_distance)
+        return gate_times
+
+    def _build_turnpoint_hunt_effective_waypoints(self, compiled_task, compulsory_point_names: list[str], declaration_payload: dict | None = None) -> list[dict]:
         base_waypoints = self.contestant.navigation_task.route.waypoints
         if not base_waypoints:
             return []
 
-        editable_route = self.contestant.navigation_task.editable_route
-        known_time_gate_features = editable_route.get_known_time_gates() if editable_route else []
-        primitive_by_name = {
-            feature["properties"].get("name"): feature for feature in known_time_gate_features
-        }
-
-        sp = base_waypoints[0]
-        fp = base_waypoints[-1]
-        reference = base_waypoints[min(1, len(base_waypoints) - 1)]
-        effective_waypoints = [sp]
-
-        for item in compulsory_point_names:
-            feature = primitive_by_name.get(item)
-            if not feature:
-                continue
-            lon, lat = feature["geometry"]["coordinates"]
-            waypoint = build_waypoint(item, lat, lon, "tp", reference.width, True, True)
-            waypoint.gate_line = [list(reference.gate_line[0]), list(reference.gate_line[1])] if reference.gate_line else []
-            waypoint.elevation = getattr(reference, "elevation", 0)
-            effective_waypoints.append(waypoint)
-
-        if effective_waypoints[-1].name != fp.name:
-            effective_waypoints.append(fp)
+        compulsory_point_times = self._get_turnpoint_hunt_compulsory_point_times(declaration_payload or {})
+        ordered_compulsory_names = self._get_turnpoint_hunt_ordered_compulsory_point_names(compulsory_point_times, compulsory_point_names)
+        compulsory_backbone_count = len(compulsory_point_names) if compulsory_point_names else 3
+        effective_waypoints = list(base_waypoints[:compulsory_backbone_count])
+        declared_sequence = [item for item in ((declaration_payload or {}).get("declared_sequence") or []) if isinstance(item, str)]
+        if declared_sequence:
+            route_waypoint_names = {waypoint.name for waypoint in effective_waypoints if getattr(waypoint, "name", None)}
+            route_waypoints_by_name = {waypoint.name: waypoint for waypoint in effective_waypoints if getattr(waypoint, "name", None)}
+            filtered_sequence = [item for item in declared_sequence if item in route_waypoint_names]
+            free_target_names = [item for item in declared_sequence if item not in route_waypoint_names]
+            ordered_waypoints = []
+            target_payload = {item["name"]: item for item in self._build_turnpoint_hunt_targets_payload()}
+            reference_waypoint = effective_waypoints[1] if len(effective_waypoints) > 1 else effective_waypoints[0]
+            seen_names = set()
+            for item in filtered_sequence:
+                if item in seen_names:
+                    continue
+                seen_names.add(item)
+                if item in route_waypoints_by_name:
+                    ordered_waypoints.append(route_waypoints_by_name[item])
+                    continue
+                target = target_payload.get(item)
+                if not target:
+                    continue
+                coordinates = target.get("coordinates") or []
+                if len(coordinates) != 2:
+                    continue
+                lon, lat = coordinates
+                waypoint = build_waypoint(item, lat, lon, "tp", reference_waypoint.width, False, True)
+                waypoint.gate_line = [list(reference_waypoint.gate_line[0]), list(reference_waypoint.gate_line[1])] if reference_waypoint.gate_line else []
+                waypoint.elevation = getattr(reference_waypoint, "elevation", 0)
+                ordered_waypoints.append(waypoint)
+            if ordered_waypoints:
+                effective_waypoints = ordered_waypoints
+            elif ordered_compulsory_names:
+                effective_waypoints = [route_waypoints_by_name[name] for name in ordered_compulsory_names if name in route_waypoints_by_name]
+        else:
+            free_target_names = []
+        if free_target_names and not declared_sequence:
+            target_payload = {item["name"]: item for item in self._build_turnpoint_hunt_targets_payload()}
+            reference_waypoint = effective_waypoints[1] if len(effective_waypoints) > 1 else effective_waypoints[0]
+            seen_free_targets = set()
+            for target_name in free_target_names:
+                if target_name in seen_free_targets:
+                    continue
+                seen_free_targets.add(target_name)
+                target = target_payload.get(target_name)
+                if not target:
+                    continue
+                coordinates = target.get("coordinates") or []
+                if len(coordinates) != 2:
+                    continue
+                lon, lat = coordinates
+                waypoint = build_waypoint(target_name, lat, lon, "tp", reference_waypoint.width, False, True)
+                waypoint.gate_line = [list(reference_waypoint.gate_line[0]), list(reference_waypoint.gate_line[1])] if reference_waypoint.gate_line else []
+                waypoint.elevation = getattr(reference_waypoint, "elevation", 0)
+                effective_waypoints.append(waypoint)
+        if not effective_waypoints:
+            return []
+        if len(effective_waypoints) == 1:
+            return [self._serialise_waypoint(effective_waypoints[0])]
 
         calculate_and_update_legs(effective_waypoints, self.contestant.navigation_task.route.use_procedure_turns)
         self._apply_effective_gate_lines(effective_waypoints)

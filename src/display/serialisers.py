@@ -409,10 +409,13 @@ class PhotoSerialiser(serializers.ModelSerializer):
 class PhotoPublicSerialiser(serializers.ModelSerializer):
     compiled_coordinates = serializers.SerializerMethodField()
     evidence_category = serializers.SerializerMethodField()
+    target_kind = serializers.SerializerMethodField()
+    latitude = serializers.FloatField()
+    longitude = serializers.FloatField()
 
     class Meta:
         model = Photo
-        fields = ["id", "name", "file", "compiled_coordinates", "evidence_category"]
+        fields = ["id", "name", "file", "latitude", "longitude", "compiled_coordinates", "evidence_category", "target_kind"]
 
     def get_compiled_coordinates(self, obj):
         contestant = self.context.get("contestant")
@@ -425,6 +428,14 @@ class PhotoPublicSerialiser(serializers.ModelSerializer):
 
     def get_evidence_category(self, obj):
         return AdministrativePenalty.CATEGORY_OBSERVATION
+
+    def get_target_kind(self, obj):
+        contestant = self.context.get("contestant")
+        payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
+        for item in payload.get("observation_photos", []):
+            if item.get("name") == obj.name:
+                return item.get("evidence_category")
+        return "observation"
 
 
 class RouteSerialiser(serializers.ModelSerializer):
@@ -1343,8 +1354,9 @@ class ContestantNestedTeamSerialiserWithContestantTrack(ContestantNestedTeamSeri
     compiled_effective_route_payload = serializers.SerializerMethodField()
 
     def get_compiled_effective_route_payload(self, obj):
-        if hasattr(obj, "contestanttaskconfiguration") and obj.contestanttaskconfiguration.is_valid:
-            return obj.contestanttaskconfiguration.compiled_effective_route_payload or {}
+        config = getattr(obj, "contestanttaskconfiguration", None)
+        if config is not None:
+            return config.compiled_effective_route_payload or {}
         return {}
 
 

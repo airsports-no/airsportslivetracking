@@ -102,7 +102,7 @@ export const fetchTeam = async (teamId: number) => {
 
 export const fetchNavigationTask = async (contestPk: number, navigationTaskPk: number) => {
     const url = reverse("navigationtasks-detail", contestPk, navigationTaskPk);
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) {
         throw new Error("Failed to fetch navigation task");
     }
@@ -111,7 +111,7 @@ export const fetchNavigationTask = async (contestPk: number, navigationTaskPk: n
 
 export const fetchContestant = async (contestId: number, navigationTaskId: number, contestantId: number) => {
     const url = reverse("contestants-detail", contestId, navigationTaskId, contestantId);
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) {
         throw new Error(`Failed to fetch contestant ${contestantId}`);
     }
@@ -125,6 +125,8 @@ export const updateContestant = async (contestId: number, navigationTaskId: numb
         headers: {
             "Content-Type": "application/json",
             "X-CSRFToken": getCookie("csrftoken")!,
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
         },
         body: JSON.stringify(payload),
     });

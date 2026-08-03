@@ -63,7 +63,7 @@ class BaseTurnpointHuntContestantApiTest(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
                     {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
                     {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
@@ -91,6 +91,7 @@ class BaseTurnpointHuntContestantApiTest(TestCase):
                 "CP2": "2026-08-01T10:19:00Z",
                 "CP3": "2026-08-01T10:32:00Z",
             },
+            "declared_sequence": ["A", "CP1", "B", "CP2", "CP3"],
         }
         if self.expected_fuel_metadata is not None:
             payload["fuel_metadata"] = self.expected_fuel_metadata
@@ -103,6 +104,7 @@ class BaseTurnpointHuntContestantApiTest(TestCase):
                 "CP2": "2026-08-01T10:19:00+00:00",
                 "CP3": "2026-08-01T10:32:00+00:00",
             },
+            "declared_sequence": ["A", "CP1", "B", "CP2", "CP3"],
         }
         if self.expected_fuel_metadata is not None:
             expected["fuel_metadata"] = self.expected_fuel_metadata
@@ -242,7 +244,6 @@ class TestLimitedFuelTurnpointHuntContestantTeamIdApi(BaseTurnpointHuntContestan
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
         self.assert_persisted_payload(contestant)
 
-
 class TestKnownCircuitContestantApi(TestCase):
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
     @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
@@ -281,7 +282,7 @@ class TestKnownCircuitContestantApi(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
                     {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
                 ],
@@ -398,7 +399,7 @@ class TestUnknownLegsContestantApi(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
                     {"type": "Feature", "properties": {"id": "ul-1", "name": "UL1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0, "segmentType": "straight"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
                 ],
@@ -518,7 +519,7 @@ class TestKnownCircuitContestantEvidenceVisibility(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
                     {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
                 ],

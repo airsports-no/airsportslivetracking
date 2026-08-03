@@ -12,6 +12,11 @@ type FreeTarget = {
     evidence?: { name: string }[];
 };
 
+type SequenceLane = {
+    beforeMp: string[];
+    afterMp: string[];
+};
+
 type ContestantDeclarationData = {
     declaration_payload?: Record<string, unknown>;
     compiled_effective_route_payload?: {
@@ -26,16 +31,14 @@ type ContestantDeclarationData = {
     };
 };
 
-type ContractNavigationFormState = {
-    beforeMp: string[];
-    afterMp: string[];
-};
+type ContractNavigationFormState = SequenceLane;
 
 type DeclarationFormState = {
     compulsoryPointTimes: Record<string, string>;
     declaredEnduranceMinutes: string;
     contractNavigation: ContractNavigationFormState;
     contractDeclaredTSeconds: string;
+    turnpointHuntSequence: string[];
 };
 
 type DeclarationPageData = {
@@ -49,6 +52,7 @@ const EMPTY_FORM_STATE: DeclarationFormState = {
     declaredEnduranceMinutes: '',
     contractNavigation: { beforeMp: [], afterMp: [] },
     contractDeclaredTSeconds: '',
+    turnpointHuntSequence: [],
 };
 
 const toDatetimeLocalValue = (value?: string | null) => {
@@ -81,6 +85,52 @@ const getCompulsoryPointNames = (contestant: ContestantDeclarationData | null | 
     return compiledPayload.compulsory_point_names || compiledPayload.compulsory_timing_gate_names || [];
 };
 
+const getTurnpointHuntSequence = (contestant: ContestantDeclarationData | null | undefined): string[] => {
+    const compiledPayload = getCompiledPayload(contestant);
+    const declarationPayload = contestant?.declaration_payload || {};
+    const declaredSequence = Array.isArray(declarationPayload.declared_sequence)
+        ? declarationPayload.declared_sequence.filter((item): item is string => typeof item === 'string')
+        : [];
+    if (declaredSequence.length > 0) {
+        return declaredSequence;
+    }
+    return compiledPayload.free_target_names || [];
+};
+
+const normalizeTurnpointHuntSequence = (
+    sequence: string[],
+    orderedCompulsoryPointNames: string[],
+    allowedFreeTargetNames: string[],
+) => {
+    const currentSequence = sequence.filter((item) => typeof item === 'string' && item);
+    const compulsorySet = new Set(orderedCompulsoryPointNames);
+    const freeTargetSet = new Set(allowedFreeTargetNames);
+    const declaredFreeTargets = currentSequence.filter((item) => !compulsorySet.has(item) && freeTargetSet.has(item));
+    const uniqueFreeTargets = declaredFreeTargets.filter((item, index) => declaredFreeTargets.indexOf(item) === index);
+
+    const slotEntries = uniqueFreeTargets.map((targetName) => {
+        const targetIndex = currentSequence.indexOf(targetName);
+        const slot = currentSequence.filter((item, index) => compulsorySet.has(item) && index < targetIndex).length;
+        return { slot, targetName };
+    });
+
+    const freeTargetsBySlot = new Map<number, string[]>();
+    for (const { slot, targetName } of slotEntries) {
+        const existing = freeTargetsBySlot.get(slot) || [];
+        existing.push(targetName);
+        freeTargetsBySlot.set(slot, existing);
+    }
+
+    const normalized: string[] = [];
+    for (let slot = 0; slot <= orderedCompulsoryPointNames.length; slot += 1) {
+        normalized.push(...(freeTargetsBySlot.get(slot) || []));
+        if (slot < orderedCompulsoryPointNames.length) {
+            normalized.push(orderedCompulsoryPointNames[slot]);
+        }
+    }
+    return normalized;
+};
+
 const buildFormState = (contestantData: ContestantDeclarationData): DeclarationFormState => {
     const compiledPayload = getCompiledPayload(contestantData);
     const declarationPayload = contestantData.declaration_payload || {};
@@ -101,6 +151,7 @@ const buildFormState = (contestantData: ContestantDeclarationData): DeclarationF
         contractDeclaredTSeconds: declaredTSeconds != null
             ? String(declaredTSeconds)
             : String(compiledPayload.time_model?.t_seconds ?? ''),
+        turnpointHuntSequence: getTurnpointHuntSequence(contestantData),
     };
 };
 
@@ -180,6 +231,14 @@ const moveItem = (items: string[], fromIndex: number, toIndex: number) => {
     const next = [...items];
     const [item] = next.splice(fromIndex, 1);
     next.splice(toIndex, 0, item);
+    return next;
+};
+
+const moveItemToInsertionIndex = (items: string[], fromIndex: number, insertionIndex: number) => {
+    const next = [...items];
+    const [item] = next.splice(fromIndex, 1);
+    const adjustedInsertionIndex = fromIndex < insertionIndex ? insertionIndex - 1 : insertionIndex;
+    next.splice(Math.max(0, Math.min(adjustedInsertionIndex, next.length)), 0, item);
     return next;
 };
 
@@ -395,13 +454,237 @@ function ContractNavigationForm({
     );
 }
 
+type OrderedSequenceEditorProps = {
+    availableTokens: string[];
+    value: string[];
+    disabled?: boolean;
+    compulsoryTokenSet?: Set<string>;
+    compulsoryLabelByToken?: Record<string, string>;
+    onChange: (value: string[]) => void;
+};
+
+function OrderedSequenceEditor({
+    availableTokens,
+    value,
+    disabled = false,
+    compulsoryTokenSet = new Set<string>(),
+    compulsoryLabelByToken = {},
+    onChange,
+}: OrderedSequenceEditorProps) {
+    const [draggedToken, setDraggedToken] = useState<string | null>(null);
+    const [activeDropIndex, setActiveDropIndex] = useState<number | 'end' | null>(null);
+    const used = new Set(value);
+    const unassigned = availableTokens.filter((item) => !used.has(item));
+    const isCompulsoryToken = (token: string) => compulsoryTokenSet.has(token);
+
+    const addToSequence = (token: string, index?: number) => {
+        if (disabled) return;
+        const next = value.filter((item) => item !== token);
+        const insertionIndex = index === undefined ? next.length : Math.max(0, Math.min(index, next.length));
+        next.splice(insertionIndex, 0, token);
+        onChange(next);
+    };
+
+    const removeFromSequence = (token: string) => {
+        if (disabled || compulsoryTokenSet.has(token)) return;
+        onChange(value.filter((item) => item !== token));
+    };
+
+    const handleDropToPool = () => {
+        if (!draggedToken || disabled || compulsoryTokenSet.has(draggedToken)) return;
+        removeFromSequence(draggedToken);
+        setDraggedToken(null);
+        setActiveDropIndex(null);
+    };
+
+    const handleDropToSequence = (targetIndex?: number) => {
+        if (!draggedToken || disabled) return;
+        const fromIndex = value.indexOf(draggedToken);
+        if (fromIndex === -1) {
+            addToSequence(draggedToken, targetIndex);
+        } else {
+            onChange(moveItemToInsertionIndex(value, fromIndex, targetIndex ?? value.length));
+        }
+        setDraggedToken(null);
+        setActiveDropIndex(null);
+    };
+
+    const labelFor = (token: string) => compulsoryLabelByToken[token] || token;
+
+    const renderDropZone = (index?: number) => (
+        <div
+            key={`drop-zone-${index ?? 'end'}`}
+            className={[
+                'h-7 rounded border border-dashed transition-colors',
+                activeDropIndex === (index ?? 'end')
+                    ? 'border-primary bg-primary/15 ring-1 ring-primary/30'
+                    : 'border-base-300/50 bg-base-200/30 hover:border-primary/40 hover:bg-primary/5',
+            ].join(' ')}
+            onDragEnter={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setActiveDropIndex(index ?? 'end');
+            }}
+            onDragOver={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setActiveDropIndex(index ?? 'end');
+            }}
+            onDragLeave={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const relatedTarget = event.relatedTarget as Node | null;
+                if (!relatedTarget || !event.currentTarget.contains(relatedTarget)) {
+                    setActiveDropIndex((current) => (current === (index ?? 'end') ? null : current));
+                }
+            }}
+            onDrop={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleDropToSequence(index);
+            }}
+        />
+    );
+
+    return (
+        <div className="space-y-4">
+            <div>
+                <div className="label">
+                    <span className="label-text font-medium">Available targets</span>
+                </div>
+                <div
+                    className="min-h-16 rounded-lg border border-dashed border-base-300 bg-base-200/50 p-3 flex flex-wrap gap-2"
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                        event.preventDefault();
+                        handleDropToPool();
+                    }}
+                >
+                    {unassigned.length > 0 ? (
+                        unassigned.map((token) => (
+                            <div
+                                key={`pool-${token}`}
+                                className="rounded border border-base-300 bg-base-100 px-3 py-2 text-sm flex items-center gap-2"
+                                draggable={!disabled}
+                                onDragStart={() => {
+                                    setDraggedToken(token);
+                                    setActiveDropIndex('end');
+                                }}
+                            >
+                                <span>{labelFor(token)}</span>
+                                <button type="button" className="btn btn-xs btn-outline" disabled={disabled} onClick={() => addToSequence(token)}>
+                                    + Add
+                                </button>
+                            </div>
+                        ))
+                    ) : (
+                        <span className="text-sm opacity-60">All targets assigned.</span>
+                    )}
+                </div>
+            </div>
+
+            <div>
+                <div className="label">
+                    <span className="label-text font-medium">Declared order</span>
+                </div>
+                <div
+                    className="min-h-24 rounded-lg border border-base-300 bg-base-100 p-3 space-y-2"
+                    onDragOver={(event) => {
+                        event.preventDefault();
+                        if (draggedToken) {
+                            setActiveDropIndex('end');
+                        }
+                    }}
+                    onDragLeave={() => {
+                        if (!draggedToken) {
+                            setActiveDropIndex(null);
+                        }
+                    }}
+                    onDrop={(event) => {
+                        event.preventDefault();
+                        handleDropToSequence();
+                    }}
+                >
+                    {value.length === 0 ? (
+                        <span className="text-sm opacity-60">Add targets here.</span>
+                    ) : (
+                        value.map((token, index) => {
+                            const isCompulsory = isCompulsoryToken(token);
+                            return (
+                                <React.Fragment key={`sequence-${token}`}>
+                                    {renderDropZone(index)}
+                                    <div
+                                        className="rounded border border-base-300 bg-base-200/60 px-4 py-3 text-sm flex items-center justify-between gap-3"
+                                        draggable={!disabled && !isCompulsory}
+                                        onDragStart={() => {
+                                            if (!isCompulsory) {
+                                                setDraggedToken(token);
+                                                setActiveDropIndex(index);
+                                            }
+                                        }}
+                                        onDragEnd={() => {
+                                            setDraggedToken(null);
+                                            setActiveDropIndex(null);
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-ghost cursor-grab active:cursor-grabbing px-2"
+                                                draggable={!disabled && !isCompulsory}
+                                                onDragStart={(event) => {
+                                                    event.stopPropagation();
+                                                    if (!isCompulsory) {
+                                                        setDraggedToken(token);
+                                                        setActiveDropIndex(index);
+                                                    }
+                                                }}
+                                                onMouseDown={(event) => event.stopPropagation()}
+                                                disabled={disabled || isCompulsory}
+                                                aria-label={`Drag ${labelFor(token)}`}
+                                            >
+                                                ⋮⋮
+                                            </button>
+                                            <span className="badge badge-outline">{index + 1}</span>
+                                            <span className="truncate">{labelFor(token)}</span>
+                                            {isCompulsory && <span className="badge badge-primary badge-sm">Compulsory</span>}
+                                        </div>
+                                        <div className="flex gap-1 flex-wrap justify-end">
+                                            <button type="button" className="btn btn-xs btn-outline" disabled={disabled || isCompulsory || index === 0} onClick={() => onChange(moveItem(value, index, index - 1))}>
+                                                ↑
+                                            </button>
+                                            <button type="button" className="btn btn-xs btn-outline" disabled={disabled || isCompulsory || index === value.length - 1} onClick={() => onChange(moveItem(value, index, index + 1))}>
+                                                ↓
+                                            </button>
+                                            <button type="button" className="btn btn-xs btn-outline" disabled={disabled || isCompulsory} onClick={() => removeFromSequence(token)}>
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                </React.Fragment>
+                            );
+                        })
+                    )}
+                    {value.length > 0 && renderDropZone()}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 type TurnpointHuntFormProps = {
     compulsoryPointNames: string[];
     compulsoryPointTimes: Record<string, string>;
     declaredEnduranceMinutes: string;
     isLimitedFuel: boolean;
+    declaredSequence: string[];
+    availableTokens: string[];
+    compulsoryTokenSet: Set<string>;
+    compulsoryLabelByToken: Record<string, string>;
+    disabled: boolean;
     onTimeChange: (name: string, value: string) => void;
     onDeclaredEnduranceMinutesChange: (value: string) => void;
+    onDeclaredSequenceChange: (value: string[]) => void;
 };
 
 function TurnpointHuntForm({
@@ -409,8 +692,14 @@ function TurnpointHuntForm({
     compulsoryPointTimes,
     declaredEnduranceMinutes,
     isLimitedFuel,
+    declaredSequence,
+    availableTokens,
+    compulsoryTokenSet,
+    compulsoryLabelByToken,
+    disabled,
     onTimeChange,
     onDeclaredEnduranceMinutesChange,
+    onDeclaredSequenceChange,
 }: TurnpointHuntFormProps) {
     return (
         <>
@@ -427,6 +716,14 @@ function TurnpointHuntForm({
                     />
                 </label>
             ))}
+            <OrderedSequenceEditor
+                availableTokens={availableTokens}
+                value={declaredSequence}
+                compulsoryTokenSet={compulsoryTokenSet}
+                compulsoryLabelByToken={compulsoryLabelByToken}
+                onChange={onDeclaredSequenceChange}
+                disabled={disabled}
+            />
             {isLimitedFuel && (
                 <label className="form-control w-full">
                     <span className="label-text font-medium">Declared fuel endurance (minutes)</span>
@@ -448,6 +745,9 @@ type DeclarationPreviewProps = {
     contractDeclaredTSeconds: string;
     contractNavigation: ContractNavigationFormState;
     freeTargets: FreeTarget[];
+    turnpointHuntSequence: string[];
+    compulsoryPointTimes: Record<string, string>;
+    compulsoryPointNames: string[];
 };
 
 function DeclarationPreview({
@@ -455,6 +755,9 @@ function DeclarationPreview({
     contractDeclaredTSeconds,
     contractNavigation,
     freeTargets,
+    turnpointHuntSequence,
+    compulsoryPointTimes,
+    compulsoryPointNames,
 }: DeclarationPreviewProps) {
     if (isContractNavigation) {
         return (
@@ -481,25 +784,36 @@ function DeclarationPreview({
 
     return (
         <>
-            <h2 className="card-title">Free targets</h2>
-            <p className="text-sm opacity-70">Free targets are unordered and require photo evidence.</p>
+            <h2 className="card-title">Declared route</h2>
+            <p className="text-sm opacity-70">The three compulsory points are ordered automatically by predicted time. Free targets may be placed anywhere before, between, or after them.</p>
+            <div className="rounded-lg bg-base-200/60 p-4 text-sm space-y-2 mt-2">
+                <div><span className="font-medium">Full sequence:</span> {turnpointHuntSequence.join(' → ') || '—'}</div>
+            </div>
             <div className="overflow-x-auto mt-2">
                 <table className="table table-sm">
                     <thead>
                         <tr>
                             <th>Target</th>
+                            <th>Type</th>
+                            <th>Predicted time</th>
                             <th>Score</th>
-                            <th>Photo evidence</th>
+                            <th>Authored observation photos</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {freeTargets.map((target) => (
-                            <tr key={target.name}>
-                                <td className="font-medium">{target.name}</td>
-                                <td>{target.score_value ?? '—'}</td>
-                                <td>{target.evidence?.length ? target.evidence.map((item) => item.name).join(', ') : 'Missing'}</td>
-                            </tr>
-                        ))}
+                        {turnpointHuntSequence.map((name) => {
+                            const target = freeTargets.find((item) => item.name === name);
+                            const isCompulsory = compulsoryPointNames.includes(name);
+                            return (
+                                <tr key={name}>
+                                    <td className="font-medium">{name}</td>
+                                    <td>{isCompulsory ? 'Compulsory' : 'Free target'}</td>
+                                    <td>{compulsoryPointTimes[name] || '—'}</td>
+                                    <td>{target?.score_value ?? '—'}</td>
+                                    <td>{target?.evidence?.length ? target.evidence.map((item) => item.name).join(', ') : (isCompulsory ? '—' : 'None authored')}</td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -526,6 +840,32 @@ const ContestantDeclarationPage: React.FC = () => {
     const freeTargets = compiledPayload.free_targets || [];
     const isLimitedFuel = navigationTask?.task_subtype === 'limited_fuel_turnpoint_hunt';
     const isContractNavigation = navigationTask?.task_subtype === 'contract_navigation_time_controls';
+    const compulsoryPointTimesByName = formState.compulsoryPointTimes;
+    const orderedCompulsoryPointNames = compulsoryPointNames
+        .filter((name) => !!compulsoryPointTimesByName[name])
+        .sort((left, right) => {
+            const leftTime = compulsoryPointTimesByName[left];
+            const rightTime = compulsoryPointTimesByName[right];
+            return leftTime.localeCompare(rightTime);
+        });
+    const compulsoryTokenSet = new Set(orderedCompulsoryPointNames);
+    const compulsoryLabelByToken = orderedCompulsoryPointNames.reduce((acc: Record<string, string>, name, index) => {
+        acc[name] = `${name} (${index + 1}${index === 0 ? 'st' : index === 1 ? 'nd' : index === 2 ? 'rd' : 'th'} compulsory)`;
+        return acc;
+    }, {});
+    const turnpointHuntAvailableTokens: string[] = [
+        ...orderedCompulsoryPointNames,
+        ...(compiledPayload.free_target_names || []).filter((item: string) => !orderedCompulsoryPointNames.includes(item)),
+    ];
+    const normalizedTurnpointHuntSequence = normalizeTurnpointHuntSequence(
+        formState.turnpointHuntSequence,
+        orderedCompulsoryPointNames,
+        (compiledPayload.free_target_names || []).filter((item: string) => !orderedCompulsoryPointNames.includes(item)),
+    );
+    const freeTargetsByName = freeTargets.reduce((acc: Record<string, FreeTarget>, item: FreeTarget) => {
+        acc[item.name] = item;
+        return acc;
+    }, {});
     const availableContractTurnpoints: string[] = (
         compiledPayload.free_target_names
         || compiledPayload.compiled_task_primitives?.catalogue_turnpoint
@@ -540,17 +880,29 @@ const ContestantDeclarationPage: React.FC = () => {
                 && Number(formState.contractDeclaredTSeconds) > 0
             );
         }
-        return compulsoryPointNames.every((name) => !!formState.compulsoryPointTimes[name]);
-    }, [compulsoryPointNames, formState.compulsoryPointTimes, formState.contractNavigation, formState.contractDeclaredTSeconds, isContractNavigation]);
+        return compulsoryPointNames.every((name) => !!formState.compulsoryPointTimes[name])
+            && normalizedTurnpointHuntSequence.length >= orderedCompulsoryPointNames.length;
+    }, [compulsoryPointNames, formState.compulsoryPointTimes, formState.contractNavigation, formState.contractDeclaredTSeconds, isContractNavigation, normalizedTurnpointHuntSequence.length, orderedCompulsoryPointNames.length]);
 
     const handleTimeChange = (name: string, value: string) => {
-        setFormState((prev) => ({
-            ...prev,
-            compulsoryPointTimes: {
+        setFormState((prev) => {
+            const compulsoryPointTimes = {
                 ...prev.compulsoryPointTimes,
                 [name]: value,
-            },
-        }));
+            };
+            const nextOrderedCompulsoryPointNames = compulsoryPointNames
+                .filter((pointName) => !!compulsoryPointTimes[pointName])
+                .sort((left, right) => compulsoryPointTimes[left].localeCompare(compulsoryPointTimes[right]));
+            return {
+                ...prev,
+                compulsoryPointTimes,
+                turnpointHuntSequence: normalizeTurnpointHuntSequence(
+                    prev.turnpointHuntSequence,
+                    nextOrderedCompulsoryPointNames,
+                    (compiledPayload.free_target_names || []).filter((item: string) => !nextOrderedCompulsoryPointNames.includes(item)),
+                ),
+            };
+        });
     };
 
     const handleSubmit = async (event: React.FormEvent) => {
@@ -572,20 +924,26 @@ const ContestantDeclarationPage: React.FC = () => {
                 declarationPayload.compulsory_point_times = Object.fromEntries(
                     Object.entries(formState.compulsoryPointTimes).filter(([, value]) => !!value),
                 );
+                declarationPayload.declared_sequence = normalizedTurnpointHuntSequence;
                 if (isLimitedFuel && formState.declaredEnduranceMinutes) {
                     declarationPayload.fuel_metadata = {
                         declared_endurance_minutes: Number(formState.declaredEnduranceMinutes),
                     };
                 }
             }
-            const updatedContestant = await updateContestantDeclaration(
+            await updateContestantDeclaration(
                 Number(contestId),
                 Number(navigationTaskId),
                 Number(contestantId),
                 declarationPayload,
             );
-            setContestant(updatedContestant);
-            setFormState(buildFormState(updatedContestant));
+            const refreshedContestant = await fetchContestant(
+                Number(contestId),
+                Number(navigationTaskId),
+                Number(contestantId),
+            );
+            setContestant(refreshedContestant);
+            setFormState(buildFormState(refreshedContestant));
             showToast('Declaration saved.', 'success');
         } catch (err: any) {
             const message = err?.message || 'Failed to save declaration.';
@@ -640,8 +998,21 @@ const ContestantDeclarationPage: React.FC = () => {
                                     compulsoryPointTimes={formState.compulsoryPointTimes}
                                     declaredEnduranceMinutes={formState.declaredEnduranceMinutes}
                                     isLimitedFuel={isLimitedFuel}
+                                    declaredSequence={normalizedTurnpointHuntSequence}
+                                    availableTokens={turnpointHuntAvailableTokens}
+                                    compulsoryTokenSet={compulsoryTokenSet}
+                                    compulsoryLabelByToken={compulsoryLabelByToken}
+                                    disabled={saving}
                                     onTimeChange={handleTimeChange}
                                     onDeclaredEnduranceMinutesChange={(value) => setFormState((prev) => ({ ...prev, declaredEnduranceMinutes: value }))}
+                                    onDeclaredSequenceChange={(turnpointHuntSequence) => setFormState((prev) => ({
+                                        ...prev,
+                                        turnpointHuntSequence: normalizeTurnpointHuntSequence(
+                                            turnpointHuntSequence,
+                                            orderedCompulsoryPointNames,
+                                            (compiledPayload.free_target_names || []).filter((item: string) => !orderedCompulsoryPointNames.includes(item)),
+                                        ),
+                                    }))}
                                 />
                             )}
                             {error && <div className="alert alert-error text-sm">{error}</div>}
@@ -661,6 +1032,9 @@ const ContestantDeclarationPage: React.FC = () => {
                             contractDeclaredTSeconds={formState.contractDeclaredTSeconds}
                             contractNavigation={formState.contractNavigation}
                             freeTargets={freeTargets}
+                            turnpointHuntSequence={normalizedTurnpointHuntSequence}
+                            compulsoryPointTimes={formState.compulsoryPointTimes}
+                            compulsoryPointNames={orderedCompulsoryPointNames}
                         />
                     </div>
                 </div>

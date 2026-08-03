@@ -1,15 +1,14 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import L from 'leaflet';
 import useMapInit from '../route-editor/components/map/useMapInit';
 import RouteRenderer from './components/track-renderers/RouteRenderer';
 import ProhibitedRenderer from './components/track-renderers/ProhibitedRenderer';
-import { fetchNavigationTask, createPhoto, deletePhoto, uploadPhotoFile, fetchPhotos } from './api';
+import { fetchNavigationTask, uploadPhotoFile, revertPhotoToSatellite, fetchPhotos } from './api';
 import { NavigationTask, Photo } from './types';
 import { Loading } from '../route-editor/components/basicComponents';
-import { Trash2, Upload, ChevronLeft, MapPin, Plus, Magnet } from 'lucide-react';
+import { RotateCcw, Upload, ChevronLeft, MapPin } from 'lucide-react';
 import { reverse } from '../../urls';
-import { getDistanceFromLine } from '../../utils/geoUtils';
 
 export default function PhotoManagementPage() {
     const { contestId, navigationTaskId } = useParams();
@@ -18,11 +17,13 @@ export default function PhotoManagementPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
-    const [forceNearLeg, setForceNearLeg] = useState(true);
-    const [maxObsDist] = useState(926); // 0.5 NM
     const mapRef = useMapInit();
     const tileLayerRef = useRef<L.TileLayer | null>(null);
     const photoMarkersRef = useRef<Record<number, L.Marker>>({});
+    const photoTargets = useMemo(() => photos.map((photo) => ({
+        ...photo,
+        coordinates: photo.compiled_coordinates ?? [photo.longitude, photo.latitude] as [number, number],
+    })), [photos]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -59,7 +60,7 @@ export default function PhotoManagementPage() {
 
     useEffect(() => {
         const map = mapRef.current;
-        if (!map || !photos) return;
+        if (!map) return;
 
         // Clear existing markers
         Object.values(photoMarkersRef.current).forEach(m => m.remove());
@@ -67,6 +68,7 @@ export default function PhotoManagementPage() {
 
         photos.forEach((photo, index) => {
             const marker = L.marker([photo.latitude, photo.longitude], {
+                interactive: false,
                 icon: L.divIcon({
                     className: 'photo-marker',
                     html: `<div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center font-bold border-2 border-white shadow-lg">${index + 1}</div>`,
@@ -74,7 +76,7 @@ export default function PhotoManagementPage() {
                     iconAnchor: [16, 16]
                 })
             }).addTo(map);
-            
+
             marker.bindTooltip(photo.name);
             photoMarkersRef.current[photo.id] = marker;
         });
@@ -82,81 +84,15 @@ export default function PhotoManagementPage() {
     }, [photos, mapRef]);
 
     useEffect(() => {
-        const map = mapRef.current;
-        if (!map) return;
+        return;
+    }, [mapRef, navTask, photos]);
 
-        const onMapClick = async (e: L.LeafletMouseEvent) => {
-            if (!navTask) return;
-
-            if (forceNearLeg) {
-                const waypoints = navTask.route.waypoints;
-                if (waypoints.length < 2) {
-                    alert("Route must have at least 2 points to define legs.");
-                    return;
-                }
-
-                let minDist = Infinity;
-                const clickedPt = { lat: e.latlng.lat, lng: e.latlng.lng };
-
-                for (let i = 0; i < waypoints.length - 1; i++) {
-                    const wp1 = waypoints[i];
-                    const wp2 = waypoints[i + 1];
-                    const p1 = { lat: wp1.latitude, lng: wp1.longitude };
-                    const p2 = { lat: wp2.latitude, lng: wp2.longitude };
-
-                    let d = Infinity;
-                    if (wp2.is_procedure_turn && wp2.procedure_turn_points) {
-                        let prev = p1;
-                        for (const pt of wp2.procedure_turn_points) {
-                            const curr = { lat: pt[0], lng: pt[1] };
-                            const segDist = getDistanceFromLine(clickedPt, prev, curr);
-                            if (segDist < d) d = segDist;
-                            prev = curr;
-                        }
-                        const finalSegDist = getDistanceFromLine(clickedPt, prev, p2);
-                        if (finalSegDist < d) d = finalSegDist;
-                    } else {
-                        d = getDistanceFromLine(clickedPt, p1, p2);
-                    }
-
-                    if (d < minDist) minDist = d;
-                }
-
-                if (minDist > maxObsDist) {
-                    alert(`Photo points must be within ${(maxObsDist / 1852).toFixed(2)} NM of the route line when snapping is enabled.`);
-                    return;
-                }
-            }
-            
-            const name = `Photo ${photos.length + 1}`;
-            const photoData = {
-                name: name,
-                route: navTask.route.id,
-                latitude: e.latlng.lat,
-                longitude: e.latlng.lng
-            };
-
-            try {
-                const newPhoto = await createPhoto(photoData);
-                setPhotos(prev => [...prev, newPhoto]);
-            } catch (err) {
-                console.error("Failed to create photo:", err);
-            }
-        };
-
-        map.on('click', onMapClick);
-        return () => {
-            map.off('click', onMapClick);
-        };
-    }, [mapRef, navTask, photos, forceNearLeg, maxObsDist]);
-
-    const handleDeletePhoto = async (photoId: number) => {
-        if (!window.confirm("Are you sure you want to delete this photo point?")) return;
+    const handleRevertPhoto = async (photoId: number) => {
         try {
-            await deletePhoto(photoId);
-            setPhotos(prev => prev.filter(p => p.id !== photoId));
+            const revertedPhoto = await revertPhotoToSatellite(photoId);
+            setPhotos(prev => prev.map(p => p.id === photoId ? revertedPhoto : p));
         } catch (err) {
-            console.error("Failed to delete photo:", err);
+            console.error("Failed to revert photo:", err);
         }
     };
 
@@ -184,7 +120,7 @@ export default function PhotoManagementPage() {
                 </div>
                 <div className="flex gap-2 text-xs opacity-70">
                     <MapPin size={14} />
-                    Click on the map to add a new photo point
+                    Review waypoint photos and upload replacements where needed
                 </div>
             </div>
 
@@ -215,24 +151,13 @@ export default function PhotoManagementPage() {
                 {/* Sidebar */}
                 <div className="w-80 sm:w-96 bg-base-100 border-r border-base-300 overflow-y-auto p-4 flex flex-col gap-4 shadow-inner">
                     <h2 className="font-bold text-lg flex items-center gap-2">
-                        <Plus size={18} />
-                        Photo Points ({photos.length})
+                        <MapPin size={18} />
+                        Photo Targets ({photos.length})
                     </h2>
 
-                    <div className="flex items-center gap-2 bg-base-200 p-2 rounded-lg border border-base-300">
-                        <Magnet size={16} className={forceNearLeg ? 'text-primary' : 'text-base-content/50'} />
-                        <span className="text-sm font-medium flex-1">Snap to Route Leg</span>
-                        <input 
-                            type="checkbox" 
-                            className="toggle toggle-primary toggle-sm" 
-                            checked={forceNearLeg} 
-                            onChange={(e) => setForceNearLeg(e.target.checked)} 
-                        />
-                    </div>
-                    
                     {photos.length === 0 && !loading && (
                         <div className="alert alert-info text-sm">
-                            No photo points yet. Click on the map to add one.
+                            No waypoint photo targets available for this task.
                         </div>
                     )}
 
@@ -243,14 +168,11 @@ export default function PhotoManagementPage() {
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-2">
                                             <span className="badge badge-primary font-bold">{index + 1}</span>
-                                            <span className="font-bold truncate max-w-[150px]">{photo.name}</span>
+                                            <div>
+                                                <div className="font-bold truncate max-w-[150px]">{photo.name}</div>
+                                                <div className="text-xs opacity-60">{photo.target_kind === 'catalogue_turnpoint' ? 'Catalogue turnpoint' : 'Route waypoint'}</div>
+                                            </div>
                                         </div>
-                                        <button 
-                                            onClick={() => handleDeletePhoto(photo.id)}
-                                            className="btn btn-ghost btn-xs text-error btn-square"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
                                     </div>
                                     
                                     {photo.file ? (
@@ -260,7 +182,7 @@ export default function PhotoManagementPage() {
                                                 alt={photo.name} 
                                                 className="w-full h-32 object-cover rounded-md border border-base-300" 
                                             />
-                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md">
+                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md gap-2">
                                                 <label className="btn btn-xs btn-primary gap-1 cursor-pointer">
                                                     <Upload size={12} />
                                                     Change
@@ -271,6 +193,10 @@ export default function PhotoManagementPage() {
                                                         onChange={(e) => handleFileUpload(photo.id, e)} 
                                                     />
                                                 </label>
+                                                <button type="button" className="btn btn-xs btn-outline btn-warning gap-1" onClick={() => handleRevertPhoto(photo.id)}>
+                                                    <RotateCcw size={12} />
+                                                    Revert
+                                                </button>
                                             </div>
                                         </div>
                                     ) : (

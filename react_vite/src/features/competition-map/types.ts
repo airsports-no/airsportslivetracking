@@ -112,6 +112,9 @@ export interface Photo {
   latitude: number;
   longitude: number;
   file: string | null;
+  compiled_coordinates?: [number, number] | null;
+  evidence_category?: string;
+  target_kind?: string;
 }
 
 export interface RouteData {
