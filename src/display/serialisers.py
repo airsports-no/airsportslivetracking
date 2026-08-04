@@ -1356,7 +1356,9 @@ class ContestantNestedTeamSerialiserWithContestantTrack(ContestantNestedTeamSeri
     def get_compiled_effective_route_payload(self, obj):
         config = getattr(obj, "contestanttaskconfiguration", None)
         if config is not None:
-            return config.compiled_effective_route_payload or {}
+            declaration_payload = config.declaration_payload or {}
+            refreshed = ContestantTaskCompiler(obj).compile(declaration_payload=declaration_payload, force=False)
+            return refreshed.compiled_effective_route_payload or {}
         return {}
 
 

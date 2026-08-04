@@ -887,18 +887,23 @@ class ContestantTaskCompiler:
         if declared_sequence:
             route_waypoint_names = {waypoint.name for waypoint in effective_waypoints if getattr(waypoint, "name", None)}
             route_waypoints_by_name = {waypoint.name: waypoint for waypoint in effective_waypoints if getattr(waypoint, "name", None)}
-            filtered_sequence = [item for item in declared_sequence if item in route_waypoint_names]
-            free_target_names = [item for item in declared_sequence if item not in route_waypoint_names]
+            known_time_gate_names = [name for name in compiled_task.get_compiled_primitives().get("known_time_gate", []) if isinstance(name, str)]
+            free_target_names = [
+                item for item in declared_sequence
+                if item not in route_waypoint_names and item not in known_time_gate_names
+            ]
             ordered_waypoints = []
             target_payload = {item["name"]: item for item in self._build_turnpoint_hunt_targets_payload()}
             reference_waypoint = effective_waypoints[1] if len(effective_waypoints) > 1 else effective_waypoints[0]
             seen_names = set()
-            for item in filtered_sequence:
+            for item in declared_sequence:
                 if item in seen_names:
                     continue
                 seen_names.add(item)
                 if item in route_waypoints_by_name:
                     ordered_waypoints.append(route_waypoints_by_name[item])
+                    continue
+                if item in known_time_gate_names:
                     continue
                 target = target_payload.get(item)
                 if not target:

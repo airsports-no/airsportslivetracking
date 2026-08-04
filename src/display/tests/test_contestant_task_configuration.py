@@ -478,6 +478,7 @@ class TestContestantTaskConfiguration(TestCase):
             payload = {}
         self.assertEqual(payload.get("compulsory_point_names"), ["CP1", "CP2", "CP3"])
         self.assertEqual(payload.get("declared_sequence"), ["A", "CP2", "B", "CP1", "CP3"])
+        self.assertEqual(payload.get("effective_waypoint_names"), ["A", "B"])
 
         duplicate = ContestantTaskCompiler(self.contestant).compile(
             declaration_payload={

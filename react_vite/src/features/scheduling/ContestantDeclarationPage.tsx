@@ -76,6 +76,31 @@ const splitContractNavigationDeclaration = (declaredSequence: unknown): Contract
     };
 };
 
+const buildContractNavigationSequence = (contractNavigation: ContractNavigationFormState): string[] => ([
+    'SP',
+    ...contractNavigation.beforeMp,
+    'MP',
+    ...contractNavigation.afterMp,
+    'FP',
+]);
+
+const normalizeContractNavigationSequence = (
+    sequence: string[],
+    allowedTurnpointNames: string[],
+): string[] => {
+    const currentSequence = sequence.filter((item) => typeof item === 'string' && item);
+    const allowedTurnpoints = new Set(allowedTurnpointNames);
+    const mpIndex = currentSequence.indexOf('MP');
+    const declaredTurnpoints = currentSequence.filter((item) => allowedTurnpoints.has(item));
+    const uniqueTurnpoints = declaredTurnpoints.filter((item, index) => declaredTurnpoints.indexOf(item) === index);
+    const beforeMp = uniqueTurnpoints.filter((item) => {
+        const itemIndex = currentSequence.indexOf(item);
+        return mpIndex === -1 || itemIndex < mpIndex;
+    });
+    const afterMp = uniqueTurnpoints.filter((item) => !beforeMp.includes(item));
+    return ['SP', ...beforeMp, 'MP', ...afterMp, 'FP'];
+};
+
 const getCompiledPayload = (contestant: ContestantDeclarationData | null | undefined) => (
     contestant?.compiled_effective_route_payload || {}
 );
@@ -95,6 +120,17 @@ const getTurnpointHuntSequence = (contestant: ContestantDeclarationData | null |
         return declaredSequence;
     }
     return compiledPayload.free_target_names || [];
+};
+
+const getContractNavigationSequence = (contestant: ContestantDeclarationData | null | undefined): string[] => {
+    const declarationPayload = contestant?.declaration_payload || {};
+    const declaredSequence = Array.isArray(declarationPayload.declared_sequence)
+        ? declarationPayload.declared_sequence.filter((item): item is string => typeof item === 'string')
+        : [];
+    if (declaredSequence.length > 0) {
+        return declaredSequence;
+    }
+    return ['SP', 'MP', 'FP'];
 };
 
 const normalizeTurnpointHuntSequence = (
@@ -147,7 +183,7 @@ const buildFormState = (contestantData: ContestantDeclarationData): DeclarationF
     return {
         compulsoryPointTimes,
         declaredEnduranceMinutes: fuelMetadata?.declared_endurance_minutes ? String(fuelMetadata.declared_endurance_minutes) : '',
-        contractNavigation: splitContractNavigationDeclaration(declarationPayload.declared_sequence),
+        contractNavigation: splitContractNavigationDeclaration(getContractNavigationSequence(contestantData)),
         contractDeclaredTSeconds: declaredTSeconds != null
             ? String(declaredTSeconds)
             : String(compiledPayload.time_model?.t_seconds ?? ''),
@@ -245,6 +281,7 @@ const moveItemToInsertionIndex = (items: string[], fromIndex: number, insertionI
 const ContractNavigationEditor: React.FC<ContractNavigationEditorProps> = ({ availableTurnpoints, value, disabled = false, onChange }) => {
     const [draggedToken, setDraggedToken] = useState<string | null>(null);
 
+    const currentSequence = buildContractNavigationSequence(value);
     const used = new Set([...value.beforeMp, ...value.afterMp]);
     const unassigned = availableTurnpoints.filter((item) => !used.has(item));
 
@@ -271,6 +308,11 @@ const ContractNavigationEditor: React.FC<ContractNavigationEditorProps> = ({ ava
         });
     };
 
+    const applyContractSequence = (sequence: string[]) => {
+        const normalized = normalizeContractNavigationSequence(sequence, availableTurnpoints);
+        onChange(splitContractNavigationDeclaration(normalized));
+    };
+
     const moveAcrossLanes = (token: string, targetLane: 'beforeMp' | 'afterMp') => {
         if (disabled) return;
         const nextBefore = value.beforeMp.filter((item) => item !== token);
@@ -281,6 +323,10 @@ const ContractNavigationEditor: React.FC<ContractNavigationEditorProps> = ({ ava
             nextAfter.push(token);
         }
         onChange({ beforeMp: nextBefore, afterMp: nextAfter });
+    };
+
+    const handleMoveWithinContractSequence = (fromIndex: number, toIndex: number) => {
+        applyContractSequence(moveItem(currentSequence, fromIndex, toIndex));
     };
 
     const handleDropToPool = () => {
@@ -388,10 +434,10 @@ const ContractNavigationEditor: React.FC<ContractNavigationEditorProps> = ({ ava
                                                 <span>{token}</span>
                                             </div>
                                             <div className="flex gap-1 flex-wrap justify-end">
-                                                <button type="button" className="btn btn-xs btn-outline" disabled={disabled || index === 0} onClick={() => updateLane(lane, (current) => moveItem(current, index, index - 1))}>
+                                                <button type="button" className="btn btn-xs btn-outline" disabled={disabled || index === 0} onClick={() => handleMoveWithinContractSequence(index, index - 1)}>
                                                     ↑
                                                 </button>
-                                                <button type="button" className="btn btn-xs btn-outline" disabled={disabled || index === items.length - 1} onClick={() => updateLane(lane, (current) => moveItem(current, index, index + 1))}>
+                                                <button type="button" className="btn btn-xs btn-outline" disabled={disabled || index === items.length - 1} onClick={() => handleMoveWithinContractSequence(index, index + 1)}>
                                                     ↓
                                                 </button>
                                                 <button type="button" className="btn btn-xs btn-outline" disabled={disabled} onClick={() => moveAcrossLanes(token, otherLane)}>
@@ -430,10 +476,11 @@ function ContractNavigationForm({
     onDeclaredTSecondsChange,
     onContractNavigationChange,
 }: ContractNavigationFormProps) {
+    const declaredSequence = buildContractNavigationSequence(contractNavigation);
     return (
         <div className="space-y-4">
             <label className="form-control w-full">
-                <span className="label-text font-medium">Declared T: time from SP to MP (seconds)</span>
+                <span className="label-text font-medium">Declared T: time from SP to MP and from MP to FP (seconds)</span>
                 <input
                     type="number"
                     min={1}
@@ -444,10 +491,18 @@ function ContractNavigationForm({
                     required
                 />
             </label>
-            <ContractNavigationEditor
-                availableTurnpoints={availableTurnpoints}
-                value={contractNavigation}
-                onChange={onContractNavigationChange}
+            <OrderedSequenceEditor
+                availableTokens={['SP', ...availableTurnpoints, 'MP', 'FP']}
+                value={declaredSequence}
+                compulsoryTokenSet={new Set(['SP', 'MP', 'FP'])}
+                compulsoryLabelByToken={{
+                    SP: 'SP (fixed start)',
+                    MP: 'MP (compulsory)',
+                    FP: 'FP (fixed finish)',
+                }}
+                onChange={(sequence) => onContractNavigationChange(splitContractNavigationDeclaration(
+                    normalizeContractNavigationSequence(sequence, availableTurnpoints),
+                ))}
                 disabled={disabled}
             />
         </div>
@@ -760,23 +815,36 @@ function DeclarationPreview({
     compulsoryPointNames,
 }: DeclarationPreviewProps) {
     if (isContractNavigation) {
+        const fullContractSequence = buildContractNavigationSequence(contractNavigation);
         return (
             <>
                 <h2 className="card-title">Declaration preview</h2>
                 <div className="rounded-lg bg-base-200/60 p-4 text-sm space-y-2">
-                    <div><span className="font-medium">Declared T:</span> {contractDeclaredTSeconds || '—'} s</div>
+                    <div><span className="font-medium">Declared T:</span> {contractDeclaredTSeconds || '—'} s (SP→MP and MP→FP)</div>
                     <div><span className="font-medium">SP</span></div>
                     <div><span className="font-medium">Before MP:</span> {contractNavigation.beforeMp.join(', ') || '—'}</div>
                     <div><span className="font-medium">MP</span></div>
                     <div><span className="font-medium">After MP:</span> {contractNavigation.afterMp.join(', ') || '—'}</div>
                     <div><span className="font-medium">FP</span></div>
-                    <div><span className="font-medium">Full sequence:</span> {[
-                        'SP',
-                        ...contractNavigation.beforeMp,
-                        'MP',
-                        ...contractNavigation.afterMp,
-                        'FP',
-                    ].join(' → ')}</div>
+                    <div><span className="font-medium">Full sequence:</span> {fullContractSequence.join(' → ')}</div>
+                </div>
+                <div className="overflow-x-auto mt-2">
+                    <table className="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Target</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {fullContractSequence.map((name) => (
+                                <tr key={name}>
+                                    <td className="font-medium">{name}</td>
+                                    <td>{name === 'SP' ? 'Fixed start' : name === 'FP' ? 'Fixed finish' : name === 'MP' ? 'Compulsory midpoint' : 'Free target'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </>
         );
@@ -913,13 +981,8 @@ const ContestantDeclarationPage: React.FC = () => {
         try {
             const declarationPayload: Record<string, any> = {};
             if (isContractNavigation) {
-                declarationPayload.declared_sequence = [
-                    ...formState.contractNavigation.beforeMp,
-                    'MP',
-                    ...formState.contractNavigation.afterMp,
-                    'FP',
-                ];
-                declarationPayload.declared_t_seconds = Number(formState.contractDeclaredTSeconds);
+                declarationPayload.declared_sequence = buildContractNavigationSequence(formState.contractNavigation);
+                declarationPayload.declared_t_seconds = Number(formState.contractDeclaredTSeconds || compiledPayload.time_model?.t_seconds || 0);
             } else {
                 declarationPayload.compulsory_point_times = Object.fromEntries(
                     Object.entries(formState.compulsoryPointTimes).filter(([, value]) => !!value),
@@ -981,7 +1044,7 @@ const ContestantDeclarationPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
-                        <h2 className="card-title">{isContractNavigation ? 'Declaration sequence' : 'Compulsory point declaration'}</h2>
+                        <h2 className="card-title">{isContractNavigation ? 'Declaration sequence and T' : 'Compulsory point declaration'}</h2>
                         <form className="space-y-4" onSubmit={handleSubmit}>
                             {isContractNavigation ? (
                                 <ContractNavigationForm

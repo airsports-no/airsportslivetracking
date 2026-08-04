@@ -345,6 +345,30 @@ function getRenderedRoute(route: RouteData, contestants: Record<number, Contesta
   };
 }
 
+function getRenderedCatalogueTargets(
+  taskCatalogueTargets: NavigationTaskCatalogueTarget[],
+  contestants: Record<number, Contestant>,
+  selectedContestantId: number | null,
+): NavigationTaskCatalogueTarget[] {
+  if (selectedContestantId === null) {
+    return taskCatalogueTargets;
+  }
+
+  const contestant = contestants[selectedContestantId];
+  const payload = contestant?.compiled_effective_route_payload || {};
+  const effectiveWaypoints = Array.isArray(payload.effective_waypoints) ? payload.effective_waypoints : [];
+
+  // Selected-contestant mode should prefer the contestant's declaration-backed
+  // effective route geometry over the generic task-level catalogue overlay.
+  // This keeps 2.A3 / 2.A6 / 2.B2 live-map rendering aligned with the
+  // declaration-backed route instead of showing the full authored catalogue.
+  if (effectiveWaypoints.length > 0) {
+    return [];
+  }
+
+  return taskCatalogueTargets;
+}
+
 export default function RouteRenderer({ map, route, taskCatalogueTargets, taskConfig, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
   const layersRef = useRef<L.Layer[]>([]);
 
@@ -352,6 +376,7 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, taskCo
     if (!map || !route || !taskType) return;
 
     const renderedRoute = getRenderedRoute(route, contestants, selectedContestantId);
+    const renderedCatalogueTargets = getRenderedCatalogueTargets(taskCatalogueTargets || [], contestants, selectedContestantId);
 
     // Clear previous layers
     layersRef.current.forEach(layer => layer.remove());
@@ -373,9 +398,9 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, taskCo
     if (taskType.includes("landing")) {
       layers = layers.concat(renderLandingRoute(map, renderedRoute));
     }
-    if (selectedContestantId === null && taskCatalogueTargets && taskCatalogueTargets.length > 0) {
-      layers = layers.concat(renderCatalogueTargets(map, taskCatalogueTargets));
-      const circleTargets = taskCatalogueTargets.filter((target) => target.kind?.startsWith('circle_'));
+    if (renderedCatalogueTargets.length > 0) {
+      layers = layers.concat(renderCatalogueTargets(map, renderedCatalogueTargets));
+      const circleTargets = renderedCatalogueTargets.filter((target) => target.kind?.startsWith('circle_'));
       if (circleTargets.length > 0) {
         layers = layers.concat(renderCircleTaskGeometry(map, circleTargets, taskConfig));
       }
