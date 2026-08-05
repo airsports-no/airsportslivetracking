@@ -92,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   visibleTaskTypeGroups,
 }) => {
   const renderContent = () => {
-    const selectedPoint = routePoints.find(p => p.id === selectedId);
+    const selectedPoint = routePoints.find(p => p.id === selectedId) || standalonePoints.find(p => p.id === selectedId);
     const selectedGate = gates.find(g => g.id === selectedId);
     const selectedObs = observationMarkers.find(m => m.id === selectedId);
     const selectedPolygon = polygons?.find(p => p.id === selectedId);

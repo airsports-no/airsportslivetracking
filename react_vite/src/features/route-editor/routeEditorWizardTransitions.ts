@@ -1,4 +1,4 @@
-import { Mode } from '../../types';
+import { Mode, RoutePoint } from '../../types';
 import { TaskTemplate, WizardStep } from './taskTemplates';
 
 export type WizardTransition = {
@@ -11,6 +11,8 @@ export type WizardTransition = {
   nextSelectionType: 'wizard' | 'point' | 'standalone_point' | null;
   resetTempPolygonPoints: boolean;
   routeInsertPrompt: string | null;
+  selectExistingRouteType?: RoutePoint['type'] | null;
+  selectExistingRouteFeatureType?: RoutePoint['featureType'] | undefined;
 };
 
 const DEFAULT_TRANSITION: WizardTransition = {
@@ -23,6 +25,8 @@ const DEFAULT_TRANSITION: WizardTransition = {
   nextSelectionType: null,
   resetTempPolygonPoints: false,
   routeInsertPrompt: null,
+  selectExistingRouteType: null,
+  selectExistingRouteFeatureType: undefined,
 };
 
 export function getWizardTransition(step: WizardStep | undefined, routeInsertLabel: (step: WizardStep) => string): WizardTransition {
@@ -40,6 +44,18 @@ export function getWizardTransition(step: WizardStep | undefined, routeInsertLab
 
   if (step.kind === 'point') {
     if (step.placement === 'route_insert') {
+      if (step.pointType === 'ul') {
+        return {
+          ...DEFAULT_TRANSITION,
+          mode: 'view',
+          currentWizardActionLabel: step.help,
+          clearSelectionType: false,
+          nextSelectionType: 'point',
+          routeInsertPrompt: routeInsertLabel(step),
+          selectExistingRouteType: step.pointType ?? null,
+          selectExistingRouteFeatureType: step.featureType,
+        };
+      }
       return {
         ...DEFAULT_TRANSITION,
         mode: 'add_point',

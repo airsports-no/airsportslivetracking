@@ -203,6 +203,7 @@ export interface NavigationTaskCatalogueTarget {
   name: string;
   coordinates: [number, number];
   kind?: "catalogue_turnpoint" | "circle_center_marker" | "circle_start_marker" | "circle_entry_marker" | "circle_exit_marker" | "unknown_leg_trigger" | "unknown_leg_connector_end" | "hidden_gate";
+  segment_name?: string;
 }
 
 export interface NavigationTask {

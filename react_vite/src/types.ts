@@ -31,7 +31,10 @@ export interface RoutePoint extends LatLng {
   isPassing: boolean;
   isSecret?: boolean;
   scoreValue?: number | null;
-  featureType?: "route_waypoint" | "catalogue_turnpoint" | "circle_center_marker" | "circle_start_marker" | "circle_entry_marker" | "circle_exit_marker" | "known_time_gate" | "hidden_gate";
+  unknownLegHeading?: number;
+  triggerPointId?: string | null;
+  branchSequence?: number | null;
+  featureType?: "route_waypoint" | "catalogue_turnpoint" | "circle_center_marker" | "circle_start_marker" | "circle_entry_marker" | "circle_exit_marker" | "known_time_gate" | "hidden_gate" | "dummy_branch_waypoint";
 }
 
 export interface Gate {

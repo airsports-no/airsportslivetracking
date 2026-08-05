@@ -5,10 +5,11 @@ from django.test import TestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.forms import FlightOrderConfigurationForm, MapForm, ContestantMapForm, validate_map_zoom_level
-from display.flight_order_and_maps.generate_flight_orders import build_flight_order_map_plot_kwargs
+from display.flight_order_and_maps.generate_flight_orders import build_flight_order_map_plot_kwargs, get_flight_order_visual_waypoints
 from display.flight_order_and_maps.map_plotter_shared_utilities import resolve_map_source_definition
 from display.models import Contest, NavigationTask, Route
 from display.utilities.task_information import build_navigation_task_information
+from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
 
 
 class FlightOrderConfigurationFormTests(TestCase):
@@ -204,6 +205,52 @@ class FlightOrderConfigurationFormTests(TestCase):
         self.assertTrue(kwargs["include_openaip_overlay"])
         self.assertTrue(kwargs["include_contestant_declarations"])
         self.assertNotIn("user_map_source", kwargs)
+
+    def test_build_flight_order_map_plot_kwargs_keeps_unknown_legs_declarations_enabled(self):
+        self.navigation_task.task_subtype = UNKNOWN_LEGS
+        self.navigation_task.save(update_fields=["task_subtype"])
+        self.configuration.map_include_contestant_declarations = True
+        self.configuration.save(update_fields=["map_include_contestant_declarations"])
+
+        kwargs = build_flight_order_map_plot_kwargs(self.navigation_task, self.configuration, contestant=None)
+
+        self.assertTrue(kwargs["include_contestant_declarations"])
+
+    def test_get_flight_order_visual_waypoints_prefers_unknown_legs_actual_route(self):
+        class DummyWaypoint:
+            def __init__(self, name, type_):
+                self.name = name
+                self.type = type_
+
+        class DummyConfig:
+            compiled_effective_route_payload = {
+                "actual_route": {
+                    "waypoints": [
+                        {"name": "SP"},
+                        {"name": "TRG1"},
+                        {"name": "FP"},
+                    ]
+                }
+            }
+
+        contestant = type("ContestantStub", (), {})()
+        contestant.navigation_task = self.navigation_task
+        contestant.contestanttaskconfiguration = DummyConfig()
+        self.navigation_task.task_subtype = UNKNOWN_LEGS
+        self.navigation_task.save(update_fields=["task_subtype"])
+
+        with patch(
+            "display.flight_order_and_maps.generate_flight_orders.get_effective_route_waypoints",
+            return_value=[
+                DummyWaypoint("SP", "sp"),
+                DummyWaypoint("TRG1", "ul"),
+                DummyWaypoint("TRG1-D1", "dummy"),
+                DummyWaypoint("FP", "fp"),
+            ],
+        ):
+            waypoints = get_flight_order_visual_waypoints(contestant, include_contestant_declarations=True)
+
+        self.assertEqual([waypoint.name for waypoint in waypoints], ["SP", "TRG1", "FP"])
 
     def test_contestant_declaration_toggle_defaults_to_enabled(self):
         form = FlightOrderConfigurationForm(instance=self.configuration)

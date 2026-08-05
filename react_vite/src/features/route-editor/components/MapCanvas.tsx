@@ -533,7 +533,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     // --- RENDERER: DRAW ROUTE LINE ---
     Renderers.drawRouteLine(
       map, 
-      routePoints, 
+      routePoints,
+      standalonePoints,
       routeLineRef, 
       polylinesRef, 
       mode, 

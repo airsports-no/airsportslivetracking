@@ -10,7 +10,7 @@ from display.utilities.cima_task_type_definitions import (
     UNKNOWN_LEGS,
     get_task_subtype_definition,
 )
-from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNPOINT, UNKNOWN_LEG, DUMMY
+from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNPOINT, UNKNOWN_LEG, DUMMY, HIDDEN_GATE
 
 
 class TaskCompiler:
@@ -79,6 +79,11 @@ class TaskCompiler:
             "known_time_gate": [item["properties"].get("name") for item in editable_route.get_known_time_gates()],
             "hidden_gate": [item["properties"].get("name") for item in editable_route.get_hidden_gates()],
             "unknown_leg": [item["properties"].get("name") for item in editable_route.get_unknown_leg_waypoints()],
+            "dummy_branch_waypoint": [
+                item.get("properties", {}).get("name")
+                for item in editable_route.get_features_type("dummy_branch_waypoint")
+                if item.get("properties", {}).get("name")
+            ],
             "observation_photo": [item["properties"].get("name") for item in editable_route.get_observation_photos()],
         }
 
@@ -207,16 +212,21 @@ class TaskCompiler:
             errors.append("Unknown legs requires at least one unknown-leg trigger waypoint.")
 
         point_types = [item.get("properties", {}).get("pointType") for item in authored_waypoints]
+        dummy_branch_features = editable_route.get_features_type("dummy_branch_waypoint")
+        dummy_branch_by_trigger = {}
+        for feature in dummy_branch_features:
+            props = feature.get("properties", {})
+            trigger_id = props.get("triggerPointId")
+            if not trigger_id:
+                continue
+            dummy_branch_by_trigger.setdefault(trigger_id, []).append(feature)
+        for branch_items in dummy_branch_by_trigger.values():
+            branch_items.sort(key=lambda item: item.get("properties", {}).get("branchSequence", 0))
         for trigger_index, point_type in enumerate(point_types):
             if point_type != UNKNOWN_LEG:
                 continue
-            has_dummy_after_trigger = False
-            for following_type in point_types[trigger_index + 1 :]:
-                if following_type == DUMMY:
-                    has_dummy_after_trigger = True
-                    continue
-                break
-            if not has_dummy_after_trigger:
+            trigger_id = authored_waypoints[trigger_index].get("properties", {}).get("id")
+            if not trigger_id or not dummy_branch_by_trigger.get(trigger_id):
                 errors.append("Unknown legs requires at least one dummy waypoint after each unknown-leg trigger.")
                 break
 
@@ -264,7 +274,16 @@ class TaskCompiler:
         actual_route_waypoints = []
         connectors = []
         segment_index = 1
-        flush_after_dummy = None
+        editable_route_features = editable_route.get_features_type("dummy_branch_waypoint")
+        dummy_branch_by_trigger = {}
+        for feature in editable_route_features:
+            props = feature.get("properties", {})
+            trigger_id = props.get("triggerPointId")
+            if not trigger_id:
+                continue
+            dummy_branch_by_trigger.setdefault(trigger_id, []).append(feature)
+        for branch_items in dummy_branch_by_trigger.values():
+            branch_items.sort(key=lambda item: item.get("properties", {}).get("branchSequence", 0))
 
         def append_actual_name(name: str):
             if not actual_route_names or actual_route_names[-1] != name:
@@ -292,21 +311,6 @@ class TaskCompiler:
             if not name:
                 continue
 
-            if point_type == DUMMY and flush_after_dummy is not None:
-                flush_after_dummy["display_waypoint_names"].append(name)
-                flush_after_dummy["display_coordinates_by_name"][name] = coordinates
-                segments.append(flush_after_dummy)
-                segment_index += 1
-                current_segment = {
-                    "name": f"segment_{segment_index}",
-                    "display_waypoint_names": [],
-                    "display_coordinates_by_name": {},
-                    "actual_waypoint_names": [],
-                    "actual_coordinates_by_name": {},
-                }
-                flush_after_dummy = None
-                continue
-
             current_segment["display_waypoint_names"].append(name)
             current_segment["display_coordinates_by_name"][name] = coordinates
 
@@ -317,10 +321,19 @@ class TaskCompiler:
                 append_actual_waypoint(name, point_type, coordinates)
 
             if point_type == UNKNOWN_LEG:
+                trigger_id = properties.get("id")
+                branch_features = dummy_branch_by_trigger.get(trigger_id, []) if trigger_id else []
+                for branch_feature in branch_features:
+                    branch_name = branch_feature.get("properties", {}).get("name")
+                    branch_coordinates = feature_coordinates(branch_feature)
+                    if not branch_name or len(branch_coordinates) != 2:
+                        continue
+                    current_segment["display_waypoint_names"].append(branch_name)
+                    current_segment["display_coordinates_by_name"][branch_name] = branch_coordinates
                 next_real_waypoint = None
                 for next_item in ordered_waypoints[index + 1 :]:
                     next_type = next_item.get("properties", {}).get("pointType")
-                    if next_type == DUMMY:
+                    if next_type == HIDDEN_GATE:
                         continue
                     next_real_waypoint = next_item
                     break
@@ -334,15 +347,26 @@ class TaskCompiler:
                             "heading": properties.get("unknownLegHeading"),
                             "from_coordinates": coordinates,
                             "to_coordinates": next_coordinates,
+                            "dummy_branch_waypoint_names": [
+                                feature.get("properties", {}).get("name")
+                                for feature in branch_features
+                                if feature.get("properties", {}).get("name")
+                            ],
                         }
                     )
-                flush_after_dummy = current_segment
+                segments.append(current_segment)
+                segment_index += 1
+                current_segment = {
+                    "name": f"segment_{segment_index}",
+                    "display_waypoint_names": [],
+                    "display_coordinates_by_name": {},
+                    "actual_waypoint_names": [],
+                    "actual_coordinates_by_name": {},
+                }
                 continue
 
         if current_segment["display_waypoint_names"] or current_segment["actual_waypoint_names"]:
             segments.append(current_segment)
-        elif flush_after_dummy is not None:
-            segments.append(flush_after_dummy)
 
         return {
             "unknown_legs_segments": segments,

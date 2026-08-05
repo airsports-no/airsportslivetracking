@@ -80,6 +80,8 @@ export default function RouteEditor() {
   const [wizardRouteInsertFeatureType, setWizardRouteInsertFeatureType] = useState<RoutePoint['featureType'] | undefined>(undefined);
   const [wizardPolygonType, setWizardPolygonType] = useState<Polygon['type'] | null>(null);
   const [currentWizardActionLabel, setCurrentWizardActionLabel] = useState<string | null>(null);
+  const [pendingPointTypeSelection, setPendingPointTypeSelection] = useState<RoutePoint['type'] | null>(null);
+  const [pendingPointFeatureTypeSelection, setPendingPointFeatureTypeSelection] = useState<RoutePoint['featureType'] | undefined>(undefined);
   const visibleTaskTypeGroups = useMemo(() => {
     const groups = document.configuration.visibleTaskTypeGroups;
     if (Array.isArray(groups) && groups.length > 0) {
@@ -247,6 +249,34 @@ export default function RouteEditor() {
     }
 
     if (mode === 'add_point') {
+      if (wizardRouteInsertType && wizardRouteInsertFeatureType === 'dummy_branch_waypoint') {
+        const selectedTrigger = routePoints.find((point) => point.id === selectedId && point.type === 'ul');
+        if (!selectedTrigger) {
+          alert('Select an unknown-leg trigger on the backbone before adding dummy-branch waypoints.');
+          return;
+        }
+        const siblingBranchPoints = standalonePoints.filter(
+          (point) => point.featureType === 'dummy_branch_waypoint' && point.triggerPointId === selectedTrigger.id
+        );
+        const branchSequence = siblingBranchPoints.length;
+        const newPoint = createStandaloneWizardPoint(
+          latlng,
+          wizardRouteInsertType,
+          wizardRouteInsertFeatureType,
+          siblingBranchPoints.length === 0 ? `${selectedTrigger.name}-D1` : `${selectedTrigger.name}-D${siblingBranchPoints.length + 1}`,
+          siblingBranchPoints.length + 1,
+        );
+        setStandalonePoints((prev) => [...prev, {
+          ...newPoint,
+          triggerPointId: selectedTrigger.id,
+          branchSequence,
+          isTiming: false,
+          isPassing: true,
+        }]);
+        setIsDirty(true);
+        setSelectionType('wizard');
+        return;
+      }
       if (wizardRouteInsertType && routePoints.length >= 2) {
         const count = routePoints.filter((point) => point.type === wizardRouteInsertType).length + 1;
         setRoutePoints(prev => {
@@ -386,6 +416,20 @@ export default function RouteEditor() {
     setStandalonePoints((points) => updateItemById(points, selectedId, (point) => ({ ...point, [field]: value })));
   };
 
+  const convertSelectedBackbonePointToType = (nextType: RoutePoint['type'], nextFeatureType: RoutePoint['featureType'] | undefined) => {
+    if (!selectedId) return;
+    markDirty();
+    setRoutePoints((points) => updateItemById(points, selectedId, (point) => ({
+      ...point,
+      type: nextType,
+      featureType: nextFeatureType || point.featureType || 'route_waypoint',
+    })));
+    setPendingPointTypeSelection(null);
+    setPendingPointFeatureTypeSelection(undefined);
+    setCurrentWizardActionLabel(null);
+    setSelectionType('point');
+  };
+
   const updateSelectedGate = (field: keyof Gate, value: any) => {
     markDirty();
     setGates((gatesState) => updateItemById(gatesState, selectedId, (gate) => ({ ...gate, [field]: value })));
@@ -466,18 +510,31 @@ export default function RouteEditor() {
     setRoutePoints(reorderItemsById(routePoints, selectedId, direction));
   };
 
+  useEffect(() => {
+    if (!pendingPointTypeSelection || selectionType !== 'point' || !selectedId) {
+      return;
+    }
+    convertSelectedBackbonePointToType(pendingPointTypeSelection, pendingPointFeatureTypeSelection);
+  }, [pendingPointFeatureTypeSelection, pendingPointTypeSelection, selectedId, selectionType]);
+
   const startWizardStep = useCallback((stepKey: string) => {
     const template = getTaskTemplateById(selectedTaskTemplateId);
     const step = getWizardStep(template, stepKey);
     if (!step) return;
 
     setSelectedId(null);
+    setPendingPointTypeSelection(null);
+    setPendingPointFeatureTypeSelection(undefined);
 
     const transition = getWizardTransition(step, getWizardRouteInsertLabel);
     setCurrentWizardActionLabel(transition.currentWizardActionLabel);
     setWizardRouteInsertType(transition.wizardRouteInsertType as RoutePoint['type'] | null);
     setWizardRouteInsertFeatureType(transition.wizardRouteInsertFeatureType as RoutePoint['featureType'] | undefined);
     setWizardPolygonType(transition.wizardPolygonType as Polygon['type'] | null);
+    if (transition.selectExistingRouteType) {
+      setPendingPointTypeSelection(transition.selectExistingRouteType);
+      setPendingPointFeatureTypeSelection(transition.selectExistingRouteFeatureType as RoutePoint['featureType'] | undefined);
+    }
     if (transition.nextSelectionType) {
       setSelectionType(transition.nextSelectionType);
     }
@@ -499,7 +556,17 @@ export default function RouteEditor() {
     routePoints,
     isThreePointBackboneTask,
     isCircleStandaloneTask,
-  ), [routePoints, isThreePointBackboneTask, isCircleStandaloneTask]);
+  ).concat(
+    selectedTaskTemplateId === 'cima_a5'
+      ? routePoints
+          .filter((point) => point.type === 'ul')
+          .flatMap((triggerPoint) => (
+            standalonePoints.some((point) => point.featureType === 'dummy_branch_waypoint' && point.triggerPointId === triggerPoint.id)
+              ? []
+              : [`Unknown-leg trigger "${triggerPoint.name}" must have at least one dummy-branch waypoint.`]
+          ))
+      : []
+  ), [routePoints, standalonePoints, isThreePointBackboneTask, isCircleStandaloneTask, selectedTaskTemplateId]);
 
   const handleSave = async () => {
     if (!routeName || !routeName.trim()) {

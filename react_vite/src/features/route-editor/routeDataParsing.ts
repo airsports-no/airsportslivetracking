@@ -9,6 +9,7 @@ const POINT_FEATURE_TYPES = new Set([
   'circle_exit_marker',
   'known_time_gate',
   'hidden_gate',
+  'dummy_branch_waypoint',
 ]);
 
 const CIRCLE_STANDALONE_TYPES = new Set<RoutePoint['type']>([
@@ -28,7 +29,7 @@ export type ParsedRouteEditorData = {
 };
 
 export function createStandalonePointTypeSet(_isCircleStandaloneTask: boolean): Set<RoutePoint['type']> {
-  const types = new Set<RoutePoint['type']>(['catalogue_turnpoint']);
+  const types = new Set<RoutePoint['type']>(['catalogue_turnpoint', 'dummy']);
   CIRCLE_STANDALONE_TYPES.forEach((type) => types.add(type));
   return types;
 }
@@ -84,6 +85,9 @@ export function parseRouteEditorFeatureCollection(
       isTiming: typeof feature.properties?.isTiming === 'boolean' ? feature.properties.isTiming : true,
       isPassing: typeof feature.properties?.isPassing === 'boolean' ? feature.properties.isPassing : true,
       scoreValue: feature.properties?.scoreValue ?? null,
+      unknownLegHeading: feature.properties?.unknownLegHeading,
+      triggerPointId: feature.properties?.triggerPointId ?? null,
+      branchSequence: feature.properties?.branchSequence ?? null,
     } as RoutePoint;
 
     if (standalonePointTypes.has(parsedPoint.type)) {

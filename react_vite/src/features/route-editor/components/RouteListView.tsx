@@ -22,6 +22,8 @@ const RouteListView: React.FC<RouteListViewProps> = ({
   onSelect 
 }) => {
   const orderedRoutePoints = routePoints.filter((p) => (p.featureType || 'route_waypoint') === 'route_waypoint');
+  const unknownLegTriggerOptions = orderedRoutePoints.filter((p) => p.type === 'ul');
+  const dummyBranchPoints = standalonePoints.filter((p) => p.featureType === 'dummy_branch_waypoint');
   const catalogueTurnpoints = standalonePoints.filter((p) => p.featureType === 'catalogue_turnpoint');
   const circleMarkers = standalonePoints.filter((p) => (
     p.featureType === 'circle_center_marker'
@@ -100,6 +102,31 @@ const RouteListView: React.FC<RouteListViewProps> = ({
                 }`}>
                   {p.type}
                 </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
+        <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Dummy Branches</h3>
+        {dummyBranchPoints.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">No dummy-branch waypoints.</p>
+        ) : (
+          <ul className="space-y-1">
+            {dummyBranchPoints.map((p) => (
+              <li
+                key={p.id}
+                className="p-2 bg-base-100 border rounded hover:bg-base-200 cursor-pointer text-sm space-y-1"
+                onClick={() => onSelect(p.id, 'standalone_point')}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium truncate" title={p.name}>{p.name}</span>
+                  <span className="badge badge-sm badge-neutral uppercase text-[9px] h-4 leading-none font-bold">dummy</span>
+                </div>
+                <div className="text-[11px] text-gray-500">
+                  Trigger {(unknownLegTriggerOptions.find((trigger) => trigger.id === p.triggerPointId)?.name) || p.triggerPointId || 'unassigned'} · branch step {(p.branchSequence ?? 0) + 1}
+                </div>
               </li>
             ))}
           </ul>

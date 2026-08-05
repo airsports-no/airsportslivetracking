@@ -132,6 +132,7 @@ def get_task_catalogue_targets(navigation_task, contestant=None) -> list[dict[st
                             "name": waypoint_name,
                             "coordinates": coordinates,
                             "kind": "catalogue_turnpoint",
+                            "segment_name": segment.get("name"),
                         }
                     )
         for connector in payload.get("actual_route", {}).get("unknown_leg_connectors", []):

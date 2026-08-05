@@ -122,6 +122,8 @@ export function buildRouteEditorSavePayload(args: {
   // only. Standalone authored primitives (catalogue/circle/etc.) are persisted
   // as separate Point features and must never leak into the route backbone.
   const routePathCoordinates = routePoints.map((point) => [point.lng, point.lat]);
+  const dummyBranchPoints = standalonePoints.filter((point) => point.featureType === 'dummy_branch_waypoint');
+  const otherStandalonePoints = standalonePoints.filter((point) => point.featureType !== 'dummy_branch_waypoint');
 
   return {
     name: routeName,
@@ -150,6 +152,7 @@ export function buildRouteEditorSavePayload(args: {
             isTiming: point.isTiming,
             isPassing: point.isPassing,
             scoreValue: point.scoreValue ?? undefined,
+            unknownLegHeading: point.unknownLegHeading ?? undefined,
             sequence: index,
           },
           geometry: {
@@ -157,7 +160,7 @@ export function buildRouteEditorSavePayload(args: {
             coordinates: [point.lng, point.lat],
           },
         })),
-        ...standalonePoints.map((point, index) => ({
+        ...otherStandalonePoints.map((point, index) => ({
           type: 'Feature',
           properties: {
             id: point.id,
@@ -170,6 +173,26 @@ export function buildRouteEditorSavePayload(args: {
             isPassing: point.isPassing,
             scoreValue: point.scoreValue ?? undefined,
             sequence: routePoints.length + index,
+          },
+          geometry: {
+            type: 'Point',
+            coordinates: [point.lng, point.lat],
+          },
+        })),
+        ...dummyBranchPoints.map((point, index) => ({
+          type: 'Feature',
+          properties: {
+            id: point.id,
+            name: point.name,
+            pointType: point.type,
+            featureType: 'dummy_branch_waypoint',
+            segmentType: point.segmentType || 'straight',
+            width: point.width,
+            isTiming: point.isTiming,
+            isPassing: point.isPassing,
+            triggerPointId: point.triggerPointId || undefined,
+            branchSequence: point.branchSequence ?? index,
+            sequence: routePoints.length + otherStandalonePoints.length + index,
           },
           geometry: {
             type: 'Point',

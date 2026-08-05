@@ -686,13 +686,13 @@ class TestContestantTaskConfiguration(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "dummy-1", "name": "D1", "pointType": "dummy", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": False, "sequence": 2},
-                        "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
+                        "properties": {"id": "fp-1", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 3},
+                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "fp-1", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 3},
-                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
+                        "properties": {"id": "dummy-1", "name": "UL1-D1", "pointType": "dummy", "featureType": "dummy_branch_waypoint", "width": 1852, "isTiming": False, "isPassing": False, "triggerPointId": "ul-1", "branchSequence": 0, "sequence": 4},
+                        "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
                     },
                     {
                         "type": "Feature",
@@ -752,9 +752,9 @@ class TestContestantTaskConfiguration(TestCase):
                     {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
                     {"type": "Feature", "properties": {"id": "wp-a", "name": "A", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
                     {"type": "Feature", "properties": {"id": "wp-trg", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 2, "unknownLegHeading": 105}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "wp-d1", "name": "D1", "pointType": "dummy", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 3}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
                     {"type": "Feature", "properties": {"id": "wp-b", "name": "B", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 4}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
                     {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 5}, "geometry": {"type": "Point", "coordinates": [11.5, 60.5]}},
+                    {"type": "Feature", "properties": {"id": "dummy-1", "name": "TRG1-D1", "pointType": "dummy", "featureType": "dummy_branch_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "triggerPointId": "wp-trg", "branchSequence": 0, "sequence": 6}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
                     {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"}, "geometry": {"type": "Point", "coordinates": [11.22, 60.22]}},
                     {"type": "Feature", "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"}, "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]}},
                     {"type": "Feature", "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"}, "geometry": {"type": "LineString", "coordinates": [[11.5, 60.5], [11.6, 60.6]]}},
@@ -777,10 +777,10 @@ class TestContestantTaskConfiguration(TestCase):
         )
         self.assertEqual(
             payload["segments"][0]["display_waypoint_names"],
-            ["SP", "HG1", "A", "TRG1", "D1"],
+            ["SP", "HG1", "A", "TRG1", "TRG1-D1"],
         )
         self.assertEqual(
-            payload["segments"][0]["display_coordinates_by_name"]["D1"],
+            payload["segments"][0]["display_coordinates_by_name"]["TRG1-D1"],
             [11.3, 60.3],
         )
         self.assertEqual(
@@ -810,9 +810,9 @@ class TestContestantTaskConfiguration(TestCase):
                     {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
                     {"type": "Feature", "properties": {"id": "wp-h1", "name": "HG1", "pointType": "hidden_gate", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
                     {"type": "Feature", "properties": {"id": "wp-trg", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 2, "unknownLegHeading": 105}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "wp-d1", "name": "D1", "pointType": "dummy", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 3}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
                     {"type": "Feature", "properties": {"id": "wp-h2", "name": "HG2", "pointType": "hidden_gate", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 4}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
                     {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 5}, "geometry": {"type": "Point", "coordinates": [11.5, 60.5]}},
+                    {"type": "Feature", "properties": {"id": "dummy-1", "name": "TRG1-D1", "pointType": "dummy", "featureType": "dummy_branch_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "triggerPointId": "wp-trg", "branchSequence": 0, "sequence": 6}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
                     {"type": "Feature", "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"}, "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]}},
                     {"type": "Feature", "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"}, "geometry": {"type": "LineString", "coordinates": [[11.5, 60.5], [11.6, 60.6]]}},
                     {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},

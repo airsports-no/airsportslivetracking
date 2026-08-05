@@ -204,14 +204,13 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_a5',
     label: '2.A5 Navigation with unknown legs',
     group: 'CIMA',
-    description: 'Visible route backbone with unknown-leg triggers, dummy continuation points, hidden route-backbone gates, and observation/photo evidence.',
-    guideOnly: true,
-    guideSummary: 'Build the visible route backbone first. Unknown-leg triggers, dummy continuation points, and hidden gates all belong on that same backbone.',
+    description: 'True backbone route plus unknown-leg trigger points, separate dummy branches, hidden route-backbone gates, and observation/photo evidence.',
+    guideSummary: 'Build the true backbone first. Convert existing backbone points into unknown-leg triggers, then add dummy-branch waypoints from those triggers.',
     steps: [
-      routeStep('Build the visible route backbone first. Keep unknown-leg triggers and dummy continuation points on that backbone.'),
-      pointStep('unknown_leg', 'Unknown-leg triggers', 'Insert unknown-leg trigger waypoints directly on the route backbone at the photographic feature location.', 'ul', 'route_waypoint', 'route_insert'),
-      pointStep('dummy', 'Dummy continuation points', 'Insert one or more dummy waypoints after each unknown-leg trigger on the route backbone to conceal the turn-off point.', 'dummy', 'route_waypoint', 'route_insert', 0),
-      pointStep('hidden_gate', 'Hidden gates', 'Insert hidden gates directly on the route backbone or unknown-leg backbone where scoring requires them.', 'hidden_gate', 'route_waypoint', 'route_insert', 0),
+      routeStep('Build the true route backbone first. This backbone is the actual route flown by the contestant.'),
+      pointStep('unknown_leg', 'Unknown-leg triggers', 'Select an existing backbone waypoint and change its type to Unknown Leg so it becomes a trigger.', 'ul', 'route_waypoint', 'route_insert'),
+      pointStep('dummy', 'Dummy branch waypoints', 'Select an unknown-leg trigger first, then add one or more dummy waypoints as a separate visible branch from that trigger.', 'dummy', 'dummy_branch_waypoint', 'free_map', 0),
+      pointStep('hidden_gate', 'Hidden gates', 'Insert hidden gates directly on the true route backbone where scoring requires them.', 'hidden_gate', 'route_waypoint', 'route_insert', 0),
       observationStep('Add observation/photo markers used for scoring or evidence.'),
     ],
   },
@@ -301,13 +300,16 @@ export const countWizardStepMatches = (
   ]);
 
   if (step.kind === 'route') {
-    return routePoints.filter((point) => routeInsertBackboneTypes.has(point.type)).length;
+    return routePoints.filter((point) => point.featureType !== 'dummy_branch_waypoint' && routeInsertBackboneTypes.has(point.type)).length;
   }
   if (step.kind === 'point') {
     if (step.countMode === 'route_waypoints') {
       return routePoints.filter((point) => point.type === 'sp' || point.type === 'tp' || point.type === 'fp').length;
     }
     const pointPool = step.placement === 'free_map' ? standalonePoints : routePoints;
+    if (step.featureType === 'dummy_branch_waypoint') {
+      return pointPool.filter((point) => point.featureType === 'dummy_branch_waypoint' && point.type === step.pointType).length;
+    }
     return pointPool.filter((point) => point.type === step.pointType).length;
   }
   if (step.kind === 'observation') {
@@ -326,7 +328,9 @@ export const countWizardStepMatches = (
 };
 
 export const getWizardRouteInsertLabel = (step: WizardStep): string => {
-  if (step.pointType === 'hidden_gate') return 'Click the existing route line to insert a hidden gate.';
+  if (step.pointType === 'hidden_gate') return 'Click the existing true backbone route line to insert a hidden gate.';
   if (step.pointType === 'known_time_gate') return 'Click the existing route line to insert a known time gate.';
+  if (step.pointType === 'ul') return 'Select an existing backbone waypoint and change its type to Unknown Leg in the point editor.';
+  if (step.featureType === 'dummy_branch_waypoint') return 'Select an unknown-leg trigger waypoint first, then click the map to add dummy-branch waypoints.';
   return 'Click the existing route line to insert the required point.';
 };

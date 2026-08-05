@@ -1104,12 +1104,17 @@ def plot_precision_track(
     colour: str,
     task_type: List[str] = [],
     render_waypoints: Optional[List[Waypoint]] = None,
+    task_catalogue_targets: Optional[list[dict]] = None,
 ):
     if render_waypoints is None:
         render_waypoints = list(route.waypoints)
     tracks = [[]]
     previous_waypoint = None  # type: Optional[Waypoint]
     includes_unknown_legs = any(waypoint.type == "ul" for waypoint in render_waypoints)
+    unknown_leg_targets_by_segment = {}
+    for target in task_catalogue_targets or []:
+        if target.get("kind") == "catalogue_turnpoint" and target.get("segment_name"):
+            unknown_leg_targets_by_segment.setdefault(target["segment_name"], []).append(target)
     on_unknown_leg = False
     is_poker = POKER in task_type
     
@@ -1144,7 +1149,7 @@ def plot_precision_track(
             UNKNOWN_LEG,
         ):
             # Do not show unknown leg gates, these are to be considered secret unless followed by a dummy
-            if waypoint.type == UNKNOWN_LEG and next_waypoint and next_waypoint.type != DUMMY:
+            if waypoint.type == UNKNOWN_LEG and not unknown_leg_targets_by_segment.get(f"segment_{len(tracks)}"):
                 continue
             # Secret checkpoints on unknown legs should not be displayed
             if on_unknown_leg and waypoint.type in (SECRETPOINT, ANR_TP):
@@ -1535,7 +1540,39 @@ def plot_route(
             colour,
             task.scorecard.task_type,
             render_waypoints=render_waypoints,
+            task_catalogue_targets=task_catalogue_targets,
         )
+        if contestant is None and task.task_subtype == "unknown_legs" and task_catalogue_targets:
+            segment_lookup = {}
+            for target in task_catalogue_targets:
+                if target.get("kind") == "catalogue_turnpoint" and target.get("segment_name"):
+                    segment_lookup.setdefault(target["segment_name"], []).append(target)
+            for index, segment_targets in sorted(segment_lookup.items()):
+                if not segment_targets:
+                    continue
+                ordered_segment_points = [
+                    (
+                        target.get("name") or "",
+                        target["coordinates"][1],
+                        target["coordinates"][0],
+                    )
+                    for target in segment_targets
+                    if isinstance(target.get("coordinates"), list) and len(target.get("coordinates")) == 2
+                ]
+                if len(ordered_segment_points) >= 2:
+                    ordered_segment_points.sort(key=lambda item: item[0])
+                    path = np.array([(lat, lon) for _, lat, lon in ordered_segment_points])
+                    paths.append(path)
+                    if not waypoints_only:
+                        ys, xs = path.T
+                        plt.plot(
+                            xs,
+                            ys,
+                            transform=ccrs.PlateCarree(),
+                            color=colour,
+                            linewidth=line_width,
+                            linestyle=(0, (8, 6)),
+                        )
     elif ANR_CORRIDOR in task.scorecard.task_type:
         paths = plot_anr_corridor_track(
             route,

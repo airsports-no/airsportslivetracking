@@ -88,7 +88,13 @@ interface Props {
 }
 
 // From precisionRenderer.js
-function renderPrecisionRoute(map: L.Map, route: RouteData, navTaskDisplaySecrets: boolean, displaySecrets: boolean): L.Layer[] {
+function renderPrecisionRoute(
+  map: L.Map,
+  route: RouteData,
+  navTaskDisplaySecrets: boolean,
+  displaySecrets: boolean,
+  taskCatalogueTargets: NavigationTaskCatalogueTarget[] = []
+): L.Layer[] {
   const layers: L.Layer[] = [];
 
   route.waypoints.filter((waypoint: Waypoint) => {
@@ -111,13 +117,22 @@ function renderPrecisionRoute(map: L.Map, route: RouteData, navTaskDisplaySecret
   });
 
   const tracks: L.LatLngExpression[][] = [];
-  let currentTrack: L.LatLngExpression[] = [];
+  const currentTrack: L.LatLngExpression[] = [];
   const typesToIgnore = ["to", "ldg", "ildg", "dummy"];
+  const unknownLegTargetsBySegment = new Map<string, NavigationTaskCatalogueTarget[]>();
+  taskCatalogueTargets
+    .filter((target) => target.kind === 'catalogue_turnpoint' && target.segment_name)
+    .forEach((target) => {
+      const key = target.segment_name as string;
+      const existing = unknownLegTargetsBySegment.get(key) || [];
+      existing.push(target);
+      unknownLegTargetsBySegment.set(key, existing);
+    });
   
   route.waypoints.forEach((waypoint: Waypoint) => {
-    if (waypoint.type === 'isp') { // This type is not in the Waypoint type, assuming it's a string from old code.
-        tracks.push(currentTrack);
-        currentTrack = [];
+    if (waypoint.type === 'isp') {
+        tracks.push([...currentTrack]);
+        currentTrack.length = 0;
     }
     if (!typesToIgnore.includes(waypoint.type)) {
         if (waypoint.is_procedure_turn) {
@@ -131,8 +146,21 @@ function renderPrecisionRoute(map: L.Map, route: RouteData, navTaskDisplaySecret
             currentTrack.push([waypoint.latitude, waypoint.longitude]);
         }
     }
+    if (waypoint.type === 'ul') {
+        tracks.push([...currentTrack]);
+        const branchTargets = unknownLegTargetsBySegment.get(`segment_${tracks.length}`) || [];
+        if (branchTargets.length > 0) {
+            const branchTrack: L.LatLngExpression[] = [[waypoint.latitude, waypoint.longitude]];
+            branchTargets.forEach((target) => {
+                const [lng, lat] = target.coordinates;
+                branchTrack.push([lat, lng]);
+            });
+            tracks.push(branchTrack);
+        }
+        currentTrack.length = 0;
+    }
   });
-  tracks.push(currentTrack);
+  tracks.push([...currentTrack]);
 
   for (const track of tracks) {
     const routePolyline = L.polyline(track, {
@@ -394,6 +422,16 @@ function getRenderedCatalogueTargets(
   const actualRoute = payload.actual_route;
   const actualRouteWaypoints = Array.isArray(actualRoute?.waypoints) ? actualRoute.waypoints : [];
 
+  const shape = actualRouteWaypoints.length > 0
+    ? payload.map_rendering_mode === 'unknown_legs_split'
+      ? payload.segments
+      : null
+    : null;
+
+  if (actualRouteWaypoints.length > 0 && shape) {
+    return taskCatalogueTargets;
+  }
+
   if (actualRouteWaypoints.length > 0 && Array.isArray(taskCatalogueTargets) && taskCatalogueTargets.length > 0) {
     return taskCatalogueTargets;
   }
@@ -427,7 +465,7 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, taskCo
     if (taskType.includes("poker")) {
         layers = layers.concat(renderPokerRoute(map, renderedRoute));
     } else if (taskType.includes("precision")) {
-      layers = layers.concat(renderPrecisionRoute(map, renderedRoute, navTaskDisplaySecrets, displaySecrets));
+      layers = layers.concat(renderPrecisionRoute(map, renderedRoute, navTaskDisplaySecrets, displaySecrets, renderedCatalogueTargets));
     }
     if (taskType.includes("airsports") || taskType.includes("airsportchallenge")) {
       layers = layers.concat(renderAirsportsRoute(map, renderedRoute, false, navTaskDisplaySecrets, displaySecrets));

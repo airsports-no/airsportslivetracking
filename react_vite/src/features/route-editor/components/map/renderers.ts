@@ -8,6 +8,8 @@ import {
 } from '../../../../utils/geoUtils';
 import { RoutePoint, Gate, Polygon, Mode, SelectionType } from '../../../../types';
 
+const UNKNOWN_LEG_TRIGGER_TYPE = 'ul';
+
 export const clearLayers = (markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, polylinesRef: React.MutableRefObject<L.Layer[]>, routeLineRef: React.MutableRefObject<L.Polyline | null>, map: L.Map) => {
   Object.values(markersRef.current).forEach(layer => map.removeLayer(layer));
   polylinesRef.current.forEach(layer => map.removeLayer(layer));
@@ -21,6 +23,7 @@ export const clearLayers = (markersRef: React.MutableRefObject<{ [key: string]: 
 export const drawRouteLine = (
   map: L.Map, 
   routePoints: RoutePoint[], 
+  standalonePoints: RoutePoint[],
   routeLineRef: React.MutableRefObject<L.Polyline | null>, 
   polylinesRef: React.MutableRefObject<L.Layer[]>, 
   mode: Mode, 
@@ -35,19 +38,48 @@ export const drawRouteLine = (
   if (routePoints.length <= 1) return;
 
   const latlngs: L.LatLng[] = [];
-  routePoints.forEach((p, i) => {
-    if (i === 0) {
-      latlngs.push(L.latLng(p.lat, p.lng));
-    } else {
-      if (p.segmentType === 'curved' && p.controlLat && p.controlLng) {
-        const prev = routePoints[i - 1];
-        const curvePoints = getQuadraticBezierPoints(prev, p, { lat: p.controlLat, lng: p.controlLng });
-        latlngs.push(...curvePoints);
-      } else {
-        latlngs.push(L.latLng(p.lat, p.lng));
+  const branchLineGroups: Array<{ triggerId: string; points: RoutePoint[] }> = [];
+  const branchByTriggerId = new Map<string, RoutePoint[]>();
+  standalonePoints
+    .filter((point) => point.featureType === 'dummy_branch_waypoint' && point.triggerPointId)
+    .sort((left, right) => {
+      if (left.triggerPointId === right.triggerPointId) {
+        return (left.branchSequence ?? 0) - (right.branchSequence ?? 0);
       }
+      return String(left.triggerPointId).localeCompare(String(right.triggerPointId));
+    })
+    .forEach((point) => {
+      const triggerId = point.triggerPointId as string;
+      const existing = branchByTriggerId.get(triggerId) || [];
+      existing.push(point);
+      branchByTriggerId.set(triggerId, existing);
+    });
+
+  for (let index = 0; index < routePoints.length; index += 1) {
+    const point = routePoints[index];
+    if (index === 0) {
+      latlngs.push(L.latLng(point.lat, point.lng));
+      continue;
     }
-  });
+
+    const previous = routePoints[index - 1];
+    const previousTriggerBranch = previous.type === UNKNOWN_LEG_TRIGGER_TYPE ? branchByTriggerId.get(previous.id) || [] : [];
+    if (previousTriggerBranch.length > 0) {
+      branchLineGroups.push({ triggerId: previous.id, points: [previous, ...previousTriggerBranch] });
+    }
+
+    if (previous.type === UNKNOWN_LEG_TRIGGER_TYPE) {
+      latlngs.push(L.latLng(point.lat, point.lng));
+      continue;
+    }
+
+    if (point.segmentType === 'curved' && point.controlLat && point.controlLng) {
+      const curvePoints = getQuadraticBezierPoints(previous, point, { lat: point.controlLat, lng: point.controlLng });
+      latlngs.push(...curvePoints);
+    } else {
+      latlngs.push(L.latLng(point.lat, point.lng));
+    }
+  }
 
   const polyline = L.polyline(latlngs, { 
     color: '#3b82f6', 
@@ -178,6 +210,17 @@ export const drawRouteLine = (
 
   routeLineRef.current = polyline;
   polylinesRef.current.push(polyline);
+
+  branchLineGroups.forEach((group) => {
+    const branchLatLngs = group.points.map((point) => L.latLng(point.lat, point.lng));
+    if (branchLatLngs.length < 2) return;
+    const branchPolyline = L.polyline(branchLatLngs, {
+      color: '#9ca3af',
+      weight: 3,
+      dashArray: '8 6',
+    }).addTo(map);
+    polylinesRef.current.push(branchPolyline);
+  });
 
   if (!hideLabels) {
     for (let i = 0; i < routePoints.length - 1; i++) {

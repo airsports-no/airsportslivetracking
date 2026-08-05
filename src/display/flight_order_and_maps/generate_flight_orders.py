@@ -90,6 +90,25 @@ def build_flight_order_map_plot_kwargs(navigation_task, flight_order_configurati
     }
 
 
+def get_flight_order_visual_waypoints(contestant: Contestant, include_contestant_declarations: bool) -> list[Waypoint]:
+    effective_waypoints = get_effective_route_waypoints(
+        contestant.navigation_task,
+        contestant=contestant,
+        include_contestant_declarations=include_contestant_declarations,
+    )
+    waypoints = [waypoint for waypoint in effective_waypoints if waypoint.type != "dummy"]
+    payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
+    if contestant.navigation_task.task_subtype == "unknown_legs":
+        actual_route_names = {
+            item.get("name")
+            for item in (payload.get("actual_route", {}) or {}).get("waypoints", [])
+            if item.get("name")
+        }
+        if actual_route_names:
+            waypoints = [waypoint for waypoint in waypoints if waypoint.name in actual_route_names]
+    return waypoints
+
+
 def generate_turning_point_image(
     waypoints: List[Waypoint], index, meters_across: float, zoom_level: int, is_unknown_leg: bool = False
 ):
@@ -241,7 +260,19 @@ def insert_turning_point_images_latex(
 def insert_unknown_leg_images_latex(
     contestant, document: Document, flight_order_configuration: FlightOrderConfiguration, waypoints: List[Waypoint]
 ):
-    render_waypoints = [waypoint for waypoint in waypoints if waypoint.type == UNKNOWN_LEG]
+    payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
+    actual_route_names = {
+        item.get("name")
+        for item in (payload.get("actual_route", {}) or {}).get("waypoints", [])
+        if item.get("name")
+    }
+    render_waypoints = [
+        waypoint
+        for waypoint in waypoints
+        if waypoint.type == UNKNOWN_LEG and waypoint.name not in actual_route_names
+    ]
+    if not render_waypoints:
+        render_waypoints = [waypoint for waypoint in waypoints if waypoint.type == UNKNOWN_LEG]
     random.shuffle(render_waypoints)
     render_turning_point_images(
         render_waypoints, document, flight_order_configuration, "Unknown legs", is_unknown_leg=True
@@ -582,16 +613,9 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
     with document.create(Center()):
         document.append(HugeText(bold("Good Luck!")))
     document.append(VerticalSpace("10pt"))
-    effective_waypoints = get_effective_route_waypoints(
-        contestant.navigation_task,
-        contestant=contestant,
+    waypoints = get_flight_order_visual_waypoints(
+        contestant,
         include_contestant_declarations=bool(flight_order_configuration.map_include_contestant_declarations),
-    )
-    waypoints = list(
-        filter(
-            lambda waypoint: waypoint.type != "dummy",
-            effective_waypoints,
-        )
     )
     starting_point_image_file = get_turning_point_image(
         waypoints,
