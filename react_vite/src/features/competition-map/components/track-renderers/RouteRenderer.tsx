@@ -215,19 +215,27 @@ function renderPokerRoute(map: L.Map, route: RouteData): L.Layer[] {
 }
 
 
-function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarget[]): L.Layer[] {
+function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarget[], showUnknownLegOverlays: boolean): L.Layer[] {
   const layers: L.Layer[] = [];
-  const markerStyleByKind: Record<string, { radius: number; color: string; fillColor: string; fillOpacity: number; shape?: 'circle' | 'square'; html?: string; className?: string }> = {
+  const markerStyleByKind: Record<string, { radius: number; color: string; fillColor: string; fillOpacity: number; shape?: 'circle' | 'square' | 'diamond'; html?: string; className?: string }> = {
     catalogue_turnpoint: { radius: 8, color: 'blue', fillColor: 'white', fillOpacity: 0 },
     circle_center_marker: { radius: 7, color: '#7c3aed', fillColor: '#7c3aed', fillOpacity: 0.2 },
     circle_start_marker: { radius: 8, color: '#16a34a', fillColor: 'white', fillOpacity: 0 },
     circle_entry_marker: { radius: 8, color: '#ea580c', fillColor: '#ea580c', fillOpacity: 0.15, html: '▶', className: 'text-xs font-bold text-orange-600' },
     circle_exit_marker: { radius: 8, color: '#dc2626', fillColor: 'white', fillOpacity: 0, shape: 'square' },
+    unknown_leg_trigger: { radius: 8, color: '#6b7280', fillColor: '#6b7280', fillOpacity: 0.2, shape: 'diamond' },
+    unknown_leg_connector_end: { radius: 7, color: '#9ca3af', fillColor: '#9ca3af', fillOpacity: 0.15 },
+    hidden_gate: { radius: 7, color: '#7c3aed', fillColor: '#7c3aed', fillOpacity: 0.18, shape: 'square' },
   };
 
   targets.forEach((target) => {
+    const kind = target.kind || 'catalogue_turnpoint';
+    if (!showUnknownLegOverlays && (kind === 'unknown_leg_trigger' || kind === 'unknown_leg_connector_end' || kind === 'hidden_gate')) {
+      return;
+    }
+
     const [lng, lat] = target.coordinates;
-    const style = markerStyleByKind[target.kind || 'catalogue_turnpoint'] || markerStyleByKind.catalogue_turnpoint;
+    const style = markerStyleByKind[kind] || markerStyleByKind.catalogue_turnpoint;
     let layer: L.Layer;
 
     if (style.html) {
@@ -245,6 +253,22 @@ function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarg
         [
           [lat - 0.00035, lng - 0.00035],
           [lat + 0.00035, lng + 0.00035],
+        ],
+        {
+          color: style.color,
+          weight: 2,
+          fillOpacity: style.fillOpacity,
+          fillColor: style.fillColor,
+        }
+      ).addTo(map);
+      layer = marker;
+    } else if (style.shape === 'diamond') {
+      const marker = L.polygon(
+        [
+          [lat - 0.00042, lng],
+          [lat, lng + 0.00042],
+          [lat + 0.00042, lng],
+          [lat, lng - 0.00042],
         ],
         {
           color: style.color,
@@ -334,7 +358,17 @@ function getRenderedRoute(route: RouteData, contestants: Record<number, Contesta
   }
 
   const contestant = contestants[selectedContestantId];
-  const effectiveWaypoints = contestant?.compiled_effective_route_payload?.effective_waypoints;
+  const payload = contestant?.compiled_effective_route_payload || {};
+  const actualRoute = payload.actual_route;
+  const actualWaypoints = Array.isArray(actualRoute?.waypoints) ? actualRoute.waypoints : [];
+  if (actualWaypoints.length > 0) {
+    return {
+      ...route,
+      waypoints: actualWaypoints as Waypoint[],
+    };
+  }
+
+  const effectiveWaypoints = payload.effective_waypoints;
   if (!Array.isArray(effectiveWaypoints) || effectiveWaypoints.length === 0) {
     return route;
   }
@@ -357,6 +391,12 @@ function getRenderedCatalogueTargets(
   const contestant = contestants[selectedContestantId];
   const payload = contestant?.compiled_effective_route_payload || {};
   const effectiveWaypoints = Array.isArray(payload.effective_waypoints) ? payload.effective_waypoints : [];
+  const actualRoute = payload.actual_route;
+  const actualRouteWaypoints = Array.isArray(actualRoute?.waypoints) ? actualRoute.waypoints : [];
+
+  if (actualRouteWaypoints.length > 0 && Array.isArray(taskCatalogueTargets) && taskCatalogueTargets.length > 0) {
+    return taskCatalogueTargets;
+  }
 
   // Selected-contestant mode should prefer the contestant's declaration-backed
   // effective route geometry over the generic task-level catalogue overlay.
@@ -399,7 +439,8 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, taskCo
       layers = layers.concat(renderLandingRoute(map, renderedRoute));
     }
     if (renderedCatalogueTargets.length > 0) {
-      layers = layers.concat(renderCatalogueTargets(map, renderedCatalogueTargets));
+      const showUnknownLegOverlays = selectedContestantId !== null && Array.isArray((contestants[selectedContestantId]?.compiled_effective_route_payload?.actual_route?.waypoints)) && (contestants[selectedContestantId]?.compiled_effective_route_payload?.actual_route?.waypoints?.length ?? 0) > 0;
+      layers = layers.concat(renderCatalogueTargets(map, renderedCatalogueTargets, showUnknownLegOverlays));
       const circleTargets = renderedCatalogueTargets.filter((target) => target.kind?.startsWith('circle_'));
       if (circleTargets.length > 0) {
         layers = layers.concat(renderCircleTaskGeometry(map, circleTargets, taskConfig));

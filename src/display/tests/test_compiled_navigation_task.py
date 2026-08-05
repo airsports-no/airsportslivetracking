@@ -16,6 +16,7 @@ from display.utilities.cima_task_type_definitions import (
     PRECISION_NAVIGATION,
     UNKNOWN_LEGS,
 )
+
 from utilities.mock_utilities import TraccarMock
 
 
@@ -298,6 +299,105 @@ class TestCompiledNavigationTask(TestCase):
         compiled = TaskCompiler(self.navigation_task).compile(force=True)
         self.assertFalse(compiled.compiled_payload["is_valid"])
         self.assertIn("observation_photo", " ".join(compiled.compiled_payload["validation_errors"]))
+
+    def test_unknown_legs_compiles_segment_and_actual_route_payload(self):
+        self.navigation_task.task_subtype = UNKNOWN_LEGS
+        self.navigation_task.editable_route = EditableRoute.objects.create(
+            name="Unknown legs compiled route",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2], [11.3, 60.3], [11.4, 60.4], [11.5, 60.5]]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-a", "name": "A", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "wp-trg", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 2, "unknownLegHeading": 105}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "wp-d1", "name": "D1", "pointType": "dummy", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 3}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
+                    {"type": "Feature", "properties": {"id": "wp-b", "name": "B", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 4}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 5}, "geometry": {"type": "Point", "coordinates": [11.5, 60.5]}},
+                    {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"}, "geometry": {"type": "Point", "coordinates": [11.22, 60.22]}},
+                    {"type": "Feature", "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"}, "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]}},
+                    {"type": "Feature", "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"}, "geometry": {"type": "LineString", "coordinates": [[11.5, 60.5], [11.6, 60.6]]}},
+                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
+                ],
+            },
+        )
+        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
+
+        compiled = TaskCompiler(self.navigation_task).compile(force=True)
+
+        self.assertTrue(compiled.compiled_payload["is_valid"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["unknown_leg"], ["TRG1"])
+        self.assertEqual(
+            [segment["name"] for segment in compiled.compiled_payload["unknown_legs_segments"]],
+            ["segment_1", "segment_2"],
+        )
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_segments"][0]["actual_waypoint_names"],
+            ["SP", "HG1", "A", "TRG1"],
+        )
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_segments"][0]["display_waypoint_names"],
+            ["SP", "HG1", "A", "TRG1", "D1"],
+        )
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_segments"][0]["display_coordinates_by_name"]["D1"],
+            [11.3, 60.3],
+        )
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_actual_route"]["waypoint_names"],
+            ["SP", "HG1", "A", "TRG1", "B", "FP"],
+        )
+        self.assertEqual(
+            [item["name"] for item in compiled.compiled_payload["unknown_legs_actual_route"]["waypoints"]],
+            ["SP", "HG1", "A", "TRG1", "B", "FP"],
+        )
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_actual_route"]["unknown_leg_connectors"][0]["from"],
+            "TRG1",
+        )
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_actual_route"]["unknown_leg_connectors"][0]["to"],
+            "B",
+        )
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_hidden_gates"],
+            [{"name": "HG1", "coordinates": [11.22, 60.22]}],
+        )
+
+    def test_unknown_legs_treats_hidden_route_backbone_points_as_hidden_gates(self):
+        self.navigation_task.task_subtype = UNKNOWN_LEGS
+        self.navigation_task.editable_route = EditableRoute.objects.create(
+            name="Unknown legs route-backbone hidden gates",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2], [11.3, 60.3], [11.4, 60.4], [11.5, 60.5], [11.6, 60.6]]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-h1", "name": "HG1", "pointType": "hidden_gate", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "wp-trg", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 2, "unknownLegHeading": 105}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "wp-d1", "name": "D1", "pointType": "dummy", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 3}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
+                    {"type": "Feature", "properties": {"id": "wp-h2", "name": "HG2", "pointType": "hidden_gate", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 4}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 5}, "geometry": {"type": "Point", "coordinates": [11.5, 60.5]}},
+                    {"type": "Feature", "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"}, "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]}},
+                    {"type": "Feature", "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"}, "geometry": {"type": "LineString", "coordinates": [[11.5, 60.5], [11.6, 60.6]]}},
+                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
+                ],
+            },
+        )
+        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
+
+        compiled = TaskCompiler(self.navigation_task).compile(force=True)
+
+        self.assertTrue(compiled.compiled_payload["is_valid"], compiled.compiled_payload["validation_errors"])
+        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["hidden_gate"], ["HG1", "HG2"])
+        self.assertEqual(
+            [item["name"] for item in compiled.compiled_payload["unknown_legs_hidden_gates"]],
+            ["HG1", "HG2"],
+        )
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_actual_route"]["waypoint_names"],
+            ["SP", "HG1", "TRG1", "HG2", "FP"],
+        )
 
     def test_task_compiler_preserves_duration_task_config(self):
         self.navigation_task.task_subtype = DURATION

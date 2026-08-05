@@ -1267,7 +1267,7 @@ class NavigationTaskViewSet(ModelViewSet):
                             for item in observation_photos
                         ]
                     )
-        if navigation_task.user_has_change_permissions(request.user):
+        if navigation_task.user_has_change_permissions(request.user) and contestant is None:
             serializer = PhotoSerialiser(photos, many=True)
         else:
             serializer = PhotoPublicSerialiser(photos, many=True, context={"contestant": contestant})
@@ -1776,7 +1776,12 @@ def generate_score_data(contestant_pk):
     )
     data["administrative_penalties"] = administrative_penalties
     if hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
-        data["compiled_effective_route_payload"] = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+        payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+        data["compiled_effective_route_payload"] = payload
+    else:
+        from display.services.contestant_task_compiler import ContestantTaskCompiler
+        compiled = ContestantTaskCompiler(contestant).compile(force=True)
+        data["compiled_effective_route_payload"] = compiled.compiled_effective_route_payload or {}
 
     return data
 
@@ -1886,6 +1891,12 @@ class ContestantViewSet(ModelViewSet):
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
         is_finished = hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished
+        if not hasattr(contestant, "contestanttaskconfiguration"):
+            from display.services.contestant_task_compiler import ContestantTaskCompiler
+            ContestantTaskCompiler(contestant).compile(force=True)
+        elif not contestant.contestanttaskconfiguration.is_valid:
+            from display.services.contestant_task_compiler import ContestantTaskCompiler
+            ContestantTaskCompiler(contestant).compile(force=True)
 
         # ETag based on contestant's track and score versions. 
         # track_version only bumps on (re)start. score_version bumps on admin edits.
@@ -2175,8 +2186,13 @@ class ContestantViewSet(ModelViewSet):
     def compiled_evidence(self, request, pk=None, **kwargs):
         """Return organizer-facing compiled evidence metadata for the contestant."""
         contestant = self.get_object()
-        if hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
-            payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+        from display.services.contestant_task_compiler import ContestantTaskCompiler
+        declaration_payload = {}
+        if hasattr(contestant, "contestanttaskconfiguration"):
+            declaration_payload = contestant.contestanttaskconfiguration.declaration_payload or {}
+        refreshed = ContestantTaskCompiler(contestant).compile(declaration_payload=declaration_payload, force=False)
+        payload = refreshed.compiled_effective_route_payload or {}
+        if payload:
             return Response(
                 {
                     "observation_photos": [

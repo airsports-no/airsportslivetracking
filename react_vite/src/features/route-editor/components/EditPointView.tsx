@@ -61,6 +61,7 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
               fp: 'route_waypoint',
               anrtp: 'route_waypoint',
               ul: 'route_waypoint',
+              dummy: 'route_waypoint',
               known_time_gate: 'known_time_gate',
               hidden_gate: 'hidden_gate',
               catalogue_turnpoint: 'catalogue_turnpoint',
@@ -79,6 +80,7 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
           <option value="tp">Visible Turning Point</option>
           <option value="secret">Secret Point</option>
           <option value="fp">Finish Point</option>
+          <option value="dummy">Dummy Point</option>
           <option value="known_time_gate">Known Time Gate</option>
           <option value="hidden_gate">Hidden Gate</option>
           <option value="ul">Unknown Leg</option>

@@ -23,7 +23,15 @@ from display.utilities.editable_route_utilities import (
     create_penalty_zone,
     get_quadratic_bezier_points,
 )
-from display.utilities.gate_definitions import DUMMY, UNKNOWN_LEG, STARTINGPOINT, FINISHPOINT, SECRETPOINT
+from display.utilities.gate_definitions import (
+    DUMMY,
+    UNKNOWN_LEG,
+    STARTINGPOINT,
+    FINISHPOINT,
+    SECRETPOINT,
+    HIDDEN_GATE,
+    KNOWN_TIME_GATE,
+)
 from display.utilities.navigation_task_type_definitions import (
     NAVIGATION_TASK_TYPES,
     PRECISION,
@@ -183,10 +191,26 @@ class EditableRoute(models.Model):
         return self.get_features_type("route_from_fp_path")
 
     def get_known_time_gates(self) -> list[dict]:
-        return self.get_features_type("known_time_gate")
+        return [
+            item
+            for item in self.route["features"]
+            if item.get("properties", {}).get("featureType") == "known_time_gate"
+            or (
+                item.get("properties", {}).get("featureType") == "route_waypoint"
+                and item.get("properties", {}).get("pointType") == KNOWN_TIME_GATE
+            )
+        ]
 
     def get_hidden_gates(self) -> list[dict]:
-        return self.get_features_type("hidden_gate")
+        return [
+            item
+            for item in self.route["features"]
+            if item.get("properties", {}).get("featureType") == "hidden_gate"
+            or (
+                item.get("properties", {}).get("featureType") == "route_waypoint"
+                and item.get("properties", {}).get("pointType") == HIDDEN_GATE
+            )
+        ]
 
     def get_unknown_leg_waypoints(self) -> list[dict]:
         return [
@@ -209,7 +233,12 @@ class EditableRoute(models.Model):
         """
         Returns track waypoints sorted by their sequence number.
         """
-        waypoints = self.get_features_type("route_waypoint")
+        waypoints = [
+            item
+            for item in self.route["features"]
+            if item.get("geometry", {}).get("type") == "Point"
+            and item.get("properties", {}).get("featureType") in {"route_waypoint", "hidden_gate", "known_time_gate"}
+        ]
         return sorted(waypoints, key=lambda x: x["properties"].get("sequence", 0))
 
     def get_takeoff_gates(self) -> list:

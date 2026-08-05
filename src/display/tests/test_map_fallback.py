@@ -217,6 +217,137 @@ class MapFallbackTests(TestCase):
         mock_plot_catalogue_targets.assert_called_once()
         self.assertEqual(mock_plot_precision_track.call_args.kwargs["render_waypoints"], [])
 
+    def test_get_task_catalogue_targets_unknown_legs_selected_contestant_includes_visible_segments_and_hidden_overlays(self):
+        from types import SimpleNamespace
+        from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
+        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+
+        editable_route = EditableRoute.objects.create(
+            name="Unknown legs target source",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2], [11.3, 60.3], [11.4, 60.4]]}},
+                    {"type": "Feature", "properties": {"id": "sp-1", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "a-1", "name": "A", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "ul-1", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 2, "unknownLegHeading": 105}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "dummy-1", "name": "D1", "pointType": "dummy", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 3}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
+                    {"type": "Feature", "properties": {"id": "b-1", "name": "B", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 4}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                    {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"}, "geometry": {"type": "Point", "coordinates": [11.22, 60.22]}},
+                ],
+            },
+        )
+        self.task.editable_route = editable_route
+        self.task.task_subtype = UNKNOWN_LEGS
+        self.task.save(update_fields=["editable_route", "task_subtype"])
+
+        contestant = SimpleNamespace(
+            contestanttaskconfiguration=SimpleNamespace(
+                is_valid=True,
+                compiled_effective_route_payload={
+                    "segments": [
+                        {
+                            "name": "segment_1",
+                            "display_waypoint_names": ["SP", "A", "TRG1", "D1"],
+                            "display_coordinates_by_name": {
+                                "SP": [11.0, 60.0],
+                                "A": [11.1, 60.1],
+                                "TRG1": [11.2, 60.2],
+                                "D1": [11.3, 60.3],
+                            },
+                        }
+                    ],
+                    "actual_route": {
+                        "waypoints": [
+                            {"name": "SP", "type": "sp", "coordinates": [11.0, 60.0]},
+                            {"name": "A", "type": "tp", "coordinates": [11.1, 60.1]},
+                            {"name": "TRG1", "type": "ul", "coordinates": [11.2, 60.2]},
+                            {"name": "B", "type": "tp", "coordinates": [11.4, 60.4]},
+                        ],
+                        "unknown_leg_connectors": [
+                            {"from": "TRG1", "to": "B", "from_coordinates": [11.2, 60.2], "to_coordinates": [11.4, 60.4]},
+                        ],
+                    },
+                    "hidden_gates": [{"name": "HG1", "coordinates": [11.22, 60.22]}],
+                },
+            )
+        )
+
+        targets = get_task_catalogue_targets(self.task, contestant=contestant)
+
+        self.assertEqual(
+            targets,
+            [
+                {"name": "SP", "coordinates": [11.0, 60.0], "kind": "catalogue_turnpoint"},
+                {"name": "A", "coordinates": [11.1, 60.1], "kind": "catalogue_turnpoint"},
+                {"name": "TRG1", "coordinates": [11.2, 60.2], "kind": "catalogue_turnpoint"},
+                {"name": "D1", "coordinates": [11.3, 60.3], "kind": "catalogue_turnpoint"},
+                {"name": "TRG1", "coordinates": [11.2, 60.2], "kind": "unknown_leg_trigger"},
+                {"name": "TRG1→B", "coordinates": [11.4, 60.4], "kind": "unknown_leg_connector_end"},
+                {"name": "HG1", "coordinates": [11.22, 60.22], "kind": "hidden_gate"},
+            ],
+        )
+
+    def test_get_task_catalogue_targets_unknown_legs_route_backbone_hidden_gates(self):
+        from types import SimpleNamespace
+        from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
+        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+
+        editable_route = EditableRoute.objects.create(
+            name="Unknown legs route-backbone hidden gates",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2], [11.3, 60.3], [11.4, 60.4]]}},
+                    {"type": "Feature", "properties": {"id": "sp-1", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "hidden_gate", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "ul-1", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 2, "unknownLegHeading": 105}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "dummy-1", "name": "D1", "pointType": "dummy", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 3}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
+                    {"type": "Feature", "properties": {"id": "fp-1", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 4}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                ],
+            },
+        )
+        self.task.editable_route = editable_route
+        self.task.task_subtype = UNKNOWN_LEGS
+        self.task.save(update_fields=["editable_route", "task_subtype"])
+
+        contestant = SimpleNamespace(
+            contestanttaskconfiguration=SimpleNamespace(
+                is_valid=True,
+                compiled_effective_route_payload={
+                    "segments": [
+                        {
+                            "name": "segment_1",
+                            "display_waypoint_names": ["SP", "HG1", "TRG1", "D1"],
+                            "display_coordinates_by_name": {
+                                "SP": [11.0, 60.0],
+                                "HG1": [11.1, 60.1],
+                                "TRG1": [11.2, 60.2],
+                                "D1": [11.3, 60.3],
+                            },
+                        }
+                    ],
+                    "actual_route": {
+                        "waypoints": [
+                            {"name": "SP", "type": "sp", "coordinates": [11.0, 60.0]},
+                            {"name": "HG1", "type": "hidden_gate", "coordinates": [11.1, 60.1]},
+                            {"name": "TRG1", "type": "ul", "coordinates": [11.2, 60.2]},
+                            {"name": "FP", "type": "fp", "coordinates": [11.4, 60.4]},
+                        ],
+                        "unknown_leg_connectors": [
+                            {"from": "TRG1", "to": "FP", "from_coordinates": [11.2, 60.2], "to_coordinates": [11.4, 60.4]},
+                        ],
+                    },
+                    "hidden_gates": [{"name": "HG1", "coordinates": [11.1, 60.1]}],
+                },
+            )
+        )
+
+        targets = get_task_catalogue_targets(self.task, contestant=contestant)
+
+        self.assertIn({"name": "HG1", "coordinates": [11.1, 60.1], "kind": "catalogue_turnpoint"}, targets)
+        self.assertIn({"name": "HG1", "coordinates": [11.1, 60.1], "kind": "hidden_gate"}, targets)
+
     def test_get_task_catalogue_targets_includes_circle_markers(self):
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
         from display.utilities.cima_task_type_definitions import CIRCLE

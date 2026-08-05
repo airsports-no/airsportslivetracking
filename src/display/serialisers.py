@@ -422,8 +422,11 @@ class PhotoPublicSerialiser(serializers.ModelSerializer):
         if contestant and hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
             payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
             for item in payload.get("observation_photos", []):
-                if item.get("name") == obj.name:
+                item_name = item.get("name")
+                if item_name == obj.name or item.get("target_name") == obj.name:
                     return item.get("coordinates")
+        if getattr(obj, "longitude", None) is not None and getattr(obj, "latitude", None) is not None:
+            return [obj.longitude, obj.latitude]
         return None
 
     def get_evidence_category(self, obj):
@@ -433,7 +436,8 @@ class PhotoPublicSerialiser(serializers.ModelSerializer):
         contestant = self.context.get("contestant")
         payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
         for item in payload.get("observation_photos", []):
-            if item.get("name") == obj.name:
+            item_name = item.get("name")
+            if item_name == obj.name or item.get("target_name") == obj.name:
                 return item.get("evidence_category")
         return "observation"
 
@@ -1404,7 +1408,8 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     def get_task_catalogue_targets(self, obj):
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
 
-        return get_task_catalogue_targets(obj)
+        contestant = self.context.get("contestant")
+        return get_task_catalogue_targets(obj, contestant=contestant)
 
     @staticmethod
     def setup_eager_loading(queryset):

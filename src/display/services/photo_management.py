@@ -6,6 +6,29 @@ from display.models import Photo
 
 
 def get_navigation_task_photo_targets(navigation_task) -> list[dict[str, Any]]:
+    if getattr(navigation_task, "task_subtype", None) in {"known_circuit", "unknown_legs"}:
+        editable_route = navigation_task.editable_route
+        if editable_route is None:
+            return []
+        targets: list[dict[str, Any]] = []
+        for point in editable_route.get_observation_photos():
+            properties = point.get("properties", {})
+            geometry = point.get("geometry", {})
+            coordinates = geometry.get("coordinates", [])
+            name = properties.get("name")
+            if not name or len(coordinates) != 2:
+                continue
+            lon, lat = coordinates
+            targets.append(
+                {
+                    "name": name,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "target_kind": "observation",
+                }
+            )
+        return targets
+
     targets: list[dict[str, Any]] = []
     seen_names: set[str] = set()
 

@@ -7,9 +7,10 @@ from display.utilities.cima_task_type_definitions import (
     LIMITED_FUEL_TURNPOINT_HUNT,
     PRECISION_NAVIGATION,
     TURNPOINT_HUNT,
+    UNKNOWN_LEGS,
     get_task_subtype_definition,
 )
-from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNPOINT
+from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNPOINT, UNKNOWN_LEG, DUMMY
 
 
 class TaskCompiler:
@@ -52,6 +53,7 @@ class TaskCompiler:
             # be removed once the remaining tests/callers migrate.
             "compiled_primitives": primitives,
             "compiled_auxiliary_paths": self._build_compiled_auxiliary_paths(),
+            **self._build_subtype_payload(primitives),
             "validation_errors": validation_errors,
             "is_valid": len(validation_errors) == 0,
         }
@@ -116,6 +118,8 @@ class TaskCompiler:
             errors.extend(self._validate_precision_navigation_structure(primitives))
         if subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
             errors.extend(self._validate_turnpoint_hunt_structure(primitives))
+        if subtype == UNKNOWN_LEGS:
+            errors.extend(self._validate_unknown_legs_structure(primitives))
         return errors
 
     def _validate_precision_navigation_structure(self, primitives: dict) -> list[str]:
@@ -181,6 +185,186 @@ class TaskCompiler:
             errors.append("Turnpoint hunt requires at least one free catalogue target.")
 
         return errors
+
+    def _validate_unknown_legs_structure(self, primitives: dict) -> list[str]:
+        editable_route = self.navigation_task.editable_route
+        if editable_route is None:
+            return []
+
+        errors = []
+        authored_waypoints = editable_route.get_ordered_track_waypoints()
+        if len(authored_waypoints) < 3:
+            errors.append("Unknown legs requires at least a start point, one trigger segment, and a finish point.")
+            return errors
+
+        first_type = authored_waypoints[0].get("properties", {}).get("pointType")
+        last_type = authored_waypoints[-1].get("properties", {}).get("pointType")
+        if first_type != STARTINGPOINT or last_type != FINISHPOINT:
+            errors.append("Unknown legs route waypoints must start at SP and finish at FP.")
+
+        unknown_leg_names = [name for name in primitives.get("unknown_leg", []) if name]
+        if not unknown_leg_names:
+            errors.append("Unknown legs requires at least one unknown-leg trigger waypoint.")
+
+        point_types = [item.get("properties", {}).get("pointType") for item in authored_waypoints]
+        for trigger_index, point_type in enumerate(point_types):
+            if point_type != UNKNOWN_LEG:
+                continue
+            has_dummy_after_trigger = False
+            for following_type in point_types[trigger_index + 1 :]:
+                if following_type == DUMMY:
+                    has_dummy_after_trigger = True
+                    continue
+                break
+            if not has_dummy_after_trigger:
+                errors.append("Unknown legs requires at least one dummy waypoint after each unknown-leg trigger.")
+                break
+
+        if not primitives.get("route_to_sp_path", []) or not primitives.get("route_from_fp_path", []):
+            errors.append("Unknown legs requires route_to_sp_path and route_from_fp_path for the full competition workflow.")
+        if not unknown_leg_names:
+            return errors
+
+        return errors
+
+    def _build_unknown_legs_compiled_payload(self) -> dict:
+        editable_route = self.navigation_task.editable_route
+        if editable_route is None:
+            return {
+                "unknown_legs_segments": [],
+                "unknown_legs_actual_route": {
+                    "waypoint_names": [],
+                    "waypoints": [],
+                    "unknown_leg_connectors": [],
+                },
+                "unknown_legs_hidden_gates": [],
+            }
+
+        ordered_waypoints = editable_route.get_ordered_track_waypoints()
+        if not ordered_waypoints:
+            return {
+                "unknown_legs_segments": [],
+                "unknown_legs_actual_route": {
+                    "waypoint_names": [],
+                    "waypoints": [],
+                    "unknown_leg_connectors": [],
+                },
+                "unknown_legs_hidden_gates": [],
+            }
+
+        segments = []
+        current_segment = {
+            "name": "segment_1",
+            "display_waypoint_names": [],
+            "display_coordinates_by_name": {},
+            "actual_waypoint_names": [],
+            "actual_coordinates_by_name": {},
+        }
+        actual_route_names = []
+        actual_route_waypoints = []
+        connectors = []
+        segment_index = 1
+        flush_after_dummy = None
+
+        def append_actual_name(name: str):
+            if not actual_route_names or actual_route_names[-1] != name:
+                actual_route_names.append(name)
+
+        def append_actual_waypoint(name: str, point_type: str, coordinates: list):
+            if actual_route_waypoints and actual_route_waypoints[-1].get("name") == name:
+                return
+            actual_route_waypoints.append(
+                {
+                    "name": name,
+                    "type": point_type,
+                    "coordinates": coordinates,
+                }
+            )
+
+        def feature_coordinates(item: dict) -> list:
+            return item.get("geometry", {}).get("coordinates", [])
+
+        for index, item in enumerate(ordered_waypoints):
+            properties = item.get("properties", {})
+            name = properties.get("name")
+            point_type = properties.get("pointType")
+            coordinates = feature_coordinates(item)
+            if not name:
+                continue
+
+            if point_type == DUMMY and flush_after_dummy is not None:
+                flush_after_dummy["display_waypoint_names"].append(name)
+                flush_after_dummy["display_coordinates_by_name"][name] = coordinates
+                segments.append(flush_after_dummy)
+                segment_index += 1
+                current_segment = {
+                    "name": f"segment_{segment_index}",
+                    "display_waypoint_names": [],
+                    "display_coordinates_by_name": {},
+                    "actual_waypoint_names": [],
+                    "actual_coordinates_by_name": {},
+                }
+                flush_after_dummy = None
+                continue
+
+            current_segment["display_waypoint_names"].append(name)
+            current_segment["display_coordinates_by_name"][name] = coordinates
+
+            if point_type != DUMMY:
+                current_segment["actual_waypoint_names"].append(name)
+                current_segment["actual_coordinates_by_name"][name] = coordinates
+                append_actual_name(name)
+                append_actual_waypoint(name, point_type, coordinates)
+
+            if point_type == UNKNOWN_LEG:
+                next_real_waypoint = None
+                for next_item in ordered_waypoints[index + 1 :]:
+                    next_type = next_item.get("properties", {}).get("pointType")
+                    if next_type == DUMMY:
+                        continue
+                    next_real_waypoint = next_item
+                    break
+                if next_real_waypoint is not None:
+                    next_name = next_real_waypoint.get("properties", {}).get("name")
+                    next_coordinates = feature_coordinates(next_real_waypoint)
+                    connectors.append(
+                        {
+                            "from": name,
+                            "to": next_name,
+                            "heading": properties.get("unknownLegHeading"),
+                            "from_coordinates": coordinates,
+                            "to_coordinates": next_coordinates,
+                        }
+                    )
+                flush_after_dummy = current_segment
+                continue
+
+        if current_segment["display_waypoint_names"] or current_segment["actual_waypoint_names"]:
+            segments.append(current_segment)
+        elif flush_after_dummy is not None:
+            segments.append(flush_after_dummy)
+
+        return {
+            "unknown_legs_segments": segments,
+            "unknown_legs_actual_route": {
+                "waypoint_names": actual_route_names,
+                "waypoints": actual_route_waypoints,
+                "unknown_leg_connectors": connectors,
+            },
+            "unknown_legs_hidden_gates": [
+                {
+                    "name": item.get("properties", {}).get("name") or "",
+                    "coordinates": item.get("geometry", {}).get("coordinates", []),
+                }
+                for item in editable_route.get_hidden_gates()
+                if len(item.get("geometry", {}).get("coordinates", [])) == 2
+            ],
+        }
+
+    def _build_subtype_payload(self, primitives: dict) -> dict:
+        if self._get_effective_task_subtype() == UNKNOWN_LEGS:
+            return self._build_unknown_legs_compiled_payload()
+        return {}
 
     def _calculate_source_signature(self) -> str:
         route_pk = getattr(self.navigation_task.route, "pk", "")

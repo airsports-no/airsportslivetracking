@@ -15,6 +15,7 @@ from display.utilities.cima_task_type_definitions import (
     TURNPOINT_HUNT,
     UNKNOWN_LEGS,
 )
+from display.utilities.gate_definitions import DUMMY, FINISHPOINT, STARTINGPOINT, TURNPOINT, UNKNOWN_LEG
 from display.utilities.route_building_utilities import (
     build_waypoint,
     calculate_and_update_legs,
@@ -368,6 +369,13 @@ class ObservationEvidenceStrategy(ContestantTaskCompilerStrategy):
         return self.compiler._build_observation_evidence_payload(compiled_task)
 
 
+class UnknownLegsStrategy(ContestantTaskCompilerStrategy):
+    def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
+        payload = self.compiler._build_observation_evidence_payload(compiled_task)
+        payload.update(self.compiler._build_unknown_legs_payload(compiled_task))
+        return payload
+
+
 class ContestantTaskCompiler:
     def __init__(self, contestant):
         self.contestant = contestant
@@ -382,8 +390,10 @@ class ContestantTaskCompiler:
             return TurnpointHuntStrategy(self)
         if subtype == DURATION:
             return DurationStrategy(self)
-        if subtype in (KNOWN_CIRCUIT, UNKNOWN_LEGS):
+        if subtype == KNOWN_CIRCUIT:
             return ObservationEvidenceStrategy(self)
+        if subtype == UNKNOWN_LEGS:
+            return UnknownLegsStrategy(self)
         return ContestantTaskCompilerStrategy(self)
 
     def compile(self, declaration_payload: dict | None = None, force: bool = False) -> ContestantTaskConfiguration:
@@ -562,6 +572,18 @@ class ContestantTaskCompiler:
             "observation_photos": observation_photos,
             "hidden_gate_names": compiled_task.get_compiled_primitives().get("hidden_gate", []),
             "unknown_leg_names": compiled_task.get_compiled_primitives().get("unknown_leg", []),
+        }
+
+    def _build_unknown_legs_payload(self, compiled_task) -> dict:
+        payload = (compiled_task.compiled_payload or {}) if compiled_task else {}
+        return {
+            "segments": payload.get("unknown_legs_segments", []),
+            "actual_route": payload.get(
+                "unknown_legs_actual_route",
+                {"waypoint_names": [], "waypoints": [], "unknown_leg_connectors": []},
+            ),
+            "hidden_gates": payload.get("unknown_legs_hidden_gates", []),
+            "map_rendering_mode": "unknown_legs_split",
         }
 
     def _get_turnpoint_hunt_compulsory_point_names(self, compiled_task) -> list[str]:
