@@ -1,8 +1,9 @@
 from django.utils import timezone
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import requests
-from display.flight_order_and_maps.map_plotter import LocalMapServer, plot_route, get_plot_extent
+from urllib.error import HTTPError
+from display.flight_order_and_maps.map_plotter import AirsportsOSM, LocalMapServer, plot_route, get_plot_extent, plot_catalogue_targets, TILE_RATE_LIMIT_ABORT_THRESHOLD
 from display.utilities.route_building_utilities import build_waypoint
 from display.models import NavigationTask, Route, Contest, EditableRoute
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
@@ -107,30 +108,65 @@ class MapFallbackTests(TestCase):
             LocalMapServer("nonexistent_map")
 
     @patch('display.flight_order_and_maps.map_plotter.LocalMapServer')
-    @patch('display.flight_order_and_maps.map_plotter.OSM')
-    def test_plot_route_falls_back_to_osm(self, mock_osm, mock_local_server):
+    def test_plot_route_falls_back_to_osm(self, mock_local_server):
         # LocalMapServer fails to initialize
         mock_local_server.side_effect = requests.RequestException("Server down")
-        
-        # We need to mock the imagery object returned by OSM
-        from unittest.mock import MagicMock
-        mock_osm_instance = MagicMock()
-        mock_osm.return_value = mock_osm_instance
-        
+
         # Mock other dependencies for plot_route to get far enough
         from display.flight_order_and_maps.map_constants import A4
-        with patch('display.flight_order_and_maps.map_plotter.plt.figure'), \
+        with patch('display.flight_order_and_maps.map_plotter.AirsportsOSM') as mock_airsports_osm, \
+             patch('display.flight_order_and_maps.map_plotter.plt.figure'), \
              patch('display.flight_order_and_maps.map_plotter.ccrs.PlateCarree'), \
              patch('display.utilities.coordinate_utilities.calculate_bounding_box', return_value=(0,1,0,1)):
-            
+
+            mock_airsports_osm.return_value = MagicMock()
             try:
                 plot_route(self.task, A4, map_source="some_map")
             except Exception:
                 # We expect some failure downstream because we didn't mock everything,
-                # but we want to check if OSM was instantiated as fallback.
+                # but we want to check if OSM fallback imagery was instantiated.
                 pass
-                
-        mock_osm.assert_called()
+
+        mock_airsports_osm.assert_called()
+
+    def test_airsports_osm_abandons_background_after_repeated_429s(self):
+        imagery = AirsportsOSM(user_agent="airsports.no, support@airsports.no")
+
+        response = MagicMock()
+        response.status_code = 429
+        response.content = b""
+
+        with patch('display.flight_order_and_maps.map_plotter.requests.get', return_value=response):
+            for index in range(TILE_RATE_LIMIT_ABORT_THRESHOLD + 1):
+                tile_x = index % 2
+                img, _, _ = imagery.get_image((tile_x, 0, 1))
+                self.assertEqual(img.size, (256, 256))
+
+        self.assertTrue(imagery._background_fetch_aborted)
+        self.assertEqual(imagery._tile_rate_limit_errors, TILE_RATE_LIMIT_ABORT_THRESHOLD + 1)
+
+        with patch('display.flight_order_and_maps.map_plotter.requests.get') as mock_requests_get:
+            imagery.get_image((1, 0, 1))
+        mock_requests_get.assert_not_called()
+
+    def test_flight_contest_abandons_background_after_repeated_429s(self):
+        from display.flight_order_and_maps.map_plotter import FlightContest
+
+        imagery = FlightContest(desired_tile_form="RGBA")
+        rate_limited = HTTPError('https://example.invalid/tile.png', 429, 'Too Many Requests', hdrs=MagicMock(), fp=None)
+
+        with patch('urllib.request.urlopen', side_effect=rate_limited):
+            for index in range(TILE_RATE_LIMIT_ABORT_THRESHOLD + 1):
+                tile_x = index % 2
+                img, _, _ = imagery.get_image((tile_x, 0, 1))
+                self.assertEqual(img.size, (256, 256))
+
+        self.assertTrue(imagery._background_fetch_aborted)
+        self.assertEqual(imagery._tile_rate_limit_errors, TILE_RATE_LIMIT_ABORT_THRESHOLD + 1)
+
+        with patch('urllib.request.urlopen') as mock_urlopen:
+            imagery.get_image((1, 0, 1))
+        mock_urlopen.assert_not_called()
 
     @patch('display.flight_order_and_maps.map_plotter.plot_catalogue_targets')
     @patch('display.flight_order_and_maps.map_plotter.get_task_catalogue_targets', return_value=[{"name": "A", "coordinates": [11.0, 60.0], "kind": "catalogue_turnpoint"}])
@@ -139,14 +175,14 @@ class MapFallbackTests(TestCase):
     @patch('display.flight_order_and_maps.map_plotter.plot_precision_track', return_value=[])
     @patch('display.flight_order_and_maps.map_plotter.scale_bar_y')
     @patch('display.flight_order_and_maps.map_plotter.utm_from_lat_lon')
-    @patch('display.flight_order_and_maps.map_plotter.OSM')
+    @patch('display.flight_order_and_maps.map_plotter.AirsportsOSM')
     @patch('display.flight_order_and_maps.map_plotter.plt')
     @patch('display.flight_order_and_maps.map_plotter.ccrs')
     def test_plot_route_adds_catalogue_targets_for_generic_task_map(
         self,
         mock_ccrs,
         mock_plt,
-        mock_osm,
+        mock_airsports_osm,
         mock_utm,
         _mock_scale_bar,
         mock_plot_precision_track,
@@ -159,7 +195,7 @@ class MapFallbackTests(TestCase):
         from display.flight_order_and_maps.map_constants import A4
 
         mock_osm_instance = MagicMock()
-        mock_osm.return_value = mock_osm_instance
+        mock_airsports_osm.return_value = mock_osm_instance
         mock_ax = MagicMock()
         mock_fig = MagicMock()
         mock_fig.patch = MagicMock()
@@ -254,6 +290,46 @@ class MapFallbackTests(TestCase):
         )
 
         self.assertEqual(extent, (59.99, 61.0, 10.99, 12.0))
+
+    @patch('display.flight_order_and_maps.map_plotter.plt')
+    @patch('display.flight_order_and_maps.map_plotter.ccrs')
+    def test_plot_catalogue_targets_renders_circle_geometry_like_live_map(self, mock_ccrs, mock_plt):
+        mock_ccrs.PlateCarree.return_value = MagicMock()
+
+        targets = [
+            {"name": "SP", "coordinates": [11.0, 60.0], "kind": "circle_start_marker"},
+            {"name": "IN", "coordinates": [11.01, 60.01], "kind": "circle_entry_marker"},
+            {"name": "CM", "coordinates": [11.02, 60.02], "kind": "circle_center_marker"},
+            {"name": "OUT", "coordinates": [11.03, 60.03], "kind": "circle_exit_marker"},
+        ]
+
+        plot_catalogue_targets(
+            targets,
+            "#0000ff",
+            task_config={"circle_radius_min_m": 250, "circle_radius_max_m": 500},
+        )
+
+        plot_calls = mock_plt.plot.call_args_list
+        circle_calls = [
+            call
+            for call in plot_calls
+            if len(call.args) >= 2 and isinstance(call.args[0], tuple) and len(call.args[0]) > 10 and call.kwargs.get("linestyle") in {(0, (3, 3)), (0, (10, 4))}
+        ]
+        self.assertEqual(len(circle_calls), 2)
+        self.assertEqual(len(circle_calls[0].args[0]), 73)
+        self.assertEqual(len(circle_calls[1].args[0]), 73)
+        self.assertEqual(circle_calls[0].kwargs["color"], "#0f9d58")
+        self.assertEqual(circle_calls[1].kwargs["color"], "#b91c1c")
+        self.assertEqual(circle_calls[0].kwargs["linewidth"], 2.4)
+        self.assertEqual(circle_calls[1].kwargs["linewidth"], 1.6)
+        rendered_segments = {
+            tuple((round(arg[0], 5), round(arg[1], 5)) for arg in call.args[:2])
+            for call in plot_calls
+            if len(call.args) >= 2 and isinstance(call.args[0], tuple) and isinstance(call.args[1], tuple)
+        }
+        self.assertIn(((11.0, 11.01), (60.0, 60.01)), rendered_segments)
+        self.assertIn(((11.01, 11.02), (60.01, 60.02)), rendered_segments)
+        self.assertIn(((11.02, 11.03), (60.02, 60.03)), rendered_segments)
 
     def test_plot_leg_bearing_skips_zero_length_leg(self):
         from display.flight_order_and_maps.map_plotter import plot_leg_bearing

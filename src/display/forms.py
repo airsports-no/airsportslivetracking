@@ -737,7 +737,12 @@ class ContestantQuickAddForm(forms.Form):
         self.navigation_task = kwargs.pop("navigation_task")
         super().__init__(*args, **kwargs)
         self.fields["contest_team"].queryset = self.navigation_task.contest.contestteam_set.all()
-        self.fields["starting_point_time"].initial = timezone.localtime()
+        task_start_local = timezone.localtime(
+            self.navigation_task.start_time,
+            timezone=self.navigation_task.contest.time_zone,
+        )
+        one_hour_from_now = timezone.localtime() + datetime.timedelta(hours=1)
+        self.fields["starting_point_time"].initial = max(one_hour_from_now, task_start_local)
 
         declaration_fields = []
 

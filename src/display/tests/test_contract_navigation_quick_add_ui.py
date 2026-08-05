@@ -7,6 +7,7 @@ from guardian.shortcuts import assign_perm
 from unittest.mock import patch
 
 from display.default_scorecards.create_scorecards import create_scorecards
+from display.forms import ContestantQuickAddForm
 from display.models import (
     Aeroplane,
     Contest,
@@ -45,12 +46,13 @@ class TestContractNavigationQuickAddUI(TestCase):
         assign_perm("view_contest", self.user, self.contest)
         assign_perm("change_contest", self.user, self.contest)
 
+        self.navigation_start = datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc)
         self.navigation_task = NavigationTask.create(
             name="Quick Add Declaration Task",
             contest=self.contest,
             route=self.route,
             original_scorecard=self.scorecard,
-            start_time=datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            start_time=self.navigation_start,
             finish_time=datetime.datetime(2026, 8, 1, 17, 0, tzinfo=datetime.timezone.utc),
             task_subtype=CONTRACT_NAVIGATION_TIME_CONTROLS,
             task_config={"contract_time_seconds": 600},
@@ -102,3 +104,46 @@ class TestContractNavigationQuickAddUI(TestCase):
         self.assertEqual(302, response.status_code)
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
+
+    def test_quick_add_defaults_starting_point_time_to_navigation_task_start(self):
+        fake_now = datetime.datetime(2026, 7, 31, 10, 30, tzinfo=self.contest.time_zone)
+        local_start = self.navigation_start.astimezone(self.contest.time_zone)
+        with patch("display.forms.timezone.localtime", side_effect=[local_start, fake_now]):
+            form = ContestantQuickAddForm(navigation_task=self.navigation_task)
+        initial = form.fields["starting_point_time"].initial
+        self.assertEqual(initial.isoformat(), local_start.isoformat())
+
+    def test_quick_add_defaults_to_now_plus_one_hour_when_task_started_in_past(self):
+        past_start = datetime.datetime(2026, 8, 1, 8, 0, tzinfo=datetime.timezone.utc)
+        self.navigation_task.start_time = past_start
+        self.navigation_task.finish_time = past_start + datetime.timedelta(hours=1)
+        self.navigation_task.save(update_fields=["start_time", "finish_time"])
+
+        fake_now = datetime.datetime(2026, 8, 1, 10, 30, tzinfo=self.contest.time_zone)
+        with patch("display.forms.timezone.localtime", side_effect=[past_start.astimezone(self.contest.time_zone), fake_now]):
+            form = ContestantQuickAddForm(navigation_task=self.navigation_task)
+
+        initial = form.fields["starting_point_time"].initial
+        self.assertEqual(initial.isoformat(), (fake_now + datetime.timedelta(hours=1)).isoformat())
+
+    def test_quick_add_uses_finish_time_within_24_hour_tracker_limit_when_route_has_no_gate_times(self):
+        self.navigation_task.start_time = datetime.datetime(2026, 8, 8, 18, 34, tzinfo=datetime.timezone.utc)
+        self.navigation_task.finish_time = datetime.datetime(2026, 8, 8, 18, 34, tzinfo=datetime.timezone.utc)
+        self.navigation_task.minutes_to_starting_point = 5
+        self.navigation_task.minutes_to_landing = 30
+        self.navigation_task.save(update_fields=["start_time", "finish_time", "minutes_to_starting_point", "minutes_to_landing"])
+
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.quick_add_url,
+            {
+                "contest_team": self.contest_team.pk,
+                "starting_point_time": "2026-08-08T20:34",
+                "adaptive_start": False,
+            },
+        )
+
+        self.assertEqual(302, response.status_code)
+        contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
+        self.assertLessEqual(contestant.finished_by_time - contestant.tracker_start_time, datetime.timedelta(hours=24))
+        self.assertEqual(contestant.finished_by_time, contestant.landing_time + datetime.timedelta(minutes=5))

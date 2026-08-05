@@ -1,5 +1,6 @@
 import io
 import logging
+import threading
 from io import BytesIO
 
 
@@ -120,6 +121,12 @@ from display.waypoint import Waypoint
 LINEWIDTH = 0.5
 
 logger = logging.getLogger(__name__)
+
+TILE_RATE_LIMIT_ABORT_THRESHOLD = 10
+
+
+def _blank_tile(fill=(250, 250, 250)):
+    return Image.fromarray(np.full((256, 256, 3), fill, dtype=np.uint8))
 
 
 def create_minute_lines(
@@ -329,6 +336,19 @@ first = True
 
 
 class MyGoogleWTS(GoogleWTS):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._tile_fetch_lock = threading.Lock()
+        self._tile_rate_limit_errors = 0
+        self._background_fetch_aborted = False
+
+    def _record_rate_limit_and_should_abort(self) -> bool:
+        with self._tile_fetch_lock:
+            self._tile_rate_limit_errors += 1
+            if self._tile_rate_limit_errors > TILE_RATE_LIMIT_ABORT_THRESHOLD:
+                self._background_fetch_aborted = True
+            return self._background_fetch_aborted
+
     def get_image(self, tile):
 
         if self.cache_path is not None:
@@ -340,16 +360,33 @@ class MyGoogleWTS(GoogleWTS):
         if cached_file in self.cache:
             img = np.load(cached_file, allow_pickle=False)
         else:
+            if self._background_fetch_aborted:
+                img = _blank_tile()
+                return img.convert(self.desired_tile_form), self.tileextent(tile), "lower"
             url = self._image_url(tile)
             try:
                 headers = {"User-Agent": self.user_agent, "Referer": "https://app.airsports.no/"}
                 response = requests.get(url, headers=headers, timeout=5)
-                im_data = io.BytesIO(response.content)
-                img = Image.open(im_data)
+                if response.status_code == 429:
+                    should_abort = self._record_rate_limit_and_should_abort()
+                    logger.warning(
+                        "Rate limited fetching tile for url %s (%s/%s)%s",
+                        url,
+                        self._tile_rate_limit_errors,
+                        TILE_RATE_LIMIT_ABORT_THRESHOLD,
+                        "; abandoning background rendering" if should_abort else "",
+                    )
+                    img = _blank_tile()
+                else:
+                    response.raise_for_status()
+                    im_data = io.BytesIO(response.content)
+                    img = Image.open(im_data)
 
-            except requests.RequestException:
+            except requests.RequestException as err:
                 logger.exception("Failed fetching tile for url %s", url)
-                img = Image.fromarray(np.full((256, 256, 3), (250, 250, 250), dtype=np.uint8))
+                if getattr(getattr(err, "response", None), "status_code", None) == 429:
+                    self._record_rate_limit_and_should_abort()
+                img = _blank_tile()
 
             img = img.convert(self.desired_tile_form)
             if self.cache_path is not None:
@@ -357,6 +394,12 @@ class MyGoogleWTS(GoogleWTS):
                 self.cache.add(cached_file)
 
         return img, self.tileextent(tile), "lower"
+
+
+class AirsportsOSM(MyGoogleWTS):
+    def _image_url(self, tile):
+        x, y, z = tile
+        return f"https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
 
 
 class UserUploadedMBTiles(GoogleWTS):
@@ -403,6 +446,10 @@ class FlightContest(MyGoogleWTS):
     def get_image(self, tile):
         from urllib.request import urlopen, Request
 
+        if self._background_fetch_aborted:
+            img = _blank_tile()
+            return img.convert(self.desired_tile_form), self.tileextent(tile), "lower"
+
         url = self._image_url(tile)
         try:
             headers = {"User-Agent": self.user_agent, "Referer": "https://app.airsports.no/"}
@@ -414,7 +461,16 @@ class FlightContest(MyGoogleWTS):
 
         except Exception as err:
             print(err)
-            img = Image.fromarray(np.full((256, 256, 3), (255, 255, 255), dtype=np.uint8))
+            if getattr(err, "code", None) == 429:
+                should_abort = self._record_rate_limit_and_should_abort()
+                logger.warning(
+                    "Rate limited fetching FlightContest tile for url %s (%s/%s)%s",
+                    url,
+                    self._tile_rate_limit_errors,
+                    TILE_RATE_LIMIT_ABORT_THRESHOLD,
+                    "; abandoning background rendering" if should_abort else "",
+                )
+            img = _blank_tile((255, 255, 255))
 
         img = img.convert(self.desired_tile_form)
         return img, self.tileextent(tile), "lower"
@@ -1206,7 +1262,17 @@ def plot_precision_track(
     return paths
 
 
-def plot_catalogue_targets(targets: list[dict], colour: str):
+def _build_circle_outline(center_lon_lat: tuple[float, float], radius_m: float, samples: int = 72) -> list[tuple[float, float]]:
+    center_lon, center_lat = center_lon_lat
+    outline = []
+    for index in range(samples + 1):
+        bearing = (360 / samples) * index
+        latitude, longitude = project_position_lat_lon((center_lat, center_lon), bearing, radius_m)
+        outline.append((longitude, latitude))
+    return outline
+
+
+def plot_catalogue_targets(targets: list[dict], colour: str, task_config: Optional[dict] = None):
     marker_style_by_kind = {
         "catalogue_turnpoint": {"marker": "o", "markersize": 10, "fillstyle": "none"},
         "circle_center_marker": {"marker": "x", "markersize": 10, "fillstyle": "full"},
@@ -1214,12 +1280,15 @@ def plot_catalogue_targets(targets: list[dict], colour: str):
         "circle_entry_marker": {"marker": ">", "markersize": 10, "fillstyle": "full"},
         "circle_exit_marker": {"marker": "s", "markersize": 9, "fillstyle": "none"},
     }
+    points_by_kind = {}
     for target in targets:
         coordinates = target.get("coordinates") or []
         if len(coordinates) != 2:
             continue
+        kind = target.get("kind") or "catalogue_turnpoint"
+        points_by_kind[kind] = tuple(coordinates)
         lon, lat = coordinates
-        marker_style = marker_style_by_kind.get(target.get("kind") or "catalogue_turnpoint", marker_style_by_kind["catalogue_turnpoint"])
+        marker_style = marker_style_by_kind.get(kind, marker_style_by_kind["catalogue_turnpoint"])
         plt.plot(
             lon,
             lat,
@@ -1242,6 +1311,43 @@ def plot_catalogue_targets(targets: list[dict], colour: str):
             clip_on=True,
         )
 
+    center = points_by_kind.get("circle_center_marker")
+    if center is None:
+        return
+
+    min_radius_m = float((task_config or {}).get("circle_radius_min_m", 200))
+    max_radius_m = float((task_config or {}).get("circle_radius_max_m", 750))
+    for radius, edge_colour, line_width, dash_pattern in (
+        (min_radius_m, "#0f9d58", 2.4, (0, (3, 3))),
+        (max_radius_m, "#b91c1c", 1.6, (0, (10, 4))),
+    ):
+        outline = _build_circle_outline(center, radius)
+        plt.plot(
+            tuple(point[0] for point in outline),
+            tuple(point[1] for point in outline),
+            transform=ccrs.PlateCarree(),
+            color=edge_colour,
+            linewidth=line_width,
+            linestyle=dash_pattern,
+            alpha=0.95,
+        )
+
+    for start_kind, finish_kind, style in (
+        ("circle_start_marker", "circle_entry_marker", {"color": colour, "linewidth": 1.5, "linestyle": (0, (8, 6))}),
+        ("circle_entry_marker", "circle_center_marker", {"color": "#7c3aed", "linewidth": 1.0, "linestyle": (0, (4, 4))}),
+        ("circle_center_marker", "circle_exit_marker", {"color": "#7c3aed", "linewidth": 1.0, "linestyle": (0, (4, 4))}),
+    ):
+        start = points_by_kind.get(start_kind)
+        finish = points_by_kind.get(finish_kind)
+        if start is None or finish is None:
+            continue
+        plt.plot(
+            (start[0], finish[0]),
+            (start[1], finish[1]),
+            transform=ccrs.PlateCarree(),
+            **style,
+        )
+
 
 # def add_geotiff_background(path: str, ax):
 #     import xarray as xr
@@ -1255,7 +1361,7 @@ def plot_catalogue_targets(targets: list[dict], colour: str):
 def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
     fig = plt.figure(figsize=(3, 3))
     try:
-        imagery = OSM(user_agent="airsports.no, support@airsports.no")
+        imagery = AirsportsOSM(user_agent="airsports.no, support@airsports.no")
         ax = plt.axes(projection=imagery.crs)
         editable_track = editable_route.get_feature_type("route_path")
         if editable_track is not None:
@@ -1362,7 +1468,7 @@ def plot_route(
                 else:
                     raise ValueError(f"Unknown uploaded map source token: {map_source}")
             elif provider == "osm":
-                imagery = OSM(user_agent="airsports.no, support@airsports.no")
+                imagery = AirsportsOSM(user_agent="airsports.no, support@airsports.no")
             elif provider == "fc":
                 imagery = FlightContest(desired_tile_form="RGBA")
             elif provider == "mto":
@@ -1378,7 +1484,7 @@ def plot_route(
                 raise ValueError(f"Unsupported map source provider: {provider}")
         except (requests.RequestException, Exception):
             logger.warning(f"MBTiles server unavailable for {map_source}, falling back to OSM")
-            imagery = OSM(user_agent="airsports.no, support@airsports.no")
+            imagery = AirsportsOSM(user_agent="airsports.no, support@airsports.no")
             attribution = BUILTIN_NON_MBTILES_SOURCES["osm"]["attribution"]
     if map_size == A3:
         if zoom_level is None:
@@ -1453,7 +1559,7 @@ def plot_route(
     else:
         paths = []
     if contestant is None:
-        plot_catalogue_targets(task_catalogue_targets, colour)
+        plot_catalogue_targets(task_catalogue_targets, colour, task.task_config or {})
     plot_prohibited_zones(route, imagery.crs, ax)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:
@@ -1677,7 +1783,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
     :param positions: List of (latitude, longitude) pairs
     :return:
     """
-    imagery = OSM(user_agent="airsports.no, support@airsports.no")
+    imagery = AirsportsOSM(user_agent="airsports.no, support@airsports.no")
     ax = plt.axes(projection=imagery.crs)
     ax.add_image(imagery, 7)
     ax.set_aspect("auto")

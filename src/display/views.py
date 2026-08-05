@@ -2070,6 +2070,10 @@ class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
         else:
             contestant.finished_by_time = contestant.landing_time + datetime.timedelta(minutes=5)
 
+        max_finished_by_time = contestant.tracker_start_time + datetime.timedelta(hours=24)
+        if contestant.finished_by_time > max_finished_by_time:
+            contestant.finished_by_time = max_finished_by_time
+
         contestant.save()
         ContestantTaskCompiler(contestant).compile(force=True)
         messages.success(self.request, "Contestant created successfully")
