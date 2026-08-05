@@ -210,7 +210,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     steps: [
       routeStep('Build the visible route backbone first. Keep unknown-leg triggers and dummy continuation points on that backbone.'),
       pointStep('unknown_leg', 'Unknown-leg triggers', 'Insert unknown-leg trigger waypoints directly on the route backbone at the photographic feature location.', 'ul', 'route_waypoint', 'route_insert'),
-      pointStep('dummy', 'Dummy continuation points', 'Insert one or more dummy waypoints after each unknown-leg trigger on the route backbone to conceal the turn-off point.', 'dummy', 'route_waypoint', 'route_insert', 1),
+      pointStep('dummy', 'Dummy continuation points', 'Insert one or more dummy waypoints after each unknown-leg trigger on the route backbone to conceal the turn-off point.', 'dummy', 'route_waypoint', 'route_insert', 0),
       pointStep('hidden_gate', 'Hidden gates', 'Insert hidden gates directly on the route backbone or unknown-leg backbone where scoring requires them.', 'hidden_gate', 'route_waypoint', 'route_insert', 0),
       observationStep('Add observation/photo markers used for scoring or evidence.'),
     ],
@@ -287,18 +287,28 @@ export const countWizardStepMatches = (
   observationMarkers: ObservationMarker[],
   polygons: Polygon[],
 ): number => {
+  const routeInsertBackboneTypes = new Set<RoutePoint['type']>([
+    'sp',
+    'tp',
+    'fp',
+    'secret',
+    'anrtp',
+    'ul',
+    'unknown_leg',
+    'dummy',
+    'hidden_gate',
+    'known_time_gate',
+  ]);
+
   if (step.kind === 'route') {
-    return routePoints.filter((point) => (point.featureType || 'route_waypoint') === 'route_waypoint').length;
+    return routePoints.filter((point) => routeInsertBackboneTypes.has(point.type)).length;
   }
   if (step.kind === 'point') {
     if (step.countMode === 'route_waypoints') {
       return routePoints.filter((point) => point.type === 'sp' || point.type === 'tp' || point.type === 'fp').length;
     }
     const pointPool = step.placement === 'free_map' ? standalonePoints : routePoints;
-    return pointPool.filter((point) => {
-      if (step.featureType) return point.featureType === step.featureType;
-      return point.type === step.pointType;
-    }).length;
+    return pointPool.filter((point) => point.type === step.pointType).length;
   }
   if (step.kind === 'observation') {
     return observationMarkers.length;
