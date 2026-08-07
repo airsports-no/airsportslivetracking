@@ -1,11 +1,16 @@
 import datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.forms import FlightOrderConfigurationForm, MapForm, ContestantMapForm, validate_map_zoom_level
-from display.flight_order_and_maps.generate_flight_orders import build_flight_order_map_plot_kwargs, get_flight_order_visual_waypoints
+from display.flight_order_and_maps.generate_flight_orders import (
+    build_flight_order_map_plot_kwargs,
+    get_flight_order_visual_waypoints,
+    insert_photos_latex,
+    insert_unknown_leg_images_latex,
+)
 from display.flight_order_and_maps.map_plotter_shared_utilities import resolve_map_source_definition
 from display.models import Contest, NavigationTask, Route
 from display.utilities.task_information import build_navigation_task_information
@@ -251,6 +256,93 @@ class FlightOrderConfigurationFormTests(TestCase):
             waypoints = get_flight_order_visual_waypoints(contestant, include_contestant_declarations=True)
 
         self.assertEqual([waypoint.name for waypoint in waypoints], ["SP", "TRG1", "FP"])
+
+    @patch("display.flight_order_and_maps.generate_flight_orders.render_turning_point_images")
+    def test_insert_unknown_leg_images_uses_compiled_unknown_leg_names_even_when_actual_route_contains_trigger(self, mock_render):
+        class DummyWaypoint:
+            def __init__(self, name, type_, bearing_next=0):
+                self.name = name
+                self.type = type_
+                self.bearing_next = bearing_next
+
+        class DummyConfig:
+            is_valid = True
+            compiled_effective_route_payload = {
+                "unknown_leg_names": ["TRG1"],
+                "actual_route": {
+                    "waypoints": [
+                        {"name": "SP"},
+                        {"name": "TRG1"},
+                        {"name": "FP"},
+                    ]
+                },
+            }
+
+        contestant = type("ContestantStub", (), {})()
+        contestant.navigation_task = self.navigation_task
+        contestant.contestanttaskconfiguration = DummyConfig()
+
+        waypoints = [
+            DummyWaypoint("SP", "sp"),
+            DummyWaypoint("TRG1", "ul", bearing_next=123),
+            DummyWaypoint("FP", "fp"),
+        ]
+
+        insert_unknown_leg_images_latex(contestant, MagicMock(), self.configuration, waypoints)
+
+        render_waypoints = mock_render.call_args.args[0]
+        self.assertEqual([waypoint.name for waypoint in render_waypoints], ["TRG1"])
+        self.assertTrue(mock_render.call_args.kwargs["is_unknown_leg"])
+
+    @patch("display.flight_order_and_maps.generate_flight_orders.generate_photo")
+    def test_insert_photos_latex_synthesizes_unknown_leg_observation_pages_from_compiled_payload(self, mock_generate_photo):
+        class DummyWaypoint:
+            def __init__(self, name, type_, latitude, longitude, bearing_next=0):
+                self.name = name
+                self.type = type_
+                self.latitude = latitude
+                self.longitude = longitude
+                self.bearing_next = bearing_next
+
+        class DummyConfig:
+            is_valid = True
+            compiled_effective_route_payload = {
+                "observation_photos": [
+                    {
+                        "name": "Photo UL-1",
+                        "target_name": "TRG1",
+                        "coordinates": [11.21, 60.21],
+                        "evidence_category": "observation",
+                    }
+                ]
+            }
+
+        self.navigation_task.task_subtype = UNKNOWN_LEGS
+        self.navigation_task.save(update_fields=["task_subtype"])
+
+        contestant = type("ContestantStub", (), {})()
+        contestant.navigation_task = self.navigation_task
+        contestant.contestanttaskconfiguration = DummyConfig()
+
+        mock_generate_photo.return_value = type("Tmp", (), {"name": "/tmp/photo-ul-1.png"})()
+
+        document = MagicMock()
+        context_manager = MagicMock()
+        context_manager.__enter__.return_value = MagicMock()
+        context_manager.__exit__.return_value = False
+        document.create.return_value = context_manager
+
+        with patch(
+            "display.flight_order_and_maps.generate_flight_orders.get_effective_route_waypoints",
+            return_value=[DummyWaypoint("TRG1", "ul", 60.2, 11.2, bearing_next=87)],
+        ):
+            insert_photos_latex(contestant, document, self.configuration)
+
+        photo_stub = mock_generate_photo.call_args.args[0]
+        waypoint = mock_generate_photo.call_args.args[1]
+        self.assertEqual(photo_stub.name, "Photo UL-1")
+        self.assertEqual((photo_stub.longitude, photo_stub.latitude), (11.21, 60.21))
+        self.assertEqual(waypoint.name, "TRG1")
 
     def test_contestant_declaration_toggle_defaults_to_enabled(self):
         form = FlightOrderConfigurationForm(instance=self.configuration)

@@ -319,6 +319,9 @@ class MapFallbackTests(TestCase):
                                 "TRG1": [11.2, 60.2],
                                 "TRG1-D1": [11.3, 60.3],
                             },
+                            "dummy_branch_waypoints": [
+                                {"name": "TRG1-D1", "coordinates": [11.3, 60.3], "trigger_point_id": "TRG1", "branch_sequence": 0}
+                            ],
                         }
                     ],
                     "actual_route": {
@@ -344,13 +347,97 @@ class MapFallbackTests(TestCase):
             [
                 {"name": "SP", "coordinates": [11.0, 60.0], "kind": "catalogue_turnpoint", "segment_name": "segment_1"},
                 {"name": "A", "coordinates": [11.1, 60.1], "kind": "catalogue_turnpoint", "segment_name": "segment_1"},
-                {"name": "TRG1", "coordinates": [11.2, 60.2], "kind": "catalogue_turnpoint", "segment_name": "segment_1"},
-                {"name": "TRG1-D1", "coordinates": [11.3, 60.3], "kind": "catalogue_turnpoint", "segment_name": "segment_1"},
-                {"name": "TRG1", "coordinates": [11.2, 60.2], "kind": "unknown_leg_trigger"},
-                {"name": "TRG1→B", "coordinates": [11.4, 60.4], "kind": "unknown_leg_connector_end"},
+                {"name": "TRG1", "coordinates": [11.2, 60.2], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "is_unknown_leg_trigger": True},
+                {"name": "TRG1-D1", "coordinates": [11.3, 60.3], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "trigger_point_id": "TRG1", "branch_sequence": 0},
+                {"name": "TRG1", "coordinates": [11.2, 60.2], "kind": "unknown_leg_trigger", "trigger_point_id": "TRG1"},
+                {"name": "TRG1→B", "coordinates": [11.4, 60.4], "kind": "unknown_leg_connector_end", "trigger_point_id": "TRG1", "connector_to_name": "B", "segment_name": None},
                 {"name": "HG1", "coordinates": [11.22, 60.22], "kind": "hidden_gate"},
             ],
         )
+
+    @patch('display.flight_order_and_maps.map_plotter.plt')
+    def test_plot_catalogue_targets_hides_unknown_leg_trigger_markers_on_visible_navigation_map(self, mock_plt):
+        from display.flight_order_and_maps.map_plotter import plot_catalogue_targets
+
+        plot_catalogue_targets(
+            [
+                {"name": "SP", "coordinates": [11.0, 60.0], "kind": "catalogue_turnpoint", "segment_name": "segment_1"},
+                {"name": "TRG1", "coordinates": [11.2, 60.2], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "is_unknown_leg_trigger": True},
+                {"name": "TRG1-D1", "coordinates": [11.3, 60.3], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "trigger_point_id": "TRG1", "branch_sequence": 0},
+            ],
+            "#0000ff",
+        )
+
+        plotted_points = [call.args[:2] for call in mock_plt.plot.call_args_list if len(call.args) >= 2 and isinstance(call.args[0], (int, float))]
+        labelled_names = [call.args[2].strip() for call in mock_plt.text.call_args_list if len(call.args) >= 3]
+
+        self.assertIn((11.0, 60.0), plotted_points)
+        self.assertIn((11.3, 60.3), plotted_points)
+        self.assertNotIn((11.2, 60.2), plotted_points)
+        self.assertIn("SP", labelled_names)
+        self.assertIn("TRG1-D1", labelled_names)
+        self.assertNotIn("TRG1", labelled_names)
+
+    @patch('display.flight_order_and_maps.map_plotter.plot_catalogue_targets')
+    @patch('display.flight_order_and_maps.map_plotter.get_task_catalogue_targets')
+    @patch('display.flight_order_and_maps.map_plotter.get_effective_route_waypoints')
+    @patch('display.flight_order_and_maps.map_plotter.plot_prohibited_zones')
+    @patch('display.flight_order_and_maps.map_plotter.plot_precision_track', return_value=[])
+    @patch('display.flight_order_and_maps.map_plotter.scale_bar_y')
+    @patch('display.flight_order_and_maps.map_plotter.utm_from_lat_lon')
+    @patch('display.flight_order_and_maps.map_plotter.AirsportsOSM')
+    @patch('display.flight_order_and_maps.map_plotter.plt')
+    @patch('display.flight_order_and_maps.map_plotter.ccrs')
+    def test_plot_route_unknown_legs_generic_map_uses_segment_order_without_backbone_route(
+        self,
+        mock_ccrs,
+        mock_plt,
+        mock_airsports_osm,
+        mock_utm,
+        _mock_scale_bar,
+        mock_plot_precision_track,
+        _mock_plot_prohibited,
+        mock_get_effective_waypoints,
+        mock_get_catalogue_targets,
+        _mock_plot_catalogue_targets,
+    ):
+        from unittest.mock import MagicMock
+        from display.flight_order_and_maps.map_constants import A4
+        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+
+        self.task.task_subtype = UNKNOWN_LEGS
+        self.task.save(update_fields=["task_subtype"])
+        mock_get_effective_waypoints.return_value = [MagicMock(name="legacy-waypoint")]
+        mock_get_catalogue_targets.return_value = [
+            {"name": "SP", "coordinates": [11.0, 60.0], "kind": "catalogue_turnpoint", "segment_name": "segment_1"},
+            {"name": "TRG9", "coordinates": [11.2, 60.2], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "is_unknown_leg_trigger": True},
+            {"name": "AAA", "coordinates": [11.3, 60.3], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "trigger_point_id": "TRG9", "branch_sequence": 0},
+        ]
+
+        mock_osm_instance = MagicMock()
+        mock_airsports_osm.return_value = mock_osm_instance
+        mock_ax = MagicMock()
+        mock_fig = MagicMock()
+        mock_fig.patch = MagicMock()
+        mock_plt.figure.return_value = mock_fig
+        mock_fig.add_axes.return_value = mock_ax
+        mock_ccrs.PlateCarree.return_value = MagicMock()
+        mock_ax.get_extent.return_value = (10.0, 11.0, 60.0, 61.0)
+        mock_utm_instance = MagicMock()
+        mock_utm_instance.transform_point.side_effect = [(0, 0), (1000, 1000), (10.0, 60.0), (11.0, 61.0)]
+        mock_utm.return_value = mock_utm_instance
+
+        try:
+            plot_route(self.task, A4, scale=0)
+        except Exception:
+            pass
+
+        mock_plot_precision_track.assert_called_once()
+        self.assertEqual(mock_plot_precision_track.call_args.kwargs["render_waypoints"], [])
+        segment_calls = [call for call in mock_plt.plot.call_args_list if call.kwargs.get('linestyle') == (0, (8, 6))]
+        self.assertEqual(len(segment_calls), 1)
+        self.assertEqual(tuple(segment_calls[0].args[0]), (11.0, 11.2, 11.3))
+        self.assertEqual(tuple(segment_calls[0].args[1]), (60.0, 60.2, 60.3))
 
     def test_get_task_catalogue_targets_unknown_legs_route_backbone_hidden_gates(self):
         from types import SimpleNamespace
@@ -389,6 +476,9 @@ class MapFallbackTests(TestCase):
                                 "TRG1": [11.2, 60.2],
                                 "TRG1-D1": [11.3, 60.3],
                             },
+                            "dummy_branch_waypoints": [
+                                {"name": "TRG1-D1", "coordinates": [11.3, 60.3], "trigger_point_id": "TRG1", "branch_sequence": 0}
+                            ],
                         }
                     ],
                     "actual_route": {
@@ -446,6 +536,9 @@ class MapFallbackTests(TestCase):
                                 "TRG1": [11.1, 60.1],
                                 "TRG1-D1": [11.15, 60.15],
                             },
+                            "dummy_branch_waypoints": [
+                                {"name": "TRG1-D1", "coordinates": [11.15, 60.15], "trigger_point_id": "TRG1", "branch_sequence": 0}
+                            ],
                         }
                     ],
                     "actual_route": {
@@ -465,7 +558,63 @@ class MapFallbackTests(TestCase):
         )
 
         targets = get_task_catalogue_targets(self.task, contestant=contestant)
-        self.assertIn({"name": "TRG1-D1", "coordinates": [11.15, 60.15], "kind": "catalogue_turnpoint", "segment_name": "segment_1"}, targets)
+        self.assertIn({"name": "TRG1-D1", "coordinates": [11.15, 60.15], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "trigger_point_id": "TRG1", "branch_sequence": 0}, targets)
+
+    def test_get_task_catalogue_targets_unknown_legs_uses_task_payload_without_contestant(self):
+        from types import SimpleNamespace
+        from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
+        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+
+        editable_route = EditableRoute.objects.create(
+            name="Unknown legs task payload source",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
+                    {"type": "Feature", "properties": {"id": "sp-1", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "ul-1", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "fp-1", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                ],
+            },
+        )
+        self.task.editable_route = editable_route
+        self.task.task_subtype = UNKNOWN_LEGS
+        self.task.save(update_fields=["editable_route", "task_subtype"])
+        from display.models.compiled_navigation_task import CompiledNavigationTask
+        CompiledNavigationTask.objects.update_or_create(
+            navigation_task=self.task,
+            defaults={
+                "compiled_payload": {
+                    "unknown_legs_segments": [
+                        {
+                            "name": "segment_1",
+                            "display_waypoint_names": ["SP", "TRG1", "TRG1-D1"],
+                            "display_coordinates_by_name": {
+                                "SP": [11.0, 60.0],
+                                "TRG1": [11.1, 60.1],
+                                "TRG1-D1": [11.15, 60.15],
+                            },
+                            "dummy_branch_waypoints": [
+                                {"name": "TRG1-D1", "coordinates": [11.15, 60.15], "trigger_point_id": "TRG1", "branch_sequence": 0}
+                            ],
+                        }
+                    ],
+                    "unknown_legs_actual_route": {
+                        "unknown_leg_connectors": [
+                            {"from": "TRG1", "to": "FP", "from_coordinates": [11.1, 60.1], "to_coordinates": [11.2, 60.2]},
+                        ],
+                    },
+                    "unknown_legs_hidden_gates": [{"name": "HG1", "coordinates": [11.12, 60.12]}],
+                }
+            },
+        )
+
+        targets = get_task_catalogue_targets(self.task)
+
+        self.assertIn({"name": "TRG1-D1", "coordinates": [11.15, 60.15], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "trigger_point_id": "TRG1", "branch_sequence": 0}, targets)
+        self.assertIn({"name": "TRG1", "coordinates": [11.1, 60.1], "kind": "unknown_leg_trigger", "trigger_point_id": "TRG1"}, targets)
+        self.assertIn({"name": "TRG1→FP", "coordinates": [11.2, 60.2], "kind": "unknown_leg_connector_end", "trigger_point_id": "TRG1", "connector_to_name": "FP", "segment_name": None}, targets)
+        self.assertIn({"name": "HG1", "coordinates": [11.12, 60.12], "kind": "hidden_gate"}, targets)
 
     def test_get_task_catalogue_targets_includes_circle_markers(self):
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets

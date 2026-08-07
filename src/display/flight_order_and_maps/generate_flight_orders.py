@@ -261,18 +261,18 @@ def insert_unknown_leg_images_latex(
     contestant, document: Document, flight_order_configuration: FlightOrderConfiguration, waypoints: List[Waypoint]
 ):
     payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
-    actual_route_names = {
-        item.get("name")
-        for item in (payload.get("actual_route", {}) or {}).get("waypoints", [])
-        if item.get("name")
+    compiled_unknown_leg_names = {
+        item
+        for item in payload.get("unknown_leg_names", [])
+        if item
     }
     render_waypoints = [
         waypoint
         for waypoint in waypoints
-        if waypoint.type == UNKNOWN_LEG and waypoint.name not in actual_route_names
+        if waypoint.type == UNKNOWN_LEG or waypoint.name in compiled_unknown_leg_names
     ]
     if not render_waypoints:
-        render_waypoints = [waypoint for waypoint in waypoints if waypoint.type == UNKNOWN_LEG]
+        render_waypoints = [waypoint for waypoint in waypoints if waypoint.name in compiled_unknown_leg_names]
     random.shuffle(render_waypoints)
     render_turning_point_images(
         render_waypoints, document, flight_order_configuration, "Unknown legs", is_unknown_leg=True
@@ -307,10 +307,17 @@ def insert_photos_latex(contestant, document: Document, flight_order_configurati
             include_contestant_declarations=bool(flight_order_configuration.map_include_contestant_declarations),
         )
         fallback_waypoint = fallback_waypoints[0] if fallback_waypoints else None
+        fallback_waypoint_by_name = {
+            getattr(item, "name", None): item
+            for item in fallback_waypoints
+            if getattr(item, "name", None)
+        }
         synthesised = []
         for item in compiled_photos:
             coordinates = item.get("coordinates") or []
-            if len(coordinates) != 2 or fallback_waypoint is None:
+            target_name = item.get("target_name") or item.get("name")
+            photo_waypoint = fallback_waypoint_by_name.get(target_name) or fallback_waypoint
+            if len(coordinates) != 2 or photo_waypoint is None:
                 continue
             lon, lat = coordinates
             photo_stub = SimpleNamespace(
@@ -318,7 +325,7 @@ def insert_photos_latex(contestant, document: Document, flight_order_configurati
                 latitude=lat,
                 longitude=lon,
                 file=None,
-                leg=fallback_waypoint,
+                leg=photo_waypoint,
             )
             synthesised.append(photo_stub)
         photos = synthesised
@@ -790,7 +797,11 @@ def generate_flight_orders_latex(contestant: "Contestant") -> bytes:
 
     if any(waypoint.type == UNKNOWN_LEG for waypoint in waypoints):
         insert_unknown_leg_images_latex(contestant, document, flight_order_configuration, waypoints)
-    if contestant.navigation_task.route.photo_set.all().count() > 0:
+    compiled_photos = []
+    if hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
+        payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+        compiled_photos = payload.get("observation_photos", []) or []
+    if contestant.navigation_task.route.photo_set.all().count() > 0 or compiled_photos:
         insert_photos_latex(contestant, document, flight_order_configuration)
     # Produce the output
     pdf_file = NamedTemporaryFile()

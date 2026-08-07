@@ -222,6 +222,15 @@ class TestNavigationTaskCreationFlow(TestCase):
         payload = response.json()
         self.assertEqual(payload["task_subtype"], "unknown_legs")
 
+        detail_response = self.client.get(f"/api/v1/contests/{self.contest.pk}/navigationtasks/{payload['id']}/")
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK, detail_response.content)
+        detail_payload = detail_response.json()
+        self.assertGreaterEqual(len(detail_payload.get("task_catalogue_targets") or []), 1)
+        self.assertEqual(
+            detail_payload["task_catalogue_targets"][0]["segment_name"],
+            "segment_1",
+        )
+
     def test_post_navigation_task_with_turnpoint_hunt_task_config(self, *args):
         serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})
         serialiser.is_valid()

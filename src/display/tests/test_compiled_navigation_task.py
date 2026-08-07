@@ -399,6 +399,48 @@ class TestCompiledNavigationTask(TestCase):
             ["SP", "HG1", "TRG1", "HG2", "FP"],
         )
 
+    def test_unknown_legs_hides_post_trigger_secret_stretch_from_visible_segments(self):
+        self.navigation_task.task_subtype = UNKNOWN_LEGS
+        self.navigation_task.editable_route = EditableRoute.objects.create(
+            name="Unknown legs post-trigger hidden stretch",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2], [11.25, 60.25], [11.4, 60.4], [11.5, 60.5]]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-trg", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 1, "unknownLegHeading": 105}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "wp-h1", "name": "Secret 9", "pointType": "secret", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
+                    {"type": "Feature", "properties": {"id": "wp-b", "name": "WP 4", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 3}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 4}, "geometry": {"type": "Point", "coordinates": [11.5, 60.5]}},
+                    {"type": "Feature", "properties": {"id": "dummy-1", "name": "TRG1-D1", "pointType": "dummy", "featureType": "dummy_branch_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "triggerPointId": "wp-trg", "branchSequence": 0, "sequence": 5}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"}, "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]}},
+                    {"type": "Feature", "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"}, "geometry": {"type": "LineString", "coordinates": [[11.5, 60.5], [11.6, 60.6]]}},
+                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.15, 60.15]}},
+                ],
+            },
+        )
+        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
+
+        compiled = TaskCompiler(self.navigation_task).compile(force=True)
+
+        self.assertTrue(compiled.compiled_payload["is_valid"], compiled.compiled_payload["validation_errors"])
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_segments"][0]["display_waypoint_names"],
+            ["SP", "TRG1", "TRG1-D1"],
+        )
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_segments"][1]["display_waypoint_names"],
+            ["WP 4", "FP"],
+        )
+        self.assertEqual(
+            [item["name"] for item in compiled.compiled_payload["unknown_legs_hidden_gates"]],
+            ["Secret 9"],
+        )
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_actual_route"]["waypoint_names"],
+            ["SP", "TRG1", "Secret 9", "WP 4", "FP"],
+        )
+
     def test_task_compiler_preserves_duration_task_config(self):
         self.navigation_task.task_subtype = DURATION
         self.navigation_task.task_config = {

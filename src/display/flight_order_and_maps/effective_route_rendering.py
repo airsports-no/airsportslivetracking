@@ -107,6 +107,84 @@ def _build_compat_effective_route_waypoints_from_names(route_waypoints, effectiv
     return effective_waypoints or route_waypoints
 
 
+def _build_unknown_legs_targets_from_payload(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    targets = []
+    segments = payload.get("segments") or payload.get("unknown_legs_segments") or []
+    actual_route = payload.get("actual_route") or payload.get("unknown_legs_actual_route") or {}
+    hidden_gates = payload.get("hidden_gates") or payload.get("unknown_legs_hidden_gates") or []
+
+    trigger_names = {
+        connector.get("from")
+        for connector in actual_route.get("unknown_leg_connectors", [])
+        if connector.get("from")
+    }
+
+    for segment in segments:
+        coordinates_by_name = segment.get("display_coordinates_by_name", {}) or {}
+        branch_by_name = {
+            branch.get("name"): branch
+            for branch in segment.get("dummy_branch_waypoints", [])
+            if branch.get("name")
+        }
+        for waypoint_name in segment.get("display_waypoint_names", []):
+            coordinates = coordinates_by_name.get(waypoint_name)
+            branch = branch_by_name.get(waypoint_name)
+            entry = {
+                "name": waypoint_name,
+                "coordinates": coordinates,
+                "kind": "catalogue_turnpoint",
+                "segment_name": segment.get("name"),
+            }
+            if waypoint_name in trigger_names:
+                entry["is_unknown_leg_trigger"] = True
+            if branch is not None:
+                entry["trigger_point_id"] = branch.get("trigger_point_id")
+                entry["branch_sequence"] = branch.get("branch_sequence")
+            if isinstance(coordinates, list) and len(coordinates) == 2:
+                targets.append(entry)
+    for connector in actual_route.get("unknown_leg_connectors", []):
+        from_coordinates = connector.get("from_coordinates")
+        to_coordinates = connector.get("to_coordinates")
+        if isinstance(from_coordinates, list) and len(from_coordinates) == 2:
+            targets.append(
+                {
+                    "name": connector.get("from") or "",
+                    "coordinates": from_coordinates,
+                    "kind": "unknown_leg_trigger",
+                    "trigger_point_id": connector.get("from"),
+                }
+            )
+        if isinstance(to_coordinates, list) and len(to_coordinates) == 2:
+            targets.append(
+                {
+                    "name": f"{connector.get('from')}→{connector.get('to')}",
+                    "coordinates": to_coordinates,
+                    "kind": "unknown_leg_connector_end",
+                    "trigger_point_id": connector.get("from"),
+                    "connector_to_name": connector.get("to"),
+                    "segment_name": next(
+                        (
+                            segment.get("name")
+                            for segment in segments
+                            if connector.get("to") in (segment.get("display_waypoint_names") or [])
+                        ),
+                        None,
+                    ),
+                }
+            )
+    for gate in hidden_gates:
+        coordinates = gate.get("coordinates")
+        if isinstance(coordinates, list) and len(coordinates) == 2:
+            targets.append(
+                {
+                    "name": gate.get("name") or "",
+                    "coordinates": coordinates,
+                    "kind": "hidden_gate",
+                }
+            )
+    return targets
+
+
 def get_task_catalogue_targets(navigation_task, contestant=None) -> list[dict[str, Any]]:
     editable_route = getattr(navigation_task, "editable_route", None)
     if editable_route is None:
@@ -121,50 +199,12 @@ def get_task_catalogue_targets(navigation_task, contestant=None) -> list[dict[st
                 payload = candidate
 
     if payload and navigation_task.task_subtype == "unknown_legs":
-        targets = []
-        for segment in payload.get("segments", []):
-            coordinates_by_name = segment.get("display_coordinates_by_name", {}) or {}
-            for waypoint_name in segment.get("display_waypoint_names", []):
-                coordinates = coordinates_by_name.get(waypoint_name)
-                if isinstance(coordinates, list) and len(coordinates) == 2:
-                    targets.append(
-                        {
-                            "name": waypoint_name,
-                            "coordinates": coordinates,
-                            "kind": "catalogue_turnpoint",
-                            "segment_name": segment.get("name"),
-                        }
-                    )
-        for connector in payload.get("actual_route", {}).get("unknown_leg_connectors", []):
-            from_coordinates = connector.get("from_coordinates")
-            to_coordinates = connector.get("to_coordinates")
-            if isinstance(from_coordinates, list) and len(from_coordinates) == 2:
-                targets.append(
-                    {
-                        "name": connector.get("from") or "",
-                        "coordinates": from_coordinates,
-                        "kind": "unknown_leg_trigger",
-                    }
-                )
-            if isinstance(to_coordinates, list) and len(to_coordinates) == 2:
-                targets.append(
-                    {
-                        "name": f"{connector.get('from')}→{connector.get('to')}",
-                        "coordinates": to_coordinates,
-                        "kind": "unknown_leg_connector_end",
-                    }
-                )
-        for gate in payload.get("hidden_gates", []):
-            coordinates = gate.get("coordinates")
-            if isinstance(coordinates, list) and len(coordinates) == 2:
-                targets.append(
-                    {
-                        "name": gate.get("name") or "",
-                        "coordinates": coordinates,
-                        "kind": "hidden_gate",
-                    }
-                )
-        return targets
+        return _build_unknown_legs_targets_from_payload(payload)
+
+    compiled_task = getattr(navigation_task, "compilednavigationtask", None)
+    compiled_payload = getattr(compiled_task, "compiled_payload", None) if compiled_task is not None else None
+    if compiled_payload and navigation_task.task_subtype == "unknown_legs":
+        return _build_unknown_legs_targets_from_payload(compiled_payload)
 
     targets = []
     for feature in editable_route.get_catalogue_turnpoints():

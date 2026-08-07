@@ -209,7 +209,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     steps: [
       routeStep('Build the true route backbone first. This backbone is the actual route flown by the contestant.'),
       pointStep('unknown_leg', 'Unknown-leg triggers', 'Select an existing backbone waypoint and change its type to Unknown Leg so it becomes a trigger.', 'ul', 'route_waypoint', 'route_insert'),
-      pointStep('dummy', 'Dummy branch waypoints', 'Select an unknown-leg trigger first, then add one or more dummy waypoints as a separate visible branch from that trigger.', 'dummy', 'dummy_branch_waypoint', 'free_map', 0),
+      pointStep('dummy', 'Dummy branch waypoints', 'Select an unknown-leg trigger first, then add one or more dummy waypoints as a separate visible branch from that trigger.', 'dummy', 'dummy_branch_waypoint', 'free_map', 1),
       pointStep('hidden_gate', 'Hidden gates', 'Insert hidden gates directly on the true route backbone where scoring requires them.', 'hidden_gate', 'route_waypoint', 'route_insert', 0),
       observationStep('Add observation/photo markers used for scoring or evidence.'),
     ],

@@ -13,6 +13,7 @@ interface TaskWizardPanelProps {
   observationMarkers: ObservationMarker[];
   polygons: Polygon[];
   startWizardStep: (stepKey: string) => void;
+  stopWizardAction: () => void;
   currentWizardActionLabel: string | null;
   onClose: () => void;
 }
@@ -27,6 +28,7 @@ const TaskWizardPanel: React.FC<TaskWizardPanelProps> = ({
   observationMarkers,
   polygons,
   startWizardStep,
+  stopWizardAction,
   currentWizardActionLabel,
   onClose,
 }) => {
@@ -82,8 +84,14 @@ const TaskWizardPanel: React.FC<TaskWizardPanelProps> = ({
               <h3 className="text-sm font-bold">{selectedTemplate.label}</h3>
               <p className="text-xs text-gray-500 mt-1">{selectedTemplate.description}</p>
               {currentWizardActionLabel && !selectedTemplate.guideOnly && (
-                <div className="mt-2 text-xs text-primary font-medium bg-primary/10 border border-primary/20 rounded p-2">
-                  Active step: {currentWizardActionLabel}
+                <div className="mt-2 text-xs text-primary font-medium bg-primary/10 border border-primary/20 rounded p-2 space-y-2">
+                  <div>Active step: {currentWizardActionLabel}</div>
+                  <div className="text-[11px] text-base-content/70">
+                    Click on the map to place points. Use “Stop active step” when you are done adding this kind of point.
+                  </div>
+                  <button onClick={stopWizardAction} className="btn btn-outline btn-xs">
+                    Stop active step
+                  </button>
                 </div>
               )}
               {selectedTemplate.guideOnly && (

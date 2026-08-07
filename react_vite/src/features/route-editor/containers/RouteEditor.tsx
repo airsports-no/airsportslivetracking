@@ -252,7 +252,7 @@ export default function RouteEditor() {
       if (wizardRouteInsertType && wizardRouteInsertFeatureType === 'dummy_branch_waypoint') {
         const selectedTrigger = routePoints.find((point) => point.id === selectedId && point.type === 'ul');
         if (!selectedTrigger) {
-          alert('Select an unknown-leg trigger on the backbone before adding dummy-branch waypoints.');
+          alert('Select an unknown-leg trigger on the backbone before adding dummy-branch waypoints. Keep the trigger selected, then click Add again.');
           return;
         }
         const siblingBranchPoints = standalonePoints.filter(
@@ -522,11 +522,13 @@ export default function RouteEditor() {
     const step = getWizardStep(template, stepKey);
     if (!step) return;
 
-    setSelectedId(null);
+    const transition = getWizardTransition(step, getWizardRouteInsertLabel);
+    if (!transition.preserveSelectedPoint) {
+      setSelectedId(null);
+    }
     setPendingPointTypeSelection(null);
     setPendingPointFeatureTypeSelection(undefined);
 
-    const transition = getWizardTransition(step, getWizardRouteInsertLabel);
     setCurrentWizardActionLabel(transition.currentWizardActionLabel);
     setWizardRouteInsertType(transition.wizardRouteInsertType as RoutePoint['type'] | null);
     setWizardRouteInsertFeatureType(transition.wizardRouteInsertFeatureType as RoutePoint['featureType'] | undefined);
@@ -567,6 +569,16 @@ export default function RouteEditor() {
           ))
       : []
   ), [routePoints, standalonePoints, isThreePointBackboneTask, isCircleStandaloneTask, selectedTaskTemplateId]);
+
+  const stopWizardAction = useCallback(() => {
+    setMode('view');
+    setWizardRouteInsertType(null);
+    setWizardRouteInsertFeatureType(undefined);
+    setWizardPolygonType(null);
+    setCurrentWizardActionLabel(null);
+    setPendingPointTypeSelection(null);
+    setPendingPointFeatureTypeSelection(undefined);
+  }, []);
 
   const handleSave = async () => {
     if (!routeName || !routeName.trim()) {
@@ -671,6 +683,7 @@ export default function RouteEditor() {
             setIsDirty(true);
           }}
           startWizardStep={startWizardStep}
+          stopWizardAction={stopWizardAction}
           currentWizardActionLabel={currentWizardActionLabel}
           visibleTaskTypeGroups={visibleTaskTypeGroups}
         />

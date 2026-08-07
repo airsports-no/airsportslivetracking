@@ -68,6 +68,7 @@ from display.models import (
 )
 from display.services.access_resolver import resolve_contest_access
 from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.task_compiler import TaskCompiler
 from display.services.contestant_persistence import (
     create_contestant_with_related_state,
     update_contestant_with_related_state,
@@ -1470,6 +1471,8 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         assign_perm("display.delete_route", user, route)
         assign_perm("display.change_route", user, route)
         navigation_task = NavigationTask.create(**validated_data, route=route)
+        if navigation_task.task_subtype:
+            TaskCompiler(navigation_task).compile(force=True)
         for contestant_data in contestant_set:
             contestant_serialiser = ContestantNestedTeamSerialiser(
                 data=contestant_data, context={"navigation_task": navigation_task}

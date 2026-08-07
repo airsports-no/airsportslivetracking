@@ -1291,6 +1291,8 @@ def plot_catalogue_targets(targets: list[dict], colour: str, task_config: Option
         if len(coordinates) != 2:
             continue
         kind = target.get("kind") or "catalogue_turnpoint"
+        if kind == "catalogue_turnpoint" and target.get("is_unknown_leg_trigger"):
+            continue
         points_by_kind[kind] = tuple(coordinates)
         lon, lat = coordinates
         marker_style = marker_style_by_kind.get(kind, marker_style_by_kind["catalogue_turnpoint"])
@@ -1527,8 +1529,12 @@ def plot_route(
         include_contestant_declarations=include_contestant_declarations,
     )
     task_catalogue_targets = []
-    if contestant is None:
+    if task.task_subtype == "unknown_legs":
+        task_catalogue_targets = get_task_catalogue_targets(task, contestant=contestant)
+    elif contestant is None:
         task_catalogue_targets = get_task_catalogue_targets(task)
+    if contestant is None and task.task_subtype == "unknown_legs" and task_catalogue_targets:
+        render_waypoints = []
     if PRECISION in task.scorecard.task_type or POKER in task.scorecard.task_type:
         paths = plot_precision_track(
             route,
@@ -1560,7 +1566,6 @@ def plot_route(
                     if isinstance(target.get("coordinates"), list) and len(target.get("coordinates")) == 2
                 ]
                 if len(ordered_segment_points) >= 2:
-                    ordered_segment_points.sort(key=lambda item: item[0])
                     path = np.array([(lat, lon) for _, lat, lon in ordered_segment_points])
                     paths.append(path)
                     if not waypoints_only:

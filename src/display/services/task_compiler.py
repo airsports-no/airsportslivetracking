@@ -1,6 +1,8 @@
 import hashlib
 import json
 
+TASK_COMPILER_SIGNATURE_VERSION = 2
+
 from display.models import CompiledNavigationTask
 from display.utilities.cima_task_type_definitions import (
     CONTRACT_NAVIGATION_TIME_CONTROLS,
@@ -10,7 +12,7 @@ from display.utilities.cima_task_type_definitions import (
     UNKNOWN_LEGS,
     get_task_subtype_definition,
 )
-from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNPOINT, UNKNOWN_LEG, DUMMY, HIDDEN_GATE
+from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNPOINT, UNKNOWN_LEG, DUMMY, HIDDEN_GATE, SECRETPOINT
 
 
 class TaskCompiler:
@@ -270,6 +272,7 @@ class TaskCompiler:
             "actual_waypoint_names": [],
             "actual_coordinates_by_name": {},
         }
+        post_trigger_hidden_gate_names = set()
         actual_route_names = []
         actual_route_waypoints = []
         connectors = []
@@ -311,8 +314,13 @@ class TaskCompiler:
             if not name:
                 continue
 
-            current_segment["display_waypoint_names"].append(name)
-            current_segment["display_coordinates_by_name"][name] = coordinates
+            include_in_display_segment = True
+            if point_type in (HIDDEN_GATE, SECRETPOINT) and name in post_trigger_hidden_gate_names:
+                include_in_display_segment = False
+
+            if include_in_display_segment:
+                current_segment["display_waypoint_names"].append(name)
+                current_segment["display_coordinates_by_name"][name] = coordinates
 
             if point_type != DUMMY:
                 current_segment["actual_waypoint_names"].append(name)
@@ -323,13 +331,31 @@ class TaskCompiler:
             if point_type == UNKNOWN_LEG:
                 trigger_id = properties.get("id")
                 branch_features = dummy_branch_by_trigger.get(trigger_id, []) if trigger_id else []
+                branch_waypoints = []
+                post_trigger_hidden_gate_names = set()
+                for next_item in ordered_waypoints[index + 1 :]:
+                    next_type = next_item.get("properties", {}).get("pointType")
+                    next_name = next_item.get("properties", {}).get("name")
+                    if next_type in (HIDDEN_GATE, SECRETPOINT) and next_name:
+                        post_trigger_hidden_gate_names.add(next_name)
+                        continue
+                    break
                 for branch_feature in branch_features:
-                    branch_name = branch_feature.get("properties", {}).get("name")
+                    branch_properties = branch_feature.get("properties", {})
+                    branch_name = branch_properties.get("name")
                     branch_coordinates = feature_coordinates(branch_feature)
                     if not branch_name or len(branch_coordinates) != 2:
                         continue
                     current_segment["display_waypoint_names"].append(branch_name)
                     current_segment["display_coordinates_by_name"][branch_name] = branch_coordinates
+                    branch_waypoints.append(
+                        {
+                            "name": branch_name,
+                            "coordinates": branch_coordinates,
+                            "trigger_point_id": trigger_id,
+                            "branch_sequence": branch_properties.get("branchSequence", 0),
+                        }
+                    )
                 next_real_waypoint = None
                 for next_item in ordered_waypoints[index + 1 :]:
                     next_type = next_item.get("properties", {}).get("pointType")
@@ -352,6 +378,7 @@ class TaskCompiler:
                                 for feature in branch_features
                                 if feature.get("properties", {}).get("name")
                             ],
+                            "dummy_branch_waypoints": branch_waypoints,
                         }
                     )
                 segments.append(current_segment)
@@ -364,6 +391,9 @@ class TaskCompiler:
                     "actual_coordinates_by_name": {},
                 }
                 continue
+
+            if point_type in (TURNPOINT, FINISHPOINT):
+                post_trigger_hidden_gate_names = set()
 
         if current_segment["display_waypoint_names"] or current_segment["actual_waypoint_names"]:
             segments.append(current_segment)
@@ -380,8 +410,12 @@ class TaskCompiler:
                     "name": item.get("properties", {}).get("name") or "",
                     "coordinates": item.get("geometry", {}).get("coordinates", []),
                 }
-                for item in editable_route.get_hidden_gates()
-                if len(item.get("geometry", {}).get("coordinates", [])) == 2
+                for item in ordered_waypoints
+                if (
+                    item.get("properties", {}).get("pointType") in (HIDDEN_GATE, SECRETPOINT)
+                    or item.get("properties", {}).get("featureType") == "hidden_gate"
+                )
+                and len(item.get("geometry", {}).get("coordinates", [])) == 2
             ],
         }
 
@@ -411,6 +445,7 @@ class TaskCompiler:
             getattr(scorecard, "anr_route_from_fp_penalty", None),
         )
         payload = {
+            "signature_version": TASK_COMPILER_SIGNATURE_VERSION,
             "task": self.navigation_task.pk,
             "route": route_pk,
             "editable_route": editable_route_pk,

@@ -204,6 +204,10 @@ export interface NavigationTaskCatalogueTarget {
   coordinates: [number, number];
   kind?: "catalogue_turnpoint" | "circle_center_marker" | "circle_start_marker" | "circle_entry_marker" | "circle_exit_marker" | "unknown_leg_trigger" | "unknown_leg_connector_end" | "hidden_gate";
   segment_name?: string;
+  trigger_point_id?: string | null;
+  branch_sequence?: number | null;
+  connector_to_name?: string | null;
+  is_unknown_leg_trigger?: boolean;
 }
 
 export interface NavigationTask {

@@ -8,6 +8,7 @@ export type WizardTransition = {
   wizardRouteInsertFeatureType: string | undefined;
   wizardPolygonType: string | null;
   clearSelectionType: boolean;
+  preserveSelectedPoint: boolean;
   nextSelectionType: 'wizard' | 'point' | 'standalone_point' | null;
   resetTempPolygonPoints: boolean;
   routeInsertPrompt: string | null;
@@ -22,6 +23,7 @@ const DEFAULT_TRANSITION: WizardTransition = {
   wizardRouteInsertFeatureType: undefined,
   wizardPolygonType: null,
   clearSelectionType: false,
+  preserveSelectedPoint: false,
   nextSelectionType: null,
   resetTempPolygonPoints: false,
   routeInsertPrompt: null,
@@ -83,8 +85,9 @@ export function getWizardTransition(step: WizardStep | undefined, routeInsertLab
         currentWizardActionLabel: step.help,
         wizardRouteInsertType: step.pointType ?? null,
         wizardRouteInsertFeatureType: step.featureType,
-        clearSelectionType: true,
-        nextSelectionType: 'wizard',
+        clearSelectionType: step.featureType !== 'dummy_branch_waypoint',
+        preserveSelectedPoint: step.featureType === 'dummy_branch_waypoint',
+        nextSelectionType: step.featureType === 'dummy_branch_waypoint' ? 'point' : 'wizard',
       };
     }
 

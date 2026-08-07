@@ -98,6 +98,7 @@ from display.services.capacity_enforcement import (
 from display.services.access_resolver import resolve_contest_access
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
+from display.services.task_compiler import TaskCompiler
 from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
 from display.serialisers import (
     ContestantTrackSerialiser,
@@ -1160,6 +1161,8 @@ class NavigationTaskViewSet(ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
+        if instance.task_subtype:
+            TaskCompiler(instance).compile(force=False)
         response = super().retrieve(request, *args, **kwargs)
 
         # if instance.is_public and instance.contest.is_public and instance.is_featured:

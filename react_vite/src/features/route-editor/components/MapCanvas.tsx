@@ -548,8 +548,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     );
 
     // --- RENDERER: DRAW POINTS ---
-    Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectionType, 'point');
-    Renderers.drawPoints(map, standalonePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectionType, 'standalone_point');
+    Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'point');
+    Renderers.drawPoints(map, standalonePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'standalone_point');
 
     // --- RENDERER: DRAW GATES ---
     Renderers.drawGates(map, gates, polylinesRef, setSelectedId, setSelectionType, setMode, hideLabels);

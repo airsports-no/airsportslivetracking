@@ -263,7 +263,9 @@ export const drawPoints = (
   handleDragMove: (e: L.LeafletMouseEvent) => void,
   handleDragEnd: (e: L.LeafletMouseEvent) => void,
   hideLabels: boolean,
+  setSelectedId?: (id: string | null) => void,
   setSelectionType?: (type: SelectionType | null) => void,
+  setMode?: (mode: Mode) => void,
   pointSelectionType: SelectionType = 'point',
 ) => {
   routePoints.forEach((p, index) => {
@@ -307,7 +309,9 @@ export const drawPoints = (
 
     marker.on('click', (e: L.LeafletMouseEvent) => {
       L.DomEvent.stopPropagation(e.originalEvent || e);
+      if (setSelectedId) setSelectedId(p.id);
       if (setSelectionType) setSelectionType(pointSelectionType);
+      if (setMode) setMode('view');
     });
     marker.on('mouseover', () => { if (mode === 'view') map.dragging.disable(); });
     marker.on('mouseout', () => { if (mode === 'view' && !dragRef.current) map.dragging.enable(); });
