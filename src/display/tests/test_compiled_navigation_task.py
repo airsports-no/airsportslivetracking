@@ -344,6 +344,10 @@ class TestCompiledNavigationTask(TestCase):
             [11.3, 60.3],
         )
         self.assertEqual(
+            compiled.compiled_payload["unknown_legs_segments"][0]["dummy_branch_waypoints"],
+            [{"name": "TRG1-D1", "coordinates": [11.3, 60.3], "trigger_point_id": "wp-trg", "branch_sequence": 0}],
+        )
+        self.assertEqual(
             compiled.compiled_payload["unknown_legs_actual_route"]["waypoint_names"],
             ["SP", "HG1", "A", "TRG1", "B", "FP"],
         )
@@ -354,6 +358,10 @@ class TestCompiledNavigationTask(TestCase):
         self.assertEqual(
             compiled.compiled_payload["unknown_legs_actual_route"]["unknown_leg_connectors"][0]["from"],
             "TRG1",
+        )
+        self.assertEqual(
+            compiled.compiled_payload["unknown_legs_actual_route"]["unknown_leg_connectors"][0]["trigger_point_id"],
+            "wp-trg",
         )
         self.assertEqual(
             compiled.compiled_payload["unknown_legs_actual_route"]["unknown_leg_connectors"][0]["to"],

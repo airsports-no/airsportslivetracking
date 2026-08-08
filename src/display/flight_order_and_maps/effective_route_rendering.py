@@ -151,7 +151,7 @@ def _build_unknown_legs_targets_from_payload(payload: dict[str, Any]) -> list[di
                     "name": connector.get("from") or "",
                     "coordinates": from_coordinates,
                     "kind": "unknown_leg_trigger",
-                    "trigger_point_id": connector.get("from"),
+                    "trigger_point_id": connector.get("trigger_point_id") or connector.get("from"),
                 }
             )
         if isinstance(to_coordinates, list) and len(to_coordinates) == 2:
@@ -160,7 +160,7 @@ def _build_unknown_legs_targets_from_payload(payload: dict[str, Any]) -> list[di
                     "name": f"{connector.get('from')}→{connector.get('to')}",
                     "coordinates": to_coordinates,
                     "kind": "unknown_leg_connector_end",
-                    "trigger_point_id": connector.get("from"),
+                    "trigger_point_id": connector.get("trigger_point_id") or connector.get("from"),
                     "connector_to_name": connector.get("to"),
                     "segment_name": next(
                         (

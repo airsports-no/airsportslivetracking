@@ -271,6 +271,7 @@ class TaskCompiler:
             "display_coordinates_by_name": {},
             "actual_waypoint_names": [],
             "actual_coordinates_by_name": {},
+            "dummy_branch_waypoints": [],
         }
         post_trigger_hidden_gate_names = set()
         actual_route_names = []
@@ -356,6 +357,7 @@ class TaskCompiler:
                             "branch_sequence": branch_properties.get("branchSequence", 0),
                         }
                     )
+                current_segment["dummy_branch_waypoints"] = branch_waypoints
                 next_real_waypoint = None
                 for next_item in ordered_waypoints[index + 1 :]:
                     next_type = next_item.get("properties", {}).get("pointType")
@@ -369,6 +371,7 @@ class TaskCompiler:
                     connectors.append(
                         {
                             "from": name,
+                            "trigger_point_id": trigger_id,
                             "to": next_name,
                             "heading": properties.get("unknownLegHeading"),
                             "from_coordinates": coordinates,
@@ -389,6 +392,7 @@ class TaskCompiler:
                     "display_coordinates_by_name": {},
                     "actual_waypoint_names": [],
                     "actual_coordinates_by_name": {},
+                    "dummy_branch_waypoints": [],
                 }
                 continue
 

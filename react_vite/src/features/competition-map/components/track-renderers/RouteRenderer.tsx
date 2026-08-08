@@ -39,7 +39,6 @@ function buildUnknownLegRouteDataFromTargets(targets: NavigationTaskCatalogueTar
   const segmentEntries = new Map<string, NavigationTaskCatalogueTarget[]>();
   targets
     .filter((target) => target.kind === 'catalogue_turnpoint' && target.segment_name)
-    .filter((target) => !(target as any).is_unknown_leg_trigger)
     .filter((target) => !hiddenGateNames.has(target.name))
     .filter((target) => !hiddenStretchNames.has(target.name))
     .forEach((target) => {
@@ -53,8 +52,13 @@ function buildUnknownLegRouteDataFromTargets(targets: NavigationTaskCatalogueTar
   const orderedSegments = [...segmentEntries.entries()].sort(([a], [b]) => a.localeCompare(b));
   const waypoints: Waypoint[] = [];
   orderedSegments.forEach(([, segmentTargets], segmentIndex) => {
+    let previousIncludedPointWasBranch = false;
     segmentTargets.forEach((target, pointIndex) => {
       const [lng, lat] = target.coordinates;
+      const isBranchPoint = Boolean(target.trigger_point_id);
+      if (pointIndex > 0 && previousIncludedPointWasBranch && !isBranchPoint) {
+        return;
+      }
       waypoints.push({
         name: target.name,
         latitude: lat,
@@ -73,6 +77,7 @@ function buildUnknownLegRouteDataFromTargets(targets: NavigationTaskCatalogueTar
         bearing_from_previous: 0,
         is_procedure_turn: false,
       });
+      previousIncludedPointWasBranch = isBranchPoint;
     });
   });
 
@@ -101,7 +106,8 @@ function renderWaypointLabels(
     map: L.Map,
     waypoints: Waypoint[],
     contestants: Record<number, Contestant>,
-    selectedContestantId: number | null
+    selectedContestantId: number | null,
+    options: { labelAllVisible?: boolean } = {}
 ): L.Layer[] {
     const layers: L.Layer[] = [];
     const emptyIcon = L.divIcon({
@@ -243,30 +249,11 @@ function renderPrecisionRoute(
         if (branchTrack.length >= 2) {
           layers.push(L.polyline(branchTrack, { color: "blue" }).addTo(map));
         }
-        const connectorEnd = connectorEndsByTriggerId.get(triggerId);
-        if (connectorEnd && branchTrack.length >= 2) {
-          layers.push(L.polyline([branchTrack[branchTrack.length - 1], connectorEnd], { color: "blue" }).addTo(map));
-        }
-
-        const connectorTarget = taskCatalogueTargets.find((target) => target.kind === 'unknown_leg_connector_end' && target.trigger_point_id === triggerId);
-        if (connectorTarget?.segment_name) {
-          const connectorSegmentTargets = taskCatalogueTargets
-            .filter((target) => target.kind === 'catalogue_turnpoint' && target.segment_name === connectorTarget.segment_name)
-            .filter((target) => !target.trigger_point_id)
-            .map((target) => {
-              const [lng, lat] = target.coordinates;
-              return [lat, lng] as L.LatLngExpression;
-            });
-          if (connectorSegmentTargets.length >= 2) {
-            layers.push(L.polyline(connectorSegmentTargets, { color: "blue" }).addTo(map));
-          }
-        }
       });
     } else {
       const segments = new Map<string, NavigationTaskCatalogueTarget[]>();
       taskCatalogueTargets
         .filter((target) => target.kind === 'catalogue_turnpoint' && target.segment_name)
-        .filter((target) => !(target as any).is_unknown_leg_trigger)
         .filter((target) => !hiddenGateNames.has(target.name))
         .filter((target) => !hiddenStretchNames.has(target.name))
         .forEach((target) => {
@@ -383,7 +370,7 @@ function renderPokerRoute(map: L.Map, route: RouteData): L.Layer[] {
 }
 
 
-function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarget[], showUnknownLegOverlays: boolean): L.Layer[] {
+function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarget[], showUnknownLegOverlays: boolean, options: { labelCatalogueTurnpoints?: boolean } = {}): L.Layer[] {
   const layers: L.Layer[] = [];
   const hiddenGateNames = new Set(
     targets
@@ -468,7 +455,7 @@ function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarg
       layer = marker;
     }
 
-    if (kind !== 'catalogue_turnpoint') {
+    if (kind !== 'catalogue_turnpoint' || options.labelCatalogueTurnpoints) {
       (layer as any).bindTooltip(target.name, {
         permanent: true,
         direction: 'right',
@@ -680,7 +667,10 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, taskCo
     }
     if (renderedCatalogueTargets.length > 0) {
       const showUnknownLegOverlays = canSeeSecrets;
-      layers = layers.concat(renderCatalogueTargets(map, renderedCatalogueTargets, showUnknownLegOverlays));
+      const isUnknownLegsTask = (taskCatalogueTargets || []).some((target) => Boolean(target.segment_name));
+      layers = layers.concat(renderCatalogueTargets(map, renderedCatalogueTargets, showUnknownLegOverlays, {
+        labelCatalogueTurnpoints: isUnknownLegsTask,
+      }));
       const circleTargets = renderedCatalogueTargets.filter((target) => target.kind?.startsWith('circle_'));
       if (circleTargets.length > 0) {
         layers = layers.concat(renderCircleTaskGeometry(map, circleTargets, taskConfig));
@@ -691,6 +681,9 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, taskCo
         const isUnknownLegsTask = (taskCatalogueTargets || []).some((target) => Boolean(target.segment_name));
         const isUnknownLeg = w.type === "ul";
         const isHiddenUnknownLegSecret = w.type === 'hidden_gate' || w.type === 'secret';
+        if (isUnknownLegsTask) {
+            return false;
+        }
         const canSeeSecrets = navTaskDisplaySecrets && displaySecrets;
         const showUnknownLegOverlays = canSeeSecrets;
         if (isUnknownLegsTask && (isUnknownLeg || isHiddenUnknownLegSecret)) {

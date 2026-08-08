@@ -784,6 +784,10 @@ class TestContestantTaskConfiguration(TestCase):
             [11.3, 60.3],
         )
         self.assertEqual(
+            payload["segments"][0]["dummy_branch_waypoints"],
+            [{"name": "TRG1-D1", "coordinates": [11.3, 60.3], "trigger_point_id": "wp-trg", "branch_sequence": 0}],
+        )
+        self.assertEqual(
             payload["segments"][0]["actual_waypoint_names"],
             ["SP", "HG1", "A", "TRG1"],
         )
@@ -796,6 +800,7 @@ class TestContestantTaskConfiguration(TestCase):
             ["SP", "HG1", "A", "TRG1", "B", "FP"],
         )
         self.assertEqual(payload["actual_route"]["unknown_leg_connectors"][0]["from"], "TRG1")
+        self.assertEqual(payload["actual_route"]["unknown_leg_connectors"][0]["trigger_point_id"], "wp-trg")
         self.assertEqual(payload["actual_route"]["unknown_leg_connectors"][0]["to"], "B")
         self.assertEqual(payload["actual_route"]["unknown_leg_connectors"][0]["heading"], 105)
         self.assertEqual(payload["hidden_gates"], [{"name": "HG1", "coordinates": [11.22, 60.22]}])
