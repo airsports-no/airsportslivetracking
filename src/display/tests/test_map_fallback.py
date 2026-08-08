@@ -281,6 +281,78 @@ class MapFallbackTests(TestCase):
         self.assertEqual(tuple(segment_calls[1].args[1]), (60.4, 60.5))
         mock_plot_catalogue_targets.assert_called_once()
 
+    @patch('display.flight_order_and_maps.map_plotter.plot_catalogue_targets')
+    @patch('display.flight_order_and_maps.map_plotter.get_task_catalogue_targets')
+    @patch('display.flight_order_and_maps.map_plotter.get_effective_route_waypoints', return_value=[])
+    @patch('display.flight_order_and_maps.map_plotter.plot_prohibited_zones')
+    @patch('display.flight_order_and_maps.map_plotter.plot_precision_track', return_value=[])
+    @patch('display.flight_order_and_maps.map_plotter.scale_bar_y')
+    @patch('display.flight_order_and_maps.map_plotter.utm_from_lat_lon')
+    @patch('display.flight_order_and_maps.map_plotter.AirsportsOSM')
+    @patch('display.flight_order_and_maps.map_plotter.plt')
+    @patch('display.flight_order_and_maps.map_plotter.ccrs')
+    def test_plot_route_renders_unknown_leg_contestant_navigation_segments_as_solid_lines_without_trigger_marker(
+        self,
+        mock_ccrs,
+        mock_plt,
+        mock_airsports_osm,
+        mock_utm,
+        _mock_scale_bar,
+        mock_plot_precision_track,
+        _mock_plot_prohibited,
+        mock_get_effective_waypoints,
+        mock_get_catalogue_targets,
+        mock_plot_catalogue_targets,
+    ):
+        from unittest.mock import MagicMock
+        from display.flight_order_and_maps.map_constants import A4
+        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+
+        self.task.task_subtype = UNKNOWN_LEGS
+        self.task.save(update_fields=["task_subtype"])
+        contestant = MagicMock()
+        contestant.navigation_task = self.task
+        mock_get_effective_waypoints.return_value = [MagicMock(name="effective-waypoint")]
+        mock_get_catalogue_targets.side_effect = [[], [
+            {"name": "SP", "coordinates": [11.0, 60.0], "kind": "catalogue_turnpoint", "segment_name": "segment_1"},
+            {"name": "TRG1", "coordinates": [11.2, 60.2], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "is_unknown_leg_trigger": True},
+            {"name": "TRG1-D1", "coordinates": [11.3, 60.3], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "trigger_point_id": "TRG1", "branch_sequence": 0},
+            {"name": "B", "coordinates": [11.4, 60.4], "kind": "catalogue_turnpoint", "segment_name": "segment_2"},
+            {"name": "FP", "coordinates": [11.5, 60.5], "kind": "catalogue_turnpoint", "segment_name": "segment_2"},
+        ]]
+
+        mock_osm_instance = MagicMock()
+        mock_airsports_osm.return_value = mock_osm_instance
+        mock_ax = MagicMock()
+        mock_fig = MagicMock()
+        mock_fig.patch = MagicMock()
+        mock_plt.figure.return_value = mock_fig
+        mock_fig.add_axes.return_value = mock_ax
+        mock_ccrs.PlateCarree.return_value = MagicMock()
+        mock_ax.get_extent.return_value = (10.0, 11.0, 60.0, 61.0)
+        mock_utm_instance = MagicMock()
+        mock_utm_instance.transform_point.side_effect = [(0, 0), (1000, 1000), (10.0, 60.0), (11.0, 61.0)]
+        mock_utm.return_value = mock_utm_instance
+
+        try:
+            plot_route(self.task, A4, contestant=contestant, scale=0)
+        except Exception:
+            pass
+
+        mock_plot_precision_track.assert_called_once()
+        self.assertEqual(mock_plot_precision_track.call_args.kwargs["render_waypoints"], [])
+        solid_segment_calls = [
+            call
+            for call in mock_plt.plot.call_args_list
+            if call.kwargs.get('linestyle') is None and len(call.args) >= 2 and not isinstance(call.args[0], (int, float))
+        ]
+        self.assertGreaterEqual(len(solid_segment_calls), 2)
+        self.assertEqual(tuple(solid_segment_calls[0].args[0]), (11.0, 11.2, 11.3))
+        self.assertEqual(tuple(solid_segment_calls[0].args[1]), (60.0, 60.2, 60.3))
+        self.assertEqual(tuple(solid_segment_calls[-1].args[0]), (11.4, 11.5))
+        self.assertEqual(tuple(solid_segment_calls[-1].args[1]), (60.4, 60.5))
+        mock_plot_catalogue_targets.assert_not_called()
+
     def test_get_task_catalogue_targets_unknown_legs_selected_contestant_includes_visible_segments_and_hidden_overlays(self):
         from types import SimpleNamespace
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
@@ -364,6 +436,9 @@ class MapFallbackTests(TestCase):
                 {"name": "SP", "coordinates": [11.0, 60.0], "kind": "catalogue_turnpoint", "segment_name": "segment_1"},
                 {"name": "TRG1", "coordinates": [11.2, 60.2], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "is_unknown_leg_trigger": True},
                 {"name": "TRG1-D1", "coordinates": [11.3, 60.3], "kind": "catalogue_turnpoint", "segment_name": "segment_1", "trigger_point_id": "TRG1", "branch_sequence": 0},
+                {"name": "TRG1", "coordinates": [11.2, 60.2], "kind": "unknown_leg_trigger", "trigger_point_id": "TRG1"},
+                {"name": "TRG1→B", "coordinates": [11.4, 60.4], "kind": "unknown_leg_connector_end", "trigger_point_id": "TRG1", "connector_to_name": "B", "segment_name": None},
+                {"name": "HG1", "coordinates": [11.22, 60.22], "kind": "hidden_gate"},
             ],
             "#0000ff",
         )
@@ -434,7 +509,11 @@ class MapFallbackTests(TestCase):
 
         mock_plot_precision_track.assert_called_once()
         self.assertEqual(mock_plot_precision_track.call_args.kwargs["render_waypoints"], [])
-        segment_calls = [call for call in mock_plt.plot.call_args_list if call.kwargs.get('linestyle') == (0, (8, 6))]
+        segment_calls = [
+            call
+            for call in mock_plt.plot.call_args_list
+            if call.kwargs.get('linestyle') == (0, (8, 6))
+        ]
         self.assertEqual(len(segment_calls), 1)
         self.assertEqual(tuple(segment_calls[0].args[0]), (11.0, 11.2, 11.3))
         self.assertEqual(tuple(segment_calls[0].args[1]), (60.0, 60.2, 60.3))

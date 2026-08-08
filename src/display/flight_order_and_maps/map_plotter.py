@@ -36,7 +36,7 @@ import six
 import datetime
 import os
 import sys
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, cast
 
 from django.db import models
 from PIL import Image
@@ -1291,6 +1291,8 @@ def plot_catalogue_targets(targets: list[dict], colour: str, task_config: Option
         if len(coordinates) != 2:
             continue
         kind = target.get("kind") or "catalogue_turnpoint"
+        if kind in ("unknown_leg_trigger", "unknown_leg_connector_end", "hidden_gate"):
+            continue
         if kind == "catalogue_turnpoint" and target.get("is_unknown_leg_trigger"):
             continue
         points_by_kind[kind] = tuple(coordinates)
@@ -1531,9 +1533,11 @@ def plot_route(
     task_catalogue_targets = []
     if task.task_subtype == "unknown_legs":
         task_catalogue_targets = get_task_catalogue_targets(task, contestant=contestant)
+        if contestant is not None and not task_catalogue_targets:
+            task_catalogue_targets = get_task_catalogue_targets(task)
     elif contestant is None:
         task_catalogue_targets = get_task_catalogue_targets(task)
-    if contestant is None and task.task_subtype == "unknown_legs" and task_catalogue_targets:
+    if task.task_subtype == "unknown_legs" and task_catalogue_targets:
         render_waypoints = []
     if PRECISION in task.scorecard.task_type or POKER in task.scorecard.task_type:
         paths = plot_precision_track(
@@ -1548,7 +1552,7 @@ def plot_route(
             render_waypoints=render_waypoints,
             task_catalogue_targets=task_catalogue_targets,
         )
-        if contestant is None and task.task_subtype == "unknown_legs" and task_catalogue_targets:
+        if task.task_subtype == "unknown_legs" and task_catalogue_targets:
             segment_lookup = {}
             for target in task_catalogue_targets:
                 if target.get("kind") == "catalogue_turnpoint" and target.get("segment_name"):
@@ -1556,28 +1560,70 @@ def plot_route(
             for index, segment_targets in sorted(segment_lookup.items()):
                 if not segment_targets:
                     continue
-                ordered_segment_points = [
-                    (
-                        target.get("name") or "",
-                        target["coordinates"][1],
-                        target["coordinates"][0],
+                ordered_segment_points = []
+                previous_point_was_branch = False
+                for target in segment_targets:
+                    coordinates = target.get("coordinates")
+                    if not isinstance(coordinates, list) or len(coordinates) != 2:
+                        continue
+                    is_unknown_leg_trigger = bool(target.get("is_unknown_leg_trigger"))
+                    is_branch_point = bool(target.get("trigger_point_id"))
+                    if previous_point_was_branch and not is_branch_point:
+                        break
+                    ordered_segment_points.append(
+                        (
+                            target.get("name") or "",
+                            coordinates[1],
+                            coordinates[0],
+                            is_unknown_leg_trigger,
+                        )
                     )
-                    for target in segment_targets
-                    if isinstance(target.get("coordinates"), list) and len(target.get("coordinates")) == 2
-                ]
+                    previous_point_was_branch = is_branch_point
                 if len(ordered_segment_points) >= 2:
-                    path = np.array([(lat, lon) for _, lat, lon in ordered_segment_points])
+                    path = np.array([(lat, lon) for _, lat, lon, _ in ordered_segment_points])
                     paths.append(path)
                     if not waypoints_only:
                         ys, xs = path.T
+                        plot_kwargs = {
+                            "transform": ccrs.PlateCarree(),
+                            "color": colour,
+                            "linewidth": line_width,
+                        }
+                        if contestant is None:
+                            plot_kwargs["linestyle"] = (0, (8, 6))
                         plt.plot(
                             xs,
                             ys,
-                            transform=ccrs.PlateCarree(),
-                            color=colour,
-                            linewidth=line_width,
-                            linestyle=(0, (8, 6)),
+                            **plot_kwargs,
                         )
+                    if contestant is not None:
+                        for name, lat, lon, is_unknown_leg_trigger in ordered_segment_points:
+                            if is_unknown_leg_trigger:
+                                continue
+                            plt.plot(
+                                lon,
+                                lat,
+                                transform=ccrs.PlateCarree(),
+                                color=colour,
+                                marker="o",
+                                markersize=20,
+                                fillstyle="none",
+                            )
+                            route_like = contestant.navigation_task.route if contestant is not None else route
+                            route_like = cast(Route, route_like)
+                            waypoint = next((item for item in render_waypoints if item.name == name), None)
+                            if waypoint is not None:
+                                bearing = getattr(waypoint, "bearing_next", 0)
+                                plot_waypoint_name(
+                                    route_like,
+                                    waypoint,
+                                    bearing,
+                                    annotations,
+                                    waypoints_only,
+                                    contestant,
+                                    line_width,
+                                    "red",
+                                )
     elif ANR_CORRIDOR in task.scorecard.task_type:
         paths = plot_anr_corridor_track(
             route,
