@@ -20,18 +20,6 @@ spec:
         date: "{{ now | unixEpoch }}"
     spec:
       terminationGracePeriodSeconds: 45
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchExpressions:
-                    - key: service
-                      operator: In
-                      values:
-                        - tracker-web
-                topologyKey: "kubernetes.io/hostname"
       containers:
       - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
         command: [ "bash", "-c", "/gunicorn.sh" ]
@@ -57,10 +45,10 @@ spec:
               name: pw-secrets
         resources:
           requests:
-            cpu: 500m
+            cpu: 250m
             memory: 512Mi
           limits:
-            cpu: 500m
+            cpu: 250m
             memory: 512Mi
 
         volumeMounts:
