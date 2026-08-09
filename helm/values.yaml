@@ -127,10 +127,10 @@ redis:
     # Increasing resources for GKE Autopilot to avoid throttling during peak scoring periods.
     resources:
       requests:
-        cpu: 1000m
+        cpu: 500m
         memory: 1Gi
       limits:
-        cpu: 1000m
+        cpu: 500m
         memory: 1Gi
     config:
       maxmemory: 768mb
@@ -149,19 +149,19 @@ redis:
   splitBrainDetection:
     resources:
       requests:
-        cpu: 500m
+        cpu: 100m
         memory: 128Mi
       limits:
-        cpu: 500m
+        cpu: 100m
         memory: 128Mi
 
   sentinel:
     resources:
       requests:
-        cpu: 500m
+        cpu: 250m
         memory: 256Mi
       limits:
-        cpu: 500m
+        cpu: 250m
         memory: 256Mi
 
   haproxy:
@@ -214,18 +214,18 @@ redis:
 
     resources:
       requests:
-        cpu: 500m
+        cpu: 50m
         memory: 128Mi
       limits:
-        cpu: 500m
+        cpu: 50m
         memory: 128Mi
     init:
       resources:
         requests:
-          cpu: 500m
+          cpu: 50m
           memory: 128Mi
         limits:
-          cpu: 500m
+          cpu: 50m
           memory: 128Mi
 
 mysql:
