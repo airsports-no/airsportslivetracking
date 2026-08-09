@@ -7,7 +7,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: tracker-web
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 15
   metrics:
   - type: Resource
@@ -20,4 +20,4 @@ spec:
     scaleUp:
       stabilizationWindowSeconds: 0
     scaleDown:
-      stabilizationWindowSeconds: 300 # Keep pods for 5 mins after spike to avoid scale-out wait for active users
+      stabilizationWindowSeconds: 60 # Keep pods briefly after a spike, but allow faster return toward 1 replica

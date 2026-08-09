@@ -127,10 +127,10 @@ redis:
     # Increasing resources for GKE Autopilot to avoid throttling during peak scoring periods.
     resources:
       requests:
-        cpu: 1000m
+        cpu: 500m
         memory: 1Gi
       limits:
-        cpu: 1000m
+        cpu: 500m
         memory: 1Gi
     config:
       maxmemory: 768mb
@@ -149,19 +149,19 @@ redis:
   splitBrainDetection:
     resources:
       requests:
-        cpu: 500m
+        cpu: 100m
         memory: 128Mi
       limits:
-        cpu: 500m
+        cpu: 100m
         memory: 128Mi
 
   sentinel:
     resources:
       requests:
-        cpu: 500m
+        cpu: 250m
         memory: 256Mi
       limits:
-        cpu: 500m
+        cpu: 250m
         memory: 256Mi
 
   haproxy:
@@ -170,10 +170,8 @@ redis:
     replicas: 2
 
     # The redis-ha chart routes through per-pod announce services and asks every Sentinel which
-    # announce IP owns the master role. In production all Sentinels consistently agree on the
-    # current master, but HAProxy still times out on its built-in tcp-check + expect-string gating
-    # for the per-Sentinel announce backends. Override HAProxy with a simpler config that only
-    # verifies Redis responds to PING on the announce services and then balances in stable order.
+    # Route broker traffic only to the writable Redis master. The announce services stay stable per
+    # pod; HAProxy checks INFO replication and only keeps the backend whose role is master.
     customConfig: |-
       defaults REDIS
         mode tcp
@@ -197,8 +195,8 @@ redis:
         balance first
         option tcp-check
         tcp-check connect
-        tcp-check send PING\r\n
-        tcp-check expect string +PONG
+        tcp-check send INFO\ replication\r\n
+        tcp-check expect string role:master
         server R0 airsportsrelease-redis-announce-0:6379 check inter 5s fall 5 rise 2
         server R1 airsportsrelease-redis-announce-1:6379 check inter 5s fall 5 rise 2
         server R2 airsportsrelease-redis-announce-2:6379 check inter 5s fall 5 rise 2

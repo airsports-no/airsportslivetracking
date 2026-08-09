@@ -55,11 +55,11 @@ spec:
             value: "service=mbtiles"
         resources:
           requests:
-            cpu: 1000m
-            memory: 2.5Gi
+            cpu: 500m
+            memory: 1Gi
           limits:
-            cpu: 1000m
-            memory: 2.5Gi
+            cpu: 500m
+            memory: 1Gi
         volumeMounts:
           - mountPath: /secret
             readOnly: true
