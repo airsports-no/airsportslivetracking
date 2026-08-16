@@ -116,6 +116,7 @@ from display.models import (
     UserUploadedMap,
 )
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints, get_task_catalogue_targets
+from display.utilities.task_type_group_definitions import get_task_type_group, CIMA_TASK_TYPE_GROUP
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
@@ -1105,6 +1106,7 @@ def plot_precision_track(
     task_type: List[str] = [],
     render_waypoints: Optional[List[Waypoint]] = None,
     task_catalogue_targets: Optional[list[dict]] = None,
+    use_circle_markers: bool = False,
 ):
     if render_waypoints is None:
         render_waypoints = list(route.waypoints)
@@ -1193,6 +1195,27 @@ def plot_precision_track(
                         alpha=0.1
                     )
                 
+                # CIMA waypoints are always represented as circles rather
+                # than the legacy gate-line tick mark.
+                elif use_circle_markers:
+                    plt.scatter(
+                        waypoint.longitude,
+                        waypoint.latitude,
+                        transform=ccrs.PlateCarree(),
+                        color=colour,
+                        s=0.5,
+                        edgecolor="none",
+                    )
+                    plt.plot(
+                        waypoint.longitude,
+                        waypoint.latitude,
+                        transform=ccrs.PlateCarree(),
+                        color=colour,
+                        marker="o",
+                        markersize=20,
+                        fillstyle="none",
+                    )
+
                 # Standard gate line rendering
                 elif len(waypoint.gate_line):
                     ys, xs = np.array(waypoint.gate_line).T
@@ -1530,12 +1553,18 @@ def plot_route(
         contestant=contestant,
         include_contestant_declarations=include_contestant_declarations,
     )
+    is_cima_task = get_task_type_group(task_subtype=task.task_subtype) == CIMA_TASK_TYPE_GROUP
+    # 2.A3's GENERAL (no contestant selected) map shows only the three
+    # backbone waypoints as circles, with no connecting lines and no freeway
+    # (catalogue) points. Once a contestant is selected the full declared
+    # route renders normally via the branches below.
+    is_contract_navigation_general_view = task.task_subtype == "contract_navigation_time_controls" and contestant is None
     task_catalogue_targets = []
     if task.task_subtype == "unknown_legs":
         task_catalogue_targets = get_task_catalogue_targets(task, contestant=contestant)
         if contestant is not None and not task_catalogue_targets:
             task_catalogue_targets = get_task_catalogue_targets(task)
-    elif contestant is None:
+    elif contestant is None and not is_contract_navigation_general_view:
         task_catalogue_targets = get_task_catalogue_targets(task)
     if task.task_subtype == "unknown_legs" and task_catalogue_targets:
         render_waypoints = []
@@ -1543,7 +1572,7 @@ def plot_route(
         paths = plot_precision_track(
             route,
             contestant,
-            waypoints_only,
+            waypoints_only or is_contract_navigation_general_view,
             annotations,
             line_width,
             minute_mark_line_width,
@@ -1551,6 +1580,7 @@ def plot_route(
             task.scorecard.task_type,
             render_waypoints=render_waypoints,
             task_catalogue_targets=task_catalogue_targets,
+            use_circle_markers=is_cima_task,
         )
         if task.task_subtype == "unknown_legs" and task_catalogue_targets:
             segment_lookup = {}

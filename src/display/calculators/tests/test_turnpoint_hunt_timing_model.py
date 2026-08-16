@@ -71,10 +71,6 @@ class TestTurnpointHuntTimingModel(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint", "scoreValue": 42}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint", "scoreValue": 17}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
                     {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
@@ -136,7 +132,7 @@ class TestTurnpointHuntTimingModel(TestCase):
             payload = {}
         self.assertEqual(payload.get('free_target_names'), ['A', 'B'])
         self.assertEqual(payload.get('declared_sequence', []), [])
-        self.assertEqual(payload.get('effective_waypoint_names'), ['SP', 'SC 1/1', 'TP1'])
+        self.assertEqual(payload.get('effective_waypoint_names'), ['CP1', 'CP2', 'CP3'])
         self.assertEqual(payload.get('scored_target_values'), {'A': 42.0, 'B': 17.0})
         self.assertEqual(payload.get('free_target_evidence'), {'A': ['A'], 'B': ['B']})
 
@@ -151,7 +147,7 @@ class TestTurnpointHuntTimingModel(TestCase):
             payload = {}
         self.assertEqual(payload.get('fuel_metadata'), {'declared_endurance_minutes': 95})
         self.assertEqual(payload.get("fuel_deadline"), '2020-08-01T09:40:00+00:00')
-        self.assertEqual(payload.get('compulsory_timing_gate_names'), ['SP', 'SC 1/1', 'TP1'])
+        self.assertEqual(payload.get('compulsory_timing_gate_names'), ['CP1', 'CP2', 'CP3'])
 
     def test_turnpoint_hunt_requires_exactly_three_compulsory_point_times(self):
         self._set_editable_route()
@@ -186,6 +182,49 @@ class TestTurnpointHuntTimingModel(TestCase):
             messages.append(calculator.score_processing_queue.get_nowait())
         self.assertEqual([msg.score_type for msg in messages], ['gate_score'])
         self.assertNotIn('SC 1/1', calculator.scored_turnpoint_hunt_compulsory_gates)
+
+    def test_limited_fuel_turnpoint_hunt_all_catalogue_crossings_score_points(self):
+        # 2.B2 spec: "not a precision task... all gate crossings provide
+        # points". Confirms every catalogue turnpoint crossing awards its
+        # declared score_value, not just the three compulsory (timed)
+        # points - and that this already works uniformly across both
+        # turnpoint_hunt and limited_fuel_turnpoint_hunt via the shared
+        # GateCalculator (no separate calculator class needed).
+        self._set_editable_route()
+        self.navigation_task.task_subtype = LIMITED_FUEL_TURNPOINT_HUNT
+        self.navigation_task.save(update_fields=['task_subtype'])
+        compiled = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={
+                'compulsory_point_times': {
+                    'CP1': '2020-08-01T08:15:00Z',
+                    'CP2': '2020-08-01T08:16:00Z',
+                    'CP3': '2020-08-01T08:17:00Z',
+                },
+                'declared_sequence': ['CP1', 'A', 'CP2', 'B', 'CP3'],
+                'fuel_metadata': {'declared_endurance_minutes': 95},
+            },
+            force=True,
+        )
+        self.assertTrue(compiled.is_valid, compiled.validation_errors)
+        self.assertEqual(compiled.compiled_effective_route_payload.get('scored_target_values'), {'A': 42.0, 'B': 17.0})
+
+        calculator = self._build_calculator()
+        gate_by_name = {gate.name: gate for gate in calculator.gates}
+        target_gate = gate_by_name['A']
+        passing_time = target_gate.expected_time
+        event = GatePassedEvent(
+            target_gate,
+            type('Pos', (), {'time': passing_time, 'latitude': target_gate.latitude, 'longitude': target_gate.longitude})(),
+            passing_time,
+            previous_gate=calculator.starting_line,
+        )
+        calculator.on_gate_passed(event)
+        messages = []
+        while not calculator.score_processing_queue.empty():
+            messages.append(calculator.score_processing_queue.get_nowait())
+        target_value_messages = [msg for msg in messages if msg.score_type == 'turnpoint_hunt_target_value']
+        self.assertEqual(len(target_value_messages), 1, messages)
+        self.assertEqual(target_value_messages[0].score, 42.0)
 
     def test_turnpoint_hunt_compulsory_timing_gate_outside_tolerance_is_anomaly(self):
         self._set_editable_route()

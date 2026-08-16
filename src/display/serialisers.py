@@ -406,6 +406,23 @@ class PhotoSerialiser(serializers.ModelSerializer):
         model = Photo
         fields = "__all__"
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        is_decoy = attrs.get("is_decoy", getattr(self.instance, "is_decoy", False))
+        if is_decoy:
+            route = attrs.get("route") or getattr(self.instance, "route", None)
+            name = attrs.get("name") or getattr(self.instance, "name", None)
+            if route is not None and name:
+                from display.services.photo_management import get_decoy_collision_names
+
+                navigation_task = getattr(route, "navigationtask", None)
+                real_target_names = get_decoy_collision_names(navigation_task) if navigation_task is not None else set()
+                if name in real_target_names:
+                    raise serializers.ValidationError(
+                        {"name": f"'{name}' is already used by a real route feature. Choose a different name for the decoy photo."}
+                    )
+        return attrs
+
 
 class PhotoPublicSerialiser(serializers.ModelSerializer):
     compiled_coordinates = serializers.SerializerMethodField()
@@ -1540,6 +1557,7 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
                     original_scorecard,
                     validated_data.pop("rounded_corners", None),
                     validated_data.pop("corridor_width", None),
+                    task_subtype=validated_data.get("task_subtype"),
                 )
             except CoreValidationError as e:
                 raise ValidationError(e)

@@ -40,10 +40,18 @@ import {
 } from '../routeEditorMapClickHelpers';
 import { getWizardStep, getWizardTransition } from '../routeEditorWizardTransitions';
 
-const getCircleStepMaxCount = (selectedTaskTemplateId: string | null, wizardRouteInsertType: RoutePoint['type'] | null) => {
-  if (selectedTaskTemplateId !== 'cima_a7' || !wizardRouteInsertType) return null;
+const getFreeMapStepMaxCount = (
+  selectedTaskTemplateId: string | null,
+  wizardRouteInsertType: RoutePoint['type'] | null,
+  wizardRouteInsertFeatureType: RoutePoint['featureType'] | undefined,
+) => {
+  if (!selectedTaskTemplateId || !wizardRouteInsertType) return null;
   const template = getTaskTemplateById(selectedTaskTemplateId);
-  const step = template?.steps.find((item) => item.pointType === wizardRouteInsertType && item.placement === 'free_map');
+  const step = template?.steps.find((item) => (
+    item.pointType === wizardRouteInsertType
+    && item.featureType === wizardRouteInsertFeatureType
+    && item.placement === 'free_map'
+  ));
   return step?.maxCount ?? null;
 };
 
@@ -91,11 +99,16 @@ export default function RouteEditor() {
   }, []);
 
   const isThreePointBackboneTask = useMemo(
-    () => ['cima_a3', 'cima_a6', 'cima_b2'].includes(selectedTaskTemplateId || ''),
+    () => ['cima_a3'].includes(selectedTaskTemplateId || ''),
     [selectedTaskTemplateId],
   );
 
   const isCircleStandaloneTask = selectedTaskTemplateId === 'cima_a7';
+  // 2.A6 and 2.B2 have no route backbone at all: the route is exactly three
+  // free-map timed turnpoints (known_time_gate markers) plus any number of
+  // untimed catalogue turnpoints, all as standalone points.
+  const isTimedTurnpointStandaloneTask = selectedTaskTemplateId === 'cima_a6' || selectedTaskTemplateId === 'cima_b2';
+  const isCurveRequiredTask = selectedTaskTemplateId === 'cima_a1';
   const standalonePointTypes = useMemo(() => {
     return createStandalonePointTypeSet(isCircleStandaloneTask);
   }, [isCircleStandaloneTask]);
@@ -219,7 +232,7 @@ export default function RouteEditor() {
 
     if (isCircleStandaloneTask && mode === 'add_point' && wizardRouteInsertType && standalonePointTypes.has(wizardRouteInsertType)) {
       const circleMarkerCount = standalonePoints.filter((point) => point.type === wizardRouteInsertType).length;
-      const maxCircleMarkerCount = getCircleStepMaxCount(selectedTaskTemplateId, wizardRouteInsertType);
+      const maxCircleMarkerCount = getFreeMapStepMaxCount(selectedTaskTemplateId, wizardRouteInsertType, wizardRouteInsertFeatureType);
       if (maxCircleMarkerCount != null && circleMarkerCount >= maxCircleMarkerCount) {
         alert(`This circle task allows no more than ${maxCircleMarkerCount} ${wizardRouteInsertType.replace('circle_', '').replaceAll('_', ' ')} marker${maxCircleMarkerCount === 1 ? '' : 's'}.`);
         return;
@@ -241,6 +254,29 @@ export default function RouteEditor() {
           wizardRouteInsertFeatureType,
           wizardPointLabel,
           nextCircleMarkerCount,
+        );
+        return [...prev, newPoint];
+      });
+      setIsDirty(true);
+      return;
+    }
+
+    // 2.A6 / 2.B2: exactly three standalone timed turnpoints, no backbone.
+    if (isTimedTurnpointStandaloneTask && mode === 'add_point' && wizardRouteInsertType === 'timed_turnpoint') {
+      const timedTurnpointCount = standalonePoints.filter((point) => point.type === 'timed_turnpoint').length;
+      const maxTimedTurnpointCount = getFreeMapStepMaxCount(selectedTaskTemplateId, wizardRouteInsertType, wizardRouteInsertFeatureType);
+      if (maxTimedTurnpointCount != null && timedTurnpointCount >= maxTimedTurnpointCount) {
+        alert(`This task allows no more than ${maxTimedTurnpointCount} timed turnpoints.`);
+        return;
+      }
+      const nextTimedTurnpointCount = timedTurnpointCount + 1;
+      setStandalonePoints(prev => {
+        const newPoint = createStandaloneWizardPoint(
+          latlng,
+          wizardRouteInsertType,
+          wizardRouteInsertFeatureType,
+          `CP${nextTimedTurnpointCount}`,
+          nextTimedTurnpointCount,
         );
         return [...prev, newPoint];
       });
@@ -369,6 +405,7 @@ export default function RouteEditor() {
     currentWizardActionLabel,
     isThreePointBackboneTask,
     isCircleStandaloneTask,
+    isTimedTurnpointStandaloneTask,
     selectedTaskTemplateId,
     selectionType,
   ]);
@@ -558,6 +595,8 @@ export default function RouteEditor() {
     routePoints,
     isThreePointBackboneTask,
     isCircleStandaloneTask,
+    isTimedTurnpointStandaloneTask,
+    isCurveRequiredTask,
   ).concat(
     selectedTaskTemplateId === 'cima_a5'
       ? routePoints
@@ -568,7 +607,7 @@ export default function RouteEditor() {
               : [`Unknown-leg trigger "${triggerPoint.name}" must have at least one dummy-branch waypoint.`]
           ))
       : []
-  ), [routePoints, standalonePoints, isThreePointBackboneTask, isCircleStandaloneTask, selectedTaskTemplateId]);
+  ), [routePoints, standalonePoints, isThreePointBackboneTask, isCircleStandaloneTask, isTimedTurnpointStandaloneTask, isCurveRequiredTask, selectedTaskTemplateId]);
 
   const stopWizardAction = useCallback(() => {
     setMode('view');

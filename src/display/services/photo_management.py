@@ -132,3 +132,57 @@ def revert_photo_to_satellite(photo: Photo) -> Photo:
     photo.generate_image(force=True)
     photo.refresh_from_db()
     return photo
+
+
+def get_decoy_collision_names(navigation_task) -> set[str]:
+    """Names a decoy photo must not reuse: real photo targets plus unknown-leg
+    trigger names (the latter aren't in get_navigation_task_photo_targets,
+    which only covers observation_photo markers for unknown_legs tasks).
+    """
+    names = {target["name"] for target in get_navigation_task_photo_targets(navigation_task)}
+    editable_route = navigation_task.editable_route
+    if editable_route is not None:
+        names.update(
+            properties.get("name")
+            for properties in (item.get("properties", {}) for item in editable_route.get_unknown_leg_waypoints())
+            if properties.get("name")
+        )
+    return names
+
+
+def create_decoy_photo(navigation_task, *, name: str, latitude: float, longitude: float, decoy_course: float | None = None) -> Photo:
+    """Register an organizer-authored decoy/false photo for 2.A5 unknown legs.
+
+    Decoy photos are not tied to any real route feature - they exist purely
+    to add difficulty by mixing false leads in among the genuine unknown-leg
+    photos shown in the flight order. The name must not collide with a real
+    feature name, since that would make the decoy indistinguishable from a
+    genuine target to the rest of the photo-management pipeline.
+    """
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("Decoy photo requires a name.")
+    if name in get_decoy_collision_names(navigation_task):
+        raise ValueError(f"'{name}' is already used by a real route feature. Choose a different name for the decoy photo.")
+    if Photo.objects.filter(route=navigation_task.route, name=name).exists():
+        raise ValueError(f"A photo named '{name}' already exists for this task.")
+
+    photo = Photo.objects.create(
+        route=navigation_task.route,
+        name=name,
+        latitude=latitude,
+        longitude=longitude,
+        is_decoy=True,
+        decoy_course=decoy_course,
+    )
+    photo.generate_image(force=True)
+    photo.refresh_from_db()
+    return photo
+
+
+def delete_decoy_photo(photo: Photo) -> None:
+    if not photo.is_decoy:
+        raise ValueError("Only decoy photos can be deleted through this action.")
+    if photo.file:
+        photo.file.delete(save=False)
+    photo.delete()

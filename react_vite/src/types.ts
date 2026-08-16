@@ -22,7 +22,7 @@ export interface LatLng {
 export interface RoutePoint extends LatLng {
   id: string;
   name: string;
-  type: "sp" | "tp" | "secret" | "fp" | "anrtp" | "known_time_gate" | "hidden_gate" | "catalogue_turnpoint" | "circle_center" | "circle_start" | "circle_entry" | "circle_exit" | "ul" | "unknown_leg" | "dummy";
+  type: "sp" | "tp" | "secret" | "fp" | "anrtp" | "known_time_gate" | "timed_turnpoint" | "hidden_gate" | "catalogue_turnpoint" | "circle_center" | "circle_start" | "circle_entry" | "circle_exit" | "ul" | "unknown_leg" | "dummy";
   segmentType: "straight" | "curved";
   controlLat?: number;
   controlLng?: number;

@@ -98,7 +98,7 @@ class TestRouteToTaskWizardTokenCreation(TestCase):
 
         wizard.done([])
 
-        mock_guard.assert_called_once_with(self.existing_contest, task_type=AIRSPORTS, task_subtype="")
+        mock_guard.assert_called_once_with(self.existing_contest, task_type=AIRSPORTS, task_subtype="", user=self.user)
 
     @patch("display.views_wizards.assert_can_add_navigation_task")
     @patch("display.views_wizards.NavigationTask.create")

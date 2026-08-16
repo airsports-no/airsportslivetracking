@@ -39,7 +39,7 @@ export function createStandaloneWizardPoint(
     type: pointType,
     featureType,
     width: 1852,
-    isTiming: false,
+    isTiming: pointType === 'timed_turnpoint',
     isPassing: true,
     isSecret: false,
     segmentType: 'straight',

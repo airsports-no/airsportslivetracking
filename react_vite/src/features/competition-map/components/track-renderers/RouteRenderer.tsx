@@ -172,6 +172,7 @@ interface Props {
   taskCatalogueTargets?: NavigationTaskCatalogueTarget[];
   taskConfig?: Record<string, any>;
   taskType: string[] | null;
+  taskSubtype?: string | null;
   navTaskDisplaySecrets: boolean;
   displaySecrets: boolean; // User preference
   contestants: Record<number, Contestant>; // Add this
@@ -181,14 +182,41 @@ interface Props {
 }
 
 // From precisionRenderer.js
+// CIMA waypoints are always represented as circles rather than the legacy
+// gate-line tick mark. Any subtype key that isn't one of the "legacy_*"
+// compatibility keys is a CIMA task (mirrors get_task_type_group() on the
+// backend, which buckets every non-legacy subtype into the "cima" group).
+function isCimaTaskSubtype(taskSubtype?: string | null): boolean {
+  return Boolean(taskSubtype) && !taskSubtype!.startsWith('legacy_');
+}
+
+const CIMA_WAYPOINT_CIRCLE_STYLE = { radius: 8, color: 'blue', weight: 2, fillColor: 'white', fillOpacity: 0 };
+
 function renderPrecisionRoute(
   map: L.Map,
   route: RouteData,
   navTaskDisplaySecrets: boolean,
   displaySecrets: boolean,
   taskCatalogueTargets: NavigationTaskCatalogueTarget[] = [],
+  taskSubtype: string | null = null,
+  hasSelectedContestant: boolean = false,
 ): L.Layer[] {
   const layers: L.Layer[] = [];
+  const isCimaTask = isCimaTaskSubtype(taskSubtype);
+  // 2.A3's GENERAL (no contestant selected) map shows only the three
+  // backbone waypoints as circles, with no connecting lines and no freeway
+  // points. Once a contestant is selected, the full declared route (already
+  // substituted in by getRenderedRoute) renders normally below.
+  const isContractNavigationGeneralView = taskSubtype === 'contract_navigation_time_controls' && !hasSelectedContestant;
+
+  if (isContractNavigationGeneralView) {
+    route.waypoints
+      .filter((waypoint: Waypoint) => waypoint.type !== 'dummy')
+      .forEach((waypoint: Waypoint) => {
+        layers.push(L.circleMarker([waypoint.latitude, waypoint.longitude], CIMA_WAYPOINT_CIRCLE_STYLE).addTo(map));
+      });
+    return layers;
+  }
 
   route.waypoints.filter((waypoint: Waypoint) => {
     return waypoint.type === 'sp' && waypoint.gate_line_extended
@@ -211,45 +239,16 @@ function renderPrecisionRoute(
         .map((target) => target.name)
     );
     if (canSeeSecrets) {
+      // Secrets-shown must match the route-editor truth: the real backbone
+      // (including hidden points), without the dummy branches added purely
+      // to obfuscate the contestant-facing view. Dummy-branch legs are drawn
+      // only in the secrets-hidden branch below.
       const actualTrack: L.LatLngExpression[] = route.waypoints
         .filter((waypoint: Waypoint) => waypoint.type !== 'dummy')
         .map((waypoint: Waypoint) => [waypoint.latitude, waypoint.longitude] as L.LatLngExpression);
       if (actualTrack.length >= 2) {
         layers.push(L.polyline(actualTrack, { color: "blue" }).addTo(map));
       }
-
-      const triggersById = new Map<string, [number, number]>();
-      const connectorEndsByTriggerId = new Map<string, [number, number]>();
-      const branchTargetsByTriggerId = new Map<string, NavigationTaskCatalogueTarget[]>();
-
-      taskCatalogueTargets.forEach((target) => {
-        const [lng, lat] = target.coordinates;
-        if (target.kind === 'unknown_leg_trigger' && target.trigger_point_id) {
-          triggersById.set(target.trigger_point_id, [lat, lng]);
-        }
-        if (target.kind === 'unknown_leg_connector_end' && target.trigger_point_id) {
-          connectorEndsByTriggerId.set(target.trigger_point_id, [lat, lng]);
-        }
-        if (target.kind === 'catalogue_turnpoint' && target.trigger_point_id) {
-          const existing = branchTargetsByTriggerId.get(target.trigger_point_id) || [];
-          existing.push(target);
-          branchTargetsByTriggerId.set(target.trigger_point_id, existing);
-        }
-      });
-
-      branchTargetsByTriggerId.forEach((branchTargets, triggerId) => {
-        const triggerPoint = triggersById.get(triggerId);
-        if (!triggerPoint) return;
-        const orderedBranchTargets = [...branchTargets].sort((a, b) => (a.branch_sequence ?? 0) - (b.branch_sequence ?? 0));
-        const branchTrack: L.LatLngExpression[] = [triggerPoint];
-        orderedBranchTargets.forEach((target) => {
-          const [lng, lat] = target.coordinates;
-          branchTrack.push([lat, lng] as L.LatLngExpression);
-        });
-        if (branchTrack.length >= 2) {
-          layers.push(L.polyline(branchTrack, { color: "blue" }).addTo(map));
-        }
-      });
     } else {
       const segments = new Map<string, NavigationTaskCatalogueTarget[]>();
       taskCatalogueTargets
@@ -280,11 +279,17 @@ function renderPrecisionRoute(
     return ((waypoint.gate_check || waypoint.time_check) && (canSeeSecrets || waypoint.type !== "secret") && waypoint.type!=="dummy")
   });
 
-  filterWaypoints().forEach((gate: Waypoint) => {
-    layers.push(L.polyline(gate.gate_line, {
-        color: "blue"
-    }).addTo(map));
-  });
+  if (isCimaTask) {
+    filterWaypoints().forEach((waypoint: Waypoint) => {
+      layers.push(L.circleMarker([waypoint.latitude, waypoint.longitude], CIMA_WAYPOINT_CIRCLE_STYLE).addTo(map));
+    });
+  } else {
+    filterWaypoints().forEach((gate: Waypoint) => {
+      layers.push(L.polyline(gate.gate_line, {
+          color: "blue"
+      }).addTo(map));
+    });
+  }
 
   const path: L.LatLngExpression[] = route.waypoints
     .filter((waypoint: Waypoint) => waypoint.type !== 'dummy')
@@ -397,6 +402,12 @@ function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarg
       return;
     }
     if (kind === 'catalogue_turnpoint' && (((target as any).is_unknown_leg_trigger) || hiddenGateNames.has(target.name))) {
+      return;
+    }
+    // Dummy-branch waypoints (identified by trigger_point_id) exist only to
+    // obfuscate the contestant-facing "secrets hidden" view. When secrets are
+    // shown, the map should match the route-editor truth, so hide them here.
+    if (kind === 'catalogue_turnpoint' && showUnknownLegOverlays && target.trigger_point_id) {
       return;
     }
 
@@ -572,13 +583,16 @@ function getRenderedCatalogueTargets(
   selectedContestantId: number | null,
   navTaskDisplaySecrets: boolean,
   displaySecrets: boolean,
+  taskSubtype: string | null = null,
 ): NavigationTaskCatalogueTarget[] {
   const canSeeSecrets = navTaskDisplaySecrets && displaySecrets;
   const isUnknownLegsTask = taskCatalogueTargets.some((target) => Boolean(target.segment_name));
   const routeTypeByName = new Map(route.waypoints.map((waypoint: Waypoint) => [waypoint.name, waypoint.type]));
   if (selectedContestantId === null) {
-    if (isUnknownLegsTask) {
-      return taskCatalogueTargets;
+    // 2.A3's general map shows only the three backbone waypoints: no freeway
+    // (catalogue) points until a contestant's declared route is selected.
+    if (taskSubtype === 'contract_navigation_time_controls') {
+      return [];
     }
     return taskCatalogueTargets;
   }
@@ -619,7 +633,7 @@ function getRenderedCatalogueTargets(
   return taskCatalogueTargets;
 }
 
-export default function RouteRenderer({ map, route, taskCatalogueTargets, taskConfig, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
+export default function RouteRenderer({ map, route, taskCatalogueTargets, taskConfig, taskType, taskSubtype, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
   const layersRef = useRef<L.Layer[]>([]);
 
   useEffect(() => {
@@ -642,6 +656,7 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, taskCo
       selectedContestantId,
       navTaskDisplaySecrets,
       displaySecrets,
+      taskSubtype ?? null,
     );
 
     // Clear previous layers
@@ -654,7 +669,10 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, taskCo
     if (taskType.includes("poker")) {
         layers = layers.concat(renderPokerRoute(map, renderedRoute));
     } else if (taskType.includes("precision")) {
-      layers = layers.concat(renderPrecisionRoute(map, renderedRoute, navTaskDisplaySecrets, displaySecrets, routeGeometryTargets));
+      layers = layers.concat(renderPrecisionRoute(
+        map, renderedRoute, navTaskDisplaySecrets, displaySecrets, routeGeometryTargets,
+        taskSubtype ?? null, selectedContestantId !== null,
+      ));
     }
     if (taskType.includes("airsports") || taskType.includes("airsportchallenge")) {
       layers = layers.concat(renderAirsportsRoute(map, renderedRoute, false, navTaskDisplaySecrets, displaySecrets));

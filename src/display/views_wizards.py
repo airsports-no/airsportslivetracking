@@ -57,7 +57,14 @@ from display.utilities.navigation_task_type_definitions import (
     AIRSPORT_CHALLENGE,
     LANDING,
 )
-from display.utilities.cima_task_type_definitions import CIRCLE
+from display.utilities.cima_task_type_definitions import CIRCLE, LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
+
+# Task subtypes with no authored route backbone: the route consists entirely
+# of free-map markers (catalogue turnpoints, timed turnpoints, circle
+# markers, ...), so no Route.waypoints can be derived from the editable
+# route's track. These get an empty placeholder Route instead of going
+# through create_precision_route (which requires a track).
+NO_BACKBONE_TASK_SUBTYPES = (CIRCLE, TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT)
 from live_tracking_map import settings
 
 
@@ -179,7 +186,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         if task_type in (PRECISION, POKER):
             initial_step_data = self.get_cleaned_data_for_step("precision_route_import")
             internal_route = initial_step_data["internal_route"]
-            if task_subtype == CIRCLE:
+            if task_subtype in NO_BACKBONE_TASK_SUBTYPES:
                 route = Route.objects.create(
                     name=internal_route.name,
                     waypoints=[],
@@ -351,7 +358,9 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
         return form
 
     def create_route(self, scorecard: Scorecard) -> Route:
-        task_type = self.get_cleaned_data_for_step("contest_selection")["task_type"]
+        selected_task = self.get_cleaned_data_for_step("contest_selection")
+        task_type = selected_task["task_type"]
+        task_subtype = selected_task.get("task_subtype")
         rounded_corners = False
         corridor_width = 0
         if task_type == ANR_CORRIDOR:
@@ -361,7 +370,7 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
         elif task_type in (AIRSPORTS, AIRSPORT_CHALLENGE):
             initial_step_data = self.get_cleaned_data_for_step("airsports_parameters")
             rounded_corners = initial_step_data["rounded_corners"]
-        return self.editable_route.create_route(task_type, scorecard, rounded_corners, corridor_width)
+        return self.editable_route.create_route(task_type, scorecard, rounded_corners, corridor_width, task_subtype=task_subtype)
 
     @transaction.atomic
     def done(self, form_list, **kwargs):
@@ -394,7 +403,9 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
             for warning in self.editable_route.get_validation_errors(corridor_width=corridor_width):
                 messages.warning(self.request, warning)
 
-            assert_can_add_navigation_task(contest, task_type=task_type, task_subtype=final_data.get("task_subtype"))
+            assert_can_add_navigation_task(
+                contest, task_type=task_type, task_subtype=final_data.get("task_subtype"), user=self.request.user
+            )
             navigation_task = NavigationTask.create(
                 **final_data,
                 name=task_name,

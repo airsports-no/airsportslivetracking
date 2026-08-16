@@ -118,7 +118,9 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         display_name="2.A6 Turnpoint hunt",
         coarse_family=PRECISION,
         requires_contestant_configuration=True,
-        required_primitives=("catalogue_turnpoint", "route_path"),
+        # No route backbone: exactly three standalone timed turnpoints
+        # (known_time_gate primitive) plus free catalogue turnpoints.
+        required_primitives=("catalogue_turnpoint", "known_time_gate"),
         declaration_schema_key=TURNPOINT_HUNT,
         scoring_modules=("predicted_sequence", "compulsory_timing_gates", "observation_evidence", "backtracking"),
     ),
@@ -143,9 +145,11 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         display_name="2.B2 Limited fuel turnpoint hunt",
         coarse_family=PRECISION,
         requires_contestant_configuration=True,
-        required_primitives=("catalogue_turnpoint", "route_path"),
+        # No route backbone: exactly three standalone timed turnpoints
+        # (known_time_gate primitive) plus free catalogue turnpoints.
+        required_primitives=("catalogue_turnpoint", "known_time_gate"),
         declaration_schema_key=LIMITED_FUEL_TURNPOINT_HUNT,
-        scoring_modules=("predicted_sequence", "compulsory_timing_gates", "observation_evidence", "fuel_compliance", "backtracking"),
+        scoring_modules=("all_gate_crossings", "compulsory_timing_gates", "observation_evidence", "fuel_compliance", "backtracking"),
     ),
     DURATION: TaskSubtypeDefinition(
         key=DURATION,

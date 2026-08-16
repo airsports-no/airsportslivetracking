@@ -13,16 +13,27 @@ export function validateRouteEditorState(
   routePoints: RoutePoint[],
   isThreePointBackboneTask: boolean,
   isCircleStandaloneTask: boolean,
+  isTimedTurnpointStandaloneTask: boolean = false,
+  isCurveRequiredTask: boolean = false,
 ): string[] {
   const errors: string[] = [];
+
+  // 2.A1 explicitly includes curves: the route editor should make sure the
+  // route contains at least one curved leg. 2.A2 (and every other CIMA
+  // template) has no such requirement.
+  if (isCurveRequiredTask && !routePoints.some((point) => point.segmentType === 'curved')) {
+    errors.push('2.A1 requires at least one curved leg. Use the curve tool to add a curved segment between two route points.');
+  }
 
   // Authoring contract notes:
   // - 3-point backbone tasks intentionally keep the ordered backbone limited to
   //   SP/MP/FP while catalogue/evidence points live outside the backbone lane.
-  // - Circle tasks do the opposite: all authored markers stay in the
-  //   standalone lane and route_path should remain empty.
+  // - Circle tasks, and 2.A6/2.B2 turnpoint-hunt tasks, do the opposite: all
+  //   authored markers stay in the standalone lane and route_path should
+  //   remain empty - there is no backbone at all.
+  const isStandaloneOnlyTask = isCircleStandaloneTask || isTimedTurnpointStandaloneTask;
 
-  if (!isCircleStandaloneTask) {
+  if (!isStandaloneOnlyTask) {
     if (routePoints.length < 2) {
       errors.push('Route must have at least 2 backbone points.');
     } else {
@@ -40,8 +51,12 @@ export function validateRouteEditorState(
     errors.push('This task requires exactly three route backbone points: SP, MP, and FP.');
   }
 
-  if (isCircleStandaloneTask && routePoints.length > 0) {
-    errors.push('Circle tasks should not use a route backbone. Place all circle markers as standalone points.');
+  if (isStandaloneOnlyTask && routePoints.length > 0) {
+    errors.push(
+      isCircleStandaloneTask
+        ? 'Circle tasks should not use a route backbone. Place all circle markers as standalone points.'
+        : 'This task requires no route backbone. Place the timed and catalogue turnpoints as standalone points.'
+    );
   }
 
   routePoints.forEach((point, index) => {
@@ -59,7 +74,7 @@ export function validateRouteEditorState(
     }
   });
 
-  if (!isCircleStandaloneTask && routePoints.length >= 3) {
+  if (!isStandaloneOnlyTask && routePoints.length >= 3) {
     for (let index = 1; index < routePoints.length - 1; index++) {
       const point = routePoints[index];
       if (point.name.startsWith('Curve')) continue;

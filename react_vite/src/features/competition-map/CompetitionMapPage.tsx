@@ -618,6 +618,7 @@ export default function CompetitionMapPage() {
           taskCatalogueTargets={staticNavTaskData?.task_catalogue_targets ?? []}
           taskConfig={staticNavTaskData?.task_config ?? {}}
           taskType={staticNavTaskData?.scorecard?.task_type ?? null}
+          taskSubtype={staticNavTaskData?.task_subtype ?? null}
           navTaskDisplaySecrets={staticNavTaskData?.display_secrets ?? false}
           displaySecrets={userShowSecrets}
           contestants={contestantsById}

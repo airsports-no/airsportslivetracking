@@ -292,10 +292,9 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
                     {"type": "Feature", "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
@@ -322,7 +321,7 @@ class TestContestantTaskConfiguration(TestCase):
         self.assertEqual(compiled.compiled_gate_times_payload["SP"], "2020-08-01T08:15:00+00:00")
         self.assertEqual(compiled.compiled_effective_route_payload["compulsory_point_names"], ["SP", "MP", "FP"])
         self.assertEqual(compiled.compiled_effective_route_payload["declared_sequence"], [])
-        self.assertEqual(compiled.compiled_effective_route_payload["effective_waypoint_names"], ["SP", "SC 1/1", "TP1"])
+        self.assertEqual(compiled.compiled_effective_route_payload["effective_waypoint_names"], ["SP", "MP", "FP"])
         self.assertEqual(compiled.compiled_effective_route_payload["free_target_names"], ["A", "B"])
         self.assertEqual(compiled.compiled_effective_route_payload["free_target_evidence"], {"A": ["A"], "B": ["B"]})
 
@@ -332,10 +331,9 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
                 ],
@@ -361,7 +359,7 @@ class TestContestantTaskConfiguration(TestCase):
         self.assertEqual(compiled.declaration_payload["fuel_metadata"], {"declared_endurance_minutes": 95})
         self.assertEqual(compiled.compiled_effective_route_payload["fuel_metadata"], {"declared_endurance_minutes": 95})
         self.assertEqual(compiled.compiled_gate_times_payload["SP"], "2020-08-01T08:16:00+00:00")
-        self.assertEqual(compiled.compiled_effective_route_payload["compulsory_timing_gate_names"], ["SP", "SC 1/1", "TP1"])
+        self.assertEqual(compiled.compiled_effective_route_payload["compulsory_timing_gate_names"], ["SP", "MP", "FP"])
 
     def test_turnpoint_hunt_build_declaration_payload_from_input_normalizes_predictions(self):
         NavigationTask.objects.filter(pk=self.navigation_task.pk).update(task_subtype=TURNPOINT_HUNT)
@@ -432,11 +430,10 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.2, 60.2], [11.1, 60.1], [11.3, 60.3], [11.4, 60.4]]}},
-                    {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "kt-2", "name": "CP2", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "kt-3", "name": "CP3", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
-                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "kt-2", "name": "CP2", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "kt-3", "name": "CP3", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
                     {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
                     {"type": "Feature", "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
                     {"type": "Feature", "properties": {"id": "obs-2", "name": "B", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.36, 60.36]}},
@@ -514,11 +511,10 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.2, 60.2], [11.1, 60.1], [11.3, 60.3], [11.4, 60.4]]}},
-                    {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "kt-2", "name": "CP2", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "kt-3", "name": "CP3", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
-                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "kt-2", "name": "CP2", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "kt-3", "name": "CP3", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
                     {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
                 ],
             },

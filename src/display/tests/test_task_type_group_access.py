@@ -4,7 +4,15 @@ from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
 from django.test import TestCase, override_settings
 
-from display.models import Contest, Club, AccessGrant, TokenType, UserTokenGrant, ContestTokenAssignment
+from display.models import (
+    Contest,
+    Club,
+    AccessGrant,
+    TokenType,
+    UserTokenGrant,
+    ContestTokenAssignment,
+    ClubManagerMembership,
+)
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import assert_can_add_navigation_task
 from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
@@ -69,6 +77,38 @@ class TestTaskTypeGroupAccess(TestCase):
             self.contest,
             task_type=PRECISION,
             task_subtype=CONTRACT_NAVIGATION_TIME_CONTROLS,
+        )
+        self.assertIn(CIMA_TASK_TYPE_GROUP, allowed.allowed_task_type_groups)
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True)
+    def test_beta_club_manager_can_add_cima_task_to_own_ungranted_contest(self):
+        # The contest's own organizing club has no grant, so contest-resolved
+        # access alone would reject a CIMA task...
+        with self.assertRaises(ValidationError):
+            assert_can_add_navigation_task(
+                self.contest,
+                task_type=PRECISION,
+                task_subtype=CONTRACT_NAVIGATION_TIME_CONTROLS,
+            )
+
+        # ...but a user who manages a *different* club with a CIMA access
+        # grant (e.g. a beta-test club) should still be able to add CIMA
+        # tasks to their own contest, since visibility of a task-type group
+        # should not require organizing every contest under the beta club.
+        beta_club = Club.objects.create(name="Beta Testers Club")
+        AccessGrant.objects.create(
+            club=beta_club,
+            status=AccessGrant.ACTIVE,
+            contestant_limit=None,
+            task_type_groups=[CIMA_TASK_TYPE_GROUP],
+        )
+        ClubManagerMembership.objects.create(club=beta_club, user=self.user)
+
+        allowed = assert_can_add_navigation_task(
+            self.contest,
+            task_type=PRECISION,
+            task_subtype=CONTRACT_NAVIGATION_TIME_CONTROLS,
+            user=self.user,
         )
         self.assertIn(CIMA_TASK_TYPE_GROUP, allowed.allowed_task_type_groups)
 

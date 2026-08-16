@@ -29,7 +29,12 @@ export type ParsedRouteEditorData = {
 };
 
 export function createStandalonePointTypeSet(_isCircleStandaloneTask: boolean): Set<RoutePoint['type']> {
-  const types = new Set<RoutePoint['type']>(['catalogue_turnpoint', 'dummy']);
+  // 'timed_turnpoint' is the free-map (standalone) flavor of a timed point,
+  // distinct from 'known_time_gate' which is inserted directly on a route
+  // backbone (2.A1). Both share featureType 'known_time_gate' for backend
+  // compilation, but need different pointType values here so parsing can
+  // tell them apart and bucket each into the right lane.
+  const types = new Set<RoutePoint['type']>(['catalogue_turnpoint', 'dummy', 'timed_turnpoint']);
   CIRCLE_STANDALONE_TYPES.forEach((type) => types.add(type));
   return types;
 }

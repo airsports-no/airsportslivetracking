@@ -115,6 +115,8 @@ export interface Photo {
   compiled_coordinates?: [number, number] | null;
   evidence_category?: string;
   target_kind?: string;
+  is_decoy?: boolean;
+  decoy_course?: number | null;
 }
 
 export interface RouteData {

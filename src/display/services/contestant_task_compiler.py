@@ -896,15 +896,57 @@ class ContestantTaskCompiler:
         build_segment_times(between_names, last_compulsory, middle_time, last_time, after_distance)
         return gate_times
 
+    def _build_turnpoint_hunt_compulsory_targets_payload(self) -> list[dict]:
+        # 2.A6/2.B2 have no route backbone: the three compulsory (timed)
+        # points are standalone known_time_gate markers. This mirrors
+        # _build_turnpoint_hunt_targets_payload's shape for the free
+        # catalogue targets.
+        editable_route = self.contestant.navigation_task.editable_route
+        if editable_route is None:
+            return []
+        targets = []
+        for item in editable_route.get_known_time_gates():
+            properties = item.get("properties", {})
+            name = properties.get("name")
+            if not name:
+                continue
+            targets.append(
+                {
+                    "name": name,
+                    "coordinates": item.get("geometry", {}).get("coordinates", []),
+                    "width": properties.get("width") or 1852,
+                }
+            )
+        return targets
+
+    def _build_turnpoint_hunt_compulsory_waypoints(self, compulsory_point_names: list[str]) -> list:
+        targets_by_name = {item["name"]: item for item in self._build_turnpoint_hunt_compulsory_targets_payload()}
+        waypoints = []
+        for name in compulsory_point_names:
+            target = targets_by_name.get(name)
+            if not target:
+                continue
+            coordinates = target.get("coordinates") or []
+            if len(coordinates) != 2:
+                continue
+            lon, lat = coordinates
+            width_nm = float(target.get("width") or 1852) / 1852
+            # gate_line is fully recomputed for every waypoint in this list
+            # by _apply_effective_gate_lines below, so a placeholder here is
+            # fine - these points have no natural flight-leg direction of
+            # their own (no backbone), so that shared recomputation (based
+            # on neighboring points in the eventual ordered sequence) is the
+            # only sensible source of a well-formed crossing line.
+            waypoints.append(build_waypoint(name, lat, lon, "tp", width_nm, True, True))
+        return waypoints
+
     def _build_turnpoint_hunt_effective_waypoints(self, compiled_task, compulsory_point_names: list[str], declaration_payload: dict | None = None) -> list[dict]:
-        base_waypoints = self.contestant.navigation_task.route.waypoints
-        if not base_waypoints:
+        effective_waypoints = self._build_turnpoint_hunt_compulsory_waypoints(compulsory_point_names)
+        if not effective_waypoints:
             return []
 
         compulsory_point_times = self._get_turnpoint_hunt_compulsory_point_times(declaration_payload or {})
         ordered_compulsory_names = self._get_turnpoint_hunt_ordered_compulsory_point_names(compulsory_point_times, compulsory_point_names)
-        compulsory_backbone_count = len(compulsory_point_names) if compulsory_point_names else 3
-        effective_waypoints = list(base_waypoints[:compulsory_backbone_count])
         declared_sequence = [item for item in ((declaration_payload or {}).get("declared_sequence") or []) if isinstance(item, str)]
         if declared_sequence:
             route_waypoint_names = {waypoint.name for waypoint in effective_waypoints if getattr(waypoint, "name", None)}
@@ -922,10 +964,15 @@ class ContestantTaskCompiler:
                 if item in seen_names:
                     continue
                 seen_names.add(item)
+                # Compulsory (timed) points are tracked separately via
+                # compulsory_point_names/compulsory_timing_gate_names and
+                # must not also appear in the free-target effective sequence,
+                # even though they now live in route_waypoints_by_name too
+                # (needed for the no-declared-sequence fallback below).
+                if item in known_time_gate_names:
+                    continue
                 if item in route_waypoints_by_name:
                     ordered_waypoints.append(route_waypoints_by_name[item])
-                    continue
-                if item in known_time_gate_names:
                     continue
                 target = target_payload.get(item)
                 if not target:

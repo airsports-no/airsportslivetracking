@@ -182,11 +182,18 @@ class TaskCompiler:
             return []
 
         errors = []
-        authored_waypoints = editable_route.get_ordered_track_waypoints()
+        # 2.A6/2.B2 have no route backbone: the route consists entirely of
+        # standalone markers (exactly three timed turnpoints, plus any
+        # number of untimed catalogue turnpoints). Note get_ordered_track_waypoints()
+        # is not a suitable check here - it also matches standalone
+        # known_time_gate/hidden_gate markers by design, so we check for an
+        # actual authored route_path line instead.
+        if editable_route.get_track() is not None:
+            errors.append("Turnpoint hunt requires no route backbone. Place the compulsory points as standalone timed turnpoints instead.")
+
         compiled_known_time_gates = [name for name in primitives.get("known_time_gate", []) if name]
-        compulsory_backbone_count = len(compiled_known_time_gates) if compiled_known_time_gates else (len(authored_waypoints) if authored_waypoints else len(self.navigation_task.route.waypoints))
-        if compulsory_backbone_count != 3:
-            errors.append("Turnpoint hunt requires exactly three compulsory points.")
+        if len(compiled_known_time_gates) != 3:
+            errors.append("Turnpoint hunt requires exactly three compulsory (timed) points.")
         free_targets = [name for name in primitives.get("catalogue_turnpoint", []) if name]
         if len(free_targets) < 1:
             errors.append("Turnpoint hunt requires at least one free catalogue target.")

@@ -257,6 +257,26 @@ def insert_turning_point_images_latex(
     )
 
 
+def _build_decoy_photo_waypoints(navigation_task) -> List[Waypoint]:
+    """Decoy photos (2.A5) have no real trigger waypoint - build a synthetic
+    one from the organizer-declared location/course so they can be rendered
+    and shuffled in among the genuine unknown-leg photos via the same
+    waypoint-based image pipeline.
+    """
+    from display.utilities.route_building_utilities import build_waypoint
+
+    decoy_waypoints = []
+    for photo in Photo.objects.filter(route=navigation_task.route, is_decoy=True):
+        waypoint = build_waypoint(photo.name, photo.latitude, photo.longitude, "tp", 0.001, False, True)
+        course = photo.decoy_course or 0
+        # Set both: rendering picks bearing_next or bearing_from_previous
+        # depending on the decoy's (randomised) position in the list.
+        waypoint.bearing_next = course
+        waypoint.bearing_from_previous = course
+        decoy_waypoints.append(waypoint)
+    return decoy_waypoints
+
+
 def insert_unknown_leg_images_latex(
     contestant, document: Document, flight_order_configuration: FlightOrderConfiguration, waypoints: List[Waypoint]
 ):
@@ -273,6 +293,7 @@ def insert_unknown_leg_images_latex(
     ]
     if not render_waypoints:
         render_waypoints = [waypoint for waypoint in waypoints if waypoint.name in compiled_unknown_leg_names]
+    render_waypoints = render_waypoints + _build_decoy_photo_waypoints(contestant.navigation_task)
     random.shuffle(render_waypoints)
     render_turning_point_images(
         render_waypoints, document, flight_order_configuration, "Unknown legs", is_unknown_leg=True

@@ -692,11 +692,32 @@ class EditableRoute(models.Model):
         return editable_route, messages
 
     def create_route(
-        self, task_type: str, scorecard: "Scorecard", rounded_corners: bool, corridor_width: float
+        self,
+        task_type: str,
+        scorecard: "Scorecard",
+        rounded_corners: bool,
+        corridor_width: float,
+        task_subtype: str | None = None,
     ) -> "Route":
+        from display.models import Route
+        from display.utilities.cima_task_type_definitions import CIRCLE, LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
+
         if task_type in (PRECISION, POKER):
-            use_procedure_turns = scorecard.use_procedure_turns
-            route = self.create_precision_route(use_procedure_turns, scorecard)
+            if task_subtype in (CIRCLE, TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
+                # These subtypes have no authored route backbone: the route
+                # is entirely free-map markers, so there is no track to turn
+                # into Route.waypoints.
+                route = Route.objects.create(
+                    name=self.name,
+                    waypoints=[],
+                    takeoff_gates=[],
+                    landing_gates=[],
+                    use_procedure_turns=False,
+                )
+                self.amend_route_with_additional_features(route)
+            else:
+                use_procedure_turns = scorecard.use_procedure_turns
+                route = self.create_precision_route(use_procedure_turns, scorecard)
         elif task_type == ANR_CORRIDOR:
             if rounded_corners is None:
                 raise ValidationError(f"Missing 'rounded_corners' for task type {task_type}")
