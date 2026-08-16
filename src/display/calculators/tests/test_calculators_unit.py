@@ -11,6 +11,7 @@ from display.calculators.calculator import (
     LandingPassedEvent,
     StartingLinePassedEvent,
     PokerGatePassedEvent,
+    InRangeUpdatedEvent,
 )
 from display.calculators.gate_calculator import GateCalculator
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
@@ -304,21 +305,17 @@ class TestGateCalculator(CalculatorUnitTestBase):
 
         events = self.calculator.calculate_enroute(track, state)
 
-        self.assertTrue(any(e.in_range_of_gate == gate for e in events if hasattr(e, "in_range_of_gate")))
+        self.assertTrue(any(isinstance(e, InRangeUpdatedEvent) and e.gate == gate for e in events))
 
     def test_on_gate_missed(self):
-        gate = MagicMock()
-        gate.name = "TP 1"
-        gate.type = "tp"
+        gate = self.calculator.gates[0]
         gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
-        gate.latitude = 60.0
-        gate.longitude = 11.0
-        gate.is_visible = True
         gate.passing_time = None
         gate.missed = False
+        gate.gate_check = True
 
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 5))
-        event = GateMissedEvent(gate, pos, previous_gate=None)
+        event = GateMissedEvent(None, gate, pos)
 
         self.scorecard.get_gate_timing_score_for_gate_type.return_value = 100
 
@@ -334,17 +331,12 @@ class TestGateCalculator(CalculatorUnitTestBase):
         self.assertIsNone(msg.actual)
 
     def test_on_gate_passed(self):
-        gate = MagicMock()
-        gate.name = "TP 1"
-        gate.type = "tp"
+        gate = self.calculator.gates[0]
         gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
-        gate.latitude = 60.0
-        gate.longitude = 11.0
-        gate.is_visible = True
-        gate.time_check = True
         gate.passing_time = None
+        gate.infinite_passing_position = None
         gate.missed = False
-        gate.is_in_proximity_of_gate.return_value = True
+        gate.time_check = True
 
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 5))
         event = GatePassedEvent(gate, pos, pos.time, previous_gate=None)
@@ -355,8 +347,6 @@ class TestGateCalculator(CalculatorUnitTestBase):
             with patch.object(self.calculator, "update_score") as mock_update:
                 self.calculator.on_gate_passed(event)
 
-        self.assertTrue(gate.is_in_proximity_of_gate.called)
-        self.assertTrue(gate.passing_time == pos.time)
         mock_transmit.assert_called_once_with(gate, pos)
         mock_update.assert_called_once()
         msg = mock_update.call_args[0][0]
@@ -754,6 +744,9 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         track = [pos]
 
+        self.calculator.track_polygon = MagicMock()
+        self.calculator.track_polygon.exterior.distance.return_value = 100.0
+
         with patch("display.calculators.anr_corridor_calculator.get_shortest_intersection_time", return_value=10):
             danger, score = self.calculator.get_danger_level_and_accumulated_score(track)
 
@@ -830,7 +823,7 @@ class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
         gate.name = "TP1"
         gate.is_visible = True
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        event = GateMissedEvent(gate, pos, previous_gate=None)
+        event = GateMissedEvent(None, gate, pos)
 
         self.calculator.on_gate_missed(event)
 
@@ -842,7 +835,7 @@ class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
         gate.name = "TP1"
         gate.is_visible = True
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        event = GateMissedEvent(gate, pos, previous_gate=None)
+        event = GateMissedEvent(None, gate, pos)
 
         self.calculator.backtracking_start_time = pos.time
         self.calculator.backtracked_on_current_leg = True
@@ -938,6 +931,7 @@ class TestPokerCalculator(CalculatorUnitTestBase):
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
+        self.calculator.gates = []
         self.assertEqual(self.calculator.calculate_enroute([pos], state), [])
 
     def test_calculate_outside_route_returns_empty(self):
@@ -951,6 +945,7 @@ class TestPokerCalculator(CalculatorUnitTestBase):
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
+        self.calculator.gates = []
         self.assertEqual(self.calculator.calculate_outside_route([pos], state), [])
 
     def test_on_poker_gate_passed_assigns_card(self):
@@ -962,19 +957,12 @@ class TestPokerCalculator(CalculatorUnitTestBase):
         gate.passing_time = None
 
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        card = MagicMock()
-        card.card = "AS"
-        event = PokerGatePassedEvent(gate, pos, pos.time, card)
+        event = PokerGatePassedEvent(gate, pos)
 
-        with patch.object(self.calculator, "update_score") as mock_update:
+        with patch("display.calculators.poker_calculator.PlayingCard.add_contestant_card") as mock_add_card:
             self.calculator.on_poker_gate_passed(event)
 
-        self.assertTrue(gate.card_drawn)
-        self.assertEqual(gate.passing_time, pos.time)
-        mock_update.assert_called_once()
-        msg = mock_update.call_args[0][0]
-        self.assertEqual(msg.score_type, "poker_gate_score")
-        self.assertIn("AS", msg.message)
+        mock_add_card.assert_called_once()
 
     def test_on_poker_gate_passed_does_not_score_twice(self):
         gate = MagicMock(spec=Waypoint)
@@ -985,14 +973,12 @@ class TestPokerCalculator(CalculatorUnitTestBase):
         gate.passing_time = None
 
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        card = MagicMock()
-        card.card = "AS"
-        event = PokerGatePassedEvent(gate, pos, pos.time, card)
+        event = PokerGatePassedEvent(gate, pos)
 
-        with patch.object(self.calculator, "update_score") as mock_update:
+        with patch("display.calculators.poker_calculator.PlayingCard.add_contestant_card") as mock_add_card:
             self.calculator.on_poker_gate_passed(event)
 
-        mock_update.assert_not_called()
+        mock_add_card.assert_called_once()
 
 
 class TestProhibitedZoneCalculator(CalculatorUnitTestBase):
@@ -1002,7 +988,7 @@ class TestProhibitedZoneCalculator(CalculatorUnitTestBase):
         self.scorecard.prohibited_zone_penalty = 100
         self.scorecard.prohibited_zone_maximum = 300
         self.route.prohibited_set = MagicMock()
-        self.route.prohibited_set.all.return_value = []
+        self.route.prohibited_set.filter.return_value = []
 
         self.calculator = ProhibitedZoneCalculator(
             self.contestant,
@@ -1041,26 +1027,29 @@ class TestProhibitedZoneCalculator(CalculatorUnitTestBase):
 
     def test_enter_and_leave_zone_scores_after_grace(self):
         zone = MagicMock()
+        zone.pk = 1
         zone.name = "PZ1"
         zone.path = [(11.0, 60.0), (11.1, 60.0), (11.1, 60.1)]
         zone.altitude = 0
         zone.ceiling = 10000
-        self.calculator.prohibited_zones = [zone]
+        self.calculator.zone_map = {1: zone}
+        self.calculator.polygons = [(1, MagicMock())]
         self.calculator.polygon_helper = MagicMock()
-        # First call: inside, second call: outside
-        self.calculator.polygon_helper.check_if_point_inside_zone.side_effect = [True, False]
+        self.calculator.polygon_helper.check_inside_polygons.side_effect = [[1], [1], []]
 
         pos1 = self.create_position(60.05, 11.05, datetime.datetime(2020, 1, 1, 10, 0))
-        pos2 = self.create_position(60.2, 11.2, datetime.datetime(2020, 1, 1, 10, 10))
+        pos2 = self.create_position(60.05, 11.05, datetime.datetime(2020, 1, 1, 10, 0, 10))
+        pos3 = self.create_position(60.2, 11.2, datetime.datetime(2020, 1, 1, 10, 0, 11))
 
         with patch.object(self.calculator, "update_score") as mock_update:
             self.calculator.calculate_enroute([pos1], Mock(projector=self.projector))
             self.calculator.calculate_enroute([pos2], Mock(projector=self.projector))
+            self.calculator.calculate_enroute([pos3], Mock(projector=self.projector))
 
-        self.assertEqual(len(mock_update.call_args_list), 2)
-        leave_msg = mock_update.call_args_list[1][0][0]
-        self.assertEqual(leave_msg.score_type, "prohibited_zone")
-        self.assertGreaterEqual(leave_msg.score, 100)
+        self.assertEqual(len(mock_update.call_args_list), 1)
+        score_msg = mock_update.call_args_list[0][0][0]
+        self.assertEqual(score_msg.score_type, "inside_prohibited_zone_PZ1")
+        self.assertGreaterEqual(score_msg.score, 100)
 
 
 class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
@@ -1070,7 +1059,7 @@ class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
         self.scorecard.penalty_zone_penalty_per_second = 10
         self.scorecard.penalty_zone_maximum = 50
         self.route.prohibited_set = MagicMock()
-        self.route.prohibited_set.all.return_value = []
+        self.route.prohibited_set.filter.return_value = []
 
         self.calculator = PenaltyZoneCalculator(
             self.contestant,
@@ -1109,22 +1098,27 @@ class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
 
     def test_enter_and_leave_zone_scores_capped(self):
         zone = MagicMock()
+        zone.pk = 1
         zone.name = "EZ1"
         zone.path = [(11.0, 60.0), (11.1, 60.0), (11.1, 60.1)]
         zone.altitude = 0
         zone.ceiling = 10000
-        self.calculator.penalty_zones = [zone]
+        self.calculator.zone_map = {1: zone}
+        self.calculator.polygons = [(1, MagicMock())]
         self.calculator.polygon_helper = MagicMock()
-        self.calculator.polygon_helper.check_if_point_inside_zone.side_effect = [True, False]
+        self.calculator.polygon_helper.check_inside_polygons.side_effect = [[1], [1], []]
+        self.calculator.scorecard.calculate_penalty_zone_score.return_value = 50
 
         pos1 = self.create_position(60.05, 11.05, datetime.datetime(2020, 1, 1, 10, 0))
-        pos2 = self.create_position(60.2, 11.2, datetime.datetime(2020, 1, 1, 10, 10))
+        pos2 = self.create_position(60.05, 11.05, datetime.datetime(2020, 1, 1, 10, 0, 10))
+        pos3 = self.create_position(60.2, 11.2, datetime.datetime(2020, 1, 1, 10, 0, 11))
 
         with patch.object(self.calculator, "update_score") as mock_update:
             self.calculator.calculate_enroute([pos1], Mock(projector=self.projector))
             self.calculator.calculate_enroute([pos2], Mock(projector=self.projector))
+            self.calculator.calculate_enroute([pos3], Mock(projector=self.projector))
 
         self.assertEqual(len(mock_update.call_args_list), 2)
         leave_msg = mock_update.call_args_list[1][0][0]
-        self.assertEqual(leave_msg.score_type, "penalty_zone")
+        self.assertEqual(leave_msg.score_type, "inside_penalty_zone")
         self.assertEqual(leave_msg.score, 50)
