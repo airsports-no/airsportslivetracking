@@ -125,6 +125,14 @@ class Scorecard(models.Model):
     duration_residual_fuel_required = models.BooleanField(default=False)
     circle_radius_min_m = models.FloatField(default=200)
     circle_radius_max_m = models.FloatField(default=750)
+    speed_keeping_tolerance_kt = models.FloatField(
+        default=5,
+        help_text="Allowed deviation (in knots) from the declared speed on a known-circuit leg before a speed-keeping penalty applies",
+    )
+    speed_keeping_penalty_per_kt = models.FloatField(
+        default=1,
+        help_text="Penalty per knot of speed deviation beyond the tolerance on a known-circuit leg",
+    )
 
 
     def __str__(self):

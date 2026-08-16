@@ -101,7 +101,10 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         key=KNOWN_CIRCUIT,
         display_name="2.A4 Navigation over a known circuit",
         coarse_family=PRECISION,
-        requires_contestant_configuration=False,
+        # The contestant may optionally declare specific times at individual
+        # turnpoints, overriding the declared-groundspeed-derived time for
+        # just that point (see KnownCircuitStrategy).
+        requires_contestant_configuration=True,
         required_primitives=("route_path", "hidden_gate", "observation_photo"),
         scoring_modules=("observation_evidence", "hidden_gate_sequence", "backtracking"),
     ),

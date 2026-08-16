@@ -659,6 +659,92 @@ class TestContestantTaskConfiguration(TestCase):
             ["HG1"],
         )
 
+    def _make_known_circuit_editable_route(self):
+        return EditableRoute.objects.create(
+            name="Known circuit override primitives",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
+                ],
+            },
+        )
+
+    def test_known_circuit_partial_turnpoint_time_override_leaves_other_gates_on_uniform_speed(self):
+        self.navigation_task.task_subtype = KNOWN_CIRCUIT
+        self.navigation_task.editable_route = self._make_known_circuit_editable_route()
+        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
+
+        uniform_speed_compiled = ContestantTaskCompiler(self.contestant).compile(force=True)
+        uniform_tp1_time = uniform_speed_compiled.compiled_gate_times_payload["TP1"]
+
+        compiled = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={"turnpoint_time_overrides": {"TP1": "2020-08-01T09:30:00Z"}},
+            force=True,
+        )
+
+        self.assertTrue(compiled.is_valid)
+        self.assertEqual(compiled.compiled_gate_times_payload["TP1"], "2020-08-01T09:30:00+00:00")
+        self.assertNotEqual(compiled.compiled_gate_times_payload["TP1"], uniform_tp1_time)
+        # Every other gate keeps following the uniform declared-speed chain.
+        self.assertEqual(compiled.compiled_gate_times_payload["SP"], uniform_speed_compiled.compiled_gate_times_payload["SP"])
+        self.assertEqual(
+            compiled.compiled_effective_route_payload["overridden_gate_names"],
+            ["TP1"],
+        )
+
+    def test_known_circuit_override_is_optional(self):
+        self.navigation_task.task_subtype = KNOWN_CIRCUIT
+        self.navigation_task.editable_route = self._make_known_circuit_editable_route()
+        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
+
+        compiled = ContestantTaskCompiler(self.contestant).compile(declaration_payload={}, force=True)
+
+        self.assertTrue(compiled.is_valid)
+        self.assertEqual(compiled.compiled_effective_route_payload["overridden_gate_names"], [])
+
+    def test_known_circuit_rejects_unknown_turnpoint_override_name(self):
+        self.navigation_task.task_subtype = KNOWN_CIRCUIT
+        self.navigation_task.save(update_fields=["task_subtype"])
+
+        compiled = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={"turnpoint_time_overrides": {"NOT_A_REAL_POINT": "2020-08-01T09:30:00Z"}},
+            force=True,
+        )
+
+        self.assertFalse(compiled.is_valid)
+        self.assertTrue(
+            any("NOT_A_REAL_POINT" in error for error in compiled.validation_errors),
+            compiled.validation_errors,
+        )
+
+    def test_known_circuit_build_declaration_payload_from_input_normalizes_overrides(self):
+        self.navigation_task.task_subtype = KNOWN_CIRCUIT
+        self.navigation_task.save(update_fields=["task_subtype"])
+
+        payload = ContestantTaskCompiler(self.contestant).build_declaration_payload_from_input(
+            {"turnpoint_time_overrides": {"TP1": datetime.datetime(2020, 8, 1, 9, 30, tzinfo=datetime.timezone.utc)}}
+        )
+
+        self.assertEqual(
+            payload,
+            {"turnpoint_time_overrides": {"TP1": "2020-08-01T09:30:00+00:00"}},
+        )
+
     def test_unknown_legs_includes_unknown_leg_and_observation_photo_payload(self):
         editable_route = EditableRoute.objects.create(
             name="Unknown legs evidence primitives",

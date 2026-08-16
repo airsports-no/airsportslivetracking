@@ -52,6 +52,13 @@ class ClubManagerMembership(models.Model):
 
 
 class TokenType(models.Model):
+    """The other purchase mechanism alongside AccessGrant (see its docstring):
+    a user buys a token packet by emailing to purchase it, and assigns single
+    uses of it to whichever contest they organize (see UserTokenGrant,
+    ContestTokenAssignment) - per-user and per-contest-consumable, rather than
+    per-club and standing.
+    """
+
     name = models.CharField(max_length=200, unique=True, help_text="Human-friendly name for the token package, shown in admin and contest UI.")
     description = models.TextField(blank=True, default="", help_text="Explain how this token package should be used and what its limits mean.")
     contestant_limit = models.IntegerField(help_text="Maximum number of competing pilots that may start under a contest using this token package.")
@@ -152,18 +159,85 @@ class ContestTokenAssignment(models.Model):
         return f"{self.contest} uses {self.token_type}"
 
 
+class UserEntitlementGrant(models.Model):
+    """A direct, revocable/expirable grant of something to a specific user, free of
+    a club/contest/payment - e.g. beta access to a CIMA task type ahead of it being
+    generally purchasable. This is deliberately general-purpose rather than
+    CIMA-specific: `kind`/`value` is a discriminator pair so a future "give this
+    trial user a higher contestant limit" or similar need doesn't require another
+    bespoke model. Unrelated to AccessGrant/TokenType, which are club- and
+    contest-scoped and represent the two real purchase mechanisms (see the module
+    docstring there); this model is for cases where there's no club or contest to
+    attach the grant to at all - just a person.
+    """
+
+    KIND_TASK_TYPE_GROUP = "task_type_group"
+    KINDS = ((KIND_TASK_TYPE_GROUP, "Task-type group"),)
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, help_text="User this entitlement is granted to.")
+    kind = models.CharField(max_length=40, choices=KINDS, default=KIND_TASK_TYPE_GROUP, help_text="What kind of thing is being granted; determines how 'value' is interpreted.")
+    value = models.CharField(max_length=200, help_text="The kind-specific payload, e.g. a task-type group string such as 'cima' or 'cima:circle' for a task_type_group grant.")
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="granted_user_entitlement_grants",
+        help_text="Backend user who created this grant.",
+    )
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="Optional expiry time after which this grant no longer applies. Leave empty for no automatic expiry.")
+    is_active = models.BooleanField(default=True, help_text="If false, this grant is ignored regardless of expiry.")
+    notes = models.TextField(blank=True, default="", help_text="Internal notes about why this grant was made.")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this grant was created.")
+    updated_at = models.DateTimeField(auto_now=True, help_text="When this grant was last updated.")
+
+    class Meta:
+        unique_together = ("user", "kind", "value")
+        ordering = ("-created_at",)
+
+    @property
+    def is_active_now(self) -> bool:
+        if not self.is_active:
+            return False
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return self.expires_at is None or self.expires_at > now
+
+    def __str__(self):
+        return f"{self.user} · {self.get_kind_display()} = {self.value}"
+
+
 class AccessGrant(models.Model):
+    """Club-scoped access entitlement: one of the two purchase mechanisms this
+    platform models (see also TokenType/UserTokenGrant). A club buys a standing
+    annual pass (club set, tier derived to ANNUAL_CLUB_PASS) that applies
+    automatically to every contest that club organizes, or an operator manually
+    grants single-event/override access to one contest directly (contest set,
+    tier derived to SINGLE_EVENT). Both mechanisms - this one and the token one -
+    are intentionally separate (club-standing vs. per-contest-consumable) and
+    both funnel into the same resolve_contest_access() waterfall; this is not
+    redundancy to be cleaned up.
+    """
+
     FREE = "free"
     SINGLE_EVENT = "single_event"
     ANNUAL_CLUB_PASS = "annual_club_pass"
     MANUAL_OVERRIDE = "manual_override"
     TOKEN = "token"
+    # Kept as the full vocabulary for AccessResolution.tier_code (access_resolver.py
+    # sets FREE/TOKEN there for token- and default-tier resolutions that never
+    # create an AccessGrant row at all). The model field below only accepts the
+    # subset derive_tier()/save() can actually produce, so the admin dropdown
+    # doesn't offer choices that get silently overwritten on save.
     TIERS = (
         (FREE, "Free"),
         (SINGLE_EVENT, "Single event"),
         (ANNUAL_CLUB_PASS, "Annual club pass"),
         (MANUAL_OVERRIDE, "Manual override"),
         (TOKEN, "Token"),
+    )
+    PERSISTABLE_TIERS = (
+        (SINGLE_EVENT, "Single event"),
+        (ANNUAL_CLUB_PASS, "Annual club pass"),
     )
 
     DRAFT = "draft"
@@ -179,7 +253,7 @@ class AccessGrant(models.Model):
 
     club = models.ForeignKey("Club", on_delete=models.CASCADE, null=True, blank=True, help_text="Club that receives this pass or override. Leave blank if this grant applies to a single contest.")
     contest = models.ForeignKey("Contest", on_delete=models.CASCADE, null=True, blank=True, help_text="Contest that receives this single-event pass or manual override. Leave blank for club-level grants.")
-    tier = models.CharField(max_length=40, choices=TIERS, help_text="Type of access entitlement, such as free tier, annual pass, single-event pass, manual override, or token-backed access.")
+    tier = models.CharField(max_length=40, choices=PERSISTABLE_TIERS, help_text="Type of access entitlement. Always derived automatically from whether club or contest is set (see derive_tier()) - not directly editable in practice.")
     status = models.CharField(max_length=20, choices=STATUSES, default=DRAFT, help_text="Operational state of the grant. Only active grants inside their time window are enforced.")
     starts_at = models.DateTimeField(null=True, blank=True, help_text="Optional start time from which the grant becomes valid.")
     expires_at = models.DateTimeField(null=True, blank=True, help_text="Optional expiry time after which the grant no longer applies.")

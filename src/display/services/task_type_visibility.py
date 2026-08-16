@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from django.conf import settings
 
-from display.models import AccessGrant, ClubManagerMembership, UserTokenGrant
-from display.utilities.task_type_group_definitions import CIMA_TASK_TYPE_GROUP, LEGACY_TASK_TYPE_GROUP
+from display.models import AccessGrant, ClubManagerMembership, UserEntitlementGrant, UserTokenGrant
+from display.utilities.task_type_group_definitions import (
+    CIMA_TASK_TYPE_GROUP,
+    LEGACY_TASK_TYPE_GROUP,
+    get_all_fine_task_type_groups,
+)
 
-ALL_TASK_TYPE_GROUPS = [LEGACY_TASK_TYPE_GROUP, CIMA_TASK_TYPE_GROUP]
+# Includes both coarse groups ("legacy", "cima") and every namespaced fine
+# group ("cima:<subtype>"), so "grant everything" cases (superuser, the
+# visibility gate being off) cover fine-grained grants too.
+ALL_TASK_TYPE_GROUPS = get_all_fine_task_type_groups()
 
 
 def gate_cima_task_visibility() -> bool:
@@ -39,6 +46,13 @@ def get_user_granted_task_type_groups(user) -> list[str]:
         if grant.is_active:
             groups.update(grant.task_type_groups or [])
 
+    entitlement_grants = UserEntitlementGrant.objects.filter(
+        user=user, kind=UserEntitlementGrant.KIND_TASK_TYPE_GROUP, is_active=True
+    )
+    for grant in entitlement_grants:
+        if grant.is_active_now:
+            groups.add(grant.value)
+
     return sorted(groups)
 
 
@@ -57,4 +71,8 @@ def get_visible_task_type_groups_for_user(user) -> list[str]:
 
 
 def can_user_see_cima_task_types(user) -> bool:
-    return CIMA_TASK_TYPE_GROUP in get_visible_task_type_groups_for_user(user)
+    visible_groups = get_visible_task_type_groups_for_user(user)
+    # A fine-grained grant (e.g. "cima:circle") should still surface the CIMA
+    # section in the task-type picker; enforcement at save-time narrows to the
+    # exact subtype regardless.
+    return any(group == CIMA_TASK_TYPE_GROUP or group.startswith(f"{CIMA_TASK_TYPE_GROUP}:") for group in visible_groups)

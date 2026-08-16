@@ -139,6 +139,12 @@ class TakeoffAndLandingGateCalculator(Calculator):
     def on_takeoff_passed(self, event: TakeoffPassedEvent):
         if self.scored_takeoff:
             return
+        if not self.takeoff_gate:
+            # No takeoff gate is authored for this route, so this event did not
+            # originate from us (e.g. it's a speed-inferred takeoff for a
+            # DURATION task). Leave scoring to whichever calculator owns that
+            # inference; there is no declared gate here to time against.
+            return
         self.scored_takeoff = True
         if self.takeoff_gate:
             self.takeoff_gate.pass_gate(event.intersection_time, event.position, gate=event.gate)
@@ -169,6 +175,9 @@ class TakeoffAndLandingGateCalculator(Calculator):
 
     def on_landing_passed(self, event: LandingPassedEvent):
         if self.scored_landing:
+            return
+        if not self.landing_gate:
+            # No landing gate is authored for this route (see on_takeoff_passed).
             return
         self.scored_landing = True
         if self.landing_gate:

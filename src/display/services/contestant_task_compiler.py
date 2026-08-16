@@ -369,6 +369,67 @@ class ObservationEvidenceStrategy(ContestantTaskCompilerStrategy):
         return self.compiler._build_observation_evidence_payload(compiled_task)
 
 
+class KnownCircuitStrategy(ContestantTaskCompilerStrategy):
+    """2.A4: contestant flies a known circuit at a declared uniform speed, with the
+    option to declare a specific time at individual turnpoints. Overridden points use
+    that declared time instead of the speed-derived one; every other point still
+    follows the uniform-speed chain (Contestant.calculate_missing_gate_times).
+    """
+
+    def validate_declaration(self, declaration_payload: dict, compiled_task) -> list[str]:
+        overrides = declaration_payload.get("turnpoint_time_overrides")
+        if not overrides:
+            return []
+        if not isinstance(overrides, dict):
+            return ["turnpoint_time_overrides must be a dictionary of turnpoint name to time."]
+        valid_names = set(self.compiler._get_precision_navigation_prediction_names())
+        unknown = sorted(set(overrides.keys()) - valid_names)
+        if unknown:
+            return [f"Unknown turnpoint override name(s): {', '.join(unknown)}"]
+        return []
+
+    def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
+        payload = self.compiler._build_observation_evidence_payload(compiled_task)
+        overrides = declaration_payload.get("turnpoint_time_overrides") or {}
+        payload["overridden_gate_names"] = sorted(overrides.keys())
+        return payload
+
+    def update_gate_times(
+        self,
+        gate_times: dict[str, str],
+        declaration_payload: dict,
+        compiled_task,
+        compiled_effective_route_payload: dict,
+    ) -> dict[str, str]:
+        overrides = declaration_payload.get("turnpoint_time_overrides") or {}
+        for key, value in overrides.items():
+            if isinstance(value, str):
+                gate_times[key] = parser.parse(value).isoformat()
+        return gate_times
+
+    def build_declaration_payload_from_input(self, declaration_input: dict) -> dict:
+        overrides = declaration_input.get("turnpoint_time_overrides")
+        if not overrides:
+            return {}
+        if not isinstance(overrides, dict):
+            raise serializers.ValidationError(
+                {"turnpoint_time_overrides": "Expected a dictionary of turnpoint name to time."}
+            )
+        normalized_overrides = {}
+        for key, value in overrides.items():
+            if value in (None, ""):
+                continue
+            if isinstance(value, str):
+                normalized_overrides[key] = parser.parse(value).isoformat()
+            elif isinstance(value, datetime.datetime):
+                normalized_overrides[key] = value.isoformat()
+            else:
+                raise serializers.ValidationError(
+                    {"turnpoint_time_overrides": f"Invalid override value for '{key}'."}
+                )
+        return {"turnpoint_time_overrides": normalized_overrides} if normalized_overrides else {}
+
+
 class UnknownLegsStrategy(ContestantTaskCompilerStrategy):
     def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
         payload = self.compiler._build_observation_evidence_payload(compiled_task)
@@ -391,7 +452,7 @@ class ContestantTaskCompiler:
         if subtype == DURATION:
             return DurationStrategy(self)
         if subtype == KNOWN_CIRCUIT:
-            return ObservationEvidenceStrategy(self)
+            return KnownCircuitStrategy(self)
         if subtype == UNKNOWN_LEGS:
             return UnknownLegsStrategy(self)
         return ContestantTaskCompilerStrategy(self)

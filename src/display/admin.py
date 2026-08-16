@@ -30,6 +30,7 @@ from display.models import (
     TokenType,
     UserTokenGrant,
     ContestTokenAssignment,
+    UserEntitlementGrant,
 )
 from solo.admin import SingletonModelAdmin
 
@@ -188,6 +189,19 @@ class ClubManagerMembershipAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
+class UserEntitlementGrantAdmin(admin.ModelAdmin):
+    list_display = ("user", "kind", "value", "is_active", "expires_at", "granted_by")
+    list_filter = ("kind", "is_active")
+    search_fields = ("user__email", "value")
+    exclude = ("granted_by",)
+    readonly_fields = ("granted_by",)
+
+    def save_model(self, request, obj, form, change):
+        if not obj.granted_by_id:
+            obj.granted_by = request.user
+        super().save_model(request, obj, form, change)
+
+
 class TokenTypeAdmin(admin.ModelAdmin):
     list_display = ("name", "contestant_limit", "task_type_groups", "is_active")
     list_filter = ("is_active",)
@@ -238,6 +252,7 @@ admin.site.register(ClubManagerMembership, ClubManagerMembershipAdmin)
 admin.site.register(TokenType, TokenTypeAdmin)
 admin.site.register(UserTokenGrant, UserTokenGrantAdmin)
 admin.site.register(ContestTokenAssignment, ContestTokenAssignmentAdmin)
+admin.site.register(UserEntitlementGrant, UserEntitlementGrantAdmin)
 
 
 class NewsletterSubscriberAdmin(admin.ModelAdmin):

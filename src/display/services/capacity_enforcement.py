@@ -7,7 +7,7 @@ from display.models import ContestUsageLedger, Contestant, ContestTeam
 from display.services.access_resolver import resolve_contest_access
 from display.services.task_type_visibility import get_user_granted_task_type_groups
 from display.services.token_assignment import ensure_token_assignment_active_for_guest_start
-from display.utilities.task_type_group_definitions import get_task_type_group
+from display.utilities.task_type_group_definitions import get_fine_task_type_group, get_task_type_group
 
 
 def _get_owner_person_id(contest):
@@ -218,6 +218,7 @@ def assert_can_add_navigation_task(contest, task_type=None, task_subtype=None, u
     if token_assignment is not None and token_assignment.expires_at is not None and token_assignment.expires_at <= timezone.now():
         raise ValidationError("This contest token has expired. The contest is now in archive mode until a new token or annual pass is applied.")
     task_type_group = get_task_type_group(task_type=task_type, task_subtype=task_subtype)
+    fine_task_type_group = get_fine_task_type_group(task_type=task_type, task_subtype=task_subtype)
     allowed_task_type_groups = set(getattr(resolution, "allowed_task_type_groups", ["legacy"]))
     # A user who has been explicitly granted a task-type group (e.g. a beta
     # tester managing a club with a "cima" access grant, or a token holder)
@@ -231,7 +232,10 @@ def assert_can_add_navigation_task(contest, task_type=None, task_subtype=None, u
     if user is not None:
         allowed_task_type_groups.update(get_user_granted_task_type_groups(user))
         resolution.allowed_task_type_groups = sorted(allowed_task_type_groups)
-    if task_type_group not in allowed_task_type_groups:
+    # Accept either the coarse group ("cima", from existing club/token grants
+    # that predate fine-grained access) or the exact namespaced fine group
+    # ("cima:circle", from a beta grant scoped to one subtype).
+    if task_type_group not in allowed_task_type_groups and fine_task_type_group not in allowed_task_type_groups:
         raise ValidationError(_task_type_group_error_message(task_type_group))
     return resolution
 

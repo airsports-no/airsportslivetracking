@@ -28,6 +28,7 @@ type ContestantDeclarationData = {
         compiled_task_primitives?: {
             catalogue_turnpoint?: string[];
         };
+        waypoint_names?: string[];
     };
 };
 
@@ -39,6 +40,7 @@ type DeclarationFormState = {
     contractNavigation: ContractNavigationFormState;
     contractDeclaredTSeconds: string;
     turnpointHuntSequence: string[];
+    turnpointTimeOverrides: Record<string, string>;
 };
 
 type DeclarationPageData = {
@@ -53,6 +55,7 @@ const EMPTY_FORM_STATE: DeclarationFormState = {
     contractNavigation: { beforeMp: [], afterMp: [] },
     contractDeclaredTSeconds: '',
     turnpointHuntSequence: [],
+    turnpointTimeOverrides: {},
 };
 
 const toDatetimeLocalValue = (value?: string | null) => {
@@ -180,6 +183,12 @@ const buildFormState = (contestantData: ContestantDeclarationData): DeclarationF
         return acc;
     }, {});
 
+    const overridesPayload = declarationPayload.turnpoint_time_overrides as Record<string, string> | undefined;
+    const turnpointTimeOverrides = Object.entries(overridesPayload || {}).reduce((acc: Record<string, string>, [name, value]) => {
+        acc[name] = toDatetimeLocalValue(value);
+        return acc;
+    }, {});
+
     return {
         compulsoryPointTimes,
         declaredEnduranceMinutes: fuelMetadata?.declared_endurance_minutes ? String(fuelMetadata.declared_endurance_minutes) : '',
@@ -188,6 +197,7 @@ const buildFormState = (contestantData: ContestantDeclarationData): DeclarationF
             ? String(declaredTSeconds)
             : String(compiledPayload.time_model?.t_seconds ?? ''),
         turnpointHuntSequence: getTurnpointHuntSequence(contestantData),
+        turnpointTimeOverrides,
     };
 };
 
@@ -795,24 +805,66 @@ function TurnpointHuntForm({
     );
 }
 
+type KnownCircuitFormProps = {
+    waypointNames: string[];
+    turnpointTimeOverrides: Record<string, string>;
+    disabled: boolean;
+    onOverrideChange: (name: string, value: string) => void;
+};
+
+function KnownCircuitForm({
+    waypointNames,
+    turnpointTimeOverrides,
+    disabled,
+    onOverrideChange,
+}: KnownCircuitFormProps) {
+    return (
+        <>
+            <p className="text-sm opacity-70">
+                Optional: declare a specific time at any turnpoint to override the uniform declared-speed time for
+                that point only. Leave a point blank to fly it at the constant declared speed.
+            </p>
+            {waypointNames.map((name) => (
+                <label className="form-control w-full" key={name}>
+                    <span className="label-text font-medium">Declared time override for {name} (optional)</span>
+                    <input
+                        type="datetime-local"
+                        step={60}
+                        className="input input-bordered w-full"
+                        value={turnpointTimeOverrides[name] || ''}
+                        onChange={(e) => onOverrideChange(name, e.target.value)}
+                        disabled={disabled}
+                    />
+                </label>
+            ))}
+        </>
+    );
+}
+
 type DeclarationPreviewProps = {
     isContractNavigation: boolean;
+    isKnownCircuit: boolean;
     contractDeclaredTSeconds: string;
     contractNavigation: ContractNavigationFormState;
     freeTargets: FreeTarget[];
     turnpointHuntSequence: string[];
     compulsoryPointTimes: Record<string, string>;
     compulsoryPointNames: string[];
+    knownCircuitWaypointNames: string[];
+    turnpointTimeOverrides: Record<string, string>;
 };
 
 function DeclarationPreview({
     isContractNavigation,
+    isKnownCircuit,
     contractDeclaredTSeconds,
     contractNavigation,
     freeTargets,
     turnpointHuntSequence,
     compulsoryPointTimes,
     compulsoryPointNames,
+    knownCircuitWaypointNames,
+    turnpointTimeOverrides,
 }: DeclarationPreviewProps) {
     if (isContractNavigation) {
         const fullContractSequence = buildContractNavigationSequence(contractNavigation);
@@ -841,6 +893,33 @@ function DeclarationPreview({
                                 <tr key={name}>
                                     <td className="font-medium">{name}</td>
                                     <td>{name === 'SP' ? 'Fixed start' : name === 'FP' ? 'Fixed finish' : name === 'MP' ? 'Compulsory midpoint' : 'Free target'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </>
+        );
+    }
+
+    if (isKnownCircuit) {
+        return (
+            <>
+                <h2 className="card-title">Declared turnpoint overrides</h2>
+                <p className="text-sm opacity-70">Points without an override fly at the uniform declared speed; overridden points use the declared time exactly.</p>
+                <div className="overflow-x-auto mt-2">
+                    <table className="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Turnpoint</th>
+                                <th>Declared time override</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {knownCircuitWaypointNames.map((name) => (
+                                <tr key={name}>
+                                    <td className="font-medium">{name}</td>
+                                    <td>{turnpointTimeOverrides[name] || 'Uniform declared speed'}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -908,6 +987,8 @@ const ContestantDeclarationPage: React.FC = () => {
     const freeTargets = compiledPayload.free_targets || [];
     const isLimitedFuel = navigationTask?.task_subtype === 'limited_fuel_turnpoint_hunt';
     const isContractNavigation = navigationTask?.task_subtype === 'contract_navigation_time_controls';
+    const isKnownCircuit = navigationTask?.task_subtype === 'known_circuit';
+    const knownCircuitWaypointNames: string[] = compiledPayload.waypoint_names || [];
     const compulsoryPointTimesByName = formState.compulsoryPointTimes;
     const orderedCompulsoryPointNames = compulsoryPointNames
         .filter((name) => !!compulsoryPointTimesByName[name])
@@ -948,9 +1029,13 @@ const ContestantDeclarationPage: React.FC = () => {
                 && Number(formState.contractDeclaredTSeconds) > 0
             );
         }
+        if (isKnownCircuit) {
+            // Every turnpoint override is optional, so the declaration is always saveable.
+            return true;
+        }
         return compulsoryPointNames.every((name) => !!formState.compulsoryPointTimes[name])
             && normalizedTurnpointHuntSequence.length >= orderedCompulsoryPointNames.length;
-    }, [compulsoryPointNames, formState.compulsoryPointTimes, formState.contractNavigation, formState.contractDeclaredTSeconds, isContractNavigation, normalizedTurnpointHuntSequence.length, orderedCompulsoryPointNames.length]);
+    }, [compulsoryPointNames, formState.compulsoryPointTimes, formState.contractNavigation, formState.contractDeclaredTSeconds, isContractNavigation, isKnownCircuit, normalizedTurnpointHuntSequence.length, orderedCompulsoryPointNames.length]);
 
     const handleTimeChange = (name: string, value: string) => {
         setFormState((prev) => {
@@ -983,6 +1068,10 @@ const ContestantDeclarationPage: React.FC = () => {
             if (isContractNavigation) {
                 declarationPayload.declared_sequence = buildContractNavigationSequence(formState.contractNavigation);
                 declarationPayload.declared_t_seconds = Number(formState.contractDeclaredTSeconds || compiledPayload.time_model?.t_seconds || 0);
+            } else if (isKnownCircuit) {
+                declarationPayload.turnpoint_time_overrides = Object.fromEntries(
+                    Object.entries(formState.turnpointTimeOverrides).filter(([, value]) => !!value),
+                );
             } else {
                 declarationPayload.compulsory_point_times = Object.fromEntries(
                     Object.entries(formState.compulsoryPointTimes).filter(([, value]) => !!value),
@@ -1044,7 +1133,7 @@ const ContestantDeclarationPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
-                        <h2 className="card-title">{isContractNavigation ? 'Declaration sequence and T' : 'Compulsory point declaration'}</h2>
+                        <h2 className="card-title">{isContractNavigation ? 'Declaration sequence and T' : isKnownCircuit ? 'Known circuit turnpoint overrides' : 'Compulsory point declaration'}</h2>
                         <form className="space-y-4" onSubmit={handleSubmit}>
                             {isContractNavigation ? (
                                 <ContractNavigationForm
@@ -1054,6 +1143,16 @@ const ContestantDeclarationPage: React.FC = () => {
                                     disabled={saving}
                                     onDeclaredTSecondsChange={(value) => setFormState((prev) => ({ ...prev, contractDeclaredTSeconds: value }))}
                                     onContractNavigationChange={(contractNavigation) => setFormState((prev) => ({ ...prev, contractNavigation }))}
+                                />
+                            ) : isKnownCircuit ? (
+                                <KnownCircuitForm
+                                    waypointNames={knownCircuitWaypointNames}
+                                    turnpointTimeOverrides={formState.turnpointTimeOverrides}
+                                    disabled={saving}
+                                    onOverrideChange={(name, value) => setFormState((prev) => ({
+                                        ...prev,
+                                        turnpointTimeOverrides: { ...prev.turnpointTimeOverrides, [name]: value },
+                                    }))}
                                 />
                             ) : (
                                 <TurnpointHuntForm
@@ -1092,12 +1191,15 @@ const ContestantDeclarationPage: React.FC = () => {
                     <div className="card-body">
                         <DeclarationPreview
                             isContractNavigation={isContractNavigation}
+                            isKnownCircuit={isKnownCircuit}
                             contractDeclaredTSeconds={formState.contractDeclaredTSeconds}
                             contractNavigation={formState.contractNavigation}
                             freeTargets={freeTargets}
                             turnpointHuntSequence={normalizedTurnpointHuntSequence}
                             compulsoryPointTimes={formState.compulsoryPointTimes}
                             compulsoryPointNames={orderedCompulsoryPointNames}
+                            knownCircuitWaypointNames={knownCircuitWaypointNames}
+                            turnpointTimeOverrides={formState.turnpointTimeOverrides}
                         />
                     </div>
                 </div>

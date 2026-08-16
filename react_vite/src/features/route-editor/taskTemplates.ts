@@ -87,21 +87,21 @@ const observationStep = (help: string, minCount = 1): WizardStep => ({
   countMode: 'strict',
 });
 
-const takeoffGateStep = (help: string): WizardStep => ({
+const takeoffGateStep = (help: string, minCount = 1): WizardStep => ({
   key: 'takeoff_gate',
   label: 'Take-off gate',
   help,
   kind: 'takeoff_gate',
-  minCount: 1,
+  minCount,
   countMode: 'strict',
 });
 
-const landingGateStep = (help: string): WizardStep => ({
+const landingGateStep = (help: string, minCount = 1): WizardStep => ({
   key: 'landing_gate',
   label: 'Landing gate',
   help,
   kind: 'landing_gate',
-  minCount: 1,
+  minCount,
   countMode: 'strict',
 });
 
@@ -261,10 +261,10 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_b3',
     label: '2.B3 Duration',
     group: 'CIMA',
-    description: 'Take-off and landing gates define the measured duration, and the landing area polygon defines the allowed touchdown area.',
+    description: 'Take-off and landing gates define the measured duration, and the landing area polygon defines the allowed touchdown area. Gates are optional: if left unplaced, take-off/landing is instead inferred from the tracked speed profile.',
     steps: [
-      takeoffGateStep('Place the take-off gate.'),
-      landingGateStep('Place the landing gate.'),
+      takeoffGateStep('Optionally place the take-off gate. If left unplaced, take-off is inferred from a sustained near-zero-speed hold followed by a rise in tracked speed.', 0),
+      landingGateStep('Optionally place the landing gate. If left unplaced, landing is inferred from a sustained drop to near-zero tracked speed.', 0),
       polygonStep('duration_landing_area', 'Duration landing area', 'Draw the specified landing area polygon for the task.', 'duration_landing_area'),
     ],
   },

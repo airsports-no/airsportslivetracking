@@ -12,10 +12,11 @@ from display.models import (
     UserTokenGrant,
     ContestTokenAssignment,
     ClubManagerMembership,
+    UserEntitlementGrant,
 )
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import assert_can_add_navigation_task
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.cima_task_type_definitions import CIRCLE, CONTRACT_NAVIGATION_TIME_CONTROLS, TURNPOINT_HUNT
 from display.utilities.navigation_task_type_definitions import PRECISION
 from display.utilities.task_type_group_definitions import CIMA_TASK_TYPE_GROUP, LEGACY_TASK_TYPE_GROUP
 
@@ -130,3 +131,28 @@ class TestTaskTypeGroupAccess(TestCase):
             task_subtype=CONTRACT_NAVIGATION_TIME_CONTROLS,
         )
         self.assertIn(CIMA_TASK_TYPE_GROUP, allowed.allowed_task_type_groups)
+
+    def test_fine_grained_entitlement_grant_allows_only_the_granted_subtype(self):
+        UserEntitlementGrant.objects.create(
+            user=self.user,
+            kind=UserEntitlementGrant.KIND_TASK_TYPE_GROUP,
+            value="cima:circle",
+        )
+
+        # Granted subtype succeeds.
+        allowed = assert_can_add_navigation_task(
+            self.contest,
+            task_type=PRECISION,
+            task_subtype=CIRCLE,
+            user=self.user,
+        )
+        self.assertIn("cima:circle", allowed.allowed_task_type_groups)
+
+        # A different CIMA subtype is not covered by the fine-grained grant.
+        with self.assertRaises(ValidationError):
+            assert_can_add_navigation_task(
+                self.contest,
+                task_type=PRECISION,
+                task_subtype=TURNPOINT_HUNT,
+                user=self.user,
+            )

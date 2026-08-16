@@ -7,6 +7,29 @@
 
 ---
 
+### Two purchase mechanisms, by design
+
+Paid access is modeled two different ways on purpose, matching the two real ways
+someone actually pays today (there is no payment processor integrated - both are
+fulfilled manually by an operator):
+
+* **`TokenType` / `UserTokenGrant` / `ContestTokenAssignment`** — a user emails to
+  buy a token packet. It's owned by the *user*, and they assign single uses of it
+  to whichever contest they organize.
+* **`AccessGrant`** — a club buys a standing annual pass. It's owned by the *club*,
+  and applies automatically to every contest that club organizes (or, for a
+  single event, an operator grants it directly against one contest).
+
+Both funnel into the same `resolve_contest_access()` waterfall, so callers never
+need to know which mechanism is backing a given contest's access. This is not
+redundancy to be cleaned up - see the docstrings on `AccessGrant` and `TokenType`
+(`display/models/access_control.py`) for the full reasoning. A third, separate
+mechanism, `UserEntitlementGrant`, exists purely for giving one specific user
+something directly with no club/contest/payment involved (see §4 below) - it's
+the "beta tester" case, not a purchase.
+
+---
+
 ### 2. Primary Business Rules
 
 #### Rule A: The Free Contest Owner Exception (`Owner Exempt`)
@@ -73,3 +96,58 @@ All paid passes include **Unlimited Navigation Tasks**, **Unlimited Custom Maps 
 * **Large / Regional & National Pass:** **30 Unique Guest Pilots** (14-day window; regional qualifiers and national championships).
 * **Annual Club Pass:** **Up to 15 or 30 Unique Guest Pilots** (365-day window; unlimited year-round tasks for seasonal club cups).
 * **Unlimited (Elite):** **Unlimited Guest Pilots** (Custom SLA window; major international events like World Championships).
+
+---
+
+### 4. CIMA Task-Type Rollout (Beta → Paywall)
+
+New CIMA catalogue task types (`display.utilities.cima_task_type_definitions`) are gated
+as a single task-type group (`"cima"`), separate from ordinary contestant-quota billing.
+Visibility/usage is resolved per-user by `display.services.task_type_visibility` and
+enforced per-contest-add by `display.services.capacity_enforcement.assert_can_add_navigation_task`,
+which unions the acting user's visible groups with the target contest's resolved groups —
+so a user's own grant is usable in any contest they organize, not only ones organized
+under a specific club.
+
+**Turning gating on:** set env `GATE_CIMA_TASK_VISIBILITY=true` and
+`DEFAULT_FREE_TASK_TYPE_GROUPS=legacy` (dropping `cima` from the free defaults — the
+out-of-the-box default is `legacy,cima`, i.e. fully open). Until both are set, everyone
+sees and can add CIMA tasks.
+
+**Task-type group granularity:** every CIMA subtype belongs to the coarse `"cima"`
+group *and* its own namespaced fine group, e.g. `"cima:circle"`
+(`display.utilities.task_type_group_definitions.get_fine_task_type_group`).
+Enforcement accepts either — a grant using the coarse `"cima"` string (the only
+form that existed before fine-grained grants) still unlocks every CIMA subtype
+unchanged; a grant using a namespaced `"cima:<subtype>"` string unlocks only that
+one subtype. Nothing about existing `AccessGrant`/`TokenType` rows needs to
+change to keep working.
+
+**Beta rollout for one specific user (no code, admin-only):** use
+`UserEntitlementGrant` (Django admin) — this is the "give this person direct
+access, no club/contest/payment involved" mechanism (see the "Two purchase
+mechanisms" note above; this is a third, separate mechanism from both of them).
+1. Add a `UserEntitlementGrant` with `user=<the beta tester>`,
+   `kind=task_type_group`, `value="cima"` (all CIMA subtypes) or
+   `value="cima:circle"` (just Circle, for example).
+2. Optionally set `expires_at` to auto-expire the beta grant, or leave it blank
+   for an indefinite grant; `is_active=False` revokes it immediately without
+   deleting the record.
+3. The grant applies in *any* contest that user organizes — it's tied to the
+   user, not a club or contest.
+
+**Beta rollout for a whole cohort (no code, admin-only):** the club-based
+approach from before is still valid for granting a *group* of people access via
+one club, rather than one `UserEntitlementGrant` per person:
+1. Create a club to represent the beta cohort (e.g. "Air Sports Live Tracking Beta").
+2. Create a club-scoped `AccessGrant` (`status=ACTIVE`, `task_type_groups=["cima"]`,
+   or `["cima:circle"]` to scope the whole cohort to one subtype) for that club.
+3. Add each beta tester as a `ClubManagerMembership` (role `manager` or `owner`) on that
+   club. Plain club membership does **not** grant visibility — only managers count.
+4. Beta testers can then see and add CIMA tasks in *any* contest they organize (their own
+   club or the beta club), not only contests organized under the beta club itself.
+
+**Paywall rollout (later):** create a `TokenType` with `task_type_groups=["cima"]`
+(or a namespaced subset) and sell/assign it via the existing `UserTokenGrant` /
+`ContestTokenAssignment` flow — the same visibility and enforcement paths already
+honor token grants, no further code changes needed.

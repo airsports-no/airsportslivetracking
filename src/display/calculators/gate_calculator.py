@@ -68,6 +68,8 @@ class GateCalculator(Calculator):
         self.scored_gates = set()
         self.scored_turnpoint_hunt_compulsory_gates = set()
         self.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+        self._last_speed_keeping_gate: Optional[Gate] = None
+        self._last_speed_keeping_time: Optional[datetime.datetime] = None
 
     def create_gates(self) -> List[Gate]:
         """
@@ -89,10 +91,15 @@ class GateCalculator(Calculator):
                 )
         if gates:
             self.starting_line = gates[0]
-        else:
+        elif waypoints:
             self.starting_line = Gate(
                 waypoints[0], expected_times[waypoints[0].name], calculate_extended_gate(waypoints[0], self.scorecard)
             )
+        else:
+            # Routes with no waypoints at all (e.g. 2.B3 Duration tasks, which are
+            # authored as just takeoff/landing gates plus a landing area polygon)
+            # have nothing for this calculator to do.
+            self.starting_line = None
         return gates
 
     def _get_effective_waypoints(self):
@@ -108,7 +115,8 @@ class GateCalculator(Calculator):
         self.gates = self.create_gates()
         for gate in self.gates:
             gate.pre_project(self.projector)
-        self.starting_line.pre_project(self.projector)
+        if self.starting_line:
+            self.starting_line.pre_project(self.projector)
 
     def _get_next_gate(self) -> Optional[Gate]:
         return self.outstanding_gates[0] if self.outstanding_gates else None
@@ -291,7 +299,7 @@ class GateCalculator(Calculator):
         events = []
 
         # Handle crossing the starting line if we are looking for it
-        if state.next_gate and state.next_gate == self.gates[0]:
+        if self.gates and state.next_gate and state.next_gate == self.gates[0]:
             intersection_time = self.starting_line.get_gate_extended_intersection_time(state.projector, track)
             if intersection_time and not self.starting_line.is_passed_in_correct_direction_track(track):
                 if self.last_backwards is None or intersection_time > self.last_backwards + datetime.timedelta(
@@ -575,6 +583,7 @@ class GateCalculator(Calculator):
         self._score_turnpoint_hunt_target_value(event.gate, passing_position, passing_time)
         self._score_limited_fuel_deadline(event.gate, passing_position, passing_time)
         self._score_turnpoint_hunt_maximum_duration(event.gate, passing_position, passing_time)
+        self._score_speed_keeping(event.gate, passing_position, passing_time)
 
     def _is_curve_navigation_repeated_crossing(self, gate: Gate) -> bool:
         return (
@@ -700,6 +709,64 @@ class GateCalculator(Calculator):
             "maximum task duration exceeded",
             ANOMALY,
             deadline_dt,
+            passing_time,
+        )
+
+    def _score_speed_keeping(self, gate: Gate, position, passing_time: datetime.datetime):
+        """2.A4 known circuit: penalise legs flown materially faster/slower than the
+        declared uniform speed. Legs bordering a manually overridden turnpoint time are
+        skipped, since the contestant is expected to deviate from the declared speed to
+        hit that specific declared time (see KnownCircuitStrategy)."""
+        if self.contestant.navigation_task.task_subtype != "known_circuit":
+            return
+        if not hasattr(self.contestant, "contestanttaskconfiguration"):
+            return
+        config = self.contestant.contestanttaskconfiguration
+        if not config.is_valid:
+            return
+        payload = config.compiled_effective_route_payload or {}
+        overridden_gate_names = set(payload.get("overridden_gate_names") or [])
+
+        previous_gate = self._last_speed_keeping_gate
+        previous_time = self._last_speed_keeping_time
+        self._last_speed_keeping_gate = gate
+        self._last_speed_keeping_time = passing_time
+
+        if previous_gate is None:
+            return
+        if gate.name in overridden_gate_names or previous_gate.name in overridden_gate_names:
+            return
+
+        elapsed_seconds = (passing_time - previous_time).total_seconds()
+        if elapsed_seconds <= 0:
+            return
+
+        distance_m = calculate_distance_lat_lon(
+            (previous_gate.latitude, previous_gate.longitude), (gate.latitude, gate.longitude)
+        )
+        actual_speed_kt = distance_m / elapsed_seconds * 3600 / 1852
+        declared_speed_kt = self.contestant.air_speed
+        tolerance_kt = float(getattr(self.scorecard, "speed_keeping_tolerance_kt", 5) or 5)
+        penalty_per_kt = float(getattr(self.scorecard, "speed_keeping_penalty_per_kt", 1) or 1)
+
+        deviation = abs(actual_speed_kt - declared_speed_kt)
+        if deviation <= tolerance_kt:
+            score = 0
+            message = f"speed kept within {tolerance_kt:.1f} kt tolerance"
+            annotation_type = INFORMATION
+        else:
+            score = (deviation - tolerance_kt) * penalty_per_kt
+            message = f"speed deviation of {deviation:.1f} kt exceeds {tolerance_kt:.1f} kt tolerance"
+            annotation_type = ANOMALY
+
+        self.update_gate_score(
+            position,
+            gate,
+            score,
+            "speed_keeping",
+            message,
+            annotation_type,
+            gate.expected_time,
             passing_time,
         )
 

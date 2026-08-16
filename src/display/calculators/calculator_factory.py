@@ -15,6 +15,7 @@ from display.calculators.landing_pattern_calculator import LandingPatternCalcula
 from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
 from display.calculators.poker_calculator import PokerCalculator
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
+from display.calculators.speed_inferred_takeoff_landing_calculator import SpeedInferredTakeoffLandingCalculator
 
 from display.models import Contestant
 from display.utilities.cima_task_type_definitions import CIRCLE, DURATION
@@ -42,7 +43,13 @@ def _build_precision_calculators(contestant: "Contestant"):
     if contestant.navigation_task.task_subtype == CIRCLE:
         calculators.insert(1, CircleCalculator)
     if contestant.navigation_task.task_subtype == DURATION:
-        calculators.insert(2, DurationCalculator)
+        # SpeedInferredTakeoffLandingCalculator is a fallback source of
+        # TakeoffPassedEvent/LandingPassedEvent for routes with no authored
+        # takeoff/landing gates; the orchestrator fans those events out to every
+        # calculator (including DurationCalculator) regardless of list position,
+        # so this placement is just grouped with DurationCalculator for readability.
+        calculators.insert(2, SpeedInferredTakeoffLandingCalculator)
+        calculators.insert(3, DurationCalculator)
     return calculators
 
 

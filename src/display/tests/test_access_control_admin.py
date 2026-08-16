@@ -8,9 +8,10 @@ from display.admin import (
     ContestAdmin,
     ContestTokenAssignmentAdmin,
     TokenTypeAdmin,
+    UserEntitlementGrantAdmin,
     UserTokenGrantAdmin,
 )
-from display.models import AccessGrant, Club, ClubManagerMembership, Contest, ContestTokenAssignment, TokenType, UserTokenGrant
+from display.models import AccessGrant, Club, ClubManagerMembership, Contest, ContestTokenAssignment, TokenType, UserEntitlementGrant, UserTokenGrant
 from display.services.token_assignment import revert_token_assignment_for_support
 
 
@@ -22,6 +23,7 @@ class TestAccessControlAdmin(SimpleTestCase):
         self.assertIsInstance(admin.site._registry[UserTokenGrant], UserTokenGrantAdmin)
         self.assertIsInstance(admin.site._registry[ContestTokenAssignment], ContestTokenAssignmentAdmin)
         self.assertIsInstance(admin.site._registry[TokenType], TokenTypeAdmin)
+        self.assertIsInstance(admin.site._registry[UserEntitlementGrant], UserEntitlementGrantAdmin)
 
     def test_contest_admin_exposes_ownership_columns(self):
         contest_admin = admin.site._registry[Contest]
