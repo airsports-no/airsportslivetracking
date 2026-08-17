@@ -722,16 +722,11 @@ class ContestantProcessor:
                 return
 
         gate_score = self.gate_scores[gate_name]
-        if not self.suppress_side_effects:
-            gate_score.points += score
-            gate_score.save(update_fields=["points"])
-
-        self.score += score
-
         if self.suppress_side_effects:
+            self.score += score
             return
 
-        entry = ScoreLogEntry.create_and_push(
+        entry, created = ScoreLogEntry.get_or_create_and_push(
             contestant=self.contestant,
             time=update_score_message.time,
             gate=update_score_message.gate.name,
@@ -744,6 +739,15 @@ class ContestantProcessor:
             string=string,
             times_string=times_string,
         )
+
+        if not created:
+            return
+
+        gate_score.points += score
+        gate_score.save(update_fields=["points"])
+
+        self.score += score
+
         TrackAnnotation.create_and_push(
             contestant=self.contestant,
             latitude=update_score_message.latitude,
