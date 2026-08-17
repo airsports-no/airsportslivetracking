@@ -796,6 +796,15 @@ class GateCalculator(Calculator):
         self.on_gate_passed(event)
 
     def on_adaptive_start(self, event: AdaptiveStartEvent):
+        if not event.gate_times:
+            new_start_time = event.intersection_time
+            event.gate_times = self.contestant.calculate_missing_gate_times({}, round_time_minute(new_start_time))
+
+        gate_times = event.gate_times
+        for gate in self.gates:
+            if gate.name in gate_times:
+                gate.expected_time = gate_times[gate.name]
+
         if self.has_scored_adaptive_start:
             return
         self.has_scored_adaptive_start = True

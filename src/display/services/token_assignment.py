@@ -42,6 +42,7 @@ def _backfill_historical_usage_for_existing_contest(contest):
         )
 
 
+@transaction.atomic
 def ensure_token_assignment_active_for_guest_start(contest):
     assignment = ContestTokenAssignment.objects.select_for_update().select_related("token_type").filter(contest=contest).first()
     if assignment is None:
