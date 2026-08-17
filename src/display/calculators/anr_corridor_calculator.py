@@ -339,23 +339,23 @@ class AnrCorridorCalculator(Calculator):
         if outside_time_this_segment < 0:
             outside_time_this_segment = 0
 
-        if self.corridor_maximum_penalty_is_per_leg:
-            total_outside_time = outside_time_this_segment
-        else:
-            total_outside_time = self.excursion_total_outside_seconds + outside_time_this_segment
+        # Grace time is consumed once per excursion, not reset at every leg
+        # boundary, so it's always computed against the cumulative outside
+        # time. The per-leg maximum penalty (below) is a separate, genuinely
+        # per-leg concept: it caps how much a single leg may newly contribute,
+        # not how much grace that leg gets.
+        total_outside_time = self.excursion_total_outside_seconds + outside_time_this_segment
 
         penalty_time = np.round(max(0.0, total_outside_time - self.corridor_grace_time))
         total_penalty = self.scorecard.corridor_outside_penalty * penalty_time
+        incremental_penalty = max(0, total_penalty - self.excursion_accumulated_score)
+
         is_capped = False
         if self.corridor_maximum_penalty_is_per_leg and self.scorecard.corridor_maximum_penalty > 0:
-            if total_penalty > self.scorecard.corridor_maximum_penalty:
-                total_penalty = self.scorecard.corridor_maximum_penalty
+            if incremental_penalty > self.scorecard.corridor_maximum_penalty:
+                incremental_penalty = self.scorecard.corridor_maximum_penalty
                 is_capped = True
 
-        if self.corridor_maximum_penalty_is_per_leg:
-            incremental_penalty = total_penalty
-        else:
-            incremental_penalty = max(0, total_penalty - self.excursion_accumulated_score)
         return incremental_penalty, outside_time_this_segment, is_capped
 
     def check_and_apply_outside_penalty(

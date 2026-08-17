@@ -1870,7 +1870,12 @@ class ContestantViewSet(ModelViewSet):
         partial = kwargs.pop("partial", False)
         serialiser = self.get_serializer(instance=instance, data=request.data, partial=partial)
         if serialiser.is_valid():
-            navigation_task = serialiser.context.get("navigation_task")
+            # Use the existing instance's navigation_task rather than the
+            # serializer context, which is only populated when this viewset is
+            # reached via the nested .../navigationtasks/<pk>/contestants/ URL -
+            # the instance's own navigation_task is always correct regardless
+            # of which route (nested or the top-level /contestant/) was used.
+            navigation_task = instance.navigation_task
             team = serialiser.validated_data.get("team")
             if navigation_task is not None and team is not None:
                 resolution = resolve_contest_access(navigation_task.contest)

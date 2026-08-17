@@ -437,6 +437,14 @@ class GateCalculator(Calculator):
                         f"{self.contestant}: Detected missed gate {state.in_range_of_gate} due to going out of range without passing"
                     )
                     events.append(GateMissedEvent(prev_gate, state.in_range_of_gate, last_position))
+
+                    # If this was our expected next gate, pop it so state.next_gate
+                    # (used for live-tracking "next gate" display) doesn't keep
+                    # pointing at an already-missed gate until a later gate crossing
+                    # retroactively cleans it up.
+                    if self.outstanding_gates and self.outstanding_gates[0] == state.in_range_of_gate:
+                        self.outstanding_gates.pop(0)
+                        events.append(NextGateExpectedEvent(self._get_next_gate(), last_position))
                 return
 
         # Find next gate in range if none is active
@@ -771,11 +779,12 @@ class GateCalculator(Calculator):
         )
 
     def on_starting_line_extended_passed_wrong_direction(self, event: StartingLineExtendedPassedWrongDirectionEvent):
-        if self.starting_line.type == "sp":
+        score = self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type(self.starting_line.type)
+        if score != 0:
             self.update_gate_score(
                 event.position,
                 self.starting_line,
-                self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type(self.starting_line.type),
+                score,
                 BACKWARD_STARTING_LINE_SCORE_TYPE,
                 "backwards starting line",
                 ANOMALY,

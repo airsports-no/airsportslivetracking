@@ -348,3 +348,58 @@ class TestCapacityViewsetIntegration(APITestCase):
             contestant.contestanttaskconfiguration.declaration_payload,
             {"declared_sequence": ["A", "MP", "C", "FP"], "declared_t_seconds": 600},
         )
+
+    @patch("display.viewsets._assert_can_reserve_task_slot")
+    def test_contestant_update_via_non_nested_route_still_calls_capacity_guard(self, mock_guard, *_args):
+        """Regression test: PATCHing a contestant via the non-nested
+        /api/v1/contestant/<pk>/ route (rather than the nested
+        .../navigationtasks/<pk>/contestants/<id>/ route, which has no
+        navigationtask_pk URL kwarg to populate serializer context) must
+        still invoke the guest-pilot capacity guard when the team is
+        reassigned."""
+        contestant = Contestant.objects.create(
+            navigation_task=self.navigation_task,
+            team=self.team,
+            takeoff_time=datetime.datetime(2026, 4, 1, 10, 0, tzinfo=datetime.timezone.utc),
+            finished_by_time=datetime.datetime(2026, 4, 1, 12, 0, tzinfo=datetime.timezone.utc),
+            tracker_start_time=datetime.datetime(2026, 4, 1, 9, 30, tzinfo=datetime.timezone.utc),
+            tracker_device_id="capacity-update-test",
+            contestant_number=1,
+            minutes_to_starting_point=6,
+            air_speed=70,
+            wind_direction=160,
+            wind_speed=0,
+        )
+        other_person = Person.objects.create(
+            first_name="Pilot", last_name="Two", email="capacity-update-two@example.com"
+        )
+        other_team = Team.objects.create(
+            crew=Crew.objects.create(member1=other_person),
+            aeroplane=Aeroplane.objects.create(registration="LN-CU2"),
+        )
+        url = reverse("all-contestants-detail", kwargs={"pk": contestant.pk})
+
+        # PUT (not PATCH) so ContestantViewSet.get_serializer_class() resolves
+        # to ContestantSerialiser (action "update"), whose team field is a
+        # plain PrimaryKeyRelatedField - PATCH instead resolves to
+        # ContestantNestedTeamSerialiserWithContestantTrack (action
+        # "partial_update"), which expects a full nested team representation.
+        response = self.client.put(
+            url,
+            {
+                "team": other_team.pk,
+                "takeoff_time": "2026-04-01T10:00:00Z",
+                "finished_by_time": "2026-04-01T12:00:00Z",
+                "tracker_start_time": "2026-04-01T09:30:00Z",
+                "tracker_device_id": "capacity-update-test",
+                "contestant_number": 1,
+                "minutes_to_starting_point": 6,
+                "air_speed": 70,
+                "wind_direction": 160,
+                "wind_speed": 0,
+            },
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_200_OK, response.status_code, response.data)
+        mock_guard.assert_called_once()

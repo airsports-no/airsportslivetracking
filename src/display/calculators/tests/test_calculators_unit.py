@@ -12,6 +12,7 @@ from display.calculators.calculator import (
     StartingLinePassedEvent,
     PokerGatePassedEvent,
     InRangeUpdatedEvent,
+    NextGateExpectedEvent,
 )
 from display.calculators.gate_calculator import GateCalculator
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
@@ -355,6 +356,45 @@ class TestGateCalculator(CalculatorUnitTestBase):
         self.assertEqual(msg.planned, gate.expected_time)
         self.assertEqual(msg.actual, pos.time)
 
+    def test_check_gate_in_range_pops_outstanding_gate_on_detected_miss(self):
+        """Regression test: detecting a gate missed via the "went out of
+        range without crossing" path must pop it off outstanding_gates and
+        emit NextGateExpectedEvent immediately, so state.next_gate (used for
+        live-tracking display) doesn't keep pointing at an already-missed
+        gate until a later gate crossing retroactively cleans it up."""
+        gate = MagicMock()
+        gate.name = "TP 1"
+        gate.center_x = 0.0
+        gate.center_y = 0.0
+        gate.outside_distance = 100
+        gate.passing_time = None
+        gate.missed = False
+
+        self.calculator.gates = [gate]
+        self.calculator.gates[0].has_infinite_been_passed = MagicMock(return_value=True)
+        self.calculator.outstanding_gates = [gate]
+
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=gate,
+            in_range_of_gate=gate,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+
+        # Well outside the gate's outside_distance (100m).
+        pos = self.create_position(61.0, 12.0, datetime.datetime(2020, 1, 1, 10, 5))
+        track = [pos]
+        events = []
+
+        self.calculator.check_gate_in_range(track, state, events)
+
+        self.assertEqual(self.calculator.outstanding_gates, [])
+        self.assertTrue(any(isinstance(e, GateMissedEvent) for e in events))
+        self.assertTrue(any(isinstance(e, NextGateExpectedEvent) for e in events))
+
     def test_on_starting_line_extended_passed_wrong_direction(self):
         gate = MagicMock()
         gate.name = "SP"
@@ -376,6 +416,51 @@ class TestGateCalculator(CalculatorUnitTestBase):
         msg = mock_update.call_args[0][0]
         self.assertEqual(msg.score, 50)
         self.assertEqual(msg.score_type, "backwards_starting_line")
+
+    def test_on_starting_line_extended_passed_wrong_direction_scores_isp_gate(self):
+        """Regression test: the penalty must fire for any starting gate type
+        with a nonzero configured penalty, not just 'sp' - 'isp' (intermediary
+        starting point) is a real, used gate type."""
+        gate = MagicMock()
+        gate.name = "ISP"
+        gate.type = "isp"
+        gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        gate.latitude = 60.0
+        gate.longitude = 11.0
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 9, 59))
+
+        self.calculator.starting_line = gate
+        self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type.return_value = 50
+
+        event = type("Evt", (), {"position": pos})()
+
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.on_starting_line_extended_passed_wrong_direction(event)
+
+        mock_update.assert_called_once()
+        msg = mock_update.call_args[0][0]
+        self.assertEqual(msg.score, 50)
+        self.assertEqual(msg.score_type, "backwards_starting_line")
+        self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type.assert_called_once_with("isp")
+
+    def test_on_starting_line_extended_passed_wrong_direction_skips_zero_score(self):
+        gate = MagicMock()
+        gate.name = "SP"
+        gate.type = "sp"
+        gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        gate.latitude = 60.0
+        gate.longitude = 11.0
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 9, 59))
+
+        self.calculator.starting_line = gate
+        self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type.return_value = 0
+
+        event = type("Evt", (), {"position": pos})()
+
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.on_starting_line_extended_passed_wrong_direction(event)
+
+        mock_update.assert_not_called()
 
 
 class TestAnrCorridorCalculator(CalculatorUnitTestBase):

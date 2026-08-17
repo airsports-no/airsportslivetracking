@@ -29,10 +29,10 @@ def _normalized_enforcement_mode() -> str:
 
 
 def _is_owner_team(contest, team) -> bool:
-    if not contest.created_by_id or team is None:
+    if team is None:
         return False
-    owner_person = contest.created_by.person
-    return team.crew.member1_id == owner_person.id
+    owner_person_id = _get_owner_person_id(contest)
+    return owner_person_id is not None and team.crew.member1_id == owner_person_id
 
 
 def _guest_pilot_has_contest_slot(contest, pilot) -> bool:

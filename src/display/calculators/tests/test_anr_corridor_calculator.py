@@ -627,6 +627,44 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.assertEqual(calls[1].score, 0)
         self.assertEqual(calls[1].score_type, "outside_corridor")
 
+    def test_per_leg_penalty_grace_time_is_not_reapplied_across_leg_boundary(self, *args):
+        """Regression test: corridor_maximum_penalty_is_per_leg=True must not
+        reset the grace-time deduction at every leg boundary - grace is
+        consumed once per excursion; only the maximum-penalty cap is
+        genuinely per-leg."""
+        self.calculator.corridor_maximum_penalty_is_per_leg = True
+        self.calculator.corridor_grace_time = 5
+        self.calculator.scorecard.corridor_maximum_penalty = -1  # no cap, isolates the grace-time behavior
+
+        base_time = datetime.datetime(2020, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+
+        # Went outside the corridor at base_time; first leg boundary (a gate
+        # crossing while still outside) is reached 20s later.
+        self.calculator.crossed_outside_time = base_time
+        self.calculator.current_leg_outside_start_time = base_time
+        first_leg_incremental, first_leg_seconds, _ = self.calculator._calculate_current_leg_penalty(
+            base_time + datetime.timedelta(seconds=20)
+        )
+        self.calculator.excursion_accumulated_score += first_leg_incremental
+        self.calculator.excursion_total_outside_seconds += first_leg_seconds
+        self.calculator.current_leg_outside_start_time = base_time + datetime.timedelta(seconds=20)
+
+        # Second leg: another 10s outside, still within the same excursion.
+        second_leg_incremental, second_leg_seconds, _ = self.calculator._calculate_current_leg_penalty(
+            base_time + datetime.timedelta(seconds=30)
+        )
+
+        penalty_per_second = self.calculator.scorecard.corridor_outside_penalty
+        # Grace (5s) is consumed once, against the cumulative 30s outside -
+        # not re-granted for the second leg's own 10s.
+        expected_total_penalty = penalty_per_second * (30 - 5)
+        expected_second_leg_incremental = expected_total_penalty - first_leg_incremental
+        self.assertEqual(second_leg_incremental, expected_second_leg_incremental)
+        # This must be strictly greater than what the old, buggy per-leg-reset
+        # formula would have produced for the second leg alone (10s with its
+        # own fresh 5s grace, i.e. penalty_per_second * (10 - 5)).
+        self.assertGreater(second_leg_incremental, penalty_per_second * (10 - 5))
+
     def test_outside_20_seconds_enroute(self, *args):
         projector = self.navigation_task.get_projector()
 

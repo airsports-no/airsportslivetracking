@@ -1047,7 +1047,7 @@ def plot_minute_marks(
     """
     next_waypoint = track[index + 1]
     gate_start_time = contestant.gate_times.get(waypoint.name)
-    if waypoint.is_procedure_turn:
+    if waypoint.is_procedure_turn and gate_start_time is not None:
         gate_start_time += datetime.timedelta(minutes=1)
     next_gate_time = contestant.gate_times.get(next_waypoint.name)
     base_route_start_time = route_start_time if route_start_time is not None else contestant.gate_times.get(track[0].name)

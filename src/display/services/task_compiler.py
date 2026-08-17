@@ -1,7 +1,7 @@
 import hashlib
 import json
 
-TASK_COMPILER_SIGNATURE_VERSION = 2
+TASK_COMPILER_SIGNATURE_VERSION = 3
 
 from display.models import CompiledNavigationTask
 from display.utilities.cima_task_type_definitions import (
@@ -460,6 +460,12 @@ class TaskCompiler:
             "task": self.navigation_task.pk,
             "route": route_pk,
             "editable_route": editable_route_pk,
+            # In-place edits to the editable route's content (e.g. a turnpoint
+            # or gate moved via the route editor) keep the same pk, so the
+            # signature also needs to change whenever its content was last
+            # saved - otherwise compile(force=False) would keep serving a
+            # compiled payload built from the pre-edit geometry indefinitely.
+            "editable_route_updated_at": getattr(self.navigation_task.editable_route, "updated_at", None),
             "subtype": self.navigation_task.task_subtype or "",
             "task_config": self.navigation_task.task_config,
             "scorecard": scorecard_signature,

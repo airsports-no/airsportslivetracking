@@ -6,6 +6,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.core.exceptions import ValidationError
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
@@ -253,6 +254,43 @@ class TestNavigationTaskWizardCimaUi(TestCase):
         self.assertEqual(response.url, reverse("contest_details", kwargs={"pk": self.contest.pk}))
         messages = [message.message for message in get_messages(request)]
         self.assertTrue(any("This task requires the cima task package" in message for message in messages), messages)
+
+    @override_settings(
+        ACCESS_ENFORCEMENT_MODE="enforce",
+        DEFAULT_FREE_CONTESTANT_LIMIT=None,
+        DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"],
+    )
+    def test_new_navigation_task_wizard_blocks_unentitled_cima_task_creation(self):
+        """Regression test: the primary 'New Navigation Task' wizard must
+        enforce the same CIMA entitlement check as RouteToTaskWizard - a user
+        with no token/club/entitlement grant must not be able to create a
+        CIMA task through this wizard."""
+        request = RequestFactory().post("/")
+        request.user = self.user
+        request.session = {}
+        request._messages = MagicMock()
+
+        wizard = NewNavigationTaskWizard()
+        wizard.request = request
+        wizard.contest = self.contest
+        wizard.get_cleaned_data_for_step = lambda step: {
+            "task_type": {
+                "task_type": PRECISION,
+                "task_subtype": CIRCLE,
+            },
+            "task_content": {
+                "original_scorecard": MagicMock(use_procedure_turns=True),
+            },
+            "precision_route_import": {
+                "internal_route": self.editable_route,
+            },
+        }.get(step)
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "This task requires the cima task package, but the current contest only has access to other task groups.",
+        ):
+            wizard.done([])
 
     def test_new_navigation_task_wizard_creates_placeholder_route_for_circle_subtype(self):
         request = RequestFactory().get("/")

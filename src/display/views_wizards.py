@@ -194,6 +194,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
                     landing_gates=[],
                     use_procedure_turns=False,
                 )
+                internal_route.amend_route_with_additional_features(route)
             else:
                 use_procedure_turns = self.get_cleaned_data_for_step("task_content")["original_scorecard"].use_procedure_turns
                 route = internal_route.create_precision_route(use_procedure_turns, scorecard)
@@ -217,16 +218,27 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
 
     def done(self, form_list, **kwargs):
         scorecard = self.get_cleaned_data_for_step("task_content")["original_scorecard"]
+        task_step = self.get_cleaned_data_for_step("task_type") or {}
+        task_type = task_step["task_type"]
+        task_subtype = task_step.get("task_subtype")
         route, ediable_route = self.create_route(scorecard)
 
         if ediable_route:
-            task_type = self.get_cleaned_data_for_step("task_type")["task_type"]
             corridor_width = None
             if task_type == ANR_CORRIDOR:
                 corridor_width = self.get_cleaned_data_for_step("anr_route_import")["corridor_width"]
 
             for warning in ediable_route.get_validation_errors(corridor_width=corridor_width):
                 messages.warning(self.request, warning)
+
+        try:
+            assert_can_add_navigation_task(
+                self.contest, task_type=task_type, task_subtype=task_subtype, user=self.request.user
+            )
+        except DRFValidationError as exc:
+            # render_done() below only catches Django's ValidationError, matching
+            # this wizard's existing error-handling pattern.
+            raise ValidationError(str(exc))
 
         final_data = self.get_cleaned_data_for_step("task_content")
         navigation_task = NavigationTask.create(

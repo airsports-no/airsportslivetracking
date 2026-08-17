@@ -89,6 +89,52 @@ class TestCompiledNavigationTask(TestCase):
         self.assertEqual(compiled.compiled_payload["compiled_primitives"]["known_time_gate"], ["KT1"])
         self.assertEqual(compiled.compiled_payload["compiled_primitives"]["hidden_gate"], ["HG1"])
 
+    def test_task_compiler_recompiles_after_in_place_editable_route_edit(self):
+        """Regression test: compile(force=False) must pick up an editable
+        route edited in place (same pk, e.g. via a standard PATCH/PUT to
+        EditableRouteViewSet) instead of serving a stale compiled payload."""
+        editable_route = EditableRoute.objects.create(
+            name="Primitive source",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
+                    },
+                ],
+            },
+        )
+        self.navigation_task.editable_route = editable_route
+        self.navigation_task.save(update_fields=["editable_route"])
+
+        first = TaskCompiler(self.navigation_task).compile(force=True)
+        self.assertEqual(first.compiled_payload["compiled_primitives"]["hidden_gate"], ["HG1"])
+
+        # Edit the route content in place (same pk) - e.g. adding a second
+        # hidden gate - mirroring a standard PATCH/PUT to EditableRouteViewSet.
+        editable_route.route["features"].append(
+            {
+                "type": "Feature",
+                "properties": {"id": "hg-2", "name": "HG2", "pointType": "tp", "featureType": "hidden_gate"},
+                "geometry": {"type": "Point", "coordinates": [11.4, 60.4]},
+            }
+        )
+        editable_route.save()
+
+        second = TaskCompiler(self.navigation_task).compile(force=False)
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(
+            sorted(second.compiled_payload["compiled_primitives"]["hidden_gate"]),
+            ["HG1", "HG2"],
+        )
+
     def test_task_compiler_marks_missing_required_primitives_invalid(self):
         self.navigation_task.task_subtype = CURVE_NAVIGATION_TIME_ESTIMATION
         self.navigation_task.editable_route = EditableRoute.objects.create(

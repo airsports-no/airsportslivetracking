@@ -69,6 +69,29 @@ class TestCapacityEnforcement(TestCase):
         self.assertEqual(0, resolution.contestant_limit)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
+    def test_owner_team_check_does_not_crash_when_contest_creator_has_no_person(self, mock_resolve):
+        """Regression test: _is_owner_team must not raise an unhandled
+        Person.DoesNotExist when the contest's creator has no linked Person
+        record - it should gracefully treat the team as non-owner, matching
+        its sibling _get_owner_person_id's existing guard."""
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
+        creator_without_person = MyUser.objects.create(email="no-person-creator@example.com")
+        contest_without_owner_person = Contest.objects.create(
+            name="Ownerless Capacity Contest",
+            time_zone="Europe/Oslo",
+            start_time="2026-03-01T09:00:00+00:00",
+            finish_time="2026-03-01T17:00:00+00:00",
+            location="60.0,11.0",
+            created_by=creator_without_person,
+        )
+
+        # A team with no matching owner Person is correctly blocked by the
+        # (mocked) zero contestant limit, rather than crashing with an
+        # unhandled Person.DoesNotExist while checking ownership.
+        with self.assertRaises(ValidationError):
+            assert_can_register_team(contest_without_owner_person, self.team)
+
+    @patch("display.services.capacity_enforcement.resolve_contest_access")
     def test_self_registration_blocks_guest_pilot_when_limit_is_zero(self, mock_resolve):
         navigation_task = NavigationTask.objects.create(
             name="Task",
