@@ -150,8 +150,12 @@ class Orchestrator:
             self.enroute = False
             logger.info("Switching to not enroute")
             return
-        if not self.enroute and (
-            (self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "secret"]) or override_enroute
+        if (
+            not self.enroute
+            and not self.has_passed_finishpoint
+            and (
+                (self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "secret"]) or override_enroute
+            )
         ):
             self.enroute = True
             logger.info("Switching to enroute")

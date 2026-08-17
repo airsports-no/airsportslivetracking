@@ -70,9 +70,7 @@ class AnrCorridorCalculator(Calculator):
         self.polygon_helper = PolygonHelper(self.projector)
         self._bounds_cache = {}
         self.track_polygon = self.build_polygon()
-        self.existing_reference = None
         self.accumulated_score = 0
-        self.previous_existing_reference = None
         self.last_finalized_time = None
 
         # Consolidate per-leg penalties into a single excursion message
@@ -269,6 +267,14 @@ class AnrCorridorCalculator(Calculator):
             if self.corridor_maximum_penalty_is_per_leg:
                 if not event.gate.is_visible:
                     return
+                if event.gate.type == "fp":
+                    # The finish gate doesn't start a new leg, and
+                    # passed_finishpoint() (triggered immediately after this
+                    # by the orchestrator) finalizes the whole excursion via
+                    # check_and_apply_outside_penalty using this same,
+                    # still-open leg boundary. Accumulating here too would
+                    # double-count this segment's time and penalty.
+                    return
                 leg_incremental, leg_seconds, is_capped = self._calculate_current_leg_penalty(current_time)
                 last_leg = self.crossed_outside_gate
                 gate_name = last_leg.name if last_leg else "Unknown"
@@ -280,7 +286,7 @@ class AnrCorridorCalculator(Calculator):
                     self.excursion_any_leg_capped = True
                 display_name = gate_name if (last_leg and last_leg.is_visible) else "Secret"
                 self.excursion_leg_details.append(f"{display_name}: {float(leg_incremental):.1f}{cap_str}")
-                if not self.has_passed_finish_point and event.gate.type != "fp":
+                if not self.has_passed_finish_point:
                     self.corridor_state = self.OUTSIDE_CORRIDOR
                     self.previous_corridor_state = self.OUTSIDE_CORRIDOR
                     self.current_leg_outside_start_time = current_time
@@ -310,6 +316,15 @@ class AnrCorridorCalculator(Calculator):
             if self.corridor_maximum_penalty_is_per_leg:
                 if not event.gate.is_visible:
                     return
+                if event.gate.type == "fp":
+                    # See the matching comment in on_gate_missed: the finish
+                    # gate doesn't start a new leg, and passed_finishpoint()
+                    # (triggered immediately after this by the orchestrator)
+                    # finalizes the whole excursion via
+                    # check_and_apply_outside_penalty using this same,
+                    # still-open leg boundary. Accumulating here too would
+                    # double-count this segment's time and penalty.
+                    return
                 leg_incremental, leg_seconds, is_capped = self._calculate_current_leg_penalty(current_time)
                 last_leg = self.crossed_outside_gate
                 gate_name = last_leg.name if last_leg else "Unknown"
@@ -322,7 +337,7 @@ class AnrCorridorCalculator(Calculator):
                 display_name = gate_name if (last_leg and last_leg.is_visible) else "Secret"
                 leg_cap_str = " (capped)" if is_capped else ""
                 self.excursion_leg_details.append(f"{display_name}: {float(leg_incremental):.1f}{leg_cap_str}")
-                if not self.has_passed_finish_point and event.gate.type != "fp":
+                if not self.has_passed_finish_point:
                     self.corridor_state = self.OUTSIDE_CORRIDOR
                     self.previous_corridor_state = self.OUTSIDE_CORRIDOR
                     self.current_leg_outside_start_time = current_time
@@ -457,4 +472,12 @@ class AnrCorridorCalculator(Calculator):
 
     def finalise(self, track: List[ContestantReceivedPosition]):
         if self.corridor_state == self.OUTSIDE_CORRIDOR and track:
-            self.check_and_apply_outside_penalty(track[-1], self.crossed_outside_gate or self.previous_existing_reference)
+            # Fall back to the route's first waypoint (matching the pattern
+            # already used for the auxiliary route-compliance checks above)
+            # when no gate has been captured for this excursion at all -
+            # e.g. the track started outside the corridor before any gate
+            # context existed.
+            fallback_gate = self.crossed_outside_gate
+            if fallback_gate is None and self.route.waypoints:
+                fallback_gate = self.route.waypoints[0]
+            self.check_and_apply_outside_penalty(track[-1], fallback_gate)
