@@ -13,6 +13,7 @@ from display.calculators.calculator import (
     PokerGatePassedEvent,
     InRangeUpdatedEvent,
     NextGateExpectedEvent,
+    AdaptiveStartEvent,
 )
 from display.calculators.gate_calculator import GateCalculator
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
@@ -461,6 +462,29 @@ class TestGateCalculator(CalculatorUnitTestBase):
             self.calculator.on_starting_line_extended_passed_wrong_direction(event)
 
         mock_update.assert_not_called()
+
+    def test_on_adaptive_start_double_invocation_is_idempotent(self):
+        """In production on_adaptive_start is invoked twice per adaptive
+        crossing: once inline from check_intersections
+        (gate_calculator.py:321-323) and once via the orchestrator's
+        AdaptiveStartEvent fan-out (orchestrator.py:204). Regression-locks
+        that this is safe: exactly one informational score message is
+        emitted (the has_scored_adaptive_start guard) and the gate-time
+        rewrite produces the same result both times."""
+        new_start_time = datetime.datetime(2020, 1, 1, 10, 5, tzinfo=datetime.timezone.utc)
+        recalculated_times = {"WP1": datetime.datetime(2020, 1, 1, 10, 6, tzinfo=datetime.timezone.utc)}
+        self.contestant.calculate_missing_gate_times.return_value = recalculated_times
+        pos = self.create_position(60, 11, new_start_time)
+        event = AdaptiveStartEvent(new_start_time, pos)
+
+        self.calculator.on_adaptive_start(event)
+        self.assertEqual(self.waypoint1.expected_time, recalculated_times["WP1"])
+        self.assertEqual(self.score_processing_queue.put_nowait.call_count, 1)
+
+        # Second, orchestrator-driven invocation of the same event.
+        self.calculator.on_adaptive_start(event)
+        self.assertEqual(self.waypoint1.expected_time, recalculated_times["WP1"])
+        self.assertEqual(self.score_processing_queue.put_nowait.call_count, 1)
 
 
 class TestAnrCorridorCalculator(CalculatorUnitTestBase):

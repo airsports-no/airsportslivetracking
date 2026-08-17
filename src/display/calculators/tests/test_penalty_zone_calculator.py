@@ -251,3 +251,34 @@ class TestPenaltyZoneCalculator(TransactionTestCase):
         state.last_visible_gate.waypoint.on_curved_segment = False
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_not_called()
+
+    def test_track_ending_inside_zone_without_exit_never_scores_penalty(self):
+        """CURRENT BEHAVIOR (documented, not asserted as correct): the
+        penalty-zone score is only emitted on exit (check_inside_
+        prohibited_zone, penalty_zone_calculator.py:129-144); finalise()
+        is a bare `pass` with no end-of-track fallback. A contestant whose
+        track ends while still inside a penalty zone (e.g. they land or
+        lose signal without ever crossing back out) is only ever shown the
+        zero-score "entering" informational message and never actually
+        penalized for the time spent inside, unlike prohibited zones which
+        score immediately after the grace period regardless of when/if the
+        contestant leaves. Flagged as a possible fairness gap for the user
+        to weigh in on, not asserted as correct."""
+        state = Mock(OrchestratorState)
+        state.last_visible_gate = Mock()
+        state.last_visible_gate.is_visible = True
+        state.last_visible_gate.waypoint.on_curved_segment = False
+
+        position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc))
+        self.calculator.calculate_outside_route([position], state)
+        position = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 0, 5, 0, tzinfo=datetime.timezone.utc))
+        self.calculator.calculate_outside_route([position], state)
+        self.calculator.finalise([position])
+
+        # Only the zero-score "entering" informational message was ever
+        # emitted - no non-zero exit-scoring message for the 5 minutes spent
+        # inside the zone.
+        for call_args in self.calculator.update_score.call_args_list:
+            message = call_args.args[0]
+            self.assertEqual(message.score, 0)
+            self.assertEqual(message.message, "entering penalty zone test")

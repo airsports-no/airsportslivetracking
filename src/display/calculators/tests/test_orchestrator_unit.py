@@ -1,4 +1,5 @@
 import datetime
+from unittest import skip
 from unittest.mock import Mock, patch, MagicMock, call
 from django.test import TestCase
 from display.calculators.orchestrator import Orchestrator
@@ -216,6 +217,41 @@ class TestOrchestratorUnit(TestCase):
         # calc2 should have been called with the updated state (last_gate = gate)
         state_passed_to_calc2 = calc2.calculate_enroute.call_args[0][1]
         self.assertEqual(state_passed_to_calc2.last_gate, gate)
+
+    @skip(
+        "SUSPECTED BUG: update_enroute (orchestrator.py:144-157) has two "
+        "independent conditions with no shared 'already finished' guard: "
+        "enroute->False when the last gate is a finish-type gate (ldg/ifp/fp), "
+        "and False->enroute when the last gate is a start/turn-type gate "
+        "(sp/isp/tp/secret). Confirmed by running this test unskipped: a "
+        "tp/secret GatePassedEvent processed AFTER the fp event that already "
+        "ended the flight (e.g. an out-of-order or late-arriving hidden gate "
+        "event) flips self.enroute back to True post-finish - nothing in "
+        "update_enroute or handle_event prevents it. Flagged rather than "
+        "asserting the re-entered-enroute state as correct."
+    )
+    def test_gate_after_finish_does_not_re_enter_enroute(self):
+        fp_gate = MagicMock()
+        fp_gate.type = "fp"
+        fp_gate.is_visible = True
+        fp_gate.waypoint.on_curved_segment = False
+        pos1 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        self.orchestrator.enroute = True
+
+        with patch.object(self.orchestrator, "passed_finishpoint"):
+            self.orchestrator.handle_event(GatePassedEvent(fp_gate, pos1, pos1.time, previous_gate=None))
+        self.assertFalse(self.orchestrator.enroute)
+
+        secret_gate = MagicMock()
+        secret_gate.type = "secret"
+        secret_gate.is_visible = False
+        secret_gate.waypoint.on_curved_segment = False
+        pos2 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 5))
+
+        with patch.object(self.orchestrator, "passed_finishpoint"):
+            self.orchestrator.handle_event(GatePassedEvent(secret_gate, pos2, pos2.time, previous_gate=None))
+
+        self.assertFalse(self.orchestrator.enroute)
 
     def test_multi_event_ordering_from_single_calculator(self):
         # Events from a single calculator should be handled in the order they are returned
