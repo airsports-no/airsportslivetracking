@@ -61,8 +61,7 @@ from display.utilities.cima_task_type_definitions import (
     CIRCLE,
     get_task_subtypes_for_family,
 )
-from display.services.task_type_visibility import can_user_see_cima_task_types
-from display.utilities.task_type_group_definitions import CIMA_TASK_TYPE_GROUP, get_task_type_group
+from display.services.task_type_visibility import can_user_see_cima_task_types, can_user_see_task_subtype
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, NAVIGATION_TASK_TYPES, PRECISION
 
 FILE_TYPE_CSV = "csv"
@@ -393,12 +392,11 @@ class NavigationTaskForm(forms.ModelForm):
         subtype_choices = [("", "---------")]
         family_labels = dict(NAVIGATION_TASK_TYPES)
         subtype_families = [task_family] if task_family else [PRECISION, ANR_CORRIDOR]
-        show_cima = True if user is None else can_user_see_cima_task_types(user)
         for family in subtype_families:
             family_subtypes = [
                 (item.key, item.display_name)
                 for item in get_task_subtypes_for_family(family)
-                if show_cima or get_task_type_group(task_type=family, task_subtype=item.key) != CIMA_TASK_TYPE_GROUP
+                if can_user_see_task_subtype(user, task_type=family, task_subtype=item.key)
             ]
             if family_subtypes:
                 subtype_choices.append((family_labels.get(family, family), family_subtypes))

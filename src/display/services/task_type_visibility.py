@@ -7,6 +7,8 @@ from display.utilities.task_type_group_definitions import (
     CIMA_TASK_TYPE_GROUP,
     LEGACY_TASK_TYPE_GROUP,
     get_all_fine_task_type_groups,
+    get_fine_task_type_group,
+    get_task_type_group,
 )
 
 # Includes both coarse groups ("legacy", "cima") and every namespaced fine
@@ -76,3 +78,21 @@ def can_user_see_cima_task_types(user) -> bool:
     # section in the task-type picker; enforcement at save-time narrows to the
     # exact subtype regardless.
     return any(group == CIMA_TASK_TYPE_GROUP or group.startswith(f"{CIMA_TASK_TYPE_GROUP}:") for group in visible_groups)
+
+
+def can_user_see_task_subtype(user, task_type: str | None = None, task_subtype: str | None = None) -> bool:
+    """Whether this specific task subtype should be shown in task-creation UI
+    (route editor wizard, Django task wizards). Legacy subtypes are always
+    visible. CIMA subtypes require the coarse "cima" group OR the exact
+    "cima:<subtype>" fine group in the user's visible set - mirroring the
+    coarse-or-fine acceptance capacity_enforcement.py uses at save time, so
+    what a user can see matches what they can actually create. user=None
+    means "no user context" (e.g. building choices outside a request) and is
+    treated as unrestricted, matching this module's existing convention.
+    """
+    coarse_group = get_task_type_group(task_type=task_type, task_subtype=task_subtype)
+    if coarse_group != CIMA_TASK_TYPE_GROUP or user is None:
+        return True
+    fine_group = get_fine_task_type_group(task_type=task_type, task_subtype=task_subtype)
+    visible_groups = get_visible_task_type_groups_for_user(user)
+    return coarse_group in visible_groups or fine_group in visible_groups

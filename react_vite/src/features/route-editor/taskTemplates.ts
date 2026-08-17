@@ -38,6 +38,10 @@ export interface TaskTemplate {
   id: TaskTemplateId;
   label: string;
   group: TaskTemplateGroup;
+  // Backend task_subtype key (e.g. 'circle') for CIMA templates - used to
+  // check fine-grained per-subtype access ('cima:<subtype>'). Legacy
+  // templates have no subtype and are always visible.
+  subtype?: string;
   description: string;
   steps: WizardStep[];
   guideOnly?: boolean;
@@ -155,6 +159,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_a1',
     label: '2.A1 Curve navigation with time estimation',
     group: 'CIMA',
+    subtype: 'curve_navigation_time_estimation',
     description: 'This is still a precision route, but it must include at least one curved leg. Route waypoints are the visible time/turn points; curved legs use the normal curved-leg feature.',
     guideOnly: true,
     guideSummary: 'Build a normal precision route first. The ordinary visible route points are the known points, curved legs use the existing curved-leg feature, and hidden gates are inserted on the route afterwards.',
@@ -168,6 +173,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_a2',
     label: '2.A2 Precision navigation',
     group: 'CIMA',
+    subtype: 'precision_navigation',
     description: 'This is a standard precision route with visible turn points and hidden gates along the corridor.',
     guideOnly: true,
     guideSummary: 'Build the visible precision route first, then insert hidden gates along the existing route corridor.',
@@ -180,6 +186,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_a3',
     label: '2.A3 Contract navigation with time controls',
     group: 'CIMA',
+    subtype: 'contract_navigation_time_controls',
     description: 'Base route plus catalogue turnpoints; declaration ordering happens later in contestant configuration.',
     steps: [
       routeStep('Build exactly three route waypoints representing SP, MP, and FP.'),
@@ -191,6 +198,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_a4',
     label: '2.A4 Navigation over a known circuit',
     group: 'CIMA',
+    subtype: 'known_circuit',
     description: 'Known circuit plus hidden gates and observation/photo evidence.',
     guideOnly: true,
     guideSummary: 'Build the known circuit first, then add hidden gates along the route and observation/photo markers as evidence points.',
@@ -204,6 +212,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_a5',
     label: '2.A5 Navigation with unknown legs',
     group: 'CIMA',
+    subtype: 'unknown_legs',
     description: 'True backbone route plus unknown-leg trigger points, separate dummy branches, hidden route-backbone gates, and observation/photo evidence.',
     guideSummary: 'Build the true backbone first. Convert existing backbone points into unknown-leg triggers, then add dummy-branch waypoints from those triggers.',
     steps: [
@@ -218,6 +227,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_a6',
     label: '2.A6 Turnpoint hunt',
     group: 'CIMA',
+    subtype: 'turnpoint_hunt',
     description: 'No route backbone. Exactly three standalone timed turnpoints, plus any number of untimed catalogue turnpoints. The contestant declares the order.',
     steps: [
       pointStep('timed_turnpoint', 'Timed turnpoints', 'Place exactly three standalone timed turnpoints (CP1/CP2/CP3). Their crossing times and order are declared per contestant, not fixed here.', 'timed_turnpoint', 'known_time_gate', 'free_map', 3, 3),
@@ -229,6 +239,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_a7',
     label: '2.A7 Circle',
     group: 'CIMA',
+    subtype: 'circle',
     description: 'Explicit circle markers: start, center, entry, and exit.',
     steps: [
       pointStep('circle_start', 'Circle start', 'Place the circle start marker (SP).', 'circle_start', 'circle_start_marker', 'free_map', 1, 1),
@@ -241,6 +252,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_a8',
     label: '2.A8 Precision navigation ANR',
     group: 'CIMA',
+    subtype: 'anr_catalogue',
     description: 'ANR-based route. Build the route path first; auxiliary ANR paths may still need separate handling.',
     guideOnly: true,
     guideSummary: 'Build the ANR route first. Route-to-SP and route-from-FP auxiliary paths still need separate handling.',
@@ -250,6 +262,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_b2',
     label: '2.B2 Limited fuel turnpoint hunt',
     group: 'CIMA',
+    subtype: 'limited_fuel_turnpoint_hunt',
     description: 'No route backbone. Exactly three standalone timed turnpoints, plus any number of untimed catalogue turnpoints, and a fuel-endurance declaration later. Not a precision task: all gate crossings score.',
     steps: [
       pointStep('timed_turnpoint', 'Timed turnpoints', 'Place exactly three standalone timed turnpoints (CP1/CP2/CP3). Only their crossing times are declared per contestant; there is no required order.', 'timed_turnpoint', 'known_time_gate', 'free_map', 3, 3),
@@ -261,6 +274,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     id: 'cima_b3',
     label: '2.B3 Duration',
     group: 'CIMA',
+    subtype: 'duration',
     description: 'Take-off and landing gates define the measured duration, and the landing area polygon defines the allowed touchdown area. Gates are optional: if left unplaced, take-off/landing is instead inferred from the tracked speed profile.',
     steps: [
       takeoffGateStep('Optionally place the take-off gate. If left unplaced, take-off is inferred from a sustained near-zero-speed hold followed by a rise in tracked speed.', 0),
@@ -270,9 +284,22 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
   },
 ];
 
-export const getTaskTemplatesForGroups = (groups: TaskTemplateGroup[]): TaskTemplate[] => {
-  const allowed = new Set(groups);
-  return TASK_TEMPLATES.filter((template) => allowed.has(template.group));
+// Filters templates against the raw visible-task-type-group strings the
+// backend computes per user (e.g. ['legacy', 'cima'] or, for a fine-grained
+// grant, ['legacy', 'cima:circle']). Legacy templates are always visible; a
+// coarse 'cima' entry unlocks every CIMA template; otherwise a CIMA template
+// is only visible if its own 'cima:<subtype>' entry is present - so a user
+// granted only cima:circle sees Circle but not the other CIMA templates,
+// rather than either all of them (coarse-only check) or none (an exact
+// 'cima' string match would incorrectly hide everything for a fine-only grant).
+export const getVisibleTaskTemplates = (visibleTaskTypeGroups: string[] | undefined): TaskTemplate[] => {
+  const groups = new Set(visibleTaskTypeGroups ?? []);
+  const hasCoarseCima = groups.has('cima');
+  return TASK_TEMPLATES.filter((template) => {
+    if (template.group === 'Legacy') return true;
+    if (hasCoarseCima) return true;
+    return template.subtype != null && groups.has(`cima:${template.subtype}`);
+  });
 };
 
 export const getTaskTemplateById = (id: string | null | undefined): TaskTemplate | undefined =>

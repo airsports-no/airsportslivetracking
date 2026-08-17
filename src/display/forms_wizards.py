@@ -7,22 +7,19 @@ from phonenumber_field.formfields import PhoneNumberField
 
 from display.forms import PictureWidget, kml_description
 from display.models import EditableRoute, Contest, Aeroplane, Club
-from display.services.task_type_visibility import can_user_see_cima_task_types
+from display.services.task_type_visibility import can_user_see_cima_task_types, can_user_see_task_subtype
 from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
 from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES
 
 
 def _task_template_choices(user=None):
-    show_cima = True if user is None else can_user_see_cima_task_types(user)
-    grouped = {"Legacy": []}
-    if show_cima:
-        grouped["CIMA"] = []
+    grouped = {"Legacy": [], "CIMA": []}
     for key, label in NAVIGATION_TASK_TYPES:
         grouped["Legacy"].append((key, label))
     for definition in TASK_SUBTYPE_DEFINITIONS.values():
         if definition.key.startswith("legacy_"):
             continue
-        if not show_cima:
+        if not can_user_see_task_subtype(user, task_subtype=definition.key):
             continue
         grouped["CIMA"].append((definition.key, definition.display_name))
     return [(group, choices) for group, choices in grouped.items() if choices]

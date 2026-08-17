@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle2, Circle, Wand2, X } from 'lucide-react';
 import { Gate, ObservationMarker, Polygon, RoutePoint } from '../../../types';
-import { countWizardStepMatches, getTaskTemplatesForGroups, TaskTemplate, TASK_TEMPLATES, TaskTemplateGroup } from '../taskTemplates';
+import { countWizardStepMatches, getVisibleTaskTemplates, TaskTemplate, TASK_TEMPLATES } from '../taskTemplates';
 
 interface TaskWizardPanelProps {
   selectedTaskTemplateId: string | null;
@@ -33,10 +33,9 @@ const TaskWizardPanel: React.FC<TaskWizardPanelProps> = ({
   onClose,
 }) => {
   const selectedTemplate = TASK_TEMPLATES.find((template) => template.id === selectedTaskTemplateId) ?? null;
-  const allowedGroups = ((visibleTaskTypeGroups?.includes('cima') ?? document.configuration.showCimaTaskTypes ?? true)
-    ? ['Legacy', 'CIMA']
-    : ['Legacy']) as TaskTemplateGroup[];
-  const visibleTemplates = getTaskTemplatesForGroups(allowedGroups);
+  const visibleTemplates = getVisibleTaskTemplates(
+    visibleTaskTypeGroups ?? (document.configuration.showCimaTaskTypes ? ['legacy', 'cima'] : ['legacy'])
+  );
 
   const grouped = visibleTemplates.reduce<Record<string, TaskTemplate[]>>((acc, template) => {
     acc[template.group] = acc[template.group] || [];
