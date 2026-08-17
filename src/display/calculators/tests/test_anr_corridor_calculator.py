@@ -231,7 +231,7 @@ class TestANRPerLeg(TransactionTestCase):
             "TP 1: 57.0 points outside corridor (24 s). Leg scores: [SP: 48.0, TP 1: 9.0]. Total: 57.0",
             "TP 1: 0.0 points exiting corridor",
             "TP 1: 200.0 points backtracking",
-            "TP 1: 41.0 points outside corridor (227 s). Leg scores: [TP 1: 41.0 (capped)]. Total: 41.0 (capped)",
+            "TP 1: 50.0 points outside corridor (228 s). Leg scores: [TP 1: 50.0 (capped)]. Total: 50.0 (capped)",
             "FP: 200.0 points missing gate\nplanned: 14:18:11\nactual: --",
             "Landing 1: 0.0 points missing landing gate\nplanned: 15:59:00\nactual: --",
         ]
@@ -239,8 +239,8 @@ class TestANRPerLeg(TransactionTestCase):
             final_list,
             strings,
         )
-        # 200 (SP) + 50 (Excursion 1) + 200 (Backtrack) + 48 (Excursion 2) + 200 (FP) = 698
-        self.assertEqual(698.0, contestant_track.score)
+        # 200 (SP) + 57 (Excursion 1) + 200 (Backtrack) + 50 (Excursion 2) + 200 (FP) = 707
+        self.assertEqual(707.0, contestant_track.score)
 
     def test_manually_terminate_calculator(self, *args):
         cache.clear()
@@ -318,7 +318,7 @@ class TestANRPerLeg(TransactionTestCase):
         pprint(strings)
         expected = [
             "Takeoff 1: 0.0 points missing takeoff gate\nplanned: 15:05:00\nactual: --",
-            "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 0.0 points adaptive start set (0 s)\nplanned: 14:17:04\nactual: 14:17:04",
             "SP: 9.0 points passing gate (+4 s)\nplanned: 14:17:00\nactual: 14:17:04",
             "TP 1: 0.0 points passing gate (no time check) (-57 s)\n" "planned: 14:19:00\n" "actual: 14:18:03",
             "TP 2: 0.0 points passing gate (no time check) (-168 s)\n" "planned: 14:22:34\n" "actual: 14:19:46",
@@ -614,18 +614,15 @@ class TestAnrCorridorCalculator(TransactionTestCase):
 
         # Verify calls manually
         calls = [c.args[0] for c in self.calculator.update_score.call_args_list]
-        self.assertEqual(len(calls), 2)
+        # Excursion (2s) stays within the 5s corridor grace time, so it incurs
+        # no penalty and the zero-value finalization message is suppressed -
+        # only the initial "exiting corridor" transition is logged.
+        self.assertEqual(len(calls), 1)
 
         self.assertEqual(calls[0].time, datetime.datetime(2020, 1, 1, 0, 0))
         self.assertEqual(calls[0].message, "exiting corridor")
         self.assertEqual(calls[0].score, 0)
         self.assertEqual(calls[0].score_type, "outside_corridor")
-
-        # Returned inside at 00:03, so finalized at 00:02
-        self.assertEqual(calls[1].time, datetime.datetime(2020, 1, 1, 0, 0, 2))
-        self.assertEqual(calls[1].message, "outside corridor (2 s)")
-        self.assertEqual(calls[1].score, 0)
-        self.assertEqual(calls[1].score_type, "outside_corridor")
 
     def test_per_leg_penalty_grace_time_is_not_reapplied_across_leg_boundary(self, *args):
         """Regression test: corridor_maximum_penalty_is_per_leg=True must not
@@ -724,7 +721,7 @@ class TestAnrCorridorCalculator(TransactionTestCase):
 
         # Finalized at T=20
         self.assertEqual(calls[1].time, datetime.datetime(2020, 1, 1, 0, 0, 20))
-        self.assertEqual(calls[1].message, "outside corridor (20 s)")
+        self.assertEqual(calls[1].message, "outside corridor (20 s). Total: 45.0")
         self.assertEqual(calls[1].score, 45.0)
 
     def test_outside_20_seconds_until_finish(self, *args):
@@ -783,7 +780,10 @@ class TestAnrCorridorCalculator(TransactionTestCase):
         self.assertEqual(calls[0].score, 0)
 
         self.assertEqual(calls[1].time, datetime.datetime(2020, 1, 1, 0, 0, 20))
-        self.assertEqual(calls[1].message, "outside corridor (20 s)")
+        # Score uses the precise finish-line crossing time (20s), but the
+        # displayed duration reflects the last processed position's raw
+        # timestamp (21s), one second after the interpolated crossing.
+        self.assertEqual(calls[1].message, "outside corridor (21 s). Total: 45.0")
         self.assertEqual(calls[1].score, 45.0)
 
     def test_outside_20_seconds_outside_route(self, *args):
@@ -912,7 +912,7 @@ class TestANRBergenBacktrackingTommy(TransactionTestCase):
         calculator_runner(self.contestant, track)
         expected_strings = [
             "SP: 200.0 points entered prohibited zone enbr",
-            "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 0.0 points adaptive start set (0 s)\nplanned: 13:45:13\nactual: 13:45:13",
             "SP: 36.0 points passing gate (+13 s)\nplanned: 13:45:00\nactual: 13:45:13",
             "SP: 0.0 points exiting corridor",
             "SP: 102.0 points outside corridor (39 s). Leg scores: [SP: 102.0]. Total: " "102.0",

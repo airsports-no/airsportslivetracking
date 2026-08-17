@@ -7,8 +7,8 @@ from display.models import TokenType, UserTokenGrant, MyUser
 class TestContestFormTokenSelection(TestCase):
     def setUp(self):
         self.user = MyUser.objects.create(email="contest-form@example.com")
-        self.small = TokenType.objects.create(name="Small token form", contestant_limit=10, task_limit=1)
-        self.large = TokenType.objects.create(name="Large token form", contestant_limit=50, task_limit=5)
+        self.small = TokenType.objects.create(name="Small token form", contestant_limit=10)
+        self.large = TokenType.objects.create(name="Large token form", contestant_limit=50)
         self.available_grant = UserTokenGrant.objects.create(user=self.user, token_type=self.large, quantity_total=2, quantity_consumed=1)
         self.exhausted_grant = UserTokenGrant.objects.create(user=self.user, token_type=self.small, quantity_total=1, quantity_consumed=1)
 
