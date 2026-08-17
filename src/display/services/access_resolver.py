@@ -10,10 +10,11 @@ from display.models import (
     ContestUsageLedger,
     Contestant,
 )
+from display.services.task_type_visibility import get_user_granted_task_type_groups
 from display.utilities.task_type_group_definitions import LEGACY_TASK_TYPE_GROUP
 
 
-def resolve_contest_access(contest: Contest) -> AccessResolution:
+def resolve_contest_access(contest: Contest, user=None) -> AccessResolution:
     contestants_used = ContestUsageLedger.objects.filter(
         contest=contest,
         kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
@@ -23,52 +24,80 @@ def resolve_contest_access(contest: Contest) -> AccessResolution:
 
     token_assignment = _contest_token_assignment(contest)
     if token_assignment is not None:
-        return _apply_more_advantageous_free_defaults(
-            AccessResolution(
-                tier_code=AccessGrant.TOKEN,
-                tier_label=token_assignment.token_type.name,
-                source_type="contest_token",
-                source_id=token_assignment.id,
-                contestant_limit=token_assignment.token_type.contestant_limit,
-                contestants_used=contestants_used,
-                enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
-                token_grant_id=token_assignment.token_grant_id,
-                token_type_id=token_assignment.token_type_id,
-                allowed_task_type_groups=list(token_assignment.token_type.task_type_groups or []),
-            )
+        return _finalize_resolution(
+            _apply_more_advantageous_free_defaults(
+                AccessResolution(
+                    tier_code=AccessGrant.TOKEN,
+                    tier_label=token_assignment.token_type.name,
+                    source_type="contest_token",
+                    source_id=token_assignment.id,
+                    contestant_limit=token_assignment.token_type.contestant_limit,
+                    contestants_used=contestants_used,
+                    enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
+                    token_grant_id=token_assignment.token_grant_id,
+                    token_type_id=token_assignment.token_type_id,
+                    allowed_task_type_groups=list(token_assignment.token_type.task_type_groups or []),
+                )
+            ),
+            user,
         )
 
     contest_grant = _first_active_contest_grant(contest)
     if contest_grant is not None:
-        return _apply_more_advantageous_free_defaults(
-            _resolution_from_grant(
-                contest_grant,
-                source_type="contest_override",
-                contestants_used=contestants_used,
-            )
+        return _finalize_resolution(
+            _apply_more_advantageous_free_defaults(
+                _resolution_from_grant(
+                    contest_grant,
+                    source_type="contest_override",
+                    contestants_used=contestants_used,
+                )
+            ),
+            user,
         )
 
     club_grant = _first_active_club_grant(contest)
     if club_grant is not None:
-        return _apply_more_advantageous_free_defaults(
-            _resolution_from_grant(
-                club_grant,
-                source_type="club_pass",
-                contestants_used=contestants_used,
-            )
+        return _finalize_resolution(
+            _apply_more_advantageous_free_defaults(
+                _resolution_from_grant(
+                    club_grant,
+                    source_type="club_pass",
+                    contestants_used=contestants_used,
+                )
+            ),
+            user,
         )
 
-    return AccessResolution(
-        tier_code=AccessGrant.FREE,
-        tier_label="Free Training Tier",
-        source_type="free_defaults",
-        source_id=None,
-        contestant_limit=settings.DEFAULT_FREE_CONTESTANT_LIMIT,
-        contestants_used=contestants_used,
-        enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
-        free_contestant_limit=settings.DEFAULT_FREE_CONTESTANT_LIMIT,
-        allowed_task_type_groups=_free_task_type_groups(),
+    return _finalize_resolution(
+        AccessResolution(
+            tier_code=AccessGrant.FREE,
+            tier_label="Free Training Tier",
+            source_type="free_defaults",
+            source_id=None,
+            contestant_limit=settings.DEFAULT_FREE_CONTESTANT_LIMIT,
+            contestants_used=contestants_used,
+            enforcement_mode=settings.ACCESS_ENFORCEMENT_MODE,
+            free_contestant_limit=settings.DEFAULT_FREE_CONTESTANT_LIMIT,
+            allowed_task_type_groups=_free_task_type_groups(),
+        ),
+        user,
     )
+
+
+def _finalize_resolution(resolution: AccessResolution, user) -> AccessResolution:
+    # Merge in the user's own personal grants (token, club-manager AccessGrant,
+    # and UserEntitlementGrant - including fine-grained "cima:<subtype>"
+    # entries) on top of whatever this contest itself is packaged with, so a
+    # beta tester's personal access is reflected in what they're shown, not
+    # just what they're allowed to save. Deliberately uses
+    # get_user_granted_task_type_groups (never falls back to "everything" when
+    # the visibility gate is off) rather than get_visible_task_type_groups_for_user,
+    # which is a UI-dropdown default, not an entitlement.
+    if user is not None:
+        resolution.allowed_task_type_groups = sorted(
+            set(resolution.allowed_task_type_groups) | set(get_user_granted_task_type_groups(user))
+        )
+    return resolution
 
 
 def _backfill_missing_historical_usage(contest: Contest) -> int:

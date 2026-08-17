@@ -62,3 +62,4 @@ class TestContestAccessStatusSerialization(TestCase):
         self.assertEqual(["legacy", "cima"], data["access_status"]["allowed_task_type_groups"])
         self.assertEqual(["cima"], data["access_status"]["package_task_type_groups"])
         self.assertEqual(["legacy"], data["access_status"]["free_task_type_groups"])
+        mock_resolve.assert_called_once_with(self.contest, user=self.user)

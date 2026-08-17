@@ -5,7 +5,6 @@ from django.utils import timezone
 
 from display.models import ContestUsageLedger, Contestant, ContestTeam
 from display.services.access_resolver import resolve_contest_access
-from display.services.task_type_visibility import get_user_granted_task_type_groups
 from display.services.token_assignment import ensure_token_assignment_active_for_guest_start
 from display.utilities.task_type_group_definitions import get_fine_task_type_group, get_task_type_group
 
@@ -210,7 +209,14 @@ def _assert_can_reserve_task_slot(navigation_task, team, resolution, current_con
 
 
 def assert_can_add_navigation_task(contest, task_type=None, task_subtype=None, user=None):
-    resolution = resolve_contest_access(contest)
+    # A user who has been explicitly granted a task-type group (e.g. a beta
+    # tester managing a club with a "cima" access grant, or a token holder)
+    # may use that group in any contest they organize, independent of that
+    # contest's own resolved access. This decouples "who may use the
+    # feature" (user/beta) from "who pays for pilots" (contest/club).
+    # resolve_contest_access merges the user's personal grants into
+    # allowed_task_type_groups when a user is passed (see its _finalize_resolution).
+    resolution = resolve_contest_access(contest, user=user)
     normalized_mode = _normalized_enforcement_mode()
     if getattr(resolution, "enforcement_mode", normalized_mode) != normalized_mode:
         resolution.enforcement_mode = normalized_mode
@@ -220,18 +226,6 @@ def assert_can_add_navigation_task(contest, task_type=None, task_subtype=None, u
     task_type_group = get_task_type_group(task_type=task_type, task_subtype=task_subtype)
     fine_task_type_group = get_fine_task_type_group(task_type=task_type, task_subtype=task_subtype)
     allowed_task_type_groups = set(getattr(resolution, "allowed_task_type_groups", ["legacy"]))
-    # A user who has been explicitly granted a task-type group (e.g. a beta
-    # tester managing a club with a "cima" access grant, or a token holder)
-    # may use that group in any contest they organize, independent of that
-    # contest's own resolved access. This decouples "who may use the
-    # feature" (user/beta) from "who pays for pilots" (contest/club). Note
-    # this deliberately does NOT use get_visible_task_type_groups_for_user,
-    # which falls back to "everything" whenever the global visibility gate
-    # is off - that's a UI-dropdown default, not an entitlement, and must
-    # not bypass enforcement here.
-    if user is not None:
-        allowed_task_type_groups.update(get_user_granted_task_type_groups(user))
-        resolution.allowed_task_type_groups = sorted(allowed_task_type_groups)
     # Accept either the coarse group ("cima", from existing club/token grants
     # that predate fine-grained access) or the exact namespaced fine group
     # ("cima:circle", from a beta grant scoped to one subtype).

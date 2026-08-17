@@ -2,7 +2,7 @@ import datetime
 
 from django.test import TestCase, override_settings
 
-from display.models import Contest, Club, MyUser, AccessGrant, ClubManagerMembership
+from display.models import Contest, Club, MyUser, AccessGrant, ClubManagerMembership, UserEntitlementGrant
 from display.services.access_resolver import resolve_contest_access
 
 
@@ -31,6 +31,26 @@ class TestAccessResolver(TestCase):
         self.assertEqual("free_defaults", resolution.source_type)
         self.assertIsNone(resolution.contestant_limit)
         self.assertEqual("audit", resolution.enforcement_mode)
+
+    def test_user_personal_entitlement_grant_is_merged_into_allowed_task_type_groups(self):
+        """A beta tester's personal fine-grained grant must show up in the
+        contest's resolved access when a user is passed, even though the
+        contest itself (free tier here, no club/token grant) doesn't have it -
+        this is what makes the access-status display match what
+        assert_can_add_navigation_task would actually allow this user to do."""
+        UserEntitlementGrant.objects.create(
+            user=self.user,
+            kind=UserEntitlementGrant.KIND_TASK_TYPE_GROUP,
+            value="cima:circle",
+        )
+
+        resolution_without_user = resolve_contest_access(self.contest)
+        self.assertNotIn("cima:circle", resolution_without_user.allowed_task_type_groups)
+
+        resolution_with_user = resolve_contest_access(self.contest, user=self.user)
+        self.assertIn("cima:circle", resolution_with_user.allowed_task_type_groups)
+        self.assertIn("legacy", resolution_with_user.allowed_task_type_groups)
+        self.assertEqual("free", resolution_with_user.tier_code)
 
     def test_contest_level_grant_takes_precedence_over_club_grant(self):
         now = datetime.datetime.now(datetime.timezone.utc)

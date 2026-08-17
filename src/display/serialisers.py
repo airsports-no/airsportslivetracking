@@ -782,7 +782,8 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         return contest.navigationtask_set.filter(contestant__contestanttrack__calculator_started=True).exists()
 
     def get_access_status(self, contest):
-        resolution = resolve_contest_access(contest)
+        request = self.context.get("request")
+        resolution = resolve_contest_access(contest, user=getattr(request, "user", None))
         return {
             "tier_code": resolution.tier_code,
             "tier_label": resolution.tier_label,

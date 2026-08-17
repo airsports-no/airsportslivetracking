@@ -5,7 +5,7 @@ from django.urls import reverse
 from guardian.shortcuts import assign_perm
 from rest_framework.test import APIRequestFactory
 
-from display.models import Contest, Club, AccessGrant, ClubManagerMembership, TokenType, UserTokenGrant
+from display.models import Contest, Club, AccessGrant, ClubManagerMembership, TokenType, UserTokenGrant, UserEntitlementGrant
 from display.serialisers import ContestSerialiser
 from display.utilities.task_type_group_definitions import CIMA_TASK_TYPE_GROUP
 
@@ -104,3 +104,36 @@ class TestContestAccessStatusSerializationWithTaskGroups(TestCase):
         self.assertIn("legacy", data["access_status"]["allowed_task_type_groups"])
         self.assertEqual([CIMA_TASK_TYPE_GROUP], data["access_status"]["package_task_type_groups"])
         self.assertIn("legacy", data["access_status"]["free_task_type_groups"])
+
+    def test_contest_serializer_merges_viewers_personal_entitlement_grant(self):
+        """Regression test: a beta tester's personal cima:circle grant must
+        show up in this contest's access_status even though the contest
+        itself has no club/token grant at all (still on the free tier)."""
+        UserEntitlementGrant.objects.create(
+            user=self.user,
+            kind=UserEntitlementGrant.KIND_TASK_TYPE_GROUP,
+            value="cima:circle",
+        )
+
+        data = ContestSerialiser(self.contest, context={"request": self.request}).data
+
+        self.assertEqual("free", data["access_status"]["tier_code"])
+        self.assertIn("cima:circle", data["access_status"]["allowed_task_type_groups"])
+        self.assertIn("legacy", data["access_status"]["allowed_task_type_groups"])
+
+    def test_contest_detail_view_reflects_viewers_personal_entitlement_grant(self):
+        """Same regression, but through the real Django view (views.py's
+        ContestDetailView.get_context_data), which builds an equivalent
+        access_status dict independently of the serializer."""
+        assign_perm("view_contest", self.user, self.contest)
+        UserEntitlementGrant.objects.create(
+            user=self.user,
+            kind=UserEntitlementGrant.KIND_TASK_TYPE_GROUP,
+            value="cima:circle",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("contest_details", kwargs={"pk": self.contest.id}))
+
+        self.assertEqual(200, response.status_code)
+        self.assertIn("cima:circle", response.context["access_status"]["allowed_task_type_groups"])

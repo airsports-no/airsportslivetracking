@@ -1354,7 +1354,7 @@ class ContestDetailView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, D
         else:
             context["user_has_routes"] = False
 
-        resolution = resolve_contest_access(contest)
+        resolution = resolve_contest_access(contest, user=self.request.user)
         context["access_status"] = {
             "tier_code": resolution.tier_code,
             "tier_label": resolution.tier_label,
