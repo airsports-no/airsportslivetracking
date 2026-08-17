@@ -55,6 +55,14 @@ spec:
           - mountPath: /secret
             readOnly: true
             name: firebase
+        startupProbe:
+          httpGet:
+            path: /display/readyz/
+            port: web
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 30
+          failureThreshold: 18
         livenessProbe:
           httpGet:
             path: /display/healthz/
