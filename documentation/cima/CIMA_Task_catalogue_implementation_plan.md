@@ -127,3 +127,76 @@ Requires a new gatekeeper that simply keeps track of the duration from the takeo
 13. Create specific scorecards for the various CIMA tasks.
 
 Approximate development is three months for something that should work.
+
+---
+
+# Post-implementation alignment pass (2026-08)
+
+The sections above are the original pre-implementation plan and are now
+superseded by the actual implementation. See
+`CIMA_task_implementation_requirements.md` at the repo root for the
+authoritative, current description of how each task type is meant to work,
+and `monetization_business_rules.md` §4 for the CIMA task-type rollout
+(beta/paywall) model.
+
+A correctness-first alignment pass against that requirements doc fixed
+several spec-violating behaviors (2.A5 secrets-shown view leaking dummy
+legs, 2.A3's general map showing the full route instead of just the
+backbone, CIMA waypoints not rendering as circles), restructured 2.A6/2.B2
+to have no route backbone per spec, added 2.A1 curve enforcement, and added
+2.A5 decoy/false-photo support. A follow-up pass then implemented the three
+gaps that were deferred from that first pass:
+
+- **2.A4 (Known circuit) per-turnpoint time override + speed-keeping
+  score.** `KnownCircuitStrategy` (`contestant_task_compiler.py`) accepts an
+  optional `turnpoint_time_overrides` declaration payload - any turnpoint
+  left undeclared still follows the uniform declared-speed gate-time chain,
+  same as before. `GateCalculator._score_speed_keeping` scores each leg's
+  actual groundspeed against the declared `air_speed` (tolerance/penalty via
+  new `Scorecard.speed_keeping_tolerance_kt`/`speed_keeping_penalty_per_kt`
+  fields), skipping legs bordering an overridden turnpoint since the
+  contestant is expected to deviate from the declared speed there by design.
+- **2.B3 (Duration) speed-based takeoff/landing inference.** New
+  `SpeedInferredTakeoffLandingCalculator` acts as a fallback (checked
+  independently per side) when a route has no authored takeoff/landing
+  gates: takeoff is edge-detected as the first above-threshold sample after
+  a sustained near-zero-speed hold, landing once near-zero speed has been
+  sustained for a full window while airborne (mirroring the existing
+  proactive-termination heuristic in `contestant_processor.py`). The
+  `cima_b3` wizard template's takeoff/landing gate steps are now optional
+  (`minCount: 0`). Fixing this also required two small pre-existing-bug
+  fixes: `TakeoffAndLandingGateCalculator.on_takeoff_passed`/
+  `on_landing_passed` were unconditionally scoring any takeoff/landing event
+  they received rather than only ones from their own authored gate (would
+  have double-scored synthetic events), and `GateCalculator.create_gates()`
+  crashed on a route with zero waypoints (which every Duration route has,
+  since its wizard has no route-waypoint step) - both fixed.
+- **Access-control granularity.** Task-type gating now has a fine layer
+  alongside the coarse `"cima"` group: `get_fine_task_type_group()`
+  (`task_type_group_definitions.py`) returns a namespaced `"cima:<subtype>"`
+  string per subtype, and enforcement
+  (`capacity_enforcement.assert_can_add_navigation_task`) accepts either the
+  coarse or the fine group - so existing `AccessGrant`/`TokenType` rows
+  (which only ever store `"cima"`) keep granting every subtype unchanged,
+  while new grants can optionally scope to one subtype. A new
+  `UserEntitlementGrant` model (general-purpose, not CIMA-specific - see its
+  docstring in `access_control.py`) provides the dedicated "give this user
+  direct access, no club/contest/payment involved" beta mechanism; see
+  `monetization_business_rules.md` §4 for the rollout instructions using it.
+- **2.A7 (Circle) is a 4-marker structure**, not the 3 markers the
+  requirements doc's prose describes (start, centre, "next waypoint after
+  leaving"). The implementation splits "next waypoint" into a separate
+  entry (X) and exit (WP) marker because `circle_calculator.py` needs an
+  explicit entry point to validate the straight SP→CM entry line before the
+  orbit begins. This is a considered, functionally-motivated deviation, not
+  a bug - left as-is.
+- **No JS test runner is configured** in `react_vite/` (no vitest/jest
+  devDependency, no `test` script in `package.json`). `taskTemplates.test.ts`
+  exists but cannot currently be executed; frontend changes in this pass
+  were verified via `tsc --noEmit` and manual code review instead. Setting
+  up a real frontend test runner is a separate, general infrastructure task.
+- **`NewNavigationTaskWizard`** (the "create task from scratch" Django
+  wizard, as opposed to `RouteToTaskWizard`/`editableroute_createnavigationtask`,
+  which is the flow actually linked from the route editor UI) never calls
+  `assert_can_add_navigation_task` at all - task-type-group enforcement is
+  bypassed on that path. Pre-existing, not touched by this pass.
