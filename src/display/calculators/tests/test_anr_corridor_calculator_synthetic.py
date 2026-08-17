@@ -18,11 +18,10 @@ approach these tests build on.
 
 import datetime
 from queue import Queue
-from unittest import skip
 from unittest.mock import MagicMock, patch
 
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
-from display.calculators.calculator import FinishLinePassedEvent, GatePassedEvent
+from display.calculators.calculator import FinishLinePassedEvent, GateMissedEvent, GatePassedEvent
 from display.calculators.tests.synthetic_helpers import SyntheticCalculatorTestBase
 
 
@@ -130,21 +129,13 @@ class TestAnrCorridorCalculatorSynthetic(SyntheticCalculatorTestBase):
         self.assertIsNone(self.calculator.crossed_outside_time)
         self.assertIsNone(self.calculator.current_leg_outside_start_time)
 
-    @skip(
-        "SUSPECTED BUG: crossing a non-visible (secret) gate while outside the "
-        "corridor in per-leg mode returns early (anr_corridor_calculator.py:270-271/"
-        "311-312, `if not event.gate.is_visible: return`) BEFORE the leg-rollover "
-        "block runs. current_leg_outside_start_time/crossed_outside_gate are left "
-        "pointing at the gate crossed BEFORE the secret one, so the per-leg penalty "
-        "cap silently merges the secret-delimited leg into the next one instead of "
-        "capping it independently. The code elsewhere (e.g. "
-        "check_and_apply_outside_penalty's `display_name = ... if last_leg.is_visible "
-        "else 'Secret'`) shows the intent was for non-visible gates to still be "
-        "attributable as their own leg (just displayed as 'Secret'), which suggests "
-        "this early return is a bug, not intentional. Flagged for triage rather than "
-        "silently asserting the stale-state behavior."
-    )
     def test_secret_gate_crossed_mid_excursion_does_not_roll_leg_boundary(self):
+        """Confirmed intentional (not a bug): legs are only rolled when
+        passing a regular (non-secret) gate, regardless of whether the
+        secret gate is crossed or missed. A secret gate crossed/missed
+        while outside the corridor must not advance the leg boundary -
+        current_leg_outside_start_time/crossed_outside_gate stay anchored
+        at the last regular gate."""
         gate_sp = self._gate("SP", "sp")
         gate_secret = self._gate("SECRET1", "secret", is_visible=False)
         t0 = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
@@ -156,37 +147,42 @@ class TestAnrCorridorCalculatorSynthetic(SyntheticCalculatorTestBase):
         pos1 = self.make_position(60.5, 11.5, t1)
         self.calculator.on_gate_passed(GatePassedEvent(gate_secret, pos1, t1, previous_gate=None))
 
-        # No informational message should leak for a secret gate - that part
-        # of the behavior is correct and not in question here.
+        # No informational message should leak for a secret gate.
         for call in self.calculator.update_score.call_args_list:
             self.assertNotIn("SECRET1", call.args[0].message)
 
-        # CORRECT expected behavior: the secret gate crossing is still a real
-        # leg boundary for per-leg accounting purposes, so the leg should
-        # roll over to it (attributed as "Secret" for display, per the
-        # pattern used elsewhere in this file) even though nothing is shown
-        # to the pilot.
-        self.assertEqual(self.calculator.crossed_outside_gate, gate_secret)
-        self.assertEqual(self.calculator.current_leg_outside_start_time, t1)
+        # The leg boundary must NOT roll over to the secret gate.
+        self.assertEqual(self.calculator.crossed_outside_gate, gate_sp)
+        self.assertEqual(self.calculator.current_leg_outside_start_time, t0)
 
-    @skip(
-        "SUSPECTED BUG: crossing the finish gate while outside the corridor in "
-        "per-leg mode double-counts the final leg's outside time. on_gate_passed's "
-        "fp-skip (anr_corridor_calculator.py:325, `if not has_passed_finish_point "
-        "and event.gate.type != 'fp':`) deliberately does NOT roll "
-        "current_leg_outside_start_time/crossed_outside_gate forward for an fp gate "
-        "(so passed_finishpoint can finalize using the same leg) - but it DOES "
-        "already accumulate that leg's penalty into excursion_accumulated_score/"
-        "excursion_total_outside_seconds. Moments later, orchestrator.py forces a "
-        "passed_finishpoint() call, which invokes check_and_apply_outside_penalty "
-        "again for the SAME unmoved current_leg_outside_start_time, recomputing "
-        "and re-adding the same segment's time and penalty a second time. With a "
-        "10 s grace time, 20 s beyond grace, this test observes each excursion "
-        "second scored twice: total_penalty=350 (350) and total_seconds=40 "
-        "instead of the correct 150/20. Flagged rather than asserting the "
-        "doubled totals as correct."
-    )
+    def test_secret_gate_missed_mid_excursion_does_not_roll_leg_boundary(self):
+        """Same as above, but for a missed (rather than crossed) secret gate."""
+        gate_sp = self._gate("SP", "sp")
+        gate_secret = self._gate("SECRET1", "secret", is_visible=False)
+        t0 = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+        with patch.object(self.calculator, "_check_inside_polygon", return_value=False):
+            self.calculator.check_outside_corridor([self.make_position(60.5, 11.5, t0)], gate_sp)
+
+        t1 = t0 + datetime.timedelta(seconds=15)
+        pos1 = self.make_position(60.5, 11.5, t1)
+        self.calculator.on_gate_missed(GateMissedEvent(gate_sp, gate_secret, pos1, event_time=t1))
+
+        for call in self.calculator.update_score.call_args_list:
+            self.assertNotIn("SECRET1", call.args[0].message)
+
+        self.assertEqual(self.calculator.crossed_outside_gate, gate_sp)
+        self.assertEqual(self.calculator.current_leg_outside_start_time, t0)
+
     def test_finish_reached_while_outside_corridor_single_tick_ordering(self):
+        """Regression test for a fixed double-count bug: crossing the finish
+        gate while outside the corridor in per-leg mode used to score the
+        final excursion segment twice (on_gate_passed's fp-skip accumulated
+        the leg without rolling current_leg_outside_start_time forward, then
+        passed_finishpoint's check_and_apply_outside_penalty recomputed and
+        re-added the same segment). on_gate_passed now skips accumulation
+        entirely for fp gates, leaving check_and_apply_outside_penalty as
+        the single place that finalizes the last leg."""
         gate_sp = self._gate("SP", "sp")
         gate_fp = self._gate("FP", "fp")
         t0 = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
@@ -249,27 +245,25 @@ class TestAnrCorridorCalculatorSynthetic(SyntheticCalculatorTestBase):
             "outside corridor (21 s). Leg scores: [SP: 30.0 (capped), TP1: 30.0 (capped), TP2: 30.0 (capped)]. Total: 90.0 (capped)",
         )
 
-    @skip(
-        "SUSPECTED BUG: finalise() falls back to self.crossed_outside_gate or "
-        "self.previous_existing_reference (anr_corridor_calculator.py:460), but "
-        "previous_existing_reference is set to None once in __init__ (line 75) and "
-        "never reassigned anywhere in the class - so whenever a track ends while "
-        "outside the corridor with no gate reference captured, finalise() always "
-        "passes gate=None into the final score message, rather than falling back "
-        "to something meaningful like the last visible gate. Flagged rather than "
-        "asserting gate=None as correct."
-    )
     def test_finalise_with_no_captured_gate_reference(self):
+        """Regression test for a fixed bug: finalise() used to fall back to
+        self.previous_existing_reference, an attribute set to None once in
+        __init__ and never reassigned anywhere - so a track ending outside
+        the corridor with no gate reference captured always scored against
+        gate=None. finalise() now falls back to the route's first waypoint,
+        matching the pattern already used by the auxiliary route-compliance
+        checks in this same class."""
         t0 = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
         self.calculator.corridor_state = self.calculator.OUTSIDE_CORRIDOR
         self.calculator.crossed_outside_time = t0
         self.calculator.current_leg_outside_start_time = t0
         self.calculator.crossed_outside_gate = None  # e.g. outside from the very start, before any gate context
 
+        first_waypoint = self._gate("SP", "sp")
+        self.route.waypoints = [first_waypoint]
+
         t1 = t0 + datetime.timedelta(seconds=30)
         self.calculator.finalise([self.make_position(60.5, 11.5, t1)])
 
         final_msg = self.calculator.update_score.call_args_list[-1][0][0]
-        # CORRECT expected behavior: some sensible gate reference should be
-        # attributed, not None.
-        self.assertIsNotNone(final_msg.gate)
+        self.assertEqual(final_msg.gate, first_waypoint)

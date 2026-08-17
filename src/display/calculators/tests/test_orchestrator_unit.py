@@ -1,5 +1,4 @@
 import datetime
-from unittest import skip
 from unittest.mock import Mock, patch, MagicMock, call
 from django.test import TestCase
 from display.calculators.orchestrator import Orchestrator
@@ -218,19 +217,18 @@ class TestOrchestratorUnit(TestCase):
         state_passed_to_calc2 = calc2.calculate_enroute.call_args[0][1]
         self.assertEqual(state_passed_to_calc2.last_gate, gate)
 
-    @skip(
-        "SUSPECTED BUG: update_enroute (orchestrator.py:144-157) has two "
-        "independent conditions with no shared 'already finished' guard: "
-        "enroute->False when the last gate is a finish-type gate (ldg/ifp/fp), "
-        "and False->enroute when the last gate is a start/turn-type gate "
-        "(sp/isp/tp/secret). Confirmed by running this test unskipped: a "
-        "tp/secret GatePassedEvent processed AFTER the fp event that already "
-        "ended the flight (e.g. an out-of-order or late-arriving hidden gate "
-        "event) flips self.enroute back to True post-finish - nothing in "
-        "update_enroute or handle_event prevents it. Flagged rather than "
-        "asserting the re-entered-enroute state as correct."
-    )
     def test_gate_after_finish_does_not_re_enter_enroute(self):
+        """Regression test for a fixed bug: update_enroute (orchestrator.py:
+        144-157+) used to have two independent conditions with no shared
+        "already finished" guard, so a tp/secret GatePassedEvent processed
+        after the fp event that already ended the flight (e.g. an
+        out-of-order or late-arriving hidden gate event) would flip
+        self.enroute back to True post-finish. update_enroute's re-enter
+        condition now also requires `not self.has_passed_finishpoint`.
+        Deliberately does NOT mock passed_finishpoint (unlike the other
+        finish-point tests in this file) since this test needs its real
+        effect of setting has_passed_finishpoint - safe to call for real
+        here since self.calculators is empty."""
         fp_gate = MagicMock()
         fp_gate.type = "fp"
         fp_gate.is_visible = True
@@ -238,9 +236,9 @@ class TestOrchestratorUnit(TestCase):
         pos1 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         self.orchestrator.enroute = True
 
-        with patch.object(self.orchestrator, "passed_finishpoint"):
-            self.orchestrator.handle_event(GatePassedEvent(fp_gate, pos1, pos1.time, previous_gate=None))
+        self.orchestrator.handle_event(GatePassedEvent(fp_gate, pos1, pos1.time, previous_gate=None))
         self.assertFalse(self.orchestrator.enroute)
+        self.assertTrue(self.orchestrator.has_passed_finishpoint)
 
         secret_gate = MagicMock()
         secret_gate.type = "secret"
@@ -248,8 +246,7 @@ class TestOrchestratorUnit(TestCase):
         secret_gate.waypoint.on_curved_segment = False
         pos2 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 5))
 
-        with patch.object(self.orchestrator, "passed_finishpoint"):
-            self.orchestrator.handle_event(GatePassedEvent(secret_gate, pos2, pos2.time, previous_gate=None))
+        self.orchestrator.handle_event(GatePassedEvent(secret_gate, pos2, pos2.time, previous_gate=None))
 
         self.assertFalse(self.orchestrator.enroute)
 
