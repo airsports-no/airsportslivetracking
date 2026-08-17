@@ -54,6 +54,39 @@ class ScoreLogEntry(models.Model):
         cls.push(entry)
         return entry
 
+    @classmethod
+    def get_idempotency_fields(cls, **kwargs) -> dict:
+        return {
+            "contestant": kwargs["contestant"],
+            "time": kwargs["time"],
+            "gate": kwargs["gate"],
+            "message": kwargs["message"],
+            "points": kwargs["points"],
+            "planned": kwargs.get("planned"),
+            "actual": kwargs.get("actual"),
+            "type": kwargs.get("type", INFORMATION),
+        }
+
+    @classmethod
+    def get_or_create_and_push(cls, **kwargs) -> tuple["ScoreLogEntry", bool]:
+        lookup = cls.get_idempotency_fields(**kwargs)
+        defaults = {
+            "string": kwargs.get("string", ""),
+            "offset_string": kwargs.get("offset_string", ""),
+            "times_string": kwargs.get("times_string", ""),
+        }
+        entry, created = cls.objects.get_or_create(**lookup, defaults=defaults)
+        if not created:
+            dirty_fields = []
+            for field, value in defaults.items():
+                if getattr(entry, field) != value:
+                    setattr(entry, field, value)
+                    dirty_fields.append(field)
+            if dirty_fields:
+                entry.save(update_fields=dirty_fields)
+        cls.push(entry)
+        return entry, created
+
 
 class AdministrativePenalty(models.Model):
     CATEGORY_QUARANTINE = "quarantine"
