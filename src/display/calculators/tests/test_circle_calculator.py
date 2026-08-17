@@ -491,3 +491,265 @@ class TestCircleCalculator(TestCase):
         self.assertFalse(calculator._has_completed_scored_arc())
         calculator.final_score_ready = True
         self.assertTrue(calculator._has_completed_scored_arc())
+
+    # --- Boundary / lifecycle tests added to close the "no real flight data"
+    # gap for this new CIMA calculator (see synthetic_helpers.py module
+    # docstring for the general test-writing methodology). ---
+
+    def test_circle_calculator_540_degree_progress_boundary(self):
+        """final_score_ready flips exactly when cumulative progress reaches
+        540 degrees (_record_progress_sample, circle_calculator.py:213-214),
+        not before."""
+        calculator = CircleCalculator(
+            self.contestant,
+            self.scorecard,
+            self.route,
+            Queue(),
+            live_processing=False,
+            projector=self.navigation_task.get_projector(),
+        )
+        # Each step below is a 90 degree increment around the circle center;
+        # cumulative_progress_deg after N steps is 90*N.
+        bearings = [0, 90, 180, 270, 360, 450, 540]  # cumulative: 90,180,270,360,450,540,630 (first sample is baseline, contributes 0)
+        for bearing in bearings[:-1]:
+            pos = self._circle_position(bearing, 260)
+            calculator._record_progress_sample(pos)
+            self.assertLess(calculator.cumulative_progress_deg, 540)
+            self.assertFalse(calculator.final_score_ready, f"should not be ready at {calculator.cumulative_progress_deg} degrees")
+        # One more 90 degree step: cumulative goes from 540 to 630, crossing the boundary.
+        pos = self._circle_position(bearings[-1], 260)
+        calculator._record_progress_sample(pos)
+        self.assertGreaterEqual(calculator.cumulative_progress_deg, 540)
+        self.assertTrue(calculator.final_score_ready)
+
+    def test_circle_calculator_180_degree_collection_lower_bound(self):
+        """Radius samples for scoring are only collected once cumulative
+        progress exceeds 180 degrees (circle_calculator.py:218-219) - the
+        first half-turn is deliberately ignored (entry transient)."""
+        calculator = CircleCalculator(
+            self.contestant,
+            self.scorecard,
+            self.route,
+            Queue(),
+            live_processing=False,
+            projector=self.navigation_task.get_projector(),
+        )
+        # First sample only sets the baseline angle (no delta yet, per the
+        # `if self.last_circle_angle_deg is None: return` early exit).
+        calculator._record_progress_sample(self._circle_position(0, 260))
+        self.assertEqual(calculator.progress_radius_samples, [])
+
+        # +90: cumulative=90, still <=180 -> no radius sample collected yet.
+        calculator._record_progress_sample(self._circle_position(90, 260))
+        self.assertLessEqual(calculator.cumulative_progress_deg, 180)
+        self.assertEqual(calculator.progress_radius_samples, [])
+
+        # +91 more (cumulative=181): now just past the 180 threshold -> this
+        # sample (and only this one so far) should start being collected.
+        calculator._record_progress_sample(self._circle_position(181, 260))
+        self.assertGreater(calculator.cumulative_progress_deg, 180)
+        self.assertEqual(len(calculator.progress_radius_samples), 1)
+
+    def test_circle_calculator_540_degree_collection_upper_bound(self):
+        """Radius-sample collection stops once cumulative progress exceeds
+        540 degrees (circle_calculator.py:220-221) - samples past 1.5 turns
+        are excluded from scoring."""
+        calculator = CircleCalculator(
+            self.contestant,
+            self.scorecard,
+            self.route,
+            Queue(),
+            live_processing=False,
+            projector=self.navigation_task.get_projector(),
+        )
+        # Walk from 0 to 530 degrees in 90-degree steps (stays comfortably
+        # inside the 180-540 collection window for the last few samples),
+        # then take one final step that pushes cumulative past 540.
+        for bearing in [0, 90, 180, 270, 360, 450, 530]:
+            calculator._record_progress_sample(self._circle_position(bearing, 260))
+        samples_before_boundary = len(calculator.progress_radius_samples)
+        self.assertGreater(samples_before_boundary, 0)
+        self.assertLessEqual(calculator.cumulative_progress_deg, 540)
+
+        # +20 more: cumulative now 550, past 540 -> this sample must NOT be collected.
+        calculator._record_progress_sample(self._circle_position(550, 260))
+        self.assertGreater(calculator.cumulative_progress_deg, 540)
+        self.assertEqual(len(calculator.progress_radius_samples), samples_before_boundary)
+
+    def test_circle_calculator_altitude_spread_boundary(self):
+        """Altitude spread of exactly 200ft incurs no penalty; 201ft does
+        (circle_calculator.py:270-273, `spread <= 200`)."""
+        calculator = CircleCalculator(
+            self.contestant,
+            self.scorecard,
+            self.route,
+            Queue(),
+            live_processing=False,
+            projector=self.navigation_task.get_projector(),
+        )
+        calculator.altitude_samples_ft = [1000.0, 1200.0]  # spread == 200
+        self.assertEqual(calculator._calculate_altitude_penalty(100.0), 0.0)
+
+        calculator.altitude_samples_ft = [1000.0, 1201.0]  # spread == 201
+        self.assertEqual(calculator._calculate_altitude_penalty(100.0), round(100.0 * 0.2, 1))
+
+    def test_circle_calculator_clockwise_epsilon_boundary(self):
+        """_is_clockwise_turn only flags direction once the signed angular
+        delta is meaningfully negative (circle_calculator.py:172,
+        `delta < -1e-6`) - a position essentially on the entry radial (delta
+        ~ 0) must not be flagged as clockwise."""
+        calculator = CircleCalculator(
+            self.contestant,
+            self.scorecard,
+            self.route,
+            Queue(),
+            live_processing=False,
+            projector=self.navigation_task.get_projector(),
+        )
+        calculator.start_position = self._circle_position(0, 260)
+        calculator.entry_position = self._circle_position(0, 260)
+        # Essentially the same angle as entry (well within float noise) -> not clockwise.
+        self.assertFalse(calculator._is_clockwise_turn(self._circle_position(0.0000001, 260)))
+        # A small but real increasing-compass-bearing step (clockwise on a
+        # compass) -> flagged.
+        self.assertTrue(calculator._is_clockwise_turn(self._circle_position(5, 260)))
+
+    def test_circle_calculator_degenerate_single_sample_fallback(self):
+        """When entry is immediately followed by exit with no progress
+        samples collected (the entry-to-exit turn stayed under the 180
+        degree collection threshold), _calculate_circle_score falls back to
+        radius_samples_m, which at exit contains exactly the one exit-time
+        sample (circle_calculator.py:229-231). With a single sample,
+        rmin == rmax, so the ratio is 1.0 and the score is the maximum 250.
+
+        CURRENT BEHAVIOR (flagged, not a locked-in "this is correct" test):
+        an near-instantaneous circle - one that barely turns before exiting -
+        scores full marks under this fallback, since there's no second sample
+        to reveal an inconsistent radius. Whether that's the intended
+        design (vs. e.g. treating too little arc as automatically
+        "incomplete", which the separate _has_completed_scored_arc check
+        already partially guards against via `final_score_ready`) is a
+        question for the domain owner, not something this test asserts is
+        "right" - it only pins down what the code currently does.
+        """
+        calculator = CircleCalculator(
+            self.contestant,
+            self.scorecard,
+            self.route,
+            Queue(),
+            live_processing=False,
+            projector=self.navigation_task.get_projector(),
+        )
+        calculator.progress_radius_samples = []
+        calculator.radius_samples_m = [260.0]
+        self.assertFalse(calculator._has_invalid_score_ratio())
+        self.assertEqual(calculator._calculate_circle_score(), 250.0)
+
+    def test_circle_calculator_happy_path_full_lifecycle(self):
+        """The canonical correct-contestant scenario: start -> valid straight
+        entry -> just under two full turns at a constant radius -> exit.
+        Asserts the exact ordered emission with no anomalies, exercising the
+        state machine end to end rather than isolating one anomaly branch
+        at a time like the existing tests do."""
+        self.navigation_task.scorecard.circle_radius_min_m = 0
+        self.navigation_task.scorecard.circle_radius_max_m = 2000
+        self.navigation_task.scorecard.save(update_fields=["circle_radius_min_m", "circle_radius_max_m"])
+        self.contestant.navigation_task = self.navigation_task
+        calculator = CircleCalculator(
+            self.contestant,
+            self.scorecard,
+            self.route,
+            Queue(),
+            live_processing=False,
+            projector=self.navigation_task.get_projector(),
+        )
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        radius = 260
+        start_time = datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc)
+        entry_time = start_time + datetime.timedelta(minutes=2)
+        calculator.on_gate_passed(self._make_event("SP-C", start_time, 60.1, 11.1))
+        calculator.on_gate_passed(self._make_event("X", entry_time, 60.3, 11.3))
+
+        # Constant-radius flight around the circle for just under 2 full
+        # turns (700 degrees), well past the 540 degree scoring threshold.
+        # Compass bearing decreasing == counter-clockwise (the required
+        # direction; increasing bearing is clockwise and correctly rejected
+        # by _is_clockwise_turn).
+        track = []
+        for bearing in range(700, 0, -20):
+            track.append(self._circle_position(bearing, radius))
+            calculator.calculate_enroute(track, state)
+
+        # Exit exactly where the flown circle left off (NOT the circle
+        # center - passing the center degenerates the angle computation
+        # used by _is_clockwise_turn/_calculate_radius_m).
+        exit_time = entry_time + datetime.timedelta(minutes=6)
+        last_position = track[-1]
+        calculator.on_gate_passed(self._make_event("WP", exit_time, last_position.latitude, last_position.longitude))
+
+        messages = [calculator.score_processing_queue.get_nowait() for _ in range(4)]
+        self.assertEqual([m.score_type for m in messages], ["circle_start", "circle_entry", "circle_score", "circle_exit"])
+        # Near-constant radius (real geodesic placement introduces a little
+        # noise, a few tenths of a meter) -> ratio close to but not
+        # necessarily exactly 1.0 -> near-max score.
+        self.assertGreaterEqual(messages[2].score, 245.0)
+        self.assertTrue(calculator.score_processing_queue.empty())
+
+    def test_circle_calculator_deviation_path_invalid_ratio_blocks_score(self):
+        """Deviation scenario: the contestant does not hold a constant
+        radius (varies enough that rmin/rmax <= 0.5), so the flight is
+        invalid and no circle_score is ever emitted - confirming the
+        anomaly-before-score ordering for a genuinely varying flown path
+        (not a patched-out anomaly check like the other anomaly tests)."""
+        self.navigation_task.scorecard.circle_radius_min_m = 0
+        self.navigation_task.scorecard.circle_radius_max_m = 2000
+        self.navigation_task.scorecard.save(update_fields=["circle_radius_min_m", "circle_radius_max_m"])
+        self.contestant.navigation_task = self.navigation_task
+        calculator = CircleCalculator(
+            self.contestant,
+            self.scorecard,
+            self.route,
+            Queue(),
+            live_processing=False,
+            projector=self.navigation_task.get_projector(),
+        )
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        start_time = datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc)
+        entry_time = start_time + datetime.timedelta(minutes=2)
+        calculator.on_gate_passed(self._make_event("SP-C", start_time, 60.1, 11.1))
+        calculator.on_gate_passed(self._make_event("X", entry_time, 60.3, 11.3))
+
+        # Radius swings between 200 and 500 (ratio 0.4, well under the 0.5
+        # threshold) over just under two turns, flown counter-clockwise
+        # (decreasing compass bearing).
+        track = []
+        for i, bearing in enumerate(range(700, 0, -20)):
+            radius = 200 if i % 2 == 0 else 500
+            track.append(self._circle_position(bearing, radius))
+            calculator.calculate_enroute(track, state)
+
+        exit_time = entry_time + datetime.timedelta(minutes=6)
+        last_position = track[-1]
+        calculator.on_gate_passed(self._make_event("WP", exit_time, last_position.latitude, last_position.longitude))
+
+        messages = [calculator.score_processing_queue.get_nowait() for _ in range(3)]
+        self.assertEqual([m.score_type for m in messages], ["circle_start", "circle_entry", "circle_invalid_score_ratio"])
+        self.assertTrue(calculator.score_processing_queue.empty())
+        for message in messages:
+            self.assertNotEqual(message.score_type, "circle_score")

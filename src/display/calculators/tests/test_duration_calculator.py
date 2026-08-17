@@ -171,3 +171,45 @@ class TestDurationCalculator(TestCase):
 
         calculators = orchestrator_mock.call_args[0][2]
         self.assertIn(DurationCalculator, calculators)
+
+    def test_duration_calculator_takeoff_without_landing_never_scores(self):
+        """CURRENT BEHAVIOR (possibly a gap, not asserted as correct): a
+        contestant who takes off but never triggers a landing gate/inference
+        event is never scored a duration at all. finalise() (
+        duration_calculator.py:95) is a bare `return None` with no
+        end-of-track fallback - unlike most other calculators, there is no
+        mechanism to infer/score a duration from the last known track
+        position if the landing event simply never arrives (e.g. a route
+        with only a takeoff gate authored, and the speed-inferred landing
+        fallback also never fires). This test documents what the code does
+        today; whether finalise() should synthesize a duration from the
+        last position is a design question flagged for the user, not
+        something this test claims is correct."""
+        takeoff_time = datetime.datetime(2026, 8, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        takeoff_gate = self._make_gate("T/O")
+        takeoff_position = self._make_position(takeoff_time)
+
+        self.calculator.on_takeoff_passed(TakeoffPassedEvent(takeoff_gate, takeoff_position, takeoff_time))
+        self.calculator.finalise([takeoff_position])
+
+        self.queue.put_nowait.assert_not_called()
+
+    def test_duration_calculator_second_landing_event_is_idempotent(self):
+        """A second landing event after the duration has already been
+        scored must not score again (the scored_duration guard,
+        duration_calculator.py:20)."""
+        takeoff_time = datetime.datetime(2026, 8, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        first_landing_time = datetime.datetime(2026, 8, 1, 11, 0, tzinfo=datetime.timezone.utc)
+        second_landing_time = first_landing_time + datetime.timedelta(minutes=5)
+        takeoff_gate = self._make_gate("T/O")
+        landing_gate = self._make_gate("LDG")
+        takeoff_position = self._make_position(takeoff_time)
+        first_landing_position = self._make_position(first_landing_time)
+        second_landing_position = self._make_position(second_landing_time)
+
+        self.calculator.on_takeoff_passed(TakeoffPassedEvent(takeoff_gate, takeoff_position, takeoff_time))
+        self.calculator.on_landing_passed(LandingPassedEvent(landing_gate, first_landing_position, first_landing_time))
+        call_count_after_first_landing = self.queue.put_nowait.call_count
+        self.calculator.on_landing_passed(LandingPassedEvent(landing_gate, second_landing_position, second_landing_time))
+
+        self.assertEqual(self.queue.put_nowait.call_count, call_count_after_first_landing)
