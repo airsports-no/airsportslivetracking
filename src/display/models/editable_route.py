@@ -703,10 +703,10 @@ class EditableRoute(models.Model):
         task_subtype: str | None = None,
     ) -> "Route":
         from display.models import Route
-        from display.utilities.cima_task_type_definitions import CIRCLE, LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
+        from display.utilities.cima_task_type_definitions import NO_BACKBONE_TASK_SUBTYPES
 
         if task_type in (PRECISION, POKER):
-            if task_subtype in (CIRCLE, TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
+            if task_subtype in NO_BACKBONE_TASK_SUBTYPES:
                 # These subtypes have no authored route backbone: the route
                 # is entirely free-map markers, so there is no track to turn
                 # into Route.waypoints.

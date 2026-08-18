@@ -20,6 +20,14 @@ ANR_CATALOGUE = "anr_catalogue"
 LIMITED_FUEL_TURNPOINT_HUNT = "limited_fuel_turnpoint_hunt"
 DURATION = "duration"
 
+# Task subtypes with no authored route backbone: the route consists entirely
+# of free-map markers (catalogue turnpoints, timed turnpoints, circle
+# markers, take-off/landing gates, ...), so no Route.waypoints can be derived
+# from the editable route's track. These get an empty placeholder Route
+# instead of going through create_precision_route (which requires a track and
+# returns None without one).
+NO_BACKBONE_TASK_SUBTYPES = (CIRCLE, TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT, DURATION)
+
 LEGACY_PRECISION = "legacy_precision"
 LEGACY_ANR_CORRIDOR = "legacy_anr_corridor"
 LEGACY_AIRSPORTS = "legacy_airsports"

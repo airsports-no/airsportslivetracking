@@ -7,9 +7,13 @@ from display.calculators.calculator import LandingPassedEvent, TakeoffPassedEven
 from display.calculators.calculator_factory import calculator_factory
 from display.calculators.duration_calculator import DurationCalculator
 from display.calculators.update_score_message import UpdateScoreMessage
+from display.default_scorecards.create_scorecards import create_scorecards
+from display.models import Aeroplane, Contest, Contestant, Crew, EditableRoute, NavigationTask, Person, Scorecard, Team
+from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.utilities.cima_task_type_definitions import DURATION
 from display.utilities.coordinate_utilities import Projector
 from display.utilities.navigation_task_type_definitions import PRECISION
+from utilities.mock_utilities import TraccarMock
 
 
 class TestDurationCalculator(TestCase):
@@ -19,12 +23,22 @@ class TestDurationCalculator(TestCase):
         self.contestant = MagicMock()
         self.contestant.navigation_task.task_subtype = DURATION
         self.contestant.navigation_task.editable_route = None
+        # No compiled ContestantTaskConfiguration / Route-level Prohibited zone
+        # in this mock-driven suite - explicit None/empty so
+        # DurationCalculator's snapshot/route fallbacks correctly cascade down
+        # to whatever editable_route a test configures, instead of treating an
+        # unspecced MagicMock attribute as real (truthy) landing-area data.
+        self.contestant.contestanttaskconfiguration = None
         self.scorecard = MagicMock()
         self.scorecard.prohibited_zone_penalty = 200
         self.scorecard.duration_normalization_policy = ""
         self.route = MagicMock()
         self.route.landing_gates = []
-        self.calculator = DurationCalculator(
+        self.route.prohibited_set.filter.return_value.first.return_value = None
+        self.calculator = self._build_calculator()
+
+    def _build_calculator(self):
+        return DurationCalculator(
             self.contestant,
             self.scorecard,
             self.route,
@@ -105,6 +119,10 @@ class TestDurationCalculator(TestCase):
             {"geometry": {"coordinates": [self._make_polygon(west=11.2, south=60.2, east=11.4, north=60.4)]}}
         ]
         self.contestant.navigation_task.editable_route = editable_route
+        # The landing-area ring is resolved once at construction time now, not
+        # re-read live on every landing event - rebuild after configuring the
+        # editable route this test needs.
+        self.calculator = self._build_calculator()
         takeoff_time = datetime.datetime(2026, 8, 1, 10, 0, tzinfo=datetime.timezone.utc)
         landing_time = datetime.datetime(2026, 8, 1, 11, 0, tzinfo=datetime.timezone.utc)
         takeoff_gate = self._make_gate("T/O")
@@ -141,6 +159,7 @@ class TestDurationCalculator(TestCase):
             }
         ]
         self.contestant.navigation_task.editable_route = editable_route
+        self.calculator = self._build_calculator()
         takeoff_time = datetime.datetime(2026, 8, 1, 10, 0, tzinfo=datetime.timezone.utc)
         landing_time = datetime.datetime(2026, 8, 1, 11, 0, tzinfo=datetime.timezone.utc)
         takeoff_gate = self._make_gate("T/O")
@@ -213,3 +232,114 @@ class TestDurationCalculator(TestCase):
         self.calculator.on_landing_passed(LandingPassedEvent(landing_gate, second_landing_position, second_landing_time))
 
         self.assertEqual(self.queue.put_nowait.call_count, call_count_after_first_landing)
+
+
+class TestDurationCalculatorLandingAreaSource(TestCase):
+    """Real DB objects (unlike TestDurationCalculator above), because these
+    exercise the actual resolution priority - compiled snapshot, then the
+    Route's own Prohibited row, then the live EditableRoute - which needs a
+    real ContestantTaskConfiguration/Route/Prohibited chain to be meaningful.
+    """
+
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
+        create_scorecards()
+        self.scorecard = Scorecard.get_originals().get(shortcut_name="FAI Precision")
+        self.editable_route = EditableRoute.objects.create(
+            name="Duration landing area source",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "to-1", "name": "Takeoff 1", "featureType": "takeoff_gate"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.001, 60.0]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ldg-1", "name": "Landing 1", "featureType": "landing_gate"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.1], [11.001, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "dla-1", "name": "DLA", "featureType": "zone", "polygonType": "duration_landing_area"},
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [[[11.0, 60.0], [11.2, 60.0], [11.2, 60.2], [11.0, 60.2], [11.0, 60.0]]],
+                        },
+                    },
+                ],
+            },
+        )
+        self.route = self.editable_route.create_route(PRECISION, self.scorecard, None, None, task_subtype=DURATION)
+        self.contest = Contest.objects.create(
+            name="Duration landing area source contest",
+            start_time=datetime.datetime.now(datetime.timezone.utc),
+            finish_time=datetime.datetime.now(datetime.timezone.utc),
+            time_zone="Europe/Oslo",
+        )
+        self.navigation_task = NavigationTask.create(
+            name="Duration landing area source task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=self.scorecard,
+            start_time=datetime.datetime.now(datetime.timezone.utc),
+            finish_time=datetime.datetime.now(datetime.timezone.utc),
+            task_subtype=DURATION,
+        )
+        self.navigation_task.editable_route = self.editable_route
+        self.navigation_task.save(update_fields=["editable_route"])
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Duration", last_name="Source"))
+        team = Team.objects.create(crew=crew, aeroplane=Aeroplane.objects.create(registration="LN-DUR"))
+        start_time = datetime.datetime(2020, 8, 1, 8, 5, tzinfo=datetime.timezone.utc)
+        self.contestant = Contestant.objects.create(
+            navigation_task=self.navigation_task,
+            team=team,
+            takeoff_time=start_time,
+            tracker_start_time=start_time - datetime.timedelta(minutes=30),
+            finished_by_time=start_time + datetime.timedelta(hours=2),
+            tracker_device_id="duration-source",
+            contestant_number=1,
+            minutes_to_starting_point=6,
+            air_speed=75,
+            wind_direction=165,
+            wind_speed=8,
+        )
+        ContestantTaskCompiler(self.contestant).compile(force=True)
+        self.contestant.refresh_from_db()
+
+    def _make_gate(self, name):
+        gate = MagicMock()
+        gate.name = name
+        gate.type = "tp"
+        gate.expected_time = datetime.datetime(2026, 8, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        return gate
+
+    def _outside_landing_area_penalty(self, calculator, queue):
+        takeoff_time = datetime.datetime(2026, 8, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        landing_time = datetime.datetime(2026, 8, 1, 11, 0, tzinfo=datetime.timezone.utc)
+        takeoff_position = MagicMock(time=takeoff_time, latitude=60.0, longitude=11.0)
+        landing_position = MagicMock(time=landing_time, latitude=61.0, longitude=12.0)  # well outside the polygon
+        calculator.on_takeoff_passed(TakeoffPassedEvent(self._make_gate("T/O"), takeoff_position, takeoff_time))
+        calculator.on_landing_passed(LandingPassedEvent(self._make_gate("LDG"), landing_position, landing_time))
+        return [call.args[0] for call in queue.put_nowait.call_args_list if call.args[0].score_type == "duration_landing_area_outside"]
+
+    def test_uses_the_compiled_snapshot_polygon_when_available(self):
+        queue = MagicMock()
+        calculator = DurationCalculator(self.contestant, self.scorecard, self.route, queue, live_processing=False, projector=self.navigation_task.get_projector())
+        self.assertIsNotNone(calculator.landing_area_ring)
+        penalties = self._outside_landing_area_penalty(calculator, queue)
+        self.assertEqual(len(penalties), 1)
+
+    def test_still_resolves_the_landing_area_when_editable_route_is_null(self):
+        # Simulates EditableRoute.on_delete=SET_NULL: the compiled snapshot and
+        # the Route's own Prohibited row must be enough on their own.
+        self.navigation_task.editable_route = None
+        self.navigation_task.save(update_fields=["editable_route"])
+        self.contestant.refresh_from_db()
+        queue = MagicMock()
+        calculator = DurationCalculator(self.contestant, self.scorecard, self.route, queue, live_processing=False, projector=self.navigation_task.get_projector())
+        self.assertIsNotNone(calculator.landing_area_ring)
+        penalties = self._outside_landing_area_penalty(calculator, queue)
+        self.assertEqual(len(penalties), 1)

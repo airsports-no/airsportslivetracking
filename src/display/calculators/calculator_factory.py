@@ -41,6 +41,12 @@ def _build_precision_calculators(contestant: "Contestant"):
     # precision pipeline, while duration scoring depends on the regular gate
     # calculators still running afterwards.
     if contestant.navigation_task.task_subtype == CIRCLE:
+        # Backtracking/procedure-turn detection assumes monotonic progress
+        # along an ordered route. A circle's SP-X-CM-WP effective waypoints
+        # are a synthetic sequence for gate-crossing detection only - flying
+        # the circle itself (looping back around CM) would look exactly like
+        # backtracking to this calculator, so it does not apply to 2.A7.
+        calculators.remove(BacktrackingAndProcedureTurnsCalculator)
         calculators.insert(1, CircleCalculator)
     if contestant.navigation_task.task_subtype == DURATION:
         # SpeedInferredTakeoffLandingCalculator is a fallback source of

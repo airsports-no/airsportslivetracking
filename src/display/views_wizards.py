@@ -57,14 +57,7 @@ from display.utilities.navigation_task_type_definitions import (
     AIRSPORT_CHALLENGE,
     LANDING,
 )
-from display.utilities.cima_task_type_definitions import CIRCLE, LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
-
-# Task subtypes with no authored route backbone: the route consists entirely
-# of free-map markers (catalogue turnpoints, timed turnpoints, circle
-# markers, ...), so no Route.waypoints can be derived from the editable
-# route's track. These get an empty placeholder Route instead of going
-# through create_precision_route (which requires a track).
-NO_BACKBONE_TASK_SUBTYPES = (CIRCLE, TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT)
+from display.utilities.cima_task_type_definitions import NO_BACKBONE_TASK_SUBTYPES
 from live_tracking_map import settings
 
 

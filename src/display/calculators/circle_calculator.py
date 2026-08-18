@@ -1,10 +1,15 @@
+import logging
 import math
 from typing import List
 
 from display.calculators.calculator import Calculator, GatePassedEvent
 from display.calculators.update_score_message import UpdateScoreMessage
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.models import ANOMALY, INFORMATION
 from display.utilities.coordinate_utilities import bearing_difference, calculate_bearing, point_to_line_distance
+from display.utilities.gate_definitions import CIRCLE_CENTER, CIRCLE_ENTRY, CIRCLE_EXIT, CIRCLE_START
+
+logger = logging.getLogger(__name__)
 
 
 class CircleCalculator(Calculator):
@@ -36,6 +41,15 @@ class CircleCalculator(Calculator):
         self.last_circle_angle_deg = None
         self.cumulative_progress_deg = 0.0
         self.final_score_ready = False
+        (
+            self.center_lat,
+            self.center_lon,
+            self.start_lat,
+            self.start_lon,
+            self.start_names,
+            self.entry_names,
+            self.exit_names,
+        ) = self._resolve_circle_geometry()
 
     def finalise(self, track: List):
         pass
@@ -50,12 +64,11 @@ class CircleCalculator(Calculator):
         return []
 
     def on_gate_passed(self, event: GatePassedEvent):
-        payload = self._get_circle_payload()
-        if not payload:
+        if self.center_lat is None:
             return
-        start_names = {item["properties"].get("name") for item in (payload.get("circle_start_marker") or [])}
-        entry_names = {item["properties"].get("name") for item in (payload.get("circle_entry_marker") or [])}
-        exit_names = {item["properties"].get("name") for item in (payload.get("circle_exit_marker") or [])}
+        start_names = self.start_names
+        entry_names = self.entry_names
+        exit_names = self.exit_names
 
         if event.gate.name in start_names and not self.started:
             self.started = True
@@ -78,7 +91,7 @@ class CircleCalculator(Calculator):
             self.last_circle_angle_deg = None
             self.cumulative_progress_deg = 0.0
             self.final_score_ready = False
-            if not self._is_valid_straight_entry(payload):
+            if not self._is_valid_straight_entry():
                 self._emit(event, 250, "circle entry not flown over SP and CM", ANOMALY, "circle_invalid_entry_line")
                 return
             self._emit(event, 0, "circle entry passed", INFORMATION, "circle_entry")
@@ -118,31 +131,58 @@ class CircleCalculator(Calculator):
                 self._emit(event, altitude_penalty, "circle altitude spread penalty", ANOMALY, "circle_altitude_penalty")
             self._emit(event, 0, "circle exit passed", INFORMATION, "circle_exit")
 
-    def _get_circle_payload(self) -> dict:
+    def _resolve_circle_geometry(self):
+        """Groups the compiled effective waypoints (see
+        contestant_task_compiler.CircleStrategy) by role. Falls back to
+        reading the live EditableRoute for contestants compiled before that
+        strategy existed.
+        """
+        by_type = {}
+        for waypoint in get_effective_route_waypoints(self.contestant.navigation_task, contestant=self.contestant):
+            by_type.setdefault(waypoint.type, []).append(waypoint)
+        if CIRCLE_CENTER in by_type and CIRCLE_START in by_type:
+            center = by_type[CIRCLE_CENTER][0]
+            start = by_type[CIRCLE_START][0]
+            return (
+                center.latitude,
+                center.longitude,
+                start.latitude,
+                start.longitude,
+                {waypoint.name for waypoint in by_type.get(CIRCLE_START, [])},
+                {waypoint.name for waypoint in by_type.get(CIRCLE_ENTRY, [])},
+                {waypoint.name for waypoint in by_type.get(CIRCLE_EXIT, [])},
+            )
+        logger.info(f"{self.contestant}: No compiled circle geometry, falling back to live EditableRoute")
+        return self._resolve_circle_geometry_from_editable_route()
+
+    def _resolve_circle_geometry_from_editable_route(self):
         editable_route = self.contestant.navigation_task.editable_route
         if not editable_route:
-            return {}
-        return {
-            "circle_center_marker": editable_route.get_circle_center_markers(),
-            "circle_start_marker": editable_route.get_circle_start_markers(),
-            "circle_entry_marker": editable_route.get_circle_entry_markers(),
-            "circle_exit_marker": editable_route.get_circle_exit_markers(),
-        }
+            return None, None, None, None, set(), set(), set()
+        center_markers = editable_route.get_circle_center_markers()
+        start_markers = editable_route.get_circle_start_markers()
+        entry_markers = editable_route.get_circle_entry_markers()
+        exit_markers = editable_route.get_circle_exit_markers()
+        center_lat = center_lon = start_lat = start_lon = None
+        if center_markers:
+            center_lon, center_lat = center_markers[0]["geometry"]["coordinates"]
+        if start_markers:
+            start_lon, start_lat = start_markers[0]["geometry"]["coordinates"]
+        start_names = {item["properties"].get("name") for item in start_markers} - {None}
+        entry_names = {item["properties"].get("name") for item in entry_markers} - {None}
+        exit_names = {item["properties"].get("name") for item in exit_markers} - {None}
+        return center_lat, center_lon, start_lat, start_lon, start_names, entry_names, exit_names
 
-    def _is_valid_straight_entry(self, payload: dict) -> bool:
+    def _is_valid_straight_entry(self) -> bool:
         if self.start_position is None or self.entry_position is None:
             return False
-        start_markers = payload.get("circle_start_marker") or []
-        center_markers = payload.get("circle_center_marker") or []
-        if not start_markers or not center_markers:
+        if self.start_lat is None or self.center_lat is None:
             return False
-        sp_lon, sp_lat = start_markers[0]["geometry"]["coordinates"]
-        cm_lon, cm_lat = center_markers[0]["geometry"]["coordinates"]
         entry_bearing = calculate_bearing(
             (self.start_position.latitude, self.start_position.longitude),
             (self.entry_position.latitude, self.entry_position.longitude),
         )
-        sp_cm_bearing = calculate_bearing((sp_lat, sp_lon), (cm_lat, cm_lon))
+        sp_cm_bearing = calculate_bearing((self.start_lat, self.start_lon), (self.center_lat, self.center_lon))
         if abs(bearing_difference(sp_cm_bearing, entry_bearing)) > 20:
             return False
         distance_m = point_to_line_distance(
@@ -150,18 +190,17 @@ class CircleCalculator(Calculator):
             self.start_position.longitude,
             self.entry_position.latitude,
             self.entry_position.longitude,
-            cm_lat,
-            cm_lon,
+            self.center_lat,
+            self.center_lon,
         )
         return distance_m <= 75
 
     def _is_clockwise_turn(self, current_position) -> bool:
         if self.start_position is None or self.entry_position is None or current_position is None:
             return False
-        center_markers = self._get_circle_payload().get("circle_center_marker") or []
-        if not center_markers:
+        if self.center_lat is None:
             return False
-        cm_lon, cm_lat = center_markers[0]["geometry"]["coordinates"]
+        cm_lon, cm_lat = self.center_lon, self.center_lat
         entry_angle = math.atan2(self.entry_position.latitude - cm_lat, self.entry_position.longitude - cm_lon)
         current_angle = math.atan2(current_position.latitude - cm_lat, current_position.longitude - cm_lon)
         delta = current_angle - entry_angle
@@ -182,11 +221,9 @@ class CircleCalculator(Calculator):
     def _calculate_radius_m(self, current_position):
         if current_position is None:
             return None
-        center_markers = self._get_circle_payload().get("circle_center_marker") or []
-        if not center_markers:
+        if self.center_lat is None:
             return None
-        cm_lon, cm_lat = center_markers[0]["geometry"]["coordinates"]
-        center_projected = self.projector.project_point(cm_lat, cm_lon)
+        center_projected = self.projector.project_point(self.center_lat, self.center_lon)
         return math.hypot(
             current_position.projected_x - center_projected.projected_x,
             current_position.projected_y - center_projected.projected_y,
@@ -195,10 +232,9 @@ class CircleCalculator(Calculator):
     def _record_progress_sample(self, position) -> None:
         if position is None:
             return
-        center_markers = self._get_circle_payload().get("circle_center_marker") or []
-        if not center_markers:
+        if self.center_lat is None:
             return
-        cm_lon, cm_lat = center_markers[0]["geometry"]["coordinates"]
+        cm_lon, cm_lat = self.center_lon, self.center_lat
         angle_deg = math.degrees(math.atan2(position.latitude - cm_lat, position.longitude - cm_lon))
         if self.last_circle_angle_deg is None:
             self.last_circle_angle_deg = angle_deg

@@ -27,6 +27,7 @@ from display.calculators.calculator import (
     NextGateExpectedEvent,
 )
 from display.utilities.coordinate_utilities import Projector
+from display.utilities.gate_definitions import CIRCLE_START
 
 from display.models import Contestant
 
@@ -154,7 +155,8 @@ class Orchestrator:
             not self.enroute
             and not self.has_passed_finishpoint
             and (
-                (self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "secret"]) or override_enroute
+                (self.last_gate is not None and self.last_gate.type in ["sp", "isp", "tp", "secret", CIRCLE_START])
+                or override_enroute
             )
         ):
             self.enroute = True

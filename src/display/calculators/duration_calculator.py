@@ -12,6 +12,7 @@ class DurationCalculator(Calculator):
         super().__init__(contestant, scorecard, route, score_processing_queue, live_processing=live_processing, projector=projector)
         self.takeoff_intersection_time = None
         self.scored_duration = False
+        self.landing_area_ring = self._resolve_landing_area_ring()
 
     def on_takeoff_passed(self, event: TakeoffPassedEvent):
         self.takeoff_intersection_time = event.intersection_time
@@ -58,23 +59,60 @@ class DurationCalculator(Calculator):
             )
         )
 
-    def _emit_landing_area_penalty(self, event: LandingPassedEvent):
+    def _resolve_landing_area_ring(self):
+        """Resolves the landing-area polygon once at calculator startup rather
+        than re-reading authoring data on every landing event, preferring
+        already-compiled/frozen sources over the live EditableRoute (which an
+        organiser could edit mid-competition, silently changing scoring for
+        contestants already flying):
+        1. the compiled snapshot (ContestantTaskCompiler._build_duration_payload),
+        2. the Prohibited row amend_route_with_additional_features already
+           attaches to this contestant's own Route,
+        3. the live EditableRoute, as a legacy fallback for routes compiled
+           before either of the above existed.
+        """
+        polygon = (
+            self._landing_area_polygon_from_compiled_snapshot()
+            or self._landing_area_polygon_from_route()
+            or self._landing_area_polygon_from_editable_route()
+        )
+        if not polygon or len(polygon) < 3:
+            return None
+        return [(float(point[0]), float(point[1])) for point in polygon]
+
+    def _landing_area_polygon_from_compiled_snapshot(self):
+        config = getattr(self.contestant, "contestanttaskconfiguration", None)
+        if config is None or not config.is_valid:
+            return None
+        payload = config.compiled_effective_route_payload or {}
+        polygon = (payload.get("duration_review") or {}).get("duration_landing_area_polygon")
+        return self._normalise_ring(polygon) if polygon else None
+
+    def _landing_area_polygon_from_route(self):
+        zone = self.route.prohibited_set.filter(type="duration_landing_area").first()
+        return self._normalise_ring(zone.path) if zone is not None else None
+
+    def _landing_area_polygon_from_editable_route(self):
         editable_route = self.contestant.navigation_task.editable_route
         if editable_route is None:
-            return
+            return None
         polygons = editable_route.get_duration_landing_area_polygons()
         if not polygons:
-            return
-        polygon = polygons[0].get("geometry", {}).get("coordinates", [[]])[0]
-        if len(polygon) < 3:
+            return None
+        return self._normalise_ring(polygons[0].get("geometry", {}).get("coordinates", [[]])[0])
+
+    @staticmethod
+    def _normalise_ring(polygon):
+        if len(polygon) > 1 and list(polygon[0]) == list(polygon[-1]):
+            return polygon[:-1]
+        return polygon
+
+    def _emit_landing_area_penalty(self, event: LandingPassedEvent):
+        if self.landing_area_ring is None:
             return
         lon = float(event.position.longitude)
         lat = float(event.position.latitude)
-        ring = [
-            (float(point[0]), float(point[1]))
-            for point in (polygon[:-1] if len(polygon) > 1 and polygon[0] == polygon[-1] else polygon)
-        ]
-        inside = Polygon(ring).covers(Point(lon, lat))
+        inside = Polygon(self.landing_area_ring).covers(Point(lon, lat))
         if inside:
             return
         self.update_score(

@@ -200,6 +200,18 @@ class NavigationTask(models.Model):
         location = self.route.get_location()
         if location:
             return Projector(location[0], location[1])
+        # Backbone-less subtypes (circle, turnpoint hunt, limited fuel turnpoint
+        # hunt) have an empty Route, so fall back to the task's free-map markers
+        # before giving up on Projector(0, 0) - which puts the whole world on one
+        # side of the projection and badly distorts any distance measured near
+        # the task's real location (e.g. CircleCalculator's radius check).
+        from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
+
+        for target in get_task_catalogue_targets(self):
+            coordinates = target.get("coordinates")
+            if isinstance(coordinates, list) and len(coordinates) == 2:
+                longitude, latitude = coordinates
+                return Projector(latitude, longitude)
         return Projector(0, 0)
 
     @classmethod

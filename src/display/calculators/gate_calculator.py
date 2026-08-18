@@ -25,14 +25,22 @@ from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.models import ANOMALY, INFORMATION
 from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.gate_definitions import CIRCLE_CENTER, CIRCLE_ENTRY, CIRCLE_EXIT, CIRCLE_START
 from websocket_channels import WebsocketFacade
-from display.utilities.coordinate_utilities import calculate_distance_lat_lon, calculate_speed_between_points
+from display.utilities.coordinate_utilities import calculate_distance_lat_lon, calculate_speed_between_points, extend_line
 from display.utilities.route_building_utilities import calculate_extended_gate
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 
 logger = logging.getLogger(__name__)
 
 GATE_SCORE_TYPE = "gate_score"
+# Circle (2.A7) markers have no GateScore row in any scorecard - they are not
+# CIMA-timed/scored gates, just geometry references CircleCalculator uses.
+# get_extended_gate_width_for_gate_type would raise ValueError for them, so
+# their extended-gate line is derived from the marker's own width instead of
+# the scorecard, and the center marker never becomes a Gate at all (it sits
+# inside the flown circle, not on its boundary, so there is nothing to cross).
+CIRCLE_CROSSING_GATE_TYPES = {CIRCLE_START, CIRCLE_ENTRY, CIRCLE_EXIT}
 BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 ADAPTIVE_TIMING_START_SCORE_TYPE = "adaptive_timing_start"
 
@@ -81,12 +89,17 @@ class GateCalculator(Calculator):
         for item in waypoints:  # type: Waypoint
             # Dummy gates are not part of the actual route
             # Takeoff and Landing gates are handled by TakeoffAndLandingGateCalculator
-            if item.type not in ("dummy", "to", "ldg") and not getattr(item, "on_curved_segment", False):
+            # Circle center is a reference point, never crossed - see CIRCLE_CROSSING_GATE_TYPES
+            if item.type not in ("dummy", "to", "ldg", CIRCLE_CENTER) and not getattr(item, "on_curved_segment", False):
+                if item.type in CIRCLE_CROSSING_GATE_TYPES:
+                    extended_gate = extend_line(item.gate_line[0], item.gate_line[1], item.width)
+                else:
+                    extended_gate = calculate_extended_gate(item, self.scorecard)
                 gates.append(
                     Gate(
                         item,
                         expected_times[item.name],
-                        calculate_extended_gate(item, self.scorecard),
+                        extended_gate,
                     )
                 )
         if gates:

@@ -6,6 +6,7 @@ from rest_framework import serializers
 from display.models import ContestantTaskConfiguration
 from display.services.task_compiler import TaskCompiler
 from display.utilities.cima_task_type_definitions import (
+    CIRCLE,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     CURVE_NAVIGATION_TIME_ESTIMATION,
     DURATION,
@@ -15,7 +16,17 @@ from display.utilities.cima_task_type_definitions import (
     TURNPOINT_HUNT,
     UNKNOWN_LEGS,
 )
-from display.utilities.gate_definitions import DUMMY, FINISHPOINT, STARTINGPOINT, TURNPOINT, UNKNOWN_LEG
+from display.utilities.gate_definitions import (
+    CIRCLE_CENTER,
+    CIRCLE_ENTRY,
+    CIRCLE_EXIT,
+    CIRCLE_START,
+    DUMMY,
+    FINISHPOINT,
+    STARTINGPOINT,
+    TURNPOINT,
+    UNKNOWN_LEG,
+)
 from display.utilities.route_building_utilities import (
     build_waypoint,
     calculate_and_update_legs,
@@ -364,6 +375,38 @@ class DurationStrategy(ContestantTaskCompilerStrategy):
         return []
 
 
+class CircleStrategy(ContestantTaskCompilerStrategy):
+    """2.A7: no route backbone - the four circle markers (start/entry/center/exit)
+    are free-map points. Without this strategy, compiled_effective_route_payload
+    carries no effective_waypoints, GateCalculator.create_gates() has nothing to
+    build gates from, and CircleCalculator.on_gate_passed is never reached.
+    """
+
+    def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
+        return self.compiler._build_circle_effective_route_payload()
+
+    def update_gate_times(
+        self,
+        gate_times: dict[str, str],
+        declaration_payload: dict,
+        compiled_task,
+        compiled_effective_route_payload: dict,
+    ) -> dict[str, str]:
+        # Circle waypoints are gate_check-only (time_check=False, see
+        # _build_circle_effective_route_payload), so these times are never
+        # scored - they only need to exist so create_gates()'s
+        # expected_times[item.name] lookup does not KeyError.
+        base_time = self.compiler.contestant.takeoff_time + datetime.timedelta(
+            minutes=self.compiler.contestant.minutes_to_starting_point
+        )
+        for name in compiled_effective_route_payload.get("effective_waypoint_names", []):
+            gate_times.setdefault(name, base_time.isoformat())
+        return gate_times
+
+    def validate_declaration(self, declaration_payload: dict, compiled_task) -> list[str]:
+        return []
+
+
 class ObservationEvidenceStrategy(ContestantTaskCompilerStrategy):
     def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
         return self.compiler._build_observation_evidence_payload(compiled_task)
@@ -451,6 +494,8 @@ class ContestantTaskCompiler:
             return TurnpointHuntStrategy(self)
         if subtype == DURATION:
             return DurationStrategy(self)
+        if subtype == CIRCLE:
+            return CircleStrategy(self)
         if subtype == KNOWN_CIRCUIT:
             return KnownCircuitStrategy(self)
         if subtype == UNKNOWN_LEGS:
@@ -609,6 +654,66 @@ class ContestantTaskCompiler:
         ):
             duration_review["duration_residual_fuel_required"] = True
         return {"duration_review": duration_review} if duration_review else {}
+
+    def _build_circle_markers(self) -> dict[str, dict]:
+        """First circle marker feature of each role, keyed by gate_definitions
+        type. Exactly one of each is required (TaskSubtypeDefinition.CIRCLE's
+        required_primitives); if authoring left one out we return {} and let
+        build_effective_route_payload fall back to no effective route rather
+        than build a partial/broken one.
+        """
+        editable_route = self.contestant.navigation_task.editable_route
+        if editable_route is None:
+            return {}
+        accessors = {
+            CIRCLE_START: editable_route.get_circle_start_markers,
+            CIRCLE_ENTRY: editable_route.get_circle_entry_markers,
+            CIRCLE_CENTER: editable_route.get_circle_center_markers,
+            CIRCLE_EXIT: editable_route.get_circle_exit_markers,
+        }
+        markers = {}
+        for marker_type, accessor in accessors.items():
+            features = accessor()
+            if features:
+                markers[marker_type] = features[0]
+        return markers
+
+    def _build_circle_effective_route_payload(self) -> dict:
+        order = [CIRCLE_START, CIRCLE_ENTRY, CIRCLE_CENTER, CIRCLE_EXIT]
+        markers = self._build_circle_markers()
+        if not all(marker_type in markers for marker_type in order):
+            return {}
+
+        effective_waypoints = []
+        for marker_type in order:
+            feature = markers[marker_type]
+            properties = feature.get("properties", {})
+            coordinates = feature.get("geometry", {}).get("coordinates", [])
+            if len(coordinates) != 2:
+                return {}
+            lon, lat = coordinates
+            width_nm = float(properties.get("width") or 1852) / 1852
+            # time_check=False, gate_check=False: a circle is scored on
+            # geometry (radius, direction, altitude spread) by
+            # CircleCalculator, not on GateCalculator's crossing-time/missed-gate
+            # scoring - see CircleStrategy.update_gate_times and the
+            # CIRCLE_CENTER exclusion in GateCalculator.create_gates.
+            effective_waypoints.append(
+                build_waypoint(properties.get("name") or marker_type, lat, lon, marker_type, width_nm, False, False)
+            )
+
+        self._apply_effective_gate_lines(effective_waypoints)
+        calculate_and_update_legs(effective_waypoints, self.contestant.navigation_task.route.use_procedure_turns)
+        insert_gate_ranges(effective_waypoints)
+
+        # Each waypoint's `type` is one of CIRCLE_START/CIRCLE_ENTRY/CIRCLE_CENTER/
+        # CIRCLE_EXIT (see the build_waypoint call above), so CircleCalculator can
+        # recover full role/name/coordinate geometry straight from
+        # effective_waypoints - no separate geometry block needed.
+        return {
+            "effective_waypoint_names": [waypoint.name for waypoint in effective_waypoints],
+            "effective_waypoints": [self._serialise_waypoint(waypoint) for waypoint in effective_waypoints],
+        }
 
     def _build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
         payload = self._base_effective_route_payload(compiled_task)
