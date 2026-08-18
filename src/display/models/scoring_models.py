@@ -16,7 +16,11 @@ class ScoreLogEntry(models.Model):
     time = models.DateTimeField()
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     gate = models.CharField(max_length=30, default="")
-    message = models.TextField(default="")
+    # Bounded (not TextField) because it is part of the idempotency
+    # constraint below - MySQL cannot index a TEXT/BLOB column without an
+    # explicit key-length prefix. 255 is generous headroom: the longest
+    # message in production at the time this was added was 61 characters.
+    message = models.CharField(max_length=255, default="")
     string = models.TextField(default="")
     points = models.FloatField()
     planned = models.DateTimeField(blank=True, null=True)
@@ -27,6 +31,14 @@ class ScoreLogEntry(models.Model):
 
     class Meta:
         ordering = ("time", "pk")
+        # Backs get_or_create_and_push's application-level idempotency check
+        # with a real DB constraint, so a race between two concurrent
+        # writers (e.g. two calculators briefly alive for the same
+        # contestant) can't both insert the same score event - Django's
+        # get_or_create() is specifically designed to fall back to a get()
+        # on the resulting IntegrityError. See get_idempotency_fields() for
+        # why these are exactly the fields used.
+        unique_together = ("contestant", "time", "gate", "message", "points", "planned", "actual", "type")
 
     @classmethod
     def push(cls, entry):
