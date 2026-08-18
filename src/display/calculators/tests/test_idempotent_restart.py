@@ -249,3 +249,110 @@ class TestIdempotentRestart(TransactionTestCase):
         self.assertEqual(1, TrackAnnotation.objects.filter(contestant=self.contestant).count())
         self.assertEqual(57, GateCumulativeScore.objects.get(contestant=self.contestant, gate=gate.name).points)
         self.assertEqual(initial_score + 57, ContestantTrack.objects.get(contestant=self.contestant).score)
+
+    def test_restart_after_crash_between_scoring_and_position_flush_does_not_double_count(
+        self, mock_slack, mock_ws_gate, mock_ws_orch, mock_ws_proc, *args
+    ):
+        """Regression test for the exact window the idempotent-scoring fix
+        (commit 94782a91/0122c7e0) targets: ContestantReceivedPosition rows
+        are flushed in batches (every 100, or at track end - see run()'s
+        positions_to_save handling), but score_processing_queue is drained
+        continuously as positions are scored. A crash between "position N
+        was scored" and "position N's batch was bulk_created" leaves
+        ScoreLogEntry rows in the DB for positions that
+        existing_positions.last().time (and therefore latest_recorded_time)
+        does not yet cover - so those positions get replayed as *live*, not
+        suppressed, on restart. Only ScoreLogEntry.get_or_create_and_push's
+        idempotency key protects against double-scoring in this window;
+        test_restart_idempotency above never exercises it, because it always
+        crashes cleanly after a full flush.
+        """
+        positions = load_track_points(os.path.join(TEST_DATA_DIR, "test_contestant_correct_track.gpx"))
+        for p in positions:
+            p["id"] = 0
+            p["deviceId"] = "Test contestant"
+            p["attributes"] = {}
+            p["device_time"] = dateutil.parser.parse(p["time"])
+
+        mid_point = len(positions) // 2
+        first_half = positions[:mid_point]
+        # Wide enough to guarantee at least one further gate crossing beyond
+        # whatever first_half already reached (route is SP, SC1/1, TP1,
+        # SC2/1, TP2, SC3/1, SC3/2, TP3, TP4, SC5/1, TP5, SC6/1, TP6, SC7/1,
+        # SC7/2, FP - first_half alone already reaches TP4).
+        first_half_plus_gap = positions[: mid_point + 1500]
+
+        # 1. Clean run of the first half - fully scored AND fully persisted.
+        q = RedisQueue(self.contestant.pk)
+        for p in first_half:
+            q.append(p)
+        q.append(None)
+        processor = ContestantProcessor(self.contestant, live_processing=False)
+        with patch.object(processor.orchestrator, "finished_processing"):
+            processor.run()
+        processor.score_processing_queue.join()
+
+        checkpoint_position_count = ContestantReceivedPosition.objects.filter(contestant=self.contestant).count()
+        checkpoint_log_pks = set(ScoreLogEntry.objects.filter(contestant=self.contestant).values_list("pk", flat=True))
+        self.assertGreater(len(checkpoint_log_pks), 0)
+
+        # 2. A restart that replays from the true beginning - exactly like a
+        # real production restart does (enqueue_positions_thread always
+        # re-fetches from tracker_start_time; the test feeds the same thing
+        # into the queue by hand). first_half is silently suppressed
+        # (already safely persisted, per latest_recorded_time), and the next
+        # 1500 positions are processed *live*, scoring new gates - but this
+        # run crashes before flushing their ContestantReceivedPosition batch,
+        # by making bulk_create a no-op for this run only. A fresh
+        # orchestrator that only ever saw a slice starting mid-track (not a
+        # full replay) would spuriously fire missed/passed-gate detection
+        # for every earlier gate on its very first position - replaying from
+        # the beginning is what avoids that artifact, matching production.
+        q = RedisQueue(self.contestant.pk)
+        for p in first_half_plus_gap:
+            q.append(p)
+        q.append(None)
+        processor_gap = ContestantProcessor(self.contestant, live_processing=False)
+        with patch.object(processor_gap.orchestrator, "finished_processing"):
+            with patch.object(ContestantReceivedPosition.objects, "bulk_create"):
+                processor_gap.run()
+        processor_gap.score_processing_queue.join()
+
+        # Confirm the gap scenario is real: positions were NOT persisted...
+        self.assertEqual(
+            checkpoint_position_count,
+            ContestantReceivedPosition.objects.filter(contestant=self.contestant).count(),
+        )
+        # ...but new scoring DID happen and IS in the DB, ahead of what
+        # latest_recorded_time will see on the next restart.
+        log_pks_after_gap = set(ScoreLogEntry.objects.filter(contestant=self.contestant).values_list("pk", flat=True))
+        new_gap_logs = list(
+            ScoreLogEntry.objects.filter(contestant=self.contestant, pk__in=log_pks_after_gap - checkpoint_log_pks)
+        )
+        self.assertGreater(len(new_gap_logs), 0)
+        gap_gate_names = {entry.gate for entry in new_gap_logs}
+
+        # 3. The real restart: full track replay. latest_recorded_time is
+        # still pinned at the checkpoint (the gap-window positions were
+        # never persisted), so the gap-window positions get reprocessed as
+        # *live*, not suppressed - this is exactly where the fix matters.
+        q = RedisQueue(self.contestant.pk)
+        for p in positions:
+            q.append(p)
+        q.append(None)
+        processor_restart = ContestantProcessor(self.contestant, live_processing=False)
+        processor_restart.run()
+        processor_restart.score_processing_queue.join()
+
+        # 4. No duplicate ScoreLogEntry for anything scored during the gap window.
+        for gate_name in gap_gate_names:
+            with self.subTest(gate=gate_name):
+                self.assertEqual(
+                    1,
+                    ScoreLogEntry.objects.filter(contestant=self.contestant, gate=gate_name).count(),
+                    f"gate {gate_name} scored during the unflushed gap window was double-counted on restart",
+                )
+        sp_logs = ScoreLogEntry.objects.filter(contestant=self.contestant, gate="SP")
+        self.assertEqual(1, sp_logs.count())
+        final_track = ContestantTrack.objects.get(contestant=self.contestant)
+        self.assertEqual(222, final_track.score)
