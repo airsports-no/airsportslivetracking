@@ -441,7 +441,7 @@ export default function PhotoManagementPage() {
                                 map={mapRef.current}
                                 route={navTask.route}
                                 taskCatalogueTargets={navTask.task_catalogue_targets ?? []}
-                                taskConfig={navTask.task_config ?? {}}
+                                scorecard={navTask.scorecard}
                                 taskType={navTask.scorecard.task_type}
                                 navTaskDisplaySecrets={true}
                                 displaySecrets={true}

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { NavigationTask, Waypoint, Contestant, RouteData, NavigationTaskCatalogueTarget } from '../../types';
+import type { NavigationTask, Waypoint, Contestant, RouteData, NavigationTaskCatalogueTarget, Scorecard } from '../../types';
 import { getUnknownLegHiddenStretchNames, getRenderedRoute, getRenderedCatalogueTargets } from './routeSelection';
 import './WaypointLabel.css';
 
@@ -79,7 +79,10 @@ interface Props {
   map: L.Map | null;
   route: RouteData | null;
   taskCatalogueTargets?: NavigationTaskCatalogueTarget[];
-  taskConfig?: Record<string, any>;
+  // Only circle_radius_min_m/max_m are read from this - they live on the
+  // Scorecard, not task_config, which never carries them (see
+  // CircleCalculator's own lookup and map_plotter.plot_catalogue_targets).
+  scorecard?: Scorecard;
   taskType: string[] | null;
   taskSubtype?: string | null;
   navTaskDisplaySecrets: boolean;
@@ -389,7 +392,7 @@ function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarg
   return layers;
 }
 
-function renderCircleTaskGeometry(map: L.Map, targets: NavigationTaskCatalogueTarget[], taskConfig?: Record<string, any>): L.Layer[] {
+function renderCircleTaskGeometry(map: L.Map, targets: NavigationTaskCatalogueTarget[], scorecard?: Scorecard): L.Layer[] {
   const layers: L.Layer[] = [];
   const byKind = new Map((targets || []).map((target) => [target.kind, target]));
   const center = byKind.get('circle_center_marker');
@@ -402,8 +405,8 @@ function renderCircleTaskGeometry(map: L.Map, targets: NavigationTaskCatalogueTa
   }
 
   const [centerLng, centerLat] = center.coordinates;
-  const minRadiusM = Number(taskConfig?.circle_radius_min_m ?? 200);
-  const maxRadiusM = Number(taskConfig?.circle_radius_max_m ?? 750);
+  const minRadiusM = Number(scorecard?.circle_radius_min_m ?? 200);
+  const maxRadiusM = Number(scorecard?.circle_radius_max_m ?? 750);
 
   const innerBoundary = L.circle([centerLat, centerLng], {
     radius: minRadiusM,
@@ -440,7 +443,7 @@ function renderCircleTaskGeometry(map: L.Map, targets: NavigationTaskCatalogueTa
   return layers;
 }
 
-export default function RouteRenderer({ map, route, taskCatalogueTargets, taskConfig, taskType, taskSubtype, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
+export default function RouteRenderer({ map, route, taskCatalogueTargets, scorecard, taskType, taskSubtype, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit }: Props) {
   const layersRef = useRef<L.Layer[]>([]);
 
   useEffect(() => {
@@ -498,7 +501,7 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, taskCo
       }));
       const circleTargets = renderedCatalogueTargets.filter((target) => target.kind?.startsWith('circle_'));
       if (circleTargets.length > 0) {
-        layers = layers.concat(renderCircleTaskGeometry(map, circleTargets, taskConfig));
+        layers = layers.concat(renderCircleTaskGeometry(map, circleTargets, scorecard));
       }
     }
     
@@ -547,7 +550,7 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, taskCo
       map.off('zoomend', handleZoom);
       map.getContainer().classList.remove('hide-waypoint-labels');
     };
-  }, [map, route, taskCatalogueTargets, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit]);
+  }, [map, route, taskCatalogueTargets, scorecard, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit]);
 
   return null;
 }

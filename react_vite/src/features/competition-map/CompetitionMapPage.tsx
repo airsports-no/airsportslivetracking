@@ -616,7 +616,7 @@ export default function CompetitionMapPage() {
           map={mapRef.current}
           route={staticNavTaskData?.route ?? null}
           taskCatalogueTargets={staticNavTaskData?.task_catalogue_targets ?? []}
-          taskConfig={staticNavTaskData?.task_config ?? {}}
+          scorecard={staticNavTaskData?.scorecard}
           taskType={staticNavTaskData?.scorecard?.task_type ?? null}
           taskSubtype={staticNavTaskData?.task_subtype ?? null}
           navTaskDisplaySecrets={staticNavTaskData?.display_secrets ?? false}

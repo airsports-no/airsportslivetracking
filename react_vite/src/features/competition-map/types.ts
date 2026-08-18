@@ -100,7 +100,7 @@ export interface Waypoint {
 export interface ProhibitedZone {
   id: number;
   name: string;
-  type: 'prohibited' | 'penalty' | 'info' | 'gate';
+  type: 'prohibited' | 'penalty' | 'info' | 'gate' | 'duration_landing_area';
   path: [number, number][];
   tooltip_position?: [number, number];
 }
@@ -162,6 +162,8 @@ export interface Scorecard {
   backtracking_grace_time_seconds?: number;
   backtracking_penalty?: number;
   backtracking_maximum_penalty?: number;
+  circle_radius_min_m?: number;
+  circle_radius_max_m?: number;
 }
 
 export interface Contestant {

@@ -268,7 +268,7 @@ class MapFallbackTests(TestCase):
             pass
 
         mock_get_catalogue_targets.assert_not_called()
-        mock_plot_catalogue_targets.assert_called_once_with([], "#0000ff", {})
+        mock_plot_catalogue_targets.assert_called_once_with([], "#0000ff", self.task.scorecard)
         # waypoints_only is forced True (3rd positional arg) so no connecting
         # line is drawn, and use_circle_markers is True for CIMA tasks.
         self.assertTrue(mock_plot_precision_track.call_args.args[2])
@@ -841,7 +841,7 @@ class MapFallbackTests(TestCase):
         plot_catalogue_targets(
             targets,
             "#0000ff",
-            task_config={"circle_radius_min_m": 250, "circle_radius_max_m": 500},
+            scorecard=MagicMock(circle_radius_min_m=250, circle_radius_max_m=500),
         )
 
         plot_calls = mock_plt.plot.call_args_list
@@ -853,6 +853,21 @@ class MapFallbackTests(TestCase):
         self.assertEqual(len(circle_calls), 2)
         self.assertEqual(len(circle_calls[0].args[0]), 73)
         self.assertEqual(len(circle_calls[1].args[0]), 73)
+
+        # Regression guard for radius_min/max_m being read from task_config
+        # (which never carries them - always the 200/750 defaults) instead of
+        # the scorecard: pin the actual measured ring radius against the
+        # scorecard's configured 250/500, not the default.
+        from display.utilities.coordinate_utilities import calculate_distance_lat_lon
+
+        center = (60.02, 11.02)
+        min_ring_lons, min_ring_lats = circle_calls[0].args[0], circle_calls[0].args[1]
+        max_ring_lons, max_ring_lats = circle_calls[1].args[0], circle_calls[1].args[1]
+        min_ring_radius_m = calculate_distance_lat_lon(center, (min_ring_lats[0], min_ring_lons[0]))
+        max_ring_radius_m = calculate_distance_lat_lon(center, (max_ring_lats[0], max_ring_lons[0]))
+        self.assertAlmostEqual(min_ring_radius_m, 250, delta=1)
+        self.assertAlmostEqual(max_ring_radius_m, 500, delta=1)
+
         self.assertEqual(circle_calls[0].kwargs["color"], "#0f9d58")
         self.assertEqual(circle_calls[1].kwargs["color"], "#b91c1c")
         self.assertEqual(circle_calls[0].kwargs["linewidth"], 2.4)

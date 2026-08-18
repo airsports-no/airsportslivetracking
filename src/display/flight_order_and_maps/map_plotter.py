@@ -113,6 +113,7 @@ from display.models import (
     Contestant,
     NavigationTask,
     EditableRoute,
+    Scorecard,
     UserUploadedMap,
 )
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints, get_task_catalogue_targets
@@ -754,6 +755,10 @@ PROHIBITED_COLOURS = {
     "penalty": ("orange", "darkorange", 4),
     "info": ("lightblue", "Lightskyblue", 10),
     "gate": ("blue", "darkblue", 4),
+    # Matches the route editor's duration_landing_area colour (#22c55e) - an
+    # allowed landing area, not a prohibited/penalty zone, so it should not
+    # fall back to the default blue/darkblue used for unrecognised types.
+    "duration_landing_area": ("lightgreen", "darkgreen", 10),
 }
 
 
@@ -1300,7 +1305,7 @@ def _build_circle_outline(center_lon_lat: tuple[float, float], radius_m: float, 
     return outline
 
 
-def plot_catalogue_targets(targets: list[dict], colour: str, task_config: Optional[dict] = None):
+def plot_catalogue_targets(targets: list[dict], colour: str, scorecard: Optional["Scorecard"] = None):
     marker_style_by_kind = {
         "catalogue_turnpoint": {"marker": "o", "markersize": 10, "fillstyle": "none"},
         "circle_center_marker": {"marker": "x", "markersize": 10, "fillstyle": "full"},
@@ -1347,8 +1352,12 @@ def plot_catalogue_targets(targets: list[dict], colour: str, task_config: Option
     if center is None:
         return
 
-    min_radius_m = float((task_config or {}).get("circle_radius_min_m", 200))
-    max_radius_m = float((task_config or {}).get("circle_radius_max_m", 750))
+    # circle_radius_min_m/max_m live on the Scorecard (see CircleCalculator's
+    # own lookup) - task_config never carries them, so reading task_config
+    # here always drew the 200/750 defaults regardless of the configured
+    # scorecard values.
+    min_radius_m = float(getattr(scorecard, "circle_radius_min_m", 200) or 200)
+    max_radius_m = float(getattr(scorecard, "circle_radius_max_m", 750) or 750)
     for radius, edge_colour, line_width, dash_pattern in (
         (min_radius_m, "#0f9d58", 2.4, (0, (3, 3))),
         (max_radius_m, "#b91c1c", 1.6, (0, (10, 4))),
@@ -1677,7 +1686,7 @@ def plot_route(
     else:
         paths = []
     if contestant is None:
-        plot_catalogue_targets(task_catalogue_targets, colour, task.task_config or {})
+        plot_catalogue_targets(task_catalogue_targets, colour, task.scorecard)
     plot_prohibited_zones(route, imagery.crs, ax)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:

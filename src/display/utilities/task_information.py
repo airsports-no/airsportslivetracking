@@ -317,7 +317,16 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
         if task_config.get("duration_residual_fuel_required"):
             info["overrides"].append("Residual fuel is required at landing for this task.")
         if task_config.get("duration_landing_area_polygon"):
-            info["overrides"].append("A task-specific landing area polygon is configured for duration validation.")
+            # This task_config value is display-only: it is not read by
+            # DurationCalculator or ContestantTaskCompiler, which both derive
+            # the actual scored landing area from the EditableRoute's
+            # authored duration_landing_area zone. Say so explicitly so this
+            # sentence cannot be mistaken for confirmation that setting the
+            # task_config value affects scoring.
+            info["overrides"].append(
+                "A landing area polygon is noted in the task configuration for reference; scoring uses the "
+                "landing area zone drawn in the route editor, not this configuration value."
+            )
     else:
         coarse_family = navigation_task.coarse_task_family or family_display_name
         info["objective"] = f"This task uses the {str(coarse_family).lower()} family."
