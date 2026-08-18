@@ -1,5 +1,4 @@
 import { LatLng } from "../types";
-import L from "leaflet";
 
 export const EARTH_RADIUS = 6371e3; // meters
 
@@ -104,13 +103,3 @@ export const isPointInPolygon = (point: LatLng, vs: LatLng[]) => {
   return inside;
 };
 
-export function getQuadraticBezierPoints(p1: LatLng, p2: LatLng, control: LatLng, numPoints = 20): L.LatLng[] {
-  const points: L.LatLng[] = [];
-  for (let i = 0; i <= numPoints; i++) {
-    const t = i / numPoints;
-    const lat = (1 - t) * (1 - t) * p1.lat + 2 * (1 - t) * t * control.lat + t * t * p2.lat;
-    const lng = (1 - t) * (1 - t) * p1.lng + 2 * (1 - t) * t * control.lng + t * t * p2.lng;
-    points.push(L.latLng(lat, lng));
-  }
-  return points;
-}

@@ -13,8 +13,8 @@ import {
   isCollinear,
   getDistanceFromLine,
   toRad,
-  getQuadraticBezierPoints
 } from '../../../utils/geoUtils';
+import { getQuadraticBezierPoints } from '../../../utils/bezierPoints';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { Map } from 'leaflet';
 import { getTaskTemplateById, getWizardRouteInsertLabel } from '../taskTemplates';

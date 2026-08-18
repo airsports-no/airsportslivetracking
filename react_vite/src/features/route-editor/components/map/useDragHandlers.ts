@@ -2,8 +2,8 @@ import { useRef } from 'react';
 import L from 'leaflet';
 import {
   getDistanceFromLine,
-  getQuadraticBezierPoints
 } from '../../../../utils/geoUtils';
+import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Polygon, ObservationMarker, SelectionType, Mode } from '../../../../types';
 
 interface useDragHandlersProps {

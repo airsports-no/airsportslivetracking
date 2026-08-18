@@ -4,8 +4,8 @@ import {
   getBearing,
   getDestinationPoint,
   toRad,
-  getQuadraticBezierPoints
 } from '../../../utils/geoUtils';
+import { getQuadraticBezierPoints } from '../../../utils/bezierPoints';
 import useMapInit from './map/useMapInit';
 import useDragHandlers from './map/useDragHandlers';
 import * as Renderers from './map/renderers';

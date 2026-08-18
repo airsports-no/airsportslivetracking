@@ -4,8 +4,8 @@ import {
   getBearing,
   getDestinationPoint,
   getDistanceFromLine,
-  getQuadraticBezierPoints
 } from '../../../../utils/geoUtils';
+import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Gate, Polygon, Mode, SelectionType } from '../../../../types';
 
 const UNKNOWN_LEG_TRIGGER_TYPE = 'ul';
