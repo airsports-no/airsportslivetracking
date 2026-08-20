@@ -1,5 +1,4 @@
 import time
-from http.client import RemoteDisconnected
 from multiprocessing import Queue, Process
 
 import os
@@ -8,20 +7,17 @@ from typing import List, Dict, Tuple, Optional
 
 import logging
 
-import multiprocessing
-
 import datetime
 import dateutil
+import redis_lock
+from redis.client import Redis
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from django.core.mail import send_mail
-from urllib3.exceptions import ProtocolError
 
 from display.utilities.calculator_running_utilities import is_calculator_running, calculator_is_alive
 from display.utilities.calculator_termination_utilities import is_termination_requested
-from display.kubernetes_calculator.job_creator import JobCreator, AlreadyExists
 from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map import settings
 from redis_queue import RedisQueue
@@ -44,7 +40,6 @@ contestant_cache = {}
 
 logger = logging.getLogger(__name__)
 processes = {}
-calculator_lock = multiprocessing.Lock()
 CONTESTANT_TYPE = 0
 PERSON_TYPE = 1
 
@@ -167,45 +162,12 @@ def calculator_process(contestant_pk: int):
         logger.warning(f"Attempting to start new calculator for terminated contestant {contestant}")
 
 
-def retry(func, args, kwargs, ex_types=(Exception,), limit=0, wait_ms=100, wait_increase_ratio=2, logger=None):
-    """
-    Retry a function invocation until no exception occurs
-    :param func: function to invoke
-    :param ex_type: retry only if exception is subclass of this type
-    :param limit: maximum number of invocation attempts
-    :param wait_ms: initial wait time after each attempt in milliseconds.
-    :param wait_increase_ratio: increase wait period by multiplying this value after each attempt.
-    :param logger: if not None, retry attempts will be logged to this logging.logger
-    :return: result of first successful invocation
-    :raises: last invocation exception if attempts exhausted or exception is not an instance of ex_type
-    """
-    attempt = 1
-    while True:
-        try:
-            return func(*args, **kwargs)
-        except Exception as ex:
-            if not any(isinstance(ex, ex_type) for ex_type in ex_types):
-                raise ex
-            if 0 < limit <= attempt:
-                if logger:
-                    logger.warning("no more attempts")
-                raise ex
-
-            if logger:
-                logger.error("failed execution attempt #%d", attempt, exc_info=ex)
-
-            attempt += 1
-            if logger:
-                logger.info("waiting %d ms before attempt #%d", wait_ms, attempt)
-            time.sleep(wait_ms / 1000)
-            wait_ms *= wait_increase_ratio
-
-
 def add_positions_to_calculator(contestant: Contestant, positions: List):
     global processes
     key = contestant.pk
 
-    with calculator_lock:
+    conn = Redis(settings.REDIS_HOST, settings.REDIS_PORT, 2, password=settings.REDIS_PASSWORD)
+    with redis_lock.Lock(conn, f"calculator_dispatch_{contestant.pk}"):
         if key not in processes or not is_calculator_running(key):
 
             def start_internal_calculator():
@@ -214,63 +176,15 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
                 p.start()
                 processes[key] = (q, p)
 
-            def start_kubernetes_job():
-                return retry(
-                    creator.spawn_calculator_job,
-                    (contestant.pk,),
-                    {},
-                    ex_types=(ProtocolError, RemoteDisconnected),
-                    limit=5,
-                    wait_ms=500,
-                )
-
-            def delete_kubernetes_job():
-                return retry(
-                    creator.delete_calculator,
-                    (contestant.pk,),
-                    {},
-                    ex_types=(ProtocolError, RemoteDisconnected),
-                    limit=5,
-                    wait_ms=500,
-                )
-
             q = RedisQueue(str(contestant.pk))
             if settings.PRODUCTION:
-                # Create kubernetes job for the calculator
-                creator = JobCreator()
+                # Dispatch the calculator as a Celery task on the dedicated live_calculator queue
+                from display.tasks import run_live_contestant_calculator
+
                 processes[key] = (q, None)
-                try:
-                    response = start_kubernetes_job()
-                    calculator_is_alive(contestant.pk, 300)  # Give it five minutes to spin up the kubernetes job
-                    logger.info(f"Successfully created calculator job for {contestant}")
-                except AlreadyExists:
-                    logger.warning(
-                        f"Tried to start existing calculator job for contestant {contestant}. Attempting to restart."
-                    )
-                    try:
-                        delete_kubernetes_job()
-                    except:
-                        logger.error(f"Failed the deleting calculator job for contestant {contestant}")
-                    try:
-                        response = start_kubernetes_job()
-                        calculator_is_alive(contestant.pk, 300)
-                        logger.info(f"Successfully created calculator job for {contestant}")
-                    except AlreadyExists:
-                        logger.warning(f"Tried to start existing calculator job for contestant {contestant}. Ignoring.")
-                except Exception as ex:
-                    logger.exception(f"Failed starting kubernetes calculator job for {contestant}")
-                    try:
-                        send_mail(
-                            "Failed starting kubernetes calculator job",
-                            f"Failed starting job for contestant {contestant}. Falling back to internal calculator.\n{ex}",
-                            None,
-                            ["frankose@ifi.uio.no"],
-                        )
-                    except:
-                        logger.exception("Failed sending error email")
-                    # Create an internal process for the calculator
-                    connections.close_all()
-                    start_internal_calculator()
+                calculator_is_alive(contestant.pk, 300)  # Give it five minutes to spin up
+                run_live_contestant_calculator.apply_async(args=(contestant.pk,), queue="live_calculator")
+                logger.info(f"Dispatched live calculator task for {contestant}")
             else:
                 start_internal_calculator()
     redis_queue = processes[key][0]

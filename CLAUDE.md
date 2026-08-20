@@ -28,7 +28,7 @@ Position data flow: Traccar → Redis → `position_processor.py` → per-contes
 2. Dashboard/list data version — `contest_list_version` in Redis, bumped by Django signals on `Contest`/`NavigationTask`/`Contestant` changes.
 3. Per-contestant telemetry version — `track_version` on `Contestant`, used for `/slice/` ETag.
 
-**Kubernetes calculator jobs**: `src/display/kubernetes_calculator/` can dispatch scoring/processing work as Kubernetes Jobs instead of running in-process — relevant when working on scaling or job orchestration.
+**Live calculators**: per-contestant scoring calculators run as Celery tasks (`display.tasks.run_live_contestant_calculator`) on a dedicated `live_calculator` queue/worker pool (`helm/templates/deployment_live_calculator.yaml`), dispatched from `position_processor_process.py`'s `add_positions_to_calculator` and autoscaled on queue depth via a KEDA `ScaledObject` (`helm/templates/keda_scaledobject_live_calculator.yaml`) — relevant when working on scaling or calculator orchestration.
 
 ## Common commands
 

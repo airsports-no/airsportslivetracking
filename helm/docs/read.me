@@ -58,3 +58,21 @@ az acr run --cmd "$PURGE_CMD" --registry airsportsacr /dev/null
 
 # gcloud
 gcloud container clusters get-credentials airsports-cluster --region=europe-north1
+
+# KEDA (autoscaling for live-calculator, see helm/templates/keda_scaledobject_live_calculator.yaml)
+# webhooks disabled: it only pre-validates ScaledObject/ScaledJob specs at apply time
+# (we already validate via `helm template` locally), and each KEDA pod costs a full
+# 250m CPU minimum on Autopilot regardless of actual usage, so cutting one pod is a
+# real, free saving. operator/metricsServer placed on spot nodes, same as
+# tracker-celery/live-calculator - a brief gap in KEDA availability during a spot
+# preemption only delays autoscaling reaction, it doesn't touch running Deployments.
+# Kept as its own release, independent of cloudbuild-deploy.yaml's per-commit app
+# deploy - cluster-scoped CRDs/RBAC that change rarely shouldn't ride along with
+# routine app deploys.
+helm repo add kedacore https://kedacore.github.io/charts
+helm repo update
+kubectl create namespace keda
+helm install keda kedacore/keda --namespace keda \
+  --set webhooks.enabled=false \
+  --set 'operator.nodeSelector.cloud\.google\.com/gke-spot=true' \
+  --set 'metricsServer.nodeSelector.cloud\.google\.com/gke-spot=true'

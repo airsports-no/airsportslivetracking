@@ -1,0 +1,53 @@
+{{- $redisPassword := include "live_tracking.redisPassword" . }}
+{{- if $redisPassword }}
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: live-calculator-redis-auth
+spec:
+  secretTargetRef:
+    - parameter: password
+      name: pw-secrets
+      key: REDIS_PASSWORD
+---
+{{- end }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: live-calculator
+spec:
+  scaleTargetRef:
+    name: live-calculator
+  # Contests rarely run more than a handful of tasks at once and a typical
+  # task has at most ~12 simultaneous contestants, so this pool never needs
+  # to be large - it needs to be warm at the right times.
+  minReplicaCount: 0
+  maxReplicaCount: 20
+  cooldownPeriod: 120
+  triggers:
+    # Primary signal: actual Celery queue depth for the live_calculator
+    # queue, not CPU - a queued-but-not-yet-running contestant doesn't move
+    # CPU at all.
+    - type: redis
+      metadata:
+        address: '{{ include "live_tracking.redisHost" . }}:{{ .Values.externalRedis.port | default 6379 }}'
+        listName: live_calculator
+        listLength: "1"
+        activationListLength: "0"
+        databaseIndex: "0"
+      {{- if $redisPassword }}
+      authenticationRef:
+        name: live-calculator-redis-auth
+      {{- end }}
+    # Pre-warm ahead of known contest/task start times so the first
+    # contestant of a new task never pays a cold start. This fixed daily
+    # window is a placeholder - it needs replacing with a trigger whose
+    # schedule is derived from upcoming Contestant.tracker_start_time /
+    # navigation task start times (a small periodic task or script updating
+    # this resource), which is its own short design pass, not done here.
+    - type: cron
+      metadata:
+        timezone: UTC
+        start: "0 5 * * *"
+        end: "0 21 * * *"
+        desiredReplicas: "1"

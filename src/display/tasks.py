@@ -9,8 +9,11 @@ from django.core.files.base import ContentFile
 from django.db import connections
 from celery.schedules import crontab
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from redis.client import Redis
 
+from display.calculators.contestant_processor import ContestantProcessor
 from display.flight_order_and_maps.generate_flight_orders import (
     generate_flight_orders_latex,
     embed_map_in_pdf,
@@ -24,6 +27,7 @@ from django.utils import timezone
 from display.models.contestant import Contestant
 from display.models.email_map_link import EmailMapLink
 from display.models.flymaster_data import FlymasterData
+from display.utilities.calculator_termination_utilities import is_termination_requested
 from live_tracking_map.celery import app
 from live_tracking_map.settings import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 from playback_tools.playback import (
@@ -148,6 +152,35 @@ def recalculate_existing_positions(contestant_pk: int):
         recalculate_from_existing_positions_sync(contestant)
     except:
         logger.exception("Exception in recalculate_existing_positions")
+
+
+@app.task(queue="live_calculator")
+def run_live_contestant_calculator(contestant_pk: int):
+    """
+    Runs a contestant's live-tracking calculator to completion. Dispatched
+    from add_positions_to_calculator (position_processor_process.py) onto a
+    dedicated queue/worker pool, replacing the previous one-Kubernetes-Job-
+    per-contestant model. CELERY_TASK_ACKS_LATE/CELERY_TASK_REJECT_ON_WORKER_LOST
+    (settings.py) mean a worker dying mid-task (Spot preemption, a worker-pool
+    deploy) gets this task requeued onto another worker automatically;
+    ContestantProcessor's idempotent-restart handling (see
+    contestant_processor.py and the ScoreLogEntry idempotency constraint)
+    makes that resume safe.
+    """
+    try:
+        contestant = Contestant.objects.get(pk=contestant_pk)
+    except ObjectDoesNotExist:
+        logger.warning(f"Attempting to start calculator for non-existent contestant {contestant_pk}")
+        return
+    if contestant.contestanttrack.calculator_finished or is_termination_requested(contestant_pk):
+        logger.warning(f"Attempting to start calculator for terminated contestant {contestant}")
+        return
+    try:
+        contestant_processor = ContestantProcessor(contestant, live_processing=True)
+    except (DjangoValidationError, DRFValidationError) as exc:
+        logger.warning(f"Refusing to start calculator for contestant {contestant_pk}: {exc}")
+        return
+    contestant_processor.run()
 
 
 @app.task

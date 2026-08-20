@@ -396,6 +396,14 @@ CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
+# Keeps live-tracking calculator tasks (potentially hours long) off the
+# default queue/worker pool used by short admin tasks (recalculation,
+# flight-order generation, mbtiles reload) - dispatched to a separate
+# worker Deployment (see helm/templates/deployment_live_calculator.yaml)
+# that's scaled independently on queue depth.
+CELERY_TASK_ROUTES = {
+    "display.tasks.run_live_contestant_calculator": {"queue": "live_calculator"},
+}
 # CELERY_RESULT_BACKEND = "django-db"
 
 CACHES = {

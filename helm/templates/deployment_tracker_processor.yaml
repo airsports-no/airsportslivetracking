@@ -27,8 +27,6 @@ spec:
                     operator: In
                     values:
                       - "true"
-      # Required for permissions to create kubernetes jobs.
-      serviceAccountName: calculator-scheduler
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       containers:
@@ -42,12 +40,6 @@ spec:
             cpu: 600m
             memory: 1Gi
         name: tracker-processor
-#        env:
-#          - name: K8S_TOKEN
-#            valueFrom:
-#              secretKeyRef:
-#                name: {{ .Values.serviceAccountSecretName }}
-#                key: token
         envFrom:
           - configMapRef:
               name: envs-production-other
@@ -81,14 +73,8 @@ spec:
           - mountPath: /secret
             readOnly: true
             name: firebase
-#          - mountPath: /aks_certificate
-#            readOnly: true
-#            name: aks-certificate
       restartPolicy: Always
       volumes:
         - name: firebase
           secret:
             secretName: firebase-secrets
-#        - name: aks-certificate
-#          secret:
-#            secretName: {{ .Values.serviceAccountSecretName }}

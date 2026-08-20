@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: live-calculator
+  name: live-calculator
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      service: live-calculator
+  template:
+    metadata:
+      labels:
+        service: live-calculator
+        date: "{{ now | unixEpoch }}"
+    spec:
+      # A rolling deploy or Spot preemption WILL interrupt in-flight contestants.
+      # This is safe: CELERY_TASK_ACKS_LATE/CELERY_TASK_REJECT_ON_WORKER_LOST
+      # (settings.py) requeue the task onto another worker, and
+      # ContestantProcessor's idempotent-restart handling (see
+      # ScoreLogEntry's idempotency constraint) makes the resume produce no
+      # duplicate scoring. There is no grace period that makes a true
+      # graceful drain practical for a task that can run for hours, so no
+      # attempt is made to engineer around the interruption.
+      terminationGracePeriodSeconds: 25
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 200
+        fsGroup: 200
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: cloud.google.com/gke-spot
+                    operator: In
+                    values:
+                      - "true"
+      containers:
+      - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
+        command: [ "bash", "-c", "celery -A live_tracking_map worker -Q live_calculator -l DEBUG --concurrency 1 --without-mingle" ]
+        name: live-calculator
+        envFrom:
+          - configMapRef:
+              name: envs-production-other
+          - secretRef:
+              name: pw-secrets
+        resources:
+          requests:
+            cpu: 400m
+            memory: 500Mi
+          limits:
+            cpu: 400m
+            memory: 500Mi
+        volumeMounts:
+          - mountPath: /secret
+            readOnly: true
+            name: firebase
+        livenessProbe:
+          exec:
+            # bash is needed to replace the environment variable
+            command: [
+                "bash",
+                "-c",
+                "python /src/celery_liveness.py"
+            ]
+          initialDelaySeconds: 30  # startup takes some time
+          periodSeconds: 12  # default is quite often and celery uses a lot cpu/ram then.
+          timeoutSeconds: 10
+          failureThreshold: 2
+        readinessProbe:
+          exec:
+            # bash is needed to replace the environment variable
+            command: [
+              "bash",
+              "-c",
+              "python /src/celery_readiness.py"
+            ]
+          initialDelaySeconds: 30  # startup takes some time
+          periodSeconds: 60  # reduced from 300 to speed up rollouts while respecting resource usage.
+          timeoutSeconds: 10
+          failureThreshold: 3
+      restartPolicy: Always
+      volumes:
+        - name: firebase
+          secret:
+            secretName: firebase-secrets
