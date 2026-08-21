@@ -21,9 +21,15 @@ Run this script 30-60 minutes before the competition starts.
 ```
 
 This script:
-1. Creates a `low-priority-pause` PriorityClass.
-2. Deploys `gke-prewarm-buffer` (Pause pods) with resources matching `calculator-job`.
-3. Scales the core services HPAs (`web`, `celery`, `daphne`) to `minReplicas: 10`.
+1. Scales the `gke-prewarm-buffer` Deployment up to the requested pod count.
+2. Raises the core service HPAs (`tracker-app`, `tracker-celery`) above their idle floors.
+
+The `low-priority-pause` PriorityClass and a small standing `gke-prewarm-buffer`
+(a couple of pods) are part of the Helm chart
+(`helm/templates/prewarm_buffer.yaml`), so there is always a little preemptible
+headroom even without running this. Note the buffer pods deliberately carry no
+`compute-class` selector, so they reserve general-purpose capacity — the same
+class `tracker-app` and the calculator jobs schedule onto.
 
 ### 2. Teardown (Post-Competition)
 Run this script after the day's flights are finished to avoid unnecessary costs.
@@ -33,8 +39,8 @@ Run this script after the day's flights are finished to avoid unnecessary costs.
 ```
 
 This script:
-1. Deletes the `gke-prewarm-buffer` deployment.
-2. Resets HPA `minReplicas` to `2`.
+1. Scales `gke-prewarm-buffer` back to its standing size.
+2. Resets HPA `minReplicas` to the chart defaults (`tracker-app` 2, `tracker-celery` 1).
 
 ## Monitoring
 You can monitor the status of the buffer pods with:
