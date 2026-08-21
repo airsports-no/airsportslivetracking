@@ -96,11 +96,11 @@ smtp:
   # password is provided via secret values file (e.g. private_values.yaml)
 
 externalRedis:
-#  host: 10.95.241.11
+  host: 10.95.248.11
   port: 6379
 
 redis:
-  enabled: true
+  enabled: false
   
   # Increase to 3 replicas for stable Sentinel quorum in GKE Autopilot
   replicas: 3

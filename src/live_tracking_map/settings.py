@@ -392,7 +392,9 @@ LOGGING = LOG_CONFIGURATION
 
 # celery
 # CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
-CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
+CELERY_BROKER_URL = (
+    f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}" if REDIS_PASSWORD else f"redis://{REDIS_HOST}:{REDIS_PORT}"
+)
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
@@ -427,9 +429,12 @@ CACHES = {
 
 if any(s in sys.argv for s in ("test",)):
     cache.clear()
-# CELERY_ACCEPT_CONTENT = ["application/json"]
-# CELERY_RESULT_SERIALIZER = "json"
-# CELERY_TASK_SERIALIZER = "json"
+# Pinned explicitly rather than relying on Celery's default: an unauthenticated
+# write to the broker with pickle accepted would be a deserialization RCE, not
+# just a nuisance, now that the broker is reachable from anywhere on the VPC.
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TASK_SERIALIZER = "json"
 CELERY_TIMEZONE = UTC
 CELERY_ENABLE_UTC = True
 CELERY_BEAT_SCHEDULE = {}
