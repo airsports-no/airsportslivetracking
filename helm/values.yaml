@@ -46,6 +46,21 @@ secretKey: secret
 serviceAccountSecretName: calculator-scheduler-token-j9nmc # Not in use?
 k8sApi: https://airsports2-dns-3bdbed7d.hcp.northeurope.azmk8s.io:443 #https://airsports-dns-b66fdeca.hcp.northeurope.azmk8s.io:443
 
+# Recommendation-only VerticalPodAutoscalers (updateMode "Off"). They never
+# evict anything - they only publish suggested requests for right-sizing.
+# Requires the VPA CRD, which GKE Autopilot provides.
+vpaRecommendations:
+  enabled: true
+
+# Always-on preemptible headroom so the first scale-up doesn't wait on
+# Autopilot to provision a node. See scripts/gke-prewarm/ for the larger
+# manual pre-contest prewarm.
+prewarmBuffer:
+  enabled: true
+  replicas: 2
+  cpu: 150m
+  memory: 768Mi
+
 mbtiles:
   serverUrl: http://mbtiles-service/
   publicUrl: https://mbtiles.airsports.no/
