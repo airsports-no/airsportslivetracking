@@ -13,30 +13,28 @@ from typing import List, Literal, Optional, Tuple
 import matplotlib
 
 matplotlib.use("Agg")
+import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import typst
-from PIL import Image, ImageDraw, ImageFont
-from django.core.files.storage import default_storage
 from cartopy import geodesic
-
 from cartopy.io.img_tiles import GoogleTiles
+from django.core.files.storage import default_storage
 from fpdf import FPDF
-from display.models.flight_order_configuration import FlightOrderConfiguration
-from display.models.route import Photo
+from PIL import Image, ImageDraw, ImageFont
 from shapely.geometry import Polygon
 
-from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
-from display.utilities.coordinate_utilities import utm_from_lat_lon, normalise_bearing
-from display.flight_order_and_maps.map_constants import LANDSCAPE, A4, A3
+from display.flight_order_and_maps.map_constants import A3, LANDSCAPE
 from display.flight_order_and_maps.map_plotter import plot_route
 from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_image
 from display.models import Contestant
+from display.models.flight_order_configuration import FlightOrderConfiguration
+from display.models.route import Photo
+from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
+from display.utilities.coordinate_utilities import normalise_bearing, utm_from_lat_lon
 from display.utilities.gate_definitions import DUMMY, SECRETPOINT, UNKNOWN_LEG
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
-from display.waypoint import Waypoint
-import cartopy.crs as ccrs
-
 from display.utilities.wind_utilities import calculate_ground_speed, calculate_wind_correction_angle
+from display.waypoint import Waypoint
 from live_tracking_map.settings import MEDIA_ROOT_URL
 
 logger = logging.getLogger(__name__)
@@ -63,7 +61,9 @@ def _flow_text(text: str) -> str:
     return "\n\n".join(" ".join(p.split("\n")).strip() for p in paragraphs)
 
 
-def build_flight_order_map_plot_kwargs(navigation_task, flight_order_configuration: FlightOrderConfiguration, contestant=None) -> dict:
+def build_flight_order_map_plot_kwargs(
+    navigation_task, flight_order_configuration: FlightOrderConfiguration, contestant=None
+) -> dict:
     return {
         "zoom_level": flight_order_configuration.map_zoom_level,
         "landscape": flight_order_configuration.map_orientation == LANDSCAPE,
@@ -431,9 +431,9 @@ def _gate_times_table_rows(contestant: "Contestant") -> str:
 
 def generate_flight_orders(contestant: "Contestant") -> bytes:
     flight_order_configuration: FlightOrderConfiguration = contestant.navigation_task.flightorderconfiguration
-    starting_point_time_string = f'{contestant.starting_point_time_local.strftime("%H:%M:%S")}'
-    tracking_start_time_string = f'{contestant.tracker_start_time_local.strftime("%H:%M:%S")}'
-    finish_tracking_time = f'{contestant.finished_by_time_local.strftime("%H:%M:%S")}'
+    starting_point_time_string = f"{contestant.starting_point_time_local.strftime('%H:%M:%S')}"
+    tracking_start_time_string = f"{contestant.tracker_start_time_local.strftime('%H:%M:%S')}"
+    finish_tracking_time = f"{contestant.finished_by_time_local.strftime('%H:%M:%S')}"
     facebook_share_url = "https://www.facebook.com/sharer/sharer.php?u="
     url = facebook_share_url + "https://app.airsports.no" + contestant.navigation_task.tracking_link
     qr = qr_code_image(url, "static/img/facebook_logo.png")
@@ -580,7 +580,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         [*Date:*], [#({_typst_string(contestant.starting_point_time_local.strftime("%Y-%m-%d"))})],
         [*Airspeed:*], [#({_typst_string("{:.0f}".format(contestant.air_speed) + " knots")})],
         [*Wind:*], [#({_typst_string("{:03.0f}".format(contestant.wind_direction) + "@" + "{:.0f}".format(contestant.wind_speed))})],
-        [*Departure:*], [#({_typst_string(contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime('%H:%M:%S') if not contestant.adaptive_start else 'Adaptive')})],
+        [*Departure:*], [#({_typst_string(contestant.takeoff_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%H:%M:%S") if not contestant.adaptive_start else "Adaptive")})],
         [*Start Point:*], [#({_typst_string(starting_point_text)})],
         [*Finish By:*], [#({_typst_string(finish_tracking_time)})],
       )

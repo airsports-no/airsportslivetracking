@@ -7,9 +7,9 @@ from django.test import TransactionTestCase
 from PIL import Image
 
 from display.default_scorecards import default_scorecard_fai_precision_2020
-from display.flight_order_and_maps.generate_flight_orders import generate_flight_orders, embed_map_in_pdf
+from display.flight_order_and_maps.generate_flight_orders import embed_map_in_pdf, generate_flight_orders
 from display.flight_order_and_maps.map_constants import A3, LANDSCAPE
-from display.models import Aeroplane, Contest, Crew, NavigationTask, Person, Team, Contestant
+from display.models import Aeroplane, Contest, Contestant, Crew, NavigationTask, Person, Team
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
 from utilities.mock_utilities import TraccarMock
 
