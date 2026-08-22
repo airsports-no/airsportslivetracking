@@ -2,6 +2,7 @@ import datetime
 import logging
 import typing
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -166,6 +167,10 @@ class NavigationTask(models.Model):
         Perform a reverse geolocation lookup based on latitude, longitude and stores the raw result with the navigation
         task object
         """
+        if settings.IS_UNIT_TESTING:
+            # Keep the test suite off the rate-limited Nominatim service. Nothing in the
+            # suite asserts on the resolved country_code/country_name.
+            return
         if location := self.route.get_location():
             try:
                 geolocator = Nominatim(user_agent="airsports.no")

@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
+import copy
 import os
 import sys
 import json
@@ -315,6 +316,11 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+if IS_UNIT_TESTING:
+    # The default PBKDF2 hasher runs ~600k iterations per call. Tests create users
+    # constantly and never assert on the hashing algorithm, so use the cheapest one.
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
 
@@ -390,6 +396,15 @@ STATICFILES_DIRS = [
 
 LOGGING = LOG_CONFIGURATION
 
+if IS_UNIT_TESTING:
+    # The calculators log per-position at INFO, and pytest captures and formats every
+    # record. Nothing in the suite asserts on log output (no assertLogs/caplog usage).
+    # Deep copy so the shared LOG_CONFIGURATION dict is not mutated for other importers.
+    LOGGING = copy.deepcopy(LOG_CONFIGURATION)
+    for _logger_configuration in LOGGING["loggers"].values():
+        if _logger_configuration.get("level") == "INFO":
+            _logger_configuration["level"] = "WARNING"
+
 # celery
 # CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
 CELERY_BROKER_URL = (
@@ -452,3 +467,9 @@ CHANNEL_LAYERS = {
         },
     }
 }
+
+if IS_UNIT_TESTING:
+    # Every score/annotation/position push goes through async_to_sync(group_send), which
+    # against the Redis layer costs an event loop spin plus a round trip - for messages no
+    # test ever consumes. The in-memory layer keeps the same API without the I/O.
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}

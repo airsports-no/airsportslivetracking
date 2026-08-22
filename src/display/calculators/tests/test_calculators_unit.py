@@ -32,6 +32,11 @@ class CalculatorUnitTestBase(TestCase):
     def setUp(self):
         self.contestant = MagicMock()
         self.contestant.air_speed = 70
+        # An unconfigured MagicMock queryset reports exists() as truthy, which turns
+        # production "while ...exists(): retry" guards into infinite loops. Default the
+        # chain to empty so any code path reaching a queryset on this mock terminates.
+        self.contestant.playingcard_set.all.return_value.values_list.return_value = []
+        self.contestant.playingcard_set.filter.return_value.exists.return_value = False
 
         # Patch Gate.pre_project globally for all tests in this file
         self.pre_project_patcher = patch("display.calculators.positions_and_gates.Gate.pre_project")
@@ -1068,41 +1073,44 @@ class TestPokerCalculator(CalculatorUnitTestBase):
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = PokerGatePassedEvent(gate, pos)
 
-        # get_random_unique_card is not mocked below, so it runs for real against
-        # self.contestant. self.contestant is a bare MagicMock (see
-        # CalculatorUnitTestBase.setUp), so its unconfigured playingcard_set.filter(...).exists()
-        # is always truthy - without this patch, get_random_unique_card's
-        # "while ...exists(): pick another card" loop never terminates.
+        # get_random_unique_card must be patched: it would otherwise run for real against
+        # self.contestant, which is a bare MagicMock (see CalculatorUnitTestBase.setUp), so
+        # its unconfigured playingcard_set.filter(...).exists() is always truthy and the
+        # "while ...exists(): pick another card" retry loop would never terminate.
         with (
-            patch(
-                "display.calculators.poker_calculator.PlayingCard.get_random_unique_card", return_value="2s"
-            ),
+            patch("display.calculators.poker_calculator.PlayingCard.get_random_unique_card", return_value="2s"),
             patch("display.calculators.poker_calculator.PlayingCard.add_contestant_card") as mock_add_card,
         ):
             self.calculator.on_poker_gate_passed(event)
 
         mock_add_card.assert_called_once()
 
-    def test_on_poker_gate_passed_does_not_score_twice(self):
-        gate = MagicMock(spec=Waypoint)
-        gate.name = "TP1"
-        gate.latitude = 60.0
-        gate.longitude = 11.0
-        gate.card_drawn = True
-        gate.passing_time = None
+    def test_check_distance_only_emits_one_event_per_gate(self):
+        """A gate already in passed_gates must not be dealt a second card."""
+        gate = self.calculator.gates[0]
+        gate.center_x = 0.0
+        gate.center_y = 0.0
+        gate.gate_radius = 1000
+        self.calculator.gates = [gate]
 
-        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        event = PokerGatePassedEvent(gate, pos)
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        # Both positions sit inside the gate radius, so proximity alone would match twice.
+        first = self.calculator.check_distance(self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0)), state)
+        second = self.calculator.check_distance(
+            self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 1)), state
+        )
 
-        with (
-            patch(
-                "display.calculators.poker_calculator.PlayingCard.get_random_unique_card", return_value="2s"
-            ),
-            patch("display.calculators.poker_calculator.PlayingCard.add_contestant_card") as mock_add_card,
-        ):
-            self.calculator.on_poker_gate_passed(event)
-
-        mock_add_card.assert_called_once()
+        self.assertEqual(len(first), 1)
+        self.assertIsInstance(first[0], PokerGatePassedEvent)
+        self.assertEqual(second, [])
 
 
 class TestProhibitedZoneCalculator(CalculatorUnitTestBase):
