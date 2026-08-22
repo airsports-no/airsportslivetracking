@@ -41,7 +41,21 @@ spec:
       terminationGracePeriodSeconds: 0
       containers:
       - name: pause
-        image: registry.k8s.io/pause:3.9
+        # Runs the real tracker image, not registry.k8s.io/pause:3.9. With GKE
+        # image streaming, a node only fetches the bytes something on it
+        # actually reads - a pause container never touches the app's files, so
+        # it reserved the node without warming the image the real pod needs.
+        # This cats every file under the big application/dependency
+        # directories once (streaming their blocks into the node-local cache,
+        # which any later pod on the same node shares), then sleeps forever.
+        # No Django import, no env vars, no DB - so nothing here can
+        # crash-loop; a slow or partial cat still falls through to `sleep
+        # infinity` because the two are `;`-joined, not `&&`.
+        image: europe-north1-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
+        command:
+        - sh
+        - -c
+        - "find /usr/local/lib/python3.12/site-packages /src /static /assets_vite /marketing_dist -type f -exec cat {} + > /dev/null 2>&1; sleep infinity"
         resources:
           requests:
             cpu: {{ .Values.prewarmBuffer.cpu }}
