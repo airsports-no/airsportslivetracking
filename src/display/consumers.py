@@ -47,6 +47,11 @@ class TrackingConsumer(WebsocketConsumer):
             self.navigation_task = NavigationTask.objects.get(pk=self.navigation_task_pk)
         except (ObjectDoesNotExist, ValueError):
             logger.warning(f"NavigationTask with key {self.navigation_task_pk} does not exist or is invalid")
+            # Must close rather than just return: returning without either
+            # accepting or closing leaves the handshake unanswered, so the
+            # client waits on a socket the server has no intention of using,
+            # and the group subscription added above is never discarded.
+            self.close()
             return
         self.accept()
 
@@ -159,6 +164,9 @@ class ContestResultsConsumer(WebsocketConsumer):
             contest = Contest.objects.get(pk=self.contest_pk)
         except (ObjectDoesNotExist, ValueError):
             logger.warning(f"Contest with key {self.contest_pk} does not exist or is invalid")
+            # See TrackingConsumer.connect - an unanswered handshake leaves the
+            # client hanging and leaks the group subscription.
+            self.close()
             return
         self.accept()
         ws = WebsocketFacade()

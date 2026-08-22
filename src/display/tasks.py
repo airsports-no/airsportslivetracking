@@ -12,7 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from redis.client import Redis
 
 from display.flight_order_and_maps.generate_flight_orders import (
-    generate_flight_orders_latex,
+    generate_flight_orders,
     embed_map_in_pdf,
 )
 from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
@@ -186,7 +186,7 @@ def generate_and_maybe_notify_flight_order(
         logger.info(f"Generating flight order for {contestant}")
         append_cache_dict(f"completed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, False)
         try:
-            orders = generate_flight_orders_latex(contestant)
+            orders = generate_flight_orders(contestant)
             for c in connections.all():
                 c.close_if_unusable_or_obsolete()
             contestant.emailmaplink_set.all().delete()

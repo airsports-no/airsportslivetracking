@@ -1,3 +1,7 @@
+# HTTP entry point. Kept as a separate Service from the websocket one purely
+# so each can carry its own GCPBackendPolicy (see httproute_root.yaml): this
+# one intentionally has none, so it keeps GCP's 30s default backend timeout,
+# while the /ws Service gets 3600s. Both select the same merged pods.
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,8 +9,8 @@ metadata:
 spec:
   ports:
   - port: 80
-    targetPort: 8002
+    targetPort: http
     protocol: TCP
   selector:
-    service: tracker-web
+    service: tracker-app
   type: ClusterIP

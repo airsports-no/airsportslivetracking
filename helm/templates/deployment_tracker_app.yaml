@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: tracker-app
+  name: tracker-app
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      service: tracker-app
+  template:
+    metadata:
+      labels:
+        service: tracker-app
+    spec:
+      # Shutdown budget: preStop sleeps 60s so GCP finishes deprogramming this
+      # pod from both NEGs before the server stops accepting (the previous 20s
+      # was too short for that and is a likely source of rollout 5xx), then
+      # gunicorn gets 45s to close websockets and finish in-flight requests.
+      # Deliberately NOT matched to the 3600s /ws draining policy: uvicorn has
+      # no "drain existing, refuse new" mode, so a rollout closes websockets
+      # regardless - exactly as daphne does today - and the frontend hooks
+      # already reconnect on close.
+      terminationGracePeriodSeconds: 120
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              service: tracker-app
+      containers:
+      - image: europe-north1-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
+        # Serves both HTTP and websockets - live_tracking_map.asgi routes both.
+        command: [ "bash", "-c", "/asgi.sh" ]
+        name: tracker-app
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/bash", "-c", "sleep 60"]
+        ports:
+          - name: http
+            containerPort: 8002
+        env:
+          # Not a request timeout under an ASGI worker - it only fires if the
+          # event loop itself stalls. See config/asgi.sh.
+          - name: GUNICORN_TIMEOUT
+            value: "120"
+          - name: GUNICORN_GRACEFUL_TIMEOUT
+            value: "45"
+          # Scale out with replicas rather than in-pod workers: each worker is
+          # a whole Django interpreter and would multiply the memory request.
+          - name: NUM_WORKERS
+            value: "1"
+        envFrom:
+          - configMapRef:
+              name: envs-production-other
+          - secretRef:
+              name: pw-secrets
+        # Measured: the merged process tree uses ~390Mi idle, versus 461Mi +
+        # 256Mi for the two separate pods it replaces. Request leaves headroom
+        # above that; the limit allows bursting (this cluster supports it).
+        # CPU request is set by Autopilot's 1:6.5 vCPU:GiB ratio rule, not by
+        # demand - real usage is a few milli-cores.
+        resources:
+          requests:
+            cpu: 150m
+            memory: 768Mi
+          limits:
+            cpu: 1000m
+            memory: 1536Mi
+        volumeMounts:
+          - mountPath: /secret
+            readOnly: true
+            name: firebase
+        # Django boots in 3-4s and /display/readyz/ is a single SELECT 1, so
+        # poll fast. failureThreshold still allows ~2min for a bad start.
+        startupProbe:
+          httpGet:
+            path: /display/readyz/
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 3
+          timeoutSeconds: 10
+          failureThreshold: 40
+        livenessProbe:
+          httpGet:
+            path: /display/healthz/
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 60
+          timeoutSeconds: 30
+          failureThreshold: 2
+        readinessProbe:
+          httpGet:
+            path: /display/readyz/
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 30
+          failureThreshold: 3
+      restartPolicy: Always
+      volumes:
+        - name: firebase
+          secret:
+            secretName: firebase-secrets

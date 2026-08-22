@@ -1,19 +1,23 @@
 #!/bin/bash
+set -euo pipefail
 
 echo "📉 Tearing down prewarm buffer and returning to normal state..."
 
-# 1. Remove the buffer deployment
-kubectl delete deployment gke-prewarm-buffer --ignore-not-found=true
+# Scale the buffer back to its baseline rather than deleting it - the
+# Deployment is Helm-managed now (helm/templates/prewarm_buffer.yaml), so
+# deleting it would just be recreated by the next `helm upgrade`. The default
+# baseline is 0, matching prewarmBuffer.enabled=false in values.yaml; override
+# if you have turned a standing buffer on there.
+BASELINE_BUFFER=${BASELINE_BUFFER:-0}
+echo "🔄 Scaling prewarm buffer back to $BASELINE_BUFFER..."
+kubectl scale deployment gke-prewarm-buffer --replicas="$BASELINE_BUFFER"
 
-# 2. Reset HPA minReplicas to default values (2 as per Helm charts)
-echo "🔄 Resetting HPA minReplicas to defaults..."
-kubectl patch hpa hpa-tracker-web --patch '{"spec": {"minReplicas": 2}}'
-kubectl patch hpa hpa-tracker-celery --patch '{"spec": {"minReplicas": 2}}'
-kubectl patch hpa hpa-tracker-daphne --patch '{"spec": {"minReplicas": 2}}'
-
-# 3. Optional: Remove the PriorityClass
-# We can keep it for future use, but if you want it gone:
-# kubectl delete priorityclass low-priority-pause
+# Reset HPA minReplicas to the chart defaults. These must match
+# helm/templates/hpa_tracker_app.yaml and hpa_tracker_celery.yaml - if you
+# change them there, change them here.
+echo "🔄 Resetting HPA minReplicas to chart defaults..."
+kubectl patch hpa hpa-tracker-app --patch '{"spec": {"minReplicas": 2}}'
+kubectl patch hpa hpa-tracker-celery --patch '{"spec": {"minReplicas": 1}}'
 
 echo "✅ Teardown complete. Autopilot will automatically scale down nodes as pods are removed."
 echo "Note: Scale down may take 10-15 minutes depending on GKE Autopilot's internal cooling-off periods."

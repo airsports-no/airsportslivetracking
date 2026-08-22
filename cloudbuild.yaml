@@ -6,14 +6,19 @@ steps:
   - |
     git submodule update --init
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['pull','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest']
+  # Tolerates failure: this is just a build-cache warm-up, and there is
+  # nothing to pull yet the first time a repository is used (e.g. right
+  # after moving registries). --cache-from degrades gracefully to no
+  # cache hit if the image was never pulled.
+  allowFailure: true
+  args: ['pull','europe-north1-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build','--build-arg', 'BUILDKIT_INLINE_CACHE=1','-t','tracker_base','--cache-from','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest','-t','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest','-t','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}','.']
+  args: ['build','--build-arg', 'BUILDKIT_INLINE_CACHE=1','-t','tracker_base','--cache-from','europe-north1-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest','-t','europe-north1-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest','-t','europe-north1-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}','.']
   env: ['DOCKER_BUILDKIT=1']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}']
+  args: ['push','europe-north1-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push','europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest']
+  args: ['push','europe-north1-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest']
 - name: gcr.io/cloud-builders/gcloud
   entrypoint: bash
   args:
@@ -53,8 +58,8 @@ steps:
   args: ['compose','down']
 
 images:
-- 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}'
-- 'europe-west3-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest'
+- 'europe-north1-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:${SHORT_SHA}'
+- 'europe-north1-docker.pkg.dev/${PROJECT_ID}/airsports/tracker_base:latest'
 
 options:
   logging: CLOUD_LOGGING_ONLY
