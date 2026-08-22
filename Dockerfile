@@ -60,7 +60,7 @@ ENV PYTHONUNBUFFERED=1 \
 RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone && \
     apt-get update \
     && apt-get -y install --no-install-recommends \
-    default-libmysqlclient-dev ca-certificates gnupg \
+    libmariadb3 ca-certificates gnupg \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /usr/bin/python3* /usr/lib/python3.11 \
@@ -71,7 +71,12 @@ RUN groupadd --system django \
 
 ###### INSTALL PYTHON PACKAGES ######
 RUN --mount=type=bind,from=python_builder,source=/wheels,target=/wheels \
-    pip install --no-cache-dir --no-index --find-links=/wheels /wheels/*
+    pip install --no-cache-dir --no-index --find-links=/wheels /wheels/* \
+    # firebase-admin pulls in googleapiclient only for its http/auth/error
+    # utilities (never googleapiclient.discovery), so the ~99MB of bundled
+    # Google API discovery documents under discovery_cache/documents are
+    # dead weight - nothing in this codebase calls discovery.build().
+    && rm -rf /usr/local/lib/python3.12/site-packages/googleapiclient/discovery_cache/documents
         
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 # Only importnavigationtask.json is needed, by
