@@ -60,10 +60,12 @@ vpaRecommendations:
 # this same Deployment) is the better tool than paying for standing capacity
 # around the clock. Turn on only if unpredictable load shows up.
 #
-# Sized to the calculator jobs (400m/500Mi), which are by far the largest
-# burst - 12 contestants starting together needs ~4.8 CPU at once, against
-# ~300m for a tracker-app scale-up. Pause pods only create usable room if
-# they are at least as big as the pod meant to replace them.
+# Sized to match a single calculator job's real request
+# (src/display/kubernetes_calculator/job.yml - 150m/400Mi, from 30 days of
+# Cloud Monitoring data: CPU p99 139m, memory p90 262Mi). That's still the
+# largest per-pod burst here - 12 contestants starting together is ~1.8 CPU
+# at once, against ~300m for a tracker-app scale-up. Pause pods only create
+# usable room if they are at least as big as the pod meant to replace them.
 #
 # Note: no compute-class or spot selector, so this warms general-purpose
 # nodes - matching today's calculator jobs and tracker-app. When calculators
@@ -72,8 +74,8 @@ vpaRecommendations:
 prewarmBuffer:
   enabled: false
   replicas: 2
-  cpu: 400m
-  memory: 500Mi
+  cpu: 150m
+  memory: 400Mi
 
 mbtiles:
   serverUrl: http://mbtiles-service/
