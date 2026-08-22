@@ -64,6 +64,9 @@ twisted==25.5.0
 tzlocal==5.3.1
 utm==0.8.1
 uvicorn[standard]==0.40.0
+# Gunicorn worker class for the ASGI app server. Replaces uvicorn.workers,
+# which is deprecated upstream and slated for removal.
+uvicorn-worker==0.4.0
 websocket-client==1.9.0
 whitenoise==6.11.0
 django-location-field==2.7.3

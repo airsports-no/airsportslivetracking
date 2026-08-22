@@ -1,0 +1,16 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: tracker-app-pdb
+spec:
+  # maxUnavailable, not minAvailable. The two PDBs this replaces used
+  # minAvailable:1 against minReplicas:1, which yields zero allowed
+  # disruptions and blocks node drains indefinitely (confirmed on the live
+  # cluster). minAvailable would also permit replicas-1 simultaneous evictions
+  # once the HPA scales out - dropping nearly every websocket at once.
+  # maxUnavailable:1 gives exactly one allowed disruption at any replica count
+  # >= 2, so drains always proceed, one pod at a time.
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      service: tracker-app

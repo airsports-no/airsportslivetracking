@@ -1,0 +1,48 @@
+# Over-provisioning headroom.
+#
+# On Autopilot the slow part of scaling up is node provisioning (~60-90s), not
+# pod start. These pause pods do nothing but hold a node reservation at a
+# negative priority, so the moment a real pod needs room the scheduler
+# preempts them and schedules onto already-warm capacity instead of waiting
+# for a new node.
+#
+# The Deployment is always rendered, but sits at 0 replicas unless
+# prewarmBuffer.enabled is set - see the reasoning there in values.yaml. At 0
+# replicas it costs nothing and no pods exist, but it means
+# scripts/gke-prewarm/prewarm.sh can always `kubectl scale` it ahead of a
+# contest without having to create resources of its own that the next
+# `helm upgrade` would revert.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low-priority-pause
+value: -10
+globalDefault: false
+description: "Low priority class for pause pods to over-provision capacity."
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gke-prewarm-buffer
+  labels:
+    app: prewarm-buffer
+spec:
+  replicas: {{ if .Values.prewarmBuffer.enabled }}{{ .Values.prewarmBuffer.replicas }}{{ else }}0{{ end }}
+  selector:
+    matchLabels:
+      app: prewarm-buffer
+  template:
+    metadata:
+      labels:
+        app: prewarm-buffer
+    spec:
+      priorityClassName: low-priority-pause
+      # Nothing is lost by killing these instantly - that is the entire point.
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: pause
+        image: registry.k8s.io/pause:3.9
+        resources:
+          requests:
+            cpu: {{ .Values.prewarmBuffer.cpu }}
+            memory: {{ .Values.prewarmBuffer.memory }}

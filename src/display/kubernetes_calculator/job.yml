@@ -11,10 +11,19 @@ spec:
       backoffLimit: 4
       containers:
       - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_base
+        # 30-day Cloud Monitoring data across 91 calculator-job runs: CPU
+        # median 4m, p90 29m, p99 139m, single observed peak 616m. Memory
+        # median 202Mi, p90 262Mi, max 400Mi. The previous 400m/500Mi request
+        # was carried forward unverified - CPU was ~3x above p99. Limits added
+        # so a rare spike can burst (this cluster supports it) without being
+        # unbounded.
         resources:
           requests:
-            cpu: 400m
-            memory: 500Mi # Looks to be around 250 MB
+            cpu: 150m
+            memory: 400Mi
+          limits:
+            cpu: 750m
+            memory: 512Mi
         name: calculator-job
         envFrom:
           - configMapRef:

@@ -1,0 +1,52 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-tracker-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: tracker-app
+  # Floor of 2: the pod now serves both HTTP and websockets, so two replicas
+  # are genuinely redundant for the whole site (the previous 1 web + 1 daphne
+  # were not - losing either took down a whole protocol). It also gives the
+  # PodDisruptionBudget room to allow a voluntary eviction.
+  minReplicas: 2
+  maxReplicas: 15
+  # CPU only, deliberately. Carrying daphne's old memory metric forward would
+  # break scale-down: the HPA takes the max across metrics and refuses to
+  # shrink while any of them wants more, and CPython does not return freed
+  # memory to the OS - so after a competition spike RSS stays high and the
+  # deployment would stay pinned at peak replicas until the next deploy. That
+  # is the opposite of lean at idle. Channel-layer fan-out is CPU-bound
+  # anyway; memory is handled by sizing the request generously.
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  behavior:
+    scaleUp:
+      # Autopilot node provisioning is the slow part of scaling up, so the HPA
+      # should never be what holds it back.
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+      selectPolicy: Max
+    scaleDown:
+      # Every scale-in disconnects the websockets on the pod being removed, so
+      # shrink slowly and one pod at a time. The 600s window means a lull
+      # between two navigation tasks does not trigger a churn cycle.
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 180
+      selectPolicy: Min

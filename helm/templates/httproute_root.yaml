@@ -89,3 +89,22 @@ spec:
     group: ""
     kind: Service
     name: tracker-daphne-service-gateway
+---
+# The HTTP Service previously had no policy at all, which means GCP's default
+# connection draining of 0s: in-flight requests are cut the instant an
+# endpoint is deprogrammed during a rollout. Keep the timeout well below the
+# /ws 3600s so a wedged request cannot pin a connection for an hour.
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  name: web-backend-policy
+  namespace: default
+spec:
+  default:
+    timeoutSec: 60
+    connectionDraining:
+      drainingTimeoutSec: 60
+  targetRef:
+    group: ""
+    kind: Service
+    name: tracker-web-service

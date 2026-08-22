@@ -1,3 +1,8 @@
+# Websocket entry point. Selects the same merged pods as tracker-web-service;
+# it exists separately so the 3600s timeout / connection-draining
+# GCPBackendPolicy in httproute_root.yaml applies to /ws only, and not to
+# ordinary HTTP traffic. Name kept unchanged so that policy and the
+# HealthCheckPolicy stay attached.
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,8 +10,8 @@ metadata:
 spec:
   ports:
   - port: 80
-    targetPort: 8003
+    targetPort: http
     protocol: TCP
   selector:
-    service: tracker-daphne
+    service: tracker-app
   type: ClusterIP

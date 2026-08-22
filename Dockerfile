@@ -81,8 +81,8 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels /wheels/* \
 # TODO: Required for a test, should be changed
 COPY documentation /documentation
 COPY config /config
-COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh /
-RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh
+COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh config/asgi.sh /
+RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh /asgi.sh
 
 
 ###### INSTALL APPLICATION ######
