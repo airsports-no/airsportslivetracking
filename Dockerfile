@@ -60,10 +60,7 @@ ENV PYTHONUNBUFFERED=1 \
 RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone && \
     apt-get update \
     && apt-get -y install --no-install-recommends \
-    default-libmysqlclient-dev \
-    latexmk \
-    texlive-latex-base texlive-latex-extra lmodern  \
-    texlive-latex-recommended ca-certificates gnupg \
+    default-libmysqlclient-dev ca-certificates gnupg \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /usr/bin/python3* /usr/lib/python3.11 \

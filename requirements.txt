@@ -44,7 +44,6 @@ phonenumbers==9.0.22
 pulp==3.3.0
 pyepsg==0.4.0
 pykalman==0.11.1
-pylatex==1.4.2
 pymbtiles==0.5.0
 pytest
 pytest-django
@@ -58,6 +57,7 @@ requests==2.32.5
 scipy==1.17.0
 #segno==1.6.0
 twisted==25.5.0
+typst==0.15.0
 tzlocal==5.3.1
 utm==0.8.1
 uvicorn[standard]==0.40.0
