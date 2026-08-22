@@ -28,7 +28,10 @@ class FlightOrderConfiguration(models.Model):
     map_zoom_level = models.IntegerField(default=12, choices=[(x, x) for x in range(1, 20)])
     map_orientation = models.CharField(choices=ORIENTATIONS, default=PORTRAIT, max_length=30)
     map_scale = models.IntegerField(choices=SCALES, default=SCALE_TO_FIT)
-    map_source = models.CharField(choices=[], default="cyclosm", max_length=50, blank=True)
+    # Callable choices are resolved lazily, only when something actually needs the choice
+    # list. Resolving them eagerly meant every instantiation of this model - including every
+    # row hydrated from a queryset - fanned out into one HTTP request per available map.
+    map_source = models.CharField(choices=get_map_choices, default="cyclosm", max_length=50, blank=True)
     map_include_annotations = models.BooleanField(
         default=True,
         help_text="If this if set, the generated map will include minute marks and leg headings for the contestant so that no map preparation is necessary.",
@@ -91,10 +94,6 @@ class FlightOrderConfiguration(models.Model):
         if self.document_size == A3:
             return 420
         return 297
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._meta.get_field("map_source").choices = get_map_choices()
 
     @property
     def resolved_uploaded_map(self):
