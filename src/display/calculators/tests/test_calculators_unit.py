@@ -1068,7 +1068,17 @@ class TestPokerCalculator(CalculatorUnitTestBase):
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = PokerGatePassedEvent(gate, pos)
 
-        with patch("display.calculators.poker_calculator.PlayingCard.add_contestant_card") as mock_add_card:
+        # get_random_unique_card is not mocked below, so it runs for real against
+        # self.contestant. self.contestant is a bare MagicMock (see
+        # CalculatorUnitTestBase.setUp), so its unconfigured playingcard_set.filter(...).exists()
+        # is always truthy - without this patch, get_random_unique_card's
+        # "while ...exists(): pick another card" loop never terminates.
+        with (
+            patch(
+                "display.calculators.poker_calculator.PlayingCard.get_random_unique_card", return_value="2s"
+            ),
+            patch("display.calculators.poker_calculator.PlayingCard.add_contestant_card") as mock_add_card,
+        ):
             self.calculator.on_poker_gate_passed(event)
 
         mock_add_card.assert_called_once()
@@ -1084,7 +1094,12 @@ class TestPokerCalculator(CalculatorUnitTestBase):
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         event = PokerGatePassedEvent(gate, pos)
 
-        with patch("display.calculators.poker_calculator.PlayingCard.add_contestant_card") as mock_add_card:
+        with (
+            patch(
+                "display.calculators.poker_calculator.PlayingCard.get_random_unique_card", return_value="2s"
+            ),
+            patch("display.calculators.poker_calculator.PlayingCard.add_contestant_card") as mock_add_card,
+        ):
             self.calculator.on_poker_gate_passed(event)
 
         mock_add_card.assert_called_once()
