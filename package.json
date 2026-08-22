@@ -4,6 +4,7 @@
     "build:marketing": "cd airsports_static && npm run build",
     "build:all": "npm run build:react && npm run build:marketing",
     "watch:react": "cd react_vite && npm run build -- --watch",
+    "test:react": "cd react_vite && npm test",
     "watch:marketing": "cd airsports_static && npm run dev -- --host",
     "watch:all": "npx concurrently \"npm run watch:react\" \"npm run watch:marketing\""
   },

@@ -10,6 +10,8 @@ import sys
 from django.db.models import F
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 import log_configuration
 
@@ -34,7 +36,11 @@ if __name__ == "__main__":
         # Contestant has been deleted, gracefully terminate
         sys.exit(0)
     if not contestant.contestanttrack.calculator_finished:
-        contestant_processor = ContestantProcessor(contestant, live_processing=True)
+        try:
+            contestant_processor = ContestantProcessor(contestant, live_processing=True)
+        except (DjangoValidationError, DRFValidationError) as exc:
+            logger.warning(f"Refusing to start calculator for contestant {contestant_pk}: {exc}")
+            sys.exit(0)
         contestant_processor.run()
     else:
         logger.warning(f"Attempting to start new calculator for terminated contestant {contestant}")

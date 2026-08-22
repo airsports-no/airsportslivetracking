@@ -155,11 +155,27 @@ class Photo(models.Model):
     longitude = models.FloatField()
     _leg = MyPickledObjectField(default=None, null=True)
     file = models.ImageField(upload_to="photos/", null=True, blank=True)
+    # Decoy photos (2.A5 unknown legs) are not tied to any real route
+    # feature - they exist purely to add difficulty by mixing false leads
+    # in among the genuine unknown-leg photos in the flight order. Since
+    # there is no real waypoint to derive a course from, the organizer sets
+    # one explicitly.
+    is_decoy = models.BooleanField(
+        default=False,
+        help_text="If true, this is a decoy/false photo with no corresponding real route feature.",
+    )
+    decoy_course = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Course (degrees) printed/oriented on a decoy photo. Only used when is_decoy is true.",
+    )
 
     @property
     def leg(self) -> Waypoint | None:
         from display.utilities.route_building_utilities import find_closest_leg_to_point
 
+        if self.is_decoy:
+            return None
         if self._leg is None:
             result = find_closest_leg_to_point(self.latitude, self.longitude, self.route.waypoints)
             if result:
@@ -167,11 +183,24 @@ class Photo(models.Model):
                 self.save(update_fields=["_leg"])
         return self._leg
 
+    def _save_generated_image(self, temp_file):
+        from django.core.files import File
+        import os
+        import logging
+
+        logger = logging.getLogger(__name__)
+        try:
+            with open(temp_file.name, "rb") as f:
+                self.file.save(f"{self.name}_{self.pk}.png", File(f), save=True)
+            logger.info(f"Successfully saved image for photo {self.name}")
+        finally:
+            if os.path.exists(temp_file.name):
+                os.remove(temp_file.name)
+
     def generate_image(self, force=False):
         if (not self.file or force) and self.route:
             from display.flight_order_and_maps.generate_flight_orders import generate_photo
-            from django.core.files import File
-            import os
+            from types import SimpleNamespace
             import logging
 
             logger = logging.getLogger(__name__)
@@ -189,17 +218,20 @@ class Photo(models.Model):
                 zoom_level = 17
 
             logger.info(f"Generating image for photo {self.name} at {self.latitude}, {self.longitude}")
-            if waypoint := self.leg:
+            if self.is_decoy:
+                # No real waypoint exists for a decoy - use the organizer's
+                # declared course in its place.
+                waypoint = SimpleNamespace(bearing_next=self.decoy_course or 0)
+                try:
+                    temp_file = generate_photo(self, waypoint, meters_across, zoom_level)
+                    self._save_generated_image(temp_file)
+                except Exception as e:
+                    logger.exception(f"Failed to generate decoy photo image for {self.name}: {e}")
+            elif waypoint := self.leg:
                 logger.info(f"Found closest leg {waypoint.name} for photo {self.name}")
                 try:
                     temp_file = generate_photo(self, waypoint, meters_across, zoom_level)
-                    try:
-                        with open(temp_file.name, "rb") as f:
-                            self.file.save(f"{self.name}_{self.pk}.png", File(f), save=True)
-                        logger.info(f"Successfully saved image for photo {self.name}")
-                    finally:
-                        if os.path.exists(temp_file.name):
-                            os.remove(temp_file.name)
+                    self._save_generated_image(temp_file)
                 except Exception as e:
                     logger.exception(f"Failed to generate photo image for {self.name}: {e}")
             else:

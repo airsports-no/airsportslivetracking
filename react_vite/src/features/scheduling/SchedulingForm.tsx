@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 interface SchedulingFormProps {
     contestTeams: any[];
     navigationTask: any;
+    capacityPreview?: any;
     firstTakeoffTime: Date;
     setFirstTakeoffTime: (time: Date) => void;
     onSubmit: (data: any) => void;
+    onCapacityPreviewChange?: (selectedTeamIds: number[], firstTakeoffIso?: string) => void;
     isLoading?: boolean;
 }
 
@@ -16,11 +18,13 @@ const HelpIcon: React.FC<{ text: string }> = ({ text }) => (
 );
 
 const SchedulingForm: React.FC<SchedulingFormProps> = ({ 
-    contestTeams, 
-    navigationTask, 
-    firstTakeoffTime, 
-    setFirstTakeoffTime, 
+    contestTeams,
+    navigationTask,
+    capacityPreview,
+    firstTakeoffTime,
+    setFirstTakeoffTime,
     onSubmit,
+    onCapacityPreviewChange,
     isLoading = false
 }) => {
     const [selectedTeamIds, setSelectedTeamIds] = React.useState<number[]>([]);
@@ -53,6 +57,36 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
             return nameA.localeCompare(nameB);
         });
     }, [contestTeams]);
+
+    const existingReservedPilotIds = React.useMemo(() => {
+        const ownerPersonId = navigationTask?.contest?.created_by?.person?.id ?? null;
+        const ids = new Set<number>();
+        for (const contestant of navigationTask?.contestant_set || []) {
+            const pilotId = contestant?.team?.crew?.member1?.id;
+            if (!pilotId || pilotId === ownerPersonId) continue;
+            ids.add(pilotId);
+        }
+        return ids;
+    }, [navigationTask]);
+
+    const selectedNewPilotCount = React.useMemo(() => {
+        const ownerPersonId = navigationTask?.contest?.created_by?.person?.id ?? null;
+        const selectedPilotIds = new Set<number>();
+        for (const ct of contestTeams) {
+            if (!selectedTeamIds.includes(ct.id)) continue;
+            const pilotId = ct?.team?.crew?.member1?.id;
+            if (!pilotId || pilotId === ownerPersonId) continue;
+            if (!existingReservedPilotIds.has(pilotId)) {
+                selectedPilotIds.add(pilotId);
+            }
+        }
+        return selectedPilotIds.size;
+    }, [contestTeams, selectedTeamIds, existingReservedPilotIds, navigationTask]);
+
+    const reservedNow = capacityPreview?.reserved_before_count ?? existingReservedPilotIds.size;
+    const reservedAfterSelection = reservedNow + selectedNewPilotCount;
+    const capacityLimit = capacityPreview?.contestant_limit ?? navigationTask?.contest?.access_status?.contestant_limit ?? null;
+    const wouldExceed = capacityLimit !== null && reservedAfterSelection > capacityLimit;
 
     // Initialize firstTakeoffTime if not set
     React.useEffect(() => {
@@ -90,6 +124,13 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
             setSelectedTeamIds(initialSelectedIds);
         }
     }, [navigationTask?.contestant_set, contestTeams]);
+
+    React.useEffect(() => {
+        if (onCapacityPreviewChange) {
+            const firstTakeoffIso = firstTakeoffTime instanceof Date ? firstTakeoffTime.toISOString() : undefined;
+            onCapacityPreviewChange(selectedTeamIds, firstTakeoffIso);
+        }
+    }, [selectedTeamIds, firstTakeoffTime, onCapacityPreviewChange]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -135,6 +176,22 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
                         <button type="button" className="btn btn-xs btn-ghost" onClick={handleDeselectAll}>None</button>
                     </span>
                 </label>
+                {capacityLimit !== null && (
+                    <div className={`alert ${wouldExceed ? 'alert-warning' : 'alert-info'} mb-3 text-sm`}>
+                        <div>
+                            <div className="font-bold">Pilot capacity status</div>
+                            {wouldExceed ? (
+                                <div>
+                                    Reserved now: {reservedNow} / {capacityLimit}. If all selected teams are scheduled, the task would require {reservedAfterSelection} / {capacityLimit} guest pilot slots. Deselect teams that introduce new pilots, remove unstarted contestants, reuse an already-counted pilot, or apply a larger token or club pass. The contest owner is exempt.
+                                </div>
+                            ) : (
+                                <div>
+                                    Reserved now: {reservedNow} / {capacityLimit}. New pilot reservations from the current team selection: {selectedNewPilotCount}. The contest owner is exempt.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
                 <div className="h-64 overflow-y-auto overflow-x-hidden border border-base-300 rounded-lg p-2 bg-base-100">
                     {sortedContestTeams.map(ct => {
                         const label = !ct.team?.crew?.member1 
@@ -256,7 +313,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
                 </label>
             </div>
 
-            <button type="submit" className="btn btn-primary w-full" disabled={isLoading}>
+            <button type="submit" className="btn btn-primary w-full" disabled={isLoading || wouldExceed}>
                 {isLoading ? <span className="loading loading-spinner"></span> : 'Run Scheduler'}
             </button>
         </form>

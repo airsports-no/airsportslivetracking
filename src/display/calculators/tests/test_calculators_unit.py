@@ -1,5 +1,5 @@
-import datetime
 from unittest import skip
+import datetime
 import numpy as np
 from unittest.mock import Mock, patch, MagicMock, call
 from django.test import TestCase
@@ -11,6 +11,9 @@ from display.calculators.calculator import (
     LandingPassedEvent,
     StartingLinePassedEvent,
     PokerGatePassedEvent,
+    InRangeUpdatedEvent,
+    NextGateExpectedEvent,
+    AdaptiveStartEvent,
 )
 from display.calculators.gate_calculator import GateCalculator
 from display.calculators.anr_corridor_calculator import AnrCorridorCalculator
@@ -20,6 +23,7 @@ from display.calculators.poker_calculator import PokerCalculator
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
 from display.models.contestant_utility_models import ContestantReceivedPosition
+from display.utilities.cima_task_type_definitions import ANR_CATALOGUE
 from display.utilities.coordinate_utilities import Projector
 from display.waypoint import Waypoint
 
@@ -28,6 +32,11 @@ class CalculatorUnitTestBase(TestCase):
     def setUp(self):
         self.contestant = MagicMock()
         self.contestant.air_speed = 70
+        # An unconfigured MagicMock queryset reports exists() as truthy, which turns
+        # production "while ...exists(): retry" guards into infinite loops. Default the
+        # chain to empty so any code path reaching a queryset on this mock terminates.
+        self.contestant.playingcard_set.all.return_value.values_list.return_value = []
+        self.contestant.playingcard_set.filter.return_value.exists.return_value = False
 
         # Patch Gate.pre_project globally for all tests in this file
         self.pre_project_patcher = patch("display.calculators.positions_and_gates.Gate.pre_project")
@@ -128,7 +137,6 @@ class TestGateCalculator(CalculatorUnitTestBase):
 
         self.calculator.gates = [gate]
         self.calculator.outstanding_gates = [gate]
-
         state = OrchestratorState(
             last_gate=None,
             last_visible_gate=None,
@@ -299,31 +307,227 @@ class TestGateCalculator(CalculatorUnitTestBase):
             recalculation_completed=True,
         )
 
-        # Position within 1km (roughly 111m North and 55m East)
-        pos = self.create_position(60.001, 11.001, datetime.datetime(2020, 1, 1, 10, 0))
+        pos = self.create_position(60.001, 11.001, datetime.datetime(2020, 1, 1, 10, 5))
+        track = [pos]
 
-        from display.calculators.calculator import InRangeUpdatedEvent
+        events = self.calculator.calculate_enroute(track, state)
 
-        events = self.calculator.calculate_enroute([pos], state)
         self.assertTrue(any(isinstance(e, InRangeUpdatedEvent) and e.gate == gate for e in events))
+
+    def test_on_gate_missed(self):
+        gate = self.calculator.gates[0]
+        gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        gate.passing_time = None
+        gate.missed = False
+        gate.gate_check = True
+
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 5))
+        event = GateMissedEvent(None, gate, pos)
+
+        self.scorecard.get_gate_timing_score_for_gate_type.return_value = 100
+
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.on_gate_missed(event)
+
+        self.assertTrue(gate.missed)
+        mock_update.assert_called_once()
+        msg = mock_update.call_args[0][0]
+        self.assertEqual(msg.score, 100)
+        self.assertEqual(msg.score_type, "gate_score")
+        self.assertEqual(msg.planned, gate.expected_time)
+        self.assertIsNone(msg.actual)
+
+    def test_on_gate_passed(self):
+        gate = self.calculator.gates[0]
+        gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        gate.passing_time = None
+        gate.infinite_passing_position = None
+        gate.missed = False
+        gate.time_check = True
+
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 5))
+        event = GatePassedEvent(gate, pos, pos.time, previous_gate=None)
+
+        self.scorecard.get_gate_timing_score_for_gate_type.return_value = 50
+
+        with patch.object(self.calculator, "transmit_actual_crossing") as mock_transmit:
+            with patch.object(self.calculator, "update_score") as mock_update:
+                self.calculator.on_gate_passed(event)
+
+        mock_transmit.assert_called_once_with(gate, pos)
+        mock_update.assert_called_once()
+        msg = mock_update.call_args[0][0]
+        self.assertEqual(msg.score, 50)
+        self.assertEqual(msg.score_type, "gate_score")
+        self.assertEqual(msg.planned, gate.expected_time)
+        self.assertEqual(msg.actual, pos.time)
+
+    def test_check_gate_in_range_pops_outstanding_gate_on_detected_miss(self):
+        """Regression test: detecting a gate missed via the "went out of
+        range without crossing" path must pop it off outstanding_gates and
+        emit NextGateExpectedEvent immediately, so state.next_gate (used for
+        live-tracking display) doesn't keep pointing at an already-missed
+        gate until a later gate crossing retroactively cleans it up."""
+        gate = MagicMock()
+        gate.name = "TP 1"
+        gate.center_x = 0.0
+        gate.center_y = 0.0
+        gate.outside_distance = 100
+        gate.passing_time = None
+        gate.missed = False
+
+        self.calculator.gates = [gate]
+        self.calculator.gates[0].has_infinite_been_passed = MagicMock(return_value=True)
+        self.calculator.outstanding_gates = [gate]
+
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=gate,
+            in_range_of_gate=gate,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+
+        # Well outside the gate's outside_distance (100m).
+        pos = self.create_position(61.0, 12.0, datetime.datetime(2020, 1, 1, 10, 5))
+        track = [pos]
+        events = []
+
+        self.calculator.check_gate_in_range(track, state, events)
+
+        self.assertEqual(self.calculator.outstanding_gates, [])
+        self.assertTrue(any(isinstance(e, GateMissedEvent) for e in events))
+        self.assertTrue(any(isinstance(e, NextGateExpectedEvent) for e in events))
+
+    def test_on_starting_line_extended_passed_wrong_direction(self):
+        gate = MagicMock()
+        gate.name = "SP"
+        gate.type = "sp"
+        gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        gate.latitude = 60.0
+        gate.longitude = 11.0
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 9, 59))
+
+        self.calculator.starting_line = gate
+        self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type.return_value = 50
+
+        event = type("Evt", (), {"position": pos})()
+
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.on_starting_line_extended_passed_wrong_direction(event)
+
+        mock_update.assert_called_once()
+        msg = mock_update.call_args[0][0]
+        self.assertEqual(msg.score, 50)
+        self.assertEqual(msg.score_type, "backwards_starting_line")
+
+    def test_on_starting_line_extended_passed_wrong_direction_scores_isp_gate(self):
+        """Regression test: the penalty must fire for any starting gate type
+        with a nonzero configured penalty, not just 'sp' - 'isp' (intermediary
+        starting point) is a real, used gate type."""
+        gate = MagicMock()
+        gate.name = "ISP"
+        gate.type = "isp"
+        gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        gate.latitude = 60.0
+        gate.longitude = 11.0
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 9, 59))
+
+        self.calculator.starting_line = gate
+        self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type.return_value = 50
+
+        event = type("Evt", (), {"position": pos})()
+
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.on_starting_line_extended_passed_wrong_direction(event)
+
+        mock_update.assert_called_once()
+        msg = mock_update.call_args[0][0]
+        self.assertEqual(msg.score, 50)
+        self.assertEqual(msg.score_type, "backwards_starting_line")
+        self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type.assert_called_once_with("isp")
+
+    def test_on_starting_line_extended_passed_wrong_direction_skips_zero_score(self):
+        gate = MagicMock()
+        gate.name = "SP"
+        gate.type = "sp"
+        gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        gate.latitude = 60.0
+        gate.longitude = 11.0
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 9, 59))
+
+        self.calculator.starting_line = gate
+        self.scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type.return_value = 0
+
+        event = type("Evt", (), {"position": pos})()
+
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.on_starting_line_extended_passed_wrong_direction(event)
+
+        mock_update.assert_not_called()
+
+    def test_on_adaptive_start_double_invocation_is_idempotent(self):
+        """In production on_adaptive_start is invoked twice per adaptive
+        crossing: once inline from check_intersections
+        (gate_calculator.py:321-323) and once via the orchestrator's
+        AdaptiveStartEvent fan-out (orchestrator.py:204). Regression-locks
+        that this is safe: exactly one informational score message is
+        emitted (the has_scored_adaptive_start guard) and the gate-time
+        rewrite produces the same result both times."""
+        new_start_time = datetime.datetime(2020, 1, 1, 10, 5, tzinfo=datetime.timezone.utc)
+        recalculated_times = {"WP1": datetime.datetime(2020, 1, 1, 10, 6, tzinfo=datetime.timezone.utc)}
+        self.contestant.calculate_missing_gate_times.return_value = recalculated_times
+        pos = self.create_position(60, 11, new_start_time)
+        event = AdaptiveStartEvent(new_start_time, pos)
+
+        self.calculator.on_adaptive_start(event)
+        self.assertEqual(self.waypoint1.expected_time, recalculated_times["WP1"])
+        self.assertEqual(self.score_processing_queue.put_nowait.call_count, 1)
+
+        # Second, orchestrator-driven invocation of the same event.
+        self.calculator.on_adaptive_start(event)
+        self.assertEqual(self.waypoint1.expected_time, recalculated_times["WP1"])
+        self.assertEqual(self.score_processing_queue.put_nowait.call_count, 1)
 
 
 class TestAnrCorridorCalculator(CalculatorUnitTestBase):
-    @patch("display.calculators.anr_corridor_calculator.PolygonHelper")
-    @patch("display.calculators.anr_corridor_calculator.plt")
-    @patch.object(AnrCorridorCalculator, "plot_polygon")
-    def setUp(self, mock_plot, mock_plt, mock_polygon_helper):
+    def setUp(self):
         super().setUp()
+        self.route.corridor_width = 0.5
         self.scorecard.corridor_grace_time = 5
         self.scorecard.corridor_outside_penalty = 10
-        self.scorecard.corridor_maximum_penalty = 100
+        self.scorecard.corridor_maximum_penalty = 50
         self.scorecard.corridor_maximum_penalty_is_per_leg = False
+        self.scorecard.anr_route_to_sp_penalty = 200.0
+        self.scorecard.anr_route_from_fp_penalty = 200.0
 
-        # Mock PolygonHelper to return a mock boundary
-        mock_ph_instance = mock_polygon_helper.return_value
-        mock_ph_instance.utm.transform_points.return_value = np.array([[0, 0], [1, 0], [1, 1], [0, 0]])
-        # Mock transform_point to return a tuple to avoid unpacking error
-        mock_ph_instance.utm.transform_point.return_value = (0.0, 0.0)
+        self.gate_sp = MagicMock(spec=Waypoint)
+        self.gate_sp.name = "SP"
+        self.gate_sp.type = "sp"
+        self.gate_sp.is_visible = True
+        self.gate_sp.latitude = 60.0
+        self.gate_sp.longitude = 11.0
+
+        self.gate_tp = MagicMock(spec=Waypoint)
+        self.gate_tp.name = "TP1"
+        self.gate_tp.type = "tp"
+        self.gate_tp.is_visible = True
+        self.gate_tp.latitude = 60.05
+        self.gate_tp.longitude = 11.05
+
+        self.gate_fp = MagicMock(spec=Waypoint)
+        self.gate_fp.name = "FP"
+        self.gate_fp.type = "fp"
+        self.gate_fp.is_visible = True
+        self.gate_fp.latitude = 60.1
+        self.gate_fp.longitude = 11.1
+
+        self.route.waypoints = [self.gate_sp, self.gate_tp, self.gate_fp]
+
+        self.build_polygon_patcher = patch.object(AnrCorridorCalculator, "build_polygon", return_value=MagicMock())
+        self.mock_build_polygon = self.build_polygon_patcher.start()
 
         self.calculator = AnrCorridorCalculator(
             self.contestant,
@@ -334,8 +538,149 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
             projector=self.projector,
         )
         self.calculator.polygon_helper = MagicMock()
-        # Ensure transform_point is mocked on the assigned instance too
         self.calculator.polygon_helper.utm.transform_point.return_value = (0.0, 0.0)
+
+    def tearDown(self):
+        self.build_polygon_patcher.stop()
+        super().tearDown()
+
+    def test_anr_catalogue_route_to_sp_noncompliance_scores_once(self):
+        self.contestant.navigation_task.task_subtype = ANR_CATALOGUE
+        self.contestant.contestanttaskconfiguration = MagicMock()
+        self.contestant.contestanttaskconfiguration.is_valid = True
+        self.contestant.contestanttaskconfiguration.compiled_effective_route_payload = {
+            "compiled_auxiliary_paths": {
+                "route_to_sp_path": [[[10.9, 59.9], [11.0, 60.0]]],
+                "route_from_fp_path": [],
+            }
+        }
+        self.route.corridor_width = 0.5
+        self.calculator.route_to_sp_polygon = object()
+        self.calculator._is_inside_auxiliary_polygon = MagicMock(return_value=False)
+
+        pos = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+            has_any_gate_passed=False,
+        )
+
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.calculate_outside_route([pos], state)
+            self.calculator.calculate_outside_route([pos], state)
+
+        self.assertEqual(len(mock_update.call_args_list), 1)
+        msg = mock_update.call_args_list[0][0][0]
+        self.assertEqual(msg.score_type, "anr_route_to_sp")
+        self.assertEqual(msg.message, "route to SP not followed")
+        self.assertEqual(msg.score, 200.0)
+
+    def test_anr_catalogue_route_to_sp_uses_scorecard_configured_penalty(self):
+        self.contestant.navigation_task.task_subtype = ANR_CATALOGUE
+        self.contestant.contestanttaskconfiguration = MagicMock()
+        self.contestant.contestanttaskconfiguration.is_valid = True
+        self.contestant.contestanttaskconfiguration.compiled_effective_route_payload = {
+            "compiled_auxiliary_paths": {
+                "route_to_sp_path": [[[10.9, 59.9], [11.0, 60.0]]],
+                "route_from_fp_path": [],
+            }
+        }
+        self.route.corridor_width = 0.5
+        self.calculator.route_to_sp_polygon = object()
+        self.calculator._is_inside_auxiliary_polygon = MagicMock(return_value=False)
+        self.scorecard.anr_route_to_sp_penalty = 77.0
+
+        pos = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+            has_any_gate_passed=False,
+        )
+
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.calculate_outside_route([pos], state)
+
+        msg = mock_update.call_args_list[0][0][0]
+        self.assertEqual(msg.score, 77.0)
+
+    def test_anr_catalogue_route_from_fp_noncompliance_scores_once(self):
+        self.contestant.navigation_task.task_subtype = ANR_CATALOGUE
+        self.contestant.contestanttaskconfiguration = MagicMock()
+        self.contestant.contestanttaskconfiguration.is_valid = True
+        self.contestant.contestanttaskconfiguration.compiled_effective_route_payload = {
+            "compiled_auxiliary_paths": {
+                "route_to_sp_path": [],
+                "route_from_fp_path": [[[11.1, 60.1], [11.2, 60.0]]],
+            }
+        }
+        self.route.corridor_width = 0.5
+        self.calculator.route_from_fp_polygon = object()
+        self.calculator._is_inside_auxiliary_polygon = MagicMock(return_value=False)
+
+        pos = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=True,
+            recalculation_completed=True,
+            has_any_gate_passed=True,
+        )
+
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.calculate_outside_route([pos], state)
+            self.calculator.calculate_outside_route([pos], state)
+
+        self.assertEqual(len(mock_update.call_args_list), 1)
+        msg = mock_update.call_args_list[0][0][0]
+        self.assertEqual(msg.score_type, "anr_route_from_fp")
+        self.assertEqual(msg.message, "route from FP not followed")
+        self.assertEqual(msg.score, 200.0)
+
+    def test_anr_catalogue_route_from_fp_uses_scorecard_configured_penalty(self):
+        self.contestant.navigation_task.task_subtype = ANR_CATALOGUE
+        self.contestant.contestanttaskconfiguration = MagicMock()
+        self.contestant.contestanttaskconfiguration.is_valid = True
+        self.contestant.contestanttaskconfiguration.compiled_effective_route_payload = {
+            "compiled_auxiliary_paths": {
+                "route_to_sp_path": [],
+                "route_from_fp_path": [[[11.1, 60.1], [11.2, 60.0]]],
+            }
+        }
+        self.route.corridor_width = 0.5
+        self.calculator.route_from_fp_polygon = object()
+        self.calculator._is_inside_auxiliary_polygon = MagicMock(return_value=False)
+        self.scorecard.anr_route_from_fp_penalty = 55.0
+
+        pos = self.create_position(60.5, 11.5, datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=True,
+            recalculation_completed=True,
+            has_any_gate_passed=True,
+        )
+
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.calculate_outside_route([pos], state)
+
+        msg = mock_update.call_args_list[0][0][0]
+        self.assertEqual(msg.score, 55.0)
 
     def test_calculate_enroute_inside(self):
         self.calculator._check_inside_polygon = MagicMock(return_value=True)
@@ -499,52 +844,47 @@ class TestAnrCorridorCalculator(CalculatorUnitTestBase):
                 mock_check.return_value = True
                 self.calculator.check_outside_corridor([pos26], gate2)
 
-                # One consolidated message at the end. Total excursion should be 2 calls (1 info + 1 anomaly)
-                self.assertEqual(len(mock_update.call_args_list), 2)
-                final_msg = mock_update.call_args_list[1][0][0]
-
-                # Leg 1: 15s total -> 10s penalty -> 50 points (capped)
-                # Leg 2: 11s total (T15 to T26) -> 11s penalty -> 50 points (capped)
-                # Total: 100 points, 25 seconds (T26 - 1s = T25 endpoint)
+                # Final assertion: Total excursion score should be Leg1 + Leg2 = 100
+                final_msg = mock_update.call_args_list[-1][0][0]
                 self.assertEqual(final_msg.score, 100.0)
-                self.assertIn("(25 s)", final_msg.message)
-                self.assertIn("Leg scores: [SP: 50.0 (capped), TP1: 50.0 (capped)]", final_msg.message)
+                self.assertEqual(self.calculator.excursion_accumulated_score, 0)
+                self.assertEqual(self.calculator.accumulated_score, 0)
+
+    def test_get_danger_level_and_accumulated_score_lookahead(self):
+        self.calculator.enroute = True
+        self.calculator.corridor_state = self.calculator.INSIDE_CORRIDOR
+        self.calculator.accumulated_score = 10
+
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        track = [pos]
+
+        self.calculator.track_polygon = MagicMock()
+        self.calculator.track_polygon.exterior.distance.return_value = 100.0
+
+        with patch("display.calculators.anr_corridor_calculator.get_shortest_intersection_time", return_value=10):
+            danger, score = self.calculator.get_danger_level_and_accumulated_score(track)
+
+        self.assertGreater(danger, 0)
+        self.assertEqual(score, 10)
 
 
 class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
     def setUp(self):
         super().setUp()
-        self.scorecard.backtracking_bearing_difference = 90
-        self.scorecard.backtracking_penalty = 200
-        self.scorecard.backtracking_maximum_penalty = 1000
-        self.scorecard.backtracking_grace_time_seconds = 10
-        self.scorecard.get_backtracking_after_steep_gate_grace_period_seconds_for_gate_type.return_value = 0
-        self.scorecard.get_backtracking_after_gate_grace_period_nm_for_gate_type.return_value = 0
-        self.scorecard.get_backtracking_before_gate_grace_period_nm_for_gate_type.return_value = 0
+        self.route.use_procedure_turns = False
+        with patch("display.calculators.positions_and_gates.Gate.pre_project"):
+            self.calculator = BacktrackingAndProcedureTurnsCalculator(
+                self.contestant,
+                self.scorecard,
+                self.route,
+                self.score_processing_queue,
+                live_processing=False,
+                projector=self.projector,
+            )
 
-        self.calculator = BacktrackingAndProcedureTurnsCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            self.score_processing_queue,
-            live_processing=False,
-            projector=self.projector,
-        )
-
-    @skip
-    def test_calculate_enroute_tracking(self):
+    def test_calculate_enroute_calls_track_score(self):
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         last_gate = MagicMock()
-        last_gate.bearing = 0  # North
-        last_gate.bearing_from_previous = 0
-        last_gate.type = "not_sp"
-        last_gate.get_distance_to_gate_line.return_value = 2000  # far away
-        last_gate.is_procedure_turn = False
-        last_gate.center_x = 0.0
-        last_gate.center_y = 0.0
-
-        pos1 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        pos2 = self.create_position(60.1, 11, datetime.datetime(2020, 1, 1, 10, 1))  # Heading North (0)
-
         state = OrchestratorState(
             last_gate=last_gate,
             last_visible_gate=last_gate,
@@ -555,134 +895,96 @@ class TestBacktrackingAndProcedureTurnsCalculator(CalculatorUnitTestBase):
             recalculation_completed=True,
         )
 
-        self.calculator.tracking_state = self.calculator.TRACKING
-        self.calculator.detect_circling([pos1, pos2], state.last_visible_gate, state.in_range_of_gate)
+        with patch.object(self.calculator, "calculate_track_score") as mock_calc:
+            events = self.calculator.calculate_enroute([pos], state)
 
-        self.assertEqual(self.calculator.tracking_state, self.calculator.TRACKING)
+        mock_calc.assert_called_once_with([pos], last_gate, state.in_range_of_gate, state.next_gate)
+        self.assertEqual(events, [])
 
-    def test_calculate_enroute_backtracking(self):
+    def test_calculate_outside_route_calls_track_score(self):
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
         last_gate = MagicMock()
-        last_gate.bearing = 0  # North
-        last_gate.bearing_from_previous = 0
-        last_gate.type = "not_sp"
-        last_gate.is_steep_turn = False
-        last_gate.get_distance_to_gate_line.return_value = 2000  # far away
-        last_gate.is_procedure_turn = False
-        last_gate.center_x = 0.0
-        last_gate.center_y = 0.0
-
-        pos1 = self.create_position(60.2, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        pos2 = self.create_position(
-            60.1, 11, datetime.datetime(2020, 1, 1, 10, 1)
-        )  # Heading South (180) - backtracking
-
-        # Force state to TRACKING to allow backtracking detection
-        self.calculator.tracking_state = self.calculator.TRACKING
-
         state = OrchestratorState(
             last_gate=last_gate,
             last_visible_gate=last_gate,
             next_gate=None,
-            in_range_of_gate=last_gate,
+            in_range_of_gate=None,
             projector=self.projector,
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
 
-        # One call to start backtracking (temporary)
-        self.calculator.calculate_track_score(
-            [pos1, pos2], state.last_visible_gate, state.in_range_of_gate, state.next_gate
-        )
-        self.assertEqual(self.calculator.tracking_state, self.calculator.BACKTRACKING_TEMPORARY)
+        with patch.object(self.calculator, "calculate_track_score") as mock_calc:
+            events = self.calculator.calculate_outside_route([pos], state)
 
-        # Fast forward time to exceed grace period
-        pos3 = self.create_position(59.9, 11, datetime.datetime(2020, 1, 1, 10, 15))
-        self.calculator.calculate_track_score(
-            [pos1, pos2, pos3], state.last_visible_gate, state.in_range_of_gate, state.next_gate
-        )
-        self.assertEqual(self.calculator.tracking_state, self.calculator.BACKTRACKING)
+        mock_calc.assert_called_once_with([pos], last_gate, state.in_range_of_gate, state.next_gate)
+        self.assertEqual(events, [])
 
-    def test_curved_leg_backtracking(self):
-        # 1. Setup a route with a curve: SP -> Curve 1.1 -> TP1
-        wp1 = Waypoint("SP")
-        wp1.latitude = 60.0
-        wp1.longitude = 11.0
-        wp1.type = "sp"
-        wp1.width = 1.0
-        wp1.gate_line = ((60.0, 10.9), (60.0, 11.1))
+    def test_on_gate_passed_updates_last_visible_gate(self):
+        gate = MagicMock()
+        gate.type = "tp"
+        gate.name = "TP1"
+        gate.is_visible = True
+        event = GatePassedEvent(gate, None, None, previous_gate=None)
 
-        curve1 = Waypoint("Curve 1.1")
-        curve1.latitude = 60.1
-        curve1.longitude = 11.1
-        curve1.type = "secret"
-        curve1.on_curved_segment = True
-        curve1.gate_line = ((60.1, 11.0), (60.1, 11.2))
+        self.calculator.on_gate_passed(event)
 
-        wp2 = Waypoint("TP1")
-        wp2.latitude = 60.2
-        wp2.longitude = 11.0
-        wp2.type = "tp"
-        wp2.width = 1.0
-        wp2.gate_line = ((60.2, 10.9), (60.2, 11.1))
+        self.assertEqual(self.calculator.last_visible_gate, gate)
 
-        waypoints = [wp1, curve1, wp2]
-        from display.utilities.route_building_utilities import calculate_and_update_legs
+    def test_on_gate_missed_updates_last_visible_gate(self):
+        gate = MagicMock()
+        gate.type = "tp"
+        gate.name = "TP1"
+        gate.is_visible = True
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        event = GateMissedEvent(None, gate, pos)
 
-        calculate_and_update_legs(waypoints, False)
+        self.calculator.on_gate_missed(event)
 
-        self.route.waypoints = waypoints
-        # Add expected gate times for new waypoints
-        now = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
-        self.contestant.gate_times = {wp.name: now for wp in waypoints}
+        self.assertEqual(self.calculator.last_visible_gate, gate)
 
-        # Re-initialize calculator to pick up new waypoints
-        self.calculator.initiate_gates()
-        for gate in self.calculator.gates:
-            gate.center_x = 0.0
-            gate.center_y = 0.0
-            gate.projected_gate_line = MagicMock()
-            gate.get_distance_to_gate_line = MagicMock(return_value=2000.0)
+    def test_on_gate_missed_resets_backtracking(self):
+        gate = MagicMock()
+        gate.type = "tp"
+        gate.name = "TP1"
+        gate.is_visible = True
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        event = GateMissedEvent(None, gate, pos)
 
-        # 2. Simulate track point on the first part of the curve (heading NE, ~45 deg)
-        pos1 = self.create_position(60.01, 11.01, datetime.datetime(2020, 1, 1, 10, 0))
-        pos2 = self.create_position(60.02, 11.02, datetime.datetime(2020, 1, 1, 10, 1))
+        self.calculator.backtracking_start_time = pos.time
+        self.calculator.backtracked_on_current_leg = True
 
-        self.calculator.tracking_state = self.calculator.TRACKING
+        self.calculator.on_gate_missed(event)
 
-        sp_gate = next(g for g in self.calculator.gates if g.name == "SP")
-        tp1_gate = next(g for g in self.calculator.gates if g.name == "TP1")
+        self.assertIsNone(self.calculator.backtracking_start_time)
+        self.assertFalse(self.calculator.backtracked_on_current_leg)
+        self.assertTrue(self.calculator.was_backtracked_on_leg_leading_to_last_gate)
 
-        # 3. Simulate track point on the second part of the curve (heading NW, ~315 deg)
-        # Difference between 45 (SP bearing) and 315 is 90 deg.
-        # If reference was fixed to SP.bearing (45), this might trigger backtracking if diff > 90.
-        pos3 = self.create_position(60.15, 11.05, datetime.datetime(2020, 1, 1, 10, 10))
-        pos4 = self.create_position(60.16, 11.04, datetime.datetime(2020, 1, 1, 10, 11))
+    def test_passed_finishpoint_sets_finished_state(self):
+        pos = self.create_position(60.1, 11.1, datetime.datetime(2020, 1, 1, 10, 5))
+        event = type(
+            "FinishEvent",
+            (),
+            {"track": [pos], "last_gate": self.waypoint1},
+        )()
 
-        # At pos4, closest leg should be Curve 1.1 -> TP1, with bearing ~315.
-        # track bearing is ~315, so diff ~ 0. Correct!
-        self.calculator.calculate_track_score([pos1, pos2, pos3, pos4], sp_gate, None, tp1_gate)
-        # It transitions to STARTED because sp_gate.type is 'sp'
-        self.assertEqual(self.calculator.tracking_state, self.calculator.STARTED)
+        with patch.object(self.calculator, "calculate_track_score") as mock_calc:
+            self.calculator.passed_finishpoint(event)
 
-        # 4. Now simulate ACTUAL backtracking on the second part
-        # Turn towards SE (~135 deg)
-        pos5 = self.create_position(60.15, 11.05, datetime.datetime(2020, 1, 1, 10, 12))
+        self.assertEqual(self.calculator.backtracking_limit, 360)
+        mock_calc.assert_called_once_with(event.track, event.last_gate, event.last_gate, None)
+        self.assertEqual(self.calculator.tracking_state, self.calculator.FINISHED)
 
-        self.calculator.calculate_track_score([pos1, pos2, pos3, pos4, pos5], sp_gate, None, tp1_gate)
-        # Should be BACKTRACKING_TEMPORARY because diff from local reference (~315) is ~180
-        self.assertEqual(self.calculator.tracking_state, self.calculator.BACKTRACKING_TEMPORARY)
+    def test_update_tracking_state_ignored_when_same(self):
+        initial = self.calculator.tracking_state
+        with patch.object(self.contestant.contestanttrack, "updates_current_state") as mock_update:
+            self.calculator.update_tracking_state(initial)
+        mock_update.assert_not_called()
 
 
 class TestLandingPatternCalculator(CalculatorUnitTestBase):
-    @patch("display.calculators.landing_pattern_calculator.Projector")
-    def setUp(self, mock_projector):
+    def setUp(self):
         super().setUp()
-        self.waypoint1.type = "ldg"
-        self.route.landing_gates = [self.waypoint1]
-        self.route.landing_gates[0].latitude = 60.0
-        self.route.landing_gates[0].longitude = 11.0
-        self.route.landing_gates[0].gate_line = ((60.0, 11.0), (60.0, 11.1))
-
         self.calculator = LandingPatternCalculator(
             self.contestant,
             self.scorecard,
@@ -692,10 +994,104 @@ class TestLandingPatternCalculator(CalculatorUnitTestBase):
             projector=self.projector,
         )
 
-    def test_calculate_outside_route_landing(self):
-        landing_gate = MagicMock()
-        landing_gate.gates = [MagicMock()]
-        landing_gate.intersected_gate = MagicMock()
+    def test_calculate_enroute_returns_empty(self):
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        self.assertEqual(self.calculator.calculate_enroute([pos], state), [])
+
+    def test_calculate_outside_route_returns_empty(self):
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        self.assertEqual(self.calculator.calculate_outside_route([pos], state), [])
+
+
+class TestPokerCalculator(CalculatorUnitTestBase):
+    def setUp(self):
+        super().setUp()
+        self.contestant.team = MagicMock()
+        self.calculator = PokerCalculator(
+            self.contestant,
+            self.scorecard,
+            self.route,
+            self.score_processing_queue,
+            live_processing=False,
+            projector=self.projector,
+        )
+
+    def test_calculate_enroute_returns_empty(self):
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        self.calculator.gates = []
+        self.assertEqual(self.calculator.calculate_enroute([pos], state), [])
+
+    def test_calculate_outside_route_returns_empty(self):
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        self.calculator.gates = []
+        self.assertEqual(self.calculator.calculate_outside_route([pos], state), [])
+
+    def test_on_poker_gate_passed_assigns_card(self):
+        gate = MagicMock(spec=Waypoint)
+        gate.name = "TP1"
+        gate.latitude = 60.0
+        gate.longitude = 11.0
+        gate.card_drawn = False
+        gate.passing_time = None
+
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        event = PokerGatePassedEvent(gate, pos)
+
+        # get_random_unique_card must be patched: it would otherwise run for real against
+        # self.contestant, which is a bare MagicMock (see CalculatorUnitTestBase.setUp), so
+        # its unconfigured playingcard_set.filter(...).exists() is always truthy and the
+        # "while ...exists(): pick another card" retry loop would never terminate.
+        with (
+            patch("display.calculators.poker_calculator.PlayingCard.get_random_unique_card", return_value="2s"),
+            patch("display.calculators.poker_calculator.PlayingCard.add_contestant_card") as mock_add_card,
+        ):
+            self.calculator.on_poker_gate_passed(event)
+
+        mock_add_card.assert_called_once()
+
+    def test_check_distance_only_emits_one_event_per_gate(self):
+        """A gate already in passed_gates must not be dealt a second card."""
+        gate = self.calculator.gates[0]
+        gate.center_x = 0.0
+        gate.center_y = 0.0
+        gate.gate_radius = 1000
+        self.calculator.gates = [gate]
 
         state = OrchestratorState(
             last_gate=None,
@@ -706,26 +1102,25 @@ class TestLandingPatternCalculator(CalculatorUnitTestBase):
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
+        # Both positions sit inside the gate radius, so proximity alone would match twice.
+        first = self.calculator.check_distance(self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0)), state)
+        second = self.calculator.check_distance(
+            self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 1)), state
+        )
 
-        pos1 = self.create_position(59.9, 11, datetime.datetime(2020, 1, 1, 9, 59))
-        pos2 = self.create_position(60.1, 11, datetime.datetime(2020, 1, 1, 10, 1))
-        track = [pos1, pos2]
-
-        with patch("display.calculators.positions_and_gates.Gate.get_gate_intersection_time", return_value=pos2.time):
-            events = self.calculator.calculate_outside_route(track, state)
-
-        self.assertTrue(any(isinstance(e, LandingPassedEvent) for e in events))
+        self.assertEqual(len(first), 1)
+        self.assertIsInstance(first[0], PokerGatePassedEvent)
+        self.assertEqual(second, [])
 
 
 class TestProhibitedZoneCalculator(CalculatorUnitTestBase):
-    @patch("display.calculators.prohibited_zone_calculator.PolygonHelper")
-    def setUp(self, mock_polygon_helper):
+    def setUp(self):
         super().setUp()
         self.scorecard.prohibited_zone_grace_time = 5
-        self.scorecard.prohibited_zone_penalty = 200
-        self.scorecard.prohibited_zone_maximum = 1000
-        zone = MagicMock(pk=1, name="Zone 1", path=[(60, 11), (60, 12), (61, 12), (61, 11)])
-        self.route.prohibited_set.filter.return_value = [zone]
+        self.scorecard.prohibited_zone_penalty = 100
+        self.scorecard.prohibited_zone_maximum = 300
+        self.route.prohibited_set = MagicMock()
+        self.route.prohibited_set.filter.return_value = []
 
         self.calculator = ProhibitedZoneCalculator(
             self.contestant,
@@ -735,28 +1130,68 @@ class TestProhibitedZoneCalculator(CalculatorUnitTestBase):
             live_processing=False,
             projector=self.projector,
         )
-        # In refactored version, we use self.polygon_helper directly
-        self.mock_helper = self.calculator.polygon_helper
 
-    def test_check_inside_prohibited_zone_penalty(self):
-        self.mock_helper.check_inside_polygons.return_value = [1]
+    def test_calculate_enroute_no_zones(self):
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        self.assertEqual(self.calculator.calculate_enroute([pos], state), [])
 
-        pos1 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        self.calculator.check_inside_prohibited_zone([pos1], None)
-        self.assertFalse(self.score_processing_queue.put_nowait.called)
+    def test_calculate_outside_route_no_zones(self):
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        self.assertEqual(self.calculator.calculate_outside_route([pos], state), [])
 
-        pos2 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 10))
-        self.calculator.check_inside_prohibited_zone([pos1, pos2], None)
-        self.assertTrue(self.score_processing_queue.put_nowait.called)
+    def test_enter_and_leave_zone_scores_after_grace(self):
+        zone = MagicMock()
+        zone.pk = 1
+        zone.name = "PZ1"
+        zone.path = [(11.0, 60.0), (11.1, 60.0), (11.1, 60.1)]
+        zone.altitude = 0
+        zone.ceiling = 10000
+        self.calculator.zone_map = {1: zone}
+        self.calculator.polygons = [(1, MagicMock())]
+        self.calculator.polygon_helper = MagicMock()
+        self.calculator.polygon_helper.check_inside_polygons.side_effect = [[1], [1], []]
+
+        pos1 = self.create_position(60.05, 11.05, datetime.datetime(2020, 1, 1, 10, 0))
+        pos2 = self.create_position(60.05, 11.05, datetime.datetime(2020, 1, 1, 10, 0, 10))
+        pos3 = self.create_position(60.2, 11.2, datetime.datetime(2020, 1, 1, 10, 0, 11))
+
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.calculate_enroute([pos1], Mock(projector=self.projector))
+            self.calculator.calculate_enroute([pos2], Mock(projector=self.projector))
+            self.calculator.calculate_enroute([pos3], Mock(projector=self.projector))
+
+        self.assertEqual(len(mock_update.call_args_list), 1)
+        score_msg = mock_update.call_args_list[0][0][0]
+        self.assertEqual(score_msg.score_type, "inside_prohibited_zone_PZ1")
+        self.assertGreaterEqual(score_msg.score, 100)
 
 
 class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
-    @patch("display.calculators.penalty_zone_calculator.PolygonHelper")
-    def setUp(self, mock_polygon_helper):
+    def setUp(self):
         super().setUp()
-        self.scorecard.calculate_penalty_zone_score.return_value = 50
-        zone = MagicMock(pk=1, name="Penalty 1", path=[(60, 11), (60, 12), (61, 12), (61, 11)])
-        self.route.prohibited_set.filter.return_value = [zone]
+        self.scorecard.penalty_zone_grace_time = 3
+        self.scorecard.penalty_zone_penalty_per_second = 10
+        self.scorecard.penalty_zone_maximum = 50
+        self.route.prohibited_set = MagicMock()
+        self.route.prohibited_set.filter.return_value = []
 
         self.calculator = PenaltyZoneCalculator(
             self.contestant,
@@ -766,26 +1201,56 @@ class TestPenaltyZoneCalculator(CalculatorUnitTestBase):
             live_processing=False,
             projector=self.projector,
         )
-        # In refactored version, we use self.polygon_helper directly
-        self.mock_helper = self.calculator.polygon_helper
 
-    def test_check_inside_penalty_zone(self):
-        # Entering
-        self.mock_helper.check_inside_polygons.return_value = [1]
-        pos1 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
-        self.calculator.check_inside_prohibited_zone([pos1], None)
+    def test_calculate_enroute_no_zones(self):
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        self.assertEqual(self.calculator.calculate_enroute([pos], state), [])
 
-        self.assertEqual(self.calculator.entered_polygon_times[1], pos1.time)
-        self.assertTrue(self.score_processing_queue.put_nowait.called)
+    def test_calculate_outside_route_no_zones(self):
+        pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=None,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        self.assertEqual(self.calculator.calculate_outside_route([pos], state), [])
 
-        # Inside
-        pos2 = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 1))
-        self.calculator.check_inside_prohibited_zone([pos1, pos2], None)
-        self.assertEqual(self.calculator.running_penalty[1], 50)
+    def test_enter_and_leave_zone_scores_capped(self):
+        zone = MagicMock()
+        zone.pk = 1
+        zone.name = "EZ1"
+        zone.path = [(11.0, 60.0), (11.1, 60.0), (11.1, 60.1)]
+        zone.altitude = 0
+        zone.ceiling = 10000
+        self.calculator.zone_map = {1: zone}
+        self.calculator.polygons = [(1, MagicMock())]
+        self.calculator.polygon_helper = MagicMock()
+        self.calculator.polygon_helper.check_inside_polygons.side_effect = [[1], [1], []]
+        self.calculator.scorecard.calculate_penalty_zone_score.return_value = 50
 
-        # Exiting
-        self.mock_helper.check_inside_polygons.return_value = []
-        pos3 = self.create_position(60.1, 11.1, datetime.datetime(2020, 1, 1, 10, 2))
-        self.calculator.check_inside_prohibited_zone([pos1, pos2, pos3], None)
+        pos1 = self.create_position(60.05, 11.05, datetime.datetime(2020, 1, 1, 10, 0))
+        pos2 = self.create_position(60.05, 11.05, datetime.datetime(2020, 1, 1, 10, 0, 10))
+        pos3 = self.create_position(60.2, 11.2, datetime.datetime(2020, 1, 1, 10, 0, 11))
 
-        self.assertNotIn(1, self.calculator.entered_polygon_times)
+        with patch.object(self.calculator, "update_score") as mock_update:
+            self.calculator.calculate_enroute([pos1], Mock(projector=self.projector))
+            self.calculator.calculate_enroute([pos2], Mock(projector=self.projector))
+            self.calculator.calculate_enroute([pos3], Mock(projector=self.projector))
+
+        self.assertEqual(len(mock_update.call_args_list), 2)
+        leave_msg = mock_update.call_args_list[1][0][0]
+        self.assertEqual(leave_msg.score_type, "inside_penalty_zone")
+        self.assertEqual(leave_msg.score, 50)

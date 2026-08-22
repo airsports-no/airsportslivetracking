@@ -1,0 +1,139 @@
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
+from django.test import TestCase
+from django.urls import reverse
+from guardian.shortcuts import assign_perm
+from rest_framework.test import APIRequestFactory
+
+from display.models import Contest, Club, AccessGrant, ClubManagerMembership, TokenType, UserTokenGrant, UserEntitlementGrant
+from display.serialisers import ContestSerialiser
+from display.utilities.task_type_group_definitions import CIMA_TASK_TYPE_GROUP
+
+
+class TestContestDetailViewContext(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create(email="detail-user@example.com")
+        self.user.user_permissions.add(Permission.objects.get(codename="view_contest"))
+        self.change_user = get_user_model().objects.create(email="detail-change@example.com")
+        self.change_user.user_permissions.add(
+            Permission.objects.get(codename="view_contest"),
+            Permission.objects.get(codename="change_contest"),
+        )
+        self.club = Club.objects.create(name="Detail Club")
+        ClubManagerMembership.objects.create(club=self.club, user=self.change_user, role=ClubManagerMembership.OWNER, is_active=True)
+        self.contest = Contest.objects.create(
+            name="Detail Contest",
+            time_zone="Europe/Oslo",
+            start_time="2026-10-01T09:00:00+00:00",
+            finish_time="2026-10-01T17:00:00+00:00",
+            location="60.0,11.0",
+            created_by=self.change_user,
+            organizing_club=self.club,
+        )
+        assign_perm("view_contest", self.user, self.contest)
+        assign_perm("view_contest", self.change_user, self.contest)
+        assign_perm("change_contest", self.change_user, self.contest)
+        self.grant = AccessGrant.objects.create(
+            club=self.club,
+            status=AccessGrant.ACTIVE,
+            contestant_limit=10,
+            task_type_groups=[CIMA_TASK_TYPE_GROUP],
+        )
+        self.token_type = TokenType.objects.create(name="Detail token", contestant_limit=8, task_type_groups=[CIMA_TASK_TYPE_GROUP])
+        self.token_grant = UserTokenGrant.objects.create(user=self.change_user, token_type=self.token_type, quantity_total=2)
+
+    def test_view_permission_gets_read_only_access_context(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("contest_details", kwargs={"pk": self.contest.id}))
+
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Access & Limits")
+        self.assertContains(response, "Annual club pass")
+        self.assertContains(response, "club_pass")
+        self.assertContains(response, "Competing pilots")
+        self.assertContains(response, "Allowed task groups")
+        self.assertContains(response, CIMA_TASK_TYPE_GROUP)
+        self.assertNotContains(response, ">Tasks<", html=False)
+        self.assertNotContains(response, "Token Management")
+        self.assertNotContains(response, "Club managers")
+
+    def test_change_permission_gets_management_context(self):
+        self.client.force_login(self.change_user)
+        response = self.client.get(reverse("contest_details", kwargs={"pk": self.contest.id}))
+
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Access & Limits")
+        self.assertContains(response, "Annual club pass")
+        self.assertContains(response, "club_pass")
+        self.assertContains(response, "Your Tokens")
+        self.assertContains(response, "No token is currently assigned to this contest.")
+        self.assertContains(response, self.change_user.email)
+        self.assertContains(response, "Assign token")
+        self.assertContains(response, "Competing pilots")
+        self.assertContains(response, "Allowed task groups")
+        self.assertContains(response, CIMA_TASK_TYPE_GROUP)
+        self.assertNotContains(response, ">Tasks<", html=False)
+
+
+class TestContestAccessStatusSerializationWithTaskGroups(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create(email="serializer@example.com")
+        self.club = Club.objects.create(name="Serializer Club")
+        self.contest = Contest.objects.create(
+            name="Serializer Contest",
+            time_zone="Europe/Oslo",
+            start_time="2026-05-01T09:00:00+00:00",
+            finish_time="2026-05-01T17:00:00+00:00",
+            location="60.0,11.0",
+            created_by=self.user,
+            organizing_club=self.club,
+        )
+        self.request = APIRequestFactory().get("/")
+        self.request.user = self.user
+
+    def test_contest_serializer_emits_task_type_group_access_status(self):
+        AccessGrant.objects.create(
+            club=self.club,
+            status=AccessGrant.ACTIVE,
+            contestant_limit=None,
+            task_type_groups=[CIMA_TASK_TYPE_GROUP],
+        )
+        data = ContestSerialiser(self.contest, context={"request": self.request}).data
+
+        self.assertIn(CIMA_TASK_TYPE_GROUP, data["access_status"]["allowed_task_type_groups"])
+        self.assertIn("legacy", data["access_status"]["allowed_task_type_groups"])
+        self.assertEqual([CIMA_TASK_TYPE_GROUP], data["access_status"]["package_task_type_groups"])
+        self.assertIn("legacy", data["access_status"]["free_task_type_groups"])
+
+    def test_contest_serializer_merges_viewers_personal_entitlement_grant(self):
+        """Regression test: a beta tester's personal cima:circle grant must
+        show up in this contest's access_status even though the contest
+        itself has no club/token grant at all (still on the free tier)."""
+        UserEntitlementGrant.objects.create(
+            user=self.user,
+            kind=UserEntitlementGrant.KIND_TASK_TYPE_GROUP,
+            value="cima:circle",
+        )
+
+        data = ContestSerialiser(self.contest, context={"request": self.request}).data
+
+        self.assertEqual("free", data["access_status"]["tier_code"])
+        self.assertIn("cima:circle", data["access_status"]["allowed_task_type_groups"])
+        self.assertIn("legacy", data["access_status"]["allowed_task_type_groups"])
+
+    def test_contest_detail_view_reflects_viewers_personal_entitlement_grant(self):
+        """Same regression, but through the real Django view (views.py's
+        ContestDetailView.get_context_data), which builds an equivalent
+        access_status dict independently of the serializer."""
+        assign_perm("view_contest", self.user, self.contest)
+        UserEntitlementGrant.objects.create(
+            user=self.user,
+            kind=UserEntitlementGrant.KIND_TASK_TYPE_GROUP,
+            value="cima:circle",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("contest_details", kwargs={"pk": self.contest.id}))
+
+        self.assertEqual(200, response.status_code)
+        self.assertIn("cima:circle", response.context["access_status"]["allowed_task_type_groups"])

@@ -44,6 +44,7 @@ const EditPolygonView: React.FC<EditPolygonViewProps> = ({ polygon, updatePolygo
           <option value="prohibited">Prohibited (Red)</option>
           <option value="penalty">Penalty (Orange)</option>
           <option value="info">Info (Blue)</option>
+          <option value="duration_landing_area">Duration landing area (Green)</option>
         </select>
       </div>
 

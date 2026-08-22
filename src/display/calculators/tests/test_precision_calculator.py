@@ -493,7 +493,7 @@ class TestHamar23March2021(TransactionTestCase):
 
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         expected_strings = [
-            "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 0.0 points adaptive start set (0 s)\nplanned: 14:37:56\nactual: 14:37:56",
             "SP: 6.0 points passing gate (-4 s)\nplanned: 14:38:00\nactual: 14:37:56",
             "TP 1: 36.0 points passing gate (-14 s)\nplanned: 14:41:26\nactual: 14:41:12",
             "TP 2: 21.0 points passing gate (+9 s)\nplanned: 14:46:41\nactual: 14:46:50",
@@ -530,7 +530,7 @@ class TestHamar23March2021(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         expected_strings = [
-            "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 0.0 points adaptive start set (0 s)\nplanned: 14:37:57\nactual: 14:37:57",
             "SP: 3.0 points passing gate (-3 s)\nplanned: 14:38:00\nactual: 14:37:57",
             "TP 1: 33.0 points passing gate (-13 s)\nplanned: 14:41:26\nactual: 14:41:13",
             "TP 2: 21.0 points passing gate (+9 s)\nplanned: 14:46:41\nactual: 14:46:50",
@@ -566,7 +566,7 @@ class TestHamar23March2021(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         expected_strings = [
-            "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 0.0 points adaptive start set (0 s)\nplanned: 14:37:56\nactual: 14:37:56",
             "SP: 6.0 points passing gate (-4 s)\nplanned: 14:38:00\nactual: 14:37:56",
             "TP 1: 36.0 points passing gate (-14 s)\nplanned: 14:41:26\nactual: 14:41:12",
             "TP 2: 24.0 points passing gate (+10 s)\nplanned: 14:46:41\nactual: 14:46:51",
@@ -602,7 +602,7 @@ class TestHamar23March2021(TransactionTestCase):
         calculator_runner(self.contestant, track)
         contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
         expected_strings = [
-            "SP: 0.0 points crossing infinite starting line and starting adaptive timing",
+            "SP: 0.0 points adaptive start set (0 s)\nplanned: 14:37:56\nactual: 14:37:56",
             "SP: 6.0 points passing gate (-4 s)\nplanned: 14:38:00\nactual: 14:37:56",
             "TP 1: 33.0 points passing gate (-13 s)\nplanned: 14:41:26\nactual: 14:41:13",
             "TP 2: 24.0 points passing gate (+10 s)\nplanned: 14:46:41\nactual: 14:46:51",

@@ -96,7 +96,7 @@ export interface ContestResultsState {
   deleteTeamResults: (contestId: number, teamId: number) => Promise<void>;
 }
 
-const upsertById = <T extends { id: number }>(items: T[], item: T): T[] => {
+export const upsertById = <T extends { id: number }>(items: T[], item: T): T[] => {
   const index = items.findIndex((entry) => entry.id === item.id);
   if (index === -1) {
     return [...items, item];
@@ -107,14 +107,14 @@ const upsertById = <T extends { id: number }>(items: T[], item: T): T[] => {
   return next;
 };
 
-const mergeTaskWithExistingCollections = (incomingTask: any, existingTask?: Task): Task => ({
+export const mergeTaskWithExistingCollections = (incomingTask: any, existingTask?: Task): Task => ({
   ...(existingTask || {}),
   ...incomingTask,
   tasksummary_set: existingTask?.tasksummary_set || [],
   tasktest_set: existingTask?.tasktest_set || [],
 });
 
-const mergeContestSummaryUpdate = (
+export const mergeContestSummaryUpdate = (
   existingSummaries: ContestSummary[],
   incomingSummary: ContestSummary,
 ): ContestSummary[] => {
@@ -131,7 +131,7 @@ const mergeContestSummaryUpdate = (
   });
 };
 
-const applyTasksUpdate = (results: ContestResults, tasks: any[]): ContestResults => {
+export const applyTasksUpdate = (results: ContestResults, tasks: any[]): ContestResults => {
   const existingTasks = new Map((results.task_set || []).map((task) => [task.id, task]));
   return {
     ...results,
@@ -141,7 +141,7 @@ const applyTasksUpdate = (results: ContestResults, tasks: any[]): ContestResults
   };
 };
 
-const applyTestsUpdate = (results: ContestResults, tests: any[]): ContestResults => {
+export const applyTestsUpdate = (results: ContestResults, tests: any[]): ContestResults => {
   const testsByTask = new Map<number, any[]>();
   tests.forEach((test) => {
     const taskTests = testsByTask.get(test.task) || [];
@@ -173,12 +173,12 @@ const applyTestsUpdate = (results: ContestResults, tests: any[]): ContestResults
   };
 };
 
-const applyTeamsUpdate = (results: ContestResults, teams: ContestTeam[]): ContestResults => ({
+export const applyTeamsUpdate = (results: ContestResults, teams: ContestTeam[]): ContestResults => ({
   ...results,
   contest_teams: teams,
 });
 
-const applyScoreUpdate = (results: ContestResults, message: ScoreUpdateMessage): ContestResults => {
+export const applyScoreUpdate = (results: ContestResults, message: ScoreUpdateMessage): ContestResults => {
   const nextResults: ContestResults = {
     ...results,
     contestsummary_set: [...(results.contestsummary_set || [])],

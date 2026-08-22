@@ -22,6 +22,7 @@ from display.utilities.coordinate_utilities import (
     euclidean_point_to_line_distance,
 )
 from display.utilities.route_building_utilities import find_closest_leg_to_point
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.models import Contestant, Scorecard, Route, ANOMALY, INFORMATION
 from display.waypoint import Waypoint
 
@@ -71,7 +72,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         from display.calculators.positions_and_gates import Gate
         from display.utilities.route_building_utilities import calculate_extended_gate
 
-        waypoints = self.contestant.navigation_task.route.waypoints
+        waypoints = self._get_effective_waypoints()
         expected_times = self.contestant.gate_times
         gates = []
         for item in waypoints:  # type: Waypoint
@@ -85,6 +86,13 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                     )
                 )
         return gates
+
+    def _get_effective_waypoints(self):
+        return get_effective_route_waypoints(
+            self.contestant.navigation_task,
+            contestant=self.contestant,
+            include_contestant_declarations=True,
+        )
 
     def initiate_gates(self):
         self.gates = self.create_gates()

@@ -14,6 +14,8 @@ import datetime
 import dateutil
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.mail import send_mail
 from urllib3.exceptions import ProtocolError
 
@@ -155,7 +157,11 @@ def calculator_process(contestant_pk: int):
         logger.warning(f"Attempting to start new calculator for non-existent contestant {contestant_pk}")
         return
     if not contestant.contestanttrack.calculator_finished and not is_termination_requested(contestant_pk):
-        contestant_processor = ContestantProcessor(contestant, live_processing=True)
+        try:
+            contestant_processor = ContestantProcessor(contestant, live_processing=True)
+        except (DjangoValidationError, DRFValidationError) as exc:
+            logger.warning(f"Refusing to start calculator for contestant {contestant_pk}: {exc}")
+            return
         contestant_processor.run()
     else:
         logger.warning(f"Attempting to start new calculator for terminated contestant {contestant}")

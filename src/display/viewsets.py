@@ -17,14 +17,16 @@ from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils.cache import add_never_cache_headers, patch_response_headers
 from guardian.shortcuts import get_objects_for_user
-from rest_framework import status, permissions
+from rest_framework import status, permissions, serializers
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.pagination import CursorPagination
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 import rest_framework.exceptions as drf_exceptions
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.exceptions import ValidationError
+from drf_spectacular.utils import extend_schema, OpenApiParameter, inline_serializer
 from drf_spectacular.types import OpenApiTypes
 from urllib import parse
 
@@ -34,8 +36,10 @@ from display.filters import ContestFilter, NavigationTaskFilter
 from display.tasks import (
     import_gpx_track,
     generate_and_maybe_notify_flight_order,
+    generate_editable_route_thumbnail,
 )
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
+from display.services.capacity_enforcement import scheduling_capacity_preview
 import dateutil.parser
 
 from display.models import (
@@ -54,6 +58,8 @@ from display.models import (
     Photo,
     Aeroplane,
     Club,
+    ClubManagerMembership,
+    MyUser,
     ANOMALY,
     Task,
     TaskTest,
@@ -83,6 +89,16 @@ from display.permissions import (
     TaskTestContestPermissions,
     TeamPermissions,
 )
+from display.services.capacity_enforcement import (
+    assert_can_register_team,
+    assert_can_self_register_contestant,
+    _assert_can_reserve_task_slot,
+)
+from display.services.access_resolver import resolve_contest_access
+from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
+from display.services.task_compiler import TaskCompiler
+from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
 from display.serialisers import (
     ContestantTrackSerialiser,
     NavigationTaskNestedTeamRouteSerialiserNestedContest,
@@ -113,6 +129,8 @@ from display.serialisers import (
     RouteSerialiser,
     AeroplaneSerialiser,
     ClubSerialiser,
+    ClubManagerMembershipSerializer,
+    ClubManagerMembershipCreateSerializer,
     ContestantSerialiser,
     ContestantTrackWithTrackPointsSerialiser,
     GpxTrackSerialiser,
@@ -142,6 +160,43 @@ from live_tracking_map import settings
 from websocket_channels import WebsocketFacade, generate_contestant_data_block
 
 logger = logging.getLogger(__name__)
+
+
+class AssignContestTokenSerializer(serializers.Serializer):
+    token_grant_id = serializers.IntegerField()
+
+
+def _normalize_contest_team_ids(values):
+    if values in (None, "", []):
+        return []
+
+    iterable = values.split(",") if isinstance(values, str) else values
+    normalized_ids = []
+    for item in iterable:
+        if item in (None, ""):
+            continue
+        try:
+            normalized_ids.append(int(item))
+        except (TypeError, ValueError):
+            raise ValidationError("contest_teams must be a comma-separated list of integer ContestTeam IDs.")
+
+    return list(OrderedDict.fromkeys(normalized_ids))
+
+
+class ScheduleCapacityPreviewQuerySerializer(serializers.Serializer):
+    contest_teams = serializers.CharField(required=False, allow_blank=True, default="")
+    first_takeoff_time = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate_contest_teams(self, value):
+        return _normalize_contest_team_ids(value)
+
+    def validate_first_takeoff_time(self, value):
+        if value in (None, ""):
+            return None
+        try:
+            return dateutil.parser.parse(value)
+        except (TypeError, ValueError, dateutil.parser.ParserError) as exc:
+            raise ValidationError(str(exc))
 
 
 class UserPersonViewSet(GenericViewSet):
@@ -414,20 +469,13 @@ class EditableRouteViewSet(ModelViewSet):
 
     def perform_update(self, serializer):
         super().perform_update(serializer)
-        self.get_object().update_thumbnail()
+        editable_route = serializer.instance
+        transaction.on_commit(lambda: generate_editable_route_thumbnail.delay(editable_route.pk))
 
     def perform_create(self, serializer):
         super().perform_create(serializer)
-        try:
-            thumbnail_data = serializer.instance.create_thumbnail()
-            if thumbnail_data:
-                serializer.instance.thumbnail.save(
-                    serializer.instance.name + "_thumbnail.png",
-                    ContentFile(thumbnail_data.getvalue()),
-                    save=True,
-                )
-        except Exception:
-            logger.exception(f"Failed creating thumbnail for EditableRoute {serializer.instance.pk}")
+        editable_route = serializer.instance
+        transaction.on_commit(lambda: generate_editable_route_thumbnail.delay(editable_route.pk))
 
     @action(detail=False, methods=["get"], url_path="global-map-sources")
     def global_map_sources(self, request, *args, **kwargs):
@@ -524,8 +572,8 @@ class ContestViewSet(ModelViewSet):
         response = super().retrieve(request, *args, **kwargs)
 
         response["ETag"] = etag
-        if instance.is_public and instance.is_featured:
-            # Public data can be cached by CDN but MUST be revalidated via ETag.
+        if instance.is_public and instance.is_featured and not request.user.is_authenticated:
+            # Public anonymous data can be cached by CDN but MUST be revalidated via ETag.
             # stale-while-revalidate=86400: Serve stale data while fetching fresh in background
             response["Cache-Control"] = "public, no-cache, stale-while-revalidate=86400"
             if "Vary" in response:
@@ -746,6 +794,50 @@ class ContestViewSet(ModelViewSet):
         # max-age=0: Browser always checks CDN (no disk cache).
         response["Cache-Control"] = "public, max-age=0, s-maxage=120"
         return response
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def assign_token(self, request, *args, **kwargs):
+        contest = self.get_object()
+        serializer = AssignContestTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            assignment = assign_token_to_contest(contest, request.user, serializer.validated_data["token_grant_id"])
+        except ValidationError as exc:
+            raise drf_exceptions.ValidationError(exc.messages)
+        return Response(
+            {
+                "contest": contest.id,
+                "token_grant": assignment.token_grant_id,
+                "token_type": assignment.token_type_id,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def replace_token(self, request, *args, **kwargs):
+        contest = self.get_object()
+        serializer = AssignContestTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            assignment = replace_token_for_contest(contest, request.user, serializer.validated_data["token_grant_id"])
+        except ValidationError as exc:
+            raise drf_exceptions.ValidationError(exc.messages)
+        return Response(
+            {
+                "contest": contest.id,
+                "token_grant": assignment.token_grant_id,
+                "token_type": assignment.token_type_id,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=["get"])
     def results_details(self, request, *args, **kwargs):
@@ -1068,6 +1160,8 @@ class NavigationTaskViewSet(ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
+        if instance.task_subtype:
+            TaskCompiler(instance).compile(force=False)
         response = super().retrieve(request, *args, **kwargs)
 
         # if instance.is_public and instance.contest.is_public and instance.is_featured:
@@ -1143,13 +1237,104 @@ class NavigationTaskViewSet(ModelViewSet):
     )
     def photos(self, request, pk=None, contest_pk=None):
         navigation_task = self.get_object()
-        photos = navigation_task.route.photo_set.all().order_by("name")
-        # If the user has change permission, show everything. Otherwise show public version.
-        if navigation_task.user_has_change_permissions(request.user):
+        photos = sync_navigation_task_photo_targets(navigation_task)
+        contestant_id = request.query_params.get("contestant")
+        contestant = None
+        if contestant_id:
+            try:
+                contestant = navigation_task.contestant_set.get(pk=contestant_id)
+            except Contestant.DoesNotExist:
+                raise ValidationError({"contestant": "Contestant not found for this navigation task."})
+        if contestant and hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
+            payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+            observation_photos = payload.get("observation_photos", [])
+            observation_names = {item.get("name") for item in observation_photos if item.get("name")}
+            if observation_names:
+                filtered = [photo for photo in photos if photo.name in observation_names]
+                if filtered:
+                    photos = filtered
+                else:
+                    return Response(
+                        [
+                            {
+                                "id": None,
+                                "name": item.get("name"),
+                                "file": None,
+                                "compiled_coordinates": item.get("coordinates"),
+                                "latitude": item.get("coordinates", [None, None])[1],
+                                "longitude": item.get("coordinates", [None, None])[0],
+                                "evidence_category": "observation",
+                                "target_kind": "observation",
+                            }
+                            for item in observation_photos
+                        ]
+                    )
+        if navigation_task.user_has_change_permissions(request.user) and contestant is None:
             serializer = PhotoSerialiser(photos, many=True)
         else:
-            serializer = PhotoPublicSerialiser(photos, many=True)
+            serializer = PhotoPublicSerialiser(photos, many=True, context={"contestant": contestant})
         return Response(serializer.data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="contest_teams",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Comma-separated ContestTeam IDs to preview against this task. Duplicate IDs are deduplicated in order.",
+            ),
+            OpenApiParameter(
+                name="first_takeoff_time",
+                type=OpenApiTypes.DATETIME,
+                location=OpenApiParameter.QUERY,
+                description="Optional ISO-8601 takeoff time used to filter overlapping existing contestants.",
+            ),
+        ],
+        responses={
+            200: inline_serializer(
+                name="ScheduleCapacityPreviewResponse",
+                fields={
+                    "contestant_limit": serializers.IntegerField(allow_null=True),
+                    "reserved_before_count": serializers.IntegerField(),
+                    "reserved_after_count": serializers.IntegerField(),
+                    "additional_selected_count": serializers.IntegerField(),
+                    "remaining_before_count": serializers.IntegerField(allow_null=True),
+                    "remaining_after_count": serializers.IntegerField(allow_null=True),
+                    "would_exceed": serializers.BooleanField(),
+                },
+            ),
+            400: inline_serializer(
+                name="ScheduleCapacityPreviewError",
+                fields={"detail": serializers.CharField()},
+            ),
+        },
+        description="Return projected pilot-capacity usage for a proposed schedule before contestants are created.",
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="schedule_capacity_preview",
+        permission_classes=[permissions.IsAuthenticated & NavigationTaskContestPermissions],
+    )
+    def schedule_capacity_preview(self, request, pk=None, **kwargs):
+        """Return projected pilot-capacity usage for a proposed schedule."""
+        navigation_task = self.get_object()
+        query_serializer = ScheduleCapacityPreviewQuerySerializer(data=request.query_params)
+        query_serializer.is_valid(raise_exception=True)
+        contest_teams_pks = query_serializer.validated_data["contest_teams"]
+        first_takeoff_time = query_serializer.validated_data.get("first_takeoff_time")
+        if first_takeoff_time is not None and first_takeoff_time.tzinfo is None:
+            first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
+        try:
+            preview = scheduling_capacity_preview(
+                navigation_task,
+                contest_teams_pks,
+                first_takeoff_time=first_takeoff_time,
+            )
+        except DjangoValidationError as exc:
+            detail = exc.message
+            return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(preview, status=status.HTTP_200_OK)
 
     @action(
         detail=True,
@@ -1161,11 +1346,30 @@ class NavigationTaskViewSet(ModelViewSet):
         data = request.data
 
         try:
-            contest_teams_pks = data.get("contest_teams", [])
+            contest_teams_pks = _normalize_contest_team_ids(data.get("contest_teams", []))
 
             first_takeoff_time = dateutil.parser.parse(data.get("first_takeoff_time"))
             if first_takeoff_time.tzinfo is None:
                 first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
+
+            capacity_preview = scheduling_capacity_preview(
+                navigation_task,
+                contest_teams_pks,
+                first_takeoff_time=first_takeoff_time,
+            )
+            if capacity_preview["would_exceed"]:
+                limit = capacity_preview["contestant_limit"]
+                raise drf_exceptions.ValidationError(
+                    {
+                        "detail": (
+                            f"Scheduling these teams would exceed the guest pilot capacity for this task. "
+                            f"Reserved now: {capacity_preview['reserved_before_count']} / {limit}. "
+                            f"After scheduling: {capacity_preview['reserved_after_count']} / {limit}. "
+                            f"New pilot reservations from the selected teams: {capacity_preview['additional_selected_count']}. "
+                            f"Remove an unstarted contestant, deselect teams that introduce new pilots, reuse an already-counted pilot, or apply a larger token or club pass."
+                        )
+                    }
+                )
 
             success, messages = schedule_and_create_contestants(
                 navigation_task=navigation_task,
@@ -1185,9 +1389,16 @@ class NavigationTaskViewSet(ModelViewSet):
             else:
                 return Response({"status": "error", "messages": messages}, status=status.HTTP_400_BAD_REQUEST)
 
-        except Exception as e:
-            logger.exception("Scheduling failed")
+        except drf_exceptions.ValidationError:
+            raise
+        except (TypeError, ValueError, dateutil.parser.ParserError) as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Scheduling failed")
+            return Response(
+                {"error": "Scheduling failed due to an internal error. Please try again or contact support."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @action(
         detail=True,
@@ -1204,6 +1415,7 @@ class NavigationTaskViewSet(ModelViewSet):
             serialiser = self.get_serializer(data=request.data)
             serialiser.is_valid(raise_exception=True)
             contest_team = serialiser.validated_data["contest_team"]
+            assert_can_self_register_contestant(navigation_task, contest_team)
             if contest_team.team.crew.member1.email != request.user.email:
                 raise drf_exceptions.ValidationError("You cannot add a team where you are not the pilot")
             # Pretend that the submitted time is in the contest time zone
@@ -1251,6 +1463,10 @@ class NavigationTaskViewSet(ModelViewSet):
             logger.debug(f"Finished by time is {contestant.finished_by_time}")
 
             contestant.save()
+            declaration_payload = ContestantTaskCompiler(contestant).build_declaration_payload_from_input(
+                serialiser.validated_data.get("declaration_payload")
+            )
+            ContestantTaskCompiler(contestant).compile(declaration_payload=declaration_payload, force=True)
             logger.debug("Updated contestant")
             # mail_link = EmailMapLink.objects.create(contestant=contestant)
             # mail_link.send_email(request.user.email, request.user.first_name)
@@ -1316,6 +1532,13 @@ class PhotoViewSet(ModelViewSet):
             queryset = queryset.filter(route_id=route_id)
         return queryset
 
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated & PhotoPermissions])
+    def revert(self, request, pk=None):
+        photo = self.get_object()
+        revert_photo_to_satellite(photo)
+        serializer = self.get_serializer(photo)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     def perform_create(self, serializer):
         photo = serializer.save()
         photo.generate_image()
@@ -1342,11 +1565,70 @@ class AircraftViewSet(ModelViewSet):
     http_method_names = ["get"]
 
 
-class ClubViewSet(ModelViewSet):
+class ClubViewSet(ReadOnlyModelViewSet):
     queryset = Club.objects.all()
     serializer_class = ClubSerialiser
     permission_classes = [permissions.IsAuthenticated]
-    http_method_names = ["get"]
+
+    def get_queryset(self):
+        if self.action == "managed":
+            return Club.objects.filter(
+                clubmanagermembership__user=self.request.user,
+                clubmanagermembership__is_active=True,
+            ).distinct().order_by("name")
+        return Club.objects.all().order_by("name")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
+
+    def _can_manage_club(self, club):
+        return self.request.user.is_superuser or ClubManagerMembership.objects.filter(
+            club=club,
+            user=self.request.user,
+            is_active=True,
+            role=ClubManagerMembership.OWNER,
+        ).exists()
+
+    @action(detail=False, methods=["get"], url_path="managed")
+    def managed(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="managers")
+    def managers(self, request, *args, **kwargs):
+        club = self.get_object()
+        if not self._can_manage_club(club):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        serializer = ClubManagerMembershipCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        managed_user = serializer.context["managed_user"]
+        membership, _created = ClubManagerMembership.objects.update_or_create(
+            club=club,
+            user=managed_user,
+            defaults={
+                "role": serializer.validated_data["role"],
+                "is_active": True,
+                "updated_by": request.user,
+            },
+        )
+        if membership.created_by_id is None:
+            membership.created_by = request.user
+            membership.save(update_fields=["created_by", "updated_at"])
+        return Response(ClubManagerMembershipSerializer(membership).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["delete"], url_path=r"managers/(?P<membership_pk>\d+)")
+    def manager_detail(self, request, membership_pk=None, *args, **kwargs):
+        club = self.get_object()
+        if not self._can_manage_club(club):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        membership = get_object_or_404(ClubManagerMembership, pk=membership_pk, club=club)
+        membership.is_active = False
+        membership.updated_by = request.user
+        membership.full_clean()
+        membership.save(update_fields=["is_active", "updated_by", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ContestantTeamIdViewSet(ModelViewSet):
@@ -1432,6 +1714,19 @@ def generate_score_data(contestant_pk):
                 "contestant": entry.contestant_id,
             }
         )
+    administrative_penalties = []
+    for penalty in contestant.administrativepenalty_set.select_related("score_log_entry", "actor").all():
+        administrative_penalties.append(
+            {
+                "id": penalty.id,
+                "score_log_entry": penalty.score_log_entry_id,
+                "category": penalty.category,
+                "reason": penalty.reason,
+                "actor_id": penalty.actor_id,
+                "actor_email": penalty.actor.email if penalty.actor else None,
+                "created_at": penalty.created_at.isoformat() if hasattr(penalty.created_at, "isoformat") else penalty.created_at,
+            }
+        )
 
     gate_scores = []
     for gs in contestant.gatecumulativescore_set.all():
@@ -1481,6 +1776,14 @@ def generate_score_data(contestant_pk):
         contestant_track_data=track_data,
         gate_times=contestant.gate_times,
     )
+    data["administrative_penalties"] = administrative_penalties
+    if hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
+        payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+        data["compiled_effective_route_payload"] = payload
+    else:
+        from display.services.contestant_task_compiler import ContestantTaskCompiler
+        compiled = ContestantTaskCompiler(contestant).compile(force=True)
+        data["compiled_effective_route_payload"] = compiled.compiled_effective_route_payload or {}
 
     return data
 
@@ -1505,9 +1808,10 @@ class ContestantViewSet(ModelViewSet):
 
     def get_queryset(self):
         navigation_task_id = self.kwargs.get("navigationtask_pk")
+        permission_name = "display.view_contest" if self.request.method in permissions.SAFE_METHODS else "display.change_contest"
         contests = get_objects_for_user(
             self.request.user,
-            "display.change_contest",
+            permission_name,
             klass=Contest,
             accept_global_perms=False,
         )
@@ -1520,6 +1824,16 @@ class ContestantViewSet(ModelViewSet):
         )
         if navigation_task_id:
             qs = qs.filter(navigation_task_id=navigation_task_id)
+        if self.request.method in permissions.SAFE_METHODS:
+            qs = qs.select_related(
+                "navigation_task__contest",
+                "team__crew__member1",
+                "team__crew__member2",
+                "team__aeroplane",
+                "team__club",
+                "contestanttrack",
+                "contestanttaskconfiguration",
+            )
         return qs
 
     def get_serializer_context(self):
@@ -1537,6 +1851,11 @@ class ContestantViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serialiser = self.get_serializer(data=request.data)
         if serialiser.is_valid():
+            navigation_task = serialiser.context.get("navigation_task")
+            team = serialiser.validated_data.get("team")
+            if navigation_task is not None and team is not None:
+                resolution = resolve_contest_access(navigation_task.contest)
+                _assert_can_reserve_task_slot(navigation_task, team, resolution)
             serialiser.save()
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1550,6 +1869,16 @@ class ContestantViewSet(ModelViewSet):
         partial = kwargs.pop("partial", False)
         serialiser = self.get_serializer(instance=instance, data=request.data, partial=partial)
         if serialiser.is_valid():
+            # Use the existing instance's navigation_task rather than the
+            # serializer context, which is only populated when this viewset is
+            # reached via the nested .../navigationtasks/<pk>/contestants/ URL -
+            # the instance's own navigation_task is always correct regardless
+            # of which route (nested or the top-level /contestant/) was used.
+            navigation_task = instance.navigation_task
+            team = serialiser.validated_data.get("team")
+            if navigation_task is not None and team is not None:
+                resolution = resolve_contest_access(navigation_task.contest)
+                _assert_can_reserve_task_slot(navigation_task, team, resolution, current_contestant=instance)
             serialiser.save()
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1558,6 +1887,10 @@ class ContestantViewSet(ModelViewSet):
     def update_with_team(self, request, *args, **kwargs):
         return super().update(request, *args, **kwargs)
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+        description="Return consolidated score data, including compiled task payload and administrative penalties, for the contestant score view.",
+    )
     @action(detail=True, methods=["get"])
     def score_data(self, request, *args, **kwargs):
         """
@@ -1565,6 +1898,12 @@ class ContestantViewSet(ModelViewSet):
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
         is_finished = hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished
+        if not hasattr(contestant, "contestanttaskconfiguration"):
+            from display.services.contestant_task_compiler import ContestantTaskCompiler
+            ContestantTaskCompiler(contestant).compile(force=True)
+        elif not contestant.contestanttaskconfiguration.is_valid:
+            from display.services.contestant_task_compiler import ContestantTaskCompiler
+            ContestantTaskCompiler(contestant).compile(force=True)
 
         # ETag based on contestant's track and score versions. 
         # track_version only bumps on (re)start. score_version bumps on admin edits.
@@ -1603,8 +1942,16 @@ class ContestantViewSet(ModelViewSet):
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.PATH,
                 description="Minute index to inspect",
-            )
-        ]
+            ),
+            OpenApiParameter(
+                name="count",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Number of contiguous one-minute slices to return. Must be between 1 and 60.",
+            ),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+        description="Return one or more cached minute-aligned telemetry slices for a contestant track.",
     )
     @action(detail=True, methods=["get"], url_path=r"slice/(?P<minute_index>\d+)")
     def slice(self, request, minute_index, **kwargs):
@@ -1774,6 +2121,10 @@ class ContestantViewSet(ModelViewSet):
 
         yield "]"
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+        description="Alias for score_data that returns the contestant score payload expected by the score view.",
+    )
     @action(detail=True, methods=["get"])
     def score(self, request, pk=None, **kwargs):
         """
@@ -1822,6 +2173,57 @@ class ContestantViewSet(ModelViewSet):
             del response["Vary"]
 
         return response
+
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                name="CompiledEvidenceResponse",
+                fields={
+                    "observation_photos": serializers.ListField(child=serializers.DictField(), required=True),
+                    "observation_judging_mode": serializers.CharField(allow_null=True),
+                    "manual_adjudication_categories": serializers.ListField(child=serializers.CharField()),
+                    "hidden_gate_names": serializers.ListField(child=serializers.CharField()),
+                    "unknown_leg_names": serializers.ListField(child=serializers.CharField()),
+                },
+            )
+        },
+        description="Return organizer-facing compiled evidence metadata derived from the contestant's effective route payload.",
+    )
+    @action(detail=True, methods=["get"])
+    def compiled_evidence(self, request, pk=None, **kwargs):
+        """Return organizer-facing compiled evidence metadata for the contestant."""
+        contestant = self.get_object()
+        from display.services.contestant_task_compiler import ContestantTaskCompiler
+        declaration_payload = {}
+        if hasattr(contestant, "contestanttaskconfiguration"):
+            declaration_payload = contestant.contestanttaskconfiguration.declaration_payload or {}
+        refreshed = ContestantTaskCompiler(contestant).compile(declaration_payload=declaration_payload, force=False)
+        payload = refreshed.compiled_effective_route_payload or {}
+        if payload:
+            return Response(
+                {
+                    "observation_photos": [
+                        {
+                            **item,
+                            "evidence_category": "observation",
+                        }
+                        for item in payload.get("observation_photos", [])
+                    ],
+                    "observation_judging_mode": payload.get("observation_judging_mode"),
+                    "manual_adjudication_categories": payload.get("manual_adjudication_categories", []),
+                    "hidden_gate_names": payload.get("hidden_gate_names", []),
+                    "unknown_leg_names": payload.get("unknown_leg_names", []),
+                }
+            )
+        return Response(
+            {
+                "observation_photos": [],
+                "observation_judging_mode": None,
+                "manual_adjudication_categories": [],
+                "hidden_gate_names": [],
+                "unknown_leg_names": [],
+            }
+        )
 
     @action(detail=True, methods=["post"])
     def gpx_track(self, request, pk=None, **kwargs):

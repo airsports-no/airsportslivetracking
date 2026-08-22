@@ -115,7 +115,9 @@ class TestAutoCompleteClub(APITestCase):
         self.assertEqual(status.HTTP_200_OK, result.status_code)
         response = result.json()[0]
         del response["id"]
-        self.assertDictEqual({"country": "", "country_flag_url": None, "logo": None, "name": "name"}, response)
+        self.assertDictEqual(
+            {"country": "", "country_flag_url": None, "logo": None, "name": "name", "manager_memberships": []}, response
+        )
 
 
 TraccarMock = Mock()

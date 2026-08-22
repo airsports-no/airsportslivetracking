@@ -96,3 +96,40 @@ class TestProhibitedZoneCalculator(TransactionTestCase):
         position = self.create_position(59.5, 11.5, datetime.datetime(2023, 6, 22, 12))
         self.calculator.calculate_outside_route([position], state)
         self.calculator.update_score.assert_not_called()
+
+    def test_reentering_same_zone_after_exit_scores_again(self):
+        """CURRENT BEHAVIOR (documented, not asserted as correct): exiting a
+        prohibited zone clears zones_scored along with inside_zones/
+        inside_positions (check_inside_prohibited_zone,
+        prohibited_zone_calculator.py:159-170), so re-entering the SAME
+        zone later in the same flight re-triggers the full grace-time-then-
+        penalty sequence and scores it a second time, rather than only
+        scoring a prohibited-zone incursion once per flight. Whether that's
+        the intended rule (arguably plausible - each incursion could be its
+        own infraction) or a gap is a domain question flagged for the user,
+        not something this test claims is right or wrong."""
+        self.calculator.prohibited_zone_grace_time = datetime.timedelta(seconds=3)
+        state = Mock(OrchestratorState)
+        state.last_visible_gate = Mock()
+        state.last_visible_gate.is_visible = True
+        state.last_visible_gate.waypoint.on_curved_segment = False
+
+        # First incursion: enter, wait past grace, score once.
+        position = self.create_position(60.5, 11.5, datetime.datetime(2023, 6, 22, 12, 0, 0))
+        self.calculator.calculate_enroute([position], state)
+        position = self.create_position(60.5, 11.5, datetime.datetime(2023, 6, 22, 12, 0, 5))
+        self.calculator.calculate_enroute([position], state)
+        self.assertEqual(self.calculator.update_score.call_count, 1)
+
+        # Exit the zone.
+        position = self.create_position(59.5, 11.5, datetime.datetime(2023, 6, 22, 12, 1, 0))
+        self.calculator.calculate_enroute([position], state)
+
+        # Second incursion into the SAME zone later in the flight: enter,
+        # wait past grace again.
+        position = self.create_position(60.5, 11.5, datetime.datetime(2023, 6, 22, 12, 2, 0))
+        self.calculator.calculate_enroute([position], state)
+        position = self.create_position(60.5, 11.5, datetime.datetime(2023, 6, 22, 12, 2, 5))
+        self.calculator.calculate_enroute([position], state)
+
+        self.assertEqual(self.calculator.update_score.call_count, 2)

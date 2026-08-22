@@ -4,8 +4,8 @@ import {
   getBearing,
   getDestinationPoint,
   toRad,
-  getQuadraticBezierPoints
 } from '../../../utils/geoUtils';
+import { getQuadraticBezierPoints } from '../../../utils/bezierPoints';
 import useMapInit from './map/useMapInit';
 import useDragHandlers from './map/useDragHandlers';
 import * as Renderers from './map/renderers';
@@ -23,6 +23,7 @@ const getAngleDiff = (a: number, b: number) => {
 interface MapCanvasProps {
     routeId?: number | null;
     routePoints: RoutePoint[];
+    standalonePoints: RoutePoint[];
     gates: Gate[];
     observationMarkers: ObservationMarker[];
     polygons: Polygon[];
@@ -34,7 +35,9 @@ interface MapCanvasProps {
     showCorridor: boolean;
     maxObsDist: number;
     hideLabels: boolean;
+    wizardPolygonType?: Polygon['type'] | null;
     setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
+    setStandalonePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
     setGates: React.Dispatch<React.SetStateAction<Gate[]>>;
     setObservationMarkers: React.Dispatch<React.SetStateAction<ObservationMarker[]>>;
     setPolygons: React.Dispatch<React.SetStateAction<Polygon[]>>;
@@ -48,6 +51,7 @@ interface MapCanvasProps {
 const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({ 
   routeId,
   routePoints,
+  standalonePoints,
   gates,
   observationMarkers,
   polygons,
@@ -59,7 +63,9 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   showCorridor,
   maxObsDist,
   hideLabels,
+  wizardPolygonType,
   setRoutePoints,
+  setStandalonePoints,
   setGates,
   setObservationMarkers,
   setPolygons,
@@ -89,6 +95,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   const { handleDragMove, handleDragEnd, dragRef } = useDragHandlers({
     mapRef,
     setRoutePoints,
+    setStandalonePoints,
     setPolygons,
     observationMarkers,
     markersRef,
@@ -526,7 +533,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     // --- RENDERER: DRAW ROUTE LINE ---
     Renderers.drawRouteLine(
       map, 
-      routePoints, 
+      routePoints,
+      standalonePoints,
       routeLineRef, 
       polylinesRef, 
       mode, 
@@ -540,7 +548,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     );
 
     // --- RENDERER: DRAW POINTS ---
-    Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels);
+    Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'point');
+    Renderers.drawPoints(map, standalonePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'standalone_point');
 
     // --- RENDERER: DRAW GATES ---
     Renderers.drawGates(map, gates, polylinesRef, setSelectedId, setSelectionType, setMode, hideLabels);
@@ -615,7 +624,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
               setPolygons(prev => [...prev, {
                 id: crypto.randomUUID(),
                 name: `Zone ${prev.length + 1}`,
-                type: 'prohibited',
+                type: wizardPolygonType || 'prohibited',
                 points: tempPolygonPoints
               }]);
               setTempPolygonPoints([]);
@@ -628,9 +637,9 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     }
 
   }, [
-    routePoints, gates, tempGatePoint, showCorridor, observationMarkers, 
+    routePoints, standalonePoints, gates, tempGatePoint, showCorridor, observationMarkers, 
     polygons, tempPolygonPoints, selectedId, selectionType, mode,
-    setRoutePoints, setGates, setObservationMarkers, setPolygons, 
+    setRoutePoints, setStandalonePoints, setGates, setObservationMarkers, setPolygons, 
     setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels
   ]);
 

@@ -4,6 +4,7 @@ import { selectStyles } from '../../utils/selectStyles';
 import { LatLngBounds } from 'leaflet';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
+import * as api from './api';
 import { useMissionDashboardStore } from './store';
 import { Contest, OngoingNavigation, MyContestTeam } from './types';
 import { Contestant } from '../competition-map/types';

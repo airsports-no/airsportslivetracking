@@ -150,8 +150,44 @@ class ContestantTrack(models.Model):
         self.__push_change()
 
     def set_calculator_started(self):
+        from display.models import ContestUsageLedger
+        from display.services.capacity_enforcement import assert_can_start_contestant
+
+        if self.calculator_started:
+            self.__push_change()
+            return
+        assert_can_start_contestant(self.contestant)
         self.calculator_started = True
         self.save(update_fields=["calculator_started"])
+        contest = self.contestant.navigation_task.contest
+        is_owner_team = False
+        if contest.created_by_id:
+            try:
+                is_owner_team = self.contestant.team.crew.member1_id == contest.created_by.person.id
+            except Exception:
+                is_owner_team = False
+        if not is_owner_team:
+            pilot = self.contestant.team.crew.member1
+            ContestUsageLedger.objects.get_or_create(
+                contest=contest,
+                pilot=pilot,
+                kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
+                defaults={
+                    "navigation_task": self.contestant.navigation_task,
+                    "team": self.contestant.team,
+                    "contestant": self.contestant,
+                },
+            )
+            ContestUsageLedger.objects.get_or_create(
+                contest=contest,
+                navigation_task=self.contestant.navigation_task,
+                pilot=pilot,
+                kind=ContestUsageLedger.TASK_PILOT_STARTED,
+                defaults={
+                    "team": self.contestant.team,
+                    "contestant": self.contestant,
+                },
+            )
         self.__push_change()
 
     def set_passed_starting_gate(self):

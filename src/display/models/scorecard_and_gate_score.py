@@ -107,6 +107,32 @@ class Scorecard(models.Model):
     corridor_maximum_penalty_is_per_leg = models.BooleanField(
         default=True, help_text="If true, the maximum corridor penalty is reset for each leg"
     )
+    anr_route_to_sp_penalty = models.FloatField(
+        default=200,
+        help_text="Penalty for not following the auxiliary route to the start point in ANR catalogue tasks",
+    )
+    anr_route_from_fp_penalty = models.FloatField(
+        default=200,
+        help_text="Penalty for not following the auxiliary route from the finish point in ANR catalogue tasks",
+    )
+
+    compulsory_timing_tolerance_seconds = models.IntegerField(default=10)
+    maximum_task_duration_minutes = models.IntegerField(null=True, blank=True)
+    maximum_task_duration_penalty = models.FloatField(default=100)
+    fuel_deadline_penalty = models.FloatField(default=100)
+    DURATION_NORMALIZATION_POLICIES = (("", "---------"), ("raw_minutes", "Raw minutes"))
+    duration_normalization_policy = models.CharField(max_length=40, blank=True, default="", choices=DURATION_NORMALIZATION_POLICIES)
+    duration_residual_fuel_required = models.BooleanField(default=False)
+    circle_radius_min_m = models.FloatField(default=200)
+    circle_radius_max_m = models.FloatField(default=750)
+    speed_keeping_tolerance_kt = models.FloatField(
+        default=5,
+        help_text="Allowed deviation (in knots) from the declared speed on a known-circuit leg before a speed-keeping penalty applies",
+    )
+    speed_keeping_penalty_per_kt = models.FloatField(
+        default=1,
+        help_text="Penalty per knot of speed deviation beyond the tolerance on a known-circuit leg",
+    )
 
 
     def __str__(self):

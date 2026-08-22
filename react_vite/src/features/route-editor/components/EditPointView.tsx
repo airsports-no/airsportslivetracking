@@ -52,12 +52,45 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
         <select 
           className="select select-bordered select-sm w-full"
           value={point.type} 
-          onChange={(e) => updatePoint('type', e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value as RoutePoint['type'];
+            const featureTypeMap: Partial<Record<RoutePoint['type'], NonNullable<RoutePoint['featureType']>>> = {
+              sp: 'route_waypoint',
+              tp: 'route_waypoint',
+              secret: 'route_waypoint',
+              fp: 'route_waypoint',
+              anrtp: 'route_waypoint',
+              ul: 'route_waypoint',
+              dummy: 'route_waypoint',
+              known_time_gate: 'known_time_gate',
+              timed_turnpoint: 'known_time_gate',
+              hidden_gate: 'hidden_gate',
+              catalogue_turnpoint: 'catalogue_turnpoint',
+              circle_center: 'circle_center_marker',
+              circle_start: 'circle_start_marker',
+              circle_entry: 'circle_entry_marker',
+              circle_exit: 'circle_exit_marker',
+            };
+            updatePoint('type', value);
+            if (featureTypeMap[value]) {
+              updatePoint('featureType', featureTypeMap[value]);
+            }
+          }}
         >
           <option value="sp">Start Point</option>
           <option value="tp">Visible Turning Point</option>
           <option value="secret">Secret Point</option>
           <option value="fp">Finish Point</option>
+          <option value="dummy">Dummy Point</option>
+          <option value="known_time_gate">Known Time Gate</option>
+          <option value="timed_turnpoint">Timed Turnpoint (standalone)</option>
+          <option value="hidden_gate">Hidden Gate</option>
+          <option value="ul">Unknown Leg</option>
+          <option value="catalogue_turnpoint">Catalogue Turnpoint</option>
+          <option value="circle_center">Circle Center</option>
+          <option value="circle_start">Circle Start</option>
+          <option value="circle_entry">Circle Entry</option>
+          <option value="circle_exit">Circle Exit</option>
         </select>
         {point.type === 'secret' && (
           <p className="text-xs text-amber-600 mt-1">
@@ -87,6 +120,20 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
           }}
         />
       </div>
+
+      {point.featureType === 'catalogue_turnpoint' && (
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase">Score Value</label>
+          <input
+            type="number"
+            step="0.1"
+            className="input input-bordered input-sm w-full"
+            value={point.scoreValue ?? ''}
+            onChange={(e) => updatePoint('scoreValue', e.target.value === '' ? null : Number(e.target.value))}
+            placeholder="Optional"
+          />
+        </div>
+      )}
 
       <div className="space-y-2 pt-2">
         <label className="flex items-center space-x-2 cursor-pointer">

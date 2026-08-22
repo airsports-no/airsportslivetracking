@@ -56,8 +56,8 @@ const ContestDashboard = () => {
     const [viewingScoresForTask, setViewingScoresForTask] = useState<NavigationTask | null>(null);
     const [loadingTaskScores, setLoadingTaskScores] = useState(false);
 
-
     const canManageThisContest = contest?.is_editor || document.configuration.is_superuser;
+
 
     const hasFutureFlightsScheduled = useMemo(() => {
         if (!contest || !myFutureFlights) return false;

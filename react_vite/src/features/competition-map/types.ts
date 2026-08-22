@@ -93,13 +93,14 @@ export interface Waypoint {
   bearing_from_previous: number;
   procedure_turn_points?: [number, number][];
   is_procedure_turn: boolean;
+  is_steep_turn?: boolean;
   outer_corner_position?: any[];
 }
 
 export interface ProhibitedZone {
   id: number;
   name: string;
-  type: 'prohibited' | 'penalty' | 'info' | 'gate';
+  type: 'prohibited' | 'penalty' | 'info' | 'gate' | 'duration_landing_area';
   path: [number, number][];
   tooltip_position?: [number, number];
 }
@@ -111,6 +112,11 @@ export interface Photo {
   latitude: number;
   longitude: number;
   file: string | null;
+  compiled_coordinates?: [number, number] | null;
+  evidence_category?: string;
+  target_kind?: string;
+  is_decoy?: boolean;
+  decoy_course?: number | null;
 }
 
 export interface RouteData {
@@ -156,11 +162,15 @@ export interface Scorecard {
   backtracking_grace_time_seconds?: number;
   backtracking_penalty?: number;
   backtracking_maximum_penalty?: number;
+  circle_radius_min_m?: number;
+  circle_radius_max_m?: number;
 }
 
 export interface Contestant {
   id: number;
   contest_id: number;
+  declaration_payload?: Record<string, any>;
+  compiled_effective_route_payload?: Record<string, any>;
   team: Team;
   contestanttrack: ContestantTrackSummary;
   contestant_number: number;
@@ -193,11 +203,41 @@ export interface Contestant {
   }[];
 }
 
+export interface NavigationTaskCatalogueTarget {
+  name: string;
+  coordinates: [number, number];
+  kind?: "catalogue_turnpoint" | "circle_center_marker" | "circle_start_marker" | "circle_entry_marker" | "circle_exit_marker" | "unknown_leg_trigger" | "unknown_leg_connector_end" | "hidden_gate";
+  segment_name?: string;
+  trigger_point_id?: string | null;
+  branch_sequence?: number | null;
+  connector_to_name?: string | null;
+  is_unknown_leg_trigger?: boolean;
+}
+
 export interface NavigationTask {
   id: number;
   route: RouteData;
+  task_catalogue_targets?: NavigationTaskCatalogueTarget[];
   scorecard: Scorecard;
   contestant_set: Contestant[];
+  task_subtype?: string | null;
+  task_config?: Record<string, any>;
+  task_information?: {
+    family_display_name: string;
+    subtype_key?: string | null;
+    subtype_display_name: string;
+    objective: string;
+    summary: string[];
+    scoring: string[];
+    penalties: string[];
+    overrides: string[];
+  };
+  task_subtype_definition?: {
+    key: string;
+    display_name: string;
+    coarse_family: string;
+    requires_contestant_configuration: boolean;
+  } | null;
   name: string;
   display_background_map: boolean;
   display_secrets: boolean;

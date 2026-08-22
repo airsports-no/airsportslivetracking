@@ -33,6 +33,7 @@ export async function fetchNavigationTask(contestId: number, navigationTaskId: n
     url.searchParams.set('finish_time__lte', filters.finishTimeLte);
   }
   const res = await fetch(url.toString(), {
+    cache: 'no-store',
     headers: { 'Accept': 'application/json' }
   });
   if (!res.ok) {
@@ -179,6 +180,20 @@ export async function uploadPhotoFile(photoId: number, file: File): Promise<any>
     });
     if (!res.ok) {
         throw new Error(`Failed to upload photo: ${res.statusText}`);
+    }
+    return res.json();
+}
+
+export async function revertPhotoToSatellite(photoId: number): Promise<any> {
+    const url = reverse('photos-revert', photoId);
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')!
+        }
+    });
+    if (!res.ok) {
+        throw new Error(`Failed to revert photo: ${res.statusText}`);
     }
     return res.json();
 }
