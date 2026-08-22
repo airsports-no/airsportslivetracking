@@ -67,6 +67,7 @@ from display.models import (
     ClubManagerMembership,
 )
 from display.services.access_resolver import resolve_contest_access
+from display.services.capacity_enforcement import assert_can_add_navigation_task
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.task_compiler import TaskCompiler
 from display.services.contestant_persistence import (
@@ -1475,11 +1476,14 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context["request"].user
-        contestant_set = validated_data.pop("contestant_set", [])
         try:
-            validated_data["contest"] = self.context["contest"]
+            contest = self.context["contest"]
         except KeyError:
             raise Http404("Contest not found")
+        assert_can_add_navigation_task(contest, task_subtype=validated_data.get("task_subtype"), user=user)
+
+        contestant_set = validated_data.pop("contestant_set", [])
+        validated_data["contest"] = contest
 
         route = validated_data.pop("route", None)
         route_serialiser = RouteSerialiser(data=route)
@@ -1550,6 +1554,16 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
 
     def create(self, validated_data):
         with transaction.atomic():
+            user = self.context["request"].user
+            try:
+                contest = self.context["contest"]
+            except KeyError:
+                raise Http404("Contest not found")
+            # The Django wizards enforce this (views_wizards.py); the API create path
+            # must too, or a gated/ungranted task-type group is only UI-hidden, not
+            # actually blocked.
+            assert_can_add_navigation_task(contest, task_subtype=validated_data.get("task_subtype"), user=user)
+
             editable_route: EditableRoute = validated_data["editable_route"]
             original_scorecard: Scorecard = validated_data["original_scorecard"]
             try:
@@ -1562,12 +1576,8 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
                 )
             except CoreValidationError as e:
                 raise ValidationError(e)
-            user = self.context["request"].user
-            try:
-                validated_data["contest"] = self.context["contest"]
-            except KeyError:
-                raise Http404("Contest not found")
 
+            validated_data["contest"] = contest
             validated_data["route"] = route
             assign_perm("display.view_route", user, route)
             assign_perm("display.delete_route", user, route)
@@ -1621,6 +1631,13 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
     def create(self, validated_data):
         # TODO: Add support for ANR track
         with transaction.atomic():
+            user = self.context["request"].user
+            try:
+                contest = self.context["contest"]
+            except KeyError:
+                raise Http404("Contest not found")
+            assert_can_add_navigation_task(contest, task_subtype=validated_data.get("task_subtype"), user=user)
+
             contestant_set = validated_data.pop("contestant_set", [])
             route_file = validated_data.pop("route_file", None)
             try:
@@ -1630,12 +1647,8 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
                 )
             except Exception as e:
                 raise ValidationError("Failed building route from provided GPX: {}".format(e))
-            user = self.context["request"].user
-            try:
-                validated_data["contest"] = self.context["contest"]
-            except KeyError:
-                raise Http404("Contest not found")
 
+            validated_data["contest"] = contest
             validated_data["route"] = route
             assign_perm("display.view_route", user, route)
             assign_perm("display.delete_route", user, route)

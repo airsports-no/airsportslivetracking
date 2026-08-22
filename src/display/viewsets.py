@@ -90,7 +90,6 @@ from display.permissions import (
     TeamPermissions,
 )
 from display.services.capacity_enforcement import (
-    assert_can_add_navigation_task,
     assert_can_register_team,
     assert_can_self_register_contestant,
     _assert_can_reserve_task_slot,
