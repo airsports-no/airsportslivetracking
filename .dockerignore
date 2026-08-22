@@ -11,3 +11,10 @@
 !package.json
 !package-lock.json
 !tailwind.config.js
+
+# Dead weight inside included directories: re-fetched/deleted by the
+# frontend builder stage, or never read at runtime.
+src/static/css/tailwindcss
+src/**/__pycache__
+src/map.png
+src/polygon.png

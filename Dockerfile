@@ -60,8 +60,8 @@ ENV PYTHONUNBUFFERED=1 \
 RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone && \
     apt-get update \
     && apt-get -y install --no-install-recommends \
-    gdal-bin proj-data proj-bin default-libmysqlclient-dev \
-    libcliquer1 libgslcblas0 latexmk texlive \
+    default-libmysqlclient-dev \
+    latexmk \
     texlive-latex-base texlive-latex-extra lmodern  \
     texlive-latex-recommended ca-certificates gnupg \
     && apt-get autoremove -y \
@@ -73,13 +73,13 @@ RUN groupadd --system django \
     && useradd --system -m -u 200 -g django -s /bin/bash django
 
 ###### INSTALL PYTHON PACKAGES ######
-COPY --from=python_builder /wheels /wheels
-RUN pip install --no-cache-dir --no-index --find-links=/wheels /wheels/* \
-    && rm -rf /wheels
+RUN --mount=type=bind,from=python_builder,source=/wheels,target=/wheels \
+    pip install --no-cache-dir --no-index --find-links=/wheels /wheels/*
         
 ###### SETUP APPLICATION INFRASTRUCTURE ######
-# TODO: Required for a test, should be changed
-COPY documentation /documentation
+# Only importnavigationtask.json is needed, by
+# display/tests/test_navigation_task_data.py::TestImportSerialiser::test_doc_example
+COPY documentation/importnavigationtask.json /documentation/
 COPY config /config
 COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh config/asgi.sh /
 RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh /asgi.sh
@@ -90,12 +90,9 @@ RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh /asgi.sh
 COPY --chown=django:django src /src
 COPY --chown=django:django --from=frontend_builder /app/assets_vite /assets_vite
 COPY --chown=django:django --from=frontend_builder /app/airsports_static/dist /marketing_dist
-COPY --chown=django:django --from=frontend_builder /app/airsports_static/public/example_flight_order.pdf /marketing_dist/example_flight_order.pdf
 COPY --chown=django:django react_vite/src/routes.json /react_vite/src/
 COPY --chown=django:django --from=frontend_builder /app/src/static/css/output.css /src/static/css
 
-# Required for tests
-COPY --chown=django:django data /data
 WORKDIR /src
 
 
