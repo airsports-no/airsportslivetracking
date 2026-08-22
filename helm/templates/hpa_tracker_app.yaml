@@ -20,13 +20,24 @@ spec:
   # deployment would stay pinned at peak replicas until the next deploy. That
   # is the opposite of lean at idle. Channel-layer fan-out is CPU-bound
   # anyway; memory is handled by sizing the request generously.
+  #
+  # 200%, not 100%: the 150m CPU request (deployment_tracker_app.yaml) is a
+  # floor forced by Autopilot's CPU:memory ratio rule, not real demand, so a
+  # low percentage target is measuring noise. Verified live: a single admin
+  # browsing the site (no concurrent contestants) produced a one-minute 148m
+  # blip on both pods - 99% utilization off ordinary page loads - which at a
+  # 60% target rescaled 2->5 pods for essentially idle traffic. 200% (~300m)
+  # matches the prewarm buffer's own estimate of a real tracker-app scale-up
+  # burst (see prewarmBuffer comment in values.yaml) and clears that noise
+  # floor while still reacting within one 15s step to genuine contest-start
+  # load.
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 60
+        averageUtilization: 200
   behavior:
     scaleUp:
       # Autopilot node provisioning is the slow part of scaling up, so the HPA
