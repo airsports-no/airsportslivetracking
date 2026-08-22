@@ -8,8 +8,8 @@ from display.forms import FlightOrderConfigurationForm, MapForm, ContestantMapFo
 from display.flight_order_and_maps.generate_flight_orders import (
     build_flight_order_map_plot_kwargs,
     get_flight_order_visual_waypoints,
-    insert_photos_latex,
-    insert_unknown_leg_images_latex,
+    _photo_gallery_cells,
+    _unknown_leg_gallery_cells,
 )
 from display.flight_order_and_maps.map_plotter_shared_utilities import resolve_map_source_definition
 from display.models import Contest, NavigationTask, Route
@@ -257,8 +257,10 @@ class FlightOrderConfigurationFormTests(TestCase):
 
         self.assertEqual([waypoint.name for waypoint in waypoints], ["SP", "TRG1", "FP"])
 
-    @patch("display.flight_order_and_maps.generate_flight_orders.render_turning_point_images")
-    def test_insert_unknown_leg_images_uses_compiled_unknown_leg_names_even_when_actual_route_contains_trigger(self, mock_render):
+    @patch("display.flight_order_and_maps.generate_flight_orders.get_turning_point_image")
+    def test_unknown_leg_gallery_cells_uses_compiled_unknown_leg_names_even_when_actual_route_contains_trigger(
+        self, mock_get_turning_point_image
+    ):
         class DummyWaypoint:
             def __init__(self, name, type_, bearing_next=0):
                 self.name = name
@@ -288,14 +290,20 @@ class FlightOrderConfigurationFormTests(TestCase):
             DummyWaypoint("FP", "fp"),
         ]
 
-        insert_unknown_leg_images_latex(contestant, MagicMock(), self.configuration, waypoints)
+        mock_get_turning_point_image.side_effect = lambda wps, index, *a, **k: type(
+            "Tmp", (), {"name": f"img-{wps[index].name}"}
+        )()
 
-        render_waypoints = mock_render.call_args.args[0]
-        self.assertEqual([waypoint.name for waypoint in render_waypoints], ["TRG1"])
-        self.assertTrue(mock_render.call_args.kwargs["is_unknown_leg"])
+        _unknown_leg_gallery_cells(contestant, self.configuration, waypoints)
+
+        rendered_names = [
+            call.args[0][call.args[1]].name for call in mock_get_turning_point_image.call_args_list
+        ]
+        self.assertEqual(rendered_names, ["TRG1"])
+        self.assertTrue(all(call.kwargs["is_unknown_leg"] for call in mock_get_turning_point_image.call_args_list))
 
     @patch("display.flight_order_and_maps.generate_flight_orders.generate_photo")
-    def test_insert_photos_latex_synthesizes_unknown_leg_observation_pages_from_compiled_payload(self, mock_generate_photo):
+    def test_photo_gallery_cells_synthesizes_unknown_leg_observation_pages_from_compiled_payload(self, mock_generate_photo):
         class DummyWaypoint:
             def __init__(self, name, type_, latitude, longitude, bearing_next=0):
                 self.name = name
@@ -326,23 +334,18 @@ class FlightOrderConfigurationFormTests(TestCase):
 
         mock_generate_photo.return_value = type("Tmp", (), {"name": "/tmp/photo-ul-1.png"})()
 
-        document = MagicMock()
-        context_manager = MagicMock()
-        context_manager.__enter__.return_value = MagicMock()
-        context_manager.__exit__.return_value = False
-        document.create.return_value = context_manager
-
         with patch(
             "display.flight_order_and_maps.generate_flight_orders.get_effective_route_waypoints",
             return_value=[DummyWaypoint("TRG1", "ul", 60.2, 11.2, bearing_next=87)],
         ):
-            insert_photos_latex(contestant, document, self.configuration)
+            cells = _photo_gallery_cells(contestant, self.configuration)
 
         photo_stub = mock_generate_photo.call_args.args[0]
         waypoint = mock_generate_photo.call_args.args[1]
         self.assertEqual(photo_stub.name, "Photo UL-1")
         self.assertEqual((photo_stub.longitude, photo_stub.latitude), (11.21, 60.21))
         self.assertEqual(waypoint.name, "TRG1")
+        self.assertEqual(cells, [("/tmp/photo-ul-1.png", "Photo UL-1")])
 
     def test_contestant_declaration_toggle_defaults_to_enabled(self):
         form = FlightOrderConfigurationForm(instance=self.configuration)

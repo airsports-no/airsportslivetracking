@@ -8,6 +8,7 @@ import urllib
 import urllib.request
 from io import BytesIO
 from tempfile import NamedTemporaryFile
+from types import SimpleNamespace
 from typing import List, Literal, Optional, Tuple
 
 import matplotlib
@@ -23,6 +24,7 @@ from fpdf import FPDF
 from PIL import Image, ImageDraw, ImageFont
 from shapely.geometry import Polygon
 
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.flight_order_and_maps.map_constants import A3, LANDSCAPE
 from display.flight_order_and_maps.map_plotter import plot_route
 from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_image
@@ -68,6 +70,7 @@ def build_flight_order_map_plot_kwargs(
         "zoom_level": flight_order_configuration.map_zoom_level,
         "landscape": flight_order_configuration.map_orientation == LANDSCAPE,
         "contestant": contestant,
+        "include_contestant_declarations": bool(flight_order_configuration.map_include_contestant_declarations),
         "annotations": flight_order_configuration.map_include_annotations,
         "waypoints_only": not flight_order_configuration.map_plot_track_between_waypoints,
         "dpi": flight_order_configuration.map_dpi,
@@ -80,6 +83,43 @@ def build_flight_order_map_plot_kwargs(
         "include_meridians_and_parallels_lines": flight_order_configuration.map_include_meridians_and_parallels_lines,
         "margins_mm": 10,
     }
+
+
+def get_flight_order_visual_waypoints(contestant: Contestant, include_contestant_declarations: bool) -> list[Waypoint]:
+    effective_waypoints = get_effective_route_waypoints(
+        contestant.navigation_task,
+        contestant=contestant,
+        include_contestant_declarations=include_contestant_declarations,
+    )
+    waypoints = [waypoint for waypoint in effective_waypoints if waypoint.type != "dummy"]
+    payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
+    if contestant.navigation_task.task_subtype == "unknown_legs":
+        actual_route_names = {
+            item.get("name") for item in (payload.get("actual_route", {}) or {}).get("waypoints", []) if item.get("name")
+        }
+        if actual_route_names:
+            waypoints = [waypoint for waypoint in waypoints if waypoint.name in actual_route_names]
+    return waypoints
+
+
+def _build_decoy_photo_waypoints(navigation_task) -> List[Waypoint]:
+    """Decoy photos (2.A5) have no real trigger waypoint - build a synthetic
+    one from the organizer-declared location/course so they can be rendered
+    and shuffled in among the genuine unknown-leg photos via the same
+    waypoint-based image pipeline.
+    """
+    from display.utilities.route_building_utilities import build_waypoint
+
+    decoy_waypoints = []
+    for photo in Photo.objects.filter(route=navigation_task.route, is_decoy=True):
+        waypoint = build_waypoint(photo.name, photo.latitude, photo.longitude, "tp", 0.001, False, True)
+        course = photo.decoy_course or 0
+        # Set both: rendering picks bearing_next or bearing_from_previous
+        # depending on the decoy's (randomised) position in the list.
+        waypoint.bearing_next = course
+        waypoint.bearing_from_previous = course
+        decoy_waypoints.append(waypoint)
+    return decoy_waypoints
 
 
 def generate_turning_point_image(
@@ -258,10 +298,8 @@ def _typst_gallery_pages(cells: List[Tuple[str, Optional[str]]], cols: int, rows
 
 
 def _turning_point_gallery_cells(
-    contestant, flight_order_configuration: FlightOrderConfiguration
+    contestant, flight_order_configuration: FlightOrderConfiguration, waypoints: List[Waypoint]
 ) -> List[Tuple[str, Optional[str]]]:
-    navigation = contestant.navigation_task
-    waypoints = navigation.route.waypoints
     render_waypoints = [wp for wp in waypoints if wp.type not in (SECRETPOINT, DUMMY, UNKNOWN_LEG)]
     meters_across = flight_order_configuration.turning_point_photos_meters_across
     zoom_level = flight_order_configuration.turning_point_photos_zoom_level
@@ -279,19 +317,29 @@ def _turning_point_gallery_cells(
 
 
 def _unknown_leg_gallery_cells(
-    contestant, flight_order_configuration: FlightOrderConfiguration
+    contestant, flight_order_configuration: FlightOrderConfiguration, waypoints: List[Waypoint]
 ) -> List[Tuple[str, Optional[str]]]:
-    navigation = contestant.navigation_task
-    waypoints = navigation.route.waypoints
-    render_waypoints = [wp for wp in waypoints if wp.type == UNKNOWN_LEG]
+    payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
+    compiled_unknown_leg_names = {item for item in payload.get("unknown_leg_names", []) if item}
+    render_waypoints = [
+        waypoint for waypoint in waypoints if waypoint.type == UNKNOWN_LEG or waypoint.name in compiled_unknown_leg_names
+    ]
+    if not render_waypoints:
+        render_waypoints = [waypoint for waypoint in waypoints if waypoint.name in compiled_unknown_leg_names]
+    render_waypoints = render_waypoints + _build_decoy_photo_waypoints(contestant.navigation_task)
     random.shuffle(render_waypoints)
     meters_across = flight_order_configuration.unknown_leg_photos_meters_across
     zoom_level = flight_order_configuration.unknown_leg_photos_zoom_level
     cells = []
     for wp in render_waypoints:
+        # is_unknown_leg rendering never draws the prev/next track lines (see
+        # generate_turning_point_image), so unlike the turning-point gallery this
+        # doesn't need the full declared route as index context - the shuffled
+        # render_waypoints list (including decoys, which aren't part of the route
+        # at all) is its own base, matching the pre-Typst renderer.
         image_file = get_turning_point_image(
-            waypoints,
-            waypoints.index(wp),
+            render_waypoints,
+            render_waypoints.index(wp),
             meters_across,
             zoom_level,
             is_unknown_leg=True,
@@ -313,10 +361,56 @@ def _resolve_photo_filename(photo: Photo) -> str:
                 return tmp.name
 
 
+def _compiled_observation_photos(contestant, flight_order_configuration: FlightOrderConfiguration) -> list:
+    """
+    Turnpoint-hunt style CIMA tasks may score observation photos that exist only
+    as compiled targets (coordinates + a target waypoint name), with no real
+    `Photo` row. Synthesise stand-in objects (matching the small `.name`,
+    `.latitude`, `.longitude`, `.file`, `.leg` surface the gallery needs) from
+    the compiled payload so those still appear in the flight order.
+    """
+    if not hasattr(contestant, "contestanttaskconfiguration") or not contestant.contestanttaskconfiguration.is_valid:
+        return []
+    payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+    compiled_photos = payload.get("observation_photos", []) or []
+    if not compiled_photos:
+        return []
+
+    fallback_waypoints = get_effective_route_waypoints(
+        contestant.navigation_task,
+        contestant=contestant,
+        include_contestant_declarations=bool(flight_order_configuration.map_include_contestant_declarations),
+    )
+    fallback_waypoint = fallback_waypoints[0] if fallback_waypoints else None
+    fallback_waypoint_by_name = {
+        getattr(item, "name", None): item for item in fallback_waypoints if getattr(item, "name", None)
+    }
+    synthesised = []
+    for item in compiled_photos:
+        coordinates = item.get("coordinates") or []
+        target_name = item.get("target_name") or item.get("name")
+        photo_waypoint = fallback_waypoint_by_name.get(target_name) or fallback_waypoint
+        if len(coordinates) != 2 or photo_waypoint is None:
+            continue
+        lon, lat = coordinates
+        synthesised.append(
+            SimpleNamespace(
+                name=item.get("name") or item.get("target_name") or "Photo",
+                latitude=lat,
+                longitude=lon,
+                file=None,
+                leg=photo_waypoint,
+            )
+        )
+    return synthesised
+
+
 def _photo_gallery_cells(
     contestant, flight_order_configuration: FlightOrderConfiguration
 ) -> List[Tuple[str, Optional[str]]]:
     photos = list(contestant.navigation_task.route.photo_set.all().order_by("name"))
+    if not photos:
+        photos = _compiled_observation_photos(contestant, flight_order_configuration)
     meters_across = flight_order_configuration.photos_meters_across
     zoom_level = flight_order_configuration.photos_zoom_level
     cells = []
@@ -340,7 +434,7 @@ def round_seconds_timedelta(stamp: datetime.timedelta) -> datetime.timedelta:
     return new_stamp - datetime.timedelta(microseconds=new_stamp.microseconds)
 
 
-def _gate_times_table_rows(contestant: "Contestant") -> str:
+def _gate_times_table_rows(contestant: "Contestant", waypoints: List[Waypoint]) -> str:
     rows = []
 
     def add_row(cells):
@@ -363,7 +457,7 @@ def _gate_times_table_rows(contestant: "Contestant") -> str:
     last_recorded_time = None
     first_line = True
     waypoint: Waypoint
-    for waypoint in contestant.navigation_task.route.waypoints:
+    for waypoint in waypoints:
         if not first_line:
             accumulated_distance += waypoint.distance_previous
         if waypoint.type not in ("secret", "dummy", "ul") or (
@@ -480,7 +574,10 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         + ", width: 30%)]]"
     )
 
-    waypoints = [wp for wp in contestant.navigation_task.route.waypoints if wp.type != "dummy"]
+    waypoints = get_flight_order_visual_waypoints(
+        contestant,
+        include_contestant_declarations=bool(flight_order_configuration.map_include_contestant_declarations),
+    )
     starting_point_image_file = get_turning_point_image(
         waypoints,
         0,
@@ -521,29 +618,32 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         f"{datetime.datetime.now().astimezone(contestant.navigation_task.contest.time_zone).strftime('%Y-%m-%d %H:%M:%S %Z')}"
     )
 
-    gate_time_rows = _gate_times_table_rows(contestant)
+    gate_time_rows = _gate_times_table_rows(contestant, waypoints)
 
     cols, rows = _gallery_columns(flight_order_configuration)
     turning_point_pages = ""
     if flight_order_configuration.include_turning_point_images:
         turning_point_pages = _typst_gallery_pages(
-            _turning_point_gallery_cells(contestant, flight_order_configuration),
+            _turning_point_gallery_cells(contestant, flight_order_configuration, waypoints),
             cols,
             rows,
             "Turning point and time gate images",
         )
 
     unknown_leg_pages = ""
-    if any(wp.type == UNKNOWN_LEG for wp in contestant.navigation_task.route.waypoints):
+    if any(waypoint.type == UNKNOWN_LEG for waypoint in waypoints):
         unknown_leg_pages = _typst_gallery_pages(
-            _unknown_leg_gallery_cells(contestant, flight_order_configuration),
+            _unknown_leg_gallery_cells(contestant, flight_order_configuration, waypoints),
             cols,
             rows,
             "Unknown legs images",
         )
 
     photo_pages = ""
-    if contestant.navigation_task.route.photo_set.all().count() > 0:
+    if (
+        contestant.navigation_task.route.photo_set.all().count() > 0
+        or _compiled_observation_photos(contestant, flight_order_configuration)
+    ):
         photo_pages = _typst_gallery_pages(
             _photo_gallery_cells(contestant, flight_order_configuration),
             cols,
