@@ -3,11 +3,12 @@ set -euo pipefail
 
 echo "📉 Tearing down prewarm buffer and returning to normal state..."
 
-# Scale the buffer back to the standing size the chart keeps at all times,
-# rather than deleting it - the Deployment is Helm-managed now
-# (helm/templates/prewarm_buffer.yaml), so deleting it would just be undone by
-# the next `helm upgrade`.
-BASELINE_BUFFER=${BASELINE_BUFFER:-2}
+# Scale the buffer back to its baseline rather than deleting it - the
+# Deployment is Helm-managed now (helm/templates/prewarm_buffer.yaml), so
+# deleting it would just be recreated by the next `helm upgrade`. The default
+# baseline is 0, matching prewarmBuffer.enabled=false in values.yaml; override
+# if you have turned a standing buffer on there.
+BASELINE_BUFFER=${BASELINE_BUFFER:-0}
 echo "🔄 Scaling prewarm buffer back to $BASELINE_BUFFER..."
 kubectl scale deployment gke-prewarm-buffer --replicas="$BASELINE_BUFFER"
 
