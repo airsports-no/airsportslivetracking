@@ -501,6 +501,9 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideV
         "tracking": "display/tracking_form.html",
     }
 
+    def get_template_names(self):
+        return [self.templates[self.steps.current]]
+
     def render_done(self, form, **kwargs):
         try:
             return super().render_done(form, **kwargs)
