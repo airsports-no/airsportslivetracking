@@ -60,10 +60,7 @@ ENV PYTHONUNBUFFERED=1 \
 RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone && \
     apt-get update \
     && apt-get -y install --no-install-recommends \
-    gdal-bin proj-data proj-bin default-libmysqlclient-dev \
-    libcliquer1 libgslcblas0 latexmk texlive \
-    texlive-latex-base texlive-latex-extra lmodern  \
-    texlive-latex-recommended ca-certificates gnupg \
+    libmariadb3 ca-certificates gnupg \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /usr/bin/python3* /usr/lib/python3.11 \
@@ -73,16 +70,21 @@ RUN groupadd --system django \
     && useradd --system -m -u 200 -g django -s /bin/bash django
 
 ###### INSTALL PYTHON PACKAGES ######
-COPY --from=python_builder /wheels /wheels
-RUN pip install --no-cache-dir --no-index --find-links=/wheels /wheels/* \
-    && rm -rf /wheels
+RUN --mount=type=bind,from=python_builder,source=/wheels,target=/wheels \
+    pip install --no-cache-dir --no-index --find-links=/wheels /wheels/* \
+    # firebase-admin pulls in googleapiclient only for its http/auth/error
+    # utilities (never googleapiclient.discovery), so the ~99MB of bundled
+    # Google API discovery documents under discovery_cache/documents are
+    # dead weight - nothing in this codebase calls discovery.build().
+    && rm -rf /usr/local/lib/python3.12/site-packages/googleapiclient/discovery_cache/documents
         
 ###### SETUP APPLICATION INFRASTRUCTURE ######
-# TODO: Required for a test, should be changed
-COPY documentation /documentation
+# Only importnavigationtask.json is needed, by
+# display/tests/test_navigation_task_data.py::TestImportSerialiser::test_doc_example
+COPY documentation/importnavigationtask.json /documentation/
 COPY config /config
-COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh /
-RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh
+COPY --chown=django:django wait-for-it.sh config/gunicorn.sh config/daphne.sh config/asgi.sh /
+RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh /asgi.sh
 
 
 ###### INSTALL APPLICATION ######
@@ -90,12 +92,9 @@ RUN chmod 755 /gunicorn.sh /wait-for-it.sh /daphne.sh
 COPY --chown=django:django src /src
 COPY --chown=django:django --from=frontend_builder /app/assets_vite /assets_vite
 COPY --chown=django:django --from=frontend_builder /app/airsports_static/dist /marketing_dist
-COPY --chown=django:django --from=frontend_builder /app/airsports_static/public/example_flight_order.pdf /marketing_dist/example_flight_order.pdf
 COPY --chown=django:django react_vite/src/routes.json /react_vite/src/
 COPY --chown=django:django --from=frontend_builder /app/src/static/css/output.css /src/static/css
 
-# Required for tests
-COPY --chown=django:django data /data
 WORKDIR /src
 
 
@@ -103,10 +102,13 @@ WORKDIR /src
 RUN mkdir /logs /static
 RUN chown django /logs /static
 WORKDIR /src
-# Force font cache generation
-RUN python -c "import matplotlib"
 
 USER django
+# Force font cache generation. Must run as django (uid 200), the user the
+# container actually runs as - building this as root left /tmp/matplotlib
+# root-owned and unwritable by django, so the cache was silently discarded
+# and rebuilt from scratch on every pod start (~50s of every startup).
+RUN python -c "import matplotlib"
 # Remove Tailwind source files that cause ManifestStaticFilesStorage to fail
 RUN rm -f /src/static/css/tailwindcss /src/static/css/input.css
 RUN COLLECT_LOCAL=1 python3 manage.py collectstatic --noinput

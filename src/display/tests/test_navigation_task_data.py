@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APIClient, APIRequestFactory
@@ -120,6 +120,25 @@ class TestNavigationTaskCreationFlow(TestCase):
         payload = response.json()
         self.assertEqual(payload["task_subtype"], "anr_catalogue")
         self.assertEqual(payload["task_config"], {"source": "test"})
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_post_navigation_task_with_cima_subtype_is_rejected_without_a_grant(self, *args):
+        # Guards the API create path directly: the wizard UI hides CIMA subtypes
+        # under this configuration, but that alone doesn't stop a client from
+        # POSTing one straight to the API - assert_can_add_navigation_task must
+        # be enforced in the serialiser too, or gating is UI-only.
+        serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})
+        serialiser.is_valid()
+        editable_route = serialiser.save()
+        data = deepcopy(self.NAVIGATION_TASK_DATA(editable_route.pk))
+        data["task_subtype"] = "anr_catalogue"
+        data["task_config"] = {"source": "test"}
+        response = self.client.post(
+            f"/api/v1/contests/{self.contest.pk}/navigationtasks/",
+            data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
 
     def test_get_navigation_task_exposes_effective_legacy_precision_subtype_definition(self, *args):
         serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})

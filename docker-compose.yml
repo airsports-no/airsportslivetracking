@@ -3,7 +3,7 @@
 services:
   tracker_daphne:
     container_name: tracker_daphne
-    image: ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
+    image: ${REGISTRY_NAME:-europe-north1-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
                "bash", "-c", "python3 manage.py migrate && python3 manage.py initadmin && python3 manage.py createdefaultscores && python3 manage.py runserver 0.0.0.0:8000" ]
     environment:
@@ -45,7 +45,7 @@ services:
 
   tracker_celery:
     container_name: tracker_celery
-    image: ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
+    image: ${REGISTRY_NAME:-europe-north1-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
     command: [ "bash", "-c", "celery -A live_tracking_map worker -l DEBUG --concurrency 1" ]
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/secret/application_default_credentials.json
@@ -77,7 +77,7 @@ services:
 
   tracker_processor:
     container_name: tracker_processor
-    image: ${REGISTRY_NAME:-europe-west3-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
+    image: ${REGISTRY_NAME:-europe-north1-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
     command: [ "bash", "-c", "python3 position_processor.py" ]
     restart: unless-stopped
     environment:

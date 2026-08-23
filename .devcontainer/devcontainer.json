@@ -19,14 +19,18 @@
 			"ppa": true,
 			"version": "os-provided"
 		},
-		"ghcr.io/devcontainers-extra/features/curl-apt-get:1": {},
 		"ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
-			// "packages": "build-essential,pkg-config,cmake,curl,gdal-bin,proj-data,proj-bin,default-libmysqlclient-dev,libcliquer1,libgslcblas0,latexmk,texlive,texlive-latex-base,texlive-latex-extra,texlive-latex-recommended,ca-certificates,gnupg,watchman"
+			// curl is included here rather than via the separate curl-apt-get
+			// feature - that feature's install script does a wasteful
+			// install/remove/reinstall dance and adds ~40s for a package this
+			// list already covers.
 			"packages": "watchman,curl,wget,build-essential,pkg-config,cmake"
 		},
 		"ghcr.io/devcontainers/features/node:1": {
 			"version": "24", // Specify a Node.js version (e.g., "18", "lts", "latest")
-			"nodeGypDependencies": true, // Installs common C/C++ dependencies for native modules
+			// build-essential/pkg-config/cmake above already cover what
+			// nodeGypDependencies would reinstall for compiling native modules.
+			"nodeGypDependencies": false,
 			"installVscodeCli": true, // Optional: installs the dev container CLI
 			"npmPackages": [
 				"eslint",

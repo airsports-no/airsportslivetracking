@@ -116,17 +116,22 @@ class TestDecoyPhotoFlightOrderInclusion(TestCase):
         self.assertEqual(by_name["DECOY-A"].latitude, 60.2)
         self.assertEqual(by_name["DECOY-A"].longitude, 11.2)
 
-    def test_insert_unknown_leg_images_latex_shuffles_in_decoys(self):
-        from display.flight_order_and_maps.generate_flight_orders import insert_unknown_leg_images_latex
+    def test_unknown_leg_gallery_cells_shuffles_in_decoys(self):
+        from display.flight_order_and_maps.generate_flight_orders import _unknown_leg_gallery_cells
         from types import SimpleNamespace
 
         Photo.objects.create(name="DECOY-A", route=self.route, latitude=60.2, longitude=11.2, is_decoy=True, decoy_course=90)
 
         contestant = SimpleNamespace(navigation_task=self.navigation_task, contestanttaskconfiguration=None)
+        configuration = self.navigation_task.flightorderconfiguration
 
-        with patch("display.flight_order_and_maps.generate_flight_orders.render_turning_point_images") as mock_render:
-            insert_unknown_leg_images_latex(contestant, document=None, flight_order_configuration=None, waypoints=[])
+        with patch(
+            "display.flight_order_and_maps.generate_flight_orders.get_turning_point_image"
+        ) as mock_get_turning_point_image:
+            mock_get_turning_point_image.side_effect = lambda waypoints, index, *a, **k: SimpleNamespace(
+                name=f"/tmp/{waypoints[index].name}.png"
+            )
+            _unknown_leg_gallery_cells(contestant, configuration, waypoints=[])
 
-        mock_render.assert_called_once()
-        rendered_waypoints = mock_render.call_args.args[0]
-        self.assertIn("DECOY-A", [wp.name for wp in rendered_waypoints])
+        rendered_names = [call.args[0][call.args[1]].name for call in mock_get_turning_point_image.call_args_list]
+        self.assertIn("DECOY-A", rendered_names)

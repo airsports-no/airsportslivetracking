@@ -145,7 +145,7 @@ ADMINISTRATIVE_PENALTY_CATEGORIES = {
     },
 }
 from display.flight_order_and_maps.generate_flight_orders import (
-    generate_flight_orders_latex,
+    generate_flight_orders,
     embed_map_in_pdf,
 )
 from display.flight_order_and_maps.map_constants import A4
@@ -792,7 +792,7 @@ def get_contestant_email_flying_orders_link(request, pk):
     View to synchronously generate refined orders for contestant and download the PDF file. Mostly used for testing.
     """
     contestant = get_object_or_404(Contestant, id=pk)
-    report = generate_flight_orders_latex(contestant)
+    report = generate_flight_orders(contestant)
     response = HttpResponse(bytes(report), content_type="application/pdf")
     response["Content-Disposition"] = "attachment; filename=flight_orders.pdf"
     return response

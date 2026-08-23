@@ -11,9 +11,19 @@ Air Sports Live Tracking (ASLT) is an online live-scoring platform for aircraft 
 **Hybrid backend/frontend.** Django serves "boring" CRUD, auth, and admin via server-rendered templates (`src/display/templates/`), while React (Vite) SPA components handle high-interactivity features (live map, route editor, dashboards). React apps are embedded into Django templates via Vite integration tags; built assets land in `assets_vite/` (see `outDir` in `react_vite/vite.config.js`), which Django serves from `/static/`.
 
 **Three runtime processes** (see `docker-compose.yml`):
-- `tracker_daphne`: Django web server (HTTP + websockets via Channels/Daphne).
+- `tracker_daphne`: Django web server (HTTP + websockets via Channels).
 - `tracker_celery`: background jobs (track recalculation, flight order generation) via Celery.
 - `tracker_processor`: standalone script (`src/position_processor.py`) that consumes position reports from Traccar/Redis and feeds them to the scoring engine.
+
+In production these run as the `tracker-app`, `tracker-celery` and
+`tracker-processor` deployments. `tracker-app` serves HTTP *and* websockets
+from a single ASGI process (`config/asgi.sh` → gunicorn with the uvicorn
+worker class in `src/live_tracking_map/uvicorn_worker.py`); it replaced a
+separate `tracker-web` (gunicorn/WSGI) and `tracker-daphne` (daphne) pair.
+Two Services still front it — `tracker-web-service` and
+`tracker-daphne-service-gateway` — solely so `/ws` can keep its own
+`GCPBackendPolicy` (3600s timeout) separate from ordinary HTTP; both select
+the same pods. See `helm/templates/httproute_root.yaml`.
 
 Position data flow: Traccar → Redis → `position_processor.py` → per-contestant `Orchestrator` (`src/display/calculators/orchestrator.py`) → Django Channels → websocket → frontend. The orchestrator coordinates specialized calculators (gate passing, corridor tracking, procedure turns, landing patterns, penalty zones, poker gates, etc. — see `src/display/calculators/`) and emits scoring events consumed elsewhere.
 

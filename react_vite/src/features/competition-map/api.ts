@@ -78,8 +78,15 @@ export async function fetchContestantPaginatedTrack(contestId: number, navigatio
   return res.json();
 }
 
-export async function fetchContestantScoreData(contestId: number, navigationTaskId: number, contestantId: number): Promise<ContestantScoreData> {
-  const url = reverse('contestants-score-data', contestId, navigationTaskId, contestantId);
+export async function fetchContestantScoreData(contestId: number, navigationTaskId: number, contestantId: number, trackVersion?: number, scoreVersion?: number): Promise<ContestantScoreData> {
+  // When the caller already knows the contestant's current track/score version (it's part of
+  // every contestant returned by the navigation task fetch), request the versioned URL so the
+  // CDN treats each version as a distinct cacheable object instead of long-caching one URL that
+  // goes stale the moment a finished contestant is rescored. Falls back to the unversioned route
+  // when the version isn't known yet.
+  const url = (trackVersion !== undefined && scoreVersion !== undefined)
+    ? reverse('contestants-score-data-versioned', contestId, navigationTaskId, contestantId, `${trackVersion}-${scoreVersion}`)
+    : reverse('contestants-score-data', contestId, navigationTaskId, contestantId);
   const res = await fetch(url, {
     headers: { 'Accept': 'application/json' }
   });

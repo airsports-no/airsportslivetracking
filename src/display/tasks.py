@@ -15,7 +15,7 @@ from redis.client import Redis
 
 from display.calculators.contestant_processor import ContestantProcessor
 from display.flight_order_and_maps.generate_flight_orders import (
-    generate_flight_orders_latex,
+    generate_flight_orders,
     embed_map_in_pdf,
 )
 from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
@@ -198,7 +198,7 @@ def import_gpx_track(contestant_pk: int, gpx_file: str):
 
 
 def append_cache_dict(cache_key, dict_key, value):
-    conn = Redis(REDIS_HOST, REDIS_PORT, 2)  # , REDIS_PASSWORD)
+    conn = Redis(REDIS_HOST, REDIS_PORT, 2, password=REDIS_PASSWORD)
     base = cache_key
     with redis_lock.Lock(conn, f"{base}_lock"):
         dictionary = cache.get(cache_key) or {}
@@ -219,7 +219,7 @@ def generate_and_maybe_notify_flight_order(
         logger.info(f"Generating flight order for {contestant}")
         append_cache_dict(f"completed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, False)
         try:
-            orders = generate_flight_orders_latex(contestant)
+            orders = generate_flight_orders(contestant)
             for c in connections.all():
                 c.close_if_unusable_or_obsolete()
             contestant.emailmaplink_set.all().delete()

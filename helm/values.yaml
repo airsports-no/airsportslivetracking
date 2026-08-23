@@ -46,6 +46,37 @@ secretKey: secret
 serviceAccountSecretName: calculator-scheduler-token-j9nmc # Not in use?
 k8sApi: https://airsports2-dns-3bdbed7d.hcp.northeurope.azmk8s.io:443 #https://airsports-dns-b66fdeca.hcp.northeurope.azmk8s.io:443
 
+# Recommendation-only VerticalPodAutoscalers (updateMode "Off"). They never
+# evict anything - they only publish suggested requests for right-sizing.
+# Requires the VPA CRD, which GKE Autopilot provides.
+vpaRecommendations:
+  enabled: true
+
+# Preemptible headroom so a scale-up doesn't wait ~90s for Autopilot to
+# provision a node.
+#
+# Off by default: everything that bursts here bursts at contest start, which
+# is a known, scheduled time, so scripts/gke-prewarm/prewarm.sh (which scales
+# this same Deployment) is the better tool than paying for standing capacity
+# around the clock. Turn on only if unpredictable load shows up.
+#
+# Sized to match a single calculator job's real request
+# (src/display/kubernetes_calculator/job.yml - 150m/400Mi, from 30 days of
+# Cloud Monitoring data: CPU p99 139m, memory p90 262Mi). That's still the
+# largest per-pod burst here - 12 contestants starting together is ~1.8 CPU
+# at once, against ~300m for a tracker-app scale-up. Pause pods only create
+# usable room if they are at least as big as the pod meant to replace them.
+#
+# Note: no compute-class or spot selector, so this warms general-purpose
+# nodes - matching today's calculator jobs and tracker-app. When calculators
+# move to the spot-pinned live-calculator worker pool, this buffer stops
+# helping them and would need a spot-affine second pool.
+prewarmBuffer:
+  enabled: false
+  replicas: 2
+  cpu: 150m
+  memory: 400Mi
+
 mbtiles:
   serverUrl: http://mbtiles-service/
   publicUrl: https://mbtiles.airsports.no/
@@ -96,11 +127,11 @@ smtp:
   # password is provided via secret values file (e.g. private_values.yaml)
 
 externalRedis:
-#  host: 10.95.241.11
+  host: 10.95.248.11
   port: 6379
 
 redis:
-  enabled: true
+  enabled: false
   
   # Increase to 3 replicas for stable Sentinel quorum in GKE Autopilot
   replicas: 3

@@ -90,7 +90,6 @@ from display.permissions import (
     TeamPermissions,
 )
 from display.services.capacity_enforcement import (
-    assert_can_add_navigation_task,
     assert_can_register_team,
     assert_can_self_register_contestant,
     _assert_can_reserve_task_slot,
@@ -1887,6 +1886,18 @@ class ContestantViewSet(ModelViewSet):
     @action(detail=True, methods=["put", "patch"])
     def update_with_team(self, request, *args, **kwargs):
         return super().update(request, *args, **kwargs)
+
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+        description="Same payload as score_data, with the contestant's track/score version embedded in the "
+        "path. The frontend already knows both versions from the navigation task's contestant list before "
+        "it ever calls this, so it can always request the current version directly - the CDN then sees a "
+        "distinct URL per version instead of long-caching one URL that silently goes stale when a finished "
+        "contestant is rescored.",
+    )
+    @action(detail=True, methods=["get"], url_path=r"score_data/(?P<version>[^/]+)")
+    def score_data_versioned(self, request, pk=None, version=None, **kwargs):
+        return self.score_data(request, pk=pk, **kwargs)
 
     @extend_schema(
         responses={200: OpenApiTypes.OBJECT},

@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
+import copy
 import os
 import sys
 import json
@@ -135,7 +136,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django.contrib.gis",
     "rest_framework",
     "rest_framework.authtoken",
     "django_filters",
@@ -315,6 +315,11 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+if IS_UNIT_TESTING:
+    # The default PBKDF2 hasher runs ~600k iterations per call. Tests create users
+    # constantly and never assert on the hashing algorithm, so use the cheapest one.
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
 
@@ -390,9 +395,20 @@ STATICFILES_DIRS = [
 
 LOGGING = LOG_CONFIGURATION
 
+if IS_UNIT_TESTING:
+    # The calculators log per-position at INFO, and pytest captures and formats every
+    # record. Nothing in the suite asserts on log output (no assertLogs/caplog usage).
+    # Deep copy so the shared LOG_CONFIGURATION dict is not mutated for other importers.
+    LOGGING = copy.deepcopy(LOG_CONFIGURATION)
+    for _logger_configuration in LOGGING["loggers"].values():
+        if _logger_configuration.get("level") == "INFO":
+            _logger_configuration["level"] = "WARNING"
+
 # celery
 # CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
-CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
+CELERY_BROKER_URL = (
+    f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}" if REDIS_PASSWORD else f"redis://{REDIS_HOST}:{REDIS_PORT}"
+)
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
@@ -435,9 +451,12 @@ CACHES = {
 
 if any(s in sys.argv for s in ("test",)):
     cache.clear()
-# CELERY_ACCEPT_CONTENT = ["application/json"]
-# CELERY_RESULT_SERIALIZER = "json"
-# CELERY_TASK_SERIALIZER = "json"
+# Pinned explicitly rather than relying on Celery's default: an unauthenticated
+# write to the broker with pickle accepted would be a deserialization RCE, not
+# just a nuisance, now that the broker is reachable from anywhere on the VPC.
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TASK_SERIALIZER = "json"
 CELERY_TIMEZONE = UTC
 CELERY_ENABLE_UTC = True
 CELERY_BEAT_SCHEDULE = {}
@@ -455,3 +474,9 @@ CHANNEL_LAYERS = {
         },
     }
 }
+
+if IS_UNIT_TESTING:
+    # Every score/annotation/position push goes through async_to_sync(group_send), which
+    # against the Redis layer costs an event loop spin plus a round trip - for messages no
+    # test ever consumes. The in-memory layer keeps the same API without the I/O.
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}

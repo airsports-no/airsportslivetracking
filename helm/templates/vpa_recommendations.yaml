@@ -1,0 +1,27 @@
+{{- if .Values.vpaRecommendations.enabled }}
+# Recommendation-only VerticalPodAutoscalers. updateMode "Off" means VPA never
+# evicts or mutates a pod - it only observes actual usage and publishes a
+# suggested request, readable with `kubectl describe vpa <name>`.
+#
+# These exist because most workloads here are sized 5-8x above real usage
+# (measured at idle: traccar requests 800m CPU and uses 5m), and Autopilot
+# bills for requests. Idle numbers alone are not a safe basis for resizing, so
+# let these observe across at least one real contest before applying the
+# "Target" values as requests. Keep limits generously above the new requests -
+# this cluster supports bursting, so headroom above the request is free until
+# it is actually used.
+{{- range $name := list "tracker-app" "tracker-celery" "tracker-processor" "traccar" "mbtiles" }}
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ $name }}-recommender
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  updatePolicy:
+    updateMode: "Off"
+{{- end }}
+{{- end }}
