@@ -1,6 +1,7 @@
 import hashlib
 
 import requests
+from django.conf import settings
 from django.core.cache import cache
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -12,6 +13,11 @@ MAP_DETAILS_CACHE_TIMEOUT = 600
 
 
 def get_available_maps() -> dict:
+    if settings.IS_UNIT_TESTING:
+        # MBTILES_SERVER_URL defaults to the production tile server, so an unconfigured
+        # test run would reach out over the network - once per advertised map. Tests that
+        # care about map source resolution patch these two functions directly.
+        return {}
     cache_key = "mbtiles:available_maps"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -26,6 +32,8 @@ def get_available_maps() -> dict:
 
 
 def get_map_details(map_key: str) -> dict:
+    if settings.IS_UNIT_TESTING:
+        return {}
     cache_key = f"mbtiles:map_details:{hashlib.sha256(map_key.encode('utf-8')).hexdigest()}"
     cached = cache.get(cache_key)
     if cached is not None:

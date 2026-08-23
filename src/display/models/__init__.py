@@ -2,6 +2,8 @@ from .contest import *
 from .contestant import *
 from .contestant_track import *
 from .contestant_utility_models import *
+from .contestant_task_configuration import *
+from .compiled_navigation_task import *
 from .editable_route import *
 from .email_map_link import *
 from .flight_order_configuration import *
@@ -13,6 +15,8 @@ from .scorecard_and_gate_score import *
 from .scoring_models import *
 from .scoring_table_models import *
 from .team_structure import Team, Aeroplane, Crew, Person, Club
+from .access_control import *
+from .usage_accounting import *
 from .user_uploaded_map import *
 from .flymaster_data import *
 from .newsletter import *

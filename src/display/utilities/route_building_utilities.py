@@ -18,6 +18,7 @@ from display.utilities.coordinate_utilities import (
     create_perpendicular_line_at_end_lonlat,
     bearing_difference,
     calculate_fractional_distance_point_lat_lon,
+    approximate_point_to_line_segment_distance,
     point_to_line_distance,
 )
 from display.models import Route, Scorecard, Prohibited
@@ -26,6 +27,11 @@ from display.utilities.gate_definitions import ANR_TP, STARTINGPOINT, FINISHPOIN
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
+
+# How far behind the approximate winner a leg may be and still be re-measured accurately in
+# find_closest_leg_to_point. Observed approximation error over realistic route geometry stays
+# well under 200 m, so this leaves an order of magnitude of headroom.
+CLOSEST_LEG_CANDIDATE_TOLERANCE_M = 2000.0
 
 
 def is_procedure_turn(bearing1, bearing2) -> bool:
@@ -557,9 +563,40 @@ def calculate_and_update_legs(waypoints: List[Waypoint], use_procedure_turns: bo
 def find_closest_leg_to_point(
     latitude: float, longitude: float, waypoints: List[Waypoint]
 ) -> tuple[Waypoint, float] | None:
+    """
+    Returns the leg whose segment is closest to the given point, and that distance.
+
+    This runs for every leg on every received position and was the hottest path in the
+    scoring engine, almost entirely because point_to_line_distance costs three iterative
+    geodesic solves. So it is done in two passes: rank every leg with the cheap local-plane
+    approximation, then re-measure only the legs close enough to the approximate winner to
+    still be able to take it, using the accurate metric to make the final choice.
+
+    The selection is therefore the same one the all-accurate version would make, as long as
+    the approximation's error stays under CLOSEST_LEG_CANDIDATE_TOLERANCE_M - which is set
+    an order of magnitude above the error observed over realistic route geometry. That
+    matters because the caller turns the chosen leg into a reference bearing, and near a
+    turning point two adjacent legs can be near-equidistant while pointing very differently.
+    """
+    if len(waypoints) < 2:
+        return None
+    approximate_distances = [
+        approximate_point_to_line_segment_distance(
+            waypoints[index].latitude,
+            waypoints[index].longitude,
+            waypoints[index + 1].latitude,
+            waypoints[index + 1].longitude,
+            latitude,
+            longitude,
+        )
+        for index in range(len(waypoints) - 1)
+    ]
+    best_approximate_distance = min(approximate_distances)
     minimum_distance = None
     leg = None
-    for index in range(len(waypoints) - 1):
+    for index, approximate_distance in enumerate(approximate_distances):
+        if approximate_distance > best_approximate_distance + CLOSEST_LEG_CANDIDATE_TOLERANCE_M:
+            continue
         distance = point_to_line_distance(
             waypoints[index].latitude,
             waypoints[index].longitude,
@@ -570,10 +607,7 @@ def find_closest_leg_to_point(
         )
         logger.debug(f"Minimum distance to {waypoints[index].name} is {distance}")
         if distance is not None:
-            if minimum_distance is None:
-                minimum_distance = distance
-                leg = waypoints[index]
-            elif distance < minimum_distance:
+            if minimum_distance is None or distance < minimum_distance:
                 minimum_distance = distance
                 leg = waypoints[index]
     if minimum_distance is not None and leg is not None:

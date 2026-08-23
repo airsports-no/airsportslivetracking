@@ -2,13 +2,14 @@ import { useRef } from 'react';
 import L from 'leaflet';
 import {
   getDistanceFromLine,
-  getQuadraticBezierPoints
 } from '../../../../utils/geoUtils';
+import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Polygon, ObservationMarker, SelectionType, Mode } from '../../../../types';
 
 interface useDragHandlersProps {
     mapRef: React.MutableRefObject<L.Map | null>;
     setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
+    setStandalonePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
     setPolygons: React.Dispatch<React.SetStateAction<Polygon[]>>;
     observationMarkers: ObservationMarker[];
     markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>;
@@ -22,6 +23,7 @@ interface useDragHandlersProps {
 export default function useDragHandlers({
   mapRef,
   setRoutePoints,
+  setStandalonePoints,
   setPolygons,
   observationMarkers,
   markersRef,
@@ -57,8 +59,8 @@ export default function useDragHandlers({
           });
         }
 
-        // Update Route Line Visual
-        if (routeLineRef.current) {
+        // Update Route Line Visual only for backbone route points
+        if (dragRef.current.selectionType !== 'standalone_point' && routeLineRef.current) {
           const tempPoints = [...initialPoints];
           const latDiff = e.latlng.lat - startLatLng.lat;
           const lngDiff = e.latlng.lng - startLatLng.lng;
@@ -183,6 +185,15 @@ export default function useDragHandlers({
         const latDiff = newLatLng.lat - startLatLng.lat;
         const lngDiff = newLatLng.lng - startLatLng.lng;
 
+        if (dragRef.current.selectionType === 'standalone_point') {
+          setStandalonePoints(prev => prev.map((p: RoutePoint) => {
+            if (p.id !== id) return p;
+            return { ...p, lat: newLatLng.lat, lng: newLatLng.lng };
+          }));
+          dragRef.current = null;
+          return;
+        }
+
         const nextPoints = initialPoints.map((p: RoutePoint) => {
           if (p.id === id) {
             const updated = { ...p, lat: newLatLng.lat, lng: newLatLng.lng };
@@ -277,7 +288,7 @@ export default function useDragHandlers({
       // Click
       if (type === 'point') {
         setSelectedId(id);
-        setSelectionType('point');
+        setSelectionType(dragRef.current.selectionType || 'point');
         setMode('view');
       } else if (type === 'poly_body' || type === 'poly_vertex') {
         setSelectedId(polyId);

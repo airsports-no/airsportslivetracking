@@ -15,6 +15,130 @@
             </div>
 
             <div class="mt-6">
+                {% if can_apply_quarantine_penalty %}
+                    <div class="mb-4 p-4 bg-base-200 rounded-lg border border-base-300">
+                        <h3 class="font-semibold mb-2">Apply quarantine penalty</h3>
+                        <form method="post" action="{% url 'contestant_apply_quarantine_penalty' object.pk %}" class="flex flex-col md:flex-row gap-2 items-start md:items-end">
+                            {% csrf_token %}
+                            <label class="form-control w-full md:w-56">
+                                <span class="label-text">Category</span>
+                                <select name="category" class="select select-bordered select-sm w-full">
+                                    {% for key, config in administrative_penalty_categories.items %}
+                                        <option value="{{ key }}">{{ config.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label class="form-control w-full md:w-48">
+                                <span class="label-text">Points</span>
+                                <input type="number" step="0.1" name="points" value="100" class="input input-bordered input-sm w-full" />
+                            </label>
+                            <label class="form-control flex-1">
+                                <span class="label-text">Reason</span>
+                                <input type="text" name="reason" value="quarantine breach" class="input input-bordered input-sm w-full" />
+                            </label>
+                            <button type="submit" class="btn btn-warning btn-sm">Apply penalty</button>
+                        </form>
+                    </div>
+                {% endif %}
+                {% if compiled_evidence.observation_photos or compiled_evidence.hidden_gate_names or compiled_evidence.unknown_leg_names or compiled_evidence.compiled_auxiliary_paths.route_to_sp_path or compiled_evidence.compiled_auxiliary_paths.route_from_fp_path %}
+                    <div class="mb-4 p-4 bg-base-200 rounded-lg border border-base-300">
+                        <h3 class="font-semibold mb-2">Compiled evidence review</h3>
+                        {% if compiled_evidence.compiled_auxiliary_paths.route_to_sp_path %}
+                            <div class="mb-2">
+                                <span class="font-medium">Route to SP:</span>
+                                <span>{{ compiled_evidence.compiled_auxiliary_paths.route_to_sp_path }}</span>
+                            </div>
+                        {% endif %}
+                        {% if compiled_evidence.compiled_auxiliary_paths.route_from_fp_path %}
+                            <div class="mb-2">
+                                <span class="font-medium">Route from FP:</span>
+                                <span>{{ compiled_evidence.compiled_auxiliary_paths.route_from_fp_path }}</span>
+                            </div>
+                        {% endif %}
+                        {% if compiled_evidence.hidden_gate_names %}
+                            <div class="mb-2">
+                                <span class="font-medium">Hidden gates:</span>
+                                <span>{{ compiled_evidence.hidden_gate_names|join:", " }}</span>
+                            </div>
+                        {% endif %}
+                        {% if compiled_evidence.unknown_leg_names %}
+                            <div class="mb-2">
+                                <span class="font-medium">Unknown legs:</span>
+                                <span>{{ compiled_evidence.unknown_leg_names|join:", " }}</span>
+                            </div>
+                        {% endif %}
+                        {% if compiled_evidence.observation_judging_mode %}
+                            <div class="mb-2">
+                                <span class="font-medium">Observation judging mode:</span>
+                                <span>{{ compiled_evidence.observation_judging_mode }}</span>
+                            </div>
+                        {% endif %}
+                        {% if compiled_evidence.manual_adjudication_categories %}
+                            <div class="mb-2">
+                                <span class="font-medium">Manual adjudication categories:</span>
+                                <span>{{ compiled_evidence.manual_adjudication_categories|join:", " }}</span>
+                            </div>
+                        {% endif %}
+                        {% if compiled_evidence.observation_photos %}
+                            <div>
+                                <span class="font-medium block mb-1">Observation photos:</span>
+                                <ul class="list-disc list-inside text-sm mb-3">
+                                    {% for photo in compiled_evidence.observation_photos %}
+                                        <li>{{ photo.name }} — {{ photo.coordinates }}{% if photo.evidence_category %} — {{ photo.evidence_category }}{% endif %}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                        {% if can_apply_quarantine_penalty %}
+                            <div class="flex flex-col md:flex-row gap-2 mt-3">
+                                <form method="post" action="{% url 'contestant_apply_quarantine_penalty' object.pk %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="category" value="observation" />
+                                    <input type="hidden" name="points" value="100" />
+                                    <input type="hidden" name="reason" value="observation evidence issue" />
+                                    <button type="submit" class="btn btn-outline btn-warning btn-sm">Apply observation penalty</button>
+                                </form>
+                                <form method="post" action="{% url 'contestant_apply_quarantine_penalty' object.pk %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="category" value="map" />
+                                    <input type="hidden" name="points" value="100" />
+                                    <input type="hidden" name="reason" value="map-placement evidence issue" />
+                                    <button type="submit" class="btn btn-outline btn-warning btn-sm">Apply map-placement penalty</button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                {% if compiled_fuel_review %}
+                    <div class="mb-4 p-4 bg-base-200 rounded-lg border border-base-300">
+                        <h3 class="font-semibold mb-2">Fuel review</h3>
+                        {% if compiled_fuel_review.declared_endurance_minutes %}
+                            <div class="mb-2">
+                                <span class="font-medium">Declared endurance:</span>
+                                <span>{{ compiled_fuel_review.declared_endurance_minutes }} minutes</span>
+                            </div>
+                            <div class="mb-2">
+                                <span class="font-medium">Fuel deadline:</span>
+                                <span>{{ compiled_fuel_review.fuel_deadline }}</span>
+                            </div>
+                        {% endif %}
+                        {% if compiled_fuel_review.duration_residual_fuel_required %}
+                            <div class="mb-2">
+                                <span class="font-medium">Residual fuel review:</span>
+                                <span>Residual fuel required</span>
+                            </div>
+                        {% endif %}
+                        {% if can_apply_quarantine_penalty %}
+                            <form method="post" action="{% url 'contestant_apply_quarantine_penalty' object.pk %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="category" value="fuel" />
+                                <input type="hidden" name="points" value="100" />
+                                <input type="hidden" name="reason" value="fuel-check breach" />
+                                <button type="submit" class="btn btn-outline btn-warning btn-sm">Apply fuel-check penalty</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% endif %}
                 {% get_obj_perms request.user for object.navigation_task.contest as "contest_permissions" %}
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {% with gate_times=object.gate_times %}
@@ -24,7 +148,7 @@
                         {% endfor %}
                         
                         <!-- Route Waypoints -->
-                        {% for gate in object.navigation_task.route.waypoints %}
+                        {% for gate in rendered_waypoints %}
                             {% if not gate.on_curved_segment %}
                                 {% include "display/contestant_gate_times_mobile_card.html" with gate=gate gate_times=gate_times actual_times=actual_times object=object log=log contest_permissions=contest_permissions %}
                             {% endif %}

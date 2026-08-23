@@ -1,3 +1,26 @@
+export interface AccessStatus {
+    tier_code: string;
+    tier_label: string;
+    source_type: string;
+    source_id: number | null;
+    contestant_limit: number | null;
+    task_limit: number | null;
+    contestants_used: number;
+    tasks_used: number;
+    enforcement_mode: string;
+    token_grant_id?: number | null;
+    token_type_id?: number | null;
+}
+
+export interface AvailableTokenGrant {
+    id: number;
+    token_type: number;
+    token_type_name: string;
+    quantity_total: number;
+    quantity_consumed: number;
+    quantity_remaining: number;
+}
+
 export interface Contest {
     id: number;
     time_zone: string;
@@ -11,6 +34,7 @@ export interface Contest {
     latitude: number;
     longitude: number;
     is_editor: boolean;
+    organizing_club?: number | null;
     summary_score_sorting_direction: string;
     autosum_scores: boolean;
     name: string;
@@ -25,6 +49,8 @@ export interface Contest {
     contest_teams: number[];
     has_open_tasks?: boolean;
     has_flown_contestants?: boolean;
+    access_status?: AccessStatus;
+    available_token_grants?: AvailableTokenGrant[];
 }
 
 export interface Route {
@@ -45,6 +71,13 @@ export interface NavigationTask {
     start_time: string;
     finish_time: string;
     tracking_link: string;
+    task_subtype?: string | null;
+    task_subtype_definition?: {
+        key: string;
+        display_name: string;
+        coarse_family: string;
+        requires_contestant_configuration: boolean;
+    } | null;
     allow_self_management: boolean;
     future_contestants?: any[];
     contestant_set: ContestantResult[];
@@ -120,12 +153,21 @@ export interface Person {
     last_seen: string;
 }
 
+export interface ClubManagerMembership {
+    id: number;
+    user: number;
+    user_email: string;
+    role: string;
+    is_active: boolean;
+}
+
 export interface Club {
     id: number;
     country_flag_url: string;
     country: string;
     name: string;
     logo: string;
+    manager_memberships?: ClubManagerMembership[];
 }
 
 export interface TrackerIdDisplay {
@@ -189,6 +231,8 @@ export interface ContestantTrack {
 
 export interface ContestantResult {
     id: number;
+    declaration_payload?: Record<string, any>;
+    compiled_effective_route_payload?: Record<string, any>;
     gate_times: { [key: string]: string };
     scorecard_rules: any[];
     tracker_id_display: TrackerIdDisplay[];
@@ -219,6 +263,8 @@ export interface Contestant {
     id: number;
     contest_id: number;
     navigation_task: number;
+    declaration_payload?: Record<string, any>;
+    compiled_effective_route_payload?: Record<string, any>;
     gate_times: { [key: string]: string };
     scorecard_rules: any[];
     tracker_id_display: TrackerIdDisplay[];

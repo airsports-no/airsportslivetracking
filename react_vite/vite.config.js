@@ -11,6 +11,14 @@ const __dirname = dirname(__filename);
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  test: {
+    globals: true,
+    // Pure-logic tests run fine in plain node; a file that needs a DOM
+    // (e.g. testing something that touches Leaflet/browser APIs) opts in
+    // per-file with a `// @vitest-environment jsdom` comment rather than
+    // paying the jsdom cost for every test.
+    environment: 'node',
+  },
   // Use /static/ for production to leverage same-origin GCLB/CDN caching.
   base: mode === 'production' 
     ? '/static/' 

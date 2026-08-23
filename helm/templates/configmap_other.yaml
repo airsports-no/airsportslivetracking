@@ -38,3 +38,11 @@ data:
   MBTILES_PUBLISH_ROOT: {{ .Values.mbtiles.publishRoot }}
   MPLCONFIGDIR: "/tmp"
 
+  # CIMA task types are in closed beta: hidden from the task-type picker and
+  # blocked at save time for everyone except superusers and users holding a
+  # UserEntitlementGrant (Django admin > Display > User entitlement grants).
+  # Flip GATE_CIMA_TASK_VISIBILITY to "false", or add "cima" to
+  # DEFAULT_FREE_TASK_TYPE_GROUPS, to make CIMA generally available.
+  GATE_CIMA_TASK_VISIBILITY: "true"
+  DEFAULT_FREE_TASK_TYPE_GROUPS: "legacy"
+

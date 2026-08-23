@@ -24,11 +24,15 @@ from django.contrib.auth.mixins import (
 
 from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculator_running_utilities import is_calculator_running
-from live_tracking_map import settings
+from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
+from display.models import UserTokenGrant, ClubManagerMembership, AccessGrant
 from playback_tools.playback import validate_gpx_file
 import rest_framework.exceptions as drf_exceptions
+from live_tracking_map import settings
+
 
 from django.core.cache import cache
+from django.conf import settings
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
@@ -71,6 +75,8 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_map_zoom_levels_for_definitions,
     get_available_map_source_definitions_for_navigation_task,
 )
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
+from display.flight_order_and_maps.map_plotter import build_effective_route_distance
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.forms import (
@@ -100,6 +106,44 @@ from display.forms import (
     PersonForm,
     SignUpForm,
 )
+from display.services.access_resolver import resolve_contest_access
+from display.services.capacity_enforcement import assert_can_self_register_contestant, _assert_can_reserve_task_slot
+from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.task_type_visibility import can_user_see_cima_task_types, get_visible_task_type_groups_for_user
+from display.services.administrative_penalties import AdministrativePenaltyService
+
+ADMINISTRATIVE_PENALTY_CATEGORIES = {
+    "quarantine": {
+        "gate": "ADMIN-QUAR",
+        "default_reason": "quarantine breach",
+        "category": "quarantine",
+        "label": "Quarantine",
+    },
+    "fuel": {
+        "gate": "ADMIN-FUEL",
+        "default_reason": "fuel-check breach",
+        "category": "fuel",
+        "label": "Fuel check",
+    },
+    "instructions": {
+        "gate": "ADMIN-INSTR",
+        "default_reason": "intention not to follow task instructions",
+        "category": "instructions",
+        "label": "Task instructions",
+    },
+    "observation": {
+        "gate": "ADMIN-OBS",
+        "default_reason": "observation evidence issue",
+        "category": "observation",
+        "label": "Observation evidence",
+    },
+    "map": {
+        "gate": "ADMIN-MAP",
+        "default_reason": "map-placement evidence issue",
+        "category": "map",
+        "label": "Map placement",
+    },
+}
 from display.flight_order_and_maps.generate_flight_orders import (
     generate_flight_orders,
     embed_map_in_pdf,
@@ -134,6 +178,9 @@ from display.models import (
     TrackAnnotation,
     ActualGateTime,
     GateCumulativeScore,
+    UserTokenGrant,
+    Club,
+    ContestUsageLedger,
 )
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.tasks import (
@@ -583,6 +630,7 @@ def get_contestant_map(request, pk):
                 "zoom_level": int(form.cleaned_data["zoom_level"]),
                 "landscape": form.cleaned_data["orientation"] == LANDSCAPE,
                 "annotations": form.cleaned_data["include_annotations"],
+                "include_contestant_declarations": form.cleaned_data["include_contestant_declarations"],
                 "waypoints_only": not form.cleaned_data["plot_track_between_waypoints"],
                 "dpi": form.cleaned_data["dpi"],
                 "scale": int(form.cleaned_data["scale"]),
@@ -621,6 +669,7 @@ def get_contestant_map(request, pk):
                 "map_source": configuration.map_source,
                 "include_openaip_overlay": configuration.map_include_openaip_overlay,
                 "include_annotations": configuration.map_include_annotations,
+                "include_contestant_declarations": configuration.map_include_contestant_declarations,
                 "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
                 "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
                 "include_openaip_overlay": configuration.map_include_openaip_overlay,
@@ -700,6 +749,7 @@ def get_contestant_default_map(request, pk):
         "zoom_level": configuration.map_zoom_level,
         "landscape": configuration.map_orientation == LANDSCAPE,
         "annotations": configuration.map_include_annotations,
+        "include_contestant_declarations": configuration.map_include_contestant_declarations,
         "waypoints_only": not configuration.map_plot_track_between_waypoints,
         "dpi": configuration.map_dpi,
         "scale": configuration.map_scale,
@@ -1262,10 +1312,27 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
     permission_required = ("display.add_contest",)
     form_class = ContestForm
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["token_grant_queryset"] = UserTokenGrant.objects.filter(
+            user=self.request.user,
+            token_type__is_active=True,
+            quantity_consumed__lt=F("quantity_total"),
+        ).select_related("token_type")
+        kwargs["managed_club_queryset"] = Club.objects.filter(
+            clubmanagermembership__user=self.request.user,
+            clubmanagermembership__is_active=True,
+        ).distinct().order_by("name")
+        return kwargs
+
+    @transaction.atomic
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
         instance.country = form.cleaned_data["country_code"]
         instance.initialise(self.request.user)
+        token_grant = form.cleaned_data.get("initial_token_grant")
+        if token_grant is not None:
+            assign_token_to_contest(instance, self.request.user, token_grant.id)
         self.object = instance
         return HttpResponseRedirect(self.get_success_url())
 
@@ -1279,12 +1346,57 @@ class ContestDetailView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, D
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        contest = self.get_object()
         if self.request.user.is_authenticated:
             context["user_has_routes"] = (
                 get_objects_for_user(self.request.user, "display.view_editableroute").exists()
             )
         else:
             context["user_has_routes"] = False
+
+        resolution = resolve_contest_access(contest, user=self.request.user)
+        context["access_status"] = {
+            "tier_code": resolution.tier_code,
+            "tier_label": resolution.tier_label,
+            "source_type": resolution.source_type,
+            "contestant_limit": resolution.contestant_limit,
+            "contestants_used": resolution.contestants_used,
+            "token_grant_id": resolution.token_grant_id,
+            "package_contestant_limit": resolution.package_contestant_limit,
+            "free_contestant_limit": resolution.free_contestant_limit,
+            "contestant_limit_uses_free_default": resolution.contestant_limit_uses_free_default,
+            "uses_more_advantageous_free_limits": resolution.uses_more_advantageous_free_limits,
+            "allowed_task_type_groups": resolution.allowed_task_type_groups,
+            "package_task_type_groups": resolution.package_task_type_groups,
+            "free_task_type_groups": resolution.free_task_type_groups,
+        }
+        token_assignment = getattr(contest, "contesttokenassignment", None)
+        context["archive_mode_info"] = None
+        if token_assignment is not None and token_assignment.expires_at is not None and token_assignment.expires_at <= timezone.now():
+            context["archive_mode_info"] = {
+                "expired_at": token_assignment.expires_at,
+                "token_type_name": token_assignment.token_type.name,
+            }
+
+        if contest.organizing_club_id:
+            context["club_access_grants"] = AccessGrant.objects.filter(
+                club=contest.organizing_club,
+                status=AccessGrant.ACTIVE,
+            ).order_by("-created_at")
+
+        contest_permissions = get_user_perms(self.request.user, contest)
+        if "change_contest" in contest_permissions:
+            context["available_token_grants"] = UserTokenGrant.objects.filter(
+                user=self.request.user,
+                token_type__is_active=True,
+                quantity_consumed__lt=F("quantity_total"),
+            ).select_related("token_type").order_by("-created_at")
+            context["current_token_assignment"] = getattr(contest, "contesttokenassignment", None)
+            if contest.organizing_club_id:
+                context["club_manager_memberships"] = ClubManagerMembership.objects.filter(
+                    club=contest.organizing_club,
+                    is_active=True,
+                ).select_related("user").order_by("user__email")
         return context
 
 
@@ -1292,6 +1404,19 @@ class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, U
     model = Contest
     permission_required = ("display.change_contest",)
     form_class = ContestForm
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["managed_club_queryset"] = Club.objects.filter(
+            clubmanagermembership__user=self.request.user,
+            clubmanagermembership__is_active=True,
+        ).distinct().order_by("name")
+        kwargs["token_grant_queryset"] = UserTokenGrant.objects.filter(
+            user=self.request.user,
+            token_type__is_active=True,
+            quantity_consumed__lt=F("quantity_total"),
+        ).select_related("token_type")
+        return kwargs
 
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contest
@@ -1304,6 +1429,30 @@ class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, U
 
     def get_success_url(self):
         return reverse("contest_details", kwargs={"pk": self.get_object().pk})
+
+
+class ContestTokenManagementView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, View):
+    permission_required = ("display.change_contest",)
+
+    def get_permission_object(self):
+        return get_object_or_404(Contest, pk=self.kwargs["pk"])
+
+    def post(self, request, *args, **kwargs):
+        contest = self.get_permission_object()
+        token_grant_id = request.POST.get("token_grant_id")
+        action = self.kwargs["action"]
+        try:
+            if action == "assign":
+                assign_token_to_contest(contest, request.user, int(token_grant_id))
+                messages.success(request, "Token assigned to contest.")
+            elif action == "replace":
+                replace_token_for_contest(contest, request.user, int(token_grant_id))
+                messages.success(request, "Contest token replaced.")
+            else:
+                raise Http404()
+        except (ValidationError, ValueError) as exc:
+            messages.error(request, str(exc))
+        return HttpResponseRedirect(reverse("contest_details", kwargs={"pk": contest.pk}))
 
 
 class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
@@ -1346,6 +1495,39 @@ class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRe
 
     def get_permission_object(self):
         return self.get_object().contest
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        navigation_task = self.get_object()
+        contest = navigation_task.contest
+        owner_person_id = None
+        if contest.created_by_id:
+            try:
+                owner_person_id = contest.created_by.person.id
+            except Exception:
+                owner_person_id = None
+        guest_created_contestants = navigation_task.contestant_set.exclude(team__crew__member1_id=owner_person_id).count()
+        guest_started_slots = ContestUsageLedger.objects.filter(
+            contest=contest,
+            navigation_task=navigation_task,
+            kind=ContestUsageLedger.TASK_PILOT_STARTED,
+        ).count()
+        guest_capacity_limit = resolve_contest_access(contest).contestant_limit
+        token_assignment = getattr(contest, "contesttokenassignment", None)
+        context["archive_mode_info"] = None
+        if token_assignment is not None and token_assignment.expires_at is not None and token_assignment.expires_at <= timezone.now():
+            context["archive_mode_info"] = {
+                "expired_at": token_assignment.expires_at,
+                "token_type_name": token_assignment.token_type.name,
+            }
+        context["guest_created_contestants"] = guest_created_contestants
+        context["guest_started_slots"] = guest_started_slots
+        context["guest_capacity_limit"] = guest_capacity_limit
+        context["guest_capacity_full"] = (
+            guest_capacity_limit is not None and guest_created_contestants >= guest_capacity_limit
+        )
+        context["show_guest_capacity_warning"] = guest_capacity_limit is not None
+        return context
 
 
 class NavigationTaskUpdateView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
@@ -1461,6 +1643,43 @@ def delete_score_item(request, pk):
     return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
 
 
+@transaction.atomic
+@guardian_permission_required(
+    "display.change_contest",
+    (Contest, "navigationtask__contestant__pk", "pk"),
+)
+def apply_contestant_quarantine_penalty(request, pk):
+    contestant = get_object_or_404(Contestant, pk=pk)
+    if request.method != "POST":
+        return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
+
+    reason = request.POST.get("reason", "").strip() or "quarantine breach"
+    points_raw = request.POST.get("points", "100")
+    category = request.POST.get("category", "quarantine")
+    category_config = ADMINISTRATIVE_PENALTY_CATEGORIES.get(category)
+    if category_config is None:
+        messages.error(request, "Unknown penalty category.")
+        return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
+    if not reason:
+        reason = category_config["default_reason"]
+    try:
+        points = float(points_raw)
+    except ValueError:
+        messages.error(request, "Penalty points must be numeric.")
+        return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
+
+    AdministrativePenaltyService.apply_contestant_penalty(
+        contestant=contestant,
+        points=points,
+        reason=reason,
+        gate=category_config["gate"],
+        category=category_config["category"],
+        actor=request.user,
+    )
+    messages.success(request, "Administrative penalty applied.")
+    return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
+
+
 class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     """
     View that displays the planned (and actual if available) gate times for a user. It also includes any score logs that have been generated, with
@@ -1478,12 +1697,17 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
         context = super().get_context_data(**kwargs)
         log = {}
         distances = {}
-        total_distance = 0
-        for waypoint in self.object.navigation_task.route.waypoints:  # type: Waypoint
+        rendered_waypoints = get_effective_route_waypoints(
+            self.object.navigation_task,
+            contestant=self.object,
+            include_contestant_declarations=True,
+        )
+        for waypoint in rendered_waypoints:  # type: Waypoint
             distances[waypoint.name] = waypoint.distance_previous
-            total_distance += waypoint.distance_previous if waypoint.distance_previous > 0 else 0
+        total_distance = build_effective_route_distance(rendered_waypoints)
         context["distances"] = distances
         context["total_distance"] = total_distance
+        context["rendered_waypoints"] = rendered_waypoints
         for item in self.object.scorelogentry_set.all():  # type: ScoreLogEntry
             if item.gate not in log:
                 log[item.gate] = []
@@ -1498,6 +1722,50 @@ class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequire
         for item in self.object.actualgatetime_set.all():
             actual_times[item.gate] = item.time
         context["actual_times"] = actual_times
+        context["can_apply_quarantine_penalty"] = "change_contest" in get_user_perms(self.request.user, self.object.navigation_task.contest)
+        context["administrative_penalty_categories"] = ADMINISTRATIVE_PENALTY_CATEGORIES
+        payload = {}
+        if hasattr(self.object, "contestanttaskconfiguration"):
+            payload = self.object.contestanttaskconfiguration.compiled_effective_route_payload or {}
+        if payload:
+            context["compiled_evidence"] = {
+                "compiled_auxiliary_paths": payload.get("compiled_auxiliary_paths", {}),
+                "observation_judging_mode": payload.get("observation_judging_mode"),
+                "manual_adjudication_categories": payload.get("manual_adjudication_categories", []),
+                "observation_photos": [
+                    {
+                        **item,
+                        "evidence_category": "observation",
+                    }
+                    for item in payload.get("observation_photos", [])
+                ],
+                "hidden_gate_names": payload.get("hidden_gate_names", []),
+                "unknown_leg_names": payload.get("unknown_leg_names", []),
+            }
+            fuel_metadata = payload.get("fuel_metadata") or {}
+            duration_review = payload.get("duration_review") or {}
+            declared_endurance_minutes = fuel_metadata.get("declared_endurance_minutes")
+            if declared_endurance_minutes is not None:
+                context["compiled_fuel_review"] = {
+                    "declared_endurance_minutes": declared_endurance_minutes,
+                    "fuel_deadline": self.object.takeoff_time + datetime.timedelta(minutes=int(declared_endurance_minutes)),
+                }
+            elif duration_review.get("duration_residual_fuel_required"):
+                context["compiled_fuel_review"] = {
+                    "duration_residual_fuel_required": True,
+                }
+            else:
+                context["compiled_fuel_review"] = None
+        else:
+            context["compiled_evidence"] = {
+                "compiled_auxiliary_paths": {},
+                "observation_judging_mode": None,
+                "manual_adjudication_categories": [],
+                "observation_photos": [],
+                "hidden_gate_names": [],
+                "unknown_leg_names": [],
+            }
+            context["compiled_fuel_review"] = None
         return context
 
 
@@ -1699,7 +1967,10 @@ class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMi
     def form_valid(self, form):
         instance = form.save(commit=False)  # type: Contestant
         instance.predefined_gate_times = None
+        resolution = resolve_contest_access(instance.navigation_task.contest)
+        _assert_can_reserve_task_slot(instance.navigation_task, instance.team, resolution, current_contestant=self.get_object())
         instance.save()
+        ContestantTaskCompiler(instance).compile(force=True)
         self.object = instance
         for warning in self.object.get_overlap_warnings():
             messages.warning(self.request, warning)
@@ -1743,6 +2014,12 @@ class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
 
     def form_valid(self, form):
         contest_team = form.cleaned_data["contest_team"]
+        resolution = resolve_contest_access(self.navigation_task.contest)
+        try:
+            _assert_can_reserve_task_slot(self.navigation_task, contest_team.team, resolution)
+        except (ValidationError, drf_exceptions.ValidationError) as exc:
+            form.add_error(None, exc)
+            return self.form_invalid(form)
         starting_point_time = form.cleaned_data["starting_point_time"]
         adaptive_start = form.cleaned_data["adaptive_start"]
         existing_contestants = self.navigation_task.contestant_set.all()
@@ -1793,7 +2070,12 @@ class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
         else:
             contestant.finished_by_time = contestant.landing_time + datetime.timedelta(minutes=5)
 
+        max_finished_by_time = contestant.tracker_start_time + datetime.timedelta(hours=24)
+        if contestant.finished_by_time > max_finished_by_time:
+            contestant.finished_by_time = max_finished_by_time
+
         contestant.save()
+        ContestantTaskCompiler(contestant).compile(force=True)
         messages.success(self.request, "Contestant created successfully")
         for warning in contestant.get_overlap_warnings():
             messages.warning(self.request, warning)
@@ -1833,7 +2115,14 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
     def form_valid(self, form):
         object = form.save(commit=False)  # type: Contestant
         object.navigation_task = self.navigation_task
+        resolution = resolve_contest_access(self.navigation_task.contest)
+        try:
+            _assert_can_reserve_task_slot(self.navigation_task, object.team, resolution)
+        except (ValidationError, drf_exceptions.ValidationError) as exc:
+            form.add_error(None, exc)
+            return self.form_invalid(form)
         object.save()
+        ContestantTaskCompiler(object).compile(force=True)
         for warning in object.get_overlap_warnings():
             messages.warning(self.request, warning)
         return HttpResponseRedirect(self.get_success_url())
@@ -2051,6 +2340,13 @@ class FrontEndView(TemplateView):
     """
 
     template_name = "display/frontend.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["show_cima_task_types"] = can_user_see_cima_task_types(self.request.user)
+        context["visible_task_type_groups"] = get_visible_task_type_groups_for_user(self.request.user)
+        context["gate_cima_task_visibility"] = bool(getattr(settings, "GATE_CIMA_TASK_VISIBILITY", False))
+        return context
 
 
 class CombinedFrontEndView(View):

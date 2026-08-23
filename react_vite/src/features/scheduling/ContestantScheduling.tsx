@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchContestTeams, fetchNavigationTask, scheduleContestants, updateContestant, fetchTeam, fetchContestant, deleteContestant } from './api';
+import { fetchContestTeams, fetchNavigationTask, fetchScheduleCapacityPreview, scheduleContestants, updateContestant, fetchTeam, fetchContestant, deleteContestant } from './api';
 import SchedulingForm from './SchedulingForm';
 import Timeline from './Timeline';
 import ContestantTimetable from './ContestantTimetable';
@@ -16,6 +16,7 @@ const ContestantScheduling = () => {
     const [loading, setLoading] = useState(true);
     const [scheduling, setScheduling] = useState(false);
     const [firstTakeoffTime, setFirstTakeoffTime] = useState<any>(null);
+    const [capacityPreview, setCapacityPreview] = useState<any>(null);
     const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
     const { showToast, ToastContainer, toasts, removeToast } = useToast();
 
@@ -65,6 +66,30 @@ const ContestantScheduling = () => {
             setIsInfoCollapsed(true);
         }
     }, []);
+
+    const refreshCapacityPreview = useCallback(async (selectedContestTeamIds: number[], firstTakeoffIso?: string | null) => {
+        if (!contestId || !navigationTaskId) return;
+        try {
+            const preview = await fetchScheduleCapacityPreview(
+                Number(contestId),
+                Number(navigationTaskId),
+                selectedContestTeamIds,
+                firstTakeoffIso || undefined,
+            );
+            setCapacityPreview(preview);
+        } catch (error: any) {
+            console.error("Failed to fetch capacity preview", error);
+        }
+    }, [contestId, navigationTaskId]);
+
+    useEffect(() => {
+        if (!navigationTask || !firstTakeoffTime) return;
+        const selectedContestTeamIds = contestTeams
+            .filter((ct: any) => navigationTask?.contestant_set?.some((c: any) => c.team?.id === ct.team?.id))
+            .map((ct: any) => ct.id);
+        const firstTakeoffIso = firstTakeoffTime instanceof Date ? firstTakeoffTime.toISOString() : undefined;
+        refreshCapacityPreview(selectedContestTeamIds, firstTakeoffIso);
+    }, [navigationTask, contestTeams, firstTakeoffTime]);
 
     const handleSchedule = async (formData: any) => {
         setScheduling(true);
@@ -246,10 +271,12 @@ const ContestantScheduling = () => {
                             <h2 className="card-title">Configuration</h2>
                             <SchedulingForm 
                                 contestTeams={contestTeams} 
-                                navigationTask={navigationTask} 
+                                navigationTask={navigationTask}
+                                capacityPreview={capacityPreview}
                                 firstTakeoffTime={firstTakeoffTime}
                                 setFirstTakeoffTime={setFirstTakeoffTime}
                                 onSubmit={handleSchedule}
+                                onCapacityPreviewChange={refreshCapacityPreview}
                                 isLoading={scheduling}
                             />
                         </div>

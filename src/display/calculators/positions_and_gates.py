@@ -48,17 +48,16 @@ class Gate:
         self.maybe_missed_time = None
         self.maybe_missed_position = None
         self.expected_time = expected_time
-
-    @property
-    def is_visible(self) -> bool:
-        return self.waypoint.is_visible
-
         self.projected_gate_line = None
         self.projected_gate_line_infinite = None
         self.projected_gate_line_extended = None
         self.center_x = None
         self.center_y = None
         self.gate_radius = 0
+
+    @property
+    def is_visible(self) -> bool:
+        return self.waypoint.is_visible
 
     def pre_project(self, projector: Projector):
         def project_line(line):

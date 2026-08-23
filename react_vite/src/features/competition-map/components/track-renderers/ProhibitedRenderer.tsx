@@ -12,6 +12,10 @@ function drawProhibitedZone(map: L.Map, zone: ProhibitedZone): L.Polygon {
   if (zone.type === 'penalty') color = 'orange';
   else if (zone.type === 'info') color = 'lightblue';
   else if (zone.type === 'gate') color = 'blue';
+  // Matches the route editor's duration_landing_area colour (#22c55e) - this
+  // is an allowed landing area, not a prohibited/penalty zone, so it should
+  // not default to the alarming red used for unrecognised zone types.
+  else if (zone.type === 'duration_landing_area') color = '#22c55e';
 
   const p = L.polygon(zone.path.map((c: [number, number]) => [c[1], c[0]]), { color, weight: 1 }).addTo(map);
 

@@ -2,6 +2,7 @@ import datetime
 import logging
 import typing
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -22,6 +23,8 @@ from display.utilities.navigation_task_type_definitions import (
     AIRSPORTS,
     AIRSPORT_CHALLENGE,
 )
+from display.utilities.cima_task_type_definitions import get_default_task_subtype_for_family
+from display.utilities.task_information import build_navigation_task_information
 
 if typing.TYPE_CHECKING:
     from display.models import UserUploadedMap
@@ -52,12 +55,52 @@ class NavigationTask(models.Model):
         related_name="navigation_task_override",
     )
     editable_route = models.ForeignKey("EditableRoute", on_delete=models.SET_NULL, null=True, blank=True)
+    task_subtype = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Detailed task subtype semantics layered on top of the coarse calculator family",
+    )
+    task_config = models.JSONField(default=dict, blank=True, help_text="Subtype-specific task configuration")
 
     @property
     def score_sorting_direction(self) -> str:
         if self.scorecard:
             return self.scorecard.score_sorting_direction
         return "asc"
+
+    @property
+    def coarse_task_family(self) -> str:
+        scorecard = self.scorecard
+        if scorecard:
+            return scorecard.calculator
+        return self.original_scorecard.calculator
+
+    @property
+    def effective_task_subtype(self) -> str | None:
+        subtype = self.task_subtype
+        if subtype:
+            return str(subtype)
+        return get_default_task_subtype_for_family(self.coarse_task_family)
+
+    @property
+    def subtype_definition(self):
+        from display.utilities.cima_task_type_definitions import get_task_subtype_definition
+
+        subtype = self.effective_task_subtype
+        if not subtype:
+            return None
+        return get_task_subtype_definition(str(subtype))
+
+    def requires_contestant_task_configuration(self) -> bool:
+        definition = self.subtype_definition
+        if definition is None:
+            return False
+        return definition.requires_contestant_configuration
+
+    @property
+    def task_information(self) -> dict:
+        return build_navigation_task_information(self)
 
     start_time = models.DateTimeField(
         help_text="The start time of the navigation task. Determines the time interval where the navigation task is available for self registration if selected."
@@ -124,6 +167,10 @@ class NavigationTask(models.Model):
         Perform a reverse geolocation lookup based on latitude, longitude and stores the raw result with the navigation
         task object
         """
+        if settings.IS_UNIT_TESTING:
+            # Keep the test suite off the rate-limited Nominatim service. Nothing in the
+            # suite asserts on the resolved country_code/country_name.
+            return
         if location := self.route.get_location():
             try:
                 geolocator = Nominatim(user_agent="airsports.no")
@@ -158,6 +205,18 @@ class NavigationTask(models.Model):
         location = self.route.get_location()
         if location:
             return Projector(location[0], location[1])
+        # Backbone-less subtypes (circle, turnpoint hunt, limited fuel turnpoint
+        # hunt) have an empty Route, so fall back to the task's free-map markers
+        # before giving up on Projector(0, 0) - which puts the whole world on one
+        # side of the projection and badly distorts any distance measured near
+        # the task's real location (e.g. CircleCalculator's radius check).
+        from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
+
+        for target in get_task_catalogue_targets(self):
+            coordinates = target.get("coordinates")
+            if isinstance(coordinates, list) and len(coordinates) == 2:
+                longitude, latitude = coordinates
+                return Projector(latitude, longitude)
         return Projector(0, 0)
 
     @classmethod

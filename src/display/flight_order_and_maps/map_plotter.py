@@ -1,5 +1,6 @@
 import io
 import logging
+import threading
 from io import BytesIO
 
 
@@ -35,7 +36,7 @@ import six
 import datetime
 import os
 import sys
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, cast
 
 from django.db import models
 from PIL import Image
@@ -112,13 +113,22 @@ from display.models import (
     Contestant,
     NavigationTask,
     EditableRoute,
+    Scorecard,
     UserUploadedMap,
 )
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints, get_task_catalogue_targets
+from display.utilities.task_type_group_definitions import get_task_type_group, CIMA_TASK_TYPE_GROUP
 from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
 
 logger = logging.getLogger(__name__)
+
+TILE_RATE_LIMIT_ABORT_THRESHOLD = 10
+
+
+def _blank_tile(fill=(250, 250, 250)):
+    return Image.fromarray(np.full((256, 256, 3), fill, dtype=np.uint8))
 
 
 def create_minute_lines(
@@ -190,6 +200,7 @@ def create_minute_lines_track(
     end_offset: Optional[float] = None,
     resolution_seconds: int = 60,
     line_width_nm=0.5,
+    leg_total_seconds: Optional[float] = None,
 ) -> List[
     Tuple[
         Tuple[Tuple[float, float], Tuple[float, float]],
@@ -218,13 +229,19 @@ def create_minute_lines_track(
         time_to_next_line += resolution_seconds
     accumulated_time = 0
     lines = []
+    total_track_distance_nm = 0.0
+    for index in range(0, len(track) - 1):
+        total_track_distance_nm += calculate_distance_lat_lon(track[index], track[index + 1]) / 1852
     for index in range(0, len(track) - 1):
         start = track[index]
         finish = track[index + 1]
         bearing = calculate_bearing(start, finish)
-        ground_speed = calculate_ground_speed_combined(bearing, air_speed, wind_speed, wind_direction)
         length = calculate_distance_lat_lon(start, finish) / 1852
-        leg_time = 3600 * length / ground_speed  # seconds
+        if leg_total_seconds is not None and total_track_distance_nm > 0:
+            leg_time = leg_total_seconds * length / total_track_distance_nm
+        else:
+            ground_speed = calculate_ground_speed_combined(bearing, air_speed, wind_speed, wind_direction)
+            leg_time = 3600 * length / ground_speed  # seconds
         while time_to_next_line < leg_time + accumulated_time:
             internal_leg_time = time_to_next_line - accumulated_time
             fraction = internal_leg_time / leg_time
@@ -260,10 +277,80 @@ def create_minute_lines_track(
     return lines
 
 
+def build_effective_route_distance(route_waypoints: List[Waypoint]) -> float:
+    total_distance = 0.0
+    for index in range(1, len(route_waypoints)):
+        total_distance += float(route_waypoints[index].distance_previous or 0.0)
+    return total_distance
+
+
+def get_plot_extent(
+    route: Route,
+    render_waypoints: Optional[List[Waypoint]] = None,
+    task_catalogue_targets: Optional[list[dict]] = None,
+) -> tuple[float, float, float, float]:
+    """
+    Build the plotted extent from the actual rendered geometry rather than only
+    the shared persisted route backbone.
+
+    This keeps declaration-aware contestant maps/flight-order maps aligned with
+    gate-times/live-map rendering by ensuring contestant-specific effective
+    waypoints can expand the plotted bounds. Generic task maps also include
+    standalone catalogue/circle targets so authored off-backbone primitives are
+    not clipped out of view.
+    """
+    latitudes = []
+    longitudes = []
+
+    for waypoint in list(render_waypoints or route.waypoints):
+        latitude = getattr(waypoint, "latitude", None)
+        longitude = getattr(waypoint, "longitude", None)
+        if latitude is not None and longitude is not None:
+            latitudes.append(latitude)
+            longitudes.append(longitude)
+
+        gate_line = getattr(waypoint, "gate_line", []) or []
+        for point in gate_line:
+            if len(point) != 2:
+                continue
+            latitudes.append(point[0])
+            longitudes.append(point[1])
+
+    for prohibited in route.prohibited_set.all():
+        latitudes.extend([item[1] for item in prohibited.path])
+        longitudes.extend([item[0] for item in prohibited.path])
+
+    for target in task_catalogue_targets or []:
+        coordinates = target.get("coordinates") or []
+        if len(coordinates) != 2:
+            continue
+        lon, lat = coordinates
+        latitudes.append(lat)
+        longitudes.append(lon)
+
+    if not latitudes or not longitudes:
+        return route.get_extent()
+
+    return min(latitudes), max(latitudes), min(longitudes), max(longitudes)
+
+
 first = True
 
 
 class MyGoogleWTS(GoogleWTS):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._tile_fetch_lock = threading.Lock()
+        self._tile_rate_limit_errors = 0
+        self._background_fetch_aborted = False
+
+    def _record_rate_limit_and_should_abort(self) -> bool:
+        with self._tile_fetch_lock:
+            self._tile_rate_limit_errors += 1
+            if self._tile_rate_limit_errors > TILE_RATE_LIMIT_ABORT_THRESHOLD:
+                self._background_fetch_aborted = True
+            return self._background_fetch_aborted
+
     def get_image(self, tile):
 
         if self.cache_path is not None:
@@ -275,16 +362,33 @@ class MyGoogleWTS(GoogleWTS):
         if cached_file in self.cache:
             img = np.load(cached_file, allow_pickle=False)
         else:
+            if self._background_fetch_aborted:
+                img = _blank_tile()
+                return img.convert(self.desired_tile_form), self.tileextent(tile), "lower"
             url = self._image_url(tile)
             try:
                 headers = {"User-Agent": self.user_agent, "Referer": "https://app.airsports.no/"}
                 response = requests.get(url, headers=headers, timeout=5)
-                im_data = io.BytesIO(response.content)
-                img = Image.open(im_data)
+                if response.status_code == 429:
+                    should_abort = self._record_rate_limit_and_should_abort()
+                    logger.warning(
+                        "Rate limited fetching tile for url %s (%s/%s)%s",
+                        url,
+                        self._tile_rate_limit_errors,
+                        TILE_RATE_LIMIT_ABORT_THRESHOLD,
+                        "; abandoning background rendering" if should_abort else "",
+                    )
+                    img = _blank_tile()
+                else:
+                    response.raise_for_status()
+                    im_data = io.BytesIO(response.content)
+                    img = Image.open(im_data)
 
-            except requests.RequestException:
+            except requests.RequestException as err:
                 logger.exception("Failed fetching tile for url %s", url)
-                img = Image.fromarray(np.full((256, 256, 3), (250, 250, 250), dtype=np.uint8))
+                if getattr(getattr(err, "response", None), "status_code", None) == 429:
+                    self._record_rate_limit_and_should_abort()
+                img = _blank_tile()
 
             img = img.convert(self.desired_tile_form)
             if self.cache_path is not None:
@@ -292,6 +396,12 @@ class MyGoogleWTS(GoogleWTS):
                 self.cache.add(cached_file)
 
         return img, self.tileextent(tile), "lower"
+
+
+class AirsportsOSM(MyGoogleWTS):
+    def _image_url(self, tile):
+        x, y, z = tile
+        return f"https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
 
 
 class UserUploadedMBTiles(GoogleWTS):
@@ -338,6 +448,10 @@ class FlightContest(MyGoogleWTS):
     def get_image(self, tile):
         from urllib.request import urlopen, Request
 
+        if self._background_fetch_aborted:
+            img = _blank_tile()
+            return img.convert(self.desired_tile_form), self.tileextent(tile), "lower"
+
         url = self._image_url(tile)
         try:
             headers = {"User-Agent": self.user_agent, "Referer": "https://app.airsports.no/"}
@@ -349,7 +463,16 @@ class FlightContest(MyGoogleWTS):
 
         except Exception as err:
             print(err)
-            img = Image.fromarray(np.full((256, 256, 3), (255, 255, 255), dtype=np.uint8))
+            if getattr(err, "code", None) == 429:
+                should_abort = self._record_rate_limit_and_should_abort()
+                logger.warning(
+                    "Rate limited fetching FlightContest tile for url %s (%s/%s)%s",
+                    url,
+                    self._tile_rate_limit_errors,
+                    TILE_RATE_LIMIT_ABORT_THRESHOLD,
+                    "; abandoning background rendering" if should_abort else "",
+                )
+            img = _blank_tile((255, 255, 255))
 
         img = img.convert(self.desired_tile_form)
         return img, self.tileextent(tile), "lower"
@@ -589,6 +712,8 @@ def plot_leg_bearing(
 ):
     left_of_leg_start = current_waypoint.get_gate_position_left_of_track(True)
     left_of_leg_finish = next_waypoint.get_gate_position_left_of_track(True)
+    if calculate_distance_lat_lon(left_of_leg_start, left_of_leg_finish) == 0:
+        return
 
     bearing = current_waypoint.bearing_next
     course_position = calculate_fractional_distance_point_lat_lon(left_of_leg_start, left_of_leg_finish, 0.5)
@@ -630,6 +755,10 @@ PROHIBITED_COLOURS = {
     "penalty": ("orange", "darkorange", 4),
     "info": ("lightblue", "Lightskyblue", 10),
     "gate": ("blue", "darkblue", 4),
+    # Matches the route editor's duration_landing_area colour (#22c55e) - an
+    # allowed landing area, not a prohibited/penalty zone, so it should not
+    # fall back to the default blue/darkblue used for unrecognised types.
+    "duration_landing_area": ("lightgreen", "darkgreen", 10),
 }
 
 
@@ -905,7 +1034,9 @@ def plot_minute_marks(
     mark_offset=1,
     line_width_nm: float = 0.5,
     adaptive: bool = False,
+    route_start_time: Optional[datetime.datetime] = None,
 ):
+
     """
 
     :param waypoint:
@@ -921,8 +1052,13 @@ def plot_minute_marks(
     """
     next_waypoint = track[index + 1]
     gate_start_time = contestant.gate_times.get(waypoint.name)
-    if waypoint.is_procedure_turn:
+    if waypoint.is_procedure_turn and gate_start_time is not None:
         gate_start_time += datetime.timedelta(minutes=1)
+    next_gate_time = contestant.gate_times.get(next_waypoint.name)
+    base_route_start_time = route_start_time if route_start_time is not None else contestant.gate_times.get(track[0].name)
+    if gate_start_time is None or base_route_start_time is None or next_gate_time is None:
+        return
+    planned_leg_seconds = max((next_gate_time - gate_start_time).total_seconds(), 0.0)
     first_segments = waypoint.get_centre_track_segments()
     last_segments = track[index + 1].get_centre_track_segments()
     track_points = first_segments[len(first_segments) // 2 :] + last_segments[: (len(last_segments) // 2) + 1]
@@ -935,10 +1071,11 @@ def plot_minute_marks(
         contestant.wind_speed,
         contestant.wind_direction,
         gate_start_time,
-        contestant.gate_times.get(track[0].name),
+        base_route_start_time,
         line_width_nm=line_width_nm,
         start_offset=waypoint.width if adaptive else line_width_nm,
         end_offset=next_waypoint.width if adaptive else None,
+        leg_total_seconds=planned_leg_seconds,
     )
     for mark_line, text_position, timestamp in minute_lines:
         xs, ys = np.array(mark_line).T  # Already comes in the format lon, lat
@@ -972,16 +1109,25 @@ def plot_precision_track(
     minute_mark_line_width: float,
     colour: str,
     task_type: List[str] = [],
+    render_waypoints: Optional[List[Waypoint]] = None,
+    task_catalogue_targets: Optional[list[dict]] = None,
+    use_circle_markers: bool = False,
 ):
+    if render_waypoints is None:
+        render_waypoints = list(route.waypoints)
     tracks = [[]]
     previous_waypoint = None  # type: Optional[Waypoint]
-    includes_unknown_legs = any(waypoint.type == "ul" for waypoint in route.waypoints)
+    includes_unknown_legs = any(waypoint.type == "ul" for waypoint in render_waypoints)
+    unknown_leg_targets_by_segment = {}
+    for target in task_catalogue_targets or []:
+        if target.get("kind") == "catalogue_turnpoint" and target.get("segment_name"):
+            unknown_leg_targets_by_segment.setdefault(target["segment_name"], []).append(target)
     on_unknown_leg = False
     is_poker = POKER in task_type
     
-    for index, waypoint in enumerate(route.waypoints):
-        if index < len(route.waypoints) - 1:
-            next_waypoint = route.waypoints[index + 1]
+    for index, waypoint in enumerate(render_waypoints):
+        if index < len(render_waypoints) - 1:
+            next_waypoint = render_waypoints[index + 1]
         else:
             next_waypoint = None
         if waypoint.type == "ul":
@@ -1010,7 +1156,7 @@ def plot_precision_track(
             UNKNOWN_LEG,
         ):
             # Do not show unknown leg gates, these are to be considered secret unless followed by a dummy
-            if waypoint.type == UNKNOWN_LEG and next_waypoint and next_waypoint.type != DUMMY:
+            if waypoint.type == UNKNOWN_LEG and not unknown_leg_targets_by_segment.get(f"segment_{len(tracks)}"):
                 continue
             # Secret checkpoints on unknown legs should not be displayed
             if on_unknown_leg and waypoint.type in (SECRETPOINT, ANR_TP):
@@ -1018,6 +1164,7 @@ def plot_precision_track(
             tracks[-1].append(waypoint)
         previous_waypoint = waypoint
     paths = []
+    route_start_time = contestant.gate_times.get(tracks[0][0].name) if contestant is not None and tracks and tracks[0] else None
     for track in tracks:  # type: List[Waypoint]
         line = []
         for index, waypoint in enumerate(track):  # type: int, Waypoint
@@ -1053,6 +1200,27 @@ def plot_precision_track(
                         alpha=0.1
                     )
                 
+                # CIMA waypoints are always represented as circles rather
+                # than the legacy gate-line tick mark.
+                elif use_circle_markers:
+                    plt.scatter(
+                        waypoint.longitude,
+                        waypoint.latitude,
+                        transform=ccrs.PlateCarree(),
+                        color=colour,
+                        s=0.5,
+                        edgecolor="none",
+                    )
+                    plt.plot(
+                        waypoint.longitude,
+                        waypoint.latitude,
+                        transform=ccrs.PlateCarree(),
+                        color=colour,
+                        marker="o",
+                        markersize=20,
+                        fillstyle="none",
+                    )
+
                 # Standard gate line rendering
                 elif len(waypoint.gate_line):
                     ys, xs = np.array(waypoint.gate_line).T
@@ -1105,6 +1273,7 @@ def plot_precision_track(
                                 index,
                                 minute_mark_line_width,
                                 colour,
+                                route_start_time=route_start_time,
                             )
 
             if waypoint.is_procedure_turn and waypoint.type != UNKNOWN_LEG:
@@ -1126,6 +1295,101 @@ def plot_precision_track(
     return paths
 
 
+def _build_circle_outline(center_lon_lat: tuple[float, float], radius_m: float, samples: int = 72) -> list[tuple[float, float]]:
+    center_lon, center_lat = center_lon_lat
+    outline = []
+    for index in range(samples + 1):
+        bearing = (360 / samples) * index
+        latitude, longitude = project_position_lat_lon((center_lat, center_lon), bearing, radius_m)
+        outline.append((longitude, latitude))
+    return outline
+
+
+def plot_catalogue_targets(targets: list[dict], colour: str, scorecard: Optional["Scorecard"] = None):
+    marker_style_by_kind = {
+        "catalogue_turnpoint": {"marker": "o", "markersize": 10, "fillstyle": "none"},
+        "circle_center_marker": {"marker": "x", "markersize": 10, "fillstyle": "full"},
+        "circle_start_marker": {"marker": "o", "markersize": 10, "fillstyle": "none"},
+        "circle_entry_marker": {"marker": ">", "markersize": 10, "fillstyle": "full"},
+        "circle_exit_marker": {"marker": "s", "markersize": 9, "fillstyle": "none"},
+    }
+    points_by_kind = {}
+    for target in targets:
+        coordinates = target.get("coordinates") or []
+        if len(coordinates) != 2:
+            continue
+        kind = target.get("kind") or "catalogue_turnpoint"
+        if kind in ("unknown_leg_trigger", "unknown_leg_connector_end", "hidden_gate"):
+            continue
+        if kind == "catalogue_turnpoint" and target.get("is_unknown_leg_trigger"):
+            continue
+        points_by_kind[kind] = tuple(coordinates)
+        lon, lat = coordinates
+        marker_style = marker_style_by_kind.get(kind, marker_style_by_kind["catalogue_turnpoint"])
+        plt.plot(
+            lon,
+            lat,
+            transform=ccrs.PlateCarree(),
+            color=colour,
+            marker=marker_style["marker"],
+            markersize=marker_style["markersize"],
+            fillstyle=marker_style["fillstyle"],
+        )
+        plt.text(
+            lon,
+            lat,
+            " " + (target.get("name") or ""),
+            verticalalignment="center",
+            color=colour,
+            horizontalalignment="left",
+            transform=ccrs.PlateCarree(),
+            fontsize=8,
+            family="monospace",
+            clip_on=True,
+        )
+
+    center = points_by_kind.get("circle_center_marker")
+    if center is None:
+        return
+
+    # circle_radius_min_m/max_m live on the Scorecard (see CircleCalculator's
+    # own lookup) - task_config never carries them, so reading task_config
+    # here always drew the 200/750 defaults regardless of the configured
+    # scorecard values.
+    min_radius_m = float(getattr(scorecard, "circle_radius_min_m", 200) or 200)
+    max_radius_m = float(getattr(scorecard, "circle_radius_max_m", 750) or 750)
+    for radius, edge_colour, line_width, dash_pattern in (
+        (min_radius_m, "#0f9d58", 2.4, (0, (3, 3))),
+        (max_radius_m, "#b91c1c", 1.6, (0, (10, 4))),
+    ):
+        outline = _build_circle_outline(center, radius)
+        plt.plot(
+            tuple(point[0] for point in outline),
+            tuple(point[1] for point in outline),
+            transform=ccrs.PlateCarree(),
+            color=edge_colour,
+            linewidth=line_width,
+            linestyle=dash_pattern,
+            alpha=0.95,
+        )
+
+    for start_kind, finish_kind, style in (
+        ("circle_start_marker", "circle_entry_marker", {"color": colour, "linewidth": 1.5, "linestyle": (0, (8, 6))}),
+        ("circle_entry_marker", "circle_center_marker", {"color": "#7c3aed", "linewidth": 1.0, "linestyle": (0, (4, 4))}),
+        ("circle_center_marker", "circle_exit_marker", {"color": "#7c3aed", "linewidth": 1.0, "linestyle": (0, (4, 4))}),
+    ):
+        start = points_by_kind.get(start_kind)
+        finish = points_by_kind.get(finish_kind)
+        if start is None or finish is None:
+            continue
+        plt.plot(
+            (start[0], finish[0]),
+            (start[1], finish[1]),
+            transform=ccrs.PlateCarree(),
+            **style,
+        )
+
+
 # def add_geotiff_background(path: str, ax):
 #     import xarray as xr
 #     from affine import Affine
@@ -1138,7 +1402,7 @@ def plot_precision_track(
 def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
     fig = plt.figure(figsize=(3, 3))
     try:
-        imagery = OSM(user_agent="airsports.no, support@airsports.no")
+        imagery = AirsportsOSM(user_agent="airsports.no, support@airsports.no")
         ax = plt.axes(projection=imagery.crs)
         editable_track = editable_route.get_feature_type("route_path")
         if editable_track is not None:
@@ -1221,6 +1485,7 @@ def plot_route(
     line_width: float = 0.5,
     minute_mark_line_width: float = 0.5,
     colour: str = "#0000ff",
+    include_contestant_declarations: bool = True,
     include_meridians_and_parallels_lines: bool = True,
     include_openaip_overlay: bool = False,
     margins_mm: float = 0,
@@ -1244,7 +1509,7 @@ def plot_route(
                 else:
                     raise ValueError(f"Unknown uploaded map source token: {map_source}")
             elif provider == "osm":
-                imagery = OSM(user_agent="airsports.no, support@airsports.no")
+                imagery = AirsportsOSM(user_agent="airsports.no, support@airsports.no")
             elif provider == "fc":
                 imagery = FlightContest(desired_tile_form="RGBA")
             elif provider == "mto":
@@ -1260,7 +1525,7 @@ def plot_route(
                 raise ValueError(f"Unsupported map source provider: {provider}")
         except (requests.RequestException, Exception):
             logger.warning(f"MBTiles server unavailable for {map_source}, falling back to OSM")
-            imagery = OSM(user_agent="airsports.no, support@airsports.no")
+            imagery = AirsportsOSM(user_agent="airsports.no, support@airsports.no")
             attribution = BUILTIN_NON_MBTILES_SOURCES["osm"]["attribution"]
     if map_size == A3:
         if zoom_level is None:
@@ -1292,17 +1557,112 @@ def plot_route(
     if include_openaip_overlay and provider != "openaip":
         ax.add_image(OpenAIP(desired_tile_form="RGBA"), zoom_level)
     ax.set_aspect("auto")
+    render_waypoints = get_effective_route_waypoints(
+        task,
+        contestant=contestant,
+        include_contestant_declarations=include_contestant_declarations,
+    )
+    is_cima_task = get_task_type_group(task_subtype=task.task_subtype) == CIMA_TASK_TYPE_GROUP
+    # 2.A3's GENERAL (no contestant selected) map shows only the three
+    # backbone waypoints as circles, with no connecting lines and no freeway
+    # (catalogue) points. Once a contestant is selected the full declared
+    # route renders normally via the branches below.
+    is_contract_navigation_general_view = task.task_subtype == "contract_navigation_time_controls" and contestant is None
+    task_catalogue_targets = []
+    if task.task_subtype == "unknown_legs":
+        task_catalogue_targets = get_task_catalogue_targets(task, contestant=contestant)
+        if contestant is not None and not task_catalogue_targets:
+            task_catalogue_targets = get_task_catalogue_targets(task)
+    elif contestant is None and not is_contract_navigation_general_view:
+        task_catalogue_targets = get_task_catalogue_targets(task)
+    if task.task_subtype == "unknown_legs" and task_catalogue_targets:
+        render_waypoints = []
     if PRECISION in task.scorecard.task_type or POKER in task.scorecard.task_type:
         paths = plot_precision_track(
             route,
             contestant,
-            waypoints_only,
+            waypoints_only or is_contract_navigation_general_view,
             annotations,
             line_width,
             minute_mark_line_width,
             colour,
             task.scorecard.task_type,
+            render_waypoints=render_waypoints,
+            task_catalogue_targets=task_catalogue_targets,
+            use_circle_markers=is_cima_task,
         )
+        if task.task_subtype == "unknown_legs" and task_catalogue_targets:
+            segment_lookup = {}
+            for target in task_catalogue_targets:
+                if target.get("kind") == "catalogue_turnpoint" and target.get("segment_name"):
+                    segment_lookup.setdefault(target["segment_name"], []).append(target)
+            for index, segment_targets in sorted(segment_lookup.items()):
+                if not segment_targets:
+                    continue
+                ordered_segment_points = []
+                previous_point_was_branch = False
+                for target in segment_targets:
+                    coordinates = target.get("coordinates")
+                    if not isinstance(coordinates, list) or len(coordinates) != 2:
+                        continue
+                    is_unknown_leg_trigger = bool(target.get("is_unknown_leg_trigger"))
+                    is_branch_point = bool(target.get("trigger_point_id"))
+                    if previous_point_was_branch and not is_branch_point:
+                        break
+                    ordered_segment_points.append(
+                        (
+                            target.get("name") or "",
+                            coordinates[1],
+                            coordinates[0],
+                            is_unknown_leg_trigger,
+                        )
+                    )
+                    previous_point_was_branch = is_branch_point
+                if len(ordered_segment_points) >= 2:
+                    path = np.array([(lat, lon) for _, lat, lon, _ in ordered_segment_points])
+                    paths.append(path)
+                    if not waypoints_only:
+                        ys, xs = path.T
+                        plot_kwargs = {
+                            "transform": ccrs.PlateCarree(),
+                            "color": colour,
+                            "linewidth": line_width,
+                        }
+                        if contestant is None:
+                            plot_kwargs["linestyle"] = (0, (8, 6))
+                        plt.plot(
+                            xs,
+                            ys,
+                            **plot_kwargs,
+                        )
+                    if contestant is not None:
+                        for name, lat, lon, is_unknown_leg_trigger in ordered_segment_points:
+                            if is_unknown_leg_trigger:
+                                continue
+                            plt.plot(
+                                lon,
+                                lat,
+                                transform=ccrs.PlateCarree(),
+                                color=colour,
+                                marker="o",
+                                markersize=20,
+                                fillstyle="none",
+                            )
+                            route_like = contestant.navigation_task.route if contestant is not None else route
+                            route_like = cast(Route, route_like)
+                            waypoint = next((item for item in render_waypoints if item.name == name), None)
+                            if waypoint is not None:
+                                bearing = getattr(waypoint, "bearing_next", 0)
+                                plot_waypoint_name(
+                                    route_like,
+                                    waypoint,
+                                    bearing,
+                                    annotations,
+                                    waypoints_only,
+                                    contestant,
+                                    line_width,
+                                    "red",
+                                )
     elif ANR_CORRIDOR in task.scorecard.task_type:
         paths = plot_anr_corridor_track(
             route,
@@ -1325,6 +1685,8 @@ def plot_route(
         )
     else:
         paths = []
+    if contestant is None:
+        plot_catalogue_targets(task_catalogue_targets, colour, task.scorecard)
     plot_prohibited_zones(route, imagery.crs, ax)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:
@@ -1347,7 +1709,11 @@ def plot_route(
         )
 
     # print(f"Figure size (cm): ({figure_width}, {figure_height})")
-    minimum_latitude, maximum_latitude, minimum_longitude, maximum_longitude = route.get_extent()
+    minimum_latitude, maximum_latitude, minimum_longitude, maximum_longitude = get_plot_extent(
+        route,
+        render_waypoints=render_waypoints,
+        task_catalogue_targets=task_catalogue_targets,
+    )
     # print(f"minimum: {minimum_latitude}, {minimum_longitude}")
     # print(f"maximum: {maximum_latitude}, {maximum_longitude}")
     proj_pc = ccrs.PlateCarree()
@@ -1544,7 +1910,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
     :param positions: List of (latitude, longitude) pairs
     :return:
     """
-    imagery = OSM(user_agent="airsports.no, support@airsports.no")
+    imagery = AirsportsOSM(user_agent="airsports.no, support@airsports.no")
     ax = plt.axes(projection=imagery.crs)
     ax.add_image(imagery, 7)
     ax.set_aspect("auto")

@@ -22,7 +22,7 @@ export interface LatLng {
 export interface RoutePoint extends LatLng {
   id: string;
   name: string;
-  type: "sp" | "tp" | "secret" | "fp" | "anrtp";
+  type: "sp" | "tp" | "secret" | "fp" | "anrtp" | "known_time_gate" | "timed_turnpoint" | "hidden_gate" | "catalogue_turnpoint" | "circle_center" | "circle_start" | "circle_entry" | "circle_exit" | "ul" | "unknown_leg" | "dummy";
   segmentType: "straight" | "curved";
   controlLat?: number;
   controlLng?: number;
@@ -30,6 +30,11 @@ export interface RoutePoint extends LatLng {
   isTiming: boolean;
   isPassing: boolean;
   isSecret?: boolean;
+  scoreValue?: number | null;
+  unknownLegHeading?: number;
+  triggerPointId?: string | null;
+  branchSequence?: number | null;
+  featureType?: "route_waypoint" | "catalogue_turnpoint" | "circle_center_marker" | "circle_start_marker" | "circle_entry_marker" | "circle_exit_marker" | "known_time_gate" | "hidden_gate" | "dummy_branch_waypoint";
 }
 
 export interface Gate {
@@ -45,14 +50,15 @@ export interface ObservationMarker extends LatLng {
   id: string;
   name: string;
   notes?: string;
+  targetName?: string;
 }
 
 export interface Polygon {
   id: string;
   name: string;
-  type: "prohibited" | "penalty" | "info";
+  type: "prohibited" | "penalty" | "info" | "duration_landing_area";
   points: LatLng[];
 }
 
-export type SelectionType = "point" | "gate" | "observation" | "polygon" | "settings" | "help";
-export type Mode = "view" | "add_point" | "add_landing" | "add_takeoff" | "add_observation" | "add_polygon";
+export type SelectionType = "point" | "standalone_point" | "gate" | "observation" | "polygon" | "settings" | "help" | "wizard";
+export type Mode = "view" | "add_point" | "add_catalogue_turnpoint" | "add_landing" | "add_takeoff" | "add_observation" | "add_polygon";

@@ -48,3 +48,6 @@ src/reports/
 src/.coverage
 airsports_static/src/pages/docs/05_Results_Service_Guide.md
 .venv/
+.hermes/
+*:Zone.Identifier
+S10 - 2026 A4  - TASK CATALOGUE FOR CHAMPIONSHIPS.pdf

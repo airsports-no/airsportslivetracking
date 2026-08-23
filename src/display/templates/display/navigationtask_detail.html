@@ -119,6 +119,11 @@
                             </div>
                             <div id="contestant-info-content" class="text-xs mt-2 transition-all duration-200">
                                 <p>For single contestants these can be added using the <strong>Quick add</strong> button for the contestant to be created with useful default values from the team registration. Edit the contestant by clicking its name after creation to change any of the default settings.</p>
+                                {% if object.task_subtype == 'turnpoint_hunt' or object.task_subtype == 'limited_fuel_turnpoint_hunt' %}
+                                <p class="mt-2">Turnpoint-hunt declarations are completed after contestant creation through the <strong>Edit declaration</strong> action on each contestant row.</p>
+                                {% elif object.task_subtype == 'contract_navigation_time_controls' %}
+                                <p class="mt-2">Contract-navigation declarations can be reviewed and adjusted later through the <strong>Edit declaration</strong> action on each contestant row.</p>
+                                {% endif %}
                                 <p class="mt-2">For a competition with more than a few contestants we recommend using the <strong>Scheduling assistant</strong> (under More Tools) to create a conflict free time schedule.</p>
                                 <p class="mt-2">If conditions change during the event, use <strong>Batch Update Contestants</strong> to easily update wind speed and direction for multiple contestants at once, or shift the entire contest timeline for all remaining future contestants by a set number of minutes.</p>
                                 <hr class="my-2 border-info-content/20">
@@ -129,6 +134,32 @@
                     </div>
                 </div>
             </div>
+            {% if show_guest_capacity_warning %}
+            <div class="alert {% if guest_capacity_full %}alert-warning{% else %}alert-info{% endif %} shadow-sm mt-4 text-sm">
+                {% if guest_capacity_full %}
+                    {% lucide "triangle-alert" class="stroke-current flex-shrink-0 w-6 h-6" %}
+                {% else %}
+                    {% lucide "info" class="stroke-current flex-shrink-0 w-6 h-6" %}
+                {% endif %}
+                <div>
+                    <div class="font-bold">Pilot capacity status</div>
+                    {% if guest_capacity_full %}
+                        <div>{{ guest_created_contestants }} / {{ guest_capacity_limit }} guest pilot slots are now reserved on this task. The contest owner is exempt. To enable more slots, remove an unstarted contestant that is holding a reservation, reuse an already-counted pilot, or apply a larger token or club pass.</div>
+                    {% else %}
+                        <div>{{ guest_created_contestants }} / {{ guest_capacity_limit }} guest pilot slots are reserved on this task. The contest owner is exempt.</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% if archive_mode_info %}
+            <div class="alert alert-info shadow-sm mt-4 text-sm">
+                {% lucide "archive" class="stroke-current flex-shrink-0 w-6 h-6" %}
+                <div>
+                    <div class="font-bold">Archive Mode</div>
+                    <div>This contest token expired on {{ archive_mode_info.expired_at|date:"Y-m-d H:i" }}. Historical results remain readable, but creating new tasks or launching new live sessions requires a new token or annual pass.</div>
+                </div>
+            </div>
+            {% endif %}
             <script>
                 function toggleContestantInfo() {
                     const content = document.getElementById('contestant-info-content');
@@ -240,6 +271,9 @@
                                     </label>
                                     <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-20">
                                         <li><a href="{% url 'contestant_map' contestant.pk %}">Map</a></li>
+                                        {% if object.task_subtype == 'turnpoint_hunt' or object.task_subtype == 'limited_fuel_turnpoint_hunt' or object.task_subtype == 'contract_navigation_time_controls' %}
+                                            <li><a href="/contestant-declaration/{{ object.contest.pk }}/{{ object.pk }}/{{ contestant.pk }}">Edit declaration</a></li>
+                                        {% endif %}
                                         {% if "change_contest" in contest_permissions %}
                                             {% if contestant.contestanttrack.calculator_finished %}
                                                 <li><a href="{% url 'contestant_restart_calculator' contestant.pk %}" onclick="return confirm('Restart?')">Restart Calculator</a></li>
@@ -438,6 +472,9 @@
                                         <label tabindex="0" class="btn btn-ghost btn-xs px-1">Actions</label>
                                         <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-50">
                                             <li><a href="{% url 'contestant_map' contestant.pk %}">Map</a></li>
+                                            {% if object.task_subtype == 'turnpoint_hunt' or object.task_subtype == 'limited_fuel_turnpoint_hunt' or object.task_subtype == 'contract_navigation_time_controls' %}
+                                                <li><a href="/contestant-declaration/{{ object.contest.pk }}/{{ object.pk }}/{{ contestant.pk }}">Edit declaration</a></li>
+                                            {% endif %}
                                             {% if "change_contest" in contest_permissions %}
                                                 <li><hr class="my-1 border-base-200"></li>
                                                 <li><a href="{% url 'navigationtask_flightordersprogress' object.pk %}?contestant_pk={{ contestant.pk }}">Generate flight order</a></li>

@@ -23,7 +23,15 @@ from display.utilities.editable_route_utilities import (
     create_penalty_zone,
     get_quadratic_bezier_points,
 )
-from display.utilities.gate_definitions import DUMMY, UNKNOWN_LEG, STARTINGPOINT, FINISHPOINT, SECRETPOINT
+from display.utilities.gate_definitions import (
+    DUMMY,
+    UNKNOWN_LEG,
+    STARTINGPOINT,
+    FINISHPOINT,
+    SECRETPOINT,
+    HIDDEN_GATE,
+    KNOWN_TIME_GATE,
+)
 from display.utilities.navigation_task_type_definitions import (
     NAVIGATION_TASK_TYPES,
     PRECISION,
@@ -62,6 +70,9 @@ class EditableRoute(models.Model):
     number_of_waypoints = models.IntegerField(default=0)
     route_length = models.FloatField(default=0, help_text="NM")
     thumbnail = models.ImageField(upload_to="route_thumbnails/", blank=True, null=True)
+    updated_at = models.DateTimeField(
+        auto_now=True, null=True, help_text="When this editable route's content was last saved."
+    )
 
     class Meta:
         ordering = ("name", "pk")
@@ -161,11 +172,76 @@ class EditableRoute(models.Model):
     def get_track_waypoints(self) -> list[dict]:
         return self.get_features_type("route_waypoint")
 
+    def get_catalogue_turnpoints(self) -> list[dict]:
+        return self.get_features_type("catalogue_turnpoint")
+
+    def get_circle_center_markers(self) -> list[dict]:
+        return self.get_features_type("circle_center_marker")
+
+    def get_circle_start_markers(self) -> list[dict]:
+        return self.get_features_type("circle_start_marker")
+
+    def get_circle_entry_markers(self) -> list[dict]:
+        return self.get_features_type("circle_entry_marker")
+
+    def get_circle_exit_markers(self) -> list[dict]:
+        return self.get_features_type("circle_exit_marker")
+
+    def get_route_to_sp_paths(self) -> list[dict]:
+        return self.get_features_type("route_to_sp_path")
+
+    def get_route_from_fp_paths(self) -> list[dict]:
+        return self.get_features_type("route_from_fp_path")
+
+    def get_known_time_gates(self) -> list[dict]:
+        return [
+            item
+            for item in self.route["features"]
+            if item.get("properties", {}).get("featureType") == "known_time_gate"
+            or (
+                item.get("properties", {}).get("featureType") == "route_waypoint"
+                and item.get("properties", {}).get("pointType") == KNOWN_TIME_GATE
+            )
+        ]
+
+    def get_hidden_gates(self) -> list[dict]:
+        return [
+            item
+            for item in self.route["features"]
+            if item.get("properties", {}).get("featureType") == "hidden_gate"
+            or (
+                item.get("properties", {}).get("featureType") == "route_waypoint"
+                and item.get("properties", {}).get("pointType") == HIDDEN_GATE
+            )
+        ]
+
+    def get_unknown_leg_waypoints(self) -> list[dict]:
+        return [
+            item
+            for item in self.get_track_waypoints()
+            if item.get("properties", {}).get("pointType") == UNKNOWN_LEG
+        ]
+
+    def get_observation_photos(self) -> list[dict]:
+        return self.get_features_type("observation_photo")
+
+    def get_duration_landing_area_polygons(self) -> list[dict]:
+        return [
+            item
+            for item in self.get_features_type("zone")
+            if item.get("properties", {}).get("polygonType") == "duration_landing_area"
+        ]
+
     def get_ordered_track_waypoints(self) -> list[dict]:
         """
         Returns track waypoints sorted by their sequence number.
         """
-        waypoints = self.get_features_type("route_waypoint")
+        waypoints = [
+            item
+            for item in self.route["features"]
+            if item.get("geometry", {}).get("type") == "Point"
+            and item.get("properties", {}).get("featureType") in {"route_waypoint", "hidden_gate", "known_time_gate"}
+        ]
         return sorted(waypoints, key=lambda x: x["properties"].get("sequence", 0))
 
     def get_takeoff_gates(self) -> list:
@@ -619,11 +695,32 @@ class EditableRoute(models.Model):
         return editable_route, messages
 
     def create_route(
-        self, task_type: str, scorecard: "Scorecard", rounded_corners: bool, corridor_width: float
+        self,
+        task_type: str,
+        scorecard: "Scorecard",
+        rounded_corners: bool,
+        corridor_width: float,
+        task_subtype: str | None = None,
     ) -> "Route":
+        from display.models import Route
+        from display.utilities.cima_task_type_definitions import NO_BACKBONE_TASK_SUBTYPES
+
         if task_type in (PRECISION, POKER):
-            use_procedure_turns = scorecard.use_procedure_turns
-            route = self.create_precision_route(use_procedure_turns, scorecard)
+            if task_subtype in NO_BACKBONE_TASK_SUBTYPES:
+                # These subtypes have no authored route backbone: the route
+                # is entirely free-map markers, so there is no track to turn
+                # into Route.waypoints.
+                route = Route.objects.create(
+                    name=self.name,
+                    waypoints=[],
+                    takeoff_gates=[],
+                    landing_gates=[],
+                    use_procedure_turns=False,
+                )
+                self.amend_route_with_additional_features(route)
+            else:
+                use_procedure_turns = scorecard.use_procedure_turns
+                route = self.create_precision_route(use_procedure_turns, scorecard)
         elif task_type == ANR_CORRIDOR:
             if rounded_corners is None:
                 raise ValidationError(f"Missing 'rounded_corners' for task type {task_type}")

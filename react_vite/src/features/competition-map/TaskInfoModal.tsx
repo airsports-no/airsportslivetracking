@@ -3,16 +3,27 @@ import { useParams } from 'react-router-dom';
 import { fetchNavigationTask } from './api';
 import type { NavigationTask } from './types';
 import { Loading } from '../route-editor/components/basicComponents';
-import AboutAirsportChallenge from './components/rules/AboutAirsportChallenge';
-import AboutAirsports from './components/rules/AboutAirsports';
-import AboutANR from './components/rules/AboutANR';
-import AboutPilotPokerRun from './components/rules/AboutPilotPokerRun';
-import AboutPrecisionFlying from './components/rules/AboutPrecisionFlying';
 
 interface Props {
     isOpen: boolean;
     onClose: () => void;
 }
+
+const renderBulletSection = (title: string, items: string[]) => {
+    if (!items || items.length === 0) {
+        return null;
+    }
+    return (
+        <div>
+            <h3 className="text-xl font-bold my-2">{title}</h3>
+            <ul className="list-disc pl-6 space-y-2">
+                {items.map((item, index) => (
+                    <li key={`${title}-${index}`}>{item}</li>
+                ))}
+            </ul>
+        </div>
+    );
+};
 
 const TaskInfoModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const { contestId, navigationTaskId } = useParams();
@@ -20,7 +31,6 @@ const TaskInfoModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Only fetch data when the modal is opened for the first time
         if (isOpen && !navTask && contestId && navigationTaskId) {
             setLoading(true);
             fetchNavigationTask(Number(contestId), Number(navigationTaskId))
@@ -32,27 +42,31 @@ const TaskInfoModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     const renderRules = () => {
         if (!navTask) return null;
-        const { scorecard, route } = navTask;
+        const info = navTask.task_information;
+        if (!info) {
+            return <div className="alert alert-warning">No task information is available for this task.</div>;
+        }
 
-        if (scorecard.task_type.includes("airsportchallenge")) {
-            return <AboutAirsportChallenge scorecard={scorecard} route={route} />;
-        }
-        if (scorecard.task_type.includes("airsports")) {
-            return <AboutAirsports scorecard={scorecard} route={route} />;
-        }
-        if (scorecard.task_type.includes("anr_corridor")) {
-            return <AboutANR scorecard={scorecard} route={route} />;
-        }
-        if (scorecard.task_type.includes("poker")) {
-            return <AboutPilotPokerRun />;
-        }
-        if (scorecard.task_type.includes("precision")) {
-            return <AboutPrecisionFlying scorecard={scorecard} route={route} />;
-        }
-        
-        return <div className="alert alert-warning">No specific rules found for this task type.</div>;
+        return (
+            <div className="space-y-4">
+                <div className="rounded-lg border border-base-300 bg-base-200 p-4">
+                    <div className="text-sm uppercase tracking-wide text-base-content/70">Task family</div>
+                    <div className="text-lg font-semibold">{info.family_display_name}</div>
+                    <div className="text-sm uppercase tracking-wide text-base-content/70 mt-3">Task subtype</div>
+                    <div className="text-lg font-semibold">{info.subtype_display_name}</div>
+                </div>
+                <div>
+                    <h3 className="text-xl font-bold my-2">Objective</h3>
+                    <p>{info.objective}</p>
+                </div>
+                {renderBulletSection('Task summary', info.summary)}
+                {renderBulletSection('Scoring', info.scoring)}
+                {renderBulletSection('Penalties', info.penalties)}
+                {renderBulletSection('Current task-specific values', info.overrides)}
+            </div>
+        );
     };
-    
+
     if (!isOpen) {
         return null;
     }
@@ -71,7 +85,10 @@ const TaskInfoModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 ) : navTask ? (
                     <div className="prose lg:prose-xl max-w-none">
                         <h1 className="text-4xl font-extrabold text-primary mb-2">{navTask.name}</h1>
-                        <h2 className="text-xl font-bold text-secondary mb-6">{navTask.contest.name}</h2>
+                        <h2 className="text-xl font-bold text-secondary mb-2">{navTask.contest.name}</h2>
+                        <p className="text-base-content/70 !mt-0">
+                            {navTask.task_information?.family_display_name} · {navTask.task_information?.subtype_display_name}
+                        </p>
                         <div className="divider"></div>
                         {renderRules()}
                     </div>

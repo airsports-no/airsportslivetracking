@@ -1,13 +1,20 @@
 import datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.forms import FlightOrderConfigurationForm, MapForm, ContestantMapForm, validate_map_zoom_level
-from display.flight_order_and_maps.generate_flight_orders import build_flight_order_map_plot_kwargs
+from display.flight_order_and_maps.generate_flight_orders import (
+    build_flight_order_map_plot_kwargs,
+    get_flight_order_visual_waypoints,
+    _photo_gallery_cells,
+    _unknown_leg_gallery_cells,
+)
 from display.flight_order_and_maps.map_plotter_shared_utilities import resolve_map_source_definition
 from display.models import Contest, NavigationTask, Route
+from display.utilities.task_information import build_navigation_task_information
+from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
 
 
 class FlightOrderConfigurationFormTests(TestCase):
@@ -201,7 +208,150 @@ class FlightOrderConfigurationFormTests(TestCase):
 
         self.assertEqual(kwargs["map_source"], "user_uploaded:42")
         self.assertTrue(kwargs["include_openaip_overlay"])
+        self.assertTrue(kwargs["include_contestant_declarations"])
         self.assertNotIn("user_map_source", kwargs)
+
+    def test_build_flight_order_map_plot_kwargs_keeps_unknown_legs_declarations_enabled(self):
+        self.navigation_task.task_subtype = UNKNOWN_LEGS
+        self.navigation_task.save(update_fields=["task_subtype"])
+        self.configuration.map_include_contestant_declarations = True
+        self.configuration.save(update_fields=["map_include_contestant_declarations"])
+
+        kwargs = build_flight_order_map_plot_kwargs(self.navigation_task, self.configuration, contestant=None)
+
+        self.assertTrue(kwargs["include_contestant_declarations"])
+
+    def test_get_flight_order_visual_waypoints_prefers_unknown_legs_actual_route(self):
+        class DummyWaypoint:
+            def __init__(self, name, type_):
+                self.name = name
+                self.type = type_
+
+        class DummyConfig:
+            compiled_effective_route_payload = {
+                "actual_route": {
+                    "waypoints": [
+                        {"name": "SP"},
+                        {"name": "TRG1"},
+                        {"name": "FP"},
+                    ]
+                }
+            }
+
+        contestant = type("ContestantStub", (), {})()
+        contestant.navigation_task = self.navigation_task
+        contestant.contestanttaskconfiguration = DummyConfig()
+        self.navigation_task.task_subtype = UNKNOWN_LEGS
+        self.navigation_task.save(update_fields=["task_subtype"])
+
+        with patch(
+            "display.flight_order_and_maps.generate_flight_orders.get_effective_route_waypoints",
+            return_value=[
+                DummyWaypoint("SP", "sp"),
+                DummyWaypoint("TRG1", "ul"),
+                DummyWaypoint("TRG1-D1", "dummy"),
+                DummyWaypoint("FP", "fp"),
+            ],
+        ):
+            waypoints = get_flight_order_visual_waypoints(contestant, include_contestant_declarations=True)
+
+        self.assertEqual([waypoint.name for waypoint in waypoints], ["SP", "TRG1", "FP"])
+
+    @patch("display.flight_order_and_maps.generate_flight_orders.get_turning_point_image")
+    def test_unknown_leg_gallery_cells_uses_compiled_unknown_leg_names_even_when_actual_route_contains_trigger(
+        self, mock_get_turning_point_image
+    ):
+        class DummyWaypoint:
+            def __init__(self, name, type_, bearing_next=0):
+                self.name = name
+                self.type = type_
+                self.bearing_next = bearing_next
+
+        class DummyConfig:
+            is_valid = True
+            compiled_effective_route_payload = {
+                "unknown_leg_names": ["TRG1"],
+                "actual_route": {
+                    "waypoints": [
+                        {"name": "SP"},
+                        {"name": "TRG1"},
+                        {"name": "FP"},
+                    ]
+                },
+            }
+
+        contestant = type("ContestantStub", (), {})()
+        contestant.navigation_task = self.navigation_task
+        contestant.contestanttaskconfiguration = DummyConfig()
+
+        waypoints = [
+            DummyWaypoint("SP", "sp"),
+            DummyWaypoint("TRG1", "ul", bearing_next=123),
+            DummyWaypoint("FP", "fp"),
+        ]
+
+        mock_get_turning_point_image.side_effect = lambda wps, index, *a, **k: type(
+            "Tmp", (), {"name": f"img-{wps[index].name}"}
+        )()
+
+        _unknown_leg_gallery_cells(contestant, self.configuration, waypoints)
+
+        rendered_names = [
+            call.args[0][call.args[1]].name for call in mock_get_turning_point_image.call_args_list
+        ]
+        self.assertEqual(rendered_names, ["TRG1"])
+        self.assertTrue(all(call.kwargs["is_unknown_leg"] for call in mock_get_turning_point_image.call_args_list))
+
+    @patch("display.flight_order_and_maps.generate_flight_orders.generate_photo")
+    def test_photo_gallery_cells_synthesizes_unknown_leg_observation_pages_from_compiled_payload(self, mock_generate_photo):
+        class DummyWaypoint:
+            def __init__(self, name, type_, latitude, longitude, bearing_next=0):
+                self.name = name
+                self.type = type_
+                self.latitude = latitude
+                self.longitude = longitude
+                self.bearing_next = bearing_next
+
+        class DummyConfig:
+            is_valid = True
+            compiled_effective_route_payload = {
+                "observation_photos": [
+                    {
+                        "name": "Photo UL-1",
+                        "target_name": "TRG1",
+                        "coordinates": [11.21, 60.21],
+                        "evidence_category": "observation",
+                    }
+                ]
+            }
+
+        self.navigation_task.task_subtype = UNKNOWN_LEGS
+        self.navigation_task.save(update_fields=["task_subtype"])
+
+        contestant = type("ContestantStub", (), {})()
+        contestant.navigation_task = self.navigation_task
+        contestant.contestanttaskconfiguration = DummyConfig()
+
+        mock_generate_photo.return_value = type("Tmp", (), {"name": "/tmp/photo-ul-1.png"})()
+
+        with patch(
+            "display.flight_order_and_maps.generate_flight_orders.get_effective_route_waypoints",
+            return_value=[DummyWaypoint("TRG1", "ul", 60.2, 11.2, bearing_next=87)],
+        ):
+            cells = _photo_gallery_cells(contestant, self.configuration)
+
+        photo_stub = mock_generate_photo.call_args.args[0]
+        waypoint = mock_generate_photo.call_args.args[1]
+        self.assertEqual(photo_stub.name, "Photo UL-1")
+        self.assertEqual((photo_stub.longitude, photo_stub.latitude), (11.21, 60.21))
+        self.assertEqual(waypoint.name, "TRG1")
+        self.assertEqual(cells, [("/tmp/photo-ul-1.png", "Photo UL-1")])
+
+    def test_contestant_declaration_toggle_defaults_to_enabled(self):
+        form = FlightOrderConfigurationForm(instance=self.configuration)
+
+        self.assertIn("map_include_contestant_declarations", form.fields)
+        self.assertTrue(form.fields["map_include_contestant_declarations"].initial)
 
     def test_resolve_map_source_definition_for_uploaded_map_uses_uploaded_metadata(self):
         class UploadedMap:
@@ -228,3 +378,14 @@ class FlightOrderConfigurationFormTests(TestCase):
             source["tile_url"],
             "http://localhost:8001/services/user-uploaded-map-42/tiles/{z}/{x}/{y}.png",
         )
+
+    def test_build_navigation_task_information_uses_circle_task_overrides(self):
+        self.navigation_task.task_subtype = "circle"
+        self.navigation_task.task_config = {"circle_radius_min_m": 210, "circle_radius_max_m": 760}
+        self.navigation_task.save(update_fields=["task_subtype", "task_config"])
+
+        info = build_navigation_task_information(self.navigation_task)
+
+        self.assertEqual(info["subtype_display_name"], "2.A7 Circle")
+        self.assertEqual(info["family_display_name"], "Precision navigation")
+        self.assertIn("Configured radius band is 210 m to 760 m.", info["overrides"])

@@ -12,10 +12,15 @@ class ScoreLogEntry(models.Model):
     """
     Represents the details around the score awarded when passing a gate.
     """
+
     time = models.DateTimeField()
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     gate = models.CharField(max_length=30, default="")
-    message = models.TextField(default="")
+    # Bounded (not TextField) because it is part of the idempotency
+    # constraint below - MySQL cannot index a TEXT/BLOB column without an
+    # explicit key-length prefix. 255 is generous headroom: the longest
+    # message in production at the time this was added was 61 characters.
+    message = models.CharField(max_length=255, default="")
     string = models.TextField(default="")
     points = models.FloatField()
     planned = models.DateTimeField(blank=True, null=True)
@@ -26,6 +31,14 @@ class ScoreLogEntry(models.Model):
 
     class Meta:
         ordering = ("time", "pk")
+        # Backs get_or_create_and_push's application-level idempotency check
+        # with a real DB constraint, so a race between two concurrent
+        # writers (e.g. two calculators briefly alive for the same
+        # contestant) can't both insert the same score event - Django's
+        # get_or_create() is specifically designed to fall back to a get()
+        # on the resulting IntegrityError. See get_idempotency_fields() for
+        # why these are exactly the fields used.
+        unique_together = ("contestant", "time", "gate", "message", "points", "planned", "actual", "type")
 
     @classmethod
     def push(cls, entry):
@@ -88,12 +101,35 @@ class ScoreLogEntry(models.Model):
         return entry, created
 
 
+class AdministrativePenalty(models.Model):
+    CATEGORY_QUARANTINE = "quarantine"
+    CATEGORY_FUEL = "fuel"
+    CATEGORY_INSTRUCTIONS = "instructions"
+    CATEGORY_OBSERVATION = "observation"
+    CATEGORY_MAP = "map"
+    CATEGORY_CHOICES = (
+        (CATEGORY_QUARANTINE, "Quarantine"),
+        (CATEGORY_FUEL, "Fuel check"),
+        (CATEGORY_INSTRUCTIONS, "Task instructions"),
+        (CATEGORY_OBSERVATION, "Observation evidence"),
+        (CATEGORY_MAP, "Map placement"),
+    )
+
+    score_log_entry = models.OneToOneField(ScoreLogEntry, on_delete=models.CASCADE)
+    contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
+    actor = models.ForeignKey("MyUser", on_delete=models.SET_NULL, null=True, blank=True)
+    category = models.CharField(max_length=40, choices=CATEGORY_CHOICES)
+    reason = models.TextField(default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class TrackAnnotation(models.Model):
     """
     Holds a data point that should  be displayed on the tracking map for the user. Goes hand-in-hand with ScoreLogEntry,
     but where the former appears in the score details list, these entities are displayed at specific positions on the
     map where the event occurred.
     """
+
     time = models.DateTimeField()
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     score_log_entry = models.ForeignKey(ScoreLogEntry, on_delete=models.CASCADE)
@@ -132,6 +168,7 @@ class GateCumulativeScore(models.Model):
     """
     Holds the cumulative score accrued up until passing the gate.
     """
+
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     gate = models.CharField(max_length=30)
     points = models.FloatField(default=0)
@@ -144,6 +181,7 @@ class ActualGateTime(models.Model):
     """
     The actual passing time for a specific date for a contestant.
     """
+
     contestant = models.ForeignKey("Contestant", on_delete=models.CASCADE)
     gate = models.CharField(max_length=30)
     time = models.DateTimeField()

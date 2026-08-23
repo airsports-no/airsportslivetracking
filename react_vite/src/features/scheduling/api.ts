@@ -1,6 +1,64 @@
 import { reverse } from "../../urls";
 import { getCookie } from "../../utils/csrf";
 
+type ErrorMessage = string | string[];
+
+type ApiErrorPayload = {
+    detail?: ErrorMessage;
+    error?: ErrorMessage;
+    [key: string]: unknown;
+};
+
+const flattenErrorMessage = (value: unknown, fallbackLabel?: string): string | null => {
+    if (Array.isArray(value)) {
+        const parts = value.map((item) => flattenErrorMessage(item)).filter(Boolean);
+        if (parts.length === 0) return null;
+        return fallbackLabel ? `${fallbackLabel}: ${parts.join(', ')}` : parts.join(', ');
+    }
+    if (typeof value === "string") {
+        return fallbackLabel ? `${fallbackLabel}: ${value}` : value;
+    }
+    return null;
+};
+
+const getPrimaryApiErrorMessage = (errorData: ApiErrorPayload, fallback: string): string => {
+    const explicitMessage = flattenErrorMessage(errorData.detail) || flattenErrorMessage(errorData.error);
+    if (explicitMessage) return explicitMessage;
+
+    for (const [key, value] of Object.entries(errorData)) {
+        const message = flattenErrorMessage(value, key);
+        if (message) return message;
+    }
+
+    return fallback;
+};
+
+export const fetchScheduleCapacityPreview = async (
+    contestId: number,
+    navigationTaskId: number,
+    contestTeamIds: number[],
+    firstTakeoffTime?: string,
+) => {
+    const url = new URL(reverse("navigationtasks-schedule-capacity-preview", contestId, navigationTaskId), window.location.origin);
+    if (contestTeamIds.length > 0) {
+        url.searchParams.set("contest_teams", contestTeamIds.join(","));
+    }
+    if (firstTakeoffTime) {
+        url.searchParams.set("first_takeoff_time", firstTakeoffTime);
+    }
+    const response = await fetch(url.toString(), {
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")!,
+        },
+    });
+    if (!response.ok) {
+        const errorData = await response.json() as ApiErrorPayload;
+        throw new Error(getPrimaryApiErrorMessage(errorData, "Failed to fetch schedule capacity preview"));
+    }
+    return response.json();
+};
+
 export const scheduleContestants = async (
     contestId: number,
     navigationTaskId: number,
@@ -44,7 +102,7 @@ export const fetchTeam = async (teamId: number) => {
 
 export const fetchNavigationTask = async (contestPk: number, navigationTaskPk: number) => {
     const url = reverse("navigationtasks-detail", contestPk, navigationTaskPk);
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) {
         throw new Error("Failed to fetch navigation task");
     }
@@ -53,7 +111,7 @@ export const fetchNavigationTask = async (contestPk: number, navigationTaskPk: n
 
 export const fetchContestant = async (contestId: number, navigationTaskId: number, contestantId: number) => {
     const url = reverse("contestants-detail", contestId, navigationTaskId, contestantId);
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) {
         throw new Error(`Failed to fetch contestant ${contestantId}`);
     }
@@ -67,13 +125,14 @@ export const updateContestant = async (contestId: number, navigationTaskId: numb
         headers: {
             "Content-Type": "application/json",
             "X-CSRFToken": getCookie("csrftoken")!,
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
         },
         body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
         const errorData = await response.json();
-        // Extract error message from DRF response
         let errorMessage = "Failed to update contestant";
         if (errorData && typeof errorData === 'object') {
              const keys = Object.keys(errorData);
@@ -90,6 +149,17 @@ export const updateContestant = async (contestId: number, navigationTaskId: numb
     }
 
     return response.json();
+};
+
+export const updateContestantDeclaration = async (
+    contestId: number,
+    navigationTaskId: number,
+    contestantId: number,
+    declarationPayload: any,
+) => {
+    return updateContestant(contestId, navigationTaskId, contestantId, {
+        declaration_payload: declarationPayload,
+    });
 };
 
 export const deleteContestant = async (contestId: number, navigationTaskId: number, contestantId: number) => {

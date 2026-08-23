@@ -388,6 +388,27 @@ def euclidean_point_to_line_distance(x1, y1, x2, y2, x3, y3) -> float:
     return math.sqrt(dx * dx + dy * dy)
 
 
+def approximate_point_to_line_segment_distance(lat1, lon1, lat2, lon2, lat3, lon3) -> float:
+    """
+    Fast approximation of the distance from (lat3,lon3) to the segment (lat1,lon1)-(lat2,lon2).
+
+    Projects the three points onto a local equirectangular tangent plane and measures in
+    metres there, which costs a handful of trig operations instead of the three iterative
+    geodesic solves point_to_line_distance needs.
+
+    Only suitable for *comparing* distances over a local area (picking the nearest of
+    several legs), not for reporting or scoring a distance. Use point_to_line_distance
+    when the magnitude itself matters.
+    """
+    cos_average_latitude = math.cos(to_rad((lat1 + lat2 + lat3) / 3))
+    # (lat1, lon1) is the plane origin, so its projected coordinates are (0, 0).
+    x2 = to_rad(lon2 - lon1) * cos_average_latitude * R
+    y2 = to_rad(lat2 - lat1) * R
+    x3 = to_rad(lon3 - lon1) * cos_average_latitude * R
+    y3 = to_rad(lat3 - lat1) * R
+    return euclidean_point_to_line_distance(0.0, 0.0, x2, y2, x3, y3)
+
+
 def point_to_line_distance(lat1, lon1, lat2, lon2, lat3, lon3) -> float:
     """
     Calculates the distance from the point (lat3,lon3) two the closest point on the line (lat1,lon1) (lat2,lon2)

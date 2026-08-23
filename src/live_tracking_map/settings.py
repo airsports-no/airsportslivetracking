@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
+import copy
 import os
 import sys
 import json
@@ -86,6 +87,31 @@ MBTILES_RELOAD_LOCAL_URL = os.environ.get("MBTILES_RELOAD_LOCAL_URL", "")
 
 BUILD_ID = os.environ.get("BUILD_ID", "latest")
 
+
+def _parse_optional_int_env(name: str, default: int = None) -> int | None:
+    value = os.environ.get(name, str(default))
+    if value is None:
+        return None
+    value = value.strip()
+    if value == "" or value.lower() in {"none", "null", "infinite", "inf", "uncapped", "unlimited"}:
+        return None
+    return int(value)
+
+
+DEFAULT_FREE_CONTESTANT_LIMIT = _parse_optional_int_env("DEFAULT_FREE_CONTESTANT_LIMIT")
+# ACCESS_ENFORCEMENT_MODE controls whether contestant-capacity limits are only surfaced
+# for visibility or actively enforced at runtime.
+# - "audit": expose limits/status in UI and APIs but do not block actions.
+# - "enforce": block quota-consuming actions when the effective contestant limit is exhausted.
+ACCESS_ENFORCEMENT_MODE = os.environ.get("ACCESS_ENFORCEMENT_MODE", "audit")
+if ACCESS_ENFORCEMENT_MODE not in {"audit", "enforce"}:
+    ACCESS_ENFORCEMENT_MODE = "audit"
+
+DEFAULT_FREE_TASK_TYPE_GROUPS = [
+    item.strip() for item in os.environ.get("DEFAULT_FREE_TASK_TYPE_GROUPS", "legacy,cima").split(",") if item.strip()
+]
+GATE_CIMA_TASK_VISIBILITY = os.environ.get("GATE_CIMA_TASK_VISIBILITY", "false").strip().lower() in {"1", "true", "yes", "on"}
+
 MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
 
 REMOVE_BG_KEY = os.environ.get("REMOVE_BG_KEY", "")
@@ -134,8 +160,8 @@ INSTALLED_APPS = [
     "corsheaders",
 ]
 IS_UNIT_TESTING = (
-    any(s in sys.argv for s in ("test", "jenkins", "pytest")) 
-    or "pytest" in sys.modules 
+    any(s in sys.argv for s in ("test", "jenkins", "pytest"))
+    or "pytest" in sys.modules
     or os.environ.get("PYTEST_CURRENT_TEST") is not None
     or os.environ.get("DISABLE_FIREBASE") == "1"
 )
@@ -231,8 +257,8 @@ REST_FRAMEWORK = {
 
 # API & Cache Versioning
 # SPECTACULAR_SETTINGS["VERSION"] serves as the Application Version.
-# Bumping this version will automatically invalidate ALL CDN and browser caches 
-# for contest lists and details (ETag mismatch). Use this when releasing 
+# Bumping this version will automatically invalidate ALL CDN and browser caches
+# for contest lists and details (ETag mismatch). Use this when releasing
 # code changes that modify API serialization or data structures.
 SPECTACULAR_SETTINGS = {
     "TITLE": "Airsports tracking API",
@@ -289,6 +315,11 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+if IS_UNIT_TESTING:
+    # The default PBKDF2 hasher runs ~600k iterations per call. Tests create users
+    # constantly and never assert on the hashing algorithm, so use the cheapest one.
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
 
@@ -341,7 +372,6 @@ STATIC_URL = "/static/"
 STATIC_ROOT = "/static"
 
 
-
 TEMPORARY_FOLDER = "/tmp"
 
 # Dynamic calculation for marketing assets folder
@@ -364,6 +394,15 @@ STATICFILES_DIRS = [
 ]
 
 LOGGING = LOG_CONFIGURATION
+
+if IS_UNIT_TESTING:
+    # The calculators log per-position at INFO, and pytest captures and formats every
+    # record. Nothing in the suite asserts on log output (no assertLogs/caplog usage).
+    # Deep copy so the shared LOG_CONFIGURATION dict is not mutated for other importers.
+    LOGGING = copy.deepcopy(LOG_CONFIGURATION)
+    for _logger_configuration in LOGGING["loggers"].values():
+        if _logger_configuration.get("level") == "INFO":
+            _logger_configuration["level"] = "WARNING"
 
 # celery
 # CELERY_BROKER_URL = "redis+socket:///tmp/docker/redis.sock" if PRODUCTION else "redis://redis:6379"
@@ -427,3 +466,9 @@ CHANNEL_LAYERS = {
         },
     }
 }
+
+if IS_UNIT_TESTING:
+    # Every score/annotation/position push goes through async_to_sync(group_send), which
+    # against the Redis layer costs an event loop spin plus a round trip - for messages no
+    # test ever consumes. The in-memory layer keeps the same API without the I/O.
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}

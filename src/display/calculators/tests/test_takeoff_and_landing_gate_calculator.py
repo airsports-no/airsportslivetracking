@@ -6,11 +6,13 @@ from display.calculators.calculator import OrchestratorState, TakeoffPassedEvent
 from display.calculators.positions_and_gates import Gate, MultiGate
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import Projector
+from display.utilities.cima_task_type_definitions import ANR_CATALOGUE
 
 class TestTakeoffAndLandingGateCalculator(TestCase):
     def setUp(self):
         self.contestant = MagicMock()
         self.contestant.air_speed = 70
+        self.contestant.navigation_task.task_subtype = None
         
         # Real-ish times for testing
         to_time = datetime.datetime(2026, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
@@ -258,3 +260,28 @@ class TestTakeoffAndLandingGateCalculator(TestCase):
         self.assertEqual(self.score_processing_queue.put_nowait.call_count, 1)
         msg = self.score_processing_queue.put_nowait.call_args[0][0]
         self.assertEqual(msg.message, "missing takeoff gate")
+
+    def test_anr_catalogue_takeoff_pass_uses_dedicated_score_type(self):
+        self.contestant.navigation_task.task_subtype = ANR_CATALOGUE
+        pos = self.create_position(60, 11, self.mock_to_gate.expected_time)
+        event = TakeoffPassedEvent(self.mock_to_gate, pos, pos.time)
+
+        self.score_processing_queue.put_nowait.reset_mock()
+        self.calculator.on_takeoff_passed(event)
+
+        msg = self.score_processing_queue.put_nowait.call_args[0][0]
+        self.assertEqual(msg.score_type, "anr_takeoff_timing")
+        self.assertEqual(msg.message, "ANR takeoff timing")
+
+    def test_anr_catalogue_takeoff_miss_uses_dedicated_score_type(self):
+        self.contestant.navigation_task.task_subtype = ANR_CATALOGUE
+        self.scorecard.get_gate_timing_score_for_gate_type.return_value = 200
+        self.calculator.scored_landing = True
+        pos = self.create_position(60, 11, self.mock_to_gate.expected_time + datetime.timedelta(minutes=5))
+
+        self.score_processing_queue.put_nowait.reset_mock()
+        self.calculator.finalise([pos])
+
+        msg = self.score_processing_queue.put_nowait.call_args[0][0]
+        self.assertEqual(msg.score_type, "anr_takeoff_timing")
+        self.assertEqual(msg.message, "ANR takeoff timing missed")

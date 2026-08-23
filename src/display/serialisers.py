@@ -6,7 +6,7 @@ from typing import Optional
 import dateutil
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import transaction
+from django.db import transaction, models
 from django.db.models import Q, Prefetch
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -56,12 +56,23 @@ from display.models import (
     ScoreLogEntry,
     GateCumulativeScore,
     EditableRoute,
+    AdministrativePenalty,
     MyUser,
     HighlightedContest,
     STARTINGPOINT,
     FINISHPOINT,
     GATE_TYPES,
     NewsletterSubscriber,
+    UserTokenGrant,
+    ClubManagerMembership,
+)
+from display.services.access_resolver import resolve_contest_access
+from display.services.capacity_enforcement import assert_can_add_navigation_task
+from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.task_compiler import TaskCompiler
+from display.services.contestant_persistence import (
+    create_contestant_with_related_state,
+    update_contestant_with_related_state,
 )
 from display.waypoint import Waypoint
 
@@ -200,13 +211,69 @@ class PersonSerialiserExcludingTracking(CountryFieldMixin, serializers.ModelSeri
         exclude = ("app_tracking_id", "simulator_tracking_id")
 
 
+class ClubManagerMembershipSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = ClubManagerMembership
+        fields = ("id", "user", "user_email", "role", "is_active")
+        read_only_fields = ("id", "user_email", "is_active")
+
+
+class ClubManagerMembershipCreateSerializer(serializers.Serializer):
+    user_id = serializers.CharField()
+    role = serializers.ChoiceField(choices=ClubManagerMembership.ROLES, default=ClubManagerMembership.MANAGER)
+
+    def validate_user_id(self, value):
+        if isinstance(value, str) and value.strip().isdigit():
+            user = MyUser.objects.filter(pk=int(value.strip())).first()
+        else:
+            user = MyUser.objects.filter(email__iexact=str(value).strip()).first()
+        if user is None:
+            raise serializers.ValidationError("User not found")
+        self.context["managed_user"] = user
+        return value
+
+
 class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
+    manager_memberships = SerializerMethodField()
 
     class Meta:
         model = Club
         fields = "__all__"
+
+    def get_manager_memberships(self, club):
+        request = self.context.get("request")
+        if not request or not getattr(request.user, "is_authenticated", False):
+            return []
+        if request.user.is_superuser or ClubManagerMembership.objects.filter(
+            club=club,
+            user=request.user,
+            is_active=True,
+        ).exists():
+            memberships = club.clubmanagermembership_set.filter(is_active=True).select_related("user").order_by("user__email")
+            return ClubManagerMembershipSerializer(memberships, many=True).data
+        return []
+
+
+class AvailableTokenGrantSerializer(serializers.ModelSerializer):
+    token_type_name = serializers.CharField(source="token_type.name", read_only=True)
+    quantity_remaining = serializers.IntegerField(read_only=True)
+    task_type_groups = serializers.ListField(source="token_type.task_type_groups", child=serializers.CharField(), read_only=True)
+
+    class Meta:
+        model = UserTokenGrant
+        fields = (
+            "id",
+            "token_type",
+            "token_type_name",
+            "quantity_total",
+            "quantity_consumed",
+            "quantity_remaining",
+            "task_type_groups",
+        )
 
 
 class CrewSerialiser(serializers.ModelSerializer):
@@ -340,11 +407,58 @@ class PhotoSerialiser(serializers.ModelSerializer):
         model = Photo
         fields = "__all__"
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        is_decoy = attrs.get("is_decoy", getattr(self.instance, "is_decoy", False))
+        if is_decoy:
+            route = attrs.get("route") or getattr(self.instance, "route", None)
+            name = attrs.get("name") or getattr(self.instance, "name", None)
+            if route is not None and name:
+                from display.services.photo_management import get_decoy_collision_names
+
+                navigation_task = getattr(route, "navigationtask", None)
+                real_target_names = get_decoy_collision_names(navigation_task) if navigation_task is not None else set()
+                if name in real_target_names:
+                    raise serializers.ValidationError(
+                        {"name": f"'{name}' is already used by a real route feature. Choose a different name for the decoy photo."}
+                    )
+        return attrs
+
 
 class PhotoPublicSerialiser(serializers.ModelSerializer):
+    compiled_coordinates = serializers.SerializerMethodField()
+    evidence_category = serializers.SerializerMethodField()
+    target_kind = serializers.SerializerMethodField()
+    latitude = serializers.FloatField()
+    longitude = serializers.FloatField()
+
     class Meta:
         model = Photo
-        fields = ["id", "name", "file"]
+        fields = ["id", "name", "file", "latitude", "longitude", "compiled_coordinates", "evidence_category", "target_kind"]
+
+    def get_compiled_coordinates(self, obj):
+        contestant = self.context.get("contestant")
+        if contestant and hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
+            payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+            for item in payload.get("observation_photos", []):
+                item_name = item.get("name")
+                if item_name == obj.name or item.get("target_name") == obj.name:
+                    return item.get("coordinates")
+        if getattr(obj, "longitude", None) is not None and getattr(obj, "latitude", None) is not None:
+            return [obj.longitude, obj.latitude]
+        return None
+
+    def get_evidence_category(self, obj):
+        return AdministrativePenalty.CATEGORY_OBSERVATION
+
+    def get_target_kind(self, obj):
+        contestant = self.context.get("contestant")
+        payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
+        for item in payload.get("observation_photos", []):
+            item_name = item.get("name")
+            if item_name == obj.name or item.get("target_name") == obj.name:
+                return item.get("evidence_category")
+        return "observation"
 
 
 class RouteSerialiser(serializers.ModelSerializer):
@@ -644,6 +758,8 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     contestteam_set = ContestTeamSerialiser(read_only=True, many=True)
     has_open_tasks = serializers.SerializerMethodField()
     has_flown_contestants = serializers.SerializerMethodField()
+    access_status = serializers.SerializerMethodField()
+    available_token_grants = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -665,6 +781,39 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         if hasattr(contest, "has_flown_contestants_count"):
             return contest.has_flown_contestants_count > 0
         return contest.navigationtask_set.filter(contestant__contestanttrack__calculator_started=True).exists()
+
+    def get_access_status(self, contest):
+        request = self.context.get("request")
+        resolution = resolve_contest_access(contest, user=getattr(request, "user", None))
+        return {
+            "tier_code": resolution.tier_code,
+            "tier_label": resolution.tier_label,
+            "source_type": resolution.source_type,
+            "source_id": resolution.source_id,
+            "contestant_limit": resolution.contestant_limit,
+            "contestants_used": resolution.contestants_used,
+            "enforcement_mode": resolution.enforcement_mode,
+            "token_grant_id": resolution.token_grant_id,
+            "token_type_id": resolution.token_type_id,
+            "package_contestant_limit": resolution.package_contestant_limit,
+            "free_contestant_limit": resolution.free_contestant_limit,
+            "contestant_limit_uses_free_default": resolution.contestant_limit_uses_free_default,
+            "uses_more_advantageous_free_limits": resolution.uses_more_advantageous_free_limits,
+            "allowed_task_type_groups": resolution.allowed_task_type_groups,
+            "package_task_type_groups": resolution.package_task_type_groups,
+            "free_task_type_groups": resolution.free_task_type_groups,
+        }
+
+    def get_available_token_grants(self, contest):
+        request = self.context.get("request")
+        if not request or not getattr(request.user, "is_authenticated", False):
+            return []
+        grants = UserTokenGrant.objects.filter(
+            user=request.user,
+            token_type__is_active=True,
+            quantity_consumed__lt=models.F("quantity_total"),
+        ).select_related("token_type").order_by("-created_at")
+        return AvailableTokenGrantSerializer(grants, many=True).data
 
     def validate(self, validated_data):
         try:
@@ -744,6 +893,7 @@ class SelfManagementSerialiser(serializers.Serializer):
     adaptive_start = serializers.BooleanField(required=False)
     wind_speed = serializers.FloatField(validators=[MaxValueValidator(40), MinValueValidator(0)])
     wind_direction = serializers.FloatField(validators=[MaxValueValidator(360), MinValueValidator(0)])
+    declaration_payload = serializers.JSONField(required=False)
 
 
 class SignupSerialiser(serializers.Serializer):
@@ -1043,6 +1193,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
         "calculations.",
         required=False,
     )
+    declaration_payload = ReadWriteSerializerMethodField(required=False)
     scorecard_rules = serializers.JSONField(help_text="Dictionary with all rules", read_only=True)
     tracker_id_display = serializers.JSONField(help_text="", read_only=True)
     default_map_url = SerializerMethodField("get_default_map_url", read_only=True)
@@ -1090,6 +1241,11 @@ class ContestantSerialiser(serializers.ModelSerializer):
     def get_default_map_url(self, contestant):
         return reverse("contestant_default_map", kwargs={"pk": contestant.pk})
 
+    def get_declaration_payload(self, contestant):
+        if hasattr(contestant, "contestanttaskconfiguration"):
+            return contestant.contestanttaskconfiguration.declaration_payload or {}
+        return {}
+
     def validate(self, attrs):
         # Retrieve necessary data from attrs or instance
         navigation_task = attrs.get("navigation_task") or (self.instance.navigation_task if self.instance else None)
@@ -1133,96 +1289,25 @@ class ContestantSerialiser(serializers.ModelSerializer):
             navigation_task = self.context["navigation_task"]
         except KeyError:
             raise Http404("Navigation task not found")
-        validated_data["navigation_task"] = navigation_task
-        validated_data["gate_times"] = {
-            key: dateutil.parser.parse(value) for key, value in validated_data["gate_times"].items()
-        }
-        # gate_times = validated_data.pop("gate_times", {})
-        team = validated_data["team"]
-        if contest_team := ContestTeam.objects.filter(contest=navigation_task.contest, team=team).first():
-            if (
-                "tracking_service" not in validated_data
-                or validated_data["tracking_service"] is None
-                or validated_data["tracking_service"] == ""
-            ):
-                validated_data["tracking_service"] = contest_team.tracking_service
-            if (
-                "tracking_device" not in validated_data
-                or validated_data["tracking_device"] is None
-                or validated_data["tracking_device"] == ""
-            ):
-                validated_data["tracking_device"] = contest_team.tracking_device
-            if (
-                "tracker_device_id" not in validated_data
-                or validated_data["tracker_device_id"] is None
-                or validated_data["tracker_device_id"] == ""
-            ):
-                validated_data["tracker_device_id"] = contest_team.tracker_device_id
-            if (
-                "air_speed" not in validated_data
-                or validated_data["air_speed"] is None
-                or validated_data["air_speed"] == ""
-            ):
-                validated_data["air_speed"] = contest_team.air_speed
-
-        contestant = Contestant.objects.create(**validated_data)
-        # contestant.gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
-        # contestant.save()
-        if not ContestTeam.objects.filter(contest=contestant.navigation_task.contest, team=contestant.team).exists():
-            ContestTeam.objects.create(
-                contest=contestant.navigation_task.contest,
-                team=contestant.team,
-                tracker_device_id=contestant.tracker_device_id,
-                tracking_service=contestant.tracking_service,
-                air_speed=contestant.air_speed,
-            )
-
-        return contestant
+        provided_gate_times = validated_data.pop("gate_times", {})
+        declaration_input = validated_data.pop("declaration_payload", None)
+        return create_contestant_with_related_state(
+            navigation_task,
+            validated_data,
+            gate_times=provided_gate_times,
+            declaration_input=declaration_input,
+        )
 
     def update(self, instance, validated_data):
         gate_times = validated_data.pop("gate_times", {})
-        if not self.partial:
-            team = validated_data["team"]
-            if contest_team := ContestTeam.objects.filter(contest=instance.navigation_task.contest, team=team).first():
-                if (
-                    "tracking_service" not in validated_data
-                    or validated_data["tracking_service"] is None
-                    or validated_data["tracking_service"] == ""
-                ):
-                    validated_data["tracking_service"] = contest_team.tracking_service
-                if (
-                    "tracking_device" not in validated_data
-                    or validated_data["tracking_device"] is None
-                    or validated_data["tracking_device"] == ""
-                ):
-                    validated_data["tracking_device"] = contest_team.tracking_device
-                if (
-                    "tracker_device_id" not in validated_data
-                    or validated_data["tracker_device_id"] is None
-                    or validated_data["tracker_device_id"] == ""
-                ):
-                    validated_data["tracker_device_id"] = contest_team.tracker_device_id
-                if (
-                    "air_speed" not in validated_data
-                    or validated_data["air_speed"] is None
-                    or validated_data["air_speed"] == ""
-                ):
-                    validated_data["air_speed"] = contest_team.air_speed
-        Contestant.objects.filter(pk=instance.pk).update(**validated_data)
-        instance.refresh_from_db()
-        instance.gate_times = {key: dateutil.parser.parse(value) for key, value in gate_times.items()}
-        instance.save()
-        ContestTeam.objects.update_or_create(
-            defaults={
-                "tracker_device_id": instance.tracker_device_id,
-                "tracking_service": instance.tracking_service,
-                "tracking_device": instance.tracking_device,
-                "air_speed": instance.air_speed,
-            },
-            contest=instance.navigation_task.contest,
-            team=instance.team,
+        declaration_input = validated_data.pop("declaration_payload", None)
+        return update_contestant_with_related_state(
+            instance,
+            validated_data,
+            gate_times=gate_times,
+            declaration_input=declaration_input,
+            partial=self.partial,
         )
-        return instance
 
 
 class OngoingNavigationSerialiser(serializers.ModelSerializer):
@@ -1290,6 +1375,15 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
 
 class ContestantNestedTeamSerialiserWithContestantTrack(ContestantNestedTeamSerialiser):
     contestanttrack = ContestantTrackSerialiser(read_only=True)
+    compiled_effective_route_payload = serializers.SerializerMethodField()
+
+    def get_compiled_effective_route_payload(self, obj):
+        config = getattr(obj, "contestanttaskconfiguration", None)
+        if config is not None:
+            declaration_payload = config.declaration_payload or {}
+            refreshed = ContestantTaskCompiler(obj).compile(declaration_payload=declaration_payload, force=False)
+            return refreshed.compiled_effective_route_payload or {}
+        return {}
 
 
 class FutureContestantNestedTeamSerialiser(ContestantNestedTeamSerialiser):
@@ -1304,6 +1398,8 @@ class FutureContestantNestedTeamSerialiser(ContestantNestedTeamSerialiser):
 
 class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     contestant_set = ContestantNestedTeamSerialiserWithContestantTrack(many=True, read_only=True)
+    task_catalogue_targets = serializers.SerializerMethodField()
+    task_config = serializers.JSONField(required=False)
     original_scorecard = SlugRelatedField(
         slug_field="shortcut_name",
         queryset=Scorecard.get_originals(),
@@ -1316,6 +1412,9 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     scorecard = ScorecardNestedSerialiser(read_only=True)
     display_contestant_rank_summary = serializers.BooleanField(read_only=True)
     share_string = serializers.CharField(read_only=True)
+    effective_task_subtype = serializers.CharField(read_only=True)
+    task_subtype_definition = serializers.SerializerMethodField()
+    task_information = serializers.SerializerMethodField()
     route = RouteSerialiser()
     time_zone = TimeZoneSerializerField(source="contest.time_zone", read_only=True)
     contest = serializers.PrimaryKeyRelatedField(read_only=True)
@@ -1325,6 +1424,12 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
 
     def get_flown_contestants_count(self, obj):
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
+
+    def get_task_catalogue_targets(self, obj):
+        from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
+
+        contestant = self.context.get("contestant")
+        return get_task_catalogue_targets(obj, contestant=contestant)
 
     @staticmethod
     def setup_eager_loading(queryset):
@@ -1351,26 +1456,45 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         user = self.context["request"].user
         return navigation_task.user_has_change_permissions(user) or user.is_superuser
 
+    def get_task_subtype_definition(self, navigation_task):
+        definition = navigation_task.subtype_definition
+        if definition is None:
+            return None
+        return {
+            "key": definition.key,
+            "display_name": definition.display_name,
+            "coarse_family": definition.coarse_family,
+            "requires_contestant_configuration": definition.requires_contestant_configuration,
+        }
+
+    def get_task_information(self, navigation_task):
+        return navigation_task.task_information
+
     class Meta:
         model = NavigationTask
         fields = "__all__"
 
     def create(self, validated_data):
         user = self.context["request"].user
-        contestant_set = validated_data.pop("contestant_set", [])
         try:
-            validated_data["contest"] = self.context["contest"]
+            contest = self.context["contest"]
         except KeyError:
             raise Http404("Contest not found")
+        assert_can_add_navigation_task(contest, task_subtype=validated_data.get("task_subtype"), user=user)
+
+        contestant_set = validated_data.pop("contestant_set", [])
+        validated_data["contest"] = contest
 
         route = validated_data.pop("route", None)
         route_serialiser = RouteSerialiser(data=route)
         route_serialiser.is_valid(raise_exception=True)
         route = route_serialiser.save()
-        assign_perm("view_route", user, route)
-        assign_perm("delete_route", user, route)
-        assign_perm("change_route", user, route)
+        assign_perm("display.view_route", user, route)
+        assign_perm("display.delete_route", user, route)
+        assign_perm("display.change_route", user, route)
         navigation_task = NavigationTask.create(**validated_data, route=route)
+        if navigation_task.task_subtype:
+            TaskCompiler(navigation_task).compile(force=True)
         for contestant_data in contestant_set:
             contestant_serialiser = ContestantNestedTeamSerialiser(
                 data=contestant_data, context={"navigation_task": navigation_task}
@@ -1398,6 +1522,8 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
         help_text="Reference to an existing scorecard name. Use the shortcut_name to reference the scorecard",
     )
     editable_route = MyRoutesField(queryset=EditableRoute.objects.all())
+    task_subtype = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    task_config = serializers.JSONField(required=False)
     corridor_width = serializers.FloatField(
         help_text="If the task type is ANR, air sports race, or air sports challenge, this value must be set.",
         write_only=True,
@@ -1413,8 +1539,31 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
         model = NavigationTask
         exclude = ("route", "contest", "scorecard")
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        subtype = attrs.get("task_subtype")
+        original_scorecard = attrs.get("original_scorecard")
+        if original_scorecard is not None:
+            from display.utilities.cima_task_type_definitions import validate_subtype_family_compatibility
+
+            try:
+                validate_subtype_family_compatibility(subtype, original_scorecard.calculator)
+            except ValueError as e:
+                raise ValidationError({"task_subtype": str(e)})
+        return attrs
+
     def create(self, validated_data):
         with transaction.atomic():
+            user = self.context["request"].user
+            try:
+                contest = self.context["contest"]
+            except KeyError:
+                raise Http404("Contest not found")
+            # The Django wizards enforce this (views_wizards.py); the API create path
+            # must too, or a gated/ungranted task-type group is only UI-hidden, not
+            # actually blocked.
+            assert_can_add_navigation_task(contest, task_subtype=validated_data.get("task_subtype"), user=user)
+
             editable_route: EditableRoute = validated_data["editable_route"]
             original_scorecard: Scorecard = validated_data["original_scorecard"]
             try:
@@ -1423,19 +1572,16 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
                     original_scorecard,
                     validated_data.pop("rounded_corners", None),
                     validated_data.pop("corridor_width", None),
+                    task_subtype=validated_data.get("task_subtype"),
                 )
             except CoreValidationError as e:
                 raise ValidationError(e)
-            user = self.context["request"].user
-            try:
-                validated_data["contest"] = self.context["contest"]
-            except KeyError:
-                raise Http404("Contest not found")
 
+            validated_data["contest"] = contest
             validated_data["route"] = route
-            assign_perm("view_route", user, route)
-            assign_perm("delete_route", user, route)
-            assign_perm("change_route", user, route)
+            assign_perm("display.view_route", user, route)
+            assign_perm("display.delete_route", user, route)
+            assign_perm("display.change_route", user, route)
             navigation_task = NavigationTask.create(**validated_data)
         return navigation_task
 
@@ -1452,6 +1598,8 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
         ),
     )
     scorecard = ScorecardNestedSerialiser(required=False)
+    task_subtype = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    task_config = serializers.JSONField(required=False)
     route_file = serializers.CharField(write_only=True, required=True, help_text="Base64 encoded gpx file")
     internal_serialiser = ContestantNestedTeamSerialiser
 
@@ -1467,9 +1615,29 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
                 raise ValidationError("route_file must be in a valid base64 string format.")
         return value
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        subtype = attrs.get("task_subtype")
+        original_scorecard = attrs.get("original_scorecard")
+        if original_scorecard is not None:
+            from display.utilities.cima_task_type_definitions import validate_subtype_family_compatibility
+
+            try:
+                validate_subtype_family_compatibility(subtype, original_scorecard.calculator)
+            except ValueError as e:
+                raise ValidationError({"task_subtype": str(e)})
+        return attrs
+
     def create(self, validated_data):
         # TODO: Add support for ANR track
         with transaction.atomic():
+            user = self.context["request"].user
+            try:
+                contest = self.context["contest"]
+            except KeyError:
+                raise Http404("Contest not found")
+            assert_can_add_navigation_task(contest, task_subtype=validated_data.get("task_subtype"), user=user)
+
             contestant_set = validated_data.pop("contestant_set", [])
             route_file = validated_data.pop("route_file", None)
             try:
@@ -1479,16 +1647,12 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
                 )
             except Exception as e:
                 raise ValidationError("Failed building route from provided GPX: {}".format(e))
-            user = self.context["request"].user
-            try:
-                validated_data["contest"] = self.context["contest"]
-            except KeyError:
-                raise Http404("Contest not found")
 
+            validated_data["contest"] = contest
             validated_data["route"] = route
-            assign_perm("view_route", user, route)
-            assign_perm("delete_route", user, route)
-            assign_perm("change_route", user, route)
+            assign_perm("display.view_route", user, route)
+            assign_perm("display.delete_route", user, route)
+            assign_perm("display.change_route", user, route)
             navigation_task = NavigationTask.create(**validated_data)
             for contestant_data in contestant_set:
                 if isinstance(contestant_data["team"], Team):

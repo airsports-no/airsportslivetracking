@@ -2,7 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 
 interface HelpViewProps {
-    onClose: () => void;
+  onClose: () => void;
 }
 
 const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
@@ -14,8 +14,20 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
           <X size={16} />
         </button>
       </div>
-      
+
       <div className="space-y-2">
+        <div className="card bg-base-200 shadow-sm compact rounded-box">
+          <div className="card-body p-3">
+            <h3 className="card-title text-sm border-b border-base-300 pb-1 mb-1">Task Wizard</h3>
+            <ul className="list-disc pl-3 text-xs space-y-1">
+              <li>Open <strong>Task Wizard</strong> from the toolbar or sidebar footer.</li>
+              <li>Select the task type you want to author.</li>
+              <li>Follow the checklist. Each step shows the required primitive and a button to start placing it.</li>
+              <li>The wizard is a guide: you can still edit individual points manually afterwards.</li>
+            </ul>
+          </div>
+        </div>
+
         <div className="card bg-base-200 shadow-sm compact rounded-box">
           <div className="card-body p-3">
             <h3 className="card-title text-sm border-b border-base-300 pb-1 mb-1">Route Elements</h3>
@@ -23,6 +35,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
               <li><strong>Waypoints:</strong> Click "Point". First=Start, Last=Finish.</li>
               <li><strong>Gates:</strong> "Landing"/"Take-off" = 2 points.</li>
               <li><strong>Zones:</strong> Polygons. Click 1st point to close.</li>
+              <li><strong>Task-specific points:</strong> Use the point editor to convert a placed point into hidden gate, known time gate, circle markers, catalogue turnpoint, or unknown leg.</li>
             </ul>
           </div>
         </div>
@@ -34,8 +47,8 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
               "Photo" mode for observations.
             </p>
             <div className="bg-base-100 p-2 rounded border border-info/20 text-xs w-full">
-              <strong className="text-error">Constraint: </strong> 
-              Must be within <strong>Max Obs Dist</strong> (0.5 NM) of route. This constraint is configurable for this secession in the settings page.
+              <strong className="text-error">Constraint: </strong>
+              Must be within <strong>Max Obs Dist</strong> (0.5 NM) of route. This constraint is configurable for this session in the settings page.
             </div>
           </div>
         </div>
@@ -47,7 +60,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
               Click leg line in "View" mode. If you want a regular turning point, change the point type to "Waypoint" in the sidebar after selecting the point.
             </p>
             <div className="bg-base-100 p-2 rounded border border-info/20 text-xs w-full">
-              <strong className="text-error">Constraint: </strong> 
+              <strong className="text-error">Constraint: </strong>
               Must lie on straight line between waypoints (unless curved).
             </div>
           </div>
@@ -57,7 +70,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
           <div className="card-body p-3">
             <h3 className="card-title text-sm border-b border-base-300 pb-1 mb-1">Curved Segments</h3>
             <p className="text-xs">
-              Toggle "Add Curved Leg" or select point & "Make Curved". To changed the curvature over a curved leg, select the point after the curved segment while in "view" mode. Drag the control point that becomes visible to adjust the curvature.
+              Toggle "Add Curved Leg" or select point & "Make Curved". To change the curvature over a curved leg, select the point after the curved segment while in "view" mode. Drag the control point that becomes visible to adjust the curvature.
             </p>
           </div>
         </div>
