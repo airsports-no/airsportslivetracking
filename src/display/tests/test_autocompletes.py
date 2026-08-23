@@ -20,19 +20,24 @@ class TestAutoCompleteAeroplane(APITestCase):
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
-    def test_search_without_permission(self):
+    def test_search_without_add_contest_permission_still_allowed(self):
+        # Any authenticated user may search - this is used by the self-service
+        # RegisterTeamWizard, which most organisers reach via a per-contest
+        # guardian change_contest grant, not the site-wide add_contest permission.
         self.client.force_login(self.user_without_permissions)
         result = self.client.post(
-            "/display/api/aeroplane/autocomplete/registration/", data={"request": 1, "search": "reg"}, format="json"
+            "/display/api/aeroplane/autocomplete/registration/",
+            data={"request": 1, "search": "reg"},
+            format="json",
+            **AJAX_HEADER,
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_200_OK, result.status_code)
 
     def test_search_not_logged_in(self):
-        self.client.force_login(self.user_without_permissions)
         result = self.client.post(
             "/display/api/aeroplane/autocomplete/registration/", data={"request": 1, "search": "reg"}, format="json"
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_401_UNAUTHORIZED, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
@@ -73,19 +78,21 @@ class TestAutoCompleteClub(APITestCase):
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
-    def test_search_without_permission(self):
+    def test_search_without_add_contest_permission_still_allowed(self):
         self.client.force_login(self.user_without_permissions)
         result = self.client.post(
-            "/display/api/club/autocomplete/name/", data={"request": 1, "search": "nam"}, format="json"
+            "/display/api/club/autocomplete/name/",
+            data={"request": 1, "search": "nam"},
+            format="json",
+            **AJAX_HEADER,
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_200_OK, result.status_code)
 
     def test_search_not_logged_in(self):
-        self.client.force_login(self.user_without_permissions)
         result = self.client.post(
             "/display/api/club/autocomplete/name/", data={"request": 1, "search": "nam"}, format="json"
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_401_UNAUTHORIZED, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
@@ -136,19 +143,25 @@ class TestAutoCompletePersonFirstName(APITestCase):
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
-    def test_search_without_permission(self):
+    def test_search_without_add_contest_permission_still_allowed(self):
+        # Any authenticated user may search - this is the person lookup used by
+        # RegisterTeamWizard's member-search step, which most organisers reach
+        # via a per-contest guardian change_contest grant, not the site-wide
+        # add_contest permission.
         self.client.force_login(self.user_without_permissions)
         result = self.client.post(
-            "/display/api/contestant/autocomplete/firstname/", data={"request": 1, "search": "nam"}, format="json"
+            "/display/api/contestant/autocomplete/firstname/",
+            data={"request": 1, "search": "first"},
+            format="json",
+            **AJAX_HEADER,
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_200_OK, result.status_code)
 
     def test_search_not_logged_in(self):
-        self.client.force_login(self.user_without_permissions)
         result = self.client.post(
             "/display/api/contestant/autocomplete/firstname/", data={"request": 1, "search": "first"}, format="json"
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_401_UNAUTHORIZED, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
@@ -209,19 +222,21 @@ class TestAutoCompletePersonLastname(APITestCase):
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
-    def test_search_without_permission(self):
+    def test_search_without_add_contest_permission_still_allowed(self):
         self.client.force_login(self.user_without_permissions)
         result = self.client.post(
-            "/display/api/contestant/autocomplete/lastname/", data={"request": 1, "search": "nam"}, format="json"
+            "/display/api/contestant/autocomplete/lastname/",
+            data={"request": 1, "search": "last"},
+            format="json",
+            **AJAX_HEADER,
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_200_OK, result.status_code)
 
     def test_search_not_logged_in(self):
-        self.client.force_login(self.user_without_permissions)
         result = self.client.post(
             "/display/api/contestant/autocomplete/lastname/", data={"request": 1, "search": "last"}, format="json"
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_401_UNAUTHORIZED, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
@@ -282,19 +297,21 @@ class TestAutoCompletePersonPhone(APITestCase):
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
-    def test_search_without_permission(self):
+    def test_search_without_add_contest_permission_still_allowed(self):
         self.client.force_login(self.user_without_permissions)
         result = self.client.post(
-            "/display/api/contestant/autocomplete/phone/", data={"request": 1, "search": "123"}, format="json"
+            "/display/api/contestant/autocomplete/phone/",
+            data={"request": 1, "search": "123"},
+            format="json",
+            **AJAX_HEADER,
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_200_OK, result.status_code)
 
     def test_search_not_logged_in(self):
-        self.client.force_login(self.user_without_permissions)
         result = self.client.post(
             "/display/api/contestant/autocomplete/phone/", data={"request": 1, "search": "123"}, format="json"
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_401_UNAUTHORIZED, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
@@ -355,19 +372,21 @@ class TestAutoCompletePersonEmail(APITestCase):
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
-    def test_search_without_permission(self):
+    def test_search_without_add_contest_permission_still_allowed(self):
         self.client.force_login(self.user_without_permissions)
         result = self.client.post(
-            "/display/api/contestant/autocomplete/email/", data={"request": 1, "search": "mail"}, format="json"
+            "/display/api/contestant/autocomplete/email/",
+            data={"request": 1, "search": "mail"},
+            format="json",
+            **AJAX_HEADER,
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_200_OK, result.status_code)
 
     def test_search_not_logged_in(self):
-        self.client.force_login(self.user_without_permissions)
         result = self.client.post(
             "/display/api/contestant/autocomplete/email/", data={"request": 1, "search": "mail"}, format="json"
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_401_UNAUTHORIZED, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)
@@ -428,7 +447,7 @@ class TestAutoCompletePersonId(APITestCase):
         permission = Permission.objects.get(codename="add_contest")
         self.user.user_permissions.add(permission)
 
-    def test_search_without_permission(self):
+    def test_search_without_add_contest_permission_still_allowed(self):
         self.client.force_login(self.user_without_permissions)
         result = self.client.post(
             "/display/api/contestant/autocomplete/id/",
@@ -437,11 +456,11 @@ class TestAutoCompletePersonId(APITestCase):
                 "search": self.person.pk,
             },
             format="json",
+            **AJAX_HEADER,
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_200_OK, result.status_code)
 
     def test_search_not_logged_in(self):
-        self.client.force_login(self.user_without_permissions)
         result = self.client.post(
             "/display/api/contestant/autocomplete/id/",
             data={
@@ -450,7 +469,7 @@ class TestAutoCompletePersonId(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(status.HTTP_403_FORBIDDEN, result.status_code)
+        self.assertEqual(status.HTTP_401_UNAUTHORIZED, result.status_code)
 
     def test_search(self):
         self.client.force_login(self.user)

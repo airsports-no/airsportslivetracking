@@ -13,7 +13,6 @@ from display.tasks import (
 )
 
 from display.models import Aeroplane, Club, Person, Contest, NavigationTask
-from display.permissions import ContestPermissionsWithoutObjects
 from display.serialisers import (
     AeroplaneSerialiser,
     ClubSerialiser,
@@ -35,7 +34,7 @@ def get_country_from_location(request):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
+@permission_classes([IsAuthenticated])
 def auto_complete_aeroplane(request):
     request_number = int(request.data.get("request"))
     if request_number == 1:
@@ -52,7 +51,7 @@ def auto_complete_aeroplane(request):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
+@permission_classes([IsAuthenticated])
 def auto_complete_club(request):
     request_number = int(request.data.get("request"))
     if request_number == 1:
@@ -69,7 +68,7 @@ def auto_complete_club(request):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
+@permission_classes([IsAuthenticated])
 def auto_complete_person_phone(request):
     request_number = int(request.data.get("request"))
     if request_number == 1:
@@ -86,7 +85,7 @@ def auto_complete_person_phone(request):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
+@permission_classes([IsAuthenticated])
 def auto_complete_person_id(request):
     request_number = int(request.data.get("request"))
     if request_number == 1:
@@ -103,7 +102,7 @@ def auto_complete_person_id(request):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
+@permission_classes([IsAuthenticated])
 def auto_complete_person_first_name(request):
     request_number = int(request.data.get("request"))
     if request_number == 1:
@@ -126,7 +125,7 @@ def auto_complete_person_first_name(request):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
+@permission_classes([IsAuthenticated])
 def auto_complete_person_last_name(request):
     request_number = int(request.data.get("request"))
     if request_number == 1:
@@ -149,7 +148,7 @@ def auto_complete_person_last_name(request):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, ContestPermissionsWithoutObjects])
+@permission_classes([IsAuthenticated])
 def auto_complete_person_email(request):
     request_number = int(request.data.get("request"))
     if request_number == 1:
