@@ -102,10 +102,13 @@ WORKDIR /src
 RUN mkdir /logs /static
 RUN chown django /logs /static
 WORKDIR /src
-# Force font cache generation
-RUN python -c "import matplotlib"
 
 USER django
+# Force font cache generation. Must run as django (uid 200), the user the
+# container actually runs as - building this as root left /tmp/matplotlib
+# root-owned and unwritable by django, so the cache was silently discarded
+# and rebuilt from scratch on every pod start (~50s of every startup).
+RUN python -c "import matplotlib"
 # Remove Tailwind source files that cause ManifestStaticFilesStorage to fail
 RUN rm -f /src/static/css/tailwindcss /src/static/css/input.css
 RUN COLLECT_LOCAL=1 python3 manage.py collectstatic --noinput
