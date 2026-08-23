@@ -381,7 +381,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 const { startMinute, endMinute } = contestantRequestPlans[idx];
                 
                 // Fetch score data first so it's included in the progress and available as soon as possible
-                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id).finally(() => {
+                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id, c.track_version, c.score_version).finally(() => {
                     updateProgress(`Downloading track for ${c.team.crew.member1.first_name}...`);
                 });
 

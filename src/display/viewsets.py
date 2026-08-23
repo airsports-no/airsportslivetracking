@@ -1889,6 +1889,18 @@ class ContestantViewSet(ModelViewSet):
 
     @extend_schema(
         responses={200: OpenApiTypes.OBJECT},
+        description="Same payload as score_data, with the contestant's track/score version embedded in the "
+        "path. The frontend already knows both versions from the navigation task's contestant list before "
+        "it ever calls this, so it can always request the current version directly - the CDN then sees a "
+        "distinct URL per version instead of long-caching one URL that silently goes stale when a finished "
+        "contestant is rescored.",
+    )
+    @action(detail=True, methods=["get"], url_path=r"score_data/(?P<version>[^/]+)")
+    def score_data_versioned(self, request, pk=None, version=None, **kwargs):
+        return self.score_data(request, pk=pk, **kwargs)
+
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
         description="Return consolidated score data, including compiled task payload and administrative penalties, for the contestant score view.",
     )
     @action(detail=True, methods=["get"])
