@@ -169,6 +169,14 @@ export const fetchTaskCompatibility = async (route: RouteData['route']): Promise
     return response.json();
 };
 
+// The task_compatibility action reports every known task subtype regardless of route content, so
+// an empty feature collection is enough to get the full {key -> display_name/group} catalog - used
+// by the route list to label compatible/intended task types without hand-duplicating the registry.
+export const fetchTaskSubtypeCatalog = async (): Promise<TaskCompatibilitySubtype[]> => {
+    const result = await fetchTaskCompatibility({ type: 'FeatureCollection', features: [] });
+    return result.subtypes;
+};
+
 export const fetchEditableRouteMapSources = async (routeId: number): Promise<MapSource[]> => {
     const url = reverse('editableroutes-map-sources', routeId);
     return fetchMapSourcesWithRetry(url, 'Failed to fetch route editor map sources');

@@ -50,7 +50,11 @@ from display.services.route_compatibility import extract_route_primitives, get_b
 from display.services.task_type_visibility import can_user_see_cima_task_types
 from display.services.token_assignment import assign_token_to_contest
 from display.templatetags.frontend_urls import fe_url
-from display.utilities.cima_task_type_definitions import LEGACY_DEFAULT_SUBTYPE_BY_FAMILY, NO_BACKBONE_TASK_SUBTYPES
+from display.utilities.cima_task_type_definitions import (
+    LEGACY_DEFAULT_SUBTYPE_BY_FAMILY,
+    NO_BACKBONE_TASK_SUBTYPES,
+    get_task_subtype_definition,
+)
 from display.utilities.navigation_task_type_definitions import (
     AIRSPORT_CHALLENGE,
     AIRSPORTS,
@@ -66,6 +70,24 @@ def _effective_subtype_key(task_type: str, task_subtype: str | None) -> str:
     """The task subtype key the compatibility ruleset should be checked against: the explicit
     CIMA subtype if one was chosen, otherwise the legacy shim for the coarse task_type family."""
     return task_subtype or LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(task_type, task_type)
+
+
+def _no_compatible_routes_message(subtype_key: str) -> str:
+    """
+    Explain why the internal_route picker is empty for the already-chosen task type, instead of
+    just rendering an empty dropdown with no explanation.
+    """
+    definition = get_task_subtype_definition(subtype_key)
+    parts = []
+    if definition.required_primitives:
+        parts.append("requires: " + ", ".join(definition.required_primitives))
+    if definition.forbidden_primitives:
+        parts.append("must not have: " + ", ".join(definition.forbidden_primitives))
+    requirement_text = "; ".join(parts) if parts else "no specific route features"
+    return (
+        "None of the routes you can edit currently support this task type "
+        f"(it {requirement_text}). Edit an existing route to add what's missing, or create a new one."
+    )
 
 
 def _assert_route_compatible_with_task_type(editable_route: EditableRoute, task_type: str, task_subtype: str | None):
@@ -306,6 +328,8 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
                 # Hard filter, matching RouteToTaskWizard: since the task type is already chosen
                 # at this point, only offer routes whose authored content actually supports it.
                 queryset = queryset.filter(compatible_task_types__contains=[subtype_key])
+                if not queryset.exists():
+                    form.fields["internal_route"].help_text = _no_compatible_routes_message(subtype_key)
             form.fields["internal_route"].queryset = queryset
         return form
 

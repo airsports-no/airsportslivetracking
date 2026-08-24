@@ -293,15 +293,23 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
 // granted only cima:circle sees Circle but not the other CIMA templates,
 // rather than either all of them (coarse-only check) or none (an exact
 // 'cima' string match would incorrectly hide everything for a fine-only grant).
-export const getVisibleTaskTemplates = (visibleTaskTypeGroups: string[] | undefined): TaskTemplate[] => {
+// A CIMA subtype is visible if the caller's visible-task-type-groups include the coarse 'cima'
+// group (full CIMA access) or the fine-grained 'cima:<subtypeKey>' group (access to just this
+// one). Legacy is always visible. Shared by the route editor's guide/checklist and anywhere else
+// (e.g. the route list) that needs to hide CIMA task types from a user without CIMA access.
+export const isTaskSubtypeVisible = (
+  group: TaskTemplateGroup,
+  subtypeKey: string | null | undefined,
+  visibleTaskTypeGroups: string[] | undefined,
+): boolean => {
+  if (group === 'Legacy') return true;
   const groups = new Set(visibleTaskTypeGroups ?? []);
-  const hasCoarseCima = groups.has('cima');
-  return TASK_TEMPLATES.filter((template) => {
-    if (template.group === 'Legacy') return true;
-    if (hasCoarseCima) return true;
-    return template.subtype != null && groups.has(`cima:${template.subtype}`);
-  });
+  if (groups.has('cima')) return true;
+  return subtypeKey != null && groups.has(`cima:${subtypeKey}`);
 };
+
+export const getVisibleTaskTemplates = (visibleTaskTypeGroups: string[] | undefined): TaskTemplate[] =>
+  TASK_TEMPLATES.filter((template) => isTaskSubtypeVisible(template.group, template.subtype, visibleTaskTypeGroups));
 
 export const getTaskTemplateById = (id: string | null | undefined): TaskTemplate | undefined =>
   TASK_TEMPLATES.find((template) => template.id === id);

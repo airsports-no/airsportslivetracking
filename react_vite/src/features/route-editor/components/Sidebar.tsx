@@ -16,6 +16,7 @@ import HelpView from './HelpView';
 import TaskWizardPanel from './TaskWizardPanel';
 import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../../../types';
 import { TaskCompatibilityResult } from '../api';
+import { isTaskSubtypeVisible } from '../taskTemplates';
 
 interface SidebarProps {
   routePoints: RoutePoint[];
@@ -223,7 +224,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                   support yet are disabled - hover for why.
                 </p>
                 {(['Legacy', 'CIMA'] as const).map((group) => {
-                  const groupSubtypes = taskCompatibility.subtypes.filter((subtype) => subtype.group === group);
+                  const groupSubtypes = taskCompatibility.subtypes.filter(
+                    (subtype) => subtype.group === group && isTaskSubtypeVisible(subtype.group, subtype.key, visibleTaskTypeGroups),
+                  );
                   if (groupSubtypes.length === 0) return null;
                   return (
                     <div key={group} className="space-y-1">

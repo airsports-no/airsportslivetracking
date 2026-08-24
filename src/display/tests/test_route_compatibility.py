@@ -1,6 +1,7 @@
-from django.test import TestCase
+from django.contrib.auth import get_user_model
+from django.test import TestCase, override_settings
 
-from display.forms_wizards import _task_template_choices
+from display.forms_wizards import ContestSelectForm, _no_compatible_task_types_message, _task_template_choices
 from display.models import EditableRoute
 from display.services.route_compatibility import (
     LEGACY_COMPILER_PRIMITIVE_KEYS,
@@ -20,6 +21,7 @@ from display.utilities.cima_task_type_definitions import (
     PRECISION_NAVIGATION,
 )
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
+from display.views_wizards import _no_compatible_routes_message
 
 TRACK_FEATURE = {
     "type": "Feature",
@@ -195,6 +197,56 @@ class TestTaskTemplateChoicesRouteFiltering(TestCase):
         choices = _task_template_choices(user=None, editable_route=route)
         groups = dict(choices)
         self.assertNotIn("Legacy", groups)
+
+
+class TestNoCompatibleTaskTypesMessage(TestCase):
+    def setUp(self):
+        # can_user_see_task_subtype treats user=None as unrestricted ("no user context"), so
+        # exercising the gated-out case requires a real, ungranted, non-superuser account.
+        self.user = get_user_model().objects.create(email="no-compatible-types@example.com")
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_message_names_closest_match_when_nothing_is_compatible(self):
+        # Duration (2.B3) has no required primitives so it's normally always compatible; gating
+        # CIMA visibility out here is what makes "zero compatible choices" actually reachable.
+        route = EditableRoute.objects.create(name="Empty", route={"type": "FeatureCollection", "features": []})
+        message = _no_compatible_task_types_message(self.user, route)
+        self.assertIsNotNone(message)
+        self.assertIn("closest match", message)
+
+    def test_message_is_none_when_route_has_no_blocking_reasons(self):
+        # Duration is unconditionally compatible with any route by default (CIMA visible), so
+        # there's nothing to explain.
+        route = EditableRoute.objects.create(name="Empty", route={"type": "FeatureCollection", "features": []})
+        self.assertIsNone(_no_compatible_task_types_message(self.user, route))
+
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
+    def test_contest_select_form_exposes_message_when_choices_are_empty(self):
+        route = EditableRoute.objects.create(name="Empty", route={"type": "FeatureCollection", "features": []})
+        form = ContestSelectForm(user=self.user, editable_route=route)
+        self.assertEqual(form.fields["task_template"].choices, [])
+        self.assertIsNotNone(form.no_compatible_task_types_message)
+
+    def test_contest_select_form_has_no_message_when_choices_exist(self):
+        route = EditableRoute.objects.create(
+            name="Plain precision route",
+            route={"type": "FeatureCollection", "features": [TRACK_FEATURE, waypoint_feature("tp")]},
+        )
+        form = ContestSelectForm(user=self.user, editable_route=route)
+        self.assertTrue(form.fields["task_template"].choices)
+        self.assertIsNone(form.no_compatible_task_types_message)
+
+
+class TestNoCompatibleRoutesMessage(TestCase):
+    def test_message_lists_required_and_forbidden_primitives(self):
+        message = _no_compatible_routes_message(CIRCLE)
+        self.assertIn("circle_center_marker", message)
+        self.assertIn("circle_start_marker", message)
+
+    def test_message_lists_forbidden_primitives_for_anr_corridor(self):
+        message = _no_compatible_routes_message(LEGACY_ANR_CORRIDOR)
+        self.assertIn("must not have", message)
+        self.assertIn("dummy_waypoint", message)
 
 
 class TestTaskCompilerPrimitivesContractUnchanged(TestCase):

@@ -1,4 +1,4 @@
-import { countWizardStepMatches, getVisibleTaskTemplates, getTaskTemplateById, getWizardRouteInsertLabel, TASK_TEMPLATES } from './taskTemplates';
+import { countWizardStepMatches, getVisibleTaskTemplates, getTaskTemplateById, getWizardRouteInsertLabel, isTaskSubtypeVisible, TASK_TEMPLATES } from './taskTemplates';
 import type { RoutePoint } from '../../types';
 import type { WizardStep } from './taskTemplates';
 
@@ -62,6 +62,28 @@ describe('getVisibleTaskTemplates', () => {
     const visible = getVisibleTaskTemplates(['cima:circle']);
     expect(visible.some((t) => t.id === 'cima_a3')).toBe(false);
     expect(visible.some((t) => t.id === 'cima_a7')).toBe(true);
+  });
+});
+
+describe('isTaskSubtypeVisible', () => {
+  it('always shows Legacy regardless of groups', () => {
+    expect(isTaskSubtypeVisible('Legacy', undefined, [])).toBe(true);
+    expect(isTaskSubtypeVisible('Legacy', 'legacy_precision', undefined)).toBe(true);
+  });
+
+  it('hides CIMA with no matching group', () => {
+    expect(isTaskSubtypeVisible('CIMA', 'circle', [])).toBe(false);
+    expect(isTaskSubtypeVisible('CIMA', 'circle', ['legacy'])).toBe(false);
+  });
+
+  it('shows every CIMA subtype with the coarse "cima" group', () => {
+    expect(isTaskSubtypeVisible('CIMA', 'circle', ['cima'])).toBe(true);
+    expect(isTaskSubtypeVisible('CIMA', 'unknown_legs', ['cima'])).toBe(true);
+  });
+
+  it('shows only the matching subtype for a fine-grained "cima:<subtype>" group', () => {
+    expect(isTaskSubtypeVisible('CIMA', 'circle', ['cima:circle'])).toBe(true);
+    expect(isTaskSubtypeVisible('CIMA', 'unknown_legs', ['cima:circle'])).toBe(false);
   });
 });
 

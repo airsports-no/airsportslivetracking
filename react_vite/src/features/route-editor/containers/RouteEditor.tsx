@@ -17,7 +17,7 @@ import {
 import { getQuadraticBezierPoints } from '../../../utils/bezierPoints';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { Map } from 'leaflet';
-import { getTaskTemplateById, getWizardRouteInsertLabel } from '../taskTemplates';
+import { getTaskTemplateById, getWizardRouteInsertLabel, isTaskSubtypeVisible } from '../taskTemplates';
 import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
 import {
   deleteItemById,
@@ -254,10 +254,14 @@ export default function RouteEditor() {
             // intendedTaskTypesLockedRef). The task template currently being followed in the
             // route guide wins once it's actually compatible; otherwise fall back to everything
             // the route's content currently supports.
+            // Never suggest a CIMA type the current user isn't entitled to see.
+            const visibleCompatible = result.subtypes
+              .filter((subtype) => subtype.compatible && isTaskSubtypeVisible(subtype.group, subtype.key, visibleTaskTypeGroups))
+              .map((subtype) => subtype.key);
             const activeTemplateSubtype = getTaskTemplateById(selectedTaskTemplateId || '')?.subtype;
-            const suggested = activeTemplateSubtype && result.compatible_task_types.includes(activeTemplateSubtype)
+            const suggested = activeTemplateSubtype && visibleCompatible.includes(activeTemplateSubtype)
               ? [activeTemplateSubtype]
-              : result.compatible_task_types;
+              : visibleCompatible;
             setIntendedTaskTypes(suggested);
           }
         })
@@ -276,6 +280,7 @@ export default function RouteEditor() {
     hideLabels,
     selectedTaskTemplateId,
     intendedTaskTypes,
+    visibleTaskTypeGroups,
   ]);
 
   const handleMapClick = useCallback((latlng: LatLng) => {
