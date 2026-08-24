@@ -207,6 +207,10 @@ class Aeroplane(models.Model):
     type = models.CharField(max_length=50, blank=True)
     picture = models.ImageField(null=True, blank=True)
 
+    def validate(self):
+        if Aeroplane.objects.filter(registration=self.registration).exclude(pk=self.pk).exists():
+            raise ValidationError("An aeroplane with this registration already exists")
+
     def __str__(self):
         return self.registration
 

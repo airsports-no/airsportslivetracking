@@ -164,7 +164,7 @@ class TestFullTrack(TransactionTestCase):
         crew = Crew.objects.create(
             member1=Person.objects.create(first_name="Misters", last_name="Pilot", email="a@gg.com")
         )
-        aeroplane = Aeroplane.objects.create(registration="LN-YDB")
+        aeroplane = Aeroplane.objects.create(registration="LN-HELGE")
         team = Team.objects.create(crew=crew, aeroplane=aeroplane)
 
         contestant = Contestant.objects.create(

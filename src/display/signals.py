@@ -25,6 +25,7 @@ from display.models import (
     ScoreLogEntry,
     Crew,
     Club,
+    Aeroplane,
     Route,
     Photo,
     NavigationTask,
@@ -384,6 +385,11 @@ def validate_crew(sender, instance: Crew, **kwargs):
 
 @receiver(pre_save, sender=Club)
 def validate_club(sender, instance: Club, **kwargs):
+    instance.validate()
+
+
+@receiver(pre_save, sender=Aeroplane)
+def validate_aeroplane(sender, instance: Aeroplane, **kwargs):
     instance.validate()
 
 

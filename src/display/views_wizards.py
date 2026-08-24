@@ -553,14 +553,30 @@ class RegisterTeamWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideV
         else:
             member2 = None
 
-        aeroplane = form_dict["aeroplane"].save()
-        club = form_dict["club"].save()
+        crew, _ = Crew.objects.get_or_create(member1=member1, member2=member2)
 
-        crew = Crew.get_or_create(member1, member2)
-        team = Team.get_or_create(crew, aeroplane, club)
+        aeroplane_data = dict(self.get_cleaned_data_for_step("aeroplane"))
+        aeroplane_data.pop("picture_display_field", None)
+        aeroplane, _ = Aeroplane.objects.get_or_create(
+            registration=aeroplane_data.get("registration"), defaults=aeroplane_data
+        )
+        if aeroplane_data.get("picture") is not None:
+            aeroplane.picture = aeroplane_data["picture"]
+        aeroplane.colour = aeroplane_data["colour"]
+        aeroplane.type = aeroplane_data["type"]
+        aeroplane.save()
 
-        if original_team:
-            contest.remove_team_from_contest(original_team)
-        contest.add_team_to_contest(team, tracking_data)
+        club_data = dict(self.get_cleaned_data_for_step("club"))
+        club_data.pop("logo_display_field", None)
+        club_data.pop("country_flag_display_field", None)
+        club, _ = Club.objects.get_or_create(name=club_data.get("name"), defaults=club_data)
+        if club_data.get("logo") is not None:
+            club.logo = club_data["logo"]
+        club.country = club_data["country"]
+        club.save()
+
+        team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club)
+
+        contest.replace_team(original_team, team, tracking_data)
 
         return HttpResponseRedirect(reverse("contest_details", kwargs={"pk": contest_pk}))
