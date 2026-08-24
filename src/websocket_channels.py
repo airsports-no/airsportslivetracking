@@ -1,14 +1,11 @@
 import datetime
 import json
 import logging
-import pickle
 import time
 from typing import List, Optional, Dict, Any, TYPE_CHECKING
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from django.conf import settings
-from redis import StrictRedis
 from redis.exceptions import RedisError, ReadOnlyError
 
 if TYPE_CHECKING:
@@ -22,10 +19,6 @@ if TYPE_CHECKING:
         Contest,
         MyUser,
     )
-
-REDIS_HOST = getattr(settings, "REDIS_HOST", "localhost")
-REDIS_PORT = getattr(settings, "REDIS_PORT", 6379)
-REDIS_GLOBAL_POSITIONS_KEY = getattr(settings, "REDIS_GLOBAL_POSITIONS_KEY", "global_positions")
 
 ANOMALY = "anomaly"
 
@@ -239,7 +232,6 @@ def generate_contestant_data_block(
 class WebsocketFacade:
     def __init__(self):
         self.channel_layer = get_channel_layer()
-        self.redis = StrictRedis(REDIS_HOST, REDIS_PORT)
         self._buffer = []
         self._max_buffer_size = 1000
 
@@ -466,93 +458,6 @@ class WebsocketFacade:
             "data": s,
         }
         self._safe_group_send("tracking_airsports", container)
-
-    def transmit_global_position_data(
-        self,
-        global_tracking_name: str,
-        person: Optional[Dict],
-        position_data: Dict,
-        device_time: datetime.datetime,
-        navigation_task_id: Optional[int],
-    ):
-        data = {
-            "name": global_tracking_name,
-            "time": device_time,
-            "person": person,
-            "deviceId": position_data["deviceId"],
-            "latitude": float(position_data["latitude"]),
-            "longitude": float(position_data["longitude"]),
-            "altitude": float(position_data["altitude"]),
-            "baro_altitude": float(position_data["altitude"]),
-            "battery_level": float(position_data["attributes"].get("batteryLevel", -1.0)),
-            "speed": float(position_data["speed"]),
-            "course": float(position_data["course"]),
-            "navigation_task_id": navigation_task_id,
-            "traffic_source": "internal",
-        }
-        s = json.dumps(data, cls=DateTimeEncoder)
-        container = {
-            "type": "tracking.data",
-            "data": s,
-            "latitude": float(position_data["latitude"]),
-            "longitude": float(position_data["longitude"]),
-        }
-        device_id = data["deviceId"]
-        try:
-            self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
-        except (RedisError, ReadOnlyError) as e:
-            logger.warning(f"Failed to update Redis global positions for {device_id}: {e}")
-
-        self._safe_group_send("tracking_global", container)
-
-    async def transmit_external_global_position_data(
-        self,
-        device_id: str,
-        name: str,
-        time_stamp: datetime,
-        latitude,
-        longitude,
-        altitude,
-        baro_altitude,
-        speed,
-        course,
-        traffic_source: str,
-        raw_data: Optional[Dict] = None,
-        aircraft_type: int = 9,
-    ):
-        data = {
-            "name": name,
-            "time": time_stamp,
-            "person": None,
-            "deviceId": device_id,
-            "latitude": latitude,
-            "longitude": longitude,
-            "altitude": altitude,
-            "baro_altitude": baro_altitude,
-            "battery_level": -1,
-            "speed": speed,
-            "course": course,
-            "navigation_task_id": None,
-            "traffic_source": traffic_source,
-            "raw_data": raw_data,
-            "aircraft_type": aircraft_type,
-        }
-        s = json.dumps(data, cls=DateTimeEncoder)
-        container = {"type": "tracking.data", "data": s, "latitude": latitude, "longitude": longitude}
-        try:
-            existing = self.redis.hget(REDIS_GLOBAL_POSITIONS_KEY, device_id)
-            if existing:
-                existing = pickle.loads(existing)
-                if existing["time"] >= data["time"]:
-                    return
-            self.redis.hset(REDIS_GLOBAL_POSITIONS_KEY, key=device_id, value=pickle.dumps(data))
-        except (RedisError, ReadOnlyError) as e:
-            logger.warning(f"Failed to update Redis global positions for {device_id} (async): {e}")
-
-        try:
-            await self.channel_layer.group_send("tracking_global", container)
-        except (RedisError, ReadOnlyError) as e:
-            logger.warning(f"Failed to send async to websocket group tracking_global: {e}")
 
     def contest_results_channel_name(self, contest: "Contest") -> str:
         return "contestresults_{}".format(contest.pk)

@@ -6,18 +6,8 @@ import threading
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
 from django.core.exceptions import ObjectDoesNotExist
-from redis import StrictRedis
 
-from display.utilities.coordinate_utilities import (
-    calculate_bounding_box,
-    equirectangular_distance,
-)
 from display.models import NavigationTask, Contest
-from live_tracking_map.settings import (
-    REDIS_HOST,
-    REDIS_PORT,
-    REDIS_PASSWORD,
-)
 from websocket_channels import WebsocketFacade
 
 logger = logging.getLogger(__name__)
@@ -69,63 +59,18 @@ class TrackingConsumer(WebsocketConsumer):
         self.send(text_data=json.dumps(event["data"], cls=DateTimeEncoder))
 
 
-GLOBAL_TRAFFIC_MAXIMUM_AGE = datetime.timedelta(seconds=20)
-
-
-class GlobalConsumer(WebsocketConsumer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.location = None
-        self.range = 0
-        self.safe_sky_timer = None
-        self.bounding_box = None
-        # if settings.PRODUCTION:
-        #     self.redis = StrictRedis(unix_socket_path="/tmp/docker/redis.sock")
-        # else:
-        # self.redis = StrictRedis(REDIS_HOST, REDIS_PORT)#, password=REDIS_PASSWORD)
-        self.groups.append("tracking_global")
-
-    def connect(self):
-        self.accept()
-        logger.info(f"Current user {self.scope.get('user')}")
-        # Location has not been set at this point
-        # if self.location and self.range:
-        #     position = (data["latitude"], data["longitude"])
-        #     if calculate_distance_lat_lon(position, self.location) > self.range:
-        #         continue
-        # self.send(text_data=json.dumps(data, cls=DateTimeEncoder))
-
-    def disconnect(self, code):
-        super().disconnect(code)
-        if self.safe_sky_timer:
-            self.safe_sky_timer.cancel()
-
-    def receive(self, text_data, **kwargs):
-        message = json.loads(text_data)
-        message_type = message.get("type")
-        if message_type == "location":
-            if (
-                type(message.get("latitude")) in (float, int)
-                and type(message.get("longitude")) in (float, int)
-                and type(message.get("range")) in (float, int)
-            ):
-                self.location = (message.get("latitude"), message.get("longitude"))
-                self.range = message.get("range") * 1000
-                logger.debug(f"Setting position to {self.location} with range {self.range}")
-                self.bounding_box = calculate_bounding_box(self.location, self.range)
-            else:
-                self.location = None
-                self.range = None
-
-    def tracking_data(self, event):
-        if self.location and self.range:
-            position = (event["latitude"], event["longitude"])
-            if equirectangular_distance(position, self.location) > self.range:
-                return
-        self.send(text_data=event["data"])
-
-
 class AirsportsPositionsConsumer(WebsocketConsumer):
+    """
+    ws/traffic/airsports/ - the outbound live-traffic feed ASLT provides for
+    external partners (SafeSky) to consume, not something ASLT consumes.
+    Fed by live_position_transmitter.py's transmit_airsports_position_data:
+    only non-simulator positions (Person.simulator_tracking_id help_text:
+    "Persons or contestants identified by this field should not be displayed
+    on the global map") within EXTERNAL_TRAFFIC_MAX_AGE_SECONDS seconds of "now" are
+    forwarded, so an app/simulator-tracked contestant never appears here even
+    though it scores normally.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.groups.append("tracking_airsports")

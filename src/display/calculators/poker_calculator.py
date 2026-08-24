@@ -1,18 +1,18 @@
 import datetime
 import logging
 from queue import Queue
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from display.calculators.calculator import (
     Calculator,
-    OrchestratorState,
-    OrchestratorEvent,
-    PokerGatePassedEvent,
-    GateMissedEvent,
     FinishLinePassedEvent,
+    GateMissedEvent,
+    OrchestratorEvent,
+    OrchestratorState,
+    PokerGatePassedEvent,
 )
 from display.calculators.positions_and_gates import Gate
-from display.models import Contestant, Scorecard, Route, PlayingCard
+from display.models import Contestant, PlayingCard, Route, Scorecard
 from display.models.contestant_utility_models import ContestantReceivedPosition
 
 logger = logging.getLogger(__name__)
@@ -22,14 +22,16 @@ class PokerCalculator(Calculator):
     """ """
 
     def calculate_outside_route(
-        self, track: List[ContestantReceivedPosition], state: OrchestratorState
+        self, track: Sequence[ContestantReceivedPosition], state: OrchestratorState
     ) -> List[OrchestratorEvent]:
         return self.check_distance(track[-1], state)
 
-    def finalise(self, track: List[ContestantReceivedPosition]):
+    def finalise(self, track: Sequence[ContestantReceivedPosition]):
         pass
 
-    def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]) -> Tuple[float, float]:
+    def get_danger_level_and_accumulated_score(
+        self, track: Sequence[ContestantReceivedPosition]
+    ) -> Tuple[float, float]:
         return 0, 0
 
     def get_last_non_secret_gate(self, last_gate: "Gate") -> Optional["Gate"]:
@@ -108,7 +110,7 @@ class PokerCalculator(Calculator):
 
     def calculate_enroute(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         return self.check_distance(track[-1], state)

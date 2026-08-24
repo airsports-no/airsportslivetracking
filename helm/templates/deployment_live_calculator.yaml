@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: live-calculator
+  name: live-calculator
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      service: live-calculator
+  template:
+    metadata:
+      labels:
+        service: live-calculator
+        date: "{{ now | unixEpoch }}"
+    spec:
+      # A rolling deploy or Spot preemption WILL interrupt in-flight contestants.
+      # This is safe: CELERY_TASK_ACKS_LATE/CELERY_TASK_REJECT_ON_WORKER_LOST
+      # (settings.py) requeue the task onto another worker, and
+      # ContestantProcessor's idempotent-restart handling (see
+      # ScoreLogEntry's idempotency constraint) makes the resume produce no
+      # duplicate scoring. There is no grace period that makes a true
+      # graceful drain practical for a task that can run for hours, so no
+      # attempt is made to engineer around the interruption.
+      terminationGracePeriodSeconds: 25
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 200
+        fsGroup: 200
+      # Preferred, not required: this pool now holds a whole task's contestants in
+      # one pod (see command below), so it should still pack onto the spot nodes
+      # tracker-celery/tracker-processor already hold when spot is available, but
+      # schedule onto general-purpose capacity rather than sit Pending when it
+      # isn't - a Pending pool at contest start is worse than a slightly pricier
+      # on-demand one.
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: cloud.google.com/gke-spot
+                    operator: In
+                    values:
+                      - "true"
+      containers:
+      - image: europe-north1-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
+        # --concurrency: one prefork worker process per contestant - 12 in flight
+        # simultaneously is comfortably under the request (see helm/values.yaml
+        # for the sizing reasoning); the limit sits well above the request so a
+        # correlated per-second spike bursts instead of being CFS-throttled.
+        # Must match .Values.liveCalculator.slotsPerPod, which
+        # src/calculator_pool_scaler.py uses to translate scheduled/running
+        # contestant counts into replica counts.
+        # --without-gossip/--without-heartbeat: this pool never needs to see other
+        # workers - it only ever consumes the live_calculator queue alone.
+        command: [ "bash", "-c", "celery -A live_tracking_map worker -Q live_calculator -l INFO --concurrency={{ .Values.liveCalculator.concurrency }} --without-mingle --without-gossip --without-heartbeat" ]
+        name: live-calculator
+        envFrom:
+          - configMapRef:
+              name: envs-production-other
+          - secretRef:
+              name: pw-secrets
+        resources:
+          requests:
+            cpu: {{ .Values.liveCalculator.requestCpu }}
+            memory: {{ .Values.liveCalculator.requestMemory }}
+          limits:
+            cpu: {{ .Values.liveCalculator.limitCpu }}
+            memory: {{ .Values.liveCalculator.limitMemory }}
+        volumeMounts:
+          - mountPath: /secret
+            readOnly: true
+            name: firebase
+        livenessProbe:
+          exec:
+            # bash is needed to replace the environment variable
+            command: [
+                "bash",
+                "-c",
+                "python /src/celery_liveness.py"
+            ]
+          initialDelaySeconds: 30  # startup takes some time
+          periodSeconds: 12  # default is quite often and celery uses a lot cpu/ram then.
+          timeoutSeconds: 10
+          failureThreshold: 2
+        readinessProbe:
+          exec:
+            # bash is needed to replace the environment variable
+            command: [
+              "bash",
+              "-c",
+              "python /src/celery_readiness.py"
+            ]
+          initialDelaySeconds: 30  # startup takes some time
+          periodSeconds: 60  # reduced from 300 to speed up rollouts while respecting resource usage.
+          timeoutSeconds: 10
+          failureThreshold: 3
+      restartPolicy: Always
+      volumes:
+        - name: firebase
+          secret:
+            secretName: firebase-secrets

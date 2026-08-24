@@ -1,13 +1,21 @@
 import datetime
 import logging
 from queue import Queue
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
-from display.calculators.calculator import Calculator, OrchestratorState, OrchestratorEvent, GatePassedEvent, LandingPassedEvent, GateMissedEvent, FinishLinePassedEvent
+from display.calculators.calculator import (
+    Calculator,
+    FinishLinePassedEvent,
+    GateMissedEvent,
+    GatePassedEvent,
+    LandingPassedEvent,
+    OrchestratorEvent,
+    OrchestratorState,
+)
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
-from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.models import ANOMALY
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import Projector
 
 logger = logging.getLogger(__name__)
@@ -77,19 +85,21 @@ class LandingPatternCalculator(Calculator):
 
     def calculate_enroute(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         return self.check_intersections(track, state)
 
     def calculate_outside_route(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         return self.check_intersections(track, state)
 
-    def check_intersections(self, track: List[ContestantReceivedPosition], state: OrchestratorState) -> List[OrchestratorEvent]:
+    def check_intersections(
+        self, track: Sequence[ContestantReceivedPosition], state: OrchestratorState
+    ) -> List[OrchestratorEvent]:
         events = []
         # LandingPatternCalculator should ideally manage its own landing multi-gate 
         # or just check against route landing gates directly.
@@ -127,5 +137,5 @@ class LandingPatternCalculator(Calculator):
             )
         )
 
-    def finalise(self, track: List[ContestantReceivedPosition]):
+    def finalise(self, track: Sequence[ContestantReceivedPosition]):
         pass

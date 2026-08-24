@@ -18,6 +18,9 @@ spec:
         date: "{{ now | unixEpoch }}"
     spec:
       terminationGracePeriodSeconds: 25
+      # Required for permissions to scale the live-calculator Deployment
+      # (src/calculator_pool_scaler.py) - see helm/templates/calculator-service-account.yaml.
+      serviceAccountName: calculator-scheduler
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -27,32 +30,52 @@ spec:
                     operator: In
                     values:
                       - "true"
-      # Required for permissions to create kubernetes jobs.
-      serviceAccountName: calculator-scheduler
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       containers:
       - image: europe-north1-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
         command: [ "bash", "-c", "python3 position_processor.py" ]
+        # 600m/1Gi (req==limit) was never measured - the tracker-processor-recommender
+        # VPA (kubectl describe vpa tracker-processor-recommender) reports Target
+        # cpu 15m / memory 503Mi and Upper Bound cpu 15m / memory 512Mi from ~2
+        # days observing real production traffic on this Deployment (a local
+        # docker-compose scale test run the same week has no bearing on this -
+        # it never touches the real cluster or this VPA). This process mostly
+        # shuttles JSON/dicts between threads and does light cache/DB lookups,
+        # so low CPU tracks. Request set well above that Target rather than at
+        # it (only ~2 days of data, and a lost tracker-processor pod breaks
+        # live ingestion for everyone), Burstable rather than Guaranteed QoS
+        # since the old Guaranteed 600m ceiling bought nothing real usage ever
+        # needed. Re-check this VPA after a real contest day and tighten
+        # further if the numbers hold.
         resources:
           requests:
-            cpu: 600m
-            memory: 1Gi
+            cpu: 100m
+            memory: 640Mi
           limits:
-            cpu: 600m
+            cpu: 500m
             memory: 1Gi
         name: tracker-processor
-#        env:
-#          - name: K8S_TOKEN
-#            valueFrom:
-#              secretKeyRef:
-#                name: {{ .Values.serviceAccountSecretName }}
-#                key: token
         envFrom:
           - configMapRef:
               name: envs-production-other
           - secretRef:
               name: pw-secrets
+        env:
+          - name: CALCULATOR_POOL_SCALING_ENABLED
+            value: "1"
+          - name: CALCULATOR_POOL_DEPLOYMENT
+            value: "live-calculator"
+          - name: CALCULATOR_POOL_NAMESPACE
+            value: "default"
+          - name: CALCULATOR_POOL_SLOTS_PER_POD
+            value: "{{ .Values.liveCalculator.slotsPerPod }}"
+          - name: CALCULATOR_POOL_MAX_REPLICAS
+            value: "{{ .Values.liveCalculator.maxReplicas }}"
+          - name: CALCULATOR_POOL_PREWARM_MINUTES
+            value: "{{ .Values.liveCalculator.prewarmMinutes }}"
+          - name: CALCULATOR_POOL_POLL_SECONDS
+            value: "{{ .Values.liveCalculator.pollSeconds }}"
         # Disable cloud logging, permission problem
         # env:
         #   - name: LOG_HANDLER
@@ -81,14 +104,8 @@ spec:
           - mountPath: /secret
             readOnly: true
             name: firebase
-#          - mountPath: /aks_certificate
-#            readOnly: true
-#            name: aks-certificate
       restartPolicy: Always
       volumes:
         - name: firebase
           secret:
             secretName: firebase-secrets
-#        - name: aks-certificate
-#          secret:
-#            secretName: {{ .Values.serviceAccountSecretName }}

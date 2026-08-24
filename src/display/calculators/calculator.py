@@ -1,12 +1,12 @@
 import datetime
 import logging
-from abc import abstractmethod, ABC
-from multiprocessing import Queue
-from typing import List, Optional, Tuple, TYPE_CHECKING
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from multiprocessing import Queue
+from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple
 
 from display.calculators.update_score_message import UpdateScoreMessage
-from display.models import Contestant, Scorecard, Route
+from display.models import Contestant, Route, Scorecard
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.gate_definitions import SECRETPOINT
 
@@ -151,7 +151,10 @@ class NextGateExpectedEvent(OrchestratorEvent):
 
 class FinishLinePassedEvent(OrchestratorEvent):
     def __init__(
-        self, last_gate: "Gate", track: List[ContestantReceivedPosition], event_time: Optional[datetime.datetime] = None
+        self,
+        last_gate: "Gate",
+        track: Sequence[ContestantReceivedPosition],
+        event_time: Optional[datetime.datetime] = None,
     ):
         super().__init__(track[-1] if track else None)
         self.last_gate = last_gate
@@ -187,23 +190,25 @@ class Calculator(ABC):
     def update_score(self, update_score_message: UpdateScoreMessage) -> None:
         self.score_processing_queue.put_nowait(update_score_message)
 
-    def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]) -> Tuple[float, float]:
+    def get_danger_level_and_accumulated_score(
+        self, track: Sequence[ContestantReceivedPosition]
+    ) -> Tuple[float, float]:
         return 0, 0
 
     @abstractmethod
-    def finalise(self, track: List[ContestantReceivedPosition]):
+    def finalise(self, track: Sequence[ContestantReceivedPosition]):
         pass
 
     def calculate_enroute(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         return []
 
     def calculate_outside_route(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         return []

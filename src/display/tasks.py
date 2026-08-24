@@ -9,14 +9,12 @@ from django.core.files.base import ContentFile
 from django.db import connections
 from celery.schedules import crontab
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from redis.client import Redis
 
-from display.flight_order_and_maps.generate_flight_orders import (
-    generate_flight_orders,
-    embed_map_in_pdf,
-)
+from display.calculators.contestant_processor import ContestantProcessor
 from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
-from display.flight_order_and_maps.map_plotter import plot_route
 from django.core.files.storage import default_storage
 from django.utils.text import slugify
 from django.utils import timezone
@@ -24,14 +22,18 @@ from django.utils import timezone
 from display.models.contestant import Contestant
 from display.models.email_map_link import EmailMapLink
 from display.models.flymaster_data import FlymasterData
+from display.utilities.calculator_running_utilities import is_calculator_running
+from display.utilities.calculator_termination_utilities import is_termination_requested
 from live_tracking_map.celery import app
 from live_tracking_map.settings import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
-from playback_tools.playback import (
-    recalculate_live_contestant,
-    insert_gpx_file,
-    recalculate_from_existing_positions_sync,
-)
-from position_processor_process import add_positions_to_calculator
+
+# generate_flight_orders/map_plotter (matplotlib+cartopy), playback_tools, and
+# position_processor_process are all imported lazily inside the tasks that
+# actually use them, not at module scope. Every task in this module (including
+# run_live_contestant_calculator below) is defined by importing this module,
+# so a module-scope import here was pure cold-start tax for tasks that never
+# touch plotting - it also runs in the live_calculator pool, which never
+# plots anything and pays this cost on every forked worker process.
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,8 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
     try:
         from display.models import NavigationTask, Contestant
         from django.contrib.auth import get_user_model
+        from display.flight_order_and_maps.generate_flight_orders import embed_map_in_pdf
+        from display.flight_order_and_maps.map_plotter import plot_route
 
         task = NavigationTask.objects.get(pk=task_id)
         contestant = Contestant.objects.get(pk=contestant_id) if contestant_id else None
@@ -131,6 +135,8 @@ def recalculate_live_data_for_contestant(contestant_pk: int):
         return
     logger.info(f"{contestant}: About recalculate traccar track")
     try:
+        from playback_tools.playback import recalculate_live_contestant
+
         recalculate_live_contestant(contestant)
     except:
         logger.exception("Exception in revert_gpx_track_to_traccar")
@@ -145,9 +151,52 @@ def recalculate_existing_positions(contestant_pk: int):
         return
     logger.info(f"{contestant}: About to recalculate from existing positions")
     try:
+        from playback_tools.playback import recalculate_from_existing_positions_sync
+
         recalculate_from_existing_positions_sync(contestant)
     except:
         logger.exception("Exception in recalculate_existing_positions")
+
+
+@app.task(queue="live_calculator")
+def run_live_contestant_calculator(contestant_pk: int):
+    """
+    Runs a contestant's live-tracking calculator to completion. Dispatched
+    from add_positions_to_calculator (position_processor_process.py) onto a
+    dedicated queue/worker pool, replacing the previous one-Kubernetes-Job-
+    per-contestant model. CELERY_TASK_ACKS_LATE/CELERY_TASK_REJECT_ON_WORKER_LOST
+    (settings.py) mean a worker dying mid-task (Spot preemption, a worker-pool
+    deploy) gets this task requeued onto another worker automatically;
+    ContestantProcessor's idempotent-restart handling (see
+    contestant_processor.py and the ScoreLogEntry idempotency constraint)
+    makes that resume safe.
+
+    That requeue-on-worker-loss path is also why this needs an explicit
+    running check: the broker's visibility timeout can redeliver a message
+    for a task that is, in fact, still running (see
+    CELERY_BROKER_TRANSPORT_OPTIONS in settings.py), and a worker restart used
+    to call restore_all_unacknowledged_messages() unconditionally on boot,
+    requeueing every in-flight task cluster-wide. Without the check below,
+    either of those turns into a second ContestantProcessor racing the first
+    one on the same contestant.
+    """
+    try:
+        contestant = Contestant.objects.get(pk=contestant_pk)
+    except ObjectDoesNotExist:
+        logger.warning(f"Attempting to start calculator for non-existent contestant {contestant_pk}")
+        return
+    if contestant.contestanttrack.calculator_finished or is_termination_requested(contestant_pk):
+        logger.warning(f"Attempting to start calculator for terminated contestant {contestant}")
+        return
+    if is_calculator_running(contestant_pk):
+        logger.info(f"Calculator already running for {contestant}, ignoring redelivered/duplicate dispatch")
+        return
+    try:
+        contestant_processor = ContestantProcessor(contestant, live_processing=True)
+    except (DjangoValidationError, DRFValidationError) as exc:
+        logger.warning(f"Refusing to start calculator for contestant {contestant_pk}: {exc}")
+        return
+    contestant_processor.run()
 
 
 @app.task
@@ -159,6 +208,8 @@ def import_gpx_track(contestant_pk: int, gpx_file: str):
         return
     logger.info(f"{contestant}: About to insert GPX file")
     try:
+        from playback_tools.playback import insert_gpx_file
+
         insert_gpx_file(contestant, gpx_file.encode("utf-8"))
     except:
         logger.exception("Exception in import_gpx_track")
@@ -186,6 +237,8 @@ def generate_and_maybe_notify_flight_order(
         logger.info(f"Generating flight order for {contestant}")
         append_cache_dict(f"completed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, False)
         try:
+            from display.flight_order_and_maps.generate_flight_orders import generate_flight_orders
+
             orders = generate_flight_orders(contestant)
             for c in connections.all():
                 c.close_if_unusable_or_obsolete()
@@ -312,6 +365,9 @@ def process_user_uploaded_map(map_id: int):
 
 @app.task
 def process_flymaster_file(file_data: str):
+    from display.flymaster_position_builder import build_positions_from_flymaster
+    from position_processor_process import add_positions_to_calculator
+
     contestant, identifier, positions = build_positions_from_flymaster(file_data)
     if contestant is not None:
         add_positions_to_calculator(contestant, positions)

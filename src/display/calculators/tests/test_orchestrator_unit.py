@@ -264,6 +264,33 @@ class TestOrchestratorUnit(TestCase):
         
         with patch.object(self.orchestrator, 'handle_event') as mock_handle:
             self.orchestrator.calculate_score(pos)
-            
+
             expected_calls = [call(event1), call(event2)]
             mock_handle.assert_has_calls(expected_calls)
+
+    def test_track_is_bounded_and_keeps_most_recent_positions(self):
+        """
+        Orchestrator.track is a collections.deque(maxlen=TRACK_HISTORY_LENGTH)
+        rather than an unbounded list, so per-contestant memory stays flat
+        for as long as a calculator runs (relevant mainly to a contestant
+        whose tracker keeps transmitting after landing). Every calculator
+        only ever looks a handful of samples back, so this must never drop
+        below TRACK_HISTORY_LENGTH, and eviction must be FIFO (oldest first)
+        so "the last N positions" always means what it says.
+        """
+        from display.calculators.orchestrator import TRACK_HISTORY_LENGTH
+
+        total_positions = TRACK_HISTORY_LENGTH + 50
+        start = datetime.datetime(2020, 1, 1, 10, 0)
+        positions = [
+            self.create_position(60, 11, start + datetime.timedelta(seconds=i)) for i in range(total_positions)
+        ]
+
+        for pos in positions:
+            self.orchestrator.calculate_score(pos)
+
+        self.assertEqual(len(self.orchestrator.track), TRACK_HISTORY_LENGTH)
+        # Oldest surviving position is the one pushed 50 positions late (the
+        # first 50 were evicted), newest is the very last one pushed.
+        self.assertIs(self.orchestrator.track[0], positions[50])
+        self.assertIs(self.orchestrator.track[-1], positions[-1])

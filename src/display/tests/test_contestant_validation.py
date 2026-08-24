@@ -317,6 +317,40 @@ class TestGetContestantForDevice(TransactionTestCase):
         )
         self.assertEqual([], contestants)
 
+    def test_pilot_tracking_does_not_write_last_seen(self):
+        # live_position_transmitter.py already writes
+        # contestant.team.crew.member1.last_seen on essentially every position
+        # (~1Hz) via a separate process/queue - _try_to_get_pilot_tracking
+        # doing the same write here (throttled only by cached_find_contestant's
+        # ~60s cache) was pure redundant work, since it always targets member1.
+        # This locks in that the write was actually removed, not just
+        # coincidentally absent.
+        member1 = self.team.crew.member1
+        member1.last_seen = None
+        member1.save(update_fields=["last_seen"])
+
+        Contestant.get_contestant_for_device_at_time(
+            TrackingService.TRACCAR,
+            member1.app_tracking_id,
+            datetime.datetime(2020, 1, 1, 12, 3, tzinfo=datetime.timezone.utc),
+        )
+
+        member1.refresh_from_db()
+        self.assertIsNone(member1.last_seen)
+
+    def test_copilot_tracking_still_writes_last_seen(self):
+        # Unlike member1 above, live_position_transmitter.py never touches
+        # member2 (it always reads contestant.team.crew.member1) - this is
+        # the only place a copilot's last_seen gets updated, so it must stay.
+        member2 = self.double_team.crew.member2
+        self.assertIsNone(member2.last_seen)
+
+        stamp = datetime.datetime(2020, 1, 1, 14, 5, tzinfo=datetime.timezone.utc)
+        Contestant.get_contestant_for_device_at_time(TrackingService.TRACCAR, member2.app_tracking_id, stamp)
+
+        member2.refresh_from_db()
+        self.assertEqual(member2.last_seen, stamp)
+
     def test_create_device_contest_team_without_tracking_id(self):
         with self.assertRaises(ValidationError):
             ContestTeam.objects.create(

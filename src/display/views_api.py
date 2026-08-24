@@ -19,7 +19,7 @@ from display.serialisers import (
     PersonSerialiserExcludingTracking,
     PersonSignUpSerialiser,
 )
-from display.utilities.calculator_running_utilities import is_calculator_running
+from display.utilities.calculator_running_utilities import is_calculator_running, is_dispatch_pending
 from display.utilities.country_code_utilities import get_country_code_from_location
 from display.views import get_navigation_task_orders_status_object
 
@@ -257,7 +257,12 @@ def get_running_calculators(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     status_list = []
     for contestant in navigation_task.contestant_set.all():
-        status_list.append([contestant.pk, is_calculator_running(contestant.pk)])
+        # A calculator just dispatched to Celery may not have posted its own
+        # heartbeat yet (see calculator_running_utilities.py) - OR both keys
+        # so the UI still shows "running" during that spin-up window, as it
+        # did before the dispatch/heartbeat keys were split.
+        running = is_calculator_running(contestant.pk) or is_dispatch_pending(contestant.pk)
+        status_list.append([contestant.pk, running])
     return Response(status_list)
 
 

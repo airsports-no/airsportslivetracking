@@ -5,8 +5,6 @@ from io import BytesIO
 from typing import Optional
 
 import dateutil
-import numpy as np
-import matplotlib.pyplot as plt
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
@@ -152,6 +150,7 @@ class Contestant(models.Model):
         help_text="ID of physical tracking device that will be brought into the plane. If using the Air Sports Live Tracking app this should be left blank.",
         blank=True,
         null=True,
+        db_index=True,  # exact-match WHERE clause in _try_to_get_tracker_tracking, run on every incoming position
     )
     tracker_start_time = models.DateTimeField(
         help_text="When the tracker is handed to the contestant, can have no changes to the route (e.g. wind and timing) after this."
@@ -940,14 +939,20 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 finished_by_time__gte=stamp,
                 contestanttrack__calculator_finished=False,
                 tracking_device__in=(TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT),
-            )
+            ).select_related("team__crew__member1")
         )
         results = []
         for contestant in contestants:
             is_simulator = False
+            # last_seen is NOT updated here (unlike _try_to_get_copilot_tracking
+            # below): live_position_transmitter.py already writes
+            # contestant.team.crew.member1.last_seen on essentially every
+            # position (~1Hz, via global_map_queue), far more frequently than
+            # this method runs (throttled by cached_find_contestant's ~60s
+            # cache) - a second write here to the same field was pure
+            # redundant work. member2 (copilot) has no such other writer, so
+            # that one stays.
             if contestant.team.crew.member1:
-                contestant.team.crew.member1.last_seen = stamp
-                contestant.team.crew.member1.save(update_fields=["last_seen"])
                 if contestant.team.crew.member1.simulator_tracking_id == device:
                     is_simulator = True
             results.append((contestant, is_simulator))
@@ -965,7 +970,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 finished_by_time__gte=stamp,
                 contestanttrack__calculator_finished=False,
                 tracking_device__in=(TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT),
-            )
+            ).select_related("team__crew__member2")
         )
         results = []
         for contestant in contestants:
@@ -1075,6 +1080,12 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         Generate a matplotlib chart showing the processing statistics for the contestants. Returns the binary (png)
         image.
         """
+        # Imported lazily: this is the only method in this module that touches
+        # numpy/matplotlib, and this module is imported by every process on
+        # the calculator path (including the live-calculator worker pool),
+        # none of which ever call it.
+        import numpy as np
+        import matplotlib.pyplot as plt
         from display.models import ContestantReceivedPosition
 
         stored_positions = ContestantReceivedPosition.objects.filter(contestant=self)

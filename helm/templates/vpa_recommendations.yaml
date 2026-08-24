@@ -10,7 +10,7 @@
 # "Target" values as requests. Keep limits generously above the new requests -
 # this cluster supports bursting, so headroom above the request is free until
 # it is actually used.
-{{- range $name := list "tracker-app" "tracker-celery" "tracker-processor" "traccar" "mbtiles" }}
+{{- range $name := list "tracker-app" "tracker-celery" "tracker-processor" "traccar" "mbtiles" "live-calculator" }}
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

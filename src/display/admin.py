@@ -196,6 +196,11 @@ class UserEntitlementGrantAdmin(admin.ModelAdmin):
     exclude = ("granted_by",)
     readonly_fields = ("granted_by",)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "user":
+            kwargs["queryset"] = MyUser.objects.order_by("first_name", "last_name")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     def save_model(self, request, obj, form, change):
         if not obj.granted_by_id:
             obj.granted_by = request.user

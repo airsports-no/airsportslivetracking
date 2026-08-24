@@ -1,24 +1,24 @@
 import datetime
 import logging
 from multiprocessing import Queue
+from typing import List, Optional, Sequence, Tuple
 
-from typing import List, Optional, Tuple
 import numpy as np
-from shapely.geometry import Point, LineString
+from shapely.geometry import LineString, Point
 
 from display.calculators.calculator import (
+    AdaptiveStartEvent,
     Calculator,
-    OrchestratorState,
-    OrchestratorEvent,
     FinishLinePassedEvent,
     GateMissedEvent,
     GatePassedEvent,
-    AdaptiveStartEvent,
+    OrchestratorEvent,
+    OrchestratorState,
 )
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
-from display.models import Contestant, Scorecard, Route, INFORMATION, ANOMALY
+from display.models import ANOMALY, INFORMATION, Contestant, Route, Scorecard
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.cima_task_type_definitions import ANR_CATALOGUE
 
@@ -100,7 +100,7 @@ class AnrCorridorCalculator(Calculator):
 
     def calculate_outside_route(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         self.enroute = False
@@ -108,7 +108,9 @@ class AnrCorridorCalculator(Calculator):
         self._check_auxiliary_route_compliance(track, before_start=not state.has_any_gate_passed, after_finish=state.has_passed_finishpoint)
         return []
 
-    def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]) -> Tuple[float, float]:
+    def get_danger_level_and_accumulated_score(
+        self, track: Sequence[ContestantReceivedPosition]
+    ) -> Tuple[float, float]:
         if not self.enroute:
             return 0, 0
         LOOKAHEAD_SECONDS = 30
@@ -196,7 +198,9 @@ class AnrCorridorCalculator(Calculator):
             raise ValueError(f"Position at {position.time} is missing projected coordinates")
         return polygon.contains(Point(x, y))
 
-    def _check_auxiliary_route_compliance(self, track: List[ContestantReceivedPosition], before_start: bool, after_finish: bool) -> None:
+    def _check_auxiliary_route_compliance(
+        self, track: Sequence[ContestantReceivedPosition], before_start: bool, after_finish: bool
+    ) -> None:
         if getattr(self.contestant.navigation_task, "task_subtype", None) != ANR_CATALOGUE or not track:
             return
         position = track[-1]
@@ -238,7 +242,7 @@ class AnrCorridorCalculator(Calculator):
 
     def calculate_enroute(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         if not self.enroute:
@@ -427,7 +431,7 @@ class AnrCorridorCalculator(Calculator):
         self.leg_seconds.clear()
         self.accumulated_score = 0
 
-    def check_outside_corridor(self, track: List[ContestantReceivedPosition], gate: Gate):
+    def check_outside_corridor(self, track: Sequence[ContestantReceivedPosition], gate: Gate):
         if len(track) == 0:
             return
         if self._check_inside_polygon(track[-1]):
@@ -470,7 +474,7 @@ class AnrCorridorCalculator(Calculator):
     def on_adaptive_start(self, event: AdaptiveStartEvent):
         pass
 
-    def finalise(self, track: List[ContestantReceivedPosition]):
+    def finalise(self, track: Sequence[ContestantReceivedPosition]):
         if self.corridor_state == self.OUTSIDE_CORRIDOR and track:
             # Fall back to the route's first waypoint (matching the pattern
             # already used for the auxiliary route-compliance checks above)
