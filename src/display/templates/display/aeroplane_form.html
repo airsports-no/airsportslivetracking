@@ -24,16 +24,18 @@
     function setResponse(response) {
         if (response.length > 0) {
             const { registration, type, colour, picture } = response[0];
-            document.getElementById('id_registration').value = registration;
-            document.getElementById('id_type').value = type;
-            document.getElementById('id_colour').value = colour;
-            const pictureDisplay = document.getElementById('picture_display_field');
+            const fieldPrefix = '{{ wizard.steps.current }}';
+            document.getElementById(`id_${fieldPrefix}-registration`).value = registration;
+            document.getElementById(`id_${fieldPrefix}-type`).value = type;
+            document.getElementById(`id_${fieldPrefix}-colour`).value = colour;
+            const pictureDisplay = document.getElementById(`${fieldPrefix}-picture_display_field`);
             if(pictureDisplay) pictureDisplay.src = picture;
         }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        const registrationInput = document.getElementById('id_registration');
+        const fieldPrefix = '{{ wizard.steps.current }}';
+        const registrationInput = document.getElementById(`id_${fieldPrefix}-registration`);
         if (!registrationInput) return;
 
         // Autocomplete functionality

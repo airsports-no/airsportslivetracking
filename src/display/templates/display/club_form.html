@@ -24,17 +24,19 @@
     function setResponse(response) {
         if (response.length > 0) {
             const { name, logo, country, country_flag_url } = response[0];
-            document.getElementById('id_name').value = name;
-            document.getElementById('id_country').value = country;
-            const countryFlag = document.getElementById('country_flag_display_field');
+            const fieldPrefix = '{{ wizard.steps.current }}';
+            document.getElementById(`id_${fieldPrefix}-name`).value = name;
+            document.getElementById(`id_${fieldPrefix}-country`).value = country;
+            const countryFlag = document.getElementById(`${fieldPrefix}-country_flag_display_field`);
             if(countryFlag) countryFlag.src = country_flag_url;
-            const logoDisplay = document.getElementById('logo_display_field');
+            const logoDisplay = document.getElementById(`${fieldPrefix}-logo_display_field`);
             if(logoDisplay) logoDisplay.src = logo;
         }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        const nameInput = document.getElementById('id_name');
+        const fieldPrefix = '{{ wizard.steps.current }}';
+        const nameInput = document.getElementById(`id_${fieldPrefix}-name`);
         if (!nameInput) return;
 
         // Autocomplete functionality
