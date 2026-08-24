@@ -84,6 +84,34 @@ class TestKnownCircuitSpeedKeeping(TestCase):
                     },
                     {
                         "type": "Feature",
+                        "properties": {
+                            "id": "wp-1",
+                            "name": "WP-SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-2",
+                            "name": "WP-FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
                         "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
@@ -98,8 +126,9 @@ class TestKnownCircuitSpeedKeeping(TestCase):
         self.navigation_task.save(update_fields=["editable_route"])
 
     def _build_calculator(self):
-        with patch("display.calculators.positions_and_gates.Gate.pre_project"), patch(
-            "display.calculators.gate_calculator.calculate_extended_gate"
+        with (
+            patch("display.calculators.positions_and_gates.Gate.pre_project"),
+            patch("display.calculators.gate_calculator.calculate_extended_gate"),
         ):
             return GateCalculator(
                 self.contestant,

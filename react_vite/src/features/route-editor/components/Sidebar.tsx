@@ -15,6 +15,7 @@ import RouteListView from './RouteListView';
 import HelpView from './HelpView';
 import TaskWizardPanel from './TaskWizardPanel';
 import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../../../types';
+import { TaskCompatibilityResult } from '../api';
 
 interface SidebarProps {
   routePoints: RoutePoint[];
@@ -29,6 +30,9 @@ interface SidebarProps {
   setShowCorridor: (show: boolean) => void;
   hideLabels: boolean;
   setHideLabels: (hide: boolean) => void;
+  intendedTaskTypes: string[];
+  setIntendedTaskTypes: (types: string[]) => void;
+  taskCompatibility: TaskCompatibilityResult | null;
   setSelectedId: (id: string | null) => void;
   setSelectionType: (type: SelectionType | null) => void;
   updateSelectedPoint: (field: keyof RoutePoint, value: any) => void;
@@ -67,6 +71,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   setShowCorridor,
   hideLabels,
   setHideLabels,
+  intendedTaskTypes,
+  setIntendedTaskTypes,
+  taskCompatibility,
   setSelectedId,
   setSelectionType,
   updateSelectedPoint,
@@ -197,6 +204,58 @@ const Sidebar: React.FC<SidebarProps> = ({
               Default: 0.5 NM. Maximum distance a photo point can be from the route.
             </p>
           </div>
+          {taskCompatibility && (() => {
+            // The initial suggestion is seeded once into real state by RouteEditor as soon as
+            // compatibility is first known (see hasSeededIntendedTaskTypesRef there) - from then
+            // on intendedTaskTypes is the single source of truth here, including when the user
+            // has unchecked everything down to an empty list.
+            const toggle = (key: string, isChecked: boolean) => {
+              const next = isChecked
+                ? [...intendedTaskTypes, key]
+                : intendedTaskTypes.filter((existing) => existing !== key);
+              setIntendedTaskTypes(next);
+            };
+            return (
+              <div className="space-y-2 border-t pt-3">
+                <label className="block text-sm font-medium text-gray-700">Task types</label>
+                <p className="text-xs text-gray-500">
+                  Which task types is this route designed for? Types this route's content doesn't
+                  support yet are disabled - hover for why.
+                </p>
+                {(['Legacy', 'CIMA'] as const).map((group) => {
+                  const groupSubtypes = taskCompatibility.subtypes.filter((subtype) => subtype.group === group);
+                  if (groupSubtypes.length === 0) return null;
+                  return (
+                    <div key={group} className="space-y-1">
+                      <div className="text-xs font-semibold text-gray-500 uppercase">{group}</div>
+                      {groupSubtypes.map((subtype) => (
+                        <div
+                          key={subtype.key}
+                          className="flex items-center gap-2"
+                          title={subtype.compatible ? undefined : subtype.missing_reasons.join('; ')}
+                        >
+                          <input
+                            type="checkbox"
+                            id={`task-type-${subtype.key}`}
+                            checked={intendedTaskTypes.includes(subtype.key)}
+                            disabled={!subtype.compatible}
+                            onChange={(e) => toggle(subtype.key, e.target.checked)}
+                            className="checkbox checkbox-xs checkbox-primary"
+                          />
+                          <label
+                            htmlFor={`task-type-${subtype.key}`}
+                            className={`text-sm ${subtype.compatible ? 'text-gray-700' : 'text-gray-400'}`}
+                          >
+                            {subtype.display_name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       );
     }

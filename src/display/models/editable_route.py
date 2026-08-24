@@ -3,7 +3,6 @@ import typing
 from io import BytesIO
 from typing import Optional, TextIO
 
-from display.waypoint import Waypoint
 import gpxpy
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -15,35 +14,35 @@ from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.editable_route_utilities import (
-    create_track_block,
-    create_takeoff_gate,
-    create_landing_gate,
-    create_prohibited_zone,
     create_information_zone,
+    create_landing_gate,
     create_penalty_zone,
+    create_prohibited_zone,
+    create_takeoff_gate,
+    create_track_block,
     get_quadratic_bezier_points,
 )
 from display.utilities.gate_definitions import (
     DUMMY,
-    UNKNOWN_LEG,
-    STARTINGPOINT,
     FINISHPOINT,
-    SECRETPOINT,
     HIDDEN_GATE,
     KNOWN_TIME_GATE,
+    SECRETPOINT,
+    STARTINGPOINT,
+    UNKNOWN_LEG,
 )
 from display.utilities.navigation_task_type_definitions import (
-    NAVIGATION_TASK_TYPES,
-    PRECISION,
-    POKER,
-    ANR_CORRIDOR,
-    AIRSPORTS,
     AIRSPORT_CHALLENGE,
+    AIRSPORTS,
+    ANR_CORRIDOR,
     LANDING,
+    POKER,
+    PRECISION,
 )
+from display.waypoint import Waypoint
 
 if typing.TYPE_CHECKING:
-    from display.models import Scorecard, Route
+    from display.models import Route, Scorecard
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +52,6 @@ class EditableRoute(models.Model):
     Model to hold the routes created by users in the Route editor.
     """
 
-    route_type = models.CharField(
-        choices=NAVIGATION_TASK_TYPES, default=PRECISION, max_length=200, help_text="Not used"
-    )
     name = models.CharField(max_length=200, help_text="User-friendly name")
     route = MyPickledObjectField(
         default=list,
@@ -72,6 +68,30 @@ class EditableRoute(models.Model):
     thumbnail = models.ImageField(upload_to="route_thumbnails/", blank=True, null=True)
     updated_at = models.DateTimeField(
         auto_now=True, null=True, help_text="When this editable route's content was last saved."
+    )
+    intended_task_types = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Task subtype keys (legacy shims and/or CIMA subtypes) this route was designed for. "
+            "User-declared and purely advisory - it never restricts which task types can actually "
+            "be created from this route; see compatible_task_types for that. An empty list means "
+            "the route creator has not declared an intent."
+        ),
+    )
+    compatible_task_types = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Task subtype keys this route's authored content actually satisfies the requirements "
+            "of, computed by display.services.route_compatibility from the route's features. "
+            "Canonical: this is what gates task-type/route selection in the task creation wizards. "
+            "Recomputed on every save()."
+        ),
+    )
+    compatibility_ruleset_version = models.IntegerField(
+        default=0,
+        help_text="ROUTE_COMPATIBILITY_RULESET_VERSION compatible_task_types was last computed against.",
     )
 
     class Meta:
@@ -90,7 +110,8 @@ class EditableRoute(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Overriding save to ensure no waypoint polygons are stored in the route data.
+        Overriding save to ensure no waypoint polygons are stored in the route data, and to keep
+        compatible_task_types in sync with the route's current content.
         """
         if self.route and isinstance(self.route, dict) and "features" in self.route:
             filtered_features = []
@@ -103,7 +124,23 @@ class EditableRoute(models.Model):
                 filtered_features.append(feature)
             self.route["features"] = filtered_features
 
+        self.refresh_compatible_task_types()
+
         super().save(*args, **kwargs)
+
+    def refresh_compatible_task_types(self):
+        """
+        Recompute compatible_task_types from the route's current content against the canonical
+        ruleset. Called automatically from save(); exposed separately so callers with an unsaved
+        in-memory route (e.g. a compatibility dry-run) can reuse it without persisting.
+        """
+        from display.services.route_compatibility import (
+            ROUTE_COMPATIBILITY_RULESET_VERSION,
+            get_compatible_task_subtypes,
+        )
+
+        self.compatible_task_types = get_compatible_task_subtypes(self)
+        self.compatibility_ruleset_version = ROUTE_COMPATIBILITY_RULESET_VERSION
 
     def calculate_number_of_waypoints(self):
         if track := self.get_track():
@@ -217,10 +254,11 @@ class EditableRoute(models.Model):
 
     def get_unknown_leg_waypoints(self) -> list[dict]:
         return [
-            item
-            for item in self.get_track_waypoints()
-            if item.get("properties", {}).get("pointType") == UNKNOWN_LEG
+            item for item in self.get_track_waypoints() if item.get("properties", {}).get("pointType") == UNKNOWN_LEG
         ]
+
+    def get_dummy_waypoints(self) -> list[dict]:
+        return [item for item in self.get_track_waypoints() if item.get("properties", {}).get("pointType") == DUMMY]
 
     def get_observation_photos(self) -> list[dict]:
         return self.get_features_type("observation_photo")
@@ -314,8 +352,8 @@ class EditableRoute(models.Model):
         :return: Description
         :rtype: list[Any]
         """
-        from display.utilities.route_building_utilities import build_waypoint
         from display.utilities.gate_definitions import ANR_TP
+        from display.utilities.route_building_utilities import build_waypoint
 
         track_waypoints = self.get_ordered_track_waypoints()
         if not track_waypoints:
@@ -521,7 +559,9 @@ class EditableRoute(models.Model):
                     save=True,
                 )
         except Exception:
-            logger.exception(f"Failed creating thumbnail for EditableRoute {editable_route.pk}. Editable route is still created.")
+            logger.exception(
+                f"Failed creating thumbnail for EditableRoute {editable_route.pk}. Editable route is still created."
+            )
         return editable_route
 
     def update_thumbnail(self):
@@ -643,7 +683,7 @@ class EditableRoute(models.Model):
         logger.debug(f"Routes {gpx.routes}")
         for route in gpx.routes:
             for extension in route.extensions:
-                logger.debug(f'Extension {extension.find("route")}')
+                logger.debug(f"Extension {extension.find('route')}")
                 if extension.find("route") is not None:
                     route_name = route.name
                     logger.debug("Loading GPX route {}".format(route_name))

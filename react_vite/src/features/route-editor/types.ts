@@ -8,6 +8,11 @@ export interface RouteData {
   route: any; // This will contain the GeoJSON FeatureCollection
   name: string;
   id?: number; // Present on saved routes
+  // Task subtype keys the route creator declared this route was designed for. Advisory only -
+  // see compatible_task_types (read-only, backend-computed) for what actually gates task
+  // creation. Absent on a not-yet-saved route.
+  intended_task_types?: string[];
+  compatible_task_types?: string[];
 }
 
 export interface MapSource {
@@ -36,4 +41,5 @@ export interface SavePayload {
     hideLabels: boolean;
     selectedTaskTemplateId?: string | null;
   };
+  intended_task_types: string[];
 }

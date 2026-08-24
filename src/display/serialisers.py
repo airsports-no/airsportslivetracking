@@ -5,75 +5,74 @@ from typing import Optional
 
 import dateutil
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError as CoreValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import transaction, models
-from django.db.models import Q, Prefetch
+from django.db import models, transaction
+from django.db.models import Prefetch, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django_countries.serializer_fields import CountryField
 from django_countries.serializers import CountryFieldMixin
-from guardian.shortcuts import assign_perm, get_objects_for_user, get_perms, get_user_perms
-from rest_framework import serializers
-from rest_framework.fields import MultipleChoiceField, SerializerMethodField
-from rest_framework.exceptions import ValidationError
-from rest_framework.relations import SlugRelatedField
-from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
-from timezone_field.rest_framework import TimeZoneSerializerField
+from guardian.shortcuts import assign_perm, get_objects_for_user, get_perms, get_user_perms
 from phonenumber_field.serializerfields import PhoneNumberField
 from phonenumber_field.validators import validate_international_phonenumber
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+from rest_framework.fields import MultipleChoiceField, SerializerMethodField
+from rest_framework.relations import SlugRelatedField
+from rest_framework_guardian.serializers import ObjectPermissionsAssignmentMixin
+from timezone_field.rest_framework import TimeZoneSerializerField
 
-from django.core.exceptions import ValidationError as CoreValidationError
-
-from display.utilities.coordinate_utilities import calculate_distance_lat_lon
-from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
-from display.utilities.route_building_utilities import create_precision_route_from_gpx
 from display.models import (
-    NavigationTask,
-    Aeroplane,
-    Team,
-    Route,
-    Contestant,
-    ContestantTrack,
-    Scorecard,
-    Crew,
-    Contest,
-    ContestSummary,
-    TaskTest,
-    Task,
-    TaskSummary,
-    TeamTestScore,
-    Person,
-    Club,
-    ContestTeam,
-    GateScore,
-    Prohibited,
-    Photo,
-    PlayingCard,
-    TrackAnnotation,
-    ScoreLogEntry,
-    GateCumulativeScore,
-    EditableRoute,
-    AdministrativePenalty,
-    MyUser,
-    HighlightedContest,
-    STARTINGPOINT,
     FINISHPOINT,
     GATE_TYPES,
-    NewsletterSubscriber,
-    UserTokenGrant,
+    STARTINGPOINT,
+    AdministrativePenalty,
+    Aeroplane,
+    Club,
     ClubManagerMembership,
+    Contest,
+    Contestant,
+    ContestantTrack,
+    ContestSummary,
+    ContestTeam,
+    Crew,
+    EditableRoute,
+    GateCumulativeScore,
+    GateScore,
+    HighlightedContest,
+    MyUser,
+    NavigationTask,
+    NewsletterSubscriber,
+    Person,
+    Photo,
+    PlayingCard,
+    Prohibited,
+    Route,
+    Scorecard,
+    ScoreLogEntry,
+    Task,
+    TaskSummary,
+    TaskTest,
+    Team,
+    TeamTestScore,
+    TrackAnnotation,
+    UserTokenGrant,
 )
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import assert_can_add_navigation_task
-from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.services.task_compiler import TaskCompiler
 from display.services.contestant_persistence import (
     create_contestant_with_related_state,
     update_contestant_with_related_state,
 )
+from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.task_compiler import TaskCompiler
+from display.utilities.coordinate_utilities import calculate_distance_lat_lon
+from display.utilities.country_code_utilities import CountryNotFoundException, get_country_code_from_location
+from display.utilities.route_building_utilities import create_precision_route_from_gpx
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
@@ -117,7 +116,6 @@ class PersonSignUpSerialiser(serializers.ModelSerializer):
 
 
 class PersonLtdSerialiser(serializers.ModelSerializer):
-
     class Meta:
         model = Person
         fields = ("first_name", "last_name", "picture")
@@ -248,12 +246,17 @@ class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
         request = self.context.get("request")
         if not request or not getattr(request.user, "is_authenticated", False):
             return []
-        if request.user.is_superuser or ClubManagerMembership.objects.filter(
-            club=club,
-            user=request.user,
-            is_active=True,
-        ).exists():
-            memberships = club.clubmanagermembership_set.filter(is_active=True).select_related("user").order_by("user__email")
+        if (
+            request.user.is_superuser
+            or ClubManagerMembership.objects.filter(
+                club=club,
+                user=request.user,
+                is_active=True,
+            ).exists()
+        ):
+            memberships = (
+                club.clubmanagermembership_set.filter(is_active=True).select_related("user").order_by("user__email")
+            )
             return ClubManagerMembershipSerializer(memberships, many=True).data
         return []
 
@@ -261,7 +264,9 @@ class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
 class AvailableTokenGrantSerializer(serializers.ModelSerializer):
     token_type_name = serializers.CharField(source="token_type.name", read_only=True)
     quantity_remaining = serializers.IntegerField(read_only=True)
-    task_type_groups = serializers.ListField(source="token_type.task_type_groups", child=serializers.CharField(), read_only=True)
+    task_type_groups = serializers.ListField(
+        source="token_type.task_type_groups", child=serializers.CharField(), read_only=True
+    )
 
     class Meta:
         model = UserTokenGrant
@@ -420,7 +425,9 @@ class PhotoSerialiser(serializers.ModelSerializer):
                 real_target_names = get_decoy_collision_names(navigation_task) if navigation_task is not None else set()
                 if name in real_target_names:
                     raise serializers.ValidationError(
-                        {"name": f"'{name}' is already used by a real route feature. Choose a different name for the decoy photo."}
+                        {
+                            "name": f"'{name}' is already used by a real route feature. Choose a different name for the decoy photo."
+                        }
                     )
         return attrs
 
@@ -434,11 +441,24 @@ class PhotoPublicSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = Photo
-        fields = ["id", "name", "file", "latitude", "longitude", "compiled_coordinates", "evidence_category", "target_kind"]
+        fields = [
+            "id",
+            "name",
+            "file",
+            "latitude",
+            "longitude",
+            "compiled_coordinates",
+            "evidence_category",
+            "target_kind",
+        ]
 
     def get_compiled_coordinates(self, obj):
         contestant = self.context.get("contestant")
-        if contestant and hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
+        if (
+            contestant
+            and hasattr(contestant, "contestanttaskconfiguration")
+            and contestant.contestanttaskconfiguration.is_valid
+        ):
             payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
             for item in payload.get("observation_photos", []):
                 item_name = item.get("name")
@@ -453,7 +473,10 @@ class PhotoPublicSerialiser(serializers.ModelSerializer):
 
     def get_target_kind(self, obj):
         contestant = self.context.get("contestant")
-        payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
+        payload = (
+            getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {})
+            or {}
+        )
         for item in payload.get("observation_photos", []):
             item_name = item.get("name")
             if item_name == obj.name or item.get("target_name") == obj.name:
@@ -808,11 +831,15 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         request = self.context.get("request")
         if not request or not getattr(request.user, "is_authenticated", False):
             return []
-        grants = UserTokenGrant.objects.filter(
-            user=request.user,
-            token_type__is_active=True,
-            quantity_consumed__lt=models.F("quantity_total"),
-        ).select_related("token_type").order_by("-created_at")
+        grants = (
+            UserTokenGrant.objects.filter(
+                user=request.user,
+                token_type__is_active=True,
+                quantity_consumed__lt=models.F("quantity_total"),
+            )
+            .select_related("token_type")
+            .order_by("-created_at")
+        )
         return AvailableTokenGrantSerializer(grants, many=True).data
 
     def validate(self, validated_data):
@@ -877,8 +904,10 @@ class ContestParticipationSerialiser(ContestSerialiser):
         user = self.context["request"].user
         viewable_contest = user.has_perm("display.view_contest", contest)
         items = filter(
-            lambda task: task.allow_self_management
-            and (viewable_contest or (task.is_public and contest.is_public and task.is_featured)),
+            lambda task: (
+                task.allow_self_management
+                and (viewable_contest or (task.is_public and contest.is_public and task.is_featured))
+            ),
             contest.navigationtask_set.all(),
         )
         serialiser = NavigationTasksSummaryParticipationSerialiser(
@@ -1867,7 +1896,10 @@ class EditableRouteLightSerialiser(ObjectPermissionsAssignmentMixin, serializers
             "thumbnail",
             "editors",
             "is_editor",
+            "intended_task_types",
+            "compatible_task_types",
         )
+        read_only_fields = ("compatible_task_types",)
 
     def get_is_editor(self, editable_route):
         return editable_route.id in self.context.get("editable_route_ids", set())
@@ -1975,10 +2007,11 @@ Prohibited, penalty, information zones
         return UserSerialiser(editors, many=True).data
 
     validation_errors = serializers.ListField(child=serializers.CharField(), read_only=True)
+    compatible_task_types = serializers.ListField(child=serializers.CharField(), read_only=True)
 
     class Meta:
         model = EditableRoute
-        exclude = ("route_type",)
+        exclude = ("compatibility_ruleset_version",)
 
     def get_permissions_map(self, created):
         user = self.context["request"].user

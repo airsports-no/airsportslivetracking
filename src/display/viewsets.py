@@ -1,161 +1,161 @@
 import base64
-from collections import OrderedDict
+import csv
 import datetime
-import logging
 import hashlib
 import json
-import csv
-
-from django.contrib.contenttypes.models import ContentType
-from guardian.models import UserObjectPermission
-from django.utils import timezone
-from django.core.cache import cache
-from django.core.files.base import ContentFile
-from django.db import transaction
-from django.db.models import Q, Prefetch, Count
-from django.http import Http404, HttpResponse, StreamingHttpResponse
-from django.core.serializers.json import DjangoJSONEncoder
-from django.utils.cache import add_never_cache_headers, patch_response_headers
-from guardian.shortcuts import get_objects_for_user
-from rest_framework import status, permissions, serializers
-from rest_framework.decorators import action
-from rest_framework.generics import get_object_or_404
-from rest_framework.response import Response
-from rest_framework.pagination import CursorPagination
-from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
-import rest_framework.exceptions as drf_exceptions
-from django.core.exceptions import ValidationError as DjangoValidationError
-from rest_framework.exceptions import ValidationError
-from drf_spectacular.utils import extend_schema, OpenApiParameter, inline_serializer
-from drf_spectacular.types import OpenApiTypes
+import logging
+from collections import OrderedDict
 from urllib import parse
 
-from django_filters.rest_framework import DjangoFilterBackend
-
-from display.filters import ContestFilter, NavigationTaskFilter
-from display.tasks import (
-    import_gpx_track,
-    generate_and_maybe_notify_flight_order,
-    generate_editable_route_thumbnail,
-)
-from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
-from display.services.capacity_enforcement import scheduling_capacity_preview
 import dateutil.parser
+import rest_framework.exceptions as drf_exceptions
+from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.base import ContentFile
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import transaction
+from django.db.models import Count, Prefetch, Q
+from django.http import Http404, HttpResponse, StreamingHttpResponse
+from django.utils import timezone
+from django.utils.cache import add_never_cache_headers, patch_response_headers
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
+from guardian.models import UserObjectPermission
+from guardian.shortcuts import get_objects_for_user
+from rest_framework import permissions, serializers, status
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.generics import get_object_or_404
+from rest_framework.pagination import CursorPagination
+from rest_framework.response import Response
+from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 
-from display.models import (
-    Person,
-    Contest,
-    ContestTeam,
-    Contestant,
-    EditableRoute,
-    NavigationTask,
-    ContestSummary,
-    TaskSummary,
-    TeamTestScore,
-    Team,
-    Scorecard,
-    Route,
-    Photo,
-    Aeroplane,
-    Club,
-    ClubManagerMembership,
-    MyUser,
-    ANOMALY,
-    Task,
-    TaskTest,
-    UserUploadedMap,
-    NewsletterSubscriber,
-    HighlightedContest,
-)
-from display.permissions import (
-    EditableRoutePermission,
-    ContestPermissions,
-    ContestModificationPermissions,
-    ContestPublicPermissions,
-    ContestPublicModificationPermissions,
-    OrganiserPermission,
-    ContestTeamContestPermissions,
-    NavigationTaskPublicPermissions,
-    NavigationTaskContestPermissions,
-    NavigationTaskSelfManagementPermissions,
-    NavigationTaskPublicPutDeletePermissions,
-    RoutePermissions,
-    PhotoPermissions,
-    ContestantPublicPermissions,
-    ContestantNavigationTaskContestPermissions,
-    TaskContestPublicPermissions,
-    TaskContestPermissions,
-    TaskTestContestPublicPermissions,
-    TaskTestContestPermissions,
-    TeamPermissions,
-)
-from display.services.capacity_enforcement import (
-    assert_can_register_team,
-    assert_can_self_register_contestant,
-    _assert_can_reserve_task_slot,
-)
-from display.services.access_resolver import resolve_contest_access
-from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
-from display.services.task_compiler import TaskCompiler
-from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
-from display.serialisers import (
-    ContestantTrackSerialiser,
-    NavigationTaskNestedTeamRouteSerialiserNestedContest,
-    NavigationTasksSummarySerialiser,
-    ContestTeamManagementSerialiser,
-    PersonSerialiser,
-    EditableRouteSerialiser,
-    EditableRouteLightSerialiser,
-    ContestTeamNestedSerialiser,
-    ContestSummaryWithoutReferenceSerialiser,
-    TaskSummaryWithoutReferenceSerialiser,
-    TeamTestScoreWithoutReferenceSerialiser,
-    ContestResultsDetailsSerialiser,
-    OngoingNavigationSerialiser,
-    TodaysNavigationSerialiser,
-    ContestantTickerSerialiser,
-    SignupSerialiser,
-    SharingSerialiser,
-    PhotoSerialiser,
-    PhotoPublicSerialiser,
-    ContestSerialiser,
-    ContestTeamSerialiser,
-    TeamNestedSerialiser,
-    ScorecardNestedSerialiser,
-    SelfManagementSerialiser,
-    NavigationTaskEditableRoutReferenceSerialiser,
-    NavigationTaskNestedTeamRouteSerialiser,
-    RouteSerialiser,
-    AeroplaneSerialiser,
-    ClubSerialiser,
-    ClubManagerMembershipSerializer,
-    ClubManagerMembershipCreateSerializer,
-    ContestantSerialiser,
-    ContestantTrackWithTrackPointsSerialiser,
-    GpxTrackSerialiser,
-    ContestantNestedTeamSerialiserWithContestantTrack,
-    ExternalNavigationTaskNestedTeamSerialiser,
-    ExternalNavigationTaskTeamIdSerialiser,
-    GateCumulativeScoreSerialiser,
-    PlayingCardSerialiser,
-    PositionSerialiser,
-    TrackAnnotationSerialiser,
-    ScoreLogEntrySerialiser,
-    TaskSerialiser,
-    TaskTestSerialiser,
-    ContestantNestedTeamSerialiser,
-    FutureContestantNestedTeamSerialiser,
-    NewsletterSubscriberSerialiser,
-    HighlightedContestSerialiser,
-)
-from display.utilities.show_slug_choices import ShowChoicesMetadata
-from display.utilities.tracking_definitions import TrackingService
+from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
+from display.filters import ContestFilter, NavigationTaskFilter
 from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_builtin_map_source_definitions,
     map_source_definition_to_payload,
     source_definition_from_user_uploaded_map,
 )
+from display.models import (
+    ANOMALY,
+    Aeroplane,
+    Club,
+    ClubManagerMembership,
+    Contest,
+    Contestant,
+    ContestSummary,
+    ContestTeam,
+    EditableRoute,
+    HighlightedContest,
+    MyUser,
+    NavigationTask,
+    NewsletterSubscriber,
+    Person,
+    Photo,
+    Route,
+    Scorecard,
+    Task,
+    TaskSummary,
+    TaskTest,
+    Team,
+    TeamTestScore,
+    UserUploadedMap,
+)
+from display.permissions import (
+    ContestantNavigationTaskContestPermissions,
+    ContestantPublicPermissions,
+    ContestModificationPermissions,
+    ContestPermissions,
+    ContestPublicModificationPermissions,
+    ContestPublicPermissions,
+    ContestTeamContestPermissions,
+    EditableRoutePermission,
+    NavigationTaskContestPermissions,
+    NavigationTaskPublicPermissions,
+    NavigationTaskPublicPutDeletePermissions,
+    NavigationTaskSelfManagementPermissions,
+    OrganiserPermission,
+    PhotoPermissions,
+    RoutePermissions,
+    TaskContestPermissions,
+    TaskContestPublicPermissions,
+    TaskTestContestPermissions,
+    TaskTestContestPublicPermissions,
+    TeamPermissions,
+)
+from display.serialisers import (
+    AeroplaneSerialiser,
+    ClubManagerMembershipCreateSerializer,
+    ClubManagerMembershipSerializer,
+    ClubSerialiser,
+    ContestantNestedTeamSerialiser,
+    ContestantNestedTeamSerialiserWithContestantTrack,
+    ContestantSerialiser,
+    ContestantTickerSerialiser,
+    ContestantTrackSerialiser,
+    ContestantTrackWithTrackPointsSerialiser,
+    ContestResultsDetailsSerialiser,
+    ContestSerialiser,
+    ContestSummaryWithoutReferenceSerialiser,
+    ContestTeamManagementSerialiser,
+    ContestTeamNestedSerialiser,
+    ContestTeamSerialiser,
+    EditableRouteLightSerialiser,
+    EditableRouteSerialiser,
+    ExternalNavigationTaskNestedTeamSerialiser,
+    ExternalNavigationTaskTeamIdSerialiser,
+    FutureContestantNestedTeamSerialiser,
+    GateCumulativeScoreSerialiser,
+    GpxTrackSerialiser,
+    HighlightedContestSerialiser,
+    NavigationTaskEditableRoutReferenceSerialiser,
+    NavigationTaskNestedTeamRouteSerialiser,
+    NavigationTaskNestedTeamRouteSerialiserNestedContest,
+    NavigationTasksSummarySerialiser,
+    NewsletterSubscriberSerialiser,
+    OngoingNavigationSerialiser,
+    PersonSerialiser,
+    PhotoPublicSerialiser,
+    PhotoSerialiser,
+    PlayingCardSerialiser,
+    PositionSerialiser,
+    RouteSerialiser,
+    ScorecardNestedSerialiser,
+    ScoreLogEntrySerialiser,
+    SelfManagementSerialiser,
+    SharingSerialiser,
+    SignupSerialiser,
+    TaskSerialiser,
+    TaskSummaryWithoutReferenceSerialiser,
+    TaskTestSerialiser,
+    TeamNestedSerialiser,
+    TeamTestScoreWithoutReferenceSerialiser,
+    TodaysNavigationSerialiser,
+    TrackAnnotationSerialiser,
+)
+from display.services.access_resolver import resolve_contest_access
+from display.services.capacity_enforcement import (
+    _assert_can_reserve_task_slot,
+    assert_can_register_team,
+    assert_can_self_register_contestant,
+    scheduling_capacity_preview,
+)
+from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
+from display.services.route_compatibility import extract_route_primitives, get_blocking_reasons
+from display.services.task_compiler import TaskCompiler
+from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
+from display.tasks import (
+    generate_and_maybe_notify_flight_order,
+    generate_editable_route_thumbnail,
+    import_gpx_track,
+)
+from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
+from display.utilities.show_slug_choices import ShowChoicesMetadata
+from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map import settings
 from websocket_channels import WebsocketFacade, generate_contestant_data_block
 
@@ -387,13 +387,17 @@ class EditableRouteViewSet(ModelViewSet):
         for definition in get_builtin_map_source_definitions():
             sources.append(map_source_definition_to_payload(definition))
 
-        uploaded_maps = get_objects_for_user(
-            user,
-            "display.view_useruploadedmap",
-            klass=UserUploadedMap,
-            accept_global_perms=False,
-            with_superuser=False,
-        ).filter(processing_status=UserUploadedMap.PROCESSING_READY).exclude(published_service_key="")
+        uploaded_maps = (
+            get_objects_for_user(
+                user,
+                "display.view_useruploadedmap",
+                klass=UserUploadedMap,
+                accept_global_perms=False,
+                with_superuser=False,
+            )
+            .filter(processing_status=UserUploadedMap.PROCESSING_READY)
+            .exclude(published_service_key="")
+        )
 
         for uploaded_map in uploaded_maps:
             sources.append(
@@ -447,12 +451,12 @@ class EditableRouteViewSet(ModelViewSet):
                     queryset = self.get_queryset()
                     route_ids = [obj.id for obj in queryset]
                     ct = ContentType.objects.get_for_model(EditableRoute)
-                    
+
                     user_perms = UserObjectPermission.objects.filter(
                         content_type=ct,
                         object_pk__in=[str(rid) for rid in route_ids],
-                        permission__codename="change_editableroute"
-                    ).select_related('user')
+                        permission__codename="change_editableroute",
+                    ).select_related("user")
 
                     editors_map = {}
                     for up in user_perms:
@@ -460,11 +464,11 @@ class EditableRouteViewSet(ModelViewSet):
                         if rid not in editors_map:
                             editors_map[rid] = []
                         editors_map[rid].append(up.user)
-                    
+
                     context["editors_map"] = editors_map
                 except Exception as e:
                     logger.error(f"Failed to bulk fetch editors: {e}")
-        
+
         return context
 
     def perform_update(self, serializer):
@@ -476,6 +480,38 @@ class EditableRouteViewSet(ModelViewSet):
         super().perform_create(serializer)
         editable_route = serializer.instance
         transaction.on_commit(lambda: generate_editable_route_thumbnail.delay(editable_route.pk))
+
+    @action(detail=False, methods=["post"], url_path="task_compatibility")
+    def task_compatibility(self, request, *args, **kwargs):
+        """
+        Dry-run compatibility check: given the current (possibly unsaved) route feature
+        collection, report which task subtypes it satisfies the requirements of and, for the
+        rest, why not. Used by the route editor to give live feedback on the intended-task-types
+        picker without persisting anything - display.services.route_compatibility remains the
+        single source of truth for the ruleset itself.
+        """
+        route_payload = request.data.get("route")
+        if not isinstance(route_payload, dict):
+            raise ValidationError({"route": "This field is required and must be a GeoJSON feature collection object."})
+        unsaved_route = EditableRoute(route=route_payload)
+        primitives = extract_route_primitives(unsaved_route)
+        subtypes = []
+        compatible_task_types = []
+        for definition in TASK_SUBTYPE_DEFINITIONS.values():
+            missing_reasons = get_blocking_reasons(primitives, definition.key)
+            if not missing_reasons:
+                compatible_task_types.append(definition.key)
+            subtypes.append(
+                {
+                    "key": definition.key,
+                    "display_name": definition.display_name,
+                    "group": "Legacy" if definition.key.startswith("legacy_") else "CIMA",
+                    "coarse_family": definition.coarse_family,
+                    "compatible": not missing_reasons,
+                    "missing_reasons": missing_reasons,
+                }
+            )
+        return Response({"compatible_task_types": compatible_task_types, "subtypes": subtypes})
 
     @action(detail=False, methods=["get"], url_path="global-map-sources")
     def global_map_sources(self, request, *args, **kwargs):
@@ -615,7 +651,7 @@ class ContestViewSet(ModelViewSet):
         # 3. Set Caching Headers
         response["ETag"] = etag
         if public_only:
-            # Public data can be cached by CDN and shared between users, 
+            # Public data can be cached by CDN and shared between users,
             # but MUST be revalidated via ETag to ensure the list is fresh.
             # stale-while-revalidate=86400: Serve stale data while fetching fresh in background
             response["Cache-Control"] = "public, no-cache, stale-while-revalidate=86400"
@@ -741,7 +777,8 @@ class ContestViewSet(ModelViewSet):
             "contestant_set",
             queryset=Contestant.objects.filter(
                 finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
-                contestanttrack__calculator_started=True, contestanttrack__calculator_finished=False,
+                contestanttrack__calculator_started=True,
+                contestanttrack__calculator_finished=False,
             ).select_related("team__crew__member1", "team__aeroplane", "contestanttrack"),
             to_attr="prefetched_active_contestants",
         )
@@ -768,9 +805,7 @@ class ContestViewSet(ModelViewSet):
         # Public navigation tasks with at least one valid contestant scheduled today
         navigation_tasks = (
             NavigationTask.objects.filter(
-                is_public=True,
-                contest__is_public=True,
-                contestant__in=Contestant.objects.valid_today(timezone_name)
+                is_public=True, contest__is_public=True, contestant__in=Contestant.objects.valid_today(timezone_name)
             )
             .distinct()
             .select_related("contest")
@@ -787,7 +822,9 @@ class ContestViewSet(ModelViewSet):
 
         navigation_tasks = navigation_tasks.prefetch_related(todays_contestants_prefetch)
 
-        data = TodaysNavigationSerialiser(navigation_tasks, many=True, context={"request": self.request, "timezone": timezone_name}).data
+        data = TodaysNavigationSerialiser(
+            navigation_tasks, many=True, context={"request": self.request, "timezone": timezone_name}
+        ).data
         response = Response(data)
         # Public list scheduled for today. No ETag available.
         # s-maxage=120: CDN shields origin by caching for 2 minutes.
@@ -851,7 +888,7 @@ class ContestViewSet(ModelViewSet):
         response = Response(serialiser.data)
 
         if contest.is_public and contest.is_featured:
-            # Results change whenever scoring updates. 
+            # Results change whenever scoring updates.
             # s-maxage=60: CDN shields origin by caching for 1 minute.
             # max-age=0: Browser always checks CDN (no disk cache).
             response["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=600"
@@ -944,7 +981,7 @@ class ContestViewSet(ModelViewSet):
         contest = self.get_object()
         contest_teams = ContestTeam.objects.filter(contest=contest)
         response = Response(ContestTeamNestedSerialiser(contest_teams, many=True).data)
-        
+
         if contest.is_public and contest.is_featured:
             # Team lists can change during signup/withdrawal.
             # s-maxage=60: CDN shields origin by caching for 1 minute.
@@ -1245,7 +1282,11 @@ class NavigationTaskViewSet(ModelViewSet):
                 contestant = navigation_task.contestant_set.get(pk=contestant_id)
             except Contestant.DoesNotExist:
                 raise ValidationError({"contestant": "Contestant not found for this navigation task."})
-        if contestant and hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
+        if (
+            contestant
+            and hasattr(contestant, "contestanttaskconfiguration")
+            and contestant.contestanttaskconfiguration.is_valid
+        ):
             payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
             observation_photos = payload.get("observation_photos", [])
             observation_names = {item.get("name") for item in observation_photos if item.get("name")}
@@ -1549,7 +1590,6 @@ class PhotoViewSet(ModelViewSet):
         instance.delete()
 
 
-
 class RouteViewSet(ModelViewSet):
     queryset = Route.objects.all()
     serializer_class = RouteSerialiser
@@ -1572,10 +1612,14 @@ class ClubViewSet(ReadOnlyModelViewSet):
 
     def get_queryset(self):
         if self.action == "managed":
-            return Club.objects.filter(
-                clubmanagermembership__user=self.request.user,
-                clubmanagermembership__is_active=True,
-            ).distinct().order_by("name")
+            return (
+                Club.objects.filter(
+                    clubmanagermembership__user=self.request.user,
+                    clubmanagermembership__is_active=True,
+                )
+                .distinct()
+                .order_by("name")
+            )
         return Club.objects.all().order_by("name")
 
     def get_serializer_context(self):
@@ -1584,12 +1628,15 @@ class ClubViewSet(ReadOnlyModelViewSet):
         return context
 
     def _can_manage_club(self, club):
-        return self.request.user.is_superuser or ClubManagerMembership.objects.filter(
-            club=club,
-            user=self.request.user,
-            is_active=True,
-            role=ClubManagerMembership.OWNER,
-        ).exists()
+        return (
+            self.request.user.is_superuser
+            or ClubManagerMembership.objects.filter(
+                club=club,
+                user=self.request.user,
+                is_active=True,
+                role=ClubManagerMembership.OWNER,
+            ).exists()
+        )
 
     @action(detail=False, methods=["get"], url_path="managed")
     def managed(self, request, *args, **kwargs):
@@ -1724,7 +1771,9 @@ def generate_score_data(contestant_pk):
                 "reason": penalty.reason,
                 "actor_id": penalty.actor_id,
                 "actor_email": penalty.actor.email if penalty.actor else None,
-                "created_at": penalty.created_at.isoformat() if hasattr(penalty.created_at, "isoformat") else penalty.created_at,
+                "created_at": penalty.created_at.isoformat()
+                if hasattr(penalty.created_at, "isoformat")
+                else penalty.created_at,
             }
         )
 
@@ -1782,6 +1831,7 @@ def generate_score_data(contestant_pk):
         data["compiled_effective_route_payload"] = payload
     else:
         from display.services.contestant_task_compiler import ContestantTaskCompiler
+
         compiled = ContestantTaskCompiler(contestant).compile(force=True)
         data["compiled_effective_route_payload"] = compiled.compiled_effective_route_payload or {}
 
@@ -1808,7 +1858,9 @@ class ContestantViewSet(ModelViewSet):
 
     def get_queryset(self):
         navigation_task_id = self.kwargs.get("navigationtask_pk")
-        permission_name = "display.view_contest" if self.request.method in permissions.SAFE_METHODS else "display.change_contest"
+        permission_name = (
+            "display.view_contest" if self.request.method in permissions.SAFE_METHODS else "display.change_contest"
+        )
         contests = get_objects_for_user(
             self.request.user,
             permission_name,
@@ -1912,12 +1964,14 @@ class ContestantViewSet(ModelViewSet):
         is_finished = hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished
         if not hasattr(contestant, "contestanttaskconfiguration"):
             from display.services.contestant_task_compiler import ContestantTaskCompiler
+
             ContestantTaskCompiler(contestant).compile(force=True)
         elif not contestant.contestanttaskconfiguration.is_valid:
             from display.services.contestant_task_compiler import ContestantTaskCompiler
+
             ContestantTaskCompiler(contestant).compile(force=True)
 
-        # ETag based on contestant's track and score versions. 
+        # ETag based on contestant's track and score versions.
         # track_version only bumps on (re)start. score_version bumps on admin edits.
         # Short-circuiting with 304 is therefore only safe when the flight is finished.
         etag = f'"{contestant.pk}-{contestant.track_version}-{contestant.score_version}-scores"'
@@ -1927,12 +1981,12 @@ class ContestantViewSet(ModelViewSet):
         response = Response(generate_score_data(contestant.pk))
 
         is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
-        
+
         if not is_public:
             response["Cache-Control"] = "private, no-cache"
         elif is_finished:
             response["ETag"] = etag
-            # Finished scores are static. 
+            # Finished scores are static.
             # s-maxage=31536000: CDN caches for 1 year (explicit invalidation)
             # max-age=0: Browser always checks CDN (no disk cache).
             response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
@@ -1997,15 +2051,12 @@ class ContestantViewSet(ModelViewSet):
 
         # 1. LIGHTWEIGHT CHECK: Only fetch the count to build the ETag.
         # This query is fast because it can be satisfied by a composite index.
-        positions_qs = contestant.contestantreceivedposition_set.filter(
-            time__gte=start_window, time__lt=end_window
-        )
+        positions_qs = contestant.contestantreceivedposition_set.filter(time__gte=start_window, time__lt=end_window)
         current_count = positions_qs.count()
 
         # 2. Determine if this specific slice is truly immutable.
-        is_immutable = (
-            (hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished)
-            or (contestant.finished_by_time and contestant.finished_by_time < now)
+        is_immutable = (hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished) or (
+            contestant.finished_by_time and contestant.finished_by_time < now
         )
 
         # 3. Create a sensitive ETag including the count of positions.
@@ -2017,9 +2068,11 @@ class ContestantViewSet(ModelViewSet):
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
         # 4. HEAVY LIFTING: Only runs if the cache is stale or missing.
-        positions_list = list(positions_qs.values(
-            "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
-        ))
+        positions_list = list(
+            positions_qs.values(
+                "time", "latitude", "longitude", "speed", "course", "altitude", "progress", "interpolated"
+            )
+        )
 
         response = Response(positions_list)
         response["ETag"] = etag
@@ -2083,25 +2136,31 @@ class ContestantViewSet(ModelViewSet):
 
     def _stream_track_json(self, ct, position_queryset):
         encoder = DjangoJSONEncoder()
-        yield '{"id":' + json.dumps(ct.id) + ',"score":' + json.dumps(
-            float(ct.score)
-        ) + ',"current_state":' + json.dumps(ct.current_state) + ',"current_leg":' + json.dumps(
-            ct.current_leg
-        ) + ',"last_gate":' + json.dumps(
-            ct.last_gate
-        ) + ',"last_gate_time_offset":' + json.dumps(
-            ct.last_gate_time_offset
-        ) + ',"passed_starting_gate":' + json.dumps(
-            ct.passed_starting_gate
-        ) + ',"passed_finish_gate":' + json.dumps(
-            ct.passed_finish_gate
-        ) + ',"calculator_finished":' + json.dumps(
-            ct.calculator_finished
-        ) + ',"calculator_started":' + json.dumps(
-            ct.calculator_started
-        ) + ',"contestant":' + json.dumps(
-            ct.contestant_id
-        ) + ',"track":['
+        yield (
+            '{"id":'
+            + json.dumps(ct.id)
+            + ',"score":'
+            + json.dumps(float(ct.score))
+            + ',"current_state":'
+            + json.dumps(ct.current_state)
+            + ',"current_leg":'
+            + json.dumps(ct.current_leg)
+            + ',"last_gate":'
+            + json.dumps(ct.last_gate)
+            + ',"last_gate_time_offset":'
+            + json.dumps(ct.last_gate_time_offset)
+            + ',"passed_starting_gate":'
+            + json.dumps(ct.passed_starting_gate)
+            + ',"passed_finish_gate":'
+            + json.dumps(ct.passed_finish_gate)
+            + ',"calculator_finished":'
+            + json.dumps(ct.calculator_finished)
+            + ',"calculator_started":'
+            + json.dumps(ct.calculator_started)
+            + ',"contestant":'
+            + json.dumps(ct.contestant_id)
+            + ',"track":['
+        )
 
         first = True
         for pos in position_queryset.iterator():
@@ -2158,10 +2217,10 @@ class ContestantViewSet(ModelViewSet):
         )
 
         response = StreamingHttpResponse(self._stream_track_json(ct, positions_qs), content_type="application/json")
-        
+
         is_finished = ct.calculator_finished
         is_public = contestant.navigation_task.is_public and contestant.navigation_task.contest.is_public
-        
+
         # ETag based on contestant's track version.
         # track_version only bumps on (re)start. Short-circuiting with 304 is
         # therefore only safe when the flight is finished.
@@ -2206,6 +2265,7 @@ class ContestantViewSet(ModelViewSet):
         """Return organizer-facing compiled evidence metadata for the contestant."""
         contestant = self.get_object()
         from display.services.contestant_task_compiler import ContestantTaskCompiler
+
         declaration_payload = {}
         if hasattr(contestant, "contestanttaskconfiguration"):
             declaration_payload = contestant.contestanttaskconfiguration.declaration_payload or {}
@@ -2362,6 +2422,7 @@ class TaskTestViewSet(ModelViewSet):
             )
         return super().update(request, *args, **kwargs)
 
+
 class HighlightedContestViewSet(ReadOnlyModelViewSet):
     queryset = HighlightedContest.objects.all()
     serializer_class = HighlightedContestSerialiser
@@ -2370,9 +2431,7 @@ class HighlightedContestViewSet(ReadOnlyModelViewSet):
     def get_queryset(self):
         now = datetime.datetime.now(datetime.timezone.utc)
         return HighlightedContest.objects.filter(
-            start_time__lte=now,
-            finish_time__gte=now,
-            contest__is_public=True
+            start_time__lte=now, finish_time__gte=now, contest__is_public=True
         ).select_related("contest")
 
 

@@ -1,25 +1,39 @@
 from crispy_forms.bootstrap import StrictButton
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Fieldset, ButtonHolder, Submit, HTML, Div, Field
+from crispy_forms.layout import HTML, ButtonHolder, Div, Field, Fieldset, Layout, Submit
 from django import forms
 from django.forms import HiddenInput
 from phonenumber_field.formfields import PhoneNumberField
 
 from display.forms import PictureWidget, kml_description
-from display.models import EditableRoute, Contest, Aeroplane, Club
+from display.models import Aeroplane, Club, Contest, EditableRoute
+from display.services.route_compatibility import get_compatible_task_subtypes
 from display.services.task_type_visibility import can_user_see_cima_task_types, can_user_see_task_subtype
-from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
+from display.utilities.cima_task_type_definitions import LEGACY_DEFAULT_SUBTYPE_BY_FAMILY, TASK_SUBTYPE_DEFINITIONS
 from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES
 
 
-def _task_template_choices(user=None):
+def _task_template_choices(user=None, editable_route=None):
+    """
+    Build the grouped (Legacy/CIMA) task_template choices for the task-type picker.
+
+    When `editable_route` is given, choices are additionally hard-filtered to task subtypes the
+    route's authored content actually satisfies (display.services.route_compatibility) - this is
+    the canonical, non-bypassable gate; user-permission filtering (CIMA visibility) is layered on
+    top of it.
+    """
+    compatible = set(get_compatible_task_subtypes(editable_route)) if editable_route is not None else None
     grouped = {"Legacy": [], "CIMA": []}
     for key, label in NAVIGATION_TASK_TYPES:
+        if compatible is not None and LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(key) not in compatible:
+            continue
         grouped["Legacy"].append((key, label))
     for definition in TASK_SUBTYPE_DEFINITIONS.values():
         if definition.key.startswith("legacy_"):
             continue
         if not can_user_see_task_subtype(user, task_subtype=definition.key):
+            continue
+        if compatible is not None and definition.key not in compatible:
             continue
         grouped["CIMA"].append((definition.key, definition.display_name))
     return [(group, choices) for group, choices in grouped.items() if choices]
@@ -165,9 +179,10 @@ class ContestSelectForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
+        editable_route = kwargs.pop("editable_route", None)
         super().__init__(*args, **kwargs)
         self.visible_cima = can_user_see_cima_task_types(user)
-        self.fields["task_template"].choices = _task_template_choices(user)
+        self.fields["task_template"].choices = _task_template_choices(user, editable_route=editable_route)
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset(

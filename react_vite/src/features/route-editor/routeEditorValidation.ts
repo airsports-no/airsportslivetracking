@@ -119,6 +119,7 @@ export function buildRouteEditorSavePayload(args: {
   maxObsDist: number;
   hideLabels: boolean;
   selectedTaskTemplateId: string | null;
+  intendedTaskTypes: string[];
 }): SavePayload {
   const {
     routeName,
@@ -131,6 +132,7 @@ export function buildRouteEditorSavePayload(args: {
     maxObsDist,
     hideLabels,
     selectedTaskTemplateId,
+    intendedTaskTypes,
   } = args;
 
   // Persistence contract: route_path is derived from ordered backbone points
@@ -264,5 +266,6 @@ export function buildRouteEditorSavePayload(args: {
       hideLabels,
       selectedTaskTemplateId,
     },
+    intended_task_types: intendedTaskTypes,
   };
 }
