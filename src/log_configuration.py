@@ -55,6 +55,19 @@ LOG_CONFIGURATION = {
             "level": "INFO",
             "propagate": False,
         },
+        # Request-per-line access logging is the biggest Cloud Logging volume
+        # driver in production. Keep warnings/errors from the server stack, but
+        # drop routine successful request logs and websocket open/accepted chat.
+        "uvicorn.access": {
+            "handlers": handlers,
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "uvicorn.error": {
+            "handlers": handlers,
+            "level": "WARNING",
+            "propagate": False,
+        },
         "websocket": {
             "handlers": handlers,
             "level": "INFO",
@@ -82,7 +95,7 @@ LOG_CONFIGURATION = {
         },
         "uvicorn": {
             "handlers": handlers,
-            "level": "INFO",
+            "level": "WARNING",
             "propagate": False,
         },
         "urllib3": {
