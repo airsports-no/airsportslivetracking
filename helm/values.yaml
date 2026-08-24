@@ -97,7 +97,7 @@ liveCalculator:
   requestMemory: 1536Mi
   limitCpu: 3000m
   limitMemory: 2560Mi
-  maxReplicas: 4
+  maxReplicas: 8
   prewarmMinutes: 15
   pollSeconds: 60
 

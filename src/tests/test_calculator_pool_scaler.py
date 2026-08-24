@@ -103,3 +103,36 @@ class TestWakePoolIfCold:
         # must not break position ingestion. The periodic scaler still
         # catches this contestant on its next poll.
         wake_pool_if_cold()
+
+
+class TestRunForeverStartup:
+    """
+    run_forever() is spawned as a daemon process with no restart supervision
+    (see the Process(...) call in position_processor.py), so an unhandled
+    exception during its one-time Kubernetes/Redis client setup would kill
+    schedule-aware scaling for the rest of the pod's life - potentially
+    days - with nothing else noticing. It must retry instead of propagating.
+    """
+
+    def setup_method(self):
+        calculator_pool_scaler._apps_api = None
+
+    @patch("calculator_pool_scaler.scaling_enabled", return_value=True)
+    @patch("calculator_pool_scaler._build_apps_api")
+    @patch("calculator_pool_scaler.redis.Redis")
+    @patch("calculator_pool_scaler._reconcile_once")
+    @patch("calculator_pool_scaler.time.sleep")
+    def test_retries_initial_setup_failure_instead_of_crashing(
+        self, mock_sleep, mock_reconcile, mock_redis, mock_build_api, mock_enabled
+    ):
+        class StopLoop(Exception):
+            pass
+
+        mock_build_api.side_effect = [RuntimeError("kubernetes API unreachable"), object()]
+        mock_sleep.side_effect = [None, StopLoop]
+
+        with pytest.raises(StopLoop):
+            calculator_pool_scaler.run_forever()
+
+        assert mock_build_api.call_count == 2
+        mock_reconcile.assert_called_once()

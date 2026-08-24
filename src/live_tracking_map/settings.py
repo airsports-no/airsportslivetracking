@@ -433,7 +433,19 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True
 # incoming positions rather than broker redelivery, and
 # run_live_contestant_calculator (tasks.py) is idempotent against a redelivery
 # that does arrive.
-CELERY_BROKER_TRANSPORT_OPTIONS = {"visibility_timeout": 90000}  # 25h
+#
+# This is a Celery *connection*-level setting, not per-queue, so it applies to
+# every worker process that loads these settings - including the default
+# queue's short admin tasks (recalculation, flight-order generation, mbtiles
+# reload), which have no equivalent re-dispatch/idempotency safety net and
+# would otherwise wait up to 25h instead of the normal 1h to self-heal from a
+# fully-lost worker. CELERY_VISIBILITY_TIMEOUT_SECONDS lets the live-calculator
+# Deployment (its own worker pool, see deployment_live_calculator.yaml) opt
+# into the 25h value via its pod env while every other worker keeps Redis's
+# normal 1h default.
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "visibility_timeout": int(os.environ.get("CELERY_VISIBILITY_TIMEOUT_SECONDS", 3600))
+}
 # Keeps live-tracking calculator tasks (potentially hours long) off the
 # default queue/worker pool used by short admin tasks (recalculation,
 # flight-order generation, mbtiles reload) - dispatched to a separate

@@ -196,9 +196,6 @@ def run_forever():
         logger.info("calculator_pool_scaler: disabled (CALCULATOR_POOL_SCALING_ENABLED unset), exiting")
         return
 
-    apps_api = _build_apps_api()
-    redis_connection = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, password=settings.REDIS_PASSWORD)
-
     scaler_config = {
         "deployment": os.environ.get("CALCULATOR_POOL_DEPLOYMENT", "live-calculator"),
         "namespace": os.environ.get("CALCULATOR_POOL_NAMESPACE", "default"),
@@ -207,6 +204,22 @@ def run_forever():
         "prewarm_minutes": _int_env("CALCULATOR_POOL_PREWARM_MINUTES", 15),
     }
     poll_seconds = _int_env("CALCULATOR_POOL_POLL_SECONDS", 60)
+
+    # This is a daemon process with no restart supervision (see the Process(...)
+    # call in position_processor.py): an unhandled exception here would kill
+    # schedule-aware scaling for the rest of this pod's life - which can be
+    # days - with nothing else noticing, so retry instead of propagating.
+    apps_api = None
+    redis_connection = None
+    while apps_api is None or redis_connection is None:
+        try:
+            apps_api = _build_apps_api()
+            redis_connection = redis.Redis(
+                host=settings.REDIS_HOST, port=settings.REDIS_PORT, password=settings.REDIS_PASSWORD
+            )
+        except Exception:
+            logger.exception(f"calculator_pool_scaler: failed to initialise, retrying in {poll_seconds}s")
+            time.sleep(poll_seconds)
 
     logger.info(f"calculator_pool_scaler: starting with {scaler_config}, polling every {poll_seconds}s")
     while True:

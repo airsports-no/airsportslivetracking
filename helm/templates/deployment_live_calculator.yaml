@@ -66,6 +66,12 @@ spec:
               name: envs-production-other
           - secretRef:
               name: pw-secrets
+        env:
+          # See CELERY_BROKER_TRANSPORT_OPTIONS in settings.py: this worker pool
+          # (and only this one) needs a visibility timeout well past a realistic
+          # tracking window, since a live calculator can run for hours.
+          - name: CELERY_VISIBILITY_TIMEOUT_SECONDS
+            value: "90000"  # 25h
         resources:
           requests:
             cpu: {{ .Values.liveCalculator.requestCpu }}
