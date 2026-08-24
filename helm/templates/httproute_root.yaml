@@ -41,14 +41,22 @@ metadata:
   namespace: default
 spec:
   default:
+    # checkIntervalSec/timeoutSec live directly under `default` (siblings of
+    # `config`), not nested inside config.httpHealthCheck - the CRD used to
+    # accept them there (or this chart never validated against the live
+    # schema), but the current networking.gke.io/v1 HealthCheckPolicy schema
+    # rejects them as unknown fields at that nesting, which fails a real
+    # `kubectl apply`/`helm upgrade` for this resource (confirmed via
+    # `kubectl explain healthcheckpolicy.spec.default` against the live
+    # cluster).
+    checkIntervalSec: 10
+    timeoutSec: 5
     logConfig:
       enabled: true
     config:
       type: HTTP
       httpHealthCheck:
         requestPath: /display/healthz/
-        timeoutSec: 5
-        checkIntervalSec: 10
   targetRef:
     group: ""
     kind: Service
@@ -61,14 +69,14 @@ metadata:
   namespace: default
 spec:
   default:
+    checkIntervalSec: 10
+    timeoutSec: 5
     logConfig:
       enabled: true
     config:
       type: HTTP
       httpHealthCheck:
         requestPath: /display/healthz/
-        timeoutSec: 5
-        checkIntervalSec: 10
   targetRef:
     group: ""
     kind: Service

@@ -120,9 +120,10 @@ SLACK_DEVELOPMENT_WEBHOOK = os.environ.get("SLACK_DEVELOPMENT_WEBHOOK", "")
 SLACK_COMPETITIONS_WEBHOOK = os.environ.get("SLACK_COMPETITIONS_WEBHOOK", "")
 SUPPORT_EMAIL = "support@airsports.no"
 
-REDIS_GLOBAL_POSITIONS_KEY = "global_positions"
-
-PURGE_GLOBAL_MAP_INTERVAL = 60
+# Maximum staleness for a position to still be forwarded to the outbound
+# ws/traffic/airsports/ feed ASLT provides to external partners (SafeSky) -
+# see live_position_transmitter.py and display.consumers.AirsportsPositionsConsumer.
+EXTERNAL_TRAFFIC_MAX_AGE_SECONDS = 60
 LIVE_POSITION_TRANSMITTER_CACHE_RESET_INTERVAL = 300
 
 # Application definition
@@ -175,6 +176,14 @@ LOCATION_FIELD = {
     "provider.openstreetmap.max_zoom": 18,
 }
 PRODUCTION = os.environ.get("MODE") != "dev"
+# Whether add_positions_to_calculator (position_processor_process.py) dispatches
+# live calculators as a Celery task on the live_calculator queue (matching
+# production) or forks a local process in-container. Defaults to PRODUCTION so
+# behavior is unchanged unless set explicitly, but is independent of it so a
+# non-production environment (e.g. docker-compose, for scale testing against
+# the real Celery/live_calculator pipeline) can opt in without also flipping
+# DEBUG, GCS media storage, and everything else PRODUCTION/MODE gates.
+CALCULATOR_DISPATCH_VIA_CELERY = os.environ.get("CALCULATOR_DISPATCH_VIA_CELERY", "1" if PRODUCTION else "0") == "1"
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
@@ -412,6 +421,19 @@ CELERY_BROKER_URL = (
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
+# The Redis transport's default visibility timeout is 1 hour: with
+# CELERY_TASK_ACKS_LATE, an unacked message past that timeout gets redelivered
+# to another worker even though the original task is still running. A live
+# calculator can run far longer than that (a contestant who forgets to stop
+# tracking, or an unusually long flight), so raise this well past any
+# realistic tracking window rather than let the broker "recover" a task that
+# never actually failed. Recovery after a genuinely lost worker does not
+# depend on this value: add_positions_to_calculator (position_processor_process.py)
+# already re-dispatches within its own ~5 min aliveness grace, driven by
+# incoming positions rather than broker redelivery, and
+# run_live_contestant_calculator (tasks.py) is idempotent against a redelivery
+# that does arrive.
+CELERY_BROKER_TRANSPORT_OPTIONS = {"visibility_timeout": 90000}  # 25h
 # Keeps live-tracking calculator tasks (potentially hours long) off the
 # default queue/worker pool used by short admin tasks (recalculation,
 # flight-order generation, mbtiles reload) - dispatched to a separate

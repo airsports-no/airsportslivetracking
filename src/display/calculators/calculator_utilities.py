@@ -1,13 +1,13 @@
-import numpy as np
-from shapely.geometry import Polygon, Point, LineString
-
 import datetime
-from typing import Optional, List, Tuple, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
+
+import numpy as np
+from shapely.geometry import LineString, Point, Polygon
 
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import (
-    calculate_bearing,
     bearing_difference,
+    calculate_bearing,
     to_rad,
 )
 
@@ -91,7 +91,7 @@ if TYPE_CHECKING:
 
 
 def time_to_intersection(
-    track: List[ContestantReceivedPosition],
+    track: Sequence[ContestantReceivedPosition],
     projector: "Projector",
     gate_line: Tuple[Tuple[float, float], Tuple[float, float]],
 ) -> Optional[datetime.datetime]:

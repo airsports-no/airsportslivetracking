@@ -4,8 +4,15 @@ services:
   tracker_daphne:
     container_name: tracker_daphne
     image: ${REGISTRY_NAME:-europe-north1-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
+    # Runs the same gunicorn+uvicorn ASGI stack as production (config/asgi.sh)
+    # instead of Django's runserver, so HTTP/websocket concurrency behavior
+    # under a scale test matches a real tracker-app pod. This trades away
+    # runserver's autoreload for `docker compose up` users - the devcontainer
+    # workflow (.vscode/tasks.json's "Run server" task) is unaffected, since
+    # it attaches to this container and runs its own runserver process rather
+    # than using this command.
     command: [ "/wait-for-it.sh", "mysql:3306", "--",
-               "bash", "-c", "python3 manage.py migrate && python3 manage.py initadmin && python3 manage.py createdefaultscores && python3 manage.py runserver 0.0.0.0:8000" ]
+               "bash", "-c", "python3 manage.py migrate && python3 manage.py initadmin && python3 manage.py createdefaultscores && exec /asgi.sh" ]
     environment:
       - MODE=dev
       - MEDIA_LOCATION
@@ -19,7 +26,7 @@ services:
       - GOOGLE_CLOUD_PROJECT=airsports-613ce
       - DISABLE_FIREBASE
       - MPLCONFIGDIR=/tmp
-      
+
     # env_file:
     #   - .env.private
     build:
@@ -36,7 +43,7 @@ services:
       - ./data:/data
       - ./weblog:/logs
     ports:
-      - "8002:8000"
+      - "8002:8002"  # asgi.sh binds :8002, matching helm's tracker-app container port
     depends_on:
       - mysql
       - redis
@@ -46,7 +53,63 @@ services:
   tracker_celery:
     container_name: tracker_celery
     image: ${REGISTRY_NAME:-europe-north1-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
-    command: [ "bash", "-c", "celery -A live_tracking_map worker -l DEBUG --concurrency 1" ]
+    # --without-mingle matches helm/templates/deployment_tracker_celery.yaml's
+    # command exactly. This worker only ever consumes the default queue (no
+    # -Q flag) - live-tracking calculator work goes to the live_calculator
+    # service below, same split as production.
+    command: [ "bash", "-c", "celery -A live_tracking_map worker -l DEBUG --concurrency 1 --without-mingle" ]
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/secret/application_default_credentials.json
+      - GOOGLE_CLOUD_PROJECT=airsports-613ce
+      - MEDIA_LOCATION
+      - MODE=dev
+      # Opts add_positions_to_calculator (called from this worker's
+      # process_flymaster_file task) into the same Celery-dispatch path
+      # production uses, instead of MODE=dev's default of forking a local
+      # process - see CALCULATOR_DISPATCH_VIA_CELERY in settings.py.
+      - CALCULATOR_DISPATCH_VIA_CELERY=1
+      - MBTILES_SERVER_URL=http://mbtiles:8000/
+      - MBTILES_PUBLIC_URL=http://localhost:8001/
+      - MBTILES_PUBLISH_ROOT=/maptiles/user_uploaded_maps
+      - MBTILES_RELOAD_METHOD=local
+      - MBTILES_RELOAD_LOCAL_URL=http://mbtiles:8000/services/
+      - DISABLE_FIREBASE
+      - MPLCONFIGDIR=/tmp
+    volumes:
+      - ./secret:/secret
+      - ./django-rest-authemail:/django-rest-authemail
+      - ./static:/static
+      - ./assets:/assets
+      - ./src:/src
+      - ./airsports_static:/airsports_static
+      - ./data:/data
+      - ./celerylog:/logs
+    depends_on:
+      - mysql
+      - redis
+      - mbtiles
+    # Same liveness signal as helm/templates/deployment_tracker_celery.yaml's
+    # livenessProbe: celery_liveness.py checks a heartbeat file a Celery
+    # bootstep touches every 10s, so this is environment-agnostic - just not
+    # wired into docker-compose until now.
+    healthcheck:
+      test: [ "CMD", "python", "/src/celery_liveness.py" ]
+      interval: 12s
+      timeout: 10s
+      retries: 2
+      start_period: 30s
+
+
+  live_calculator:
+    container_name: live_calculator
+    image: ${REGISTRY_NAME:-europe-north1-docker.pkg.dev/airsports-613ce/airsports/}tracker_base:${IMAGE_TAG:-develop}
+    # Mirrors helm/templates/deployment_live_calculator.yaml's command. This is
+    # production's second, dedicated Celery pool for per-contestant live
+    # scoring - it has no local equivalent until this service. Concurrency
+    # defaults to matching production's .Values.liveCalculator.concurrency
+    # (helm/values.yaml); override with LIVE_CALCULATOR_CONCURRENCY for a
+    # smaller/larger scale test run.
+    command: [ "bash", "-c", "celery -A live_tracking_map worker -Q live_calculator -l INFO --concurrency=${LIVE_CALCULATOR_CONCURRENCY:-12} --without-mingle --without-gossip --without-heartbeat" ]
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/secret/application_default_credentials.json
       - GOOGLE_CLOUD_PROJECT=airsports-613ce
@@ -72,7 +135,12 @@ services:
       - mysql
       - redis
       - mbtiles
-
+    healthcheck:
+      test: [ "CMD", "python", "/src/celery_liveness.py" ]
+      interval: 12s
+      timeout: 10s
+      retries: 2
+      start_period: 30s
 
 
   tracker_processor:
@@ -83,6 +151,9 @@ services:
     environment:
       - MODE=dev
       - MPLCONFIGDIR=/tmp
+      # This is the producer side of the calculator dispatch decision - see
+      # the same var on tracker_celery above.
+      - CALCULATOR_DISPATCH_VIA_CELERY=1
     volumes:
       - ./secret:/secret
       - ./django-rest-authemail:/django-rest-authemail
@@ -104,7 +175,9 @@ services:
       - "8001:8000"
 
   traccar:
-    image: traccar/traccar:ubuntu
+    # Pinned to match helm/templates/deployment_traccar.yml's version exactly
+    # (was an unpinned :ubuntu tag, which could silently drift ahead of prod).
+    image: traccar/traccar:5.10-alpine
     restart: unless-stopped
     container_name: traccar
     volumes:

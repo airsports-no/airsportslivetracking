@@ -10,10 +10,17 @@ from typing import Tuple, List
 from urllib.parse import urlencode
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 if __name__ == "__main__":
-    sys.path.append("/workspace/src")
+    # The repo root src/ directory (this script's parent's parent), not a
+    # hardcoded devcontainer path - that only matched the VS Code devcontainer
+    # (workspaceFolder /workspace), not a plain `docker exec` against the
+    # docker-compose services (src/ at /src), which is how scale testing
+    # actually runs this script (see README.md's "Scale testing" section).
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
     import django
 
@@ -96,6 +103,25 @@ if __name__ == "__main__":
     traccar.get_device_map()
 
 
+# A shared, thread-safe connection pool: each send_data_thread otherwise opened
+# a brand-new TCP connection per position (requests.post with no session), and
+# at real scale-test concurrency (many threads posting as fast as the -s speed
+# factor allows) that connection churn was enough to make Traccar's OsmAnd
+# listener reset some connections outright - individual send() calls raising
+# an uncaught ConnectionError, which killed that contestant's whole thread
+# partway through its track with no retry. pool_maxsize is sized generously
+# above any realistic thread count so pooling never itself becomes the limit;
+# Retry handles both connection-level failures and transient 5xx responses.
+_session = requests.Session()
+_retry_adapter = HTTPAdapter(
+    pool_connections=50,
+    pool_maxsize=50,
+    max_retries=Retry(total=3, backoff_factor=0.3, status_forcelist=(502, 503, 504), allowed_methods={"POST"}),
+)
+_session.mount("http://", _retry_adapter)
+_session.mount("https://", _retry_adapter)
+
+
 def send(id, timestamp, lat, lon, speed, course):
     params = (
         ("id", id),
@@ -105,7 +131,14 @@ def send(id, timestamp, lat, lon, speed, course):
         ("speed", speed),
         ("course", course),
     )
-    requests.post("http://" + server + "/?" + urlencode(params))
+    try:
+        _session.post("http://" + server + "/?" + urlencode(params), timeout=10)
+    except requests.exceptions.RequestException:
+        # A single dropped position must not kill send_data_thread's whole
+        # loop - that would silently truncate the rest of this contestant's
+        # track and leave its calculator running indefinitely, waiting for
+        # data that will never arrive.
+        logger.warning(f"Failed to send position for device {id} at {timestamp}, skipping", exc_info=True)
 
 
 def send_data_thread(contestant, positions):
@@ -190,18 +223,26 @@ def create_contestants(
         contestant_email = f"test{current_contestant_index}@internal.contestant com"
         if keep_names:
             team = current_old_contestant.team
+            person = team.crew.member1
         else:
             person, _ = Person.objects.get_or_create(
                 email=contestant_email,
                 defaults={"first_name": "Test", "last_name": f"Person {current_contestant_index}"},
             )
-            traccar.delete_device(traccar.unique_id_map.get(person.simulator_tracking_id))
-            traccar.create_device(person.first_name, person.simulator_tracking_id)
             crew, _ = Crew.objects.get_or_create(member1=person)
             aeroplane, _ = Aeroplane.objects.get_or_create(registration=f"LN-X{current_contestant_index}")
             team, _ = Team.objects.get_or_create(
                 crew=crew, aeroplane=aeroplane, club=Club.objects.get_or_create(name="Airsports test")[0]
             )
+        # Always (re)create the Traccar device for whichever person is doing the
+        # tracking, even in --copy mode: send_data_thread posts positions
+        # against team.crew.member1.simulator_tracking_id, and a fresh Traccar
+        # instance (e.g. a local docker-compose environment) has no device
+        # registered for the *original* contestant's tracking ID - without this,
+        # every position silently vanishes (Traccar drops positions for unknown
+        # devices) and the copied contestants receive zero data.
+        traccar.delete_device(traccar.unique_id_map.get(person.simulator_tracking_id))
+        traccar.create_device(person.first_name, person.simulator_tracking_id)
         ContestTeam.objects.get_or_create(
             team=team,
             contest=new_navigation_task.contest,

@@ -2,36 +2,43 @@ import datetime
 import logging
 import threading
 import time
+from collections import deque
 from queue import Queue
-from typing import List, Optional, Callable
-
-from display.calculators.positions_and_gates import Gate
-from display.calculators.update_score_message import UpdateScoreMessage
-from display.models.contestant_utility_models import ContestantReceivedPosition
-from websocket_channels import WebsocketFacade
+from typing import Callable, List, Optional
 
 from display.calculators.calculator import (
-    FinishLinePassedEvent,
-    OrchestratorState,
-    OrchestratorEvent,
-    GatePassedEvent,
-    GateMissedEvent,
-    TakeoffPassedEvent,
-    LandingPassedEvent,
-    StartingLinePassedEvent,
-    StartingLineExtendedPassedWrongDirectionEvent,
-    PokerGatePassedEvent,
     AdaptiveStartEvent,
     EstimationUpdatedEvent,
+    FinishLinePassedEvent,
+    GateMissedEvent,
+    GatePassedEvent,
     InRangeUpdatedEvent,
+    LandingPassedEvent,
     NextGateExpectedEvent,
+    OrchestratorEvent,
+    OrchestratorState,
+    PokerGatePassedEvent,
+    StartingLineExtendedPassedWrongDirectionEvent,
+    StartingLinePassedEvent,
+    TakeoffPassedEvent,
 )
+from display.calculators.positions_and_gates import Gate
+from display.calculators.update_score_message import UpdateScoreMessage
+from display.models import Contestant
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import Projector
 from display.utilities.gate_definitions import CIRCLE_START
-
-from display.models import Contestant
+from websocket_channels import WebsocketFacade
 
 DANGER_LEVEL_REPORT_INTERVAL = 5
+# Every calculator only ever looks at the last few positions (deepest real
+# lookback is ~10s of samples, in gate_calculator.calculate_speed) - this is
+# ~2 orders of magnitude above that at 1Hz, so it has no effect on scoring. It
+# bounds Orchestrator.track, which otherwise grows for as long as the
+# calculator runs (relevant mainly to a contestant whose tracker keeps
+# transmitting after landing), so per-contestant memory stays flat instead of
+# scaling with how long a tracker happens to stay on.
+TRACK_HISTORY_LENGTH = 300
 
 
 logger = logging.getLogger(__name__)
@@ -58,7 +65,7 @@ class Orchestrator:
         self.live_processing = live_processing
         self.scorecard = self.contestant.navigation_task.scorecard
 
-        self.track: list[ContestantReceivedPosition] = []
+        self.track: deque[ContestantReceivedPosition] = deque(maxlen=TRACK_HISTORY_LENGTH)
         self.has_passed_finishpoint = False
         self.last_danger_level_report = 0
         self.enroute = False

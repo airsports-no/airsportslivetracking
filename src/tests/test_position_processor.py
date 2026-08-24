@@ -2,7 +2,8 @@ import datetime
 import dateutil.parser
 from unittest.mock import MagicMock, patch
 import pytest
-from position_processor_process import map_positions_to_contestants, CONTESTANT_TYPE
+import position_processor_process as ppp
+from position_processor_process import map_positions_to_contestants, CONTESTANT_TYPE, add_positions_to_calculator
 
 @patch('position_processor_process.cache')
 @patch('position_processor_process.cached_find_contestant')
@@ -79,3 +80,80 @@ def test_map_positions_to_multiple_contestants(mocked_find, mock_cache):
     assert msg2[2]["deviceId"] == "device1"
     assert msg2[3] == dateutil.parser.parse(device_time_str)
     assert msg2[4] is True
+
+
+class TestAddPositionsToCalculatorDispatchLock:
+    """
+    add_positions_to_calculator runs once per contestant for every incoming
+    position batch, i.e. continuously for the whole flight, not just on first
+    dispatch. It used to unconditionally build a fresh Redis connection and
+    acquire a distributed lock on every single call just to read two cache
+    keys it usually already knows the answer to from the local `processes`
+    dict - these tests lock in the fast, unlocked path added to fix that,
+    and confirm the locked path is still taken when a dispatch decision is
+    genuinely needed.
+    """
+
+    def teardown_method(self):
+        ppp.processes.clear()
+
+    @patch("position_processor_process.redis_lock.Lock")
+    @patch("position_processor_process.is_dispatch_pending", return_value=False)
+    @patch("position_processor_process.is_calculator_running", return_value=True)
+    def test_skips_lock_when_already_known_running(self, mock_running, mock_pending, mock_lock_cls):
+        contestant = MagicMock()
+        contestant.pk = 900001
+        fake_queue = MagicMock()
+        ppp.processes[contestant.pk] = (fake_queue, None)
+
+        add_positions_to_calculator(contestant, [{"id": 1}, {"id": 2}])
+
+        mock_lock_cls.assert_not_called()
+        assert fake_queue.append.call_count == 2
+
+    @patch("position_processor_process.redis_lock.Lock")
+    @patch("position_processor_process.is_dispatch_pending", return_value=False)
+    @patch("position_processor_process.is_calculator_running", return_value=False)
+    def test_still_appends_positions_when_running_but_not_yet_confirmed(
+        self, mock_running, mock_pending, mock_lock_cls
+    ):
+        # key already in `processes` (a task was dispatched) but the
+        # heartbeat/pending signals both read False right now - this must
+        # still take the locked path (a real dead-calculator recovery could
+        # be needed), not silently skip dispatch.
+        contestant = MagicMock()
+        contestant.pk = 900002
+        fake_queue = MagicMock()
+        ppp.processes[contestant.pk] = (fake_queue, None)
+
+        with patch("position_processor_process.settings") as mock_settings:
+            mock_settings.CALCULATOR_DISPATCH_VIA_CELERY = False
+            with (
+                patch("position_processor_process.RedisQueue", return_value=MagicMock()),
+                patch("position_processor_process.Process"),
+                patch("position_processor_process.calculator_is_alive"),
+                patch("position_processor_process._get_dispatch_lock_connection"),
+            ):
+                add_positions_to_calculator(contestant, [])
+
+        mock_lock_cls.assert_called_once()
+
+    @patch("position_processor_process.redis_lock.Lock")
+    @patch("position_processor_process._get_dispatch_lock_connection")
+    @patch("position_processor_process.is_dispatch_pending", return_value=False)
+    @patch("position_processor_process.is_calculator_running", return_value=False)
+    def test_acquires_lock_on_first_dispatch(self, mock_running, mock_pending, mock_conn, mock_lock_cls):
+        contestant = MagicMock()
+        contestant.pk = 900003
+        # Not in processes at all - genuinely the first sighting of this contestant.
+        assert contestant.pk not in ppp.processes
+
+        with patch("position_processor_process.settings") as mock_settings:
+            mock_settings.CALCULATOR_DISPATCH_VIA_CELERY = False
+            with patch("position_processor_process.RedisQueue", return_value=MagicMock()), patch(
+                "position_processor_process.Process"
+            ), patch("position_processor_process.calculator_is_alive"):
+                add_positions_to_calculator(contestant, [])
+
+        mock_lock_cls.assert_called_once()
+        mock_conn.assert_called_once()

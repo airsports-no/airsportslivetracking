@@ -1,35 +1,40 @@
 import datetime
+import itertools
 import logging
 from queue import Queue
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from display.calculators.calculator import (
-    Calculator,
-    OrchestratorState,
-    OrchestratorEvent,
-    GatePassedEvent,
-    GateMissedEvent,
-    TakeoffPassedEvent,
-    LandingPassedEvent,
-    StartingLinePassedEvent,
-    StartingLineExtendedPassedWrongDirectionEvent,
     AdaptiveStartEvent,
+    Calculator,
     EstimationUpdatedEvent,
-    InRangeUpdatedEvent,
     FinishLinePassedEvent,
+    GateMissedEvent,
+    GatePassedEvent,
+    InRangeUpdatedEvent,
+    LandingPassedEvent,
     NextGateExpectedEvent,
+    OrchestratorEvent,
+    OrchestratorState,
+    StartingLineExtendedPassedWrongDirectionEvent,
+    StartingLinePassedEvent,
+    TakeoffPassedEvent,
 )
 from display.calculators.calculator_utilities import round_time_minute
 from display.calculators.positions_and_gates import Gate, round_seconds
 from display.calculators.update_score_message import UpdateScoreMessage
-from display.models.contestant_utility_models import ContestantReceivedPosition
-from display.models import ANOMALY, INFORMATION
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
-from display.utilities.gate_definitions import CIRCLE_CENTER, CIRCLE_ENTRY, CIRCLE_EXIT, CIRCLE_START
-from websocket_channels import WebsocketFacade
-from display.utilities.coordinate_utilities import calculate_distance_lat_lon, calculate_speed_between_points, extend_line
-from display.utilities.route_building_utilities import calculate_extended_gate
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
+from display.models import ANOMALY, INFORMATION
+from display.models.contestant_utility_models import ContestantReceivedPosition
+from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.coordinate_utilities import (
+    calculate_distance_lat_lon,
+    calculate_speed_between_points,
+    extend_line,
+)
+from display.utilities.gate_definitions import CIRCLE_CENTER, CIRCLE_ENTRY, CIRCLE_EXIT, CIRCLE_START
+from display.utilities.route_building_utilities import calculate_extended_gate
+from websocket_channels import WebsocketFacade
 
 logger = logging.getLogger(__name__)
 
@@ -195,13 +200,16 @@ class GateCalculator(Calculator):
                 gate.missed,
             )
 
-    def calculate_speed(self, track: List[ContestantReceivedPosition]) -> float:
+    def calculate_speed(self, track: Sequence[ContestantReceivedPosition]) -> float:
         if len(track) < 2:
             return self.contestant.air_speed  # Fallback to planned speed
 
-        # Calculate speed over the last 10 seconds or so
+        # Calculate speed over the last 10 seconds or so.
+        # track[:-1] then reversed(...) would break once track became a
+        # bounded deque (no slicing support) - itertools.islice(reversed(track), 1, None)
+        # is the O(1)-memory equivalent for both list and deque.
         last_pos = track[-1]
-        for pos in reversed(track[:-1]):
+        for pos in itertools.islice(reversed(track), 1, None):
             if (last_pos.time - pos.time).total_seconds() >= 10:
                 speed = calculate_speed_between_points(
                     (pos.latitude, pos.longitude), (last_pos.latitude, last_pos.longitude), pos.time, last_pos.time
@@ -212,7 +220,7 @@ class GateCalculator(Calculator):
         return self.contestant.air_speed
 
     def estimate_crossing_time_of_next_timed_gate(
-        self, track: List[ContestantReceivedPosition], state: OrchestratorState
+        self, track: Sequence[ContestantReceivedPosition], state: OrchestratorState
     ) -> Optional[EstimationUpdatedEvent]:
         # OrchestratorState.next_gate is updated by our events
         if state.next_gate is None:
@@ -260,7 +268,7 @@ class GateCalculator(Calculator):
 
     def calculate_enroute(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         events = self.check_intersections(track, state)
@@ -294,7 +302,7 @@ class GateCalculator(Calculator):
 
     def calculate_outside_route(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         events = self.check_intersections(track, state)
@@ -304,7 +312,7 @@ class GateCalculator(Calculator):
         return events
 
     def check_intersections(
-        self, track: List[ContestantReceivedPosition], state: OrchestratorState
+        self, track: Sequence[ContestantReceivedPosition], state: OrchestratorState
     ) -> List[OrchestratorEvent]:
         """
         Detection logic using OrchestratorState.
@@ -411,7 +419,7 @@ class GateCalculator(Calculator):
         return events
 
     def check_gate_in_range(
-        self, track: List[ContestantReceivedPosition], state: OrchestratorState, events: List[OrchestratorEvent]
+        self, track: Sequence[ContestantReceivedPosition], state: OrchestratorState, events: List[OrchestratorEvent]
     ):
         if len(self.outstanding_gates) == 0 or len(track) == 0:
             return
@@ -484,7 +492,7 @@ class GateCalculator(Calculator):
             prev = gate
         self.outstanding_gates = []
 
-    def finalise(self, track: List[ContestantReceivedPosition]):
+    def finalise(self, track: Sequence[ContestantReceivedPosition]):
         # Catch any remaining missed gates at the very end of processing
         for gate in self.gates:
             if not gate.has_been_passed() and not gate.missed and (gate.name, GATE_SCORE_TYPE) not in self.scored_gates:

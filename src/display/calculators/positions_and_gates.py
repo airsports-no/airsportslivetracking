@@ -1,16 +1,16 @@
 import logging
 import math
-from datetime import timedelta, datetime
-from typing import Tuple, List, Optional
+from datetime import datetime, timedelta
+from typing import List, Optional, Sequence, Tuple
 
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import (
-    fraction_of_leg,
-    calculate_bearing,
     Projector,
     bearing_difference,
-    point_to_line_distance,
+    calculate_bearing,
     euclidean_point_to_line_distance,
+    fraction_of_leg,
+    point_to_line_distance,
 )
 from display.waypoint import Waypoint
 
@@ -119,7 +119,7 @@ class Gate:
         return False
 
     def get_gate_intersection_time(
-        self, projector: Projector, track: List[ContestantReceivedPosition]
+        self, projector: Projector, track: Sequence[ContestantReceivedPosition]
     ) -> Optional[datetime]:
         if len(track) > 2:
             # Fast path: check distance to gate center
@@ -148,7 +148,7 @@ class Gate:
         return None
 
     def get_gate_infinite_intersection_time(
-        self, projector: Projector, track: List[ContestantReceivedPosition]
+        self, projector: Projector, track: Sequence[ContestantReceivedPosition]
     ) -> Optional[datetime]:
         if len(track) > 2:
             if not self.projected_gate_line_infinite:
@@ -163,7 +163,7 @@ class Gate:
         return None
 
     def get_gate_extended_intersection_time(
-        self, projector: Projector, track: List[ContestantReceivedPosition]
+        self, projector: Projector, track: Sequence[ContestantReceivedPosition]
     ) -> Optional[datetime]:
         if len(track) > 2 and self.projected_gate_line_extended:
             return get_intersect_time(
@@ -222,7 +222,7 @@ class MultiGate:
             gate.expected_time = expected_time
 
     def get_gate_intersection_time(
-        self, projector: Projector, track: List[ContestantReceivedPosition]
+        self, projector: Projector, track: Sequence[ContestantReceivedPosition]
     ) -> Optional[datetime]:
         for gate in self.gates:
             intersection_time = gate.get_gate_intersection_time(projector, track)

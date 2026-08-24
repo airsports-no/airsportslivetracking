@@ -1,22 +1,24 @@
-import time
-from multiprocessing import Queue, Process
-
-import os
-from queue import Empty
-from typing import List, Dict, Tuple, Optional
-
-import logging
-
 import datetime
+import logging
+import os
+import time
+from multiprocessing import Process, Queue
+from queue import Empty
+from typing import Dict, List, Optional, Tuple
+
 import dateutil
 import redis_lock
-from redis.client import Redis
-
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
+from redis.client import Redis
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from display.utilities.calculator_running_utilities import is_calculator_running, calculator_is_alive
+from display.utilities.calculator_running_utilities import (
+    calculator_dispatch_pending,
+    calculator_is_alive,
+    is_calculator_running,
+    is_dispatch_pending,
+)
 from display.utilities.calculator_termination_utilities import is_termination_requested
 from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map import settings
@@ -29,9 +31,9 @@ if __name__ == "__main__":
     django.setup()
 
 from django.core.cache import cache
-from django.db import connections, OperationalError, connection
-from display.calculators.contestant_processor import ContestantProcessor
+from django.db import OperationalError, connection, connections
 
+from display.calculators.contestant_processor import ContestantProcessor
 from display.models import Contestant
 from traccar_facade import Traccar
 
@@ -162,13 +164,49 @@ def calculator_process(contestant_pk: int):
         logger.warning(f"Attempting to start new calculator for terminated contestant {contestant}")
 
 
+_dispatch_lock_connection = None
+
+
+def _get_dispatch_lock_connection() -> Redis:
+    # Lazily built once per process and reused, instead of constructing a
+    # fresh Redis client (and therefore a fresh connection pool) on every
+    # single call to add_positions_to_calculator - this function used to run
+    # once per contestant per incoming position batch, i.e. continuously for
+    # the whole flight, not just on first dispatch.
+    global _dispatch_lock_connection
+    if _dispatch_lock_connection is None:
+        _dispatch_lock_connection = Redis(settings.REDIS_HOST, settings.REDIS_PORT, 2, password=settings.REDIS_PASSWORD)
+    return _dispatch_lock_connection
+
+
 def add_positions_to_calculator(contestant: Contestant, positions: List):
     global processes
     key = contestant.pk
 
-    conn = Redis(settings.REDIS_HOST, settings.REDIS_PORT, 2, password=settings.REDIS_PASSWORD)
+    # Fast, unlocked path: once a contestant's calculator is dispatched, every
+    # subsequent position batch for the rest of the flight takes this branch.
+    # Correctness doesn't depend on the lock here - we're not making a dispatch
+    # decision, just confirming one isn't needed and appending positions - so
+    # skip the distributed lock and its Redis round trips entirely rather than
+    # doing that unconditionally on every call, as before.
+    if key in processes and (is_calculator_running(key) or is_dispatch_pending(key)):
+        redis_queue = processes[key][0]
+        for position in positions:
+            redis_queue.append(position)
+        return
+
+    conn = _get_dispatch_lock_connection()
     with redis_lock.Lock(conn, f"calculator_dispatch_{contestant.pk}"):
-        if key not in processes or not is_calculator_running(key):
+        # Re-check under the lock: the unlocked read above can be stale - a
+        # concurrent call may have dispatched (or the heartbeat may have
+        # landed) between that read and acquiring the lock here.
+        # is_calculator_running: the live processor's own heartbeat says it is
+        # already processing positions. is_dispatch_pending: a task was handed
+        # to Celery recently and may not have started yet - without this,
+        # every call in the up-to-300s window between dispatch and the first
+        # heartbeat would look like "nothing running" and dispatch a duplicate.
+        already_starting_or_running = is_calculator_running(key) or is_dispatch_pending(key)
+        if key not in processes or not already_starting_or_running:
 
             def start_internal_calculator():
                 p = Process(target=calculator_process, args=(contestant.pk,), daemon=True)
@@ -177,14 +215,26 @@ def add_positions_to_calculator(contestant: Contestant, positions: List):
                 processes[key] = (q, p)
 
             q = RedisQueue(str(contestant.pk))
-            if settings.PRODUCTION:
+            if settings.CALCULATOR_DISPATCH_VIA_CELERY:
                 # Dispatch the calculator as a Celery task on the dedicated live_calculator queue
                 from display.tasks import run_live_contestant_calculator
 
                 processes[key] = (q, None)
-                calculator_is_alive(contestant.pk, 300)  # Give it five minutes to spin up
+                calculator_dispatch_pending(contestant.pk, 300)  # Give it five minutes to spin up
                 run_live_contestant_calculator.apply_async(args=(contestant.pk,), queue="live_calculator")
                 logger.info(f"Dispatched live calculator task for {contestant}")
+
+                # A contestant created with an immediate tracker_start_time
+                # (no lead time) can be dispatched while calculator_pool_scaler's
+                # periodic reconcile hasn't yet had reason to scale the pool up
+                # from zero - this nudges it awake right now instead of
+                # leaving the task queued for up to a minute of poll interval
+                # plus pod boot time. Only fires on this contestant's first
+                # dispatch (guarded by already_starting_or_running above), not
+                # per position.
+                from calculator_pool_scaler import wake_pool_if_cold
+
+                wake_pool_if_cold()
             else:
                 start_internal_calculator()
     redis_queue = processes[key][0]

@@ -491,6 +491,32 @@ class TestGateCalculator(CalculatorUnitTestBase):
         self.assertEqual(self.waypoint1.expected_time, recalculated_times["WP1"])
         self.assertEqual(self.score_processing_queue.put_nowait.call_count, 1)
 
+    def test_calculate_speed_matches_for_list_and_bounded_deque(self):
+        """
+        Orchestrator.track became a bounded collections.deque (see
+        TRACK_HISTORY_LENGTH in orchestrator.py) so per-contestant memory
+        stays flat regardless of how long a calculator runs. calculate_speed
+        used to slice track (`track[:-1]`), which deque does not support, and
+        was rewritten with itertools.islice(reversed(track), 1, None) - this
+        locks that the rewrite returns the same result as the original
+        slicing for an equivalent plain list, and that it works identically
+        for a deque holding the same trailing window.
+        """
+        start = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        positions = [
+            self.create_position(60 + 0.0001 * i, 11, start + datetime.timedelta(seconds=i)) for i in range(20)
+        ]
+
+        speed_from_list = self.calculator.calculate_speed(positions)
+
+        from collections import deque
+
+        bounded = deque(positions, maxlen=len(positions))
+        speed_from_deque = self.calculator.calculate_speed(bounded)
+
+        self.assertEqual(speed_from_list, speed_from_deque)
+        self.assertGreater(speed_from_list, 10)  # sanity: these positions are moving
+
 
 class TestAnrCorridorCalculator(CalculatorUnitTestBase):
     def setUp(self):

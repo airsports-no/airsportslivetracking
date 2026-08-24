@@ -32,18 +32,34 @@ spec:
         runAsNonRoot: true
         runAsUser: 200
         fsGroup: 200
+      # Preferred, not required: this pool now holds a whole task's contestants in
+      # one pod (see command below), so it should still pack onto the spot nodes
+      # tracker-celery/tracker-processor already hold when spot is available, but
+      # schedule onto general-purpose capacity rather than sit Pending when it
+      # isn't - a Pending pool at contest start is worse than a slightly pricier
+      # on-demand one.
       affinity:
         nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
                   - key: cloud.google.com/gke-spot
                     operator: In
                     values:
                       - "true"
       containers:
-      - image: europe-west3-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
-        command: [ "bash", "-c", "celery -A live_tracking_map worker -Q live_calculator -l DEBUG --concurrency 1 --without-mingle" ]
+      - image: europe-north1-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
+        # --concurrency: one prefork worker process per contestant - 12 in flight
+        # simultaneously is comfortably under the request (see helm/values.yaml
+        # for the sizing reasoning); the limit sits well above the request so a
+        # correlated per-second spike bursts instead of being CFS-throttled.
+        # Must match .Values.liveCalculator.slotsPerPod, which
+        # src/calculator_pool_scaler.py uses to translate scheduled/running
+        # contestant counts into replica counts.
+        # --without-gossip/--without-heartbeat: this pool never needs to see other
+        # workers - it only ever consumes the live_calculator queue alone.
+        command: [ "bash", "-c", "celery -A live_tracking_map worker -Q live_calculator -l INFO --concurrency={{ .Values.liveCalculator.concurrency }} --without-mingle --without-gossip --without-heartbeat" ]
         name: live-calculator
         envFrom:
           - configMapRef:
@@ -52,11 +68,11 @@ spec:
               name: pw-secrets
         resources:
           requests:
-            cpu: 400m
-            memory: 500Mi
+            cpu: {{ .Values.liveCalculator.requestCpu }}
+            memory: {{ .Values.liveCalculator.requestMemory }}
           limits:
-            cpu: 400m
-            memory: 500Mi
+            cpu: {{ .Values.liveCalculator.limitCpu }}
+            memory: {{ .Values.liveCalculator.limitMemory }}
         volumeMounts:
           - mountPath: /secret
             readOnly: true

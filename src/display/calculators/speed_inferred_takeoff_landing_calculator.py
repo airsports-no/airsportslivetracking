@@ -1,12 +1,12 @@
 import logging
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from display.calculators.calculator import (
     Calculator,
-    OrchestratorState,
-    OrchestratorEvent,
-    TakeoffPassedEvent,
     LandingPassedEvent,
+    OrchestratorEvent,
+    OrchestratorState,
+    TakeoffPassedEvent,
 )
 from display.calculators.positions_and_gates import Gate
 from display.models.contestant_utility_models import ContestantReceivedPosition
@@ -83,13 +83,17 @@ class SpeedInferredTakeoffLandingCalculator(Calculator):
         gate.pre_project(self.projector)
         return gate
 
-    def calculate_enroute(self, track: List[ContestantReceivedPosition], state: OrchestratorState) -> List[OrchestratorEvent]:
+    def calculate_enroute(
+        self, track: Sequence[ContestantReceivedPosition], state: OrchestratorState
+    ) -> List[OrchestratorEvent]:
         return self._check_transitions(track)
 
-    def calculate_outside_route(self, track: List[ContestantReceivedPosition], state: OrchestratorState) -> List[OrchestratorEvent]:
+    def calculate_outside_route(
+        self, track: Sequence[ContestantReceivedPosition], state: OrchestratorState
+    ) -> List[OrchestratorEvent]:
         return self._check_transitions(track)
 
-    def _check_transitions(self, track: List[ContestantReceivedPosition]) -> List[OrchestratorEvent]:
+    def _check_transitions(self, track: Sequence[ContestantReceivedPosition]) -> List[OrchestratorEvent]:
         if not track:
             return []
         position = track[-1]
@@ -136,5 +140,5 @@ class SpeedInferredTakeoffLandingCalculator(Calculator):
 
         return events
 
-    def finalise(self, track: List[ContestantReceivedPosition]):
+    def finalise(self, track: Sequence[ContestantReceivedPosition]):
         return None

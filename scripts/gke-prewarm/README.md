@@ -3,9 +3,22 @@
 This directory contains scripts to prepare the Air Sports Live Tracking (ASLT) cluster for days with high concurrent scoring activity (e.g., major competitions).
 
 ## Why is this needed?
-Calculator jobs in ASLT are created on-demand as Kubernetes Jobs. In GKE Autopilot, this can lead to "cold start" delays of 1-2 minutes while new nodes are provisioned for each wave of contestants. 
+In GKE Autopilot, scaling up a Deployment can mean a "cold start" delay of 1-2 minutes while a
+new node is provisioned. This directory's buffer covers that for `tracker-app`/`tracker-celery`
+bursts.
 
-By using "Pause Pods," we force GKE to provision nodes in advance. These pods have a lower priority than real calculator jobs, so they will be immediately preempted when a real job needs the resources.
+The live-calculator pool (per-contestant scoring, `helm/templates/deployment_live_calculator.yaml`)
+is a separate concern with its own answer: `src/calculator_pool_scaler.py` runs inside
+`tracker-processor` and scales that Deployment ahead of each contestant's scheduled
+`tracker_start_time` (see `CALCULATOR_POOL_PREWARM_MINUTES` in `helm/values.yaml`), so it is
+already warm well before the node-provisioning window matters - no buffer pods needed there. For
+an unusually large event, `kubectl scale deployment live-calculator --replicas=N` overrides the
+scaler's own count by hand (the scaler will take it back over on its next poll, so re-run this if
+you need it held past that).
+
+By using "Pause Pods" for the tracker-app/tracker-celery case, we force GKE to provision nodes in
+advance. These pods have a lower priority than real service pods, so they will be immediately
+preempted when a real pod needs the resources.
 
 ## Usage
 
@@ -18,6 +31,11 @@ Run this script 30-60 minutes before the competition starts.
 
 # Prewarm with a specific number of slots (e.g., 100)
 ./prewarm.sh 100
+
+# Also override the live-calculator pool's replica count (rarely needed -
+# see "Why is this needed?" above; the scaler takes this back over on its
+# next poll)
+./prewarm.sh 100 8
 ```
 
 This script:

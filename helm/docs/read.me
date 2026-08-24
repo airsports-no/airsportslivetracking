@@ -21,20 +21,12 @@ gcloud container clusters get-credentials airsports-cluster --region=europe-nort
 helm upgrade --install airsportsrelease . -f private_values.yaml --namespace default
 
 
-# KEDA (autoscaling for live-calculator, see helm/templates/keda_scaledobject_live_calculator.yaml)
-# webhooks disabled: it only pre-validates ScaledObject/ScaledJob specs at apply time
-# (we already validate via `helm template` locally), and each KEDA pod costs a full
-# 250m CPU minimum on Autopilot regardless of actual usage, so cutting one pod is a
-# real, free saving. operator/metricsServer placed on spot nodes, same as
-# tracker-celery/live-calculator - a brief gap in KEDA availability during a spot
-# preemption only delays autoscaling reaction, it doesn't touch running Deployments.
-# Kept as its own release, independent of cloudbuild-deploy.yaml's per-commit app
-# deploy - cluster-scoped CRDs/RBAC that change rarely shouldn't ride along with
-# routine app deploys.
-helm repo add kedacore https://kedacore.github.io/charts
-helm repo update
-kubectl create namespace keda
-helm install keda kedacore/keda --namespace keda \
-  --set webhooks.enabled=false \
-  --set 'operator.nodeSelector.cloud\.google\.com/gke-spot=true' \
-  --set 'metricsServer.nodeSelector.cloud\.google\.com/gke-spot=true'
+# KEDA was evaluated for autoscaling live-calculator and removed again: each KEDA
+# pod costs a full 250m CPU minimum on Autopilot regardless of actual usage, and its
+# redis-queue-depth trigger can only react after a task is already queued - it can't
+# pre-warm ahead of a known contest start. Both jobs are now done by a scheduler
+# thread inside tracker-processor (src/calculator_pool_scaler.py), which reads
+# Contestant.tracker_start_time directly and scales the live-calculator Deployment
+# via the Kubernetes API - no separate autoscaler component, no idle cost. If KEDA
+# is ever reintroduced, uninstall first:
+#   helm uninstall keda -n keda && kubectl delete namespace keda
