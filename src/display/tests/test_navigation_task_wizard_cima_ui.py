@@ -9,16 +9,25 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.forms import NavigationTaskForm
 from display.forms_wizards import ContestSelectForm, TaskTypeForm
-from display.models import Contest, EditableRoute, Route, Club, ClubManagerMembership, AccessGrant, TokenType, UserTokenGrant
+from display.models import (
+    AccessGrant,
+    Club,
+    ClubManagerMembership,
+    Contest,
+    EditableRoute,
+    Route,
+    TokenType,
+    UserTokenGrant,
+)
 from display.services.capacity_enforcement import assert_can_add_navigation_task
-from display.utilities.cima_task_type_definitions import ANR_CATALOGUE, CONTRACT_NAVIGATION_TIME_CONTROLS, CIRCLE
+from display.utilities.cima_task_type_definitions import ANR_CATALOGUE, CIRCLE, CONTRACT_NAVIGATION_TIME_CONTROLS
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
 from display.views_wizards import NewNavigationTaskWizard, RouteToTaskWizard
-from rest_framework.exceptions import ValidationError as DRFValidationError
 
 
 class TestNavigationTaskWizardCimaUi(TestCase):
@@ -36,6 +45,57 @@ class TestNavigationTaskWizardCimaUi(TestCase):
             created_by=self.user,
         )
         self.editable_route = EditableRoute.objects.create(name="Wizard Route", route={"features": []})
+        # A route authored with the four circle markers the CIRCLE (2.A7) subtype requires - see
+        # display.services.route_compatibility - distinct from self.editable_route above, which is
+        # deliberately empty for tests that only exercise permission/entitlement gating.
+        self.circle_editable_route = EditableRoute.objects.create(
+            name="Wizard Circle Route",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cm-1",
+                            "name": "CM",
+                            "pointType": "circle_center",
+                            "featureType": "circle_center_marker",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cs-1",
+                            "name": "SP",
+                            "pointType": "circle_start",
+                            "featureType": "circle_start_marker",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "ce-1",
+                            "name": "X",
+                            "pointType": "circle_entry",
+                            "featureType": "circle_entry_marker",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.15, 60.15]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cx-1",
+                            "name": "WP",
+                            "pointType": "circle_exit",
+                            "featureType": "circle_exit_marker",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
+                    },
+                ],
+            },
+        )
 
     def _flatten_choice_values(self, choices):
         values = []
@@ -79,8 +139,12 @@ class TestNavigationTaskWizardCimaUi(TestCase):
         club = Club.objects.create(name="Wizard club")
         self.contest.organizing_club = club
         self.contest.save(update_fields=["organizing_club"])
-        ClubManagerMembership.objects.create(club=club, user=self.user, role=ClubManagerMembership.OWNER, is_active=True)
-        AccessGrant.objects.create(club=club, status=AccessGrant.ACTIVE, contestant_limit=None, task_type_groups=["cima"])
+        ClubManagerMembership.objects.create(
+            club=club, user=self.user, role=ClubManagerMembership.OWNER, is_active=True
+        )
+        AccessGrant.objects.create(
+            club=club, status=AccessGrant.ACTIVE, contestant_limit=None, task_type_groups=["cima"]
+        )
 
         form = NavigationTaskForm(task_family=PRECISION, user=self.user)
         subtype_values = self._flatten_choice_values(form.fields["task_subtype"].choices)
@@ -196,7 +260,9 @@ class TestNavigationTaskWizardCimaUi(TestCase):
                 "navigation_task_name": "ANR Task",
             }
         }.get(step)
-        form = NavigationTaskForm(task_family=ANR_CORRIDOR, initial=wizard.get_form_initial("task_content"), user=self.user)
+        form = NavigationTaskForm(
+            task_family=ANR_CORRIDOR, initial=wizard.get_form_initial("task_content"), user=self.user
+        )
         context = wizard.get_context_data(form=form)
         queryset = context["form"].fields["original_scorecard"].queryset
         self.assertTrue(queryset.filter(name="FAI ANR 2022").exists())
@@ -282,7 +348,7 @@ class TestNavigationTaskWizardCimaUi(TestCase):
                 "original_scorecard": MagicMock(use_procedure_turns=True),
             },
             "precision_route_import": {
-                "internal_route": self.editable_route,
+                "internal_route": self.circle_editable_route,
             },
         }.get(step)
 
@@ -309,7 +375,7 @@ class TestNavigationTaskWizardCimaUi(TestCase):
                 "original_scorecard": MagicMock(use_procedure_turns=True),
             },
             "precision_route_import": {
-                "internal_route": self.editable_route,
+                "internal_route": self.circle_editable_route,
             },
         }.get(step)
 
@@ -321,4 +387,4 @@ class TestNavigationTaskWizardCimaUi(TestCase):
         self.assertEqual(route.takeoff_gates, [])
         self.assertEqual(route.landing_gates, [])
         self.assertFalse(route.use_procedure_turns)
-        self.assertEqual(editable_route, self.editable_route)
+        self.assertEqual(editable_route, self.circle_editable_route)

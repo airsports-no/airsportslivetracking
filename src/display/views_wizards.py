@@ -1,10 +1,10 @@
 import os
 from typing import Optional
 
+from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage
-from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
@@ -12,53 +12,95 @@ from django.urls import reverse
 from django.utils import timezone
 from formtools.wizard.views import SessionWizardView
 from guardian.mixins import PermissionRequiredMixin as GuardianPermissionRequiredMixin
-from django import forms
 from guardian.shortcuts import get_objects_for_user
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from display.forms import NavigationTaskForm, ContestForm, TrackingDataForm, PersonForm
-from display.services.token_assignment import assign_token_to_contest
-from display.services.capacity_enforcement import assert_can_add_navigation_task
-from display.services.task_type_visibility import can_user_see_cima_task_types
+from display.forms import ContestForm, NavigationTaskForm, PersonForm, TrackingDataForm
 from display.forms_wizards import (
-    TaskTypeForm,
-    ANRCorridorImportRouteForm,
+    AeroplaneSearchForm,
     AirsportsImportRouteForm,
-    PrecisionImportRouteForm,
-    LandingImportRouteForm,
-    ContestSelectForm,
-    ANRCorridorParametersForm,
     AirsportsParametersForm,
+    ANRCorridorImportRouteForm,
+    ANRCorridorParametersForm,
+    ClubSearchForm,
+    ContestSelectForm,
+    LandingImportRouteForm,
     Member1SearchForm,
     Member2SearchForm,
-    AeroplaneSearchForm,
-    ClubSearchForm,
+    PrecisionImportRouteForm,
+    TaskTypeForm,
     _task_template_choices,
 )
 from display.models import (
-    Contest,
-    Scorecard,
-    Route,
-    EditableRoute,
-    NavigationTask,
-    Team,
-    Person,
-    Crew,
     Aeroplane,
     Club,
+    Contest,
     ContestTeam,
+    Crew,
+    EditableRoute,
+    NavigationTask,
+    Person,
+    Route,
+    Scorecard,
+    Team,
     UserTokenGrant,
 )
+from display.services.capacity_enforcement import assert_can_add_navigation_task
+from display.services.route_compatibility import extract_route_primitives, get_blocking_reasons
+from display.services.task_type_visibility import can_user_see_cima_task_types
+from display.services.token_assignment import assign_token_to_contest
 from display.templatetags.frontend_urls import fe_url
-from display.utilities.navigation_task_type_definitions import (
-    PRECISION,
-    POKER,
-    ANR_CORRIDOR,
-    AIRSPORTS,
-    AIRSPORT_CHALLENGE,
-    LANDING,
+from display.utilities.cima_task_type_definitions import (
+    LEGACY_DEFAULT_SUBTYPE_BY_FAMILY,
+    NO_BACKBONE_TASK_SUBTYPES,
+    get_task_subtype_definition,
 )
-from display.utilities.cima_task_type_definitions import NO_BACKBONE_TASK_SUBTYPES
+from display.utilities.navigation_task_type_definitions import (
+    AIRSPORT_CHALLENGE,
+    AIRSPORTS,
+    ANR_CORRIDOR,
+    LANDING,
+    POKER,
+    PRECISION,
+)
 from live_tracking_map import settings
+
+
+def _effective_subtype_key(task_type: str, task_subtype: str | None) -> str:
+    """The task subtype key the compatibility ruleset should be checked against: the explicit
+    CIMA subtype if one was chosen, otherwise the legacy shim for the coarse task_type family."""
+    return task_subtype or LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(task_type, task_type)
+
+
+def _no_compatible_routes_message(subtype_key: str) -> str:
+    """
+    Explain why the internal_route picker is empty for the already-chosen task type, instead of
+    just rendering an empty dropdown with no explanation.
+    """
+    definition = get_task_subtype_definition(subtype_key)
+    parts = []
+    if definition.required_primitives:
+        parts.append("requires: " + ", ".join(definition.required_primitives))
+    if definition.forbidden_primitives:
+        parts.append("must not have: " + ", ".join(definition.forbidden_primitives))
+    requirement_text = "; ".join(parts) if parts else "no specific route features"
+    return (
+        "None of the routes you can edit currently support this task type "
+        f"(it {requirement_text}). Edit an existing route to add what's missing, or create a new one."
+    )
+
+
+def _assert_route_compatible_with_task_type(editable_route: EditableRoute, task_type: str, task_subtype: str | None):
+    """
+    Defense in depth: re-check compatibility server-side before building a Route, so a
+    hand-crafted POST cannot bypass the filtered task_template/internal_route choices.
+    """
+    subtype_key = _effective_subtype_key(task_type, task_subtype)
+    reasons = get_blocking_reasons(extract_route_primitives(editable_route), subtype_key)
+    if reasons:
+        raise ValidationError(
+            f"Route '{editable_route.name}' is not compatible with the selected task type: " + "; ".join(reasons)
+        )
 
 
 def show_precision_path(wizard) -> bool:
@@ -179,6 +221,7 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
         if task_type in (PRECISION, POKER):
             initial_step_data = self.get_cleaned_data_for_step("precision_route_import")
             internal_route = initial_step_data["internal_route"]
+            _assert_route_compatible_with_task_type(internal_route, task_type, task_subtype)
             if task_subtype in NO_BACKBONE_TASK_SUBTYPES:
                 route = Route.objects.create(
                     name=internal_route.name,
@@ -189,24 +232,32 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
                 )
                 internal_route.amend_route_with_additional_features(route)
             else:
-                use_procedure_turns = self.get_cleaned_data_for_step("task_content")["original_scorecard"].use_procedure_turns
+                use_procedure_turns = self.get_cleaned_data_for_step("task_content")[
+                    "original_scorecard"
+                ].use_procedure_turns
                 route = internal_route.create_precision_route(use_procedure_turns, scorecard)
             editable_route = internal_route
         elif task_type == ANR_CORRIDOR:
             initial_step_data = self.get_cleaned_data_for_step("anr_route_import")
+            internal_route = initial_step_data["internal_route"]
+            _assert_route_compatible_with_task_type(internal_route, task_type, task_subtype)
             rounded_corners = initial_step_data["rounded_corners"]
             corridor_width = initial_step_data["corridor_width"]
-            route = initial_step_data["internal_route"].create_anr_route(rounded_corners, corridor_width, scorecard)
-            editable_route = initial_step_data["internal_route"]
+            route = internal_route.create_anr_route(rounded_corners, corridor_width, scorecard)
+            editable_route = internal_route
         elif task_type in (AIRSPORTS, AIRSPORT_CHALLENGE):
             initial_step_data = self.get_cleaned_data_for_step("airsports_route_import")
+            internal_route = initial_step_data["internal_route"]
+            _assert_route_compatible_with_task_type(internal_route, task_type, task_subtype)
             rounded_corners = initial_step_data["rounded_corners"]
-            route = initial_step_data["internal_route"].create_airsports_route(rounded_corners, scorecard)
-            editable_route = initial_step_data["internal_route"]
+            route = internal_route.create_airsports_route(rounded_corners, scorecard)
+            editable_route = internal_route
         elif task_type == LANDING:
             initial_step_data = self.get_cleaned_data_for_step("landing_route_import")
-            route = initial_step_data["internal_route"].create_landing_route()
-            editable_route = initial_step_data["internal_route"]
+            internal_route = initial_step_data["internal_route"]
+            _assert_route_compatible_with_task_type(internal_route, task_type, task_subtype)
+            route = internal_route.create_landing_route()
+            editable_route = internal_route
         return route, editable_route
 
     def done(self, form_list, **kwargs):
@@ -261,9 +312,25 @@ class NewNavigationTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOver
             form.visible_cima = can_user_see_cima_task_types(self.request.user)
         if current_step == "task_content":
             selected = self.get_cleaned_data_for_step("task_type") or {}
-            form = self.form_list[current_step](data=data, files=files, prefix=self.get_form_prefix(current_step, self.form_list[current_step]), initial=self.get_form_initial(current_step), task_family=selected.get("task_type"), user=self.request.user)
+            form = self.form_list[current_step](
+                data=data,
+                files=files,
+                prefix=self.get_form_prefix(current_step, self.form_list[current_step]),
+                initial=self.get_form_initial(current_step),
+                task_family=selected.get("task_type"),
+                user=self.request.user,
+            )
         if "internal_route" in form.fields:
-            form.fields["internal_route"].queryset = EditableRoute.get_for_user(self.request.user)
+            queryset = EditableRoute.get_for_user(self.request.user)
+            task_step = self.get_cleaned_data_for_step("task_type") or {}
+            if task_step.get("task_type"):
+                subtype_key = _effective_subtype_key(task_step["task_type"], task_step.get("task_subtype"))
+                # Hard filter, matching RouteToTaskWizard: since the task type is already chosen
+                # at this point, only offer routes whose authored content actually supports it.
+                queryset = queryset.filter(compatible_task_types__contains=[subtype_key])
+                if not queryset.exists():
+                    form.fields["internal_route"].help_text = _no_compatible_routes_message(subtype_key)
+            form.fields["internal_route"].queryset = queryset
         return form
 
     def get_form_initial(self, step):
@@ -333,8 +400,6 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
                 "display.change_contest",
                 accept_global_perms=False,
             ).order_by("name")
-            form.fields["task_template"].choices = _task_template_choices(self.request.user)
-            form.visible_cima = can_user_see_cima_task_types(self.request.user)
         if self.steps.current == "task_content":
             selected = self.get_cleaned_data_for_step("contest_selection") or {}
             useful_cards = []
@@ -357,15 +422,29 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
                 task_family=selected.get("task_type"),
                 user=self.request.user,
             )
+        if current_step == "contest_selection":
+            form = ContestSelectForm(
+                data=data,
+                files=files,
+                prefix=self.get_form_prefix(current_step, ContestSelectForm),
+                initial=self.get_form_initial(current_step),
+                user=self.request.user,
+                editable_route=self.editable_route,
+            )
+            form.visible_cima = can_user_see_cima_task_types(self.request.user)
+            return form
         form = super().get_form(step, data, files)
         if current_step == "contest_creation" and "initial_token_grant" in form.fields:
-            form.fields["initial_token_grant"].queryset = UserTokenGrant.objects.filter(user=self.request.user).select_related("token_type")
+            form.fields["initial_token_grant"].queryset = UserTokenGrant.objects.filter(
+                user=self.request.user
+            ).select_related("token_type")
         return form
 
     def create_route(self, scorecard: Scorecard) -> Route:
         selected_task = self.get_cleaned_data_for_step("contest_selection")
         task_type = selected_task["task_type"]
         task_subtype = selected_task.get("task_subtype")
+        _assert_route_compatible_with_task_type(self.editable_route, task_type, task_subtype)
         rounded_corners = False
         corridor_width = 0
         if task_type == ANR_CORRIDOR:
@@ -375,7 +454,9 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
         elif task_type in (AIRSPORTS, AIRSPORT_CHALLENGE):
             initial_step_data = self.get_cleaned_data_for_step("airsports_parameters")
             rounded_corners = initial_step_data["rounded_corners"]
-        return self.editable_route.create_route(task_type, scorecard, rounded_corners, corridor_width, task_subtype=task_subtype)
+        return self.editable_route.create_route(
+            task_type, scorecard, rounded_corners, corridor_width, task_subtype=task_subtype
+        )
 
     @transaction.atomic
     def done(self, form_list, **kwargs):

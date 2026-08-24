@@ -49,6 +49,34 @@ class TestContestantTaskConfiguration(TestCase):
                     },
                     {
                         "type": "Feature",
+                        "properties": {
+                            "id": "wp-1",
+                            "name": "WP-SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-2",
+                            "name": "WP-FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
                         "properties": {"id": "kt-1", "name": "SP", "pointType": "tp", "featureType": "known_time_gate"},
                         "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
                     },
@@ -127,7 +155,12 @@ class TestContestantTaskConfiguration(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "kt-1", "name": "KT1", "pointType": "tp", "featureType": "known_time_gate"},
+                        "properties": {
+                            "id": "kt-1",
+                            "name": "KT1",
+                            "pointType": "tp",
+                            "featureType": "known_time_gate",
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
                 ],
@@ -195,13 +228,83 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
-                    {"type": "Feature", "properties": {"id": "cat-3", "name": "MP", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-sp",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-mp",
+                            "name": "MP",
+                            "pointType": "tp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-fp",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 2,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-1",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-2",
+                            "name": "B",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-3",
+                            "name": "MP",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
+                    },
                 ],
             },
         )
@@ -227,7 +330,9 @@ class TestContestantTaskConfiguration(TestCase):
         self.assertGreater(compiled.compiled_effective_route_payload["time_model"]["t_seconds"], 0)
         payload = compiled.compiled_effective_route_payload  # type: ignore[assignment]
         effective_waypoints = list(payload.get("effective_waypoints", []))  # type: ignore[attr-defined]
-        self.assertTrue(any(item.get("procedure_turn_points") for item in effective_waypoints if item.get("is_procedure_turn")))
+        self.assertTrue(
+            any(item.get("procedure_turn_points") for item in effective_waypoints if item.get("is_procedure_turn"))
+        )
         a_waypoint = next(item for item in effective_waypoints if item["name"] == "A")
         self.assertFalse(a_waypoint["time_check"])
         self.assertTrue(a_waypoint["gate_check"])
@@ -257,12 +362,73 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.0, 60.8]]}},
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.0, 60.4]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.0, 60.8]}},
-                    {"type": "Feature", "properties": {"id": "cat-a", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.0, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "cat-b", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.0, 60.6]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.0, 60.8]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-sp",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-mp",
+                            "name": "MP",
+                            "pointType": "tp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.4]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-fp",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 2,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.8]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-a",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-b",
+                            "name": "B",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.6]},
+                    },
                 ],
             },
         )
@@ -292,13 +458,75 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
-                    {"type": "Feature", "properties": {"id": "obs-2", "name": "B", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.36, 60.36]}},
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-sp",
+                            "name": "SP",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-mp",
+                            "name": "MP",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-fp",
+                            "name": "FP",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-1",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-2",
+                            "name": "B",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-2", "name": "B", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.36, 60.36]},
+                    },
                 ],
             },
         )
@@ -331,11 +559,60 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "timed_turnpoint", "featureType": "known_time_gate", "width": 1852, "isTiming": True, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-sp",
+                            "name": "SP",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-mp",
+                            "name": "MP",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-fp",
+                            "name": "FP",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-1",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
                 ],
             },
         )
@@ -396,12 +673,68 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]}},
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-sp",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-mp",
+                            "name": "MP",
+                            "pointType": "tp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-fp",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 2,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-1",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
                 ],
             },
         )
@@ -430,13 +763,66 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "kt-2", "name": "CP2", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "kt-3", "name": "CP3", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
-                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
-                    {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
-                    {"type": "Feature", "properties": {"id": "obs-2", "name": "B", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.36, 60.36]}},
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "kt-1",
+                            "name": "CP1",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "kt-2",
+                            "name": "CP2",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "kt-3",
+                            "name": "CP3",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.4, 60.4]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-1",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-2",
+                            "name": "B",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "A", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-2", "name": "B", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.36, 60.36]},
+                    },
                 ],
             },
         )
@@ -511,11 +897,56 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"id": "kt-1", "name": "CP1", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "kt-2", "name": "CP2", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "kt-3", "name": "CP3", "pointType": "timed_turnpoint", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
-                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
-                    {"type": "Feature", "properties": {"id": "cat-2", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "kt-1",
+                            "name": "CP1",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "kt-2",
+                            "name": "CP2",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "kt-3",
+                            "name": "CP3",
+                            "pointType": "timed_turnpoint",
+                            "featureType": "known_time_gate",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.4, 60.4]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-1",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-2",
+                            "name": "B",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
+                    },
                 ],
             },
         )
@@ -551,6 +982,34 @@ class TestContestantTaskConfiguration(TestCase):
                     },
                     {
                         "type": "Feature",
+                        "properties": {
+                            "id": "wp-1",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-2",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
                         "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"},
                         "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]},
                     },
@@ -578,7 +1037,10 @@ class TestContestantTaskConfiguration(TestCase):
             [[[11.1, 60.1], [11.2, 60.0]]],
         )
 
-    def test_anr_catalogue_propagates_missing_auxiliary_path_validation(self):
+    def test_anr_catalogue_is_valid_without_auxiliary_paths(self):
+        # route_to_sp_path/route_from_fp_path are optional auxiliary compliance features (see
+        # anr_corridor_calculator.py) that most routes never author - omitting them does not make
+        # the task invalid.
         editable_route = EditableRoute.objects.create(
             name="ANR missing auxiliary paths",
             route={
@@ -588,7 +1050,35 @@ class TestContestantTaskConfiguration(TestCase):
                         "type": "Feature",
                         "properties": {"featureType": "route_path"},
                         "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
-                    }
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-1",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-2",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
                 ],
             },
         )
@@ -598,10 +1088,7 @@ class TestContestantTaskConfiguration(TestCase):
 
         compiled = ContestantTaskCompiler(self.contestant).compile(force=True)
 
-        self.assertFalse(compiled.is_valid)
-        joined_errors = " ".join(compiled.validation_errors)
-        self.assertIn("route_to_sp_path", joined_errors)
-        self.assertIn("route_from_fp_path", joined_errors)
+        self.assertTrue(compiled.is_valid, compiled.validation_errors)
 
     def test_known_circuit_includes_observation_photos_in_effective_payload(self):
         editable_route = EditableRoute.objects.create(
@@ -613,6 +1100,34 @@ class TestContestantTaskConfiguration(TestCase):
                         "type": "Feature",
                         "properties": {"featureType": "route_path"},
                         "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-1",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-2",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
                     },
                     {
                         "type": "Feature",
@@ -672,6 +1187,34 @@ class TestContestantTaskConfiguration(TestCase):
                     },
                     {
                         "type": "Feature",
+                        "properties": {
+                            "id": "wp-1",
+                            "name": "WP-SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-2",
+                            "name": "WP-FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
                         "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
@@ -701,7 +1244,9 @@ class TestContestantTaskConfiguration(TestCase):
         self.assertEqual(compiled.compiled_gate_times_payload["TP1"], "2020-08-01T09:30:00+00:00")
         self.assertNotEqual(compiled.compiled_gate_times_payload["TP1"], uniform_tp1_time)
         # Every other gate keeps following the uniform declared-speed chain.
-        self.assertEqual(compiled.compiled_gate_times_payload["SP"], uniform_speed_compiled.compiled_gate_times_payload["SP"])
+        self.assertEqual(
+            compiled.compiled_gate_times_payload["SP"], uniform_speed_compiled.compiled_gate_times_payload["SP"]
+        )
         self.assertEqual(
             compiled.compiled_effective_route_payload["overridden_gate_names"],
             ["TP1"],
@@ -758,22 +1303,60 @@ class TestContestantTaskConfiguration(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "sp-1", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0},
+                        "properties": {
+                            "id": "sp-1",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "ul-1", "name": "UL1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": False, "sequence": 1},
+                        "properties": {
+                            "id": "ul-1",
+                            "name": "UL1",
+                            "pointType": "ul",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": False,
+                            "sequence": 1,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "fp-1", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 3},
+                        "properties": {
+                            "id": "fp-1",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 3,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "dummy-1", "name": "UL1-D1", "pointType": "dummy", "featureType": "dummy_branch_waypoint", "width": 1852, "isTiming": False, "isPassing": False, "triggerPointId": "ul-1", "branchSequence": 0, "sequence": 4},
+                        "properties": {
+                            "id": "dummy-1",
+                            "name": "UL1-D1",
+                            "pointType": "dummy",
+                            "featureType": "dummy_branch_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": False,
+                            "triggerPointId": "ul-1",
+                            "branchSequence": 0,
+                            "sequence": 4,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
                     },
                     {
@@ -830,17 +1413,128 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2], [11.3, 60.3], [11.4, 60.4], [11.5, 60.5]]}},
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-a", "name": "A", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "wp-trg", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 2, "unknownLegHeading": 105}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "wp-b", "name": "B", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 4}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 5}, "geometry": {"type": "Point", "coordinates": [11.5, 60.5]}},
-                    {"type": "Feature", "properties": {"id": "dummy-1", "name": "TRG1-D1", "pointType": "dummy", "featureType": "dummy_branch_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "triggerPointId": "wp-trg", "branchSequence": 0, "sequence": 6}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
-                    {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"}, "geometry": {"type": "Point", "coordinates": [11.22, 60.22]}},
-                    {"type": "Feature", "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"}, "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]}},
-                    {"type": "Feature", "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"}, "geometry": {"type": "LineString", "coordinates": [[11.5, 60.5], [11.6, 60.6]]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {
+                            "type": "LineString",
+                            "coordinates": [
+                                [11.0, 60.0],
+                                [11.1, 60.1],
+                                [11.2, 60.2],
+                                [11.3, 60.3],
+                                [11.4, 60.4],
+                                [11.5, 60.5],
+                            ],
+                        },
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-sp",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-a",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-trg",
+                            "name": "TRG1",
+                            "pointType": "ul",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 2,
+                            "unknownLegHeading": 105,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-b",
+                            "name": "B",
+                            "pointType": "tp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 4,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.4, 60.4]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-fp",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 5,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.5, 60.5]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "dummy-1",
+                            "name": "TRG1-D1",
+                            "pointType": "dummy",
+                            "featureType": "dummy_branch_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "triggerPointId": "wp-trg",
+                            "branchSequence": 0,
+                            "sequence": 6,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.22, 60.22]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.5, 60.5], [11.6, 60.6]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
+                    },
                 ],
             },
         )
@@ -893,16 +1587,123 @@ class TestContestantTaskConfiguration(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2], [11.3, 60.3], [11.4, 60.4], [11.5, 60.5]]}},
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-h1", "name": "HG1", "pointType": "hidden_gate", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
-                    {"type": "Feature", "properties": {"id": "wp-trg", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 2, "unknownLegHeading": 105}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "wp-h2", "name": "HG2", "pointType": "hidden_gate", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "sequence": 4}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 5}, "geometry": {"type": "Point", "coordinates": [11.5, 60.5]}},
-                    {"type": "Feature", "properties": {"id": "dummy-1", "name": "TRG1-D1", "pointType": "dummy", "featureType": "dummy_branch_waypoint", "width": 1852, "isTiming": False, "isPassing": True, "triggerPointId": "wp-trg", "branchSequence": 0, "sequence": 6}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
-                    {"type": "Feature", "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"}, "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]}},
-                    {"type": "Feature", "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"}, "geometry": {"type": "LineString", "coordinates": [[11.5, 60.5], [11.6, 60.6]]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {
+                            "type": "LineString",
+                            "coordinates": [
+                                [11.0, 60.0],
+                                [11.1, 60.1],
+                                [11.2, 60.2],
+                                [11.3, 60.3],
+                                [11.4, 60.4],
+                                [11.5, 60.5],
+                            ],
+                        },
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-sp",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-h1",
+                            "name": "HG1",
+                            "pointType": "hidden_gate",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-trg",
+                            "name": "TRG1",
+                            "pointType": "ul",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 2,
+                            "unknownLegHeading": 105,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-h2",
+                            "name": "HG2",
+                            "pointType": "hidden_gate",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 4,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.4, 60.4]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-fp",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 5,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.5, 60.5]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "dummy-1",
+                            "name": "TRG1-D1",
+                            "pointType": "dummy",
+                            "featureType": "dummy_branch_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "triggerPointId": "wp-trg",
+                            "branchSequence": 0,
+                            "sequence": 6,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.5, 60.5], [11.6, 60.6]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
+                    },
                 ],
             },
         )
@@ -915,7 +1716,10 @@ class TestContestantTaskConfiguration(TestCase):
 
         self.assertTrue(compiled.is_valid, compiled.validation_errors)
         self.assertEqual(payload["hidden_gate_names"], ["HG1", "HG2"])
-        self.assertEqual(payload["hidden_gates"], [{"name": "HG1", "coordinates": [11.1, 60.1]}, {"name": "HG2", "coordinates": [11.4, 60.4]}])
+        self.assertEqual(
+            payload["hidden_gates"],
+            [{"name": "HG1", "coordinates": [11.1, 60.1]}, {"name": "HG2", "coordinates": [11.4, 60.4]}],
+        )
         self.assertEqual(payload["actual_route"]["waypoint_names"], ["SP", "HG1", "TRG1", "HG2", "FP"])
 
     def test_known_circuit_effective_payload_is_available_via_contestant_configuration(self):
@@ -958,7 +1762,9 @@ class TestContestantTaskConfiguration(TestCase):
         self.navigation_task.task_subtype = "duration"
         self.navigation_task.scorecard.duration_normalization_policy = "raw_minutes"
         self.navigation_task.scorecard.duration_residual_fuel_required = True
-        self.navigation_task.scorecard.save(update_fields=["duration_normalization_policy", "duration_residual_fuel_required"])
+        self.navigation_task.scorecard.save(
+            update_fields=["duration_normalization_policy", "duration_residual_fuel_required"]
+        )
         self.navigation_task.editable_route = EditableRoute.objects.create(
             name="Duration review primitives",
             route={

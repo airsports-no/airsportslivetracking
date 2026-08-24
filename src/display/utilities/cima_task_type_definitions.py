@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 from display.utilities.navigation_task_type_definitions import (
-    AIRSPORTS,
     AIRSPORT_CHALLENGE,
+    AIRSPORTS,
     ANR_CORRIDOR,
     LANDING,
     POKER,
@@ -43,6 +43,10 @@ class TaskSubtypeDefinition:
     coarse_family: str
     requires_contestant_configuration: bool = False
     required_primitives: tuple[str, ...] = ()
+    # Primitives that, if present on the route, make it incompatible with this
+    # subtype (for example a corridor task type cannot accept dummy/unknown-leg
+    # waypoints). See route_compatibility.get_blocking_reasons.
+    forbidden_primitives: tuple[str, ...] = ()
     declaration_schema_key: str | None = None
     scoring_modules: tuple[str, ...] = ()
 
@@ -52,38 +56,49 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         key=LEGACY_PRECISION,
         display_name="Legacy precision navigation",
         coarse_family=PRECISION,
+        required_primitives=("route_path", "route_waypoint"),
     ),
     LEGACY_ANR_CORRIDOR: TaskSubtypeDefinition(
         key=LEGACY_ANR_CORRIDOR,
         display_name="Legacy ANR corridor",
         coarse_family=ANR_CORRIDOR,
+        required_primitives=("route_path", "route_waypoint"),
+        forbidden_primitives=("dummy_waypoint", "unknown_leg"),
     ),
     LEGACY_AIRSPORTS: TaskSubtypeDefinition(
         key=LEGACY_AIRSPORTS,
         display_name="Legacy Air Sports Race",
         coarse_family=AIRSPORTS,
+        required_primitives=("route_path", "route_waypoint"),
+        forbidden_primitives=("dummy_waypoint", "unknown_leg"),
     ),
     LEGACY_AIRSPORT_CHALLENGE: TaskSubtypeDefinition(
         key=LEGACY_AIRSPORT_CHALLENGE,
         display_name="Legacy Air Sport Challenge",
         coarse_family=AIRSPORT_CHALLENGE,
+        required_primitives=("route_path", "route_waypoint"),
+        forbidden_primitives=("dummy_waypoint", "unknown_leg"),
     ),
     LEGACY_POKER: TaskSubtypeDefinition(
         key=LEGACY_POKER,
         display_name="Legacy poker run",
         coarse_family=POKER,
+        required_primitives=("route_path", "route_waypoint"),
     ),
     LEGACY_LANDING: TaskSubtypeDefinition(
         key=LEGACY_LANDING,
         display_name="Legacy landing",
         coarse_family=LANDING,
+        required_primitives=("landing_gate",),
     ),
     CURVE_NAVIGATION_TIME_ESTIMATION: TaskSubtypeDefinition(
         key=CURVE_NAVIGATION_TIME_ESTIMATION,
         display_name="2.A1 Curve navigation with time estimation",
         coarse_family=PRECISION,
         requires_contestant_configuration=True,
-        required_primitives=("route_path", "known_time_gate", "hidden_gate"),
+        # known_time_gate/hidden_gate are not required on the route itself for typical
+        # precision-like navigation tasks - there is no structural check for them.
+        required_primitives=("route_path", "route_waypoint"),
         declaration_schema_key=CURVE_NAVIGATION_TIME_ESTIMATION,
         scoring_modules=("visible_time_gates", "hidden_gate_sequence", "backtracking"),
     ),
@@ -92,7 +107,9 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         display_name="2.A2 Precision navigation",
         coarse_family=PRECISION,
         requires_contestant_configuration=True,
-        required_primitives=("route_path", "route_waypoint", "hidden_gate"),
+        # Hidden gates are never required on the route itself - they are optional, not a
+        # structural prerequisite (applies to every task type, not just this one).
+        required_primitives=("route_path", "route_waypoint"),
         declaration_schema_key=PRECISION_NAVIGATION,
         scoring_modules=("visible_eta", "hidden_gate_sequence", "backtracking"),
     ),
@@ -101,7 +118,7 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         display_name="2.A3 Contract navigation with time controls",
         coarse_family=PRECISION,
         requires_contestant_configuration=True,
-        required_primitives=("catalogue_turnpoint",),
+        required_primitives=("route_path", "route_waypoint", "catalogue_turnpoint"),
         declaration_schema_key=CONTRACT_NAVIGATION_TIME_CONTROLS,
         scoring_modules=("declared_sequence", "mandatory_time_points", "backtracking"),
     ),
@@ -113,7 +130,9 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         # turnpoints, overriding the declared-groundspeed-derived time for
         # just that point (see KnownCircuitStrategy).
         requires_contestant_configuration=True,
-        required_primitives=("route_path", "hidden_gate", "observation_photo"),
+        # Observation photos and hidden gates are never required on the route itself - they are
+        # optional, not a structural prerequisite.
+        required_primitives=("route_path", "route_waypoint"),
         scoring_modules=("observation_evidence", "hidden_gate_sequence", "backtracking"),
     ),
     UNKNOWN_LEGS: TaskSubtypeDefinition(
@@ -121,7 +140,10 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         display_name="2.A5 Navigation with unknown legs",
         coarse_family=PRECISION,
         requires_contestant_configuration=False,
-        required_primitives=("route_path", "observation_photo"),
+        # Observation photos are optional evidence, not a structural prerequisite. The defining
+        # feature of an unknown-legs route is a backbone waypoint of pointType "unknown_leg" -
+        # see TaskCompiler._validate_unknown_legs_structure, which already enforces this.
+        required_primitives=("route_path", "route_waypoint", "unknown_leg"),
         scoring_modules=("unknown_leg_sequence", "observation_evidence", "backtracking"),
     ),
     TURNPOINT_HUNT: TaskSubtypeDefinition(
@@ -140,7 +162,12 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         display_name="2.A7 Circle",
         coarse_family=PRECISION,
         requires_contestant_configuration=False,
-        required_primitives=("circle_center_marker", "circle_start_marker", "circle_entry_marker", "circle_exit_marker"),
+        required_primitives=(
+            "circle_center_marker",
+            "circle_start_marker",
+            "circle_entry_marker",
+            "circle_exit_marker",
+        ),
         scoring_modules=("circle_entry", "circle_radius", "circle_direction", "altitude_spread"),
     ),
     ANR_CATALOGUE: TaskSubtypeDefinition(
@@ -148,7 +175,10 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         display_name="2.A8 Precision navigation Air Nav Race (ANR)",
         coarse_family=ANR_CORRIDOR,
         requires_contestant_configuration=False,
-        required_primitives=("route_path", "route_to_sp_path", "route_from_fp_path"),
+        # route_to_sp_path/route_from_fp_path are optional auxiliary compliance features (see
+        # anr_corridor_calculator.py) that most routes never author - they are not required for
+        # a route to support this task type.
+        required_primitives=("route_path", "route_waypoint"),
         scoring_modules=("route_to_sp", "route_from_fp", "takeoff_timing", "quarantine"),
     ),
     LIMITED_FUEL_TURNPOINT_HUNT: TaskSubtypeDefinition(
@@ -160,13 +190,24 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         # (known_time_gate primitive) plus free catalogue turnpoints.
         required_primitives=("catalogue_turnpoint", "known_time_gate"),
         declaration_schema_key=LIMITED_FUEL_TURNPOINT_HUNT,
-        scoring_modules=("all_gate_crossings", "compulsory_timing_gates", "observation_evidence", "fuel_compliance", "backtracking"),
+        scoring_modules=(
+            "all_gate_crossings",
+            "compulsory_timing_gates",
+            "observation_evidence",
+            "fuel_compliance",
+            "backtracking",
+        ),
     ),
     DURATION: TaskSubtypeDefinition(
         key=DURATION,
         display_name="2.B3 Duration",
         coarse_family=PRECISION,
         requires_contestant_configuration=False,
+        # No takeoff_gate/landing_gate requirement: calculator_factory.py always adds
+        # SpeedInferredTakeoffLandingCalculator for DURATION tasks specifically as "a fallback
+        # source of TakeoffPassedEvent/LandingPassedEvent for routes with no authored
+        # takeoff/landing gates" - the route-editor wizard guide already documents both gates as
+        # optional for this reason (see taskTemplates.ts's cima_b3 template).
     ),
 }
 
@@ -203,9 +244,7 @@ def validate_subtype_family_compatibility(subtype: str | None, coarse_family: st
         return
     definition = get_task_subtype_definition(subtype)
     if definition.coarse_family != coarse_family:
-        raise ValueError(
-            f"Task subtype '{subtype}' is not compatible with coarse family '{coarse_family}'"
-        )
+        raise ValueError(f"Task subtype '{subtype}' is not compatible with coarse family '{coarse_family}'")
 
 
 def get_default_task_subtype_for_family(coarse_family: str) -> str | None:

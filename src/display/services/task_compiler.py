@@ -4,6 +4,7 @@ import json
 TASK_COMPILER_SIGNATURE_VERSION = 3
 
 from display.models import CompiledNavigationTask
+from display.services.route_compatibility import LEGACY_COMPILER_PRIMITIVE_KEYS, extract_route_primitives
 from display.utilities.cima_task_type_definitions import (
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     LIMITED_FUEL_TURNPOINT_HUNT,
@@ -12,7 +13,15 @@ from display.utilities.cima_task_type_definitions import (
     UNKNOWN_LEGS,
     get_task_subtype_definition,
 )
-from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNPOINT, UNKNOWN_LEG, DUMMY, HIDDEN_GATE, SECRETPOINT
+from display.utilities.gate_definitions import (
+    DUMMY,
+    FINISHPOINT,
+    HIDDEN_GATE,
+    SECRETPOINT,
+    STARTINGPOINT,
+    TURNPOINT,
+    UNKNOWN_LEG,
+)
 
 
 class TaskCompiler:
@@ -44,7 +53,12 @@ class TaskCompiler:
 
     def _build_compiled_payload(self) -> dict:
         primitives = self._build_compiled_primitives()
-        validation_errors = self._validate_primitives(primitives)
+        # required_primitives can name ruleset-only primitives (route_path, route_waypoint,
+        # takeoff_gate, landing_gate) that are deliberately excluded from the persisted
+        # compiled_primitives contract (see extract_route_primitives / LEGACY_COMPILER_PRIMITIVE_KEYS),
+        # so validation must run against the full set, not the subsetted one above.
+        full_primitives = extract_route_primitives(self.navigation_task.editable_route)
+        validation_errors = self._validate_primitives(full_primitives)
         return {
             "coarse_task_family": self.navigation_task.coarse_task_family,
             "task_subtype": self._get_effective_task_subtype(),
@@ -64,30 +78,11 @@ class TaskCompiler:
         editable_route = self.navigation_task.editable_route
         if editable_route is None:
             return {}
-        return {
-            "catalogue_turnpoint": [item["properties"].get("name") for item in editable_route.get_catalogue_turnpoints()],
-            "circle_center_marker": [item["properties"].get("name") for item in editable_route.get_circle_center_markers()],
-            "circle_start_marker": [item["properties"].get("name") for item in editable_route.get_circle_start_markers()],
-            "circle_entry_marker": [item["properties"].get("name") for item in editable_route.get_circle_entry_markers()],
-            "circle_exit_marker": [item["properties"].get("name") for item in editable_route.get_circle_exit_markers()],
-            "route_to_sp_path": [
-                item.get("properties", {}).get("name") or f"route_to_sp_{index}"
-                for index, item in enumerate(editable_route.get_route_to_sp_paths(), start=1)
-            ],
-            "route_from_fp_path": [
-                item.get("properties", {}).get("name") or f"route_from_fp_{index}"
-                for index, item in enumerate(editable_route.get_route_from_fp_paths(), start=1)
-            ],
-            "known_time_gate": [item["properties"].get("name") for item in editable_route.get_known_time_gates()],
-            "hidden_gate": [item["properties"].get("name") for item in editable_route.get_hidden_gates()],
-            "unknown_leg": [item["properties"].get("name") for item in editable_route.get_unknown_leg_waypoints()],
-            "dummy_branch_waypoint": [
-                item.get("properties", {}).get("name")
-                for item in editable_route.get_features_type("dummy_branch_waypoint")
-                if item.get("properties", {}).get("name")
-            ],
-            "observation_photo": [item["properties"].get("name") for item in editable_route.get_observation_photos()],
-        }
+        primitives = extract_route_primitives(editable_route)
+        # Subset to the historical compiled_primitives contract: route_path/route_waypoint/
+        # takeoff_gate/landing_gate are only used by the route-compatibility ruleset, not by
+        # anything reading a persisted CompiledNavigationTask.
+        return {key: primitives[key] for key in LEGACY_COMPILER_PRIMITIVE_KEYS}
 
     def _build_compiled_auxiliary_paths(self) -> dict:
         editable_route = self.navigation_task.editable_route
@@ -113,11 +108,7 @@ class TaskCompiler:
         # below so the registry stays declarative and the stricter shape checks
         # remain close to the subtype-specific semantics.
         for primitive in definition.required_primitives:
-            values = primitives.get(primitive, [])
-            if primitive == "route_path":
-                if self.navigation_task.editable_route is None or self.navigation_task.editable_route.get_track() is None:
-                    errors.append(f"Missing required primitive: {primitive}")
-            elif not values:
+            if not primitives.get(primitive):
                 errors.append(f"Missing required primitive: {primitive}")
         if subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
             errors.extend(self._validate_contract_navigation_structure(primitives))
@@ -144,9 +135,6 @@ class TaskCompiler:
             if first_type != STARTINGPOINT or last_type != FINISHPOINT:
                 errors.append("Precision navigation route waypoints must start at SP and finish at FP.")
 
-        hidden_gates = [name for name in primitives.get("hidden_gate", []) if name]
-        if len(hidden_gates) < 1:
-            errors.append("Precision navigation requires at least one hidden gate.")
         return errors
 
     def _validate_contract_navigation_structure(self, primitives: dict) -> list[str]:
@@ -189,7 +177,9 @@ class TaskCompiler:
         # known_time_gate/hidden_gate markers by design, so we check for an
         # actual authored route_path line instead.
         if editable_route.get_track() is not None:
-            errors.append("Turnpoint hunt requires no route backbone. Place the compulsory points as standalone timed turnpoints instead.")
+            errors.append(
+                "Turnpoint hunt requires no route backbone. Place the compulsory points as standalone timed turnpoints instead."
+            )
 
         compiled_known_time_gates = [name for name in primitives.get("known_time_gate", []) if name]
         if len(compiled_known_time_gates) != 3:
@@ -239,8 +229,6 @@ class TaskCompiler:
                 errors.append("Unknown legs requires at least one dummy waypoint after each unknown-leg trigger.")
                 break
 
-        if not primitives.get("route_to_sp_path", []) or not primitives.get("route_from_fp_path", []):
-            errors.append("Unknown legs requires route_to_sp_path and route_from_fp_path for the full competition workflow.")
         if not unknown_leg_names:
             return errors
 

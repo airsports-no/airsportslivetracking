@@ -137,6 +137,46 @@ export const fetchEditableRoutes = async (): Promise<Route[]> => {
     return data;
 };
 
+export interface TaskCompatibilitySubtype {
+    key: string;
+    display_name: string;
+    group: 'Legacy' | 'CIMA';
+    coarse_family: string;
+    compatible: boolean;
+    missing_reasons: string[];
+}
+
+export interface TaskCompatibilityResult {
+    compatible_task_types: string[];
+    subtypes: TaskCompatibilitySubtype[];
+}
+
+// Dry-run compatibility check against the route's current (possibly unsaved) content, so the
+// intended-task-types picker can grey out task types the route doesn't actually support without
+// waiting for a save. See display.services.route_compatibility on the backend, which remains the
+// single source of truth for the ruleset.
+export const fetchTaskCompatibility = async (route: RouteData['route']): Promise<TaskCompatibilityResult> => {
+    const url = reverse('editableroutes-task-compatibility');
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ route }),
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to check task type compatibility: ${errorMessages}`);
+    }
+    return response.json();
+};
+
+// The task_compatibility action reports every known task subtype regardless of route content, so
+// an empty feature collection is enough to get the full {key -> display_name/group} catalog - used
+// by the route list to label compatible/intended task types without hand-duplicating the registry.
+export const fetchTaskSubtypeCatalog = async (): Promise<TaskCompatibilitySubtype[]> => {
+    const result = await fetchTaskCompatibility({ type: 'FeatureCollection', features: [] });
+    return result.subtypes;
+};
+
 export const fetchEditableRouteMapSources = async (routeId: number): Promise<MapSource[]> => {
     const url = reverse('editableroutes-map-sources', routeId);
     return fetchMapSourcesWithRetry(url, 'Failed to fetch route editor map sources');

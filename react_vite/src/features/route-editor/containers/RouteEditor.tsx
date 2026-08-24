@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Toolbar from '../components/Toolbar';
 import MapCanvas from '../components/MapCanvas';
-import { fetchRoute, saveRoute } from '../api';
+import { fetchRoute, fetchTaskCompatibility, saveRoute, TaskCompatibilityResult } from '../api';
 import { SavePayload } from '../types';
 import { generatePath } from '../../../urls';
 import {
@@ -17,7 +17,7 @@ import {
 import { getQuadraticBezierPoints } from '../../../utils/bezierPoints';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { Map } from 'leaflet';
-import { getTaskTemplateById, getWizardRouteInsertLabel } from '../taskTemplates';
+import { getTaskTemplateById, getWizardRouteInsertLabel, isTaskSubtypeVisible } from '../taskTemplates';
 import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
 import {
   deleteItemById,
@@ -39,6 +39,7 @@ import {
   normalizeRoutePointsBeforeAppend,
 } from '../routeEditorMapClickHelpers';
 import { getWizardStep, getWizardTransition } from '../routeEditorWizardTransitions';
+import { useToast } from '../../competition-map/hooks/useToast';
 
 const getFreeMapStepMaxCount = (
   selectedTaskTemplateId: string | null,
@@ -73,6 +74,7 @@ export default function RouteEditor() {
   const [routeId, setRouteId] = useState<string | null>(null);
   const { routeId: paramRouteId } = useParams<{ routeId: string }>();
   const navigate = useNavigate();
+  const { showToast, ToastContainer, toasts, removeToast } = useToast();
   const [routeName, setRouteName] = useState('');
   const [isDirty, setIsDirty] = useState(false);
 
@@ -84,6 +86,15 @@ export default function RouteEditor() {
   const [maxObsDist, setMaxObsDist] = useState(926);
   const [hideLabels, setHideLabels] = useState(false);
   const [selectedTaskTemplateId, setSelectedTaskTemplateId] = useState<string | null>(null);
+  const [intendedTaskTypes, setIntendedTaskTypes] = useState<string[]>([]);
+  const [taskCompatibility, setTaskCompatibility] = useState<TaskCompatibilityResult | null>(null);
+  // While false, intendedTaskTypes auto-follows the live suggestion (the active wizard
+  // template's subtype once the route becomes compatible with it, otherwise the full compatible
+  // set) as the user builds the route - so e.g. placing the last circle marker auto-checks
+  // Circle. Flips to true, permanently, the moment the user manually toggles a checkbox in the
+  // "Task types" panel, or a previously-saved route already had a declared value - from then on
+  // intendedTaskTypes is taken as-is, including an explicit empty selection.
+  const intendedTaskTypesLockedRef = useRef(false);
   const [wizardRouteInsertType, setWizardRouteInsertType] = useState<RoutePoint['type'] | null>(null);
   const [wizardRouteInsertFeatureType, setWizardRouteInsertFeatureType] = useState<RoutePoint['featureType'] | undefined>(undefined);
   const [wizardPolygonType, setWizardPolygonType] = useState<Polygon['type'] | null>(null);
@@ -201,6 +212,12 @@ export default function RouteEditor() {
             if (typeof data.settings.hideLabels !== 'undefined') setHideLabels(data.settings.hideLabels);
             if (typeof data.settings.selectedTaskTemplateId !== 'undefined') setSelectedTaskTemplateId(data.settings.selectedTaskTemplateId);
           }
+          if (Array.isArray(data.intended_task_types)) {
+            setIntendedTaskTypes(data.intended_task_types);
+            // Already has a real (possibly empty-on-purpose) declared value - never overwrite it
+            // with a suggestion.
+            if (data.intended_task_types.length > 0) intendedTaskTypesLockedRef.current = true;
+          }
 
           if (data.name) setRouteName(data.name);
           loadRouteData(data.route);
@@ -208,6 +225,63 @@ export default function RouteEditor() {
         .catch(err => console.error(err));
     }
   }, [paramRouteId, loadRouteData]);
+
+  // Live task-type compatibility, recomputed against the route's current in-memory content (not
+  // yet saved) so the "Task types" settings panel can grey out unsupported types as the user
+  // authors the route, without requiring a save first. display.services.route_compatibility on
+  // the backend is the single source of truth for the ruleset.
+  useEffect(() => {
+    const { route } = buildRouteEditorSavePayload({
+      routeName,
+      routePoints,
+      standalonePoints,
+      gates,
+      observationMarkers,
+      polygons,
+      showCorridor,
+      maxObsDist,
+      hideLabels,
+      selectedTaskTemplateId,
+      intendedTaskTypes,
+    });
+    const timer = setTimeout(() => {
+      fetchTaskCompatibility(route)
+        .then((result) => {
+          setTaskCompatibility(result);
+          if (!intendedTaskTypesLockedRef.current) {
+            // Keep following the live suggestion as the route is built - e.g. placing the last
+            // circle marker should auto-check Circle - until the user takes explicit control (see
+            // intendedTaskTypesLockedRef). The task template currently being followed in the
+            // route guide wins once it's actually compatible; otherwise fall back to everything
+            // the route's content currently supports.
+            // Never suggest a CIMA type the current user isn't entitled to see.
+            const visibleCompatible = result.subtypes
+              .filter((subtype) => subtype.compatible && isTaskSubtypeVisible(subtype.group, subtype.key, visibleTaskTypeGroups))
+              .map((subtype) => subtype.key);
+            const activeTemplateSubtype = getTaskTemplateById(selectedTaskTemplateId || '')?.subtype;
+            const suggested = activeTemplateSubtype && visibleCompatible.includes(activeTemplateSubtype)
+              ? [activeTemplateSubtype]
+              : visibleCompatible;
+            setIntendedTaskTypes(suggested);
+          }
+        })
+        .catch((err) => console.error('Failed to check task type compatibility', err));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    routeName,
+    routePoints,
+    standalonePoints,
+    gates,
+    observationMarkers,
+    polygons,
+    showCorridor,
+    maxObsDist,
+    hideLabels,
+    selectedTaskTemplateId,
+    intendedTaskTypes,
+    visibleTaskTypeGroups,
+  ]);
 
   const handleMapClick = useCallback((latlng: LatLng) => {
     if (mode === 'view') {
@@ -629,6 +703,8 @@ export default function RouteEditor() {
       if (!confirm('Route has validation errors. Save anyway?')) return;
     }
 
+    showToast('Remember to review the supported task types for this route before saving.', 'info');
+
     const payload: SavePayload = buildRouteEditorSavePayload({
       routeName,
       routePoints,
@@ -640,6 +716,7 @@ export default function RouteEditor() {
       maxObsDist,
       hideLabels,
       selectedTaskTemplateId,
+      intendedTaskTypes,
     });
 
     try {
@@ -671,7 +748,9 @@ export default function RouteEditor() {
   }, [isThreePointBackboneTask, markDirty]);
 
   return (
-    <div className="flex w-full h-[calc(100vh-66px)] bg-base-200 font-sans text-base-content overflow-hidden">
+    <>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <div className="flex w-full h-[calc(100vh-66px)] bg-base-200 font-sans text-base-content overflow-hidden">
       <div className="h-full overflow-y-auto shrink-0 max-w-xs">
         <Sidebar
           routePoints={routePoints}
@@ -692,6 +771,15 @@ export default function RouteEditor() {
             setHideLabels(val);
             setIsDirty(true);
           }}
+          intendedTaskTypes={intendedTaskTypes}
+          setIntendedTaskTypes={(val) => {
+            // A manual edit takes explicit control away from the auto-suggestion, permanently for
+            // the rest of this editing session (see intendedTaskTypesLockedRef).
+            intendedTaskTypesLockedRef.current = true;
+            setIntendedTaskTypes(val);
+            setIsDirty(true);
+          }}
+          taskCompatibility={taskCompatibility}
           setSelectedId={setSelectedId}
           setSelectionType={setSelectionType}
           updateSelectedPoint={selectionType === 'standalone_point' ? updateSelectedStandalonePoint : updateSelectedPoint}
@@ -796,6 +884,7 @@ export default function RouteEditor() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

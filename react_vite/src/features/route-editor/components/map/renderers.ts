@@ -10,6 +10,13 @@ import { RoutePoint, Gate, Polygon, Mode, SelectionType } from '../../../../type
 
 const UNKNOWN_LEG_TRIGGER_TYPE = 'ul';
 
+// CIMA 2.A7 (Circle) default inner/outer radius bounds (metres), matching Scorecard's
+// circle_radius_min_m/max_m field defaults - see models/scorecard_and_gate_score.py. The route
+// editor has no scorecard context (a route can be authored before any task/scorecard exists), so
+// it renders the CIMA default bounds rather than a contest-specific override.
+const CIMA_CIRCLE_DEFAULT_MIN_RADIUS_M = 200;
+const CIMA_CIRCLE_DEFAULT_MAX_RADIUS_M = 750;
+
 export const clearLayers = (markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, polylinesRef: React.MutableRefObject<L.Layer[]>, routeLineRef: React.MutableRefObject<L.Polyline | null>, map: L.Map) => {
   Object.values(markersRef.current).forEach(layer => map.removeLayer(layer));
   polylinesRef.current.forEach(layer => map.removeLayer(layer));
@@ -282,6 +289,27 @@ export const drawPoints = (
     if (p.type === 'circle_exit') { color = '#dc2626'; radius = 7; }
 
     const pointGroup = L.featureGroup().addTo(map);
+
+    if (p.type === 'circle_center') {
+      // CIMA 2.A7 requires the entry/exit crossing to fall between these two radii - show them
+      // while authoring so the circle_start/entry/exit markers can be placed correctly.
+      L.circle([p.lat, p.lng], {
+        radius: CIMA_CIRCLE_DEFAULT_MIN_RADIUS_M,
+        color: '#16a34a',
+        weight: 2,
+        dashArray: '6 6',
+        fill: false,
+        interactive: false,
+      }).addTo(pointGroup);
+      L.circle([p.lat, p.lng], {
+        radius: CIMA_CIRCLE_DEFAULT_MAX_RADIUS_M,
+        color: '#dc2626',
+        weight: 2,
+        dashArray: '10 6',
+        fill: false,
+        interactive: false,
+      }).addTo(pointGroup);
+    }
 
     if (p.width > 0) {
       L.circle([p.lat, p.lng], {

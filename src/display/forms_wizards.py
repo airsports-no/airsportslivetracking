@@ -1,28 +1,74 @@
 from crispy_forms.bootstrap import StrictButton
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Fieldset, ButtonHolder, Submit, HTML, Div, Field
+from crispy_forms.layout import HTML, ButtonHolder, Div, Field, Fieldset, Layout, Submit
 from django import forms
 from django.forms import HiddenInput
 from phonenumber_field.formfields import PhoneNumberField
 
 from display.forms import PictureWidget, kml_description
-from display.models import EditableRoute, Contest, Aeroplane, Club
+from display.models import Aeroplane, Club, Contest, EditableRoute
+from display.services.route_compatibility import (
+    extract_route_primitives,
+    get_blocking_reasons,
+    get_compatible_task_subtypes,
+)
 from display.services.task_type_visibility import can_user_see_cima_task_types, can_user_see_task_subtype
-from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
+from display.utilities.cima_task_type_definitions import LEGACY_DEFAULT_SUBTYPE_BY_FAMILY, TASK_SUBTYPE_DEFINITIONS
 from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES
 
 
-def _task_template_choices(user=None):
+def _task_template_choices(user=None, editable_route=None):
+    """
+    Build the grouped (Legacy/CIMA) task_template choices for the task-type picker.
+
+    When `editable_route` is given, choices are additionally hard-filtered to task subtypes the
+    route's authored content actually satisfies (display.services.route_compatibility) - this is
+    the canonical, non-bypassable gate; user-permission filtering (CIMA visibility) is layered on
+    top of it.
+    """
+    compatible = set(get_compatible_task_subtypes(editable_route)) if editable_route is not None else None
     grouped = {"Legacy": [], "CIMA": []}
     for key, label in NAVIGATION_TASK_TYPES:
+        if compatible is not None and LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(key) not in compatible:
+            continue
         grouped["Legacy"].append((key, label))
     for definition in TASK_SUBTYPE_DEFINITIONS.values():
         if definition.key.startswith("legacy_"):
             continue
         if not can_user_see_task_subtype(user, task_subtype=definition.key):
             continue
+        if compatible is not None and definition.key not in compatible:
+            continue
         grouped["CIMA"].append((definition.key, definition.display_name))
     return [(group, choices) for group, choices in grouped.items() if choices]
+
+
+def _no_compatible_task_types_message(user, editable_route) -> str | None:
+    """
+    When a route has zero task types compatible with it (given the caller's own visibility),
+    explain why by naming the closest match - the visible subtype with the fewest missing route
+    features - rather than leaving the task_template dropdown empty with no explanation.
+    """
+    primitives = extract_route_primitives(editable_route)
+    candidates = []
+    for key, label in NAVIGATION_TASK_TYPES:
+        legacy_key = LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(key)
+        if legacy_key is None:
+            continue
+        candidates.append((label, get_blocking_reasons(primitives, legacy_key)))
+    for definition in TASK_SUBTYPE_DEFINITIONS.values():
+        if definition.key.startswith("legacy_"):
+            continue
+        if not can_user_see_task_subtype(user, task_subtype=definition.key):
+            continue
+        candidates.append((definition.display_name, get_blocking_reasons(primitives, definition.key)))
+    if not candidates:
+        return None
+    label, reasons = min(candidates, key=lambda item: len(item[1]))
+    if not reasons:
+        # Choices weren't actually empty - nothing to explain.
+        return None
+    return f'This route is not compatible with any task type yet. The closest match, "{label}", still needs: {"; ".join(reasons)}.'
 
 
 def _normalize_task_template_selection(value):
@@ -165,19 +211,21 @@ class ContestSelectForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
+        editable_route = kwargs.pop("editable_route", None)
         super().__init__(*args, **kwargs)
         self.visible_cima = can_user_see_cima_task_types(user)
-        self.fields["task_template"].choices = _task_template_choices(user)
+        choices = _task_template_choices(user, editable_route=editable_route)
+        self.fields["task_template"].choices = choices
         self.helper = FormHelper()
+        self.no_compatible_task_types_message = None
+        if not choices and editable_route is not None:
+            self.no_compatible_task_types_message = _no_compatible_task_types_message(user, editable_route)
+        fieldset_contents = ["contest"]
+        if self.no_compatible_task_types_message:
+            fieldset_contents.append(HTML(f'<p style="color:red">{self.no_compatible_task_types_message}</p>'))
+        fieldset_contents += ["task_template", "task_type", "task_subtype", "navigation_task_name"]
         self.helper.layout = Layout(
-            Fieldset(
-                "Create a navigation task from the route",
-                "contest",
-                "task_template",
-                "task_type",
-                "task_subtype",
-                "navigation_task_name",
-            ),
+            Fieldset("Create a navigation task from the route", *fieldset_contents),
             ButtonHolder(Submit("submit", "Submit")),
         )
 

@@ -12,6 +12,13 @@ export interface Route {
   editors: Editor[];
   thumbnail: string;
   is_editor: boolean;
+  // Task subtype keys (legacy shims and/or CIMA subtypes, see taskTemplates.ts) this route was
+  // declared by its author to be designed for. User-editable, purely advisory - see
+  // compatible_task_types for what actually gates task creation.
+  intended_task_types: string[];
+  // Task subtype keys this route's authored content actually satisfies the requirements of,
+  // computed server-side (display.services.route_compatibility) and read-only here.
+  compatible_task_types: string[];
 }
 
 export interface LatLng {
