@@ -38,25 +38,29 @@ docker compose build
 ```
 to build all required images.
 
-- tracker_daphne: Is the web server that services both http and websocket traffic.
-- tracker_celery: Django batch processing.  Does track recalculation and flight order generation in the background.
-- tracker_processor: Interfaces with traccar to receive incoming position reports and executes contestant processors either internally or as kubernetes jobs.
+- tracker_daphne: Is the web server that services both http and websocket traffic. Runs the same gunicorn+uvicorn ASGI stack as production (`config/asgi.sh`), not Django's `runserver` - see [Development quick start](#development-quick-start) for the hot-reload alternative.
+- tracker_celery: Django batch processing. Does track recalculation and flight order generation in the background, on the default Celery queue - matches `tracker-celery` in production.
+- live_calculator: Runs per-contestant live scoring calculators, dispatched as Celery tasks onto the dedicated `live_calculator` queue - matches the `live-calculator` Deployment in production. Concurrency (how many contestants it can score at once) defaults to 12, matching `helm/values.yaml`'s `liveCalculator.concurrency`; override with `LIVE_CALCULATOR_CONCURRENCY=N` for a smaller/larger scale test.
+- tracker_processor: Interfaces with traccar to receive incoming position reports and dispatches contestant processors to the `live_calculator` queue above.
+- mbtiles: Basic tile server used to serve certain maps to the navigation map generation process.
 
  Additional images that are part of the compose file are:
  - mysql (database)
  - redis (caching and interprocess communication)
  - traccar (local traccar.org server)
 
-The helm chart used for production employment has an additional dependency:
-- mbtils: Basic tile server used to serve certain maps to the navigation map generation process.
-
-These additional dependencies are not required for executing locally and are therefore not part of docker-compose.yml.
-
 A full local development environment can be started by running:
 ```
-docker compose up tracker_daphne
+docker compose up
 ```
-This executes the three primary containers which also brings up the additional infrastructure containers. The Web server can be accessed at http://localhost:8002/.  A default superuser is created with username test@test.com and password admin. This can be used to login through the web interface.
+The Web server can be accessed at http://localhost:8002/.  A default superuser is created with username test@test.com and password admin. This can be used to login through the web interface.
+
+#### Scale testing
+`src/playback_tools/scale_test_navigation_task.py` clones an existing navigation task's contestants, times, and route into a new one, then replays their recorded tracks by POSTing positions to the local Traccar server exactly as a real tracker would - exercising the full ingest → Celery `live_calculator` queue → scoring pipeline described above. Run it inside `tracker_daphne` (or `tracker_processor`) with the DB and Traccar already up:
+```
+docker exec -it tracker_daphne python3 playback_tools/scale_test_navigation_task.py <navigation_task_id> <number_of_contestants>
+```
+See `-h` for the start-interval, playback-speed, and pause options.
 
 #### Running frontend compilers
 

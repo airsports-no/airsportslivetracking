@@ -1,19 +1,19 @@
 import datetime
 import logging
 from multiprocessing import Queue
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from display.calculators.calculator import (
     Calculator,
-    OrchestratorState,
-    OrchestratorEvent,
-    GateMissedEvent,
     FinishLinePassedEvent,
+    GateMissedEvent,
+    OrchestratorEvent,
+    OrchestratorState,
 )
 from display.calculators.calculator_utilities import PolygonHelper, get_shortest_intersection_time
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
-from display.models import Contestant, Scorecard, Route, INFORMATION, ANOMALY
+from display.models import ANOMALY, INFORMATION, Contestant, Route, Scorecard
 from display.models.contestant_utility_models import ContestantReceivedPosition
 
 logger = logging.getLogger(__name__)
@@ -67,13 +67,13 @@ class PenaltyZoneCalculator(Calculator):
 
     def calculate_outside_route(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         self.check_inside_prohibited_zone(track, state.last_visible_gate)
         return []
 
-    def _calculate_danger_level(self, track: List[ContestantReceivedPosition]) -> float:
+    def _calculate_danger_level(self, track: Sequence[ContestantReceivedPosition]) -> float:
         """
         Danger level ranges from 0 to 100 where 100 is inside a penalty zone
         """
@@ -81,7 +81,7 @@ class PenaltyZoneCalculator(Calculator):
         time = get_shortest_intersection_time(track, self.polygon_helper, self.polygons, LOOKAHEAD_SECONDS)
         return 99 * (LOOKAHEAD_SECONDS - time) / LOOKAHEAD_SECONDS
 
-    def get_danger_level_and_accumulated_score(self, track: List[ContestantReceivedPosition]):
+    def get_danger_level_and_accumulated_score(self, track: Sequence[ContestantReceivedPosition]):
         # return 0, 0
         if len(self.entered_polygon_times) > 0:
             return 100, sum([0] + list(self.running_penalty.values()))
@@ -90,13 +90,15 @@ class PenaltyZoneCalculator(Calculator):
 
     def calculate_enroute(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         self.check_inside_prohibited_zone(track, state.last_visible_gate)
         return []
 
-    def check_inside_prohibited_zone(self, track: List[ContestantReceivedPosition], last_visible_gate: Optional["Gate"]):
+    def check_inside_prohibited_zone(
+        self, track: Sequence[ContestantReceivedPosition], last_visible_gate: Optional["Gate"]
+    ):
         position = track[-1]
         zone_pks_the_position_was_already_inside = list(self.entered_polygon_times.keys())
 
@@ -164,5 +166,5 @@ class PenaltyZoneCalculator(Calculator):
                         self.INSIDE_PENALTY_ZONE_PENALTY_TYPE,
                     )
                 )
-    def finalise(self, track: List[ContestantReceivedPosition]):
+    def finalise(self, track: Sequence[ContestantReceivedPosition]):
         pass

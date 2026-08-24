@@ -1,29 +1,29 @@
 import datetime
 import logging
 from multiprocessing import Queue
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Sequence
 
 from display.calculators.calculator import (
     Calculator,
-    OrchestratorState,
-    OrchestratorEvent,
-    GatePassedEvent,
-    GateMissedEvent,
-    StartingLinePassedEvent,
     FinishLinePassedEvent,
+    GateMissedEvent,
+    GatePassedEvent,
+    OrchestratorEvent,
+    OrchestratorState,
+    StartingLinePassedEvent,
 )
 from display.calculators.calculator_utilities import bearing_between
 from display.calculators.update_score_message import UpdateScoreMessage
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
+from display.models import ANOMALY, INFORMATION, Contestant, Route, Scorecard
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import (
-    get_heading_difference,
     bearing_difference,
     calculate_distance_lat_lon,
     euclidean_point_to_line_distance,
+    get_heading_difference,
 )
 from display.utilities.route_building_utilities import find_closest_leg_to_point
-from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
-from display.models import Contestant, Scorecard, Route, ANOMALY, INFORMATION
 from display.waypoint import Waypoint
 
 if TYPE_CHECKING:
@@ -184,7 +184,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
 
     def calculate_enroute(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         # Need to do the track score first since this might declare the remaining gates as missed if we are done
@@ -200,7 +200,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
 
     def calculate_outside_route(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         self.calculate_track_score(
@@ -227,7 +227,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
 
     def calculate_track_score(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         last_visible_gate: "Gate",
         in_range_of_gate: "Gate",
         next_gate: Optional["Gate"],
@@ -247,9 +247,14 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             self.update_tracking_state(self.STARTED)
 
         last_position = track[-1]  # type: ContestantReceivedPosition
-        finish_index = len(track) - 1
-        look_back = 1
-        start_index = max(finish_index - look_back, 0)
+        # One sample back (or the same sample if track has only one position
+        # yet). Written as negative indexing rather than a front-relative
+        # index computed from len(track): both are equivalent since track
+        # became a bounded deque (deque supports arbitrary integer indexing,
+        # and the old finish_index/start_index pair was always recomputed
+        # from the current len(track) within this same call, so it was never
+        # actually stale) - this form is just less error-prone to read.
+        first_position = track[-2] if len(track) >= 2 else last_position
 
         # Determine if we just transitioned to a new leg
         just_passed_gate = last_visible_gate != self.last_gate_previous_round
@@ -264,7 +269,6 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             self.last_gate_previous_round = last_visible_gate
 
         self.update_current_leg(last_visible_gate)
-        first_position = track[start_index]
         bearing = bearing_between(first_position, last_position)
         
         # Use local reference bearing for backtracking check
@@ -548,7 +552,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         self.backtracking_start_time = None
         self.last_gate_previous_round = event.gate
 
-    def finalise(self, track: List[ContestantReceivedPosition]):
+    def finalise(self, track: Sequence[ContestantReceivedPosition]):
         self.backtracking_limit = 360
         # Rerun track calculation one final time in order to terminate any ongoing backtracking
         self.calculate_track_score(track, self.last_visible_gate, self.last_visible_gate, None)

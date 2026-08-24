@@ -48,11 +48,13 @@ class Person(models.Model):
         max_length=28,
         editable=False,
         help_text="An automatically generated tracking ID which is distributed to the tracking app",
+        db_index=True,  # exact-match WHERE clause in Contestant._try_to_get_pilot/copilot_tracking, run on every incoming position
     )
     simulator_tracking_id = models.CharField(
         max_length=28,
         editable=False,
         help_text="An automatically generated tracking ID which is distributed to the simulator integration. Persons or contestants identified by this field should not be displayed on the global map.",
+        db_index=True,  # same lookup as app_tracking_id above
     )
     app_aircraft_registration = models.CharField(
         max_length=100,

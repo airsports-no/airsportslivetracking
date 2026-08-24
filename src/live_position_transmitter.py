@@ -6,8 +6,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import OperationalError, connection
 
 from display.models import Person, Contestant
-from display.serialisers import PersonLtdSerialiser
-from live_tracking_map.settings import LIVE_POSITION_TRANSMITTER_CACHE_RESET_INTERVAL, PURGE_GLOBAL_MAP_INTERVAL
+from live_tracking_map.settings import LIVE_POSITION_TRANSMITTER_CACHE_RESET_INTERVAL, EXTERNAL_TRAFFIC_MAX_AGE_SECONDS
 from position_processor_process import PERSON_TYPE
 from websocket_channels import WebsocketFacade
 
@@ -65,16 +64,12 @@ def live_position_transmitter_process(queue):
 
         navigation_task_id = None
         global_tracking_name = None
-        person_data = None
-        push_global = True
         if data_type == PERSON_TYPE:
             try:
                 person = fetch_person(person_or_contestant)
                 person.last_seen = device_time
                 person.save(update_fields=["last_seen"])
                 global_tracking_name = person.app_aircraft_registration
-                if person.is_public:
-                    person_data = PersonLtdSerialiser(person).data
             except ObjectDoesNotExist:
                 pass
             except OperationalError:
@@ -94,8 +89,6 @@ def live_position_transmitter_process(queue):
                         person = contestant.team.crew.member1
                         person.last_seen = device_time
                         person.save(update_fields=["last_seen"])
-                        if person.is_public:
-                            person_data = PersonLtdSerialiser(person).data
                     except:
                         logger.exception(f"Failed fetching person data for contestant {contestant}")
                     if contestant.navigation_task.everything_public:
@@ -109,16 +102,8 @@ def live_position_transmitter_process(queue):
         if (
             global_tracking_name is not None
             and not is_simulator
-            and now < device_time + datetime.timedelta(seconds=PURGE_GLOBAL_MAP_INTERVAL)
+            and now < device_time + datetime.timedelta(seconds=EXTERNAL_TRAFFIC_MAX_AGE_SECONDS)
         ):
-            if push_global:
-                websocket_facade.transmit_global_position_data(
-                    global_tracking_name,
-                    person_data,
-                    position_data,
-                    device_time,
-                    navigation_task_id,
-                )
             websocket_facade.transmit_airsports_position_data(
                 global_tracking_name,
                 position_data,

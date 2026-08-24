@@ -21,6 +21,7 @@ from django.db import connections
 
 from position_processor_process import initial_processor, LAST_DEBUG_KEY
 from live_position_transmitter import live_position_transmitter_process
+from calculator_pool_scaler import run_forever as run_calculator_pool_scaler
 
 import websocket
 
@@ -129,6 +130,19 @@ if __name__ == "__main__":
         args=(processing_queue, global_map_queue),
         daemon=False,
         name="initial_processor",
+    ).start()
+
+    # Scales the live-calculator Deployment's replica count from
+    # Contestant.tracker_start_time (see calculator_pool_scaler.py's module
+    # docstring). A no-op process outside production: run_forever() checks
+    # scaling_enabled() (settings.PRODUCTION and CALCULATOR_POOL_SCALING_ENABLED)
+    # itself and returns immediately when either is unset, which is always the
+    # case in docker-compose/dev since there is no cluster to call the
+    # Kubernetes API against.
+    Process(
+        target=run_calculator_pool_scaler,
+        daemon=True,
+        name="calculator_pool_scaler",
     ).start()
 
     probes.readiness(True)

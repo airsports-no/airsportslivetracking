@@ -19,3 +19,14 @@ gcloud container clusters get-credentials airsports-cluster --region=europe-nort
 # Manual deploy (normally done via cloudbuild-deploy.yaml on every merge - use this
 # only if you need to deploy by hand, e.g. testing a values change before pushing)
 helm upgrade --install airsportsrelease . -f private_values.yaml --namespace default
+
+
+# KEDA was evaluated for autoscaling live-calculator and removed again: each KEDA
+# pod costs a full 250m CPU minimum on Autopilot regardless of actual usage, and its
+# redis-queue-depth trigger can only react after a task is already queued - it can't
+# pre-warm ahead of a known contest start. Both jobs are now done by a scheduler
+# thread inside tracker-processor (src/calculator_pool_scaler.py), which reads
+# Contestant.tracker_start_time directly and scales the live-calculator Deployment
+# via the Kubernetes API - no separate autoscaler component, no idle cost. If KEDA
+# is ever reintroduced, uninstall first:
+#   helm uninstall keda -n keda && kubectl delete namespace keda

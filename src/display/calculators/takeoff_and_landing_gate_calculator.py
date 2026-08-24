@@ -1,25 +1,24 @@
 import datetime
 import logging
 from multiprocessing import Queue
-from typing import List, Optional, Tuple
-
-from display.calculators.calculator_utilities import round_time_minute
+from typing import List, Optional, Sequence, Tuple
 
 from display.calculators.calculator import (
+    AdaptiveStartEvent,
     Calculator,
-    OrchestratorState,
-    OrchestratorEvent,
-    TakeoffPassedEvent,
-    LandingPassedEvent,
     GateMissedEvent,
     GatePassedEvent,
+    LandingPassedEvent,
+    OrchestratorEvent,
+    OrchestratorState,
     StartingLinePassedEvent,
-    AdaptiveStartEvent,
+    TakeoffPassedEvent,
 )
+from display.calculators.calculator_utilities import round_time_minute
 from display.calculators.positions_and_gates import Gate, MultiGate
 from display.calculators.update_score_message import UpdateScoreMessage
-from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.models import ANOMALY, INFORMATION
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.cima_task_type_definitions import ANR_CATALOGUE
 from display.utilities.route_building_utilities import calculate_extended_gate
 from websocket_channels import WebsocketFacade
@@ -100,7 +99,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
 
     def calculate_outside_route(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         # Note: state.takeoff_gate/landing_gate might be None if Gatekeeper was refactored
@@ -109,13 +108,13 @@ class TakeoffAndLandingGateCalculator(Calculator):
 
     def calculate_enroute(
         self,
-        track: List[ContestantReceivedPosition],
+        track: Sequence[ContestantReceivedPosition],
         state: OrchestratorState,
     ) -> List[OrchestratorEvent]:
         return self._check_gates(track, state)
 
     def _check_gates(
-        self, track: List[ContestantReceivedPosition], state: OrchestratorState
+        self, track: Sequence[ContestantReceivedPosition], state: OrchestratorState
     ) -> List[OrchestratorEvent]:
         events = []
         # Check takeoff if exists
@@ -302,7 +301,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
             )
         )
 
-    def finalise(self, track: List[ContestantReceivedPosition]):
+    def finalise(self, track: Sequence[ContestantReceivedPosition]):
         # MultiGate logic: if none passed, one miss penalty
         if not self.scored_takeoff and self.takeoff_gate:
             # Trigger miss for the first takeoff gate as representative of the MultiGate

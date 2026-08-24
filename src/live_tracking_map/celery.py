@@ -8,7 +8,7 @@ from pathlib import Path
 from celery import Celery
 
 # set the default Django settings module for the 'celery' program.
-from celery.signals import after_setup_logger, worker_ready, worker_shutdown, worker_init
+from celery.signals import after_setup_logger, worker_ready, worker_shutdown
 
 from live_tracking_map.celery_bootstrap import LivenessProbe
 import log_configuration
@@ -28,20 +28,6 @@ app.autodiscover_tasks()
 
 # Add liveness probe for k8s
 app.steps["worker"].add(LivenessProbe)
-
-
-# Not needed for RabbitMQ
-def restore_all_unacknowledged_messages():
-    conn = app.connection(transport_options={"visibility_timeout": 0})
-    qos = conn.channel().qos
-    qos.restore_visible()
-    print("Unacknowledged messages restored")
-
-
-# Not needed for RabbitMQ
-@worker_init.connect
-def configure(sender=None, conf=None, **kwargs):
-    restore_all_unacknowledged_messages()
 
 
 @after_setup_logger.connect()
