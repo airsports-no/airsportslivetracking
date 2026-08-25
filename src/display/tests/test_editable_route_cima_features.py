@@ -2,7 +2,7 @@ from django.test import TestCase
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import EditableRoute, Route, Scorecard
-from display.utilities.gate_definitions import SECRETPOINT
+from display.utilities.gate_definitions import SECRETPOINT, TURNPOINT
 
 
 class TestEditableRouteCimaFeatures(TestCase):
@@ -338,3 +338,78 @@ class TestEditableRouteHiddenGateNormalization(TestCase):
         middle = route.waypoints[1]
         self.assertEqual(middle.name, "HG1")
         self.assertAlmostEqual(middle.width, 0.5)
+
+
+class TestEditableRouteKnownTimeGateNormalization(TestCase):
+    """A legacy pointType: 'known_time_gate' route-backbone waypoint must normalize to the
+    canonical turnpoint type when a real Route/Waypoint list is built (see
+    EditableRoute._create_waypoint_list). The standalone featureType: 'known_time_gate' marker
+    flavor (turnpoint-hunt) is untouched by this collapse and not covered here."""
+
+    def setUp(self):
+        create_scorecards()
+        self.scorecard = Scorecard.get_originals().get(shortcut_name="FAI Precision")
+
+    def test_known_time_gate_point_type_normalizes_to_turnpoint(self):
+        editable_route = EditableRoute.objects.create(
+            name="Legacy known_time_gate normalization",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "sp-1",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "kt-1",
+                            "name": "KT1",
+                            "pointType": "known_time_gate",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "fp-1",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 2,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                ],
+            },
+        )
+        route = editable_route.create_precision_route(use_procedure_turns=False, scorecard=self.scorecard)
+        self.assertIsNotNone(route)
+        middle = route.waypoints[1]
+        self.assertEqual(middle.name, "KT1")
+        self.assertEqual(middle.type, TURNPOINT)
+        # Resolves against the ordinary turnpoint GateScore with no separate known_time_gate row required.
+        self.scorecard.get_gate_scorecard(middle.type)

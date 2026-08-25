@@ -108,8 +108,8 @@ describe('getWizardRouteInsertLabel', () => {
     );
   });
 
-  it('gives the known-time-gate-specific instruction for a known_time_gate pointType', () => {
-    expect(getWizardRouteInsertLabel({ ...baseStep, pointType: 'known_time_gate' })).toBe(
+  it('gives the known-time-gate-specific instruction for a known_time_gate step key', () => {
+    expect(getWizardRouteInsertLabel({ ...baseStep, key: 'known_time_gate', pointType: 'tp' })).toBe(
       'Click the existing route line to insert a known time gate.',
     );
   });

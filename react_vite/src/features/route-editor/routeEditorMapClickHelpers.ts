@@ -61,7 +61,7 @@ export function createInsertedRoutePoint(
     type: pointType,
     featureType,
     width: 1852,
-    isTiming: pointType === 'known_time_gate',
+    isTiming: pointType === 'known_time_gate' || pointType === 'tp',
     isPassing: true,
     isSecret: false,
     segmentType: 'straight',

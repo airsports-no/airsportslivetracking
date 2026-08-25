@@ -44,6 +44,14 @@ GATE_TYPES = (
 # treat both spellings identically.
 SECRET_GATE_TYPES = (SECRETPOINT, HIDDEN_GATE)
 
+# Legacy CIMA pointType aliases: predate canonicalization onto the platform's existing gate types
+# (secret for hidden_gate, turnpoint for known_time_gate). New authoring never writes these; these
+# helpers exist so read paths treat the legacy spelling and the canonical one identically.
+_LEGACY_POINT_TYPE_ALIASES = {
+    HIDDEN_GATE: SECRETPOINT,
+    KNOWN_TIME_GATE: TURNPOINT,
+}
+
 
 def is_secret_gate_type(gate_type: str | None) -> bool:
     """True if gate_type is the canonical secret point type or its legacy hidden_gate alias."""
@@ -51,8 +59,6 @@ def is_secret_gate_type(gate_type: str | None) -> bool:
 
 
 def normalize_gate_type(gate_type: str | None) -> str | None:
-    """Map the legacy hidden_gate alias onto the canonical secret point type. Passes through
-    every other gate type (including None) unchanged."""
-    if gate_type == HIDDEN_GATE:
-        return SECRETPOINT
-    return gate_type
+    """Map legacy CIMA pointType aliases (hidden_gate, known_time_gate) onto their canonical
+    platform gate types. Passes through every other gate type (including None) unchanged."""
+    return _LEGACY_POINT_TYPE_ALIASES.get(gate_type, gate_type)

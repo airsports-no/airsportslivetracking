@@ -166,7 +166,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     guideSummary: 'Build a normal precision route first. The ordinary visible route points are the known points, curved legs use the existing curved-leg feature. Hidden gates are not required, but consider adding a few along the route for spatial-precision scoring.',
     steps: [
       routeStep('Build the precision route first. This task requires at least one curved leg - use the curve tool (hold the curve modifier while placing a point, or convert a leg in the point editor) for at least one section.'),
-      pointStep('known_time_gate', 'Visible known time points', 'Your visible route points are the known time points for this task. Use route geometry first; add explicit known-time markers only if you need extra authored markers beyond the normal route points.', 'known_time_gate', 'known_time_gate', 'route_insert', 1, 'route_waypoints'),
+      pointStep('known_time_gate', 'Visible known time points', 'Your visible route points are the known time points for this task. Use route geometry first; add explicit known-time markers only if you need extra authored markers beyond the normal route points.', 'tp', 'route_waypoint', 'route_insert', 1, 'route_waypoints'),
       pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates along the route to add spatial-precision scoring. You can insert points on the route and convert them to hidden gates in the point editor.', 'secret', 'route_waypoint', 'route_insert', 0),
     ],
   },
@@ -369,7 +369,7 @@ export const countWizardStepMatches = (
 
 export const getWizardRouteInsertLabel = (step: WizardStep): string => {
   if (step.key === 'hidden_gate') return 'Click the existing true backbone route line to insert a hidden gate.';
-  if (step.pointType === 'known_time_gate') return 'Click the existing route line to insert a known time gate.';
+  if (step.key === 'known_time_gate') return 'Click the existing route line to insert a known time gate.';
   if (step.pointType === 'ul') return 'Select an existing backbone waypoint and change its type to Unknown Leg in the point editor.';
   if (step.featureType === 'dummy_branch_waypoint') return 'Select an unknown-leg trigger waypoint first, then click the map to add dummy-branch waypoints.';
   return 'Click the existing route line to insert the required point.';

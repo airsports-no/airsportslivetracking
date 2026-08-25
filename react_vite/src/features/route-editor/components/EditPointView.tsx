@@ -83,7 +83,7 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
           <option value="secret">Secret point / hidden gate</option>
           <option value="fp">Finish Point</option>
           <option value="dummy">Dummy Point</option>
-          <option value="known_time_gate">Known Time Gate</option>
+          {point.type === 'known_time_gate' && <option value="known_time_gate">Known Time Gate (legacy)</option>}
           <option value="timed_turnpoint">Timed Turnpoint (standalone)</option>
           {point.type === 'hidden_gate' && <option value="hidden_gate">Hidden Gate (legacy)</option>}
           <option value="ul">Unknown Leg</option>
