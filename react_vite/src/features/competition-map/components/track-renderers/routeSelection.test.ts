@@ -217,20 +217,12 @@ describe('getRenderedCatalogueTargets', () => {
     expect(result).toBe(targets);
   });
 
-  // Documents current behavior rather than asserting it's correct - see
-  // routeSelection.ts's comment above `shape`. The isUnknownLegsSplit early
-  // return above guarantees payload.map_rendering_mode is never
-  // 'unknown_legs_split' by the time `shape` is computed here, so `shape`
-  // is always null and this branch never actually returns via the `shape`
-  // check - reaching this test point means the flow fell through to the
-  // effective_waypoints/fallback checks instead, not the `shape` branch.
-  it('never actually uses the actualRouteWaypoints+shape branch (dead code)', () => {
+  it('falls back to showing the catalogue targets when actual_route is present but has no waypoints', () => {
     const contestant = makeContestant(1, {
-      actual_route: { waypoints: [] }, // present but empty, so actualRouteWaypoints.length is 0 - shape is null either way
+      actual_route: { waypoints: [] },
       map_rendering_mode: 'not_unknown_legs_split',
     });
     const result = getRenderedCatalogueTargets(targets, baseRoute, { 1: contestant }, 1, false, false);
-    // Falls through to the final "no declared effective route" case, not the dead shape branch.
     expect(result).toBe(targets);
   });
 });

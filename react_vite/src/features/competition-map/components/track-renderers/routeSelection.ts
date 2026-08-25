@@ -152,14 +152,6 @@ export function getRenderedCatalogueTargets(
   displaySecrets: boolean,
   taskSubtype: string | null = null,
 ): NavigationTaskCatalogueTarget[] {
-  // NOTE: canSeeSecrets, isUnknownLegsTask, and routeTypeByName below are
-  // all computed but never referenced anywhere else in this function body
-  // (verified while extracting this module) - likely leftover from an
-  // earlier version of this logic. Left as-is (not removed) pending a
-  // decision on whether they're vestigial; see routeSelection.test.ts.
-  const canSeeSecrets = navTaskDisplaySecrets && displaySecrets;
-  const isUnknownLegsTask = taskCatalogueTargets.some((target) => Boolean(target.segment_name));
-  const routeTypeByName = new Map(route.waypoints.map((waypoint: Waypoint) => [waypoint.name, waypoint.type]));
   if (selectedContestantId === null) {
     // 2.A3's general map shows only the three backbone waypoints: no freeway
     // (catalogue) points until a contestant's declared route is selected.
@@ -177,24 +169,6 @@ export function getRenderedCatalogueTargets(
   const isUnknownLegsSplit = payload.map_rendering_mode === 'unknown_legs_split';
 
   if (isUnknownLegsSplit) {
-    return taskCatalogueTargets;
-  }
-
-  // NOTE: `shape` is dead code - the `isUnknownLegsSplit` check above
-  // already returns early whenever map_rendering_mode is
-  // 'unknown_legs_split', so the `payload.map_rendering_mode ===
-  // 'unknown_legs_split'` condition inside this ternary can never be true
-  // by the time we reach it. `shape` is therefore always null and the
-  // `actualRouteWaypoints.length > 0 && shape` branch below never runs.
-  // Left as-is pending a decision on whether to remove it; see
-  // routeSelection.test.ts for a test documenting this.
-  const shape = actualRouteWaypoints.length > 0
-    ? payload.map_rendering_mode === 'unknown_legs_split'
-      ? payload.segments
-      : null
-    : null;
-
-  if (actualRouteWaypoints.length > 0 && shape) {
     return taskCatalogueTargets;
   }
 

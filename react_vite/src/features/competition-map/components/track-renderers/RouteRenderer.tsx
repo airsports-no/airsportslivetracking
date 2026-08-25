@@ -508,15 +508,11 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, scorec
     const waypointsToLabel = renderedRoute.waypoints.filter((w: Waypoint) => {
         const isUnknownLegsTask = (taskCatalogueTargets || []).some((target) => Boolean(target.segment_name));
         const isUnknownLeg = w.type === "ul";
-        const isHiddenUnknownLegSecret = w.type === 'secret';
         if (isUnknownLegsTask) {
             return false;
         }
         const canSeeSecrets = navTaskDisplaySecrets && displaySecrets;
         const showUnknownLegOverlays = canSeeSecrets;
-        if (isUnknownLegsTask && (isUnknownLeg || isHiddenUnknownLegSecret)) {
-            return false;
-        }
         return (w.gate_check || w.time_check) && ((canSeeSecrets && (showUnknownLegOverlays || !isUnknownLeg)) || (w.type !== 'secret' && !isUnknownLeg)) && w.type !== "dummy";
     });
     layers = layers.concat(renderWaypointLabels(map, waypointsToLabel, contestants, selectedContestantId));

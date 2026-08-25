@@ -252,10 +252,6 @@ export default function useDragHandlers({
             return p;
           });
 
-          // Logic: Snap "Secret" points to be collinear
-          if (movedIndex !== -1) {
-            // ... (Snap logic omitted for brevity, same as original)
-          }
           return newPoints;
         });
       } else if (type === 'curve_control') {
