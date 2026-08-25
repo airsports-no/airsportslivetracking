@@ -54,6 +54,7 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
           value={point.type} 
           onChange={(e) => {
             const value = e.target.value as RoutePoint['type'];
+            const preserveDummyBranchFeatureType = point.featureType === 'dummy_branch_waypoint' && value === 'dummy';
             const featureTypeMap: Partial<Record<RoutePoint['type'], NonNullable<RoutePoint['featureType']>>> = {
               sp: 'route_waypoint',
               tp: 'route_waypoint',
@@ -70,7 +71,9 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
               circle_exit: 'circle_exit_marker',
             };
             updatePoint('type', value);
-            if (featureTypeMap[value]) {
+            if (preserveDummyBranchFeatureType) {
+              updatePoint('featureType', 'dummy_branch_waypoint');
+            } else if (featureTypeMap[value]) {
               updatePoint('featureType', featureTypeMap[value]);
             }
           }}

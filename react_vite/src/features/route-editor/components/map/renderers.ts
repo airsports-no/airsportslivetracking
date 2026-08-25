@@ -7,8 +7,7 @@ import {
 } from '../../../../utils/geoUtils';
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Gate, Polygon, Mode, SelectionType } from '../../../../types';
-
-const UNKNOWN_LEG_TRIGGER_TYPE = 'ul';
+import { UNKNOWN_LEG_TRIGGER_TYPE } from '../../unknownLegWizard';
 
 // CIMA 2.A7 (Circle) default inner/outer radius bounds (metres), matching Scorecard's
 // circle_radius_min_m/max_m field defaults - see models/scorecard_and_gate_score.py. The route
@@ -17,30 +16,88 @@ const UNKNOWN_LEG_TRIGGER_TYPE = 'ul';
 const CIMA_CIRCLE_DEFAULT_MIN_RADIUS_M = 200;
 const CIMA_CIRCLE_DEFAULT_MAX_RADIUS_M = 750;
 
+type PointMarkerStyle = {
+  color: string;
+  radius: number;
+  ring?: {
+    color: string;
+    className?: string;
+    dashArray?: string;
+    weight: number;
+  };
+};
+
+export const getRoutePointMarkerStyle = (
+  point: RoutePoint,
+  options: { activeTriggerId?: string | null; emphasizeTriggers?: boolean } = {},
+): PointMarkerStyle => {
+  const { activeTriggerId = null, emphasizeTriggers = false } = options;
+
+  let color = '#3b82f6';
+  let radius = 6;
+
+  if (point.type === 'sp') { color = '#22c55e'; radius = 8; }
+  if (point.type === 'fp') { color = '#ef4444'; radius = 8; }
+  if (point.type === 'secret') { color = '#64748b'; }
+  if (point.type === 'catalogue_turnpoint') { color = '#8b5cf6'; radius = 7; }
+  if (point.type === 'circle_center') { color = '#0f766e'; radius = 7; }
+  if (point.type === 'circle_start') { color = '#2563eb'; radius = 7; }
+  if (point.type === 'circle_entry') { color = '#d97706'; radius = 7; }
+  if (point.type === 'circle_exit') { color = '#dc2626'; radius = 7; }
+  if (point.featureType === 'dummy_branch_waypoint') { color = '#9ca3af'; }
+
+  if (point.type === UNKNOWN_LEG_TRIGGER_TYPE) {
+    color = '#f59e0b';
+    radius = 9;
+    const active = activeTriggerId === point.id;
+    return {
+      color,
+      radius,
+      ring: {
+        color,
+        className: !active && emphasizeTriggers ? 'animate-pulse' : undefined,
+        dashArray: active ? undefined : '3 3',
+        weight: active ? 3 : 2,
+      },
+    };
+  }
+
+  return { color, radius };
+};
+
+const getPointTooltipLabel = (point: RoutePoint, index: number) => {
+  if (point.type === UNKNOWN_LEG_TRIGGER_TYPE) {
+    return `${index + 1}. ⚑ UL ${point.name}`;
+  }
+  // point.name already carries the trigger name (see buildDummyBranchWaypoint's
+  // `${trigger.name}-D<n>` naming), so no separate trigger lookup is needed here.
+  return `${index + 1}. ${point.name}`;
+};
+
 export const clearLayers = (markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, polylinesRef: React.MutableRefObject<L.Layer[]>, routeLineRef: React.MutableRefObject<L.Polyline | null>, map: L.Map) => {
   Object.values(markersRef.current).forEach(layer => map.removeLayer(layer));
   polylinesRef.current.forEach(layer => map.removeLayer(layer));
   if (routeLineRef.current) map.removeLayer(routeLineRef.current);
-  
+
   markersRef.current = {};
   polylinesRef.current = [];
   routeLineRef.current = null;
 };
 
 export const drawRouteLine = (
-  map: L.Map, 
-  routePoints: RoutePoint[], 
+  map: L.Map,
+  routePoints: RoutePoint[],
   standalonePoints: RoutePoint[],
-  routeLineRef: React.MutableRefObject<L.Polyline | null>, 
-  polylinesRef: React.MutableRefObject<L.Layer[]>, 
-  mode: Mode, 
-  setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>, 
-  setSelectedId: (id: string | null) => void, 
-  setSelectionType: (type: SelectionType | null) => void, 
+  routeLineRef: React.MutableRefObject<L.Polyline | null>,
+  polylinesRef: React.MutableRefObject<L.Layer[]>,
+  mode: Mode,
+  setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>,
+  setSelectedId: (id: string | null) => void,
+  setSelectionType: (type: SelectionType | null) => void,
   hideLabels: boolean,
   dragRef: React.MutableRefObject<any>,
   handleDragMove: (e: L.LeafletMouseEvent) => void,
-  handleDragEnd: (e: L.LeafletMouseEvent) => void
+  handleDragEnd: (e: L.LeafletMouseEvent) => void,
 ) => {
   if (routePoints.length <= 1) return;
 
@@ -88,10 +145,10 @@ export const drawRouteLine = (
     }
   }
 
-  const polyline = L.polyline(latlngs, { 
-    color: '#3b82f6', 
+  const polyline = L.polyline(latlngs, {
+    color: '#3b82f6',
     weight: 4,
-    className: mode === 'view' ? 'cursor-crosshair' : '' 
+    className: mode === 'view' ? 'cursor-crosshair' : '',
   }).addTo(map);
 
   polyline.on('click', (e: L.LeafletMouseEvent) => {
@@ -147,7 +204,7 @@ export const drawRouteLine = (
         width: 1000,
         isTiming: false,
         isPassing: true,
-        segmentType: 'straight'
+        segmentType: 'straight',
       };
 
       setRoutePoints(prev => {
@@ -175,12 +232,12 @@ export const drawRouteLine = (
         opacity: 0.7,
         fillOpacity: 0.5,
         weight: 1,
-        className: 'cursor-copy'
+        className: 'cursor-copy',
       }).addTo(map);
 
       ghost.on('mousedown', (e: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(e.originalEvent);
-        
+
         const newPoint: RoutePoint = {
           id: crypto.randomUUID(),
           lat: mid.lat,
@@ -190,14 +247,14 @@ export const drawRouteLine = (
           width: p1.width,
           isTiming: true,
           isPassing: true,
-          segmentType: 'straight'
+          segmentType: 'straight',
         };
 
         const nextPoints = [...routePoints];
         nextPoints.splice(i + 1, 0, newPoint);
 
         setRoutePoints(nextPoints);
-        
+
         map.dragging.disable();
         dragRef.current = {
           type: 'point',
@@ -252,9 +309,9 @@ export const drawRouteLine = (
       const labelMarker = L.marker([mid.lat, mid.lng], {
         icon: L.divIcon({
           className: 'bg-transparent',
-          html: `<div class="transform -translate-x-1/2 -translate-y-[calc(50%+12px)] bg-white/75 backdrop-blur-[1px] px-1 rounded border border-slate-300 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap pointer-events-none w-max">${nm} NM</div>`
+          html: `<div class="transform -translate-x-1/2 -translate-y-[calc(50%+12px)] bg-white/75 backdrop-blur-[1px] px-1 rounded border border-slate-300 text-[10px] font-bold text-slate-600 shadow-sm whitespace-nowrap pointer-events-none w-max">${nm} NM</div>`,
         }),
-        interactive: false
+        interactive: false,
       }).addTo(map);
       polylinesRef.current.push(labelMarker);
     }
@@ -275,19 +332,13 @@ export const drawPoints = (
   setSelectionType?: (type: SelectionType | null) => void,
   setMode?: (mode: Mode) => void,
   pointSelectionType: SelectionType = 'point',
+  options: { activeTriggerId?: string | null; emphasizeUnknownLegTriggers?: boolean } = {},
 ) => {
   routePoints.forEach((p, index) => {
-    let color = '#3b82f6';
-    let radius = 6;
-
-    if (p.type === 'sp') { color = '#22c55e'; radius = 8; }
-    if (p.type === 'fp') { color = '#ef4444'; radius = 8; }
-    if (p.type === 'secret') { color = '#64748b'; }
-    if (p.type === 'catalogue_turnpoint') { color = '#8b5cf6'; radius = 7; }
-    if (p.type === 'circle_center') { color = '#0f766e'; radius = 7; }
-    if (p.type === 'circle_start') { color = '#2563eb'; radius = 7; }
-    if (p.type === 'circle_entry') { color = '#d97706'; radius = 7; }
-    if (p.type === 'circle_exit') { color = '#dc2626'; radius = 7; }
+    const style = getRoutePointMarkerStyle(p, {
+      activeTriggerId: options.activeTriggerId,
+      emphasizeTriggers: options.emphasizeUnknownLegTriggers,
+    });
 
     const pointGroup = L.featureGroup().addTo(map);
 
@@ -315,32 +366,45 @@ export const drawPoints = (
     if (p.width > 0) {
       L.circle([p.lat, p.lng], {
         radius: p.width / 2,
-        color: color,
+        color: style.color,
         weight: 1,
-        fillColor: color,
+        fillColor: style.color,
         fillOpacity: 0.15,
         dashArray: '4, 4',
-        interactive: false
+        interactive: false,
+      }).addTo(pointGroup);
+    }
+
+    if (style.ring) {
+      L.circleMarker([p.lat, p.lng], {
+        radius: style.radius + 4,
+        color: style.ring.color,
+        weight: style.ring.weight,
+        fill: false,
+        opacity: 1,
+        dashArray: style.ring.dashArray,
+        className: style.ring.className,
+        interactive: false,
       }).addTo(pointGroup);
     }
 
     const marker = L.circleMarker([p.lat, p.lng], {
-      radius: radius,
-      fillColor: color,
+      radius: style.radius,
+      fillColor: style.color,
       color: '#fff',
       weight: 2,
       opacity: 1,
       fillOpacity: 0.8,
-      className: p.type === 'secret' ? '' : 'cursor-grab'
+      className: p.type === 'secret' ? '' : 'cursor-grab',
     }).addTo(pointGroup);
 
-    marker.bindTooltip(`${index + 1}. ${p.name}`, { permanent: !hideLabels, direction: 'right', offset: [10, 0] });
+    marker.bindTooltip(getPointTooltipLabel(p, index), { permanent: !hideLabels, direction: 'right', offset: [10, 0] });
 
     marker.on('click', (e: L.LeafletMouseEvent) => {
       L.DomEvent.stopPropagation(e.originalEvent || e);
       if (setSelectedId) setSelectedId(p.id);
       if (setSelectionType) setSelectionType(pointSelectionType);
-      if (setMode) setMode('view');
+      if (setMode && !(options.emphasizeUnknownLegTriggers && p.type === UNKNOWN_LEG_TRIGGER_TYPE)) setMode('view');
     });
     marker.on('mouseover', () => { if (mode === 'view') map.dragging.disable(); });
     marker.on('mouseout', () => { if (mode === 'view' && !dragRef.current) map.dragging.enable(); });
@@ -371,12 +435,12 @@ export const drawPoints = (
       const controlLatLng: L.LatLngTuple = [p.controlLat, p.controlLng];
 
       const dashLine = L.polyline([[prev.lat, prev.lng], controlLatLng, [p.lat, p.lng]], {
-        color: '#64748b', weight: 1, dashArray: '4, 4'
+        color: '#64748b', weight: 1, dashArray: '4, 4',
       }).addTo(map);
       markersRef.current[`curve-dash-${p.id}`] = dashLine;
 
       const controlHandle = L.circleMarker(controlLatLng, {
-        radius: 5, color: '#64748b', fillColor: '#fff', fillOpacity: 1, className: 'cursor-move'
+        radius: 5, color: '#64748b', fillColor: '#fff', fillOpacity: 1, className: 'cursor-move',
       }).addTo(map);
 
       controlHandle.on('click', (e: L.LeafletMouseEvent) => L.DomEvent.stopPropagation(e.originalEvent || e));
@@ -390,7 +454,7 @@ export const drawPoints = (
           index,
           startLatLng: e.latlng,
           initialPoints: routePoints,
-          hasMoved: false
+          hasMoved: false,
         };
         map.on('mousemove', handleDragMove);
         map.on('mouseup', handleDragEnd);
@@ -407,7 +471,7 @@ export const drawGates = (map: L.Map, gates: Gate[], polylinesRef: React.Mutable
     const line = L.polyline([[g.p1.lat, g.p1.lng], [g.p2.lat, g.p2.lng]], {
       color: color,
       weight: 6,
-      dashArray: '10, 10'
+      dashArray: '10, 10',
     }).addTo(map);
 
     line.bindTooltip(g.name, { permanent: !hideLabels, direction: 'center', className: 'bg-transparent border-0 shadow-none text-black font-bold' });
@@ -424,20 +488,20 @@ export const drawGates = (map: L.Map, gates: Gate[], polylinesRef: React.Mutable
 };
 
 export const drawPolygons = (
-  map: L.Map, 
-  polygons: Polygon[], 
-  mode: Mode, 
-  selectedId: string | null, 
-  selectionType: SelectionType | null, 
-  markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, 
-  dragRef: React.MutableRefObject<any>, 
-  handleDragMove: (e: L.LeafletMouseEvent) => void, 
-  handleDragEnd: (e: L.LeafletMouseEvent) => void, 
-  setSelectedId: (id: string | null) => void, 
-  setSelectionType: (type: SelectionType | null) => void, 
-  setMode: (mode: Mode) => void, 
+  map: L.Map,
+  polygons: Polygon[],
+  mode: Mode,
+  selectedId: string | null,
+  selectionType: SelectionType | null,
+  markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>,
+  dragRef: React.MutableRefObject<any>,
+  handleDragMove: (e: L.LeafletMouseEvent) => void,
+  handleDragEnd: (e: L.LeafletMouseEvent) => void,
+  setSelectedId: (id: string | null) => void,
+  setSelectionType: (type: SelectionType | null) => void,
+  setMode: (mode: Mode) => void,
   hideLabels: boolean,
-  setPolygons: React.Dispatch<React.SetStateAction<Polygon[]>>
+  setPolygons: React.Dispatch<React.SetStateAction<Polygon[]>>,
 ) => {
   polygons.forEach(poly => {
     let color = '#3b82f6';
@@ -450,13 +514,13 @@ export const drawPolygons = (
       weight: 2,
       fillColor: color,
       fillOpacity: 0.2,
-      className: mode === 'view' ? 'cursor-move' : ''
+      className: mode === 'view' ? 'cursor-move' : '',
     }).addTo(map);
 
     polygonLayer.bindTooltip(poly.name, {
       permanent: !hideLabels,
       direction: 'center',
-      className: `bg-transparent border-0 shadow-none font-bold `
+      className: 'bg-transparent border-0 shadow-none font-bold ',
     });
 
     polygonLayer.on('click', (e: L.LeafletMouseEvent) => {
@@ -481,7 +545,7 @@ export const drawPolygons = (
         if (bestIndex !== -1 && minDistance < 50) {
           const p1 = poly.points[bestIndex];
           const p2 = poly.points[(bestIndex + 1) % poly.points.length];
-          
+
           const bearing = getBearing(p1, p2);
           const dist = getDistance(p1, clickPt);
           const newLoc = getDestinationPoint(p1, dist, bearing);

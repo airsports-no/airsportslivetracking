@@ -13,6 +13,39 @@ import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mo
 import { fetchEditableRouteMapSources, fetchGlobalEditableRouteMapSources, MapSourceFetchError } from '../api';
 import { MapSource } from '../types';
 
+const BUILTIN_BASE_SOURCES: MapSource[] = [
+  {
+    key: 'osm',
+    label: 'OpenStreetMap',
+    origin: 'builtin',
+    type: 'raster_xyz',
+    tile_url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors',
+    min_zoom: 0,
+    max_zoom: 19,
+    default_zoom: 12,
+    is_overlay: false,
+    allow_multiple: false,
+    is_always_on_top: false,
+    bounds: null,
+  },
+  {
+    key: 'google-satellite',
+    label: 'Google Satellite',
+    origin: 'builtin',
+    type: 'raster_xyz',
+    tile_url: 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+    attribution: '© Google',
+    min_zoom: 0,
+    max_zoom: 20,
+    default_zoom: 12,
+    is_overlay: false,
+    allow_multiple: false,
+    is_always_on_top: false,
+    bounds: null,
+  },
+];
+
 const getAngleDiff = (a: number, b: number) => {
   let diff = a - b;
   while (diff > 180) diff -= 360;
@@ -36,6 +69,8 @@ interface MapCanvasProps {
     maxObsDist: number;
     hideLabels: boolean;
     wizardPolygonType?: Polygon['type'] | null;
+    activeTriggerId?: string | null;
+    emphasizeUnknownLegTriggers?: boolean;
     setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
     setStandalonePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
     setGates: React.Dispatch<React.SetStateAction<Gate[]>>;
@@ -64,6 +99,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   maxObsDist,
   hideLabels,
   wizardPolygonType,
+  activeTriggerId,
+  emphasizeUnknownLegTriggers,
   setRoutePoints,
   setStandalonePoints,
   setGates,
@@ -202,8 +239,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
       openaip: openAip,
     };
     const nextSourceByKey: Record<string, MapSource> = {
-      osm: builtinBaseSources[0],
-      'google-satellite': builtinBaseSources[1],
+      osm: BUILTIN_BASE_SOURCES[0],
+      'google-satellite': BUILTIN_BASE_SOURCES[1],
       openaip: {
         key: 'openaip',
         label: 'OpenAIP',
@@ -304,48 +341,15 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     };
   }, [mapRef]);
 
-  const builtinBaseSources: MapSource[] = [
-    {
-      key: 'osm',
-      label: 'OpenStreetMap',
-      origin: 'builtin',
-      type: 'raster_xyz',
-      tile_url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      attribution: '© OpenStreetMap contributors',
-      min_zoom: 0,
-      max_zoom: 19,
-      default_zoom: 12,
-      is_overlay: false,
-      allow_multiple: false,
-      is_always_on_top: false,
-      bounds: null,
-    },
-    {
-      key: 'google-satellite',
-      label: 'Google Satellite',
-      origin: 'builtin',
-      type: 'raster_xyz',
-      tile_url: 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-      attribution: '© Google',
-      min_zoom: 0,
-      max_zoom: 20,
-      default_zoom: 12,
-      is_overlay: false,
-      allow_multiple: false,
-      is_always_on_top: false,
-      bounds: null,
-    },
-  ];
   const externalBaseSources = (mapSources ?? []).filter((source) => source.source_group === 'external_base');
   const selectableBaseSources = [
-    ...builtinBaseSources,
-    ...externalBaseSources.filter((source) => !builtinBaseSources.some((builtin) => builtin.key === source.key)),
+    ...BUILTIN_BASE_SOURCES,
+    ...externalBaseSources.filter((source) => !BUILTIN_BASE_SOURCES.some((builtin) => builtin.key === source.key)),
   ];
   const systemOverlaySources = (mapSources ?? []).filter((source) => source.source_group === 'system_overlay' && source.key !== 'openaip');
   const uploadedOverlaySources = (mapSources ?? []).filter((source) => source.source_group === 'uploaded_overlay');
   const optionalOverlaySources = [...systemOverlaySources, ...uploadedOverlaySources];
 
-  const canExplicitlyAdjustViewport = !routeId && routePoints.length === 0 && gates.length === 0 && observationMarkers.length === 0 && polygons.length === 0;
   const selectedOverlaySource = optionalOverlaySources.find((source) => source.key === selectedOverlayKey) ?? null;
   const canShowZoomToOverlayButton = !!selectedOverlaySource?.bounds;
   const overlayOutOfRange = !!selectedOverlaySource && !!mapRef.current && (mapRef.current.getZoom() < selectedOverlaySource.min_zoom - 1 || mapRef.current.getZoom() > selectedOverlaySource.max_zoom + 1);
@@ -548,8 +552,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     );
 
     // --- RENDERER: DRAW POINTS ---
-    Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'point');
-    Renderers.drawPoints(map, standalonePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'standalone_point');
+    Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'point', { activeTriggerId, emphasizeUnknownLegTriggers });
+    Renderers.drawPoints(map, standalonePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'standalone_point', { activeTriggerId, emphasizeUnknownLegTriggers });
 
     // --- RENDERER: DRAW GATES ---
     Renderers.drawGates(map, gates, polylinesRef, setSelectedId, setSelectionType, setMode, hideLabels);
@@ -640,7 +644,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     routePoints, standalonePoints, gates, tempGatePoint, showCorridor, observationMarkers, 
     polygons, tempPolygonPoints, selectedId, selectionType, mode,
     setRoutePoints, setStandalonePoints, setGates, setObservationMarkers, setPolygons, 
-    setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels
+    setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels, activeTriggerId, emphasizeUnknownLegTriggers
   ]);
 
   return (

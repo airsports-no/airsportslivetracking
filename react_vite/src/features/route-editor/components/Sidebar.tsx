@@ -55,6 +55,7 @@ interface SidebarProps {
   selectedTaskTemplateId: string | null;
   setSelectedTaskTemplateId: (id: string | null) => void;
   startWizardStep: (stepKey: string) => void;
+  stopWizardAction: () => void;
   currentWizardActionLabel: string | null;
   visibleTaskTypeGroups?: string[];
 }
@@ -96,6 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   selectedTaskTemplateId,
   setSelectedTaskTemplateId,
   startWizardStep,
+  stopWizardAction,
   currentWizardActionLabel,
   visibleTaskTypeGroups,
 }) => {
@@ -153,6 +155,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         observationMarkers={observationMarkers}
         polygons={polygons}
         startWizardStep={startWizardStep}
+        stopWizardAction={stopWizardAction}
         currentWizardActionLabel={currentWizardActionLabel}
         onClose={() => { setSelectedId(null); setSelectionType(null); }}
       />;

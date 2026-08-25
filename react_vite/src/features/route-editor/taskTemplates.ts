@@ -214,11 +214,11 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     group: 'CIMA',
     subtype: 'unknown_legs',
     description: 'True backbone route plus unknown-leg trigger points and separate dummy branches. Hidden route-backbone gates and observation/photo evidence are both optional but recommended.',
-    guideSummary: 'Build the true backbone first. Convert existing backbone points into unknown-leg triggers, then add dummy-branch waypoints from those triggers.',
+    guideSummary: 'Build the true backbone first. Click a backbone waypoint to make it an unknown-leg trigger, then the wizard goes straight into placing dummy-branch waypoints from that trigger.',
     steps: [
       routeStep('Build the true route backbone first. This backbone is the actual route flown by the contestant.'),
-      pointStep('unknown_leg', 'Unknown-leg triggers', 'Select an existing backbone waypoint and change its type to Unknown Leg so it becomes a trigger.', 'ul', 'route_waypoint', 'route_insert'),
-      pointStep('dummy', 'Dummy branch waypoints', 'Select an unknown-leg trigger first, then add one or more dummy waypoints as a separate visible branch from that trigger.', 'dummy', 'dummy_branch_waypoint', 'free_map', 1),
+      pointStep('unknown_leg', 'Unknown-leg triggers', 'Click the backbone waypoint you want as a trigger; the wizard then goes straight to placing its dummy waypoints.', 'ul', 'route_waypoint', 'route_insert'),
+      pointStep('dummy', 'Dummy branch waypoints', 'Click an amber unknown-leg trigger on the map — placement starts automatically — then click the map for each dummy waypoint.', 'dummy', 'dummy_branch_waypoint', 'free_map', 1),
       pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates directly on the true route backbone as evidence for scoring.', 'secret', 'route_waypoint', 'route_insert', 0),
       observationStep('Not required, but consider adding a few observation/photo markers as evidence for scoring.', 0),
     ],
@@ -364,7 +364,7 @@ export const countWizardStepMatches = (
 export const getWizardRouteInsertLabel = (step: WizardStep): string => {
   if (step.key === 'hidden_gate') return 'Click the existing true backbone route line to insert a hidden gate.';
   if (step.key === 'known_time_gate') return 'Click the existing route line to insert a known time gate.';
-  if (step.pointType === 'ul') return 'Select an existing backbone waypoint and change its type to Unknown Leg in the point editor.';
-  if (step.featureType === 'dummy_branch_waypoint') return 'Select an unknown-leg trigger waypoint first, then click the map to add dummy-branch waypoints.';
+  if (step.pointType === 'ul') return 'Click the backbone waypoint you want as a trigger; the wizard then goes straight to placing its dummy waypoints.';
+  if (step.featureType === 'dummy_branch_waypoint') return 'Click an amber unknown-leg trigger on the map — placement starts automatically — then click the map for each dummy waypoint.';
   return 'Click the existing route line to insert the required point.';
 };

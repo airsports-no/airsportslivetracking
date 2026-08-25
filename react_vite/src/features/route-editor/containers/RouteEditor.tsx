@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Toolbar from '../components/Toolbar';
 import MapCanvas from '../components/MapCanvas';
+import WizardActionBanner from '../components/WizardActionBanner';
 import { fetchRoute, fetchTaskCompatibility, saveRoute, TaskCompatibilityResult } from '../api';
 import { SavePayload } from '../types';
 import { generatePath } from '../../../urls';
@@ -10,8 +11,6 @@ import {
   getDistance,
   getBearing,
   getDestinationPoint,
-  isCollinear,
-  getDistanceFromLine,
   toRad,
 } from '../../../utils/geoUtils';
 import { getQuadraticBezierPoints } from '../../../utils/bezierPoints';
@@ -40,6 +39,12 @@ import {
 } from '../routeEditorMapClickHelpers';
 import { getWizardStep, getWizardTransition } from '../routeEditorWizardTransitions';
 import { useToast } from '../../competition-map/hooks/useToast';
+import {
+  buildDummyBranchWaypoint,
+  getDummyBranchPhase,
+  getWizardBannerText,
+  isUnknownLegTrigger,
+} from '../unknownLegWizard';
 
 const getFreeMapStepMaxCount = (
   selectedTaskTemplateId: string | null,
@@ -54,13 +59,6 @@ const getFreeMapStepMaxCount = (
     && item.placement === 'free_map'
   ));
   return step?.maxCount ?? null;
-};
-
-const getAngleDiff = (a: number, b: number) => {
-  let diff = a - b;
-  while (diff > 180) diff -= 360;
-  while (diff < -180) diff += 360;
-  return diff;
 };
 
 export default function RouteEditor() {
@@ -88,19 +86,14 @@ export default function RouteEditor() {
   const [selectedTaskTemplateId, setSelectedTaskTemplateId] = useState<string | null>(null);
   const [intendedTaskTypes, setIntendedTaskTypes] = useState<string[]>([]);
   const [taskCompatibility, setTaskCompatibility] = useState<TaskCompatibilityResult | null>(null);
-  // While false, intendedTaskTypes auto-follows the live suggestion (the active wizard
-  // template's subtype once the route becomes compatible with it, otherwise the full compatible
-  // set) as the user builds the route - so e.g. placing the last circle marker auto-checks
-  // Circle. Flips to true, permanently, the moment the user manually toggles a checkbox in the
-  // "Task types" panel, or a previously-saved route already had a declared value - from then on
-  // intendedTaskTypes is taken as-is, including an explicit empty selection.
-  const intendedTaskTypesLockedRef = useRef(false);
   const [wizardRouteInsertType, setWizardRouteInsertType] = useState<RoutePoint['type'] | null>(null);
   const [wizardRouteInsertFeatureType, setWizardRouteInsertFeatureType] = useState<RoutePoint['featureType'] | undefined>(undefined);
   const [wizardPolygonType, setWizardPolygonType] = useState<Polygon['type'] | null>(null);
   const [currentWizardActionLabel, setCurrentWizardActionLabel] = useState<string | null>(null);
   const [pendingPointTypeSelection, setPendingPointTypeSelection] = useState<RoutePoint['type'] | null>(null);
   const [pendingPointFeatureTypeSelection, setPendingPointFeatureTypeSelection] = useState<RoutePoint['featureType'] | undefined>(undefined);
+  const [dummyBranchTriggerId, setDummyBranchTriggerId] = useState<string | null>(null);
+  const [wizardPrompt, setWizardPrompt] = useState<string | null>(null);
   const visibleTaskTypeGroups = useMemo(() => {
     const groups = document.configuration.visibleTaskTypeGroups;
     if (Array.isArray(groups) && groups.length > 0) {
@@ -142,6 +135,7 @@ export default function RouteEditor() {
   }, [routePoints]);
 
   const modeRef = useRef(mode);
+  const routePointsRef = useRef(routePoints);
   const [mapInstance, setMapInstance] = useState<Map | null>(null);
   const [pendingBounds, setPendingBounds] = useState<L.LatLngBoundsExpression | null>(null);
 
@@ -150,6 +144,10 @@ export default function RouteEditor() {
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
+
+  useEffect(() => {
+    routePointsRef.current = routePoints;
+  }, [routePoints]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -200,6 +198,14 @@ export default function RouteEditor() {
       (mapInstance as L.Map).locate({ setView: true, maxZoom: 11 });
     }
   }, [mapInstance, paramRouteId]);
+
+  // While false, intendedTaskTypes auto-follows the live suggestion (the active wizard
+  // template's subtype once the route becomes compatible with it, otherwise the full compatible
+  // set) as the user builds the route - so e.g. placing the last circle marker auto-checks
+  // Circle. Flips to true, permanently, the moment the user manually toggles a checkbox in the
+  // "Task types" panel, or a previously-saved route already had a declared value - from then on
+  // intendedTaskTypes is taken as-is, including an explicit empty selection.
+  const intendedTaskTypesLockedRef = useRef(false);
 
   useEffect(() => {
     if (paramRouteId) {
@@ -283,6 +289,29 @@ export default function RouteEditor() {
     visibleTaskTypeGroups,
   ]);
 
+  const beginDummyBranchStep = useCallback((triggerId: string | null) => {
+    const template = getTaskTemplateById(selectedTaskTemplateId);
+    const step = getWizardStep(template, 'dummy');
+    if (!step) return;
+
+    const transition = getWizardTransition(step, getWizardRouteInsertLabel);
+    setPendingPointTypeSelection(null);
+    setPendingPointFeatureTypeSelection(undefined);
+    setCurrentWizardActionLabel(transition.currentWizardActionLabel);
+    setWizardRouteInsertType(transition.wizardRouteInsertType as RoutePoint['type'] | null);
+    setWizardRouteInsertFeatureType(transition.wizardRouteInsertFeatureType as RoutePoint['featureType'] | undefined);
+    setWizardPolygonType(transition.wizardPolygonType as Polygon['type'] | null);
+    setWizardPrompt(transition.routeInsertPrompt);
+    setDummyBranchTriggerId(triggerId);
+    setSelectionType('wizard');
+
+    // A non-null triggerId is only ever handed in by a caller that already knows it names (or, for
+    // the just-converted-to-'ul' case, is about to become) a valid trigger - checking it against
+    // routePointsRef here would race the setRoutePoints() call convertSelectedBackbonePointToType
+    // just made, since the ref only catches up after that render commits.
+    setMode(triggerId ? 'add_point' : 'view');
+  }, [selectedTaskTemplateId]);
+
   const handleMapClick = useCallback((latlng: LatLng) => {
     if (mode === 'view') {
       setSelectedId(null);
@@ -360,31 +389,16 @@ export default function RouteEditor() {
 
     if (mode === 'add_point') {
       if (wizardRouteInsertType && wizardRouteInsertFeatureType === 'dummy_branch_waypoint') {
-        const selectedTrigger = routePoints.find((point) => point.id === selectedId && point.type === 'ul');
+        const selectedTrigger = routePoints.find((point) => point.id === dummyBranchTriggerId && isUnknownLegTrigger(point));
         if (!selectedTrigger) {
-          alert('Select an unknown-leg trigger on the backbone before adding dummy-branch waypoints. Keep the trigger selected, then click Add again.');
           return;
         }
         const siblingBranchPoints = standalonePoints.filter(
-          (point) => point.featureType === 'dummy_branch_waypoint' && point.triggerPointId === selectedTrigger.id
+          (point) => point.featureType === 'dummy_branch_waypoint' && point.triggerPointId === selectedTrigger.id,
         );
-        const branchSequence = siblingBranchPoints.length;
-        const newPoint = createStandaloneWizardPoint(
-          latlng,
-          wizardRouteInsertType,
-          wizardRouteInsertFeatureType,
-          siblingBranchPoints.length === 0 ? `${selectedTrigger.name}-D1` : `${selectedTrigger.name}-D${siblingBranchPoints.length + 1}`,
-          siblingBranchPoints.length + 1,
-        );
-        setStandalonePoints((prev) => [...prev, {
-          ...newPoint,
-          triggerPointId: selectedTrigger.id,
-          branchSequence,
-          isTiming: false,
-          isPassing: true,
-        }]);
+        const newPoint = buildDummyBranchWaypoint(latlng, selectedTrigger, siblingBranchPoints);
+        setStandalonePoints((prev) => [...prev, newPoint]);
         setIsDirty(true);
-        setSelectionType('wizard');
         return;
       }
       if (wizardRouteInsertType && routePoints.length >= 2) {
@@ -410,6 +424,7 @@ export default function RouteEditor() {
         setWizardRouteInsertType(null);
         setWizardRouteInsertFeatureType(undefined);
         setCurrentWizardActionLabel(null);
+        setWizardPrompt(null);
         return;
       }
 
@@ -439,6 +454,7 @@ export default function RouteEditor() {
         setMode('view');
         setIsDirty(true);
         setCurrentWizardActionLabel(null);
+        setWizardPrompt(null);
       }
       return;
     }
@@ -459,6 +475,7 @@ export default function RouteEditor() {
       setObservationMarkers(prev => [...prev, createObservationMarker(latlng, prev.length + 1)]);
       setIsDirty(true);
       setCurrentWizardActionLabel(null);
+      setWizardPrompt(null);
       return;
     }
 
@@ -482,6 +499,8 @@ export default function RouteEditor() {
     isTimedTurnpointStandaloneTask,
     selectedTaskTemplateId,
     selectionType,
+    dummyBranchTriggerId,
+    standalonePointTypes,
   ]);
 
   const updateSelectedPoint = (field: keyof RoutePoint, value: any) => {
@@ -525,20 +544,6 @@ export default function RouteEditor() {
   const updateSelectedStandalonePoint = (field: keyof RoutePoint, value: any) => {
     markDirty();
     setStandalonePoints((points) => updateItemById(points, selectedId, (point) => ({ ...point, [field]: value })));
-  };
-
-  const convertSelectedBackbonePointToType = (nextType: RoutePoint['type'], nextFeatureType: RoutePoint['featureType'] | undefined) => {
-    if (!selectedId) return;
-    markDirty();
-    setRoutePoints((points) => updateItemById(points, selectedId, (point) => ({
-      ...point,
-      type: nextType,
-      featureType: nextFeatureType || point.featureType || 'route_waypoint',
-    })));
-    setPendingPointTypeSelection(null);
-    setPendingPointFeatureTypeSelection(undefined);
-    setCurrentWizardActionLabel(null);
-    setSelectionType('point');
   };
 
   const updateSelectedGate = (field: keyof Gate, value: any) => {
@@ -621,14 +626,39 @@ export default function RouteEditor() {
     setRoutePoints(reorderItemsById(routePoints, selectedId, direction));
   };
 
+  const convertSelectedBackbonePointToType = useCallback((nextType: RoutePoint['type'], nextFeatureType: RoutePoint['featureType'] | undefined) => {
+    if (!selectedId) return;
+    markDirty();
+    setRoutePoints((points) => updateItemById(points, selectedId, (point) => ({
+      ...point,
+      type: nextType,
+      featureType: nextFeatureType || point.featureType || 'route_waypoint',
+    })));
+    setPendingPointTypeSelection(null);
+    setPendingPointFeatureTypeSelection(undefined);
+    setSelectionType('point');
+    if (nextType === 'ul') {
+      beginDummyBranchStep(selectedId);
+      return;
+    }
+    setCurrentWizardActionLabel(null);
+    setWizardPrompt(null);
+  }, [beginDummyBranchStep, markDirty, selectedId]);
+
   useEffect(() => {
     if (!pendingPointTypeSelection || selectionType !== 'point' || !selectedId) {
       return;
     }
     convertSelectedBackbonePointToType(pendingPointTypeSelection, pendingPointFeatureTypeSelection);
-  }, [pendingPointFeatureTypeSelection, pendingPointTypeSelection, selectedId, selectionType]);
+  }, [convertSelectedBackbonePointToType, pendingPointFeatureTypeSelection, pendingPointTypeSelection, selectedId, selectionType]);
 
   const startWizardStep = useCallback((stepKey: string) => {
+    if (stepKey === 'dummy') {
+      const selectedPoint = routePointsRef.current.find((point) => point.id === selectedId) ?? null;
+      beginDummyBranchStep(selectedPoint && isUnknownLegTrigger(selectedPoint) ? selectedPoint.id : null);
+      return;
+    }
+
     const template = getTaskTemplateById(selectedTaskTemplateId);
     const step = getWizardStep(template, stepKey);
     if (!step) return;
@@ -639,11 +669,13 @@ export default function RouteEditor() {
     }
     setPendingPointTypeSelection(null);
     setPendingPointFeatureTypeSelection(undefined);
+    setDummyBranchTriggerId(null);
 
     setCurrentWizardActionLabel(transition.currentWizardActionLabel);
     setWizardRouteInsertType(transition.wizardRouteInsertType as RoutePoint['type'] | null);
     setWizardRouteInsertFeatureType(transition.wizardRouteInsertFeatureType as RoutePoint['featureType'] | undefined);
     setWizardPolygonType(transition.wizardPolygonType as Polygon['type'] | null);
+    setWizardPrompt(transition.routeInsertPrompt);
     if (transition.selectExistingRouteType) {
       setPendingPointTypeSelection(transition.selectExistingRouteType);
       setPendingPointFeatureTypeSelection(transition.selectExistingRouteFeatureType as RoutePoint['featureType'] | undefined);
@@ -657,13 +689,43 @@ export default function RouteEditor() {
     if (transition.resetTempPolygonPoints) {
       setTempPolygonPoints([]);
     }
-    if (transition.routeInsertPrompt) {
-      alert(transition.routeInsertPrompt);
-    }
     if (transition.mode) {
       setMode(transition.mode);
     }
-  }, [selectedTaskTemplateId]);
+  }, [beginDummyBranchStep, selectedId, selectedTaskTemplateId]);
+
+  useEffect(() => {
+    if (wizardRouteInsertFeatureType !== 'dummy_branch_waypoint') {
+      return;
+    }
+    if (selectionType !== 'point' || !selectedId) {
+      return;
+    }
+
+    const selectedPoint = routePointsRef.current.find((point) => point.id === selectedId) ?? null;
+    if (!selectedPoint || !isUnknownLegTrigger(selectedPoint)) {
+      return;
+    }
+
+    setDummyBranchTriggerId(selectedPoint.id);
+    setMode('add_point');
+  }, [selectedId, selectionType, wizardRouteInsertFeatureType]);
+
+  useEffect(() => {
+    if (!dummyBranchTriggerId) {
+      return;
+    }
+
+    const triggerPoint = routePoints.find((point) => point.id === dummyBranchTriggerId) ?? null;
+    if (isUnknownLegTrigger(triggerPoint)) {
+      return;
+    }
+
+    setDummyBranchTriggerId(null);
+    if (wizardRouteInsertFeatureType === 'dummy_branch_waypoint') {
+      setMode('view');
+    }
+  }, [dummyBranchTriggerId, routePoints, wizardRouteInsertFeatureType]);
 
   const validationErrors = useMemo(() => validateRouteEditorState(
     routePoints,
@@ -691,6 +753,8 @@ export default function RouteEditor() {
     setCurrentWizardActionLabel(null);
     setPendingPointTypeSelection(null);
     setPendingPointFeatureTypeSelection(undefined);
+    setDummyBranchTriggerId(null);
+    setWizardPrompt(null);
   }, []);
 
   const handleSave = async () => {
@@ -746,6 +810,22 @@ export default function RouteEditor() {
     markDirty();
     setRoutePoints((prev) => renumberRoutePoints(prev, isThreePointBackboneTask));
   }, [isThreePointBackboneTask, markDirty]);
+
+  const dummyBranchPhase = getDummyBranchPhase(
+    wizardRouteInsertFeatureType === 'dummy_branch_waypoint',
+    dummyBranchTriggerId,
+    routePoints,
+  );
+  const activeDummyTrigger = dummyBranchTriggerId
+    ? routePoints.find((point) => point.id === dummyBranchTriggerId) ?? null
+    : null;
+  const bannerText = dummyBranchPhase !== 'idle'
+    ? getWizardBannerText(dummyBranchPhase, activeDummyTrigger?.name)
+    : null;
+  const awaitingNonTriggerSelection = dummyBranchPhase === 'awaiting_trigger'
+    && selectionType === 'point'
+    && !!selectedId
+    && !isUnknownLegTrigger(routePoints.find((point) => point.id === selectedId));
 
   return (
     <>
@@ -826,6 +906,17 @@ export default function RouteEditor() {
           openWizard={() => { setSelectedId(null); setSelectionType('wizard'); }}
         />
 
+        {currentWizardActionLabel && (
+          <WizardActionBanner
+            currentWizardActionLabel={currentWizardActionLabel}
+            title={bannerText?.title || 'Active wizard step'}
+            instruction={bannerText?.instruction || wizardPrompt || 'Follow the wizard instructions on the map.'}
+            stopWizardAction={stopWizardAction}
+            dummyBranchPhase={dummyBranchPhase}
+            awaitingNonTriggerSelection={awaitingNonTriggerSelection}
+          />
+        )}
+
         <MapCanvas
           ref={setMapInstance}
           routeId={routeId ? parseInt(routeId, 10) : null}
@@ -842,6 +933,8 @@ export default function RouteEditor() {
           showCorridor={showCorridor}
           hideLabels={hideLabels}
           wizardPolygonType={wizardPolygonType}
+          activeTriggerId={dummyBranchPhase === 'placing' ? dummyBranchTriggerId : null}
+          emphasizeUnknownLegTriggers={dummyBranchPhase === 'awaiting_trigger'}
           setRoutePoints={setRoutePoints}
           setStandalonePoints={setStandalonePoints}
           setGates={setGates}
