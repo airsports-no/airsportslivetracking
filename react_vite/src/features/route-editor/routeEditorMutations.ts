@@ -1,4 +1,5 @@
 import { Gate, ObservationMarker, Polygon, RoutePoint } from '../../types';
+import { isSecretPointType } from '../../gateTypes';
 
 export function updateItemById<T extends { id: string }>(
   items: T[],
@@ -61,7 +62,7 @@ export function renumberRoutePoints(points: RoutePoint[], isThreePointBackboneTa
       // even after reverse/reorder actions.
       nextPoint.type = 'tp';
       nextPoint.name = 'MP';
-    } else if (point.type === 'secret') {
+    } else if (isSecretPointType(point.type)) {
       nextPoint.name = `Secret ${waypointCounter}.${secretCounter++}`;
     } else {
       waypointCounter += 1;
@@ -100,7 +101,7 @@ export function reverseRoutePoints(points: RoutePoint[], isThreePointBackboneTas
     } else if (isThreePointBackboneTask && index === 1) {
       nextPoint.type = 'tp';
       nextPoint.name = 'MP';
-    } else if (nextPoint.type !== 'secret') {
+    } else if (!isSecretPointType(nextPoint.type)) {
       nextPoint.type = 'tp';
     }
 

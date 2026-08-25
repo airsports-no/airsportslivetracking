@@ -1,6 +1,7 @@
 import { getBearing, getDistance, isCollinear, toRad } from '../../utils/geoUtils.ts';
 import { Gate, ObservationMarker, Polygon, RoutePoint } from '../../types';
 import { SavePayload } from './types';
+import { isSecretPointType } from '../../gateTypes';
 
 const getAngleDiff = (a: number, b: number) => {
   let diff = a - b;
@@ -60,7 +61,7 @@ export function validateRouteEditorState(
   }
 
   routePoints.forEach((point, index) => {
-    if (point.type !== 'secret') return;
+    if (!isSecretPointType(point.type)) return;
     if (index === 0 || index === routePoints.length - 1) {
       errors.push(`Secret point "${point.name}" cannot be Start or Finish.`);
       return;

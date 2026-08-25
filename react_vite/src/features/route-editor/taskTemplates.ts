@@ -1,4 +1,5 @@
 import { Gate, ObservationMarker, Polygon, RoutePoint } from '../../types';
+import { isSecretPointType } from '../../gateTypes';
 
 export type TaskTemplateGroup = 'Legacy' | 'CIMA';
 
@@ -166,7 +167,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     steps: [
       routeStep('Build the precision route first. This task requires at least one curved leg - use the curve tool (hold the curve modifier while placing a point, or convert a leg in the point editor) for at least one section.'),
       pointStep('known_time_gate', 'Visible known time points', 'Your visible route points are the known time points for this task. Use route geometry first; add explicit known-time markers only if you need extra authored markers beyond the normal route points.', 'known_time_gate', 'known_time_gate', 'route_insert', 1, 'route_waypoints'),
-      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates along the route to add spatial-precision scoring. You can insert points on the route and convert them to hidden gates in the point editor.', 'hidden_gate', 'hidden_gate', 'route_insert', 0),
+      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates along the route to add spatial-precision scoring. You can insert points on the route and convert them to hidden gates in the point editor.', 'secret', 'route_waypoint', 'route_insert', 0),
     ],
   },
   {
@@ -179,7 +180,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     guideSummary: 'Build the visible precision route first. Hidden gates are not required, but consider adding a few along the route corridor for spatial-precision scoring.',
     steps: [
       routeStep('Build the visible route with start, visible turn points, and finish.'),
-      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates along the route corridor to add spatial-precision scoring. You can insert points on the route and convert them to hidden gates in the point editor.', 'hidden_gate', 'hidden_gate', 'route_insert', 0),
+      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates along the route corridor to add spatial-precision scoring. You can insert points on the route and convert them to hidden gates in the point editor.', 'secret', 'route_waypoint', 'route_insert', 0),
     ],
   },
   {
@@ -204,7 +205,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     guideSummary: 'Build the known circuit first. Neither hidden gates nor observation/photo markers are required, but consider adding at least one of the two as evidence for scoring.',
     steps: [
       routeStep('Build the known circuit route first.'),
-      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates on the circuit as evidence for scoring.', 'hidden_gate', 'hidden_gate', 'route_insert', 0),
+      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates on the circuit as evidence for scoring.', 'secret', 'route_waypoint', 'route_insert', 0),
       observationStep('Not required, but consider adding a few observation/photo markers as evidence for scoring.', 0),
     ],
   },
@@ -219,7 +220,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
       routeStep('Build the true route backbone first. This backbone is the actual route flown by the contestant.'),
       pointStep('unknown_leg', 'Unknown-leg triggers', 'Select an existing backbone waypoint and change its type to Unknown Leg so it becomes a trigger.', 'ul', 'route_waypoint', 'route_insert'),
       pointStep('dummy', 'Dummy branch waypoints', 'Select an unknown-leg trigger first, then add one or more dummy waypoints as a separate visible branch from that trigger.', 'dummy', 'dummy_branch_waypoint', 'free_map', 1),
-      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates directly on the true route backbone as evidence for scoring.', 'hidden_gate', 'route_waypoint', 'route_insert', 0),
+      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates directly on the true route backbone as evidence for scoring.', 'secret', 'route_waypoint', 'route_insert', 0),
       observationStep('Not required, but consider adding a few observation/photo markers as evidence for scoring.', 0),
     ],
   },
@@ -346,6 +347,9 @@ export const countWizardStepMatches = (
     if (step.featureType === 'dummy_branch_waypoint') {
       return pointPool.filter((point) => point.featureType === 'dummy_branch_waypoint' && point.type === step.pointType).length;
     }
+    if (step.key === 'hidden_gate') {
+      return pointPool.filter((point) => isSecretPointType(point.type)).length;
+    }
     return pointPool.filter((point) => point.type === step.pointType).length;
   }
   if (step.kind === 'observation') {
@@ -364,7 +368,7 @@ export const countWizardStepMatches = (
 };
 
 export const getWizardRouteInsertLabel = (step: WizardStep): string => {
-  if (step.pointType === 'hidden_gate') return 'Click the existing true backbone route line to insert a hidden gate.';
+  if (step.key === 'hidden_gate') return 'Click the existing true backbone route line to insert a hidden gate.';
   if (step.pointType === 'known_time_gate') return 'Click the existing route line to insert a known time gate.';
   if (step.pointType === 'ul') return 'Select an existing backbone waypoint and change its type to Unknown Leg in the point editor.';
   if (step.featureType === 'dummy_branch_waypoint') return 'Select an unknown-leg trigger waypoint first, then click the map to add dummy-branch waypoints.';

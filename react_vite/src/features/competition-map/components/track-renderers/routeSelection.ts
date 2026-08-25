@@ -1,4 +1,5 @@
 import type { NavigationTaskCatalogueTarget, RouteData, Waypoint, Contestant } from '../../types';
+import { isSecretPointType } from '../../../../gateTypes';
 
 // Pure route/catalogue-target selection logic extracted out of
 // RouteRenderer.tsx so it can be unit-tested without pulling in Leaflet or
@@ -20,7 +21,7 @@ export function getUnknownLegHiddenStretchNames(route: RouteData): Set<string> {
       return;
     }
 
-    if (waypoint.type === 'hidden_gate' || waypoint.type === 'secret') {
+    if (isSecretPointType(waypoint.type)) {
       hiddenStretchNames.add(waypoint.name);
       return;
     }

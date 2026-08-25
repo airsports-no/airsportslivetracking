@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { planeIcon, getAnnotationIcon } from '../components/icons';
 import { TrackPosition, NavigationTask, Contestant } from '../types';
 import { hslColor, lastMinutesPositions, splitSegments } from './mapLayersHelpers';
+import { isSecretPointType } from '../../../gateTypes';
 
 interface ContestantLayers {
     marker: L.Marker;
@@ -237,7 +238,7 @@ export function useMapLayers({
 
             const visibleAnnotations = allAnnotations.filter(ann =>
                 new Date(ann.time) <= currentTime &&
-                (ann.gate_type !== 'secret' || (navTask.display_secrets && userShowSecrets))
+                (!isSecretPointType(ann.gate_type) || (navTask.display_secrets && userShowSecrets))
             );
 
             visibleAnnotations.forEach(ann => {

@@ -102,8 +102,8 @@ describe('getTaskTemplateById', () => {
 describe('getWizardRouteInsertLabel', () => {
   const baseStep: WizardStep = { key: 'k', label: 'L', help: 'H', kind: 'point', minCount: 0 };
 
-  it('gives the hidden-gate-specific instruction for a hidden_gate pointType', () => {
-    expect(getWizardRouteInsertLabel({ ...baseStep, pointType: 'hidden_gate' })).toBe(
+  it('gives the hidden-gate-specific instruction for a hidden_gate step key', () => {
+    expect(getWizardRouteInsertLabel({ ...baseStep, key: 'hidden_gate', pointType: 'secret' })).toBe(
       'Click the existing true backbone route line to insert a hidden gate.',
     );
   });

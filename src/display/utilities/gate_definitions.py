@@ -38,3 +38,21 @@ GATE_TYPES = (
     (CIRCLE_ENTRY, "Circle entry"),
     (CIRCLE_EXIT, "Circle exit"),
 )
+
+# Legacy CIMA alias: a "hidden_gate" pointType is a secret point that predates canonicalization
+# onto SECRETPOINT. New authoring never writes HIDDEN_GATE; these helpers exist so read paths
+# treat both spellings identically.
+SECRET_GATE_TYPES = (SECRETPOINT, HIDDEN_GATE)
+
+
+def is_secret_gate_type(gate_type: str | None) -> bool:
+    """True if gate_type is the canonical secret point type or its legacy hidden_gate alias."""
+    return gate_type in SECRET_GATE_TYPES
+
+
+def normalize_gate_type(gate_type: str | None) -> str | None:
+    """Map the legacy hidden_gate alias onto the canonical secret point type. Passes through
+    every other gate type (including None) unchanged."""
+    if gate_type == HIDDEN_GATE:
+        return SECRETPOINT
+    return gate_type

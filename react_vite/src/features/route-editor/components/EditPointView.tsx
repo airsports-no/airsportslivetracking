@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import ObservationThumbnail from './ObservationThumbnail';
 import { RoutePoint } from '../../../types';
+import { isSecretPointType } from '../../../gateTypes';
 
 interface EditPointViewProps {
     point: RoutePoint;
@@ -79,12 +80,12 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
         >
           <option value="sp">Start Point</option>
           <option value="tp">Visible Turning Point</option>
-          <option value="secret">Secret Point</option>
+          <option value="secret">Secret point / hidden gate</option>
           <option value="fp">Finish Point</option>
           <option value="dummy">Dummy Point</option>
           <option value="known_time_gate">Known Time Gate</option>
           <option value="timed_turnpoint">Timed Turnpoint (standalone)</option>
-          <option value="hidden_gate">Hidden Gate</option>
+          {point.type === 'hidden_gate' && <option value="hidden_gate">Hidden Gate (legacy)</option>}
           <option value="ul">Unknown Leg</option>
           <option value="catalogue_turnpoint">Catalogue Turnpoint</option>
           <option value="circle_center">Circle Center</option>
@@ -92,7 +93,7 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
           <option value="circle_entry">Circle Entry</option>
           <option value="circle_exit">Circle Exit</option>
         </select>
-        {point.type === 'secret' && (
+        {isSecretPointType(point.type) && (
           <p className="text-xs text-amber-600 mt-1">
             Must be on a straight line between adjacent points.
           </p>

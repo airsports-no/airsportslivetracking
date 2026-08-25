@@ -1,8 +1,6 @@
 import hashlib
 import json
 
-TASK_COMPILER_SIGNATURE_VERSION = 3
-
 from display.models import CompiledNavigationTask
 from display.services.route_compatibility import LEGACY_COMPILER_PRIMITIVE_KEYS, extract_route_primitives
 from display.utilities.cima_task_type_definitions import (
@@ -16,12 +14,13 @@ from display.utilities.cima_task_type_definitions import (
 from display.utilities.gate_definitions import (
     DUMMY,
     FINISHPOINT,
-    HIDDEN_GATE,
-    SECRETPOINT,
     STARTINGPOINT,
     TURNPOINT,
     UNKNOWN_LEG,
+    is_secret_gate_type,
 )
+
+TASK_COMPILER_SIGNATURE_VERSION = 3
 
 
 class TaskCompiler:
@@ -311,7 +310,7 @@ class TaskCompiler:
                 continue
 
             include_in_display_segment = True
-            if point_type in (HIDDEN_GATE, SECRETPOINT) and name in post_trigger_hidden_gate_names:
+            if is_secret_gate_type(point_type) and name in post_trigger_hidden_gate_names:
                 include_in_display_segment = False
 
             if include_in_display_segment:
@@ -332,7 +331,7 @@ class TaskCompiler:
                 for next_item in ordered_waypoints[index + 1 :]:
                     next_type = next_item.get("properties", {}).get("pointType")
                     next_name = next_item.get("properties", {}).get("name")
-                    if next_type in (HIDDEN_GATE, SECRETPOINT) and next_name:
+                    if is_secret_gate_type(next_type) and next_name:
                         post_trigger_hidden_gate_names.add(next_name)
                         continue
                     break
@@ -356,7 +355,7 @@ class TaskCompiler:
                 next_real_waypoint = None
                 for next_item in ordered_waypoints[index + 1 :]:
                     next_type = next_item.get("properties", {}).get("pointType")
-                    if next_type == HIDDEN_GATE:
+                    if is_secret_gate_type(next_type):
                         continue
                     next_real_waypoint = next_item
                     break
@@ -411,7 +410,7 @@ class TaskCompiler:
                 }
                 for item in ordered_waypoints
                 if (
-                    item.get("properties", {}).get("pointType") in (HIDDEN_GATE, SECRETPOINT)
+                    is_secret_gate_type(item.get("properties", {}).get("pointType"))
                     or item.get("properties", {}).get("featureType") == "hidden_gate"
                 )
                 and len(item.get("geometry", {}).get("coordinates", [])) == 2

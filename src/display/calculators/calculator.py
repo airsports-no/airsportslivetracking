@@ -8,10 +8,9 @@ from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Contestant, Route, Scorecard
 from display.models.contestant_utility_models import ContestantReceivedPosition
-from display.utilities.gate_definitions import SECRETPOINT
 
 if TYPE_CHECKING:
-    from display.calculators.positions_and_gates import Gate, MultiGate
+    from display.calculators.positions_and_gates import Gate
     from display.utilities.coordinate_utilities import Projector
 
 
