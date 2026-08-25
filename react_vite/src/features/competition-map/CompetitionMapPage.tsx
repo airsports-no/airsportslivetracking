@@ -573,10 +573,12 @@ export default function CompetitionMapPage() {
         return false;
       }
 
-      // 2. Secret gate filtering
+      // 2. Secret/unknown-leg-trigger gate filtering - a 'ul' gate is scored normally and
+      // logged under its real name, but its position must stay hidden from the contestant
+      // just like a secret gate until secrets are shown.
       if (!showSecrets && staticNavTaskData) {
         const waypoint = staticNavTaskData.route.waypoints.find(wp => wp.name === log.gate);
-        if (waypoint && waypoint.type === 'secret') {
+        if (waypoint && (waypoint.type === 'secret' || waypoint.type === 'ul')) {
           return false;
         }
       }

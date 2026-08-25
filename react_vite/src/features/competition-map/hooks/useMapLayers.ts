@@ -237,7 +237,11 @@ export function useMapLayers({
 
             const visibleAnnotations = allAnnotations.filter(ann =>
                 new Date(ann.time) <= currentTime &&
-                (ann.gate_type !== 'secret' || (navTask.display_secrets && userShowSecrets))
+                // Unknown-leg triggers ('ul') are scored like any other gate and get an
+                // annotation with their real name/position, but the whole point of 2.A5 is
+                // that the contestant must not know where they are - hide them alongside
+                // secret gates until secrets are shown.
+                ((ann.gate_type !== 'secret' && ann.gate_type !== 'ul') || (navTask.display_secrets && userShowSecrets))
             );
 
             visibleAnnotations.forEach(ann => {

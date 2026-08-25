@@ -11,14 +11,16 @@ Several of the tasks below require explicit times defined for certain waypoints.
 Wherever a task description below says "hidden gate", implement it as the platform's existing
 secret point type (pointType `secret`, featureType `route_waypoint`) — do not introduce a separate
 gate/point type for it. An earlier CIMA implementation pass added a parallel `hidden_gate`
-pointType by mistake; it has since been collapsed back into `secret` (see
-`display.utilities.gate_definitions.normalize_gate_type`/`is_secret_gate_type` and the matching
-frontend `gateTypes.ts` helpers). `hidden_gate` still exists purely as a read-only compatibility
-alias for routes saved before the collapse — every code path that reads a gate/point type must
-accept both spellings, but nothing should ever write `hidden_gate` again. The compiled-payload key
-names (`compiled_primitives["hidden_gate"]`, `hidden_gate_names`, `unknown_legs_hidden_gates`) keep
-their existing names regardless — they are a frozen persisted contract, not a description of the
-underlying point type.
+pointType by mistake, and briefly kept it as a read-compatibility alias for already-saved routes;
+that compatibility layer has since been removed entirely (existing CIMA routes were not considered
+worth preserving), so `hidden_gate` is no longer recognized anywhere — a route whose stored JSON
+still contains it will not render/score as a hidden gate. The same collapse-and-drop-compat
+treatment applies to `known_time_gate` as a pointType, which is now just `tp` with `isTiming: true`
+(the `known_time_gate` *featureType* is unrelated and still active — it backs the standalone
+`timed_turnpoint` markers used by 2.A6/2.B2 turnpoint-hunt tasks). The compiled-payload key names
+(`compiled_primitives["hidden_gate"]`, `hidden_gate_names`, `unknown_legs_hidden_gates`,
+`compiled_primitives["known_time_gate"]`) keep their existing names regardless — they are a frozen
+persisted contract, not a description of the underlying point type.
 
 ## Tasks
 
