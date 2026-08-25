@@ -80,7 +80,16 @@ class TestCompiledNavigationTask(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
                     },
                 ],
@@ -109,7 +118,16 @@ class TestCompiledNavigationTask(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
                     },
                 ],
@@ -126,7 +144,16 @@ class TestCompiledNavigationTask(TestCase):
         editable_route.route["features"].append(
             {
                 "type": "Feature",
-                "properties": {"id": "hg-2", "name": "HG2", "pointType": "tp", "featureType": "hidden_gate"},
+                "properties": {
+                    "id": "hg-2",
+                    "name": "HG2",
+                    "pointType": "secret",
+                    "featureType": "route_waypoint",
+                    "width": 1852,
+                    "isTiming": False,
+                    "isPassing": True,
+                    "sequence": 2,
+                },
                 "geometry": {"type": "Point", "coordinates": [11.4, 60.4]},
             }
         )
@@ -500,11 +527,6 @@ class TestCompiledNavigationTask(TestCase):
                         "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
                         "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
                     },
-                    {
-                        "type": "Feature",
-                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
-                        "geometry": {"type": "Point", "coordinates": [11.4, 60.4]},
-                    },
                 ],
             },
         )
@@ -556,11 +578,6 @@ class TestCompiledNavigationTask(TestCase):
                             "sequence": 1,
                         },
                         "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
-                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
                 ],
             },
@@ -812,7 +829,16 @@ class TestCompiledNavigationTask(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.22, 60.22]},
                     },
                     {
@@ -885,152 +911,8 @@ class TestCompiledNavigationTask(TestCase):
         )
 
     def test_unknown_legs_treats_hidden_route_backbone_points_as_hidden_gates(self):
-        self.navigation_task.task_subtype = UNKNOWN_LEGS
-        self.navigation_task.editable_route = EditableRoute.objects.create(
-            name="Unknown legs route-backbone hidden gates",
-            route={
-                "type": "FeatureCollection",
-                "features": [
-                    {
-                        "type": "Feature",
-                        "properties": {"featureType": "route_path"},
-                        "geometry": {
-                            "type": "LineString",
-                            "coordinates": [
-                                [11.0, 60.0],
-                                [11.1, 60.1],
-                                [11.2, 60.2],
-                                [11.3, 60.3],
-                                [11.4, 60.4],
-                                [11.5, 60.5],
-                                [11.6, 60.6],
-                            ],
-                        },
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "id": "wp-sp",
-                            "name": "SP",
-                            "pointType": "sp",
-                            "featureType": "route_waypoint",
-                            "width": 1852,
-                            "isTiming": True,
-                            "isPassing": True,
-                            "sequence": 0,
-                        },
-                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "id": "wp-h1",
-                            "name": "HG1",
-                            "pointType": "hidden_gate",
-                            "featureType": "route_waypoint",
-                            "width": 1852,
-                            "isTiming": False,
-                            "isPassing": True,
-                            "sequence": 1,
-                        },
-                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "id": "wp-trg",
-                            "name": "TRG1",
-                            "pointType": "ul",
-                            "featureType": "route_waypoint",
-                            "width": 1852,
-                            "isTiming": False,
-                            "isPassing": True,
-                            "sequence": 2,
-                            "unknownLegHeading": 105,
-                        },
-                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "id": "wp-h2",
-                            "name": "HG2",
-                            "pointType": "hidden_gate",
-                            "featureType": "route_waypoint",
-                            "width": 1852,
-                            "isTiming": False,
-                            "isPassing": True,
-                            "sequence": 4,
-                        },
-                        "geometry": {"type": "Point", "coordinates": [11.4, 60.4]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "id": "wp-fp",
-                            "name": "FP",
-                            "pointType": "fp",
-                            "featureType": "route_waypoint",
-                            "width": 1852,
-                            "isTiming": True,
-                            "isPassing": True,
-                            "sequence": 5,
-                        },
-                        "geometry": {"type": "Point", "coordinates": [11.5, 60.5]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "id": "dummy-1",
-                            "name": "TRG1-D1",
-                            "pointType": "dummy",
-                            "featureType": "dummy_branch_waypoint",
-                            "width": 1852,
-                            "isTiming": False,
-                            "isPassing": True,
-                            "triggerPointId": "wp-trg",
-                            "branchSequence": 0,
-                            "sequence": 6,
-                        },
-                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"},
-                        "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"},
-                        "geometry": {"type": "LineString", "coordinates": [[11.5, 60.5], [11.6, 60.6]]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
-                        "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
-                    },
-                ],
-            },
-        )
-        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
-
-        compiled = TaskCompiler(self.navigation_task).compile(force=True)
-
-        self.assertTrue(compiled.compiled_payload["is_valid"], compiled.compiled_payload["validation_errors"])
-        self.assertEqual(compiled.compiled_payload["compiled_primitives"]["hidden_gate"], ["HG1", "HG2"])
-        self.assertEqual(
-            [item["name"] for item in compiled.compiled_payload["unknown_legs_hidden_gates"]],
-            ["HG1", "HG2"],
-        )
-        self.assertEqual(
-            compiled.compiled_payload["unknown_legs_actual_route"]["waypoint_names"],
-            ["SP", "HG1", "TRG1", "HG2", "FP"],
-        )
-
-    def test_unknown_legs_treats_hidden_route_backbone_points_authored_as_secret_the_same_way(self):
-        """Canonical-form twin of test_unknown_legs_treats_hidden_route_backbone_points_as_hidden_gates:
-        new authoring uses pointType 'secret' instead of the legacy 'hidden_gate' alias, and must
-        produce byte-identical compiled output."""
+        """A pointType 'secret' route-backbone point between an unknown-leg trigger and the next
+        closing waypoint is hidden from the display segment and counted as a hidden gate."""
         self.navigation_task.task_subtype = UNKNOWN_LEGS
         self.navigation_task.editable_route = EditableRoute.objects.create(
             name="Unknown legs route-backbone secret gates",

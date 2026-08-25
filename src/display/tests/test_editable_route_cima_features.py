@@ -1,8 +1,6 @@
 from django.test import TestCase
 
-from display.default_scorecards.create_scorecards import create_scorecards
-from display.models import EditableRoute, Route, Scorecard
-from display.utilities.gate_definitions import SECRETPOINT, TURNPOINT
+from display.models import EditableRoute
 
 
 class TestEditableRouteCimaFeatures(TestCase):
@@ -127,16 +125,6 @@ class TestEditableRouteCimaFeatures(TestCase):
                 {
                     "type": "Feature",
                     "properties": {
-                        "id": "hg-1",
-                        "name": "HG1",
-                        "pointType": "tp",
-                        "featureType": "hidden_gate",
-                    },
-                    "geometry": {"type": "Point", "coordinates": [11.5, 60.5]},
-                },
-                {
-                    "type": "Feature",
-                    "properties": {
                         "id": "ul-1",
                         "name": "UL1",
                         "pointType": "ul",
@@ -201,11 +189,6 @@ class TestEditableRouteCimaFeatures(TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["properties"]["name"], "KT1")
 
-    def test_can_fetch_hidden_gates(self):
-        result = self.editable_route.get_hidden_gates()
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["properties"]["name"], "HG1")
-
     def test_can_fetch_unknown_leg_waypoints(self):
         result = self.editable_route.get_unknown_leg_waypoints()
         self.assertEqual(len(result), 1)
@@ -217,9 +200,8 @@ class TestEditableRouteCimaFeatures(TestCase):
         self.assertEqual(result[0]["properties"]["name"], "Photo 1")
 
     def test_get_hidden_gates_also_matches_ordinary_secret_points(self):
-        """Canonicalization: get_hidden_gates() must treat an ordinary secret backbone point the
-        same as the legacy hidden_gate pointType/featureType, since going forward CIMA hidden gates
-        are authored as plain secret points."""
+        """CIMA hidden gates are authored as plain secret points, so an ordinary secret backbone
+        point is also counted under the hidden_gate primitive."""
         editable_route = EditableRoute.objects.create(
             name="Secret point as hidden gate",
             route={
@@ -245,171 +227,3 @@ class TestEditableRouteCimaFeatures(TestCase):
         result = editable_route.get_hidden_gates()
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["properties"]["name"], "Secret 1.1")
-
-
-class TestEditableRouteHiddenGateNormalization(TestCase):
-    """A legacy pointType: 'hidden_gate' backbone waypoint must normalize to the canonical secret
-    point type when a real Route/Waypoint list is built, including when it's a standalone
-    featureType: 'hidden_gate' marker with no authored width (see EditableRoute._create_waypoint_list)."""
-
-    def setUp(self):
-        create_scorecards()
-        self.scorecard = Scorecard.get_originals().get(shortcut_name="FAI Precision")
-
-    def _build_route(self, hidden_gate_props: dict) -> "Route":
-        editable_route = EditableRoute.objects.create(
-            name="Legacy hidden_gate normalization",
-            route={
-                "type": "FeatureCollection",
-                "features": [
-                    {
-                        "type": "Feature",
-                        "properties": {"featureType": "route_path"},
-                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "id": "sp-1",
-                            "name": "SP",
-                            "pointType": "sp",
-                            "featureType": "route_waypoint",
-                            "width": 1852,
-                            "isTiming": True,
-                            "isPassing": True,
-                            "sequence": 0,
-                        },
-                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": hidden_gate_props,
-                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "id": "fp-1",
-                            "name": "FP",
-                            "pointType": "fp",
-                            "featureType": "route_waypoint",
-                            "width": 1852,
-                            "isTiming": True,
-                            "isPassing": True,
-                            "sequence": 2,
-                        },
-                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
-                    },
-                ],
-            },
-        )
-        return editable_route.create_precision_route(use_procedure_turns=False, scorecard=self.scorecard)
-
-    def test_hidden_gate_point_type_normalizes_to_secret(self):
-        route = self._build_route(
-            {
-                "id": "hg-1",
-                "name": "HG1",
-                "pointType": "hidden_gate",
-                "featureType": "route_waypoint",
-                "width": 1852,
-                "isTiming": False,
-                "isPassing": True,
-                "sequence": 1,
-            }
-        )
-        self.assertIsNotNone(route)
-        middle = route.waypoints[1]
-        self.assertEqual(middle.name, "HG1")
-        self.assertEqual(middle.type, SECRETPOINT)
-        # Resolves against the ordinary secret GateScore with no separate hidden_gate row required.
-        self.scorecard.get_gate_scorecard(middle.type)
-
-    def test_standalone_hidden_gate_marker_without_width_gets_default_corridor_width(self):
-        route = self._build_route(
-            {
-                "id": "hg-1",
-                "name": "HG1",
-                "pointType": "tp",
-                "featureType": "hidden_gate",
-            }
-        )
-        self.assertIsNotNone(route)
-        middle = route.waypoints[1]
-        self.assertEqual(middle.name, "HG1")
-        self.assertAlmostEqual(middle.width, 0.5)
-
-
-class TestEditableRouteKnownTimeGateNormalization(TestCase):
-    """A legacy pointType: 'known_time_gate' route-backbone waypoint must normalize to the
-    canonical turnpoint type when a real Route/Waypoint list is built (see
-    EditableRoute._create_waypoint_list). The standalone featureType: 'known_time_gate' marker
-    flavor (turnpoint-hunt) is untouched by this collapse and not covered here."""
-
-    def setUp(self):
-        create_scorecards()
-        self.scorecard = Scorecard.get_originals().get(shortcut_name="FAI Precision")
-
-    def test_known_time_gate_point_type_normalizes_to_turnpoint(self):
-        editable_route = EditableRoute.objects.create(
-            name="Legacy known_time_gate normalization",
-            route={
-                "type": "FeatureCollection",
-                "features": [
-                    {
-                        "type": "Feature",
-                        "properties": {"featureType": "route_path"},
-                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1], [11.2, 60.2]]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "id": "sp-1",
-                            "name": "SP",
-                            "pointType": "sp",
-                            "featureType": "route_waypoint",
-                            "width": 1852,
-                            "isTiming": True,
-                            "isPassing": True,
-                            "sequence": 0,
-                        },
-                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "id": "kt-1",
-                            "name": "KT1",
-                            "pointType": "known_time_gate",
-                            "featureType": "route_waypoint",
-                            "width": 1852,
-                            "isTiming": True,
-                            "isPassing": True,
-                            "sequence": 1,
-                        },
-                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
-                    },
-                    {
-                        "type": "Feature",
-                        "properties": {
-                            "id": "fp-1",
-                            "name": "FP",
-                            "pointType": "fp",
-                            "featureType": "route_waypoint",
-                            "width": 1852,
-                            "isTiming": True,
-                            "isPassing": True,
-                            "sequence": 2,
-                        },
-                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
-                    },
-                ],
-            },
-        )
-        route = editable_route.create_precision_route(use_procedure_turns=False, scorecard=self.scorecard)
-        self.assertIsNotNone(route)
-        middle = route.waypoints[1]
-        self.assertEqual(middle.name, "KT1")
-        self.assertEqual(middle.type, TURNPOINT)
-        # Resolves against the ordinary turnpoint GateScore with no separate known_time_gate row required.
-        self.scorecard.get_gate_scorecard(middle.type)

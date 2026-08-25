@@ -118,18 +118,6 @@ describe('renumberRoutePoints', () => {
     expect(result.map((p) => p.name)).toEqual(['SP', 'Secret 0.1', 'Secret 0.2', 'WP 1', 'Secret 1.1', 'FP']);
   });
 
-  it('treats a legacy hidden_gate point the same as secret (does not destroy it into a renamed tp)', () => {
-    const points = [
-      makePoint({ id: '1', type: 'sp' }),
-      makePoint({ id: '2', type: 'hidden_gate' }),
-      makePoint({ id: '3', type: 'tp' }),
-      makePoint({ id: '4', type: 'fp' }),
-    ];
-    const result = renumberRoutePoints(points, false);
-    expect(result[1].type).toBe('hidden_gate');
-    expect(result[1].name).toBe('Secret 0.1');
-  });
-
   it('does not overwrite the type of non-route_waypoint (CIMA marker) points to tp', () => {
     const points = [
       makePoint({ id: '1', type: 'sp' }),
@@ -180,14 +168,4 @@ describe('reverseRoutePoints', () => {
     expect(result.map((p) => p.name)).toEqual(['SP', 'MP', 'FP']);
   });
 
-  it('does not force a legacy hidden_gate point to tp when reversing (treated the same as secret)', () => {
-    const points = [
-      makePoint({ id: '1', type: 'sp' }),
-      makePoint({ id: '2', type: 'hidden_gate' }),
-      makePoint({ id: '3', type: 'fp' }),
-    ];
-    const result = reverseRoutePoints(points, false);
-    const middle = result.find((p) => p.id === '2')!;
-    expect(middle.type).toBe('hidden_gate');
-  });
 });

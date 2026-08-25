@@ -22,7 +22,6 @@ import { ChevronUp, ChevronDown, Trophy, Info, Settings, Calendar, Sliders, Acti
 import { reverse, generatePath } from '../../urls';
 import './CompetitionMap.css';
 import { NavigationTask } from './types';
-import { isSecretPointType } from '../../gateTypes';
 
 
 
@@ -577,7 +576,7 @@ export default function CompetitionMapPage() {
       // 2. Secret gate filtering
       if (!showSecrets && staticNavTaskData) {
         const waypoint = staticNavTaskData.route.waypoints.find(wp => wp.name === log.gate);
-        if (waypoint && isSecretPointType(waypoint.type)) {
+        if (waypoint && waypoint.type === 'secret') {
           return false;
         }
       }

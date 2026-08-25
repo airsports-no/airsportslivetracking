@@ -18,7 +18,6 @@ export function createCatalogueTurnpoint(latlng: LatLng, catalogueCount: number)
     width: 1852,
     isTiming: false,
     isPassing: true,
-    isSecret: false,
     segmentType: 'straight',
     scoreValue: null,
   };
@@ -41,7 +40,6 @@ export function createStandaloneWizardPoint(
     width: 1852,
     isTiming: pointType === 'timed_turnpoint',
     isPassing: true,
-    isSecret: false,
     segmentType: 'straight',
   };
 }
@@ -61,9 +59,8 @@ export function createInsertedRoutePoint(
     type: pointType,
     featureType,
     width: 1852,
-    isTiming: pointType === 'known_time_gate' || pointType === 'tp',
+    isTiming: pointType === 'tp',
     isPassing: true,
-    isSecret: false,
     segmentType: 'straight',
   };
 }
@@ -99,7 +96,6 @@ export function createBackboneRoutePoint(
     width: 1852,
     isTiming: true,
     isPassing: true,
-    isSecret: false,
     segmentType,
     controlLat,
     controlLng,

@@ -8,7 +8,6 @@ const POINT_FEATURE_TYPES = new Set([
   'circle_entry_marker',
   'circle_exit_marker',
   'known_time_gate',
-  'hidden_gate',
   'dummy_branch_waypoint',
 ]);
 

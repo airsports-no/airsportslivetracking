@@ -112,7 +112,7 @@ class TestKnownCircuitSpeedKeeping(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "secret", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True},
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
                     {

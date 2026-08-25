@@ -82,7 +82,16 @@ class TestContestantTaskConfiguration(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 2,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
                 ],
@@ -1131,7 +1140,16 @@ class TestContestantTaskConfiguration(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 2,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
                     {
@@ -1215,7 +1233,16 @@ class TestContestantTaskConfiguration(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 2,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
                     {
@@ -1517,7 +1544,16 @@ class TestContestantTaskConfiguration(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 0.5,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.22, 60.22]},
                     },
                     {
@@ -1621,7 +1657,7 @@ class TestContestantTaskConfiguration(TestCase):
                         "properties": {
                             "id": "wp-h1",
                             "name": "HG1",
-                            "pointType": "hidden_gate",
+                            "pointType": "secret",
                             "featureType": "route_waypoint",
                             "width": 1852,
                             "isTiming": False,
@@ -1650,7 +1686,7 @@ class TestContestantTaskConfiguration(TestCase):
                         "properties": {
                             "id": "wp-h2",
                             "name": "HG2",
-                            "pointType": "hidden_gate",
+                            "pointType": "secret",
                             "featureType": "route_waypoint",
                             "width": 1852,
                             "isTiming": False,
@@ -1735,7 +1771,16 @@ class TestContestantTaskConfiguration(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "hg-1", "name": "HG1", "pointType": "tp", "featureType": "hidden_gate"},
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 2,
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
                     {

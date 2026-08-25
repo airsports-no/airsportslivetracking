@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import type { NavigationTask, Waypoint, Contestant, RouteData, NavigationTaskCatalogueTarget, Scorecard } from '../../types';
 import { getUnknownLegHiddenStretchNames, getRenderedRoute, getRenderedCatalogueTargets } from './routeSelection';
-import { isSecretPointType } from '../../../../gateTypes';
 import './WaypointLabel.css';
 
 function formatTime(dt: Date): string {
@@ -175,7 +174,7 @@ function renderPrecisionRoute(
           segments.set(key, existing);
         });
       segments.forEach((segmentTargets) => {
-        const visibleSegmentTargets = segmentTargets.filter((target) => !isSecretPointType(routeTypeByName.get(target.name)));
+        const visibleSegmentTargets = segmentTargets.filter((target) => routeTypeByName.get(target.name) !== 'secret');
         const track: L.LatLngExpression[] = visibleSegmentTargets.map((target) => {
           const [lng, lat] = target.coordinates;
           return [lat, lng] as L.LatLngExpression;
@@ -189,7 +188,7 @@ function renderPrecisionRoute(
   }
 
   const filterWaypoints = () => route.waypoints.filter((waypoint: Waypoint) => {
-    return ((waypoint.gate_check || waypoint.time_check) && (canSeeSecrets || !isSecretPointType(waypoint.type)) && waypoint.type!=="dummy")
+    return ((waypoint.gate_check || waypoint.time_check) && (canSeeSecrets || waypoint.type !== 'secret') && waypoint.type!=="dummy")
   });
 
   if (isCimaTask) {
@@ -231,7 +230,7 @@ function renderAirsportsRoute(map: L.Map, route: RouteData, isAnr: boolean, navT
         if (isAnr) {
             return route.waypoints.filter((w: Waypoint) => w.type === 'sp' || w.type === 'fp');
         }
-        return route.waypoints.filter((w: Waypoint) => ((w.gate_check || w.time_check) && ((navTaskDisplaySecrets && displaySecrets) || !isSecretPointType(w.type)) && w.type!=="dummy"));
+        return route.waypoints.filter((w: Waypoint) => ((w.gate_check || w.time_check) && ((navTaskDisplaySecrets && displaySecrets) || w.type !== 'secret') && w.type!=="dummy"));
     }
 
     filterWaypoints().forEach((gate: Waypoint) => {
@@ -509,7 +508,7 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, scorec
     const waypointsToLabel = renderedRoute.waypoints.filter((w: Waypoint) => {
         const isUnknownLegsTask = (taskCatalogueTargets || []).some((target) => Boolean(target.segment_name));
         const isUnknownLeg = w.type === "ul";
-        const isHiddenUnknownLegSecret = isSecretPointType(w.type);
+        const isHiddenUnknownLegSecret = w.type === 'secret';
         if (isUnknownLegsTask) {
             return false;
         }
@@ -518,7 +517,7 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, scorec
         if (isUnknownLegsTask && (isUnknownLeg || isHiddenUnknownLegSecret)) {
             return false;
         }
-        return (w.gate_check || w.time_check) && ((canSeeSecrets && (showUnknownLegOverlays || !isUnknownLeg)) || (!isSecretPointType(w.type) && !isUnknownLeg)) && w.type !== "dummy";
+        return (w.gate_check || w.time_check) && ((canSeeSecrets && (showUnknownLegOverlays || !isUnknownLeg)) || (w.type !== 'secret' && !isUnknownLeg)) && w.type !== "dummy";
     });
     layers = layers.concat(renderWaypointLabels(map, waypointsToLabel, contestants, selectedContestantId));
 

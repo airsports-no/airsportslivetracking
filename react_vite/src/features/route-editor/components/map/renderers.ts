@@ -7,7 +7,6 @@ import {
 } from '../../../../utils/geoUtils';
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Gate, Polygon, Mode, SelectionType } from '../../../../types';
-import { isSecretPointType } from '../../../../gateTypes';
 
 const UNKNOWN_LEG_TRIGGER_TYPE = 'ul';
 
@@ -283,7 +282,7 @@ export const drawPoints = (
 
     if (p.type === 'sp') { color = '#22c55e'; radius = 8; }
     if (p.type === 'fp') { color = '#ef4444'; radius = 8; }
-    if (isSecretPointType(p.type)) { color = '#64748b'; }
+    if (p.type === 'secret') { color = '#64748b'; }
     if (p.type === 'catalogue_turnpoint') { color = '#8b5cf6'; radius = 7; }
     if (p.type === 'circle_center') { color = '#0f766e'; radius = 7; }
     if (p.type === 'circle_start') { color = '#2563eb'; radius = 7; }
@@ -332,7 +331,7 @@ export const drawPoints = (
       weight: 2,
       opacity: 1,
       fillOpacity: 0.8,
-      className: isSecretPointType(p.type) ? '' : 'cursor-grab'
+      className: p.type === 'secret' ? '' : 'cursor-grab'
     }).addTo(pointGroup);
 
     marker.bindTooltip(`${index + 1}. ${p.name}`, { permanent: !hideLabels, direction: 'right', offset: [10, 0] });
@@ -348,7 +347,7 @@ export const drawPoints = (
 
     marker.on('mousedown', (e: L.LeafletMouseEvent) => {
       if (mode !== 'view') return;
-      if (isSecretPointType(p.type)) return;
+      if (p.type === 'secret') return;
 
       L.DomEvent.stopPropagation(e.originalEvent);
       map.dragging.disable();

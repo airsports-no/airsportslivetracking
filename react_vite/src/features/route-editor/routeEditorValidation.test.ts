@@ -98,16 +98,6 @@ describe('validateRouteEditorState', () => {
     expect(errors.some((e) => e.includes('not on a straight line'))).toBe(false);
   });
 
-  it('applies the same collinearity/start-finish validation to a legacy hidden_gate point as a secret point', () => {
-    const offPathHiddenGate = makePoint({ id: '2', type: 'hidden_gate', lat: 65, lng: 11.5 });
-    const errors = validateRouteEditorState([sp, offPathHiddenGate, fp], false, false);
-    expect(errors.some((e) => e.includes('not on a straight line'))).toBe(true);
-
-    const hiddenGateAtStart = makePoint({ id: '1', type: 'hidden_gate' });
-    const startErrors = validateRouteEditorState([hiddenGateAtStart, tp, fp], false, false);
-    expect(startErrors.some((e) => e.includes('cannot be Start or Finish'))).toBe(true);
-  });
-
   it('flags a turn too sharp for the corridor width relative to the previous leg', () => {
     // A very wide gate with a very short, sharply-angled leg forces the
     // computed miter length past the previous leg's own length.

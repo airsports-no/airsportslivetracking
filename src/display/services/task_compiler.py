@@ -14,10 +14,10 @@ from display.utilities.cima_task_type_definitions import (
 from display.utilities.gate_definitions import (
     DUMMY,
     FINISHPOINT,
+    SECRETPOINT,
     STARTINGPOINT,
     TURNPOINT,
     UNKNOWN_LEG,
-    is_secret_gate_type,
 )
 
 TASK_COMPILER_SIGNATURE_VERSION = 3
@@ -310,7 +310,7 @@ class TaskCompiler:
                 continue
 
             include_in_display_segment = True
-            if is_secret_gate_type(point_type) and name in post_trigger_hidden_gate_names:
+            if point_type == SECRETPOINT and name in post_trigger_hidden_gate_names:
                 include_in_display_segment = False
 
             if include_in_display_segment:
@@ -331,7 +331,7 @@ class TaskCompiler:
                 for next_item in ordered_waypoints[index + 1 :]:
                     next_type = next_item.get("properties", {}).get("pointType")
                     next_name = next_item.get("properties", {}).get("name")
-                    if is_secret_gate_type(next_type) and next_name:
+                    if next_type == SECRETPOINT and next_name:
                         post_trigger_hidden_gate_names.add(next_name)
                         continue
                     break
@@ -355,7 +355,7 @@ class TaskCompiler:
                 next_real_waypoint = None
                 for next_item in ordered_waypoints[index + 1 :]:
                     next_type = next_item.get("properties", {}).get("pointType")
-                    if is_secret_gate_type(next_type):
+                    if next_type == SECRETPOINT:
                         continue
                     next_real_waypoint = next_item
                     break
@@ -409,10 +409,7 @@ class TaskCompiler:
                     "coordinates": item.get("geometry", {}).get("coordinates", []),
                 }
                 for item in ordered_waypoints
-                if (
-                    is_secret_gate_type(item.get("properties", {}).get("pointType"))
-                    or item.get("properties", {}).get("featureType") == "hidden_gate"
-                )
+                if item.get("properties", {}).get("pointType") == SECRETPOINT
                 and len(item.get("geometry", {}).get("coordinates", [])) == 2
             ],
         }

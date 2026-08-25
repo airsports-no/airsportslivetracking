@@ -22,7 +22,7 @@ describe('countWizardStepMatches', () => {
       { id: '1', name: 'SP', type: 'sp', featureType: 'route_waypoint', lat: 60, lng: 11, width: 1852, isTiming: true, isPassing: true, segmentType: 'straight' },
       { id: '2', name: 'A', type: 'tp', featureType: 'route_waypoint', lat: 60.1, lng: 11.1, width: 1852, isTiming: false, isPassing: true, segmentType: 'straight' },
       { id: '3', name: 'TRG1', type: 'ul', featureType: 'route_waypoint', lat: 60.2, lng: 11.2, width: 1852, isTiming: false, isPassing: true, segmentType: 'straight' },
-      { id: '5', name: 'HG1', type: 'hidden_gate', featureType: 'route_waypoint', lat: 60.4, lng: 11.4, width: 1852, isTiming: false, isPassing: true, segmentType: 'straight' },
+      { id: '5', name: 'HG1', type: 'secret', featureType: 'route_waypoint', lat: 60.4, lng: 11.4, width: 1852, isTiming: false, isPassing: true, segmentType: 'straight' },
       { id: '6', name: 'FP', type: 'fp', featureType: 'route_waypoint', lat: 60.5, lng: 11.5, width: 1852, isTiming: true, isPassing: true, segmentType: 'straight' },
     ];
     const standalonePoints: RoutePoint[] = [

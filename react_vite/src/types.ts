@@ -29,19 +29,18 @@ export interface LatLng {
 export interface RoutePoint extends LatLng {
   id: string;
   name: string;
-  type: "sp" | "tp" | "secret" | "fp" | "anrtp" | "known_time_gate" | "timed_turnpoint" | "hidden_gate" | "catalogue_turnpoint" | "circle_center" | "circle_start" | "circle_entry" | "circle_exit" | "ul" | "unknown_leg" | "dummy";
+  type: "sp" | "tp" | "secret" | "fp" | "anrtp" | "timed_turnpoint" | "catalogue_turnpoint" | "circle_center" | "circle_start" | "circle_entry" | "circle_exit" | "ul" | "unknown_leg" | "dummy";
   segmentType: "straight" | "curved";
   controlLat?: number;
   controlLng?: number;
   width: number;
   isTiming: boolean;
   isPassing: boolean;
-  isSecret?: boolean;
   scoreValue?: number | null;
   unknownLegHeading?: number;
   triggerPointId?: string | null;
   branchSequence?: number | null;
-  featureType?: "route_waypoint" | "catalogue_turnpoint" | "circle_center_marker" | "circle_start_marker" | "circle_entry_marker" | "circle_exit_marker" | "known_time_gate" | "hidden_gate" | "dummy_branch_waypoint";
+  featureType?: "route_waypoint" | "catalogue_turnpoint" | "circle_center_marker" | "circle_start_marker" | "circle_entry_marker" | "circle_exit_marker" | "known_time_gate" | "dummy_branch_waypoint";
 }
 
 export interface Gate {

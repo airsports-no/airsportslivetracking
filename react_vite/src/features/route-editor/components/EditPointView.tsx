@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import ObservationThumbnail from './ObservationThumbnail';
 import { RoutePoint } from '../../../types';
-import { isSecretPointType } from '../../../gateTypes';
 
 interface EditPointViewProps {
     point: RoutePoint;
@@ -63,9 +62,7 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
               anrtp: 'route_waypoint',
               ul: 'route_waypoint',
               dummy: 'route_waypoint',
-              known_time_gate: 'known_time_gate',
               timed_turnpoint: 'known_time_gate',
-              hidden_gate: 'hidden_gate',
               catalogue_turnpoint: 'catalogue_turnpoint',
               circle_center: 'circle_center_marker',
               circle_start: 'circle_start_marker',
@@ -80,12 +77,10 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
         >
           <option value="sp">Start Point</option>
           <option value="tp">Visible Turning Point</option>
-          <option value="secret">Secret point / hidden gate</option>
+          <option value="secret">Secret Point</option>
           <option value="fp">Finish Point</option>
           <option value="dummy">Dummy Point</option>
-          {point.type === 'known_time_gate' && <option value="known_time_gate">Known Time Gate (legacy)</option>}
           <option value="timed_turnpoint">Timed Turnpoint (standalone)</option>
-          {point.type === 'hidden_gate' && <option value="hidden_gate">Hidden Gate (legacy)</option>}
           <option value="ul">Unknown Leg</option>
           <option value="catalogue_turnpoint">Catalogue Turnpoint</option>
           <option value="circle_center">Circle Center</option>
@@ -93,7 +88,7 @@ const EditPointView: React.FC<EditPointViewProps> = ({ point, updatePoint, delet
           <option value="circle_entry">Circle Entry</option>
           <option value="circle_exit">Circle Exit</option>
         </select>
-        {isSecretPointType(point.type) && (
+        {point.type === 'secret' && (
           <p className="text-xs text-amber-600 mt-1">
             Must be on a straight line between adjacent points.
           </p>

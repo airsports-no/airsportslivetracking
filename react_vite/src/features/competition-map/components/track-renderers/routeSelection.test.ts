@@ -78,25 +78,25 @@ describe('getUnknownLegHiddenStretchNames', () => {
     expect(getUnknownLegHiddenStretchNames(route)).toEqual(new Set());
   });
 
-  it('collects every hidden_gate/secret waypoint between a ul and the next closing waypoint', () => {
+  it('collects every secret waypoint between a ul and the next closing waypoint', () => {
     const route = makeRoute([
       makeWaypoint({ name: 'SP', type: 'sp' }),
       makeWaypoint({ name: 'TRG1', type: 'ul' }),
-      makeWaypoint({ name: 'HG1', type: 'hidden_gate' }),
       makeWaypoint({ name: 'SEC1', type: 'secret' }),
+      makeWaypoint({ name: 'SEC2', type: 'secret' }),
       makeWaypoint({ name: 'FP', type: 'fp' }),
     ]);
-    expect(getUnknownLegHiddenStretchNames(route)).toEqual(new Set(['HG1', 'SEC1']));
+    expect(getUnknownLegHiddenStretchNames(route)).toEqual(new Set(['SEC1', 'SEC2']));
   });
 
   it('closes the hidden stretch on isp/ifp/tp too, not just sp/fp', () => {
     const route = makeRoute([
       makeWaypoint({ name: 'TRG1', type: 'ul' }),
-      makeWaypoint({ name: 'HG1', type: 'hidden_gate' }),
+      makeWaypoint({ name: 'SEC1', type: 'secret' }),
       makeWaypoint({ name: 'TP1', type: 'tp' }),
-      makeWaypoint({ name: 'HG2', type: 'hidden_gate' }), // outside any open stretch, must be ignored
+      makeWaypoint({ name: 'SEC2', type: 'secret' }), // outside any open stretch, must be ignored
     ]);
-    expect(getUnknownLegHiddenStretchNames(route)).toEqual(new Set(['HG1']));
+    expect(getUnknownLegHiddenStretchNames(route)).toEqual(new Set(['SEC1']));
   });
 });
 

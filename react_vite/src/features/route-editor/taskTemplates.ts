@@ -1,5 +1,4 @@
 import { Gate, ObservationMarker, Polygon, RoutePoint } from '../../types';
-import { isSecretPointType } from '../../gateTypes';
 
 export type TaskTemplateGroup = 'Legacy' | 'CIMA';
 
@@ -332,8 +331,6 @@ export const countWizardStepMatches = (
     'ul',
     'unknown_leg',
     'dummy',
-    'hidden_gate',
-    'known_time_gate',
   ]);
 
   if (step.kind === 'route') {
@@ -346,9 +343,6 @@ export const countWizardStepMatches = (
     const pointPool = step.placement === 'free_map' ? standalonePoints : routePoints;
     if (step.featureType === 'dummy_branch_waypoint') {
       return pointPool.filter((point) => point.featureType === 'dummy_branch_waypoint' && point.type === step.pointType).length;
-    }
-    if (step.key === 'hidden_gate') {
-      return pointPool.filter((point) => isSecretPointType(point.type)).length;
     }
     return pointPool.filter((point) => point.type === step.pointType).length;
   }

@@ -96,9 +96,7 @@ const RouteListView: React.FC<RouteListViewProps> = ({
                   (p.type === 'sp') ? 'badge-success' :
                   (p.type === 'fp') ? 'badge-error' :
                   p.type === 'secret' ? 'badge-ghost' :
-                  p.type === 'hidden_gate' ? 'badge-warning' :
                   p.type === 'ul' ? 'badge-accent' :
-                  p.type === 'known_time_gate' ? 'badge-primary' :
                   'badge-info'
                 }`}>
                   {p.type}

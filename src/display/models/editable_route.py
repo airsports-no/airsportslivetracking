@@ -25,12 +25,9 @@ from display.utilities.editable_route_utilities import (
 from display.utilities.gate_definitions import (
     DUMMY,
     FINISHPOINT,
-    KNOWN_TIME_GATE,
     SECRETPOINT,
     STARTINGPOINT,
     UNKNOWN_LEG,
-    is_secret_gate_type,
-    normalize_gate_type,
 )
 from display.utilities.navigation_task_type_definitions import (
     AIRSPORT_CHALLENGE,
@@ -236,21 +233,14 @@ class EditableRoute(models.Model):
             item
             for item in self.route["features"]
             if item.get("properties", {}).get("featureType") == "known_time_gate"
-            or (
-                item.get("properties", {}).get("featureType") == "route_waypoint"
-                and item.get("properties", {}).get("pointType") == KNOWN_TIME_GATE
-            )
         ]
 
     def get_hidden_gates(self) -> list[dict]:
         return [
             item
             for item in self.route["features"]
-            if item.get("properties", {}).get("featureType") == "hidden_gate"
-            or (
-                item.get("properties", {}).get("featureType") == "route_waypoint"
-                and is_secret_gate_type(item.get("properties", {}).get("pointType"))
-            )
+            if item.get("properties", {}).get("featureType") == "route_waypoint"
+            and item.get("properties", {}).get("pointType") == SECRETPOINT
         ]
 
     def get_unknown_leg_waypoints(self) -> list[dict]:
@@ -279,7 +269,7 @@ class EditableRoute(models.Model):
             item
             for item in self.route["features"]
             if item.get("geometry", {}).get("type") == "Point"
-            and item.get("properties", {}).get("featureType") in {"route_waypoint", "hidden_gate", "known_time_gate"}
+            and item.get("properties", {}).get("featureType") == "route_waypoint"
         ]
         return sorted(waypoints, key=lambda x: x["properties"].get("sequence", 0))
 
@@ -361,27 +351,18 @@ class EditableRoute(models.Model):
             return []
 
         waypoint_list = []
-        default_corridor_width_nm = 0.5  # Matches Route.corridor_width default in src/display/models/route.py.
-
-        def feature_width_nm(item_props: dict) -> float:
-            if corridor_width:
-                return corridor_width
-            authored_width_m = item_props.get("width")
-            if authored_width_m:
-                return authored_width_m / 1852
-            return default_corridor_width_nm
 
         for index, item in enumerate(track_waypoints):
             props = item["properties"]
             lon, lat = item["geometry"]["coordinates"]
 
-            width = feature_width_nm(props)
+            width = corridor_width if corridor_width else props["width"] / 1852
 
             # Determine type
             if force_anrtp_type:
                 point_type = ANR_TP
             else:
-                point_type = SECRETPOINT if force_secret_type else normalize_gate_type(props["pointType"])
+                point_type = SECRETPOINT if force_secret_type else props["pointType"]
 
             # Determine timing/passing
             if override_timing_passing_false:
@@ -417,8 +398,8 @@ class EditableRoute(models.Model):
                             w = 0.001
                         else:
                             # Linear interpolation
-                            prev_width = feature_width_nm(prev_item["properties"])
-                            curr_width = feature_width_nm(props)
+                            prev_width = corridor_width if corridor_width else prev_item["properties"]["width"] / 1852
+                            curr_width = corridor_width if corridor_width else props["width"] / 1852
                             t = i / num_points
                             w = prev_width + (curr_width - prev_width) * t
 
