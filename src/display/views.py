@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import re
 from collections import defaultdict
 from io import BytesIO
 from typing import Dict, List
@@ -2933,12 +2934,28 @@ def check_map_generation_status(request, task_id, contestant_id):
         return JsonResponse(result)
     return JsonResponse({"status": "pending"})
 
+TAIL_NUMBER_RE = re.compile(r"^[A-Za-z0-9\-]{1,20}$")
+
+
 def quick_register(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     if not navigation_task.is_poker_run:
         raise Http404("Quick registration is only available for Poker Run tasks.")
     contest = navigation_task.contest
-    
+
+    # Quick-register is a low-friction walk-up flow, but it must still respect the same
+    # visibility gate as every other self-managed-contestant path: only a task the organiser has
+    # explicitly opened for self-management and made public, or a manager of the contest itself
+    # (e.g. testing the flow), may reach it. Previously any authenticated user could self-enrol
+    # in ANY poker task regardless of visibility, bypassing is_public/allow_self_management and
+    # every capacity limit.
+    is_publicly_self_manageable = (
+        navigation_task.allow_self_management and navigation_task.is_public and contest.is_public
+    )
+    is_contest_manager = request.user.is_authenticated and request.user.has_perm("display.change_contest", contest)
+    if not is_publicly_self_manageable and not is_contest_manager:
+        raise Http404("Quick registration is only available for Poker Run tasks.")
+
     if not request.user.is_authenticated:
         return render(request, "display/quick_register_login.html", {"contest": contest, "navigation_task": navigation_task})
 
@@ -2960,19 +2977,35 @@ def quick_register(request, pk):
 
     if request.method == "POST":
         tail_number = request.POST.get("tail_number", "").strip().upper()
+        if tail_number and not TAIL_NUMBER_RE.fullmatch(tail_number):
+            return render(request, "display/quick_register.html", {
+                "contest": contest,
+                "navigation_task": navigation_task,
+                "error": "Tail number must be 1-20 alphanumeric characters or hyphens.",
+            })
         if tail_number:
             # 1. Create/Get Aeroplane
             aeroplane, _ = Aeroplane.objects.get_or_create(registration=tail_number)
-            
+
             # 2. Create/Get Crew (member1 is current user)
             crew, _ = Crew.objects.get_or_create(member1=request.user.person, member2=None)
-            
+
             # 3. Create/Get Team
             team, _ = Team.objects.get_or_create(aeroplane=aeroplane, crew=crew)
-            
+
             # 4. Create ContestTeam
             contest_team, _ = ContestTeam.objects.get_or_create(contest=contest, team=team)
-            
+
+            resolution = resolve_contest_access(contest)
+            try:
+                _assert_can_reserve_task_slot(navigation_task, team, resolution)
+            except (ValidationError, drf_exceptions.ValidationError) as exc:
+                return render(request, "display/quick_register.html", {
+                    "contest": contest,
+                    "navigation_task": navigation_task,
+                    "error": exc,
+                })
+
             # 5. Create Contestant (Scheduled Flight)
             # Determine next contestant number
             last_contestant = Contestant.objects.filter(navigation_task=navigation_task).order_by("-contestant_number").first()
