@@ -16,6 +16,18 @@ export function lastMinutesPositions(all: TrackPosition[], minutes: number, curr
     return all.filter(p => new Date(p.time) >= cutoff);
 }
 
+// A tracking source can partially backfill an outage with a handful of real
+// (non-interpolated) fixes recovered after the fact (e.g. Traccar's own device
+// buffer), each triggering its own short interpolated run against the previous
+// point. That chops one genuine multi-point gap into several runs individually
+// too short to qualify, so a real outage rendered solid. Bridging a lone real
+// point between two interpolated runs treats them as one gap for length purposes,
+// while 2+ consecutive real points still means normal tracking resumed.
+const MAX_BRIDGE_REAL_POINTS = 1;
+// Minimum number of interpolated points a (possibly bridged) run must contain
+// before it's rendered dashed rather than solid.
+const MIN_DASHED_RUN_LENGTH = 10;
+
 export function splitSegments(positions: TrackPosition[]): { solid: [number, number][][], dashed: [number, number][][] } {
     const solid: [number, number][][] = [];
     const dashed: [number, number][][] = [];
@@ -25,8 +37,8 @@ export function splitSegments(positions: TrackPosition[]): { solid: [number, num
     const numSegments = positions.length - 1;
     const isSegmentDashed = new Array(numSegments).fill(false);
 
-    // Identify runs of interpolated points that are at least 10 points long.
-    // A run of points P_j...P_{j+k-1} has length k.
+    // 1. Find raw runs of consecutive interpolated points.
+    const runs: { start: number; end: number }[] = [];
     let j = 0;
     while (j < positions.length) {
         if (positions[j].interpolated) {
@@ -34,17 +46,35 @@ export function splitSegments(positions: TrackPosition[]): { solid: [number, num
             while (k < positions.length && positions[k].interpolated) {
                 k++;
             }
-            const runLength = k - j;
-            if (runLength >= 10) {
-                // If the run of interpolated points is >= 10,
-                // mark all segments connecting them (and to adjacent real points) as dashed.
-                for (let m = Math.max(0, j - 1); m < Math.min(numSegments, k); m++) {
-                    isSegmentDashed[m] = true;
-                }
-            }
+            runs.push({ start: j, end: k });
             j = k;
         } else {
             j++;
+        }
+    }
+
+    // 2. Merge runs separated by a small number of real (bridging) points into
+    // a single cluster, so their interpolated-point counts combine for the
+    // length check below instead of each being judged in isolation.
+    const clusters: { start: number; end: number; interpolatedCount: number }[] = [];
+    for (const run of runs) {
+        const previousCluster = clusters[clusters.length - 1];
+        if (previousCluster && run.start - previousCluster.end <= MAX_BRIDGE_REAL_POINTS) {
+            previousCluster.end = run.end;
+            previousCluster.interpolatedCount += run.end - run.start;
+        } else {
+            clusters.push({ start: run.start, end: run.end, interpolatedCount: run.end - run.start });
+        }
+    }
+
+    // 3. Mark segments dashed for clusters whose combined interpolated-point
+    // count reaches the threshold, including the connecting segments to the
+    // adjacent real points.
+    for (const cluster of clusters) {
+        if (cluster.interpolatedCount >= MIN_DASHED_RUN_LENGTH) {
+            for (let m = Math.max(0, cluster.start - 1); m < Math.min(numSegments, cluster.end); m++) {
+                isSegmentDashed[m] = true;
+            }
         }
     }
 

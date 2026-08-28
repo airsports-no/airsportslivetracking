@@ -139,4 +139,36 @@ describe('splitSegments', () => {
     expect(result.solid).toEqual([]);
     expect(result.dashed).toHaveLength(1);
   });
+
+  it('merges several short interpolated runs bridged by lone real points into one dashed run, even though none individually reaches the threshold', () => {
+    // Mirrors a tracking source (e.g. Traccar) partially backfilling an outage
+    // with a handful of recovered real fixes: each triggers its own short
+    // interpolated run against the previous point, none of which alone is >= 10,
+    // but together they represent one sustained gap that should render dashed.
+    const real = (n: number) => makePosition(60 + n, 11);
+    const shortRun = (base: number) => Array.from({ length: 6 }, (_, i) => makePosition(base + i * 0.01, 11, true));
+    const positions = [
+      real(0),
+      ...shortRun(60),
+      real(1),
+      ...shortRun(61),
+      real(2),
+      ...shortRun(62),
+      real(3),
+    ];
+    const result = splitSegments(positions);
+    expect(result.solid).toEqual([]);
+    expect(result.dashed).toHaveLength(1);
+    expect(result.dashed[0][0]).toEqual([60, 11]);
+    expect(result.dashed[0][result.dashed[0].length - 1]).toEqual([63, 11]);
+  });
+
+  it('does not bridge runs separated by 2+ consecutive real points, even if individually short', () => {
+    const real = (n: number) => makePosition(60 + n, 11);
+    const shortRun = (base: number) => Array.from({ length: 6 }, (_, i) => makePosition(base + i * 0.01, 11, true));
+    const positions = [real(0), ...shortRun(60), real(1), real(1.5), ...shortRun(61), real(2)];
+    const result = splitSegments(positions);
+    expect(result.dashed).toEqual([]);
+    expect(result.solid).toHaveLength(1);
+  });
 });
