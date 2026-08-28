@@ -1,0 +1,376 @@
+{
+    "route": [
+        {
+            "name": "Track",
+            "layer_type": "polyline",
+            "track_points": [
+                {
+                    "name": "SP",
+                    "gateType": "sp",
+                    "timeCheck": true,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.475615988829674,
+                        "lng": 1.908756494522095
+                    }
+                },
+                {
+                    "name": "NEW",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.46972152888605,
+                        "lng": 1.8938809633255007
+                    }
+                },
+                {
+                    "name": "TP 1",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.43706419269926,
+                        "lng": 1.8776321411132815
+                    }
+                },
+                {
+                    "name": "TP 3",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.43436161208247,
+                        "lng": 1.8154907226562502
+                    }
+                },
+                {
+                    "name": "TP 4",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.399089057773814,
+                        "lng": 1.8335151672363283
+                    }
+                },
+                {
+                    "name": "TP 5",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.37642213143932,
+                        "lng": 1.8244171142578127
+                    }
+                },
+                {
+                    "name": "TP 6",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.36186476898025,
+                        "lng": 1.7375564575195315
+                    }
+                },
+                {
+                    "name": "TP 7",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.36083403578611,
+                        "lng": 1.6486358642578127
+                    }
+                },
+                {
+                    "name": "TP 8",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.334029242807134,
+                        "lng": 1.5943908691406252
+                    }
+                },
+                {
+                    "name": "TP 9",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.27883851451407,
+                        "lng": 1.6287231445312502
+                    }
+                },
+                {
+                    "name": "TP 10",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.268001205721035,
+                        "lng": 1.6891479492187502
+                    }
+                },
+                {
+                    "name": "TP 11",
+                    "gateType": "tp",
+                    "timeCheck": true,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.19673985199647,
+                        "lng": 1.6939544677734375
+                    }
+                },
+                {
+                    "name": "TP 12",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.19622318190573,
+                        "lng": 1.600914001464844
+                    }
+                },
+                {
+                    "name": "TP 13",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.18252993852274,
+                        "lng": 1.5288162231445315
+                    }
+                },
+                {
+                    "name": "TP 14",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.231863850073026,
+                        "lng": 1.499290466308594
+                    }
+                },
+                {
+                    "name": "TP 15",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.25922682850889,
+                        "lng": 1.5637493133544924
+                    }
+                },
+                {
+                    "name": "TP 16",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.303860661068796,
+                        "lng": 1.4934539794921875
+                    }
+                },
+                {
+                    "name": "TP 17",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.379384735449385,
+                        "lng": 1.5188598632812502
+                    }
+                },
+                {
+                    "name": "TP 18",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.43243112846178,
+                        "lng": 1.4804077148437502
+                    }
+                },
+                {
+                    "name": "TP 19",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.4504467428547,
+                        "lng": 1.5525054931640627
+                    }
+                },
+                {
+                    "name": "TP 20",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.40539832978667,
+                        "lng": 1.658592224121094
+                    }
+                },
+                {
+                    "name": "NEW1",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.45790888929807,
+                        "lng": 1.6596221923828127
+                    }
+                },
+                {
+                    "name": "TP 21",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.47360232634395,
+                        "lng": 1.7536926269531252
+                    }
+                },
+                {
+                    "name": "TP 22",
+                    "gateType": "tp",
+                    "timeCheck": false,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.495721047150596,
+                        "lng": 1.8309402465820315
+                    }
+                },
+                {
+                    "name": "FP",
+                    "gateType": "fp",
+                    "timeCheck": true,
+                    "gateWidth": 1,
+                    "position": {
+                        "lat": 41.52796130243407,
+                        "lng": 1.905784606933594
+                    }
+                }
+            ],
+            "feature_type": "track",
+            "tooltip_position": [
+                0,
+                0
+            ],
+            "geojson": {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [
+                        [
+                            1.908756,
+                            41.475616
+                        ],
+                        [
+                            1.893881,
+                            41.469722
+                        ],
+                        [
+                            1.877632,
+                            41.437064
+                        ],
+                        [
+                            1.815491,
+                            41.434362
+                        ],
+                        [
+                            1.833515,
+                            41.399089
+                        ],
+                        [
+                            1.824417,
+                            41.376422
+                        ],
+                        [
+                            1.737556,
+                            41.361865
+                        ],
+                        [
+                            1.648636,
+                            41.360834
+                        ],
+                        [
+                            1.594391,
+                            41.334029
+                        ],
+                        [
+                            1.628723,
+                            41.278839
+                        ],
+                        [
+                            1.689148,
+                            41.268001
+                        ],
+                        [
+                            1.693954,
+                            41.19674
+                        ],
+                        [
+                            1.600914,
+                            41.196223
+                        ],
+                        [
+                            1.528816,
+                            41.18253
+                        ],
+                        [
+                            1.49929,
+                            41.231864
+                        ],
+                        [
+                            1.563749,
+                            41.259227
+                        ],
+                        [
+                            1.493454,
+                            41.303861
+                        ],
+                        [
+                            1.51886,
+                            41.379385
+                        ],
+                        [
+                            1.480408,
+                            41.432431
+                        ],
+                        [
+                            1.552505,
+                            41.450447
+                        ],
+                        [
+                            1.658592,
+                            41.405398
+                        ],
+                        [
+                            1.659622,
+                            41.457909
+                        ],
+                        [
+                            1.753693,
+                            41.473602
+                        ],
+                        [
+                            1.83094,
+                            41.495721
+                        ],
+                        [
+                            1.905785,
+                            41.527961
+                        ]
+                    ]
+                }
+            }
+        }
+    ],
+    "route_type": "precision",
+    "name": "Lliga Catalana 2023 ANR2"
+}
