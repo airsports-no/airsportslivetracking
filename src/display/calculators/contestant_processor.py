@@ -8,6 +8,7 @@ from queue import Queue
 from typing import List, Optional, Tuple, Dict
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.utils import IntegrityError
 
 from display.calculators.calculator_factory import calculator_factory
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -310,6 +311,19 @@ class ContestantProcessor:
         self.websocket_facade.transmit_annotations(self.contestant)
         self.websocket_facade.transmit_basic_information(self.contestant)
 
+    def save_positions(self, positions: List[ContestantReceivedPosition]):
+        """
+        Bulk-inserts positions, terminating the calculator instead of raising if the contestant
+        was deleted since these positions were computed. self.contestant is only refreshed every
+        CONTESTANT_REFRESH_INTERVAL, so a deletion can otherwise go undetected until an insert
+        referencing the now-missing contestant_id hits an IntegrityError (see GH #707).
+        """
+        try:
+            ContestantReceivedPosition.objects.bulk_create(positions)
+        except IntegrityError:
+            logger.info(f"{self.contestant}: Contestant deleted during position save, terminating")
+            self.track_terminated = True
+
     def run(self):
         """
         The main run function of the orchestrator. This method reads incoming positions that have been optionally delayed
@@ -376,7 +390,7 @@ class ContestantProcessor:
                 # Signal the track processor that this is the end, and perform the track calculation
                 logger.debug(f"End of position list after {number_of_positions} positions")
                 if positions_to_save:
-                    ContestantReceivedPosition.objects.bulk_create(positions_to_save)
+                    self.save_positions(positions_to_save)
                     positions_to_save = []
                 self.notify_termination("End of position list")
                 continue
@@ -455,7 +469,7 @@ class ContestantProcessor:
                         break
 
             if len(positions_to_save) > 100:
-                ContestantReceivedPosition.objects.bulk_create(positions_to_save)
+                self.save_positions(positions_to_save)
                 positions_to_save = []
 
             if self.track_terminated:
@@ -465,7 +479,7 @@ class ContestantProcessor:
                 self.websocket_facade.transmit_navigation_task_position_data(self.contestant, all_positions)
 
         if positions_to_save:
-            ContestantReceivedPosition.objects.bulk_create(positions_to_save)
+            self.save_positions(positions_to_save)
 
         if number_of_positions > 0:
             self.orchestrator.finished_processing()
@@ -717,8 +731,13 @@ class ContestantProcessor:
             try:
                 gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate_name, contestant=self.contestant)
                 self.gate_scores[gate_name] = gate_score
-            except ObjectDoesNotExist:
-                # Contestant or related objects might have been deleted
+            except (ObjectDoesNotExist, IntegrityError):
+                # Contestant has been deleted since this position was computed (self.contestant is only
+                # refreshed every CONTESTANT_REFRESH_INTERVAL, see GH #707). Terminate rather than retrying
+                # this get_or_create - and hitting the same FK violation - on every subsequent gate crossing
+                # until the next refresh notices the deletion.
+                logger.info(f"{self.contestant}: Contestant deleted during score update, terminating")
+                self.track_terminated = True
                 return
 
         gate_score = self.gate_scores[gate_name]

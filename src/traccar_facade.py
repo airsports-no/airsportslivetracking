@@ -21,6 +21,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 SESSION_LIFETIME = 3600
+# requests has no default timeout, so a hung/unreachable Traccar (e.g. GH #719/#717/#709) would
+# otherwise block indefinitely. Some of these calls run synchronously inside Django signal
+# handlers (see display/signals.py's register_personal_tracker, on Person pre_save) that fire
+# during ordinary web requests, so a stuck call here can stall the whole ASGI worker's event
+# loop until gunicorn's own --timeout kills it. Keep this comfortably below that timeout.
+REQUEST_TIMEOUT_SECONDS = 10
 
 
 class Traccar:
@@ -60,6 +66,7 @@ class Traccar:
         response = session.post(
             self.base + "/api/session",
             data={"email": self.username, "password": self.password},
+            timeout=REQUEST_TIMEOUT_SECONDS,
         )
         # response = session.get(string)
         if response.status_code != 200:
@@ -109,6 +116,7 @@ class Traccar:
                 "from": start_time.isoformat(),
                 "to": finish_time.isoformat(),
             },
+            timeout=REQUEST_TIMEOUT_SECONDS,
         )
         logger.debug(f"Fetching data from traccar: {response.url}")
         if response.status_code == 200:
@@ -131,7 +139,7 @@ class Traccar:
         return devices
 
     def update_and_get_devices(self) -> Optional[List]:
-        response = self.session.get(self.base + "/api/devices")
+        response = self.session.get(self.base + "/api/devices", timeout=REQUEST_TIMEOUT_SECONDS)
         try:
             return response.json()
         except:
@@ -139,18 +147,20 @@ class Traccar:
             return None
 
     def delete_device(self, device_id):
-        response = self.session.delete(self.base + "/api/devices/{}".format(device_id))
+        response = self.session.delete(self.base + "/api/devices/{}".format(device_id), timeout=REQUEST_TIMEOUT_SECONDS)
         # print(response)
         # print(response.text)
         return response.status_code == 204
 
     def get_groups(self) -> List[Dict]:
-        response = self.session.get(self.base + "/api/groups")
+        response = self.session.get(self.base + "/api/groups", timeout=REQUEST_TIMEOUT_SECONDS)
         if response.status_code == 200:
             return response.json()
 
     def create_group(self, group_name) -> Dict:
-        response = self.session.post(self.base + "/api/groups", json={"name": group_name})
+        response = self.session.post(
+            self.base + "/api/groups", json={"name": group_name}, timeout=REQUEST_TIMEOUT_SECONDS
+        )
         if response.status_code == 200:
             return response.json()
 
@@ -169,6 +179,7 @@ class Traccar:
                 "name": device_name,
                 "groupId": self.get_shared_group_id(),
             },
+            timeout=REQUEST_TIMEOUT_SECONDS,
         )
         # print(response)
         # print(response.text)
@@ -179,12 +190,15 @@ class Traccar:
         response = self.session.put(
             self.base + f"/api/devices/{deviceId}/",
             json={"groupId": self.get_shared_group_id(), "id": deviceId},
+            timeout=REQUEST_TIMEOUT_SECONDS,
         )
         if response.status_code == 200:
             return True
 
     def get_device(self, identifier) -> Optional[Dict]:
-        response = self.session.get(self.base + "/api/devices/?uniqueId={}".format(identifier))
+        response = self.session.get(
+            self.base + "/api/devices/?uniqueId={}".format(identifier), timeout=REQUEST_TIMEOUT_SECONDS
+        )
         if response.status_code == 200:
             devices = response.json()
             try:
@@ -203,6 +217,7 @@ class Traccar:
         response = self.session.put(
             self.base + f"/api/devices/{key}/",
             json={"name": device_name, "id": key, "uniqueId": identifier},
+            timeout=REQUEST_TIMEOUT_SECONDS,
         )
         if response.status_code != 200:
             logger.error(f"Failed updating device name because of: {response.status_code} {response.text}")

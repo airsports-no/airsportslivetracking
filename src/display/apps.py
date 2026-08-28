@@ -7,3 +7,6 @@ class DisplayConfig(AppConfig):
     def ready(self):
         # Import signal handlers
         from . import signals
+
+        # Register drf-spectacular customizations (e.g. FirebaseAuthenticationScheme)
+        from . import schema  # noqa: F401

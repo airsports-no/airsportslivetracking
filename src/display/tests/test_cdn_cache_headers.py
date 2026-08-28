@@ -11,7 +11,8 @@ Key invariants exercised here:
 import datetime
 from unittest.mock import patch
 
-from django.test import TransactionTestCase
+import redis
+from django.test import SimpleTestCase, TransactionTestCase
 from guardian.shortcuts import assign_perm
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
@@ -217,3 +218,19 @@ class CDNSafetyMiddlewareDefaultsTests(TransactionTestCase):
         # We don't assert specific headers, only that no CDN safety logic
         # crashed. A 200, 302, or 404 are all acceptable here.
         self.assertIn(response.status_code, (200, 301, 302, 404))
+
+
+class GetContestListVersionRedisOutageTests(SimpleTestCase):
+    """
+    Regression test for GH #706: a Redis outage used to make get_contest_list_version()
+    (and therefore every contest list/detail request) raise redis.exceptions.ConnectionError
+    and 500, instead of degrading to an always-fresh version.
+    """
+
+    def test_falls_back_to_a_fresh_version_instead_of_raising(self):
+        from display.viewsets import get_contest_list_version
+
+        with patch("display.viewsets.cache.get", side_effect=redis.exceptions.ConnectionError("boom")):
+            version = get_contest_list_version()
+
+        self.assertIsInstance(version, int)

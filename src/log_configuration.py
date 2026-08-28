@@ -13,7 +13,10 @@ LOG_CONFIGURATION = {
     "filters": {
         "skip_healthz": {
             "()": "utilities.logging_filters.HealthCheckFilter",
-        }
+        },
+        "downgrade_expected_firebase_auth_noise": {
+            "()": "utilities.logging_filters.DowngradeExpectedFirebaseAuthNoiseFilter",
+        },
     },
     "formatters": {
         "standard": {
@@ -116,6 +119,14 @@ LOG_CONFIGURATION = {
         "PIL": {
             "handlers": handlers,
             "level": "INFO",
+            "propagate": False,
+        },
+        # See DowngradeExpectedFirebaseAuthNoiseFilter: this vendored library logs some
+        # routine, expected auth outcomes (new-user provisioning, expired tokens) at ERROR.
+        "drf-firebase-auth": {
+            "handlers": handlers,
+            "level": "INFO",
+            "filters": ["downgrade_expected_firebase_auth_noise"],
             "propagate": False,
         },
     },

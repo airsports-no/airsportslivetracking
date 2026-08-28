@@ -8,6 +8,7 @@ from collections import OrderedDict
 from urllib import parse
 
 import dateutil.parser
+import redis
 import rest_framework.exceptions as drf_exceptions
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
@@ -21,7 +22,7 @@ from django.utils import timezone
 from django.utils.cache import add_never_cache_headers, patch_response_headers
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view, inline_serializer
 from guardian.models import UserObjectPermission
 from guardian.shortcuts import get_objects_for_user
 from rest_framework import permissions, serializers, status
@@ -561,12 +562,21 @@ def get_contest_list_version():
     """
     Retrieve the current version of the contest list.
     If it doesn't exist, initialize it with a timestamp to prevent ETag collisions.
+
+    If Redis itself is unavailable, fall back to a fresh timestamp on every call rather than
+    raising and 500ing the request: this just means ETags won't match until Redis recovers (the
+    CDN/browser will revalidate every time), which is a strictly better failure mode than an
+    outage.
     """
-    version = cache.get("contest_list_version")
-    if version is None:
-        version = int(timezone.now().timestamp())
-        cache.set("contest_list_version", version, timeout=None)
-    return version
+    try:
+        version = cache.get("contest_list_version")
+        if version is None:
+            version = int(timezone.now().timestamp())
+            cache.set("contest_list_version", version, timeout=None)
+        return version
+    except redis.exceptions.RedisError:
+        logger.warning("Redis unavailable while fetching contest_list_version, falling back to a fresh version")
+        return int(timezone.now().timestamp())
 
 
 class ContestPagination(MyCursorPagination):
@@ -1678,6 +1688,21 @@ class ClubViewSet(ReadOnlyModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+_NAVIGATION_TASK_NESTED_PATH_PARAMETERS = [
+    OpenApiParameter(name="contest_pk", type=OpenApiTypes.INT, location=OpenApiParameter.PATH),
+    OpenApiParameter(name="navigationtask_pk", type=OpenApiTypes.INT, location=OpenApiParameter.PATH),
+]
+_NAVIGATION_TASK_NESTED_SCHEMA_VIEW = extend_schema_view(
+    list=extend_schema(parameters=_NAVIGATION_TASK_NESTED_PATH_PARAMETERS),
+    create=extend_schema(parameters=_NAVIGATION_TASK_NESTED_PATH_PARAMETERS),
+    retrieve=extend_schema(parameters=_NAVIGATION_TASK_NESTED_PATH_PARAMETERS),
+    update=extend_schema(parameters=_NAVIGATION_TASK_NESTED_PATH_PARAMETERS),
+    partial_update=extend_schema(parameters=_NAVIGATION_TASK_NESTED_PATH_PARAMETERS),
+    destroy=extend_schema(parameters=_NAVIGATION_TASK_NESTED_PATH_PARAMETERS),
+)
+
+
+@_NAVIGATION_TASK_NESTED_SCHEMA_VIEW
 class ContestantTeamIdViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
     permission_classes = [
@@ -1838,6 +1863,29 @@ def generate_score_data(contestant_pk):
     return data
 
 
+@extend_schema_view(
+    **{
+        action_name: extend_schema(parameters=_NAVIGATION_TASK_NESTED_PATH_PARAMETERS)
+        for action_name in (
+            "list",
+            "create",
+            "retrieve",
+            "update",
+            "partial_update",
+            "destroy",
+            "create_with_team",
+            "update_with_team",
+            "score_data",
+            "score_data_versioned",
+            "slice",
+            "paginated_track_data",
+            "score",
+            "track",
+            "compiled_evidence",
+            "gpx_track",
+        )
+    }
+)
 class ContestantViewSet(ModelViewSet):
     queryset = Contestant.objects.all()
     permission_classes = [
@@ -2397,6 +2445,19 @@ class TaskViewSet(ModelViewSet):
         return super().update(request, *args, **kwargs)
 
 
+_CONTEST_NESTED_PATH_PARAMETERS = [
+    OpenApiParameter(name="contest_pk", type=OpenApiTypes.INT, location=OpenApiParameter.PATH),
+]
+
+
+@extend_schema_view(
+    list=extend_schema(parameters=_CONTEST_NESTED_PATH_PARAMETERS),
+    create=extend_schema(parameters=_CONTEST_NESTED_PATH_PARAMETERS),
+    retrieve=extend_schema(parameters=_CONTEST_NESTED_PATH_PARAMETERS),
+    update=extend_schema(parameters=_CONTEST_NESTED_PATH_PARAMETERS),
+    partial_update=extend_schema(parameters=_CONTEST_NESTED_PATH_PARAMETERS),
+    destroy=extend_schema(parameters=_CONTEST_NESTED_PATH_PARAMETERS),
+)
 class TaskTestViewSet(ModelViewSet):
     queryset = TaskTest.objects.all()
     permission_classes = [TaskTestContestPublicPermissions | permissions.IsAuthenticated & TaskTestContestPermissions]

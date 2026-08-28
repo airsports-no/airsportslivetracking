@@ -121,34 +121,19 @@ class PersonLtdSerialiser(serializers.ModelSerializer):
         fields = ("first_name", "last_name", "picture")
 
 
-class ReadWriteSerializerMethodField(serializers.Field):
+class ReadWriteSerializerMethodField(serializers.SerializerMethodField):
+    """Like SerializerMethodField, but writable via to_internal_value.
+
+    Subclassing SerializerMethodField (rather than Field directly) lets drf-spectacular
+    recognize and resolve this field via its built-in SerializerMethodField handling
+    (i.e. from the bound get_<field_name> method's return type hint), instead of falling
+    back to an unresolved "string" type.
+    """
+
     def __init__(self, method_name=None, **kwargs):
         self.method_name = method_name
         kwargs["source"] = "*"
-        # kwargs['read_only'] = True
-        super(ReadWriteSerializerMethodField, self).__init__(**kwargs)
-
-    def bind(self, field_name, parent):
-        self.field_name = field_name
-        # In order to enforce a consistent style, we error if a redundant
-        # 'method_name' argument has been used. For example:
-        # my_field = serializer.SerializerMethodField(method_name='get_my_field')
-        default_method_name = "get_{field_name}".format(field_name=field_name)
-        assert self.method_name != default_method_name, (
-            "It is redundant to specify `%s` on SerializerMethodField '%s' in "
-            "serializer '%s', because it is the same as the default method name. "
-            "Remove the `method_name` argument." % (self.method_name, field_name, parent.__class__.__name__)
-        )
-
-        # The method name should default to `get_{field_name}`.
-        if self.method_name is None:
-            self.method_name = default_method_name
-
-        super(ReadWriteSerializerMethodField, self).bind(field_name, parent)
-
-    def to_representation(self, value):
-        method = getattr(self.parent, self.method_name)
-        return method(value)
+        serializers.Field.__init__(self, **kwargs)
 
     def to_internal_value(self, data):
         return {self.field_name: data}
@@ -166,10 +151,10 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     phone_national_number = ReadWriteSerializerMethodField()
     phone_country_prefix = ReadWriteSerializerMethodField()
 
-    def get_phone_national_number(self, obj):
+    def get_phone_national_number(self, obj) -> str:
         return str(obj.phone.national_number) if obj.phone is not None else ""
 
-    def get_phone_country_prefix(self, obj):
+    def get_phone_country_prefix(self, obj) -> str:
         return f"+{obj.phone.country_code}" if obj.phone is not None else ""
 
     def create(self, validated_data):
@@ -242,6 +227,7 @@ class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
         model = Club
         fields = "__all__"
 
+    @extend_schema_field(ClubManagerMembershipSerializer(many=True))
     def get_manager_memberships(self, club):
         request = self.context.get("request")
         if not request or not getattr(request.user, "is_authenticated", False):
@@ -617,13 +603,13 @@ class ContestantTickerSerialiser(serializers.ModelSerializer):
             "calculator_finished",
         )
 
-    def get_pilot_name(self, obj):
+    def get_pilot_name(self, obj) -> str:
         return f"{obj.team.crew.member1.first_name} {obj.team.crew.member1.last_name}"
 
-    def get_aircraft_registration(self, obj):
+    def get_aircraft_registration(self, obj) -> str:
         return obj.team.aeroplane.registration
 
-    def get_calculator_finished(self, obj):
+    def get_calculator_finished(self, obj) -> bool:
         return getattr(obj, "contestanttrack", None).calculator_finished if hasattr(obj, "contestanttrack") else False
 
 
@@ -669,6 +655,7 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
             "planning_time",
         )
 
+    @extend_schema_field(ContestantTickerSerialiser(many=True))
     def get_active_contestants(self, obj):
         if hasattr(obj, "prefetched_active_contestants"):
             active_contestants = obj.prefetched_active_contestants
@@ -678,7 +665,7 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
             )
         return ContestantTickerSerialiser(active_contestants, many=True).data
 
-    def get_flown_contestants_count(self, obj):
+    def get_flown_contestants_count(self, obj) -> int:
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
 
 
@@ -710,7 +697,7 @@ class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
         if self.context.get("exclude_route"):
             self.fields.pop("route")
 
-    def get_flown_contestants_count(self, obj):
+    def get_flown_contestants_count(self, obj) -> int:
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
 
 
@@ -789,10 +776,10 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         if self.context.get("exclude_teams"):
             self.fields.pop("contestteam_set")
 
-    def get_is_editor(self, contest):
+    def get_is_editor(self, contest) -> bool:
         return contest.id in self.context.get("editable_contest_ids", set())
 
-    def get_has_open_tasks(self, contest):
+    def get_has_open_tasks(self, contest) -> bool:
         if hasattr(contest, "has_open_tasks_count"):
             return contest.has_open_tasks_count > 0
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -800,12 +787,12 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             allow_self_management=True, start_time__lte=now, finish_time__gte=now
         ).exists()
 
-    def get_has_flown_contestants(self, contest):
+    def get_has_flown_contestants(self, contest) -> bool:
         if hasattr(contest, "has_flown_contestants_count"):
             return contest.has_flown_contestants_count > 0
         return contest.navigationtask_set.filter(contestant__contestanttrack__calculator_started=True).exists()
 
-    def get_access_status(self, contest):
+    def get_access_status(self, contest) -> dict:
         request = self.context.get("request")
         resolution = resolve_contest_access(contest, user=getattr(request, "user", None))
         return {
@@ -827,6 +814,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             "free_task_type_groups": resolution.free_task_type_groups,
         }
 
+    @extend_schema_field(AvailableTokenGrantSerializer(many=True))
     def get_available_token_grants(self, contest):
         request = self.context.get("request")
         if not request or not getattr(request.user, "is_authenticated", False):
@@ -864,6 +852,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         user = self.context["request"].user
         return {"change_contest": [user], "delete_contest": [user], "view_contest": [user]}
 
+    @extend_schema_field(NavigationTasksLightSerialiser(many=True))
     def get_visiblenavigationtasks(self, contest):
         if self.context.get("exclude_tasks"):
             return []
@@ -882,7 +871,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         serialiser = NavigationTasksLightSerialiser(tasks_queryset, many=True, read_only=True)
         return serialiser.data
 
-    def get_registered(self, contest):
+    def get_registered(self, contest) -> bool:
         return contest.id in self.context.get("registered_contest_ids", set())
 
     def create(self, validated_data):
@@ -900,6 +889,7 @@ class HighlightedContestSerialiser(serializers.ModelSerializer):
 
 
 class ContestParticipationSerialiser(ContestSerialiser):
+    @extend_schema_field(NavigationTasksSummaryParticipationSerialiser(many=True))
     def get_visiblenavigationtasks(self, contest):
         user = self.context["request"].user
         viewable_contest = user.has_perm("display.view_contest", contest)
@@ -1032,7 +1022,7 @@ class ScorecardSerialiser(serializers.ModelSerializer):
         model = Scorecard
         fields = ("name", "task_type")
 
-    def get_task_type(self, instance):
+    def get_task_type(self, instance) -> list:
         return instance.task_type
 
 
@@ -1052,7 +1042,7 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
         read_only_fields = ["task_type"]
         exclude = ("id", "original", "included_fields", "calculator", "name", "use_procedure_turns")
 
-    def get_task_type(self, instance):
+    def get_task_type(self, instance) -> list:
         return instance.task_type
 
     def create(self, validated_data):
@@ -1185,7 +1175,7 @@ class ContestantTrackSerialiser(serializers.ModelSerializer):
 
     contest_summary = serializers.SerializerMethodField()
 
-    def get_contest_summary(self, obj):
+    def get_contest_summary(self, obj) -> Optional[float]:
         try:
             team = obj.contestant.team
             contest = obj.contestant.navigation_task.contest
@@ -1235,21 +1225,21 @@ class ContestantSerialiser(serializers.ModelSerializer):
     last_position_time = SerializerMethodField("get_last_position_time", read_only=True)
     calculator_finished = serializers.SerializerMethodField()
 
-    def get_calculator_finished(self, obj):
+    def get_calculator_finished(self, obj) -> bool:
         return getattr(obj, "contestanttrack", None).calculator_finished if hasattr(obj, "contestanttrack") else False
 
-    def get_first_position_time(self, contestant):
+    def get_first_position_time(self, contestant) -> Optional[datetime.datetime]:
         first = contestant.contestantreceivedposition_set.order_by("time").first()
         return first.time if first else None
 
-    def get_last_position_time(self, contestant):
+    def get_last_position_time(self, contestant) -> Optional[datetime.datetime]:
         last = contestant.contestantreceivedposition_set.order_by("time").last()
         return last.time if last else None
 
     overlap_warnings = SerializerMethodField("get_overlap_warnings", read_only=True)
     overlapping_tasks = SerializerMethodField("get_overlapping_tasks", read_only=True)
 
-    def get_overlapping_tasks(self, contestant):
+    def get_overlapping_tasks(self, contestant) -> list[dict]:
         overlaps = contestant.get_overlapping_tasks()
         return [
             {
@@ -1261,16 +1251,16 @@ class ContestantSerialiser(serializers.ModelSerializer):
             for item in overlaps
         ]
 
-    def get_overlap_warnings(self, contestant):
+    def get_overlap_warnings(self, contestant) -> list[str]:
         return contestant.get_overlap_warnings()
 
-    def get_contest_id(self, contestant):
+    def get_contest_id(self, contestant) -> int:
         return contestant.navigation_task.contest.pk
 
-    def get_default_map_url(self, contestant):
+    def get_default_map_url(self, contestant) -> str:
         return reverse("contestant_default_map", kwargs={"pk": contestant.pk})
 
-    def get_declaration_payload(self, contestant):
+    def get_declaration_payload(self, contestant) -> dict:
         if hasattr(contestant, "contestanttaskconfiguration"):
             return contestant.contestanttaskconfiguration.declaration_payload or {}
         return {}
@@ -1347,6 +1337,7 @@ class OngoingNavigationSerialiser(serializers.ModelSerializer):
         model = NavigationTask
         fields = ("pk", "name", "start_time", "finish_time", "tracking_link", "active_contestants", "contest")
 
+    @extend_schema_field(ContestantTickerSerialiser(many=True))
     def get_active_contestants(self, navigation_task):
         if hasattr(navigation_task, "prefetched_active_contestants"):
             active_contestants = navigation_task.prefetched_active_contestants
@@ -1406,7 +1397,7 @@ class ContestantNestedTeamSerialiserWithContestantTrack(ContestantNestedTeamSeri
     contestanttrack = ContestantTrackSerialiser(read_only=True)
     compiled_effective_route_payload = serializers.SerializerMethodField()
 
-    def get_compiled_effective_route_payload(self, obj):
+    def get_compiled_effective_route_payload(self, obj) -> dict:
         config = getattr(obj, "contestanttaskconfiguration", None)
         if config is not None:
             declaration_payload = config.declaration_payload or {}
@@ -1451,10 +1442,10 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     user_has_change_permission = SerializerMethodField("get_user_has_change_permission")
     flown_contestants_count = serializers.SerializerMethodField()
 
-    def get_flown_contestants_count(self, obj):
+    def get_flown_contestants_count(self, obj) -> int:
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
 
-    def get_task_catalogue_targets(self, obj):
+    def get_task_catalogue_targets(self, obj) -> list[dict]:
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
 
         contestant = self.context.get("contestant")
@@ -1481,11 +1472,11 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         )
         return queryset
 
-    def get_user_has_change_permission(self, navigation_task):
+    def get_user_has_change_permission(self, navigation_task) -> bool:
         user = self.context["request"].user
         return navigation_task.user_has_change_permissions(user) or user.is_superuser
 
-    def get_task_subtype_definition(self, navigation_task):
+    def get_task_subtype_definition(self, navigation_task) -> Optional[dict]:
         definition = navigation_task.subtype_definition
         if definition is None:
             return None
@@ -1496,7 +1487,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
             "requires_contestant_configuration": definition.requires_contestant_configuration,
         }
 
-    def get_task_information(self, navigation_task):
+    def get_task_information(self, navigation_task) -> dict:
         return navigation_task.task_information
 
     class Meta:
@@ -1876,6 +1867,7 @@ class EditableRouteLightSerialiser(ObjectPermissionsAssignmentMixin, serializers
     number_of_waypoints = serializers.IntegerField(read_only=True)
     route_length = serializers.FloatField(read_only=True)
 
+    @extend_schema_field(UserSerialiser(many=True))
     def get_editors(self, obj):
         # Use bulk-fetched map if available in context
         editors_map = self.context.get("editors_map")
@@ -1901,7 +1893,7 @@ class EditableRouteLightSerialiser(ObjectPermissionsAssignmentMixin, serializers
         )
         read_only_fields = ("compatible_task_types",)
 
-    def get_is_editor(self, editable_route):
+    def get_is_editor(self, editable_route) -> bool:
         return editable_route.id in self.context.get("editable_route_ids", set())
 
 
@@ -1996,6 +1988,7 @@ Prohibited, penalty, information zones
     number_of_waypoints = serializers.IntegerField(read_only=True)
     route_length = serializers.FloatField(read_only=True)
 
+    @extend_schema_field(UserSerialiser(many=True))
     def get_editors(self, obj):
         # Use bulk-fetched map if available in context
         editors_map = self.context.get("editors_map")
@@ -2017,7 +2010,7 @@ Prohibited, penalty, information zones
         user = self.context["request"].user
         return {"change_editableroute": [user], "delete_editableroute": [user], "view_editableroute": [user]}
 
-    def get_is_editor(self, editable_route):
+    def get_is_editor(self, editable_route) -> bool:
         return editable_route.id in self.context.get("editable_route_ids", set())
 
     def to_representation(self, instance):

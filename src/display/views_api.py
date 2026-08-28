@@ -4,7 +4,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, OpenApiTypes
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiTypes
+from rest_framework import serializers
 
 from guardian.decorators import permission_required as guardian_permission_required
 from display.tasks import (
@@ -24,7 +25,26 @@ from display.utilities.country_code_utilities import get_country_code_from_locat
 from display.views import get_navigation_task_orders_status_object
 
 
-@extend_schema(responses={200: OpenApiTypes.STR})
+_LocationRequestSerialiser = inline_serializer(
+    "LocationRequest",
+    {
+        "latitude": serializers.FloatField(),
+        "longitude": serializers.FloatField(),
+    },
+)
+
+# Shared request shape for the auto_complete_* endpoints below: `request` selects between
+# a search-suggestions pass (1) and a full-match lookup (anything else), `search` is the query.
+_AutoCompleteRequestSerialiser = inline_serializer(
+    "AutoCompleteRequest",
+    {
+        "request": serializers.IntegerField(),
+        "search": serializers.CharField(required=False, allow_blank=True),
+    },
+)
+
+
+@extend_schema(request=_LocationRequestSerialiser, responses={200: OpenApiTypes.STR})
 @api_view(["POST"])
 def get_country_from_location(request):
     latitude = float(request.data.get("latitude"))
@@ -32,7 +52,7 @@ def get_country_from_location(request):
     return Response(get_country_code_from_location(latitude, longitude))
 
 
-@extend_schema(responses={200: OpenApiTypes.ANY})
+@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def auto_complete_aeroplane(request):
@@ -49,7 +69,7 @@ def auto_complete_aeroplane(request):
         return Response(serialiser.data)
 
 
-@extend_schema(responses={200: OpenApiTypes.ANY})
+@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def auto_complete_club(request):
@@ -66,7 +86,7 @@ def auto_complete_club(request):
         return Response(serialiser.data)
 
 
-@extend_schema(responses={200: OpenApiTypes.ANY})
+@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def auto_complete_person_phone(request):
@@ -83,7 +103,7 @@ def auto_complete_person_phone(request):
         return Response(serialiser.data)
 
 
-@extend_schema(responses={200: OpenApiTypes.ANY})
+@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def auto_complete_person_id(request):
@@ -100,7 +120,7 @@ def auto_complete_person_id(request):
         return Response(serialiser.data)
 
 
-@extend_schema(responses={200: OpenApiTypes.ANY})
+@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def auto_complete_person_first_name(request):
@@ -123,7 +143,7 @@ def auto_complete_person_first_name(request):
         return Response(serialiser.data)
 
 
-@extend_schema(responses={200: OpenApiTypes.ANY})
+@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def auto_complete_person_last_name(request):
@@ -146,7 +166,7 @@ def auto_complete_person_last_name(request):
         return Response(serialiser.data)
 
 
-@extend_schema(responses={200: OpenApiTypes.ANY})
+@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def auto_complete_person_email(request):
