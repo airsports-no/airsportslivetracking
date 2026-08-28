@@ -452,10 +452,25 @@ CELERY_TASK_ROUTES = {
 }
 # CELERY_RESULT_BACKEND = "django-db"
 
+# Deliberately a *different* Redis logical DB than CELERY_BROKER_URL/CHANNEL_LAYERS (below):
+# django.core.cache.backends.redis.RedisCache.clear() issues a raw FLUSHDB, and this cache is
+# cleared unconditionally on every tracker-processor start (position_processor.py) and in tests
+# (below). Sharing a DB with the Celery broker and the Channels layer meant that FLUSHDB wiped
+# every queued/unacked Celery message (including live_calculator dispatches), every websocket
+# group's membership set, and - since RedisQueue/calculator_running_utilities also default to
+# DB 0 - every in-flight contestant position queue and calculator liveness heartbeat, on every
+# restart of a live contest. Isolating the cache to its own DB means clear() only ever discards
+# this process's own cache entries (heartbeats/dispatch-pending markers), which are designed to
+# self-heal within seconds regardless.
+REDIS_CACHE_URL = (
+    f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/1"
+    if REDIS_PASSWORD
+    else f"redis://{REDIS_HOST}:{REDIS_PORT}/1"
+)
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": CELERY_BROKER_URL,
+        "LOCATION": REDIS_CACHE_URL,
     }
     # "default": {
     #     "BACKEND": "redis_cache.RedisCache",
