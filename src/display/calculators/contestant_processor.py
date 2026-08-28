@@ -68,6 +68,14 @@ class ScoreAccumulator:
 
 LOOP_TIME = 60
 CONTESTANT_REFRESH_INTERVAL = datetime.timedelta(seconds=15)
+# Upper bound on how stale ContestantReceivedPosition can get relative to what has
+# already been broadcast over the websocket. Without this, positions only get
+# bulk_created once positions_to_save exceeds 100 entries, which at typical ~1Hz
+# reporting is ~100s of already-live-transmitted track that a REST client (e.g. a
+# browser tab backgrounded and then resumed) cannot yet backfill via the /slice/
+# endpoint, even though continuously-connected clients already have it via the
+# websocket push.
+POSITION_SAVE_INTERVAL = datetime.timedelta(seconds=10)
 
 
 class ContestantProcessor:
@@ -355,6 +363,7 @@ class ContestantProcessor:
             return
         self.last_status_check = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         positions_to_save = []
+        last_position_flush = datetime.datetime.now(datetime.timezone.utc)
         while not self.track_terminated:
             # Only check for manual termination every 5 seconds or when waiting for data
             now = datetime.datetime.now(datetime.timezone.utc)
@@ -468,9 +477,12 @@ class ContestantProcessor:
                         )
                         break
 
-            if len(positions_to_save) > 100:
+            if positions_to_save and (
+                len(positions_to_save) > 100 or now - last_position_flush > POSITION_SAVE_INTERVAL
+            ):
                 self.save_positions(positions_to_save)
                 positions_to_save = []
+                last_position_flush = now
 
             if self.track_terminated:
                 break
