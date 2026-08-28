@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import models
 from django.db.models import QuerySet
+from django.utils.html import format_html
 from django_countries.fields import CountryField
 from phonenumber_field.modelfields import PhoneNumberField
 from phonenumbers import PhoneNumber
@@ -163,9 +164,15 @@ class Crew(models.Model):
 
     @property
     def table_display(self):
+        # format_html escapes each interpolated value (member1/member2 -> Person.__str__, built
+        # from user-editable first_name/last_name) while leaving the literal <br/> as real markup
+        # - returns a SafeString the template can render with |safe without re-exposing an XSS
+        # vector. Previously this returned a plain unescaped string, rendered with |safe in
+        # navigationtask_detail.html: any pilot could set their name to a script payload and get
+        # it executed in a contest manager's session.
         if self.member2:
-            return "{}<br/>{}".format(self.member1, self.member2)
-        return "{}".format(self.member1)
+            return format_html("{}<br/>{}", self.member1, self.member2)
+        return format_html("{}", self.member1)
 
     def validate(self):
         if Crew.objects.filter(member1=self.member1, member2=self.member2).exclude(pk=self.pk).exists():
@@ -234,7 +241,10 @@ class Team(models.Model):
 
     @property
     def table_display(self):
-        return f"{self.crew.table_display}<br/>{self.aeroplane}"
+        # crew.table_display is already a SafeString (see Crew.table_display); format_html
+        # escapes self.aeroplane (Aeroplane.__str__, from user-editable registration) without
+        # re-escaping the already-safe crew portion.
+        return format_html("{}<br/>{}", self.crew.table_display, self.aeroplane)
 
     @property
     def country_flag_url(self):

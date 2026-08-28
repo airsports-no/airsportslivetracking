@@ -23,6 +23,8 @@
 </div>
 
 <script>
+    import { escapeHtml, safeUrl } from '../scripts/html-safety.js';
+
     async function fetchHighlightedContests() {
         const container = document.getElementById('highlighted-contests-container');
         const list = document.getElementById('highlighted-contests-list');
@@ -56,32 +58,32 @@
 
                 card.innerHTML = `
                     <div class="md:w-2/5 h-64 md:h-auto relative overflow-hidden">
-                        ${contest.header_image ? 
-                            `<img src="${contest.header_image}" alt="${contest.name}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80" />` :
+                        ${contest.header_image ?
+                            `<img src="${safeUrl(contest.header_image, API_BASE)}" alt="${escapeHtml(contest.name)}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80" />` :
                             `<div class="w-full h-full bg-gradient-to-br from-blue-600 to-indigo-900 opacity-80"></div>`
                         }
                         <div class="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-900 via-transparent to-transparent"></div>
                         <div class="absolute bottom-6 left-8 md:bottom-auto md:top-8">
                             <div class="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full">
-                                <span class="text-[10px] font-black text-white uppercase tracking-widest">${contest.country || 'Global'}</span>
-                                ${contest.country_flag_url ? `<img src="${API_BASE + contest.country_flag_url}" alt="" class="w-4 h-3 object-cover rounded-sm" />` : ''}
+                                <span class="text-[10px] font-black text-white uppercase tracking-widest">${escapeHtml(contest.country) || 'Global'}</span>
+                                ${contest.country_flag_url ? `<img src="${safeUrl(API_BASE + contest.country_flag_url)}" alt="" class="w-4 h-3 object-cover rounded-sm" />` : ''}
                             </div>
                         </div>
                     </div>
                     <div class="md:w-3/5 p-10 flex flex-col justify-center relative z-10">
                         <div class="mb-4">
                             <p class="text-blue-400 font-black text-[10px] uppercase tracking-[0.3em] mb-2">${startTime} — ${finishTime}</p>
-                            <h3 class="text-3xl font-black text-white font-lexend italic uppercase tracking-tight leading-tight mb-4">${contest.name}</h3>
+                            <h3 class="text-3xl font-black text-white font-lexend italic uppercase tracking-tight leading-tight mb-4">${escapeHtml(contest.name)}</h3>
                             <p class="text-slate-300 text-sm leading-relaxed font-medium mb-8">
-                                ${highlight.blurb}
+                                ${escapeHtml(highlight.blurb)}
                             </p>
                         </div>
                         <div class="flex flex-wrap gap-4 mt-auto">
-                            <a href="https://app.airsports.no/competition-map/${contest.id}" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-700 transition-all active:scale-95 italic">
+                            <a href="https://app.airsports.no/competition-map/${encodeURIComponent(contest.id)}" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-700 transition-all active:scale-95 italic">
                                 View Competition
                             </a>
                             ${contest.contest_website ? `
-                                <a href="${contest.contest_website}" target="_blank" class="bg-white/10 border border-white/20 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white/20 transition-all active:scale-95 italic">
+                                <a href="${safeUrl(contest.contest_website)}" target="_blank" rel="noopener noreferrer" class="bg-white/10 border border-white/20 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white/20 transition-all active:scale-95 italic">
                                     Official Site
                                 </a>
                             ` : ''}
