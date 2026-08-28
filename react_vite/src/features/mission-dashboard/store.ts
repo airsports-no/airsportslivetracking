@@ -1,0 +1,157 @@
+import { create } from 'zustand';
+import * as api from './api';
+import type { Club, Aircraft, Copilot, Contest, OngoingNavigation, Contestant, MyContestTeam, ContestResults } from './types';
+
+interface MissionDashboardState {
+    contests: Contest[];
+    contestsById: Record<number, Contest>;
+    myEditorContests: Contest[];
+    ongoingNavigations: OngoingNavigation[];
+    myFutureFlights: Contestant[];
+    myPreviousFlights: Contestant[];
+    myContestTeams: MyContestTeam[];
+    results: Record<number, ContestResults>;
+    clubs: Club[];
+    managedClubs: Club[];
+    aircrafts: Aircraft[];
+    pilots: Copilot[];
+    
+    fetchContests: (filters?: api.ContestFilters, clear?: boolean) => Promise<void>;
+    fetchContest: (contestId: number, force?: boolean) => Promise<void>;
+    fetchMyEditorContests: (force?: boolean) => Promise<void>;
+    fetchOngoingNavigation: (force?: boolean) => Promise<void>;
+    fetchMyFutureFlights: (force?: boolean) => Promise<void>;
+    fetchMyPreviousFlights: (force?: boolean) => Promise<void>;
+    fetchMyContestTeams: (force?: boolean) => Promise<void>;
+    fetchContestResults: (contestId: number, force?: boolean) => Promise<void>;
+    fetchClubs: () => Promise<void>;
+    fetchManagedClubs: (force?: boolean) => Promise<void>;
+    fetchAircrafts: () => Promise<void>;
+    fetchPilots: () => Promise<void>;
+
+    // Actions that modify state locally or call API and then modify
+    cancelFlight: (contestId: number, navigationTaskId: number, futureContestantId: number) => Promise<void>;
+    withdraw: (contestId: number) => Promise<void>;
+}
+
+export const useMissionDashboardStore = create<MissionDashboardState>((set, get) => ({
+    contests: [],
+    contestsById: {},
+    myEditorContests: [],
+    ongoingNavigations: [],
+    myFutureFlights: [],
+    myPreviousFlights: [],
+    myContestTeams: [],
+    results: {},
+    clubs: [],
+    managedClubs: [],
+    aircrafts: [],
+    pilots: [],
+
+    fetchContests: async (filters, clear = false) => {
+        const contests = await api.fetchContests(filters);
+        set(state => {
+            const baseContests = clear ? [] : [...state.contests];
+            const newContests = [...baseContests];
+            contests.forEach(c => {
+                const index = newContests.findIndex(sc => sc.id === c.id);
+                if (index !== -1) {
+                    // Update existing
+                    newContests[index] = { ...newContests[index], ...c };
+                } else {
+                    // Append new
+                    newContests.push(c);
+                }
+            });
+            return { contests: newContests };
+        });
+    },
+    fetchContest: async (contestId, force) => {
+        if (!force && get().contestsById[contestId]) {
+            return;
+        }
+        const contest = await api.fetchContest(contestId);
+        set(state => ({
+            contestsById: {
+                ...state.contestsById,
+                [contestId]: contest
+            }
+        }));
+    },
+    fetchMyEditorContests: async (force) => {
+        if (!force && get().myEditorContests.length > 0) {
+            return;
+        }
+        const myEditorContests = await api.fetchContests({ isEditor: true, excludeTasks: true });
+        set({ myEditorContests });
+    },
+    fetchOngoingNavigation: async (force) => {
+        if (!force && get().ongoingNavigations.length > 0) {
+            return;
+        }
+        const ongoingNavigations = await api.fetchOngoingNavigation();
+        set({ ongoingNavigations });
+    },
+    fetchMyFutureFlights: async (force) => {
+        if (!force && get().myFutureFlights.length > 0) {
+            return;
+        }
+        const myFutureFlights = await api.fetchMyFutureFlights();
+        set({ myFutureFlights });
+    },
+    fetchMyPreviousFlights: async (force) => {
+        if (!force && get().myPreviousFlights.length > 0) {
+            return;
+        }
+        const myPreviousFlights = await api.fetchMyPreviousFlights();
+        set({ myPreviousFlights });
+    },
+    fetchMyContestTeams: async (force) => {
+        if (!force && get().myContestTeams.length > 0) {
+            return;
+        }
+        const myContestTeams = await api.fetchMyContestTeams();
+        set({ myContestTeams });
+    },
+    fetchContestResults: async (contestId, force) => {
+        if (!force && get().results[contestId]) {
+            return;
+        }
+        const results = await api.fetchContestResults(contestId);
+        set(state => ({
+            results: {
+                ...state.results,
+                [contestId]: results,
+            }
+        }));
+    },
+    fetchClubs: async () => {
+        const clubs = await api.fetchClubs();
+        set({ clubs });
+    },
+    fetchManagedClubs: async (force) => {
+        if (!force && get().managedClubs.length > 0) {
+            return;
+        }
+        const managedClubs = await api.fetchManagedClubs();
+        set({ managedClubs });
+    },
+    fetchAircrafts: async () => {
+        const aircrafts = await api.fetchAircrafts();
+        set({ aircrafts });
+    },
+    fetchPilots: async () => {
+        const pilots = await api.fetchPilots();
+        set({ pilots });
+    },
+    cancelFlight: async (contestId, navigationTaskId, futureContestantId) => {
+        await api.cancelFlight(contestId, navigationTaskId, futureContestantId);
+        await get().fetchMyFutureFlights(true);
+    },
+    withdraw: async (contestId: number) => {
+        await api.withdraw(contestId);
+        // After withdrawing, we might need to refetch contest teams or other user-specific data.
+        // For now, let's refetch my contest teams
+        await get().fetchMyContestTeams(true);
+    },
+}));
