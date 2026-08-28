@@ -30,19 +30,35 @@ class TrackingConsumer(WebsocketConsumer):
     def connect(self):
         self.navigation_task_pk = self.scope["url_route"]["kwargs"]["navigation_task"]
         self.navigation_task_group_name = "tracking_{}".format(self.navigation_task_pk)
-        logger.debug(f"Current user {self.scope.get('user')}")
-        async_to_sync(self.channel_layer.group_add)(self.navigation_task_group_name, self.channel_name)
-        self.groups.append(self.navigation_task_group_name)
+        user = self.scope.get("user")
+        logger.debug(f"Current user {user}")
         try:
             self.navigation_task = NavigationTask.objects.get(pk=self.navigation_task_pk)
         except (ObjectDoesNotExist, ValueError):
             logger.warning(f"NavigationTask with key {self.navigation_task_pk} does not exist or is invalid")
             # Must close rather than just return: returning without either
             # accepting or closing leaves the handshake unanswered, so the
-            # client waits on a socket the server has no intention of using,
-            # and the group subscription added above is never discarded.
+            # client waits on a socket the server has no intention of using.
             self.close()
             return
+        # Mirrors the REST equivalent (NavigationTaskPublicPutDeletePermissions /
+        # NavigationTaskContestPermissions): a private/unlisted task is only visible to someone
+        # with view_contest on the contest. Previously this consumer only checked the row
+        # existed, so any anonymous client could subscribe to live positions, score-log entries,
+        # gate scores and full contestant records for a private task by guessing its pk.
+        is_publicly_visible = self.navigation_task.is_public and self.navigation_task.contest.is_public
+        has_view_permission = bool(user) and user.is_authenticated and user.has_perm(
+            "display.view_contest", self.navigation_task.contest
+        )
+        if not is_publicly_visible and not has_view_permission:
+            logger.warning(
+                f"Rejected websocket connection to navigation task {self.navigation_task_pk}: "
+                f"not authorized for user {user}"
+            )
+            self.close()
+            return
+        async_to_sync(self.channel_layer.group_add)(self.navigation_task_group_name, self.channel_name)
+        self.groups.append(self.navigation_task_group_name)
         self.accept()
 
     def receive(self, text_data, **kwargs):
@@ -103,16 +119,29 @@ class ContestResultsConsumer(WebsocketConsumer):
         self.user = self.scope.get("user")
         self.contest_pk = self.scope["url_route"]["kwargs"]["contest_pk"]
         self.contest_results_group_name = "contestresults_{}".format(self.contest_pk)
-        self.groups.append(self.contest_results_group_name)
-        async_to_sync(self.channel_layer.group_add)(self.contest_results_group_name, self.channel_name)
         try:
             contest = Contest.objects.get(pk=self.contest_pk)
         except (ObjectDoesNotExist, ValueError):
             logger.warning(f"Contest with key {self.contest_pk} does not exist or is invalid")
-            # See TrackingConsumer.connect - an unanswered handshake leaves the
-            # client hanging and leaks the group subscription.
+            # See TrackingConsumer.connect - an unanswered handshake leaves the client hanging.
             self.close()
             return
+        # Mirrors the REST equivalent's visibility rule - see TrackingConsumer.connect. Previously
+        # this consumer only checked the contest row existed, so any anonymous client could
+        # subscribe to a private contest's results and receive a full team/task/test dump on
+        # connect.
+        has_view_permission = bool(self.user) and self.user.is_authenticated and self.user.has_perm(
+            "display.view_contest", contest
+        )
+        if not contest.is_public and not has_view_permission:
+            logger.warning(
+                f"Rejected websocket connection to contest results {self.contest_pk}: "
+                f"not authorized for user {self.user}"
+            )
+            self.close()
+            return
+        self.groups.append(self.contest_results_group_name)
+        async_to_sync(self.channel_layer.group_add)(self.contest_results_group_name, self.channel_name)
         self.accept()
         ws = WebsocketFacade()
         ws.transmit_teams(contest)
