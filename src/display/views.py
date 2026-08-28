@@ -2138,7 +2138,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
         return HttpResponseRedirect(self.get_success_url())
 
 
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def clear_contestants(request, pk):
     """
     Deletes all contestants from the navigation task and redirects to the navigation task detail page.

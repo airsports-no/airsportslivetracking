@@ -634,7 +634,14 @@ class ContestViewSet(ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         public_only = request.query_params.get("public_only", "false").lower() == "true"
-        user_id = "global" if public_only else (request.user.id if request.user.is_authenticated else "anon")
+        # ContestSerialiser output is per-user (available_token_grants, is_editor, registered,
+        # access_status all vary by requester), so only an actually-anonymous public_only request
+        # is safe to serve from the shared "global" cache entry / CDN-shareable response. An
+        # authenticated request must always get its own cache key, ETag, and a private
+        # Cache-Control, even with public_only=true - otherwise one user's personalized response
+        # (including their own token inventory) gets cached and served to every other caller.
+        is_anonymous_public_request = public_only and not request.user.is_authenticated
+        user_id = "global" if is_anonymous_public_request else (request.user.id if request.user.is_authenticated else "anon")
         params = request.query_params.dict()
         sorted_params = json.dumps(params, sort_keys=True)
         params_hash = hashlib.md5(sorted_params.encode("utf-8")).hexdigest()
@@ -642,8 +649,8 @@ class ContestViewSet(ModelViewSet):
         version = get_contest_list_version()
 
         # 1. ETag check (Browser/CDN level validation)
-        # The ETag represents a specific version of a specific query
-        etag = f'"{version}-{params_hash}"'
+        # The ETag represents a specific version of a specific query, for a specific user.
+        etag = f'"{version}-{user_id}-{params_hash}"'
         if request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 
@@ -660,15 +667,15 @@ class ContestViewSet(ModelViewSet):
 
         # 3. Set Caching Headers
         response["ETag"] = etag
-        if public_only:
-            # Public data can be cached by CDN and shared between users,
+        if is_anonymous_public_request:
+            # Public data can be cached by CDN and shared between anonymous users,
             # but MUST be revalidated via ETag to ensure the list is fresh.
             # stale-while-revalidate=86400: Serve stale data while fetching fresh in background
             response["Cache-Control"] = "public, no-cache, stale-while-revalidate=86400"
             if "Vary" in response:
                 del response["Vary"]
         else:
-            # Private data must NOT be cached by CDN or shared.
+            # Private/personalized data must NOT be cached by CDN or shared.
             response["Cache-Control"] = "private, no-cache"
 
         return response
@@ -1155,6 +1162,26 @@ class TeamViewSet(ModelViewSet):
 
     http_method_names = ["post", "put", "get"]
 
+    def get_queryset(self):
+        # TeamPermissions.has_permission allows any authenticated user for safe methods, and
+        # (unlike PhotoViewSet/ContestViewSet) there was previously no queryset scoping at all -
+        # TeamNestedSerialiser -> CrewSerialiser -> PersonSerialiserExcludingTracking includes
+        # every pilot's name, email and phone number, so this dumped that PII for every team in
+        # the system to any logged-in user. Scope to teams the requester can legitimately see:
+        # their own team(s), teams registered in a contest they can view, or teams in a public
+        # featured contest.
+        queryset = super().get_queryset()
+        user = self.request.user
+        if user.is_superuser:
+            return queryset
+        visible_contests = get_objects_for_user(user, "display.view_contest", klass=Contest, accept_global_perms=False)
+        return queryset.filter(
+            Q(contestteam__contest__in=visible_contests)
+            | Q(contestteam__contest__is_public=True, contestteam__contest__is_featured=True)
+            | Q(crew__member1__email=user.email)
+            | Q(crew__member2__email=user.email)
+        ).distinct()
+
 
 class ContestTeamViewSet(ModelViewSet):
     queryset = ContestTeam.objects.all()
@@ -1538,8 +1565,13 @@ class NavigationTaskViewSet(ModelViewSet):
     )
     def delete_self_managed_contestant(self, request, *args, **kwargs):
         navigation_task: NavigationTask = self.get_object()
+        my_contestant = get_object_or_404(navigation_task.contestant_set, pk=kwargs["contestant_id"])
+        # Matches the DELETE branch of NavigationTaskContestPermissions, the non-public-task path
+        # that lets this action through in the first place.
+        is_contest_manager = request.user.has_perm("display.delete_contest", navigation_task.contest)
+        if not is_contest_manager and my_contestant.team.crew.member1.email != request.user.email:
+            raise drf_exceptions.PermissionDenied("You cannot delete a contestant that is not your own")
         try:
-            my_contestant = get_object_or_404(navigation_task.contestant_set, pk=kwargs["contestant_id"])
             if (
                 not my_contestant.contestanttrack.calculator_started
                 or my_contestant.takeoff_time > datetime.datetime.now(datetime.timezone.utc)
@@ -1581,7 +1613,23 @@ class PhotoViewSet(ModelViewSet):
         route_id = self.request.query_params.get("route")
         if route_id:
             queryset = queryset.filter(route_id=route_id)
-        return queryset
+        # PhotoPermissions.has_permission is intentionally permissive (object-level visibility
+        # normally decides read/write access) but has_object_permission is never consulted for
+        # list() - it only operates on the queryset. Without this filter, any authenticated user
+        # could list photos (the observation-photo answer key, including is_decoy) for any route,
+        # including ones belonging to a private, unpublished task. Mirrors the same visibility
+        # rule as PhotoPermissions.has_object_permission's safe-method branch.
+        user = self.request.user
+        if user.is_superuser:
+            return queryset
+        if user.is_authenticated:
+            visible_contests = get_objects_for_user(
+                user, "display.view_contest", klass=Contest, accept_global_perms=False
+            )
+            return queryset.filter(
+                Q(route__navigationtask__is_public=True) | Q(route__navigationtask__contest__in=visible_contests)
+            ).distinct()
+        return queryset.filter(route__navigationtask__is_public=True)
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated & PhotoPermissions])
     def revert(self, request, pk=None):
@@ -1591,6 +1639,19 @@ class PhotoViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def perform_create(self, serializer):
+        # has_object_permission is never consulted for create() either, since the object doesn't
+        # exist yet - so without this check, PhotoPermissions.has_permission's unconditional True
+        # lets any authenticated user inject photos/decoys into another organiser's route.
+        route = serializer.validated_data.get("route")
+        nav_task = getattr(route, "navigationtask", None) if route is not None else None
+        contest = nav_task.contest if nav_task is not None else None
+        user = self.request.user
+        can_write = user.is_superuser or (
+            contest is not None
+            and (user.has_perm("display.change_contest", contest) or user.has_perm("change_contest", contest))
+        )
+        if not can_write:
+            raise drf_exceptions.PermissionDenied("You do not have permission to add photos to this route")
         photo = serializer.save()
         photo.generate_image()
 
