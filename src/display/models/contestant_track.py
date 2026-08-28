@@ -1,0 +1,207 @@
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import models
+from django.db.models import F
+import logging
+
+from display.utilities.db_retry import retry_on_lock_timeout
+
+logger = logging.getLogger(__name__)
+
+
+class ContestantTrack(models.Model):
+    """
+    Has a one-to-one relationship with a contestant. Used to store metadata related to calculator status.
+
+    TODO: Possibly remove and merge with Contestant
+    """
+
+    contestant = models.OneToOneField("Contestant", on_delete=models.CASCADE)
+    score = models.FloatField(default=0)
+    current_state = models.CharField(max_length=200, default="Waiting...")
+    current_leg = models.CharField(max_length=100, default="")
+    last_gate = models.CharField(max_length=100, default="")
+    last_gate_time_offset = models.FloatField(default=0)
+    passed_starting_gate = models.BooleanField(default=False)
+    passed_finish_gate = models.BooleanField(default=False)
+    calculator_finished = models.BooleanField(default=False)
+    calculator_started = models.BooleanField(default=False)
+
+    def reset(self):
+        from display.models import TeamTestScore
+
+        self.score = self.contestant.navigation_task.scorecard.initial_score
+        self.current_state = "Waiting..."
+        self.current_leg = ""
+        self.last_gate = ""
+        self.last_gate_time_offset = 0
+        self.passed_starting_gate = False
+        self.passed_finish_gate = False
+        self.calculator_finished = False
+        self.calculator_started = False
+        self.save()
+
+        # Also reset the task test score if it exists to avoid double-counting on restarts
+        if hasattr(self.contestant.navigation_task, "tasktest"):
+            TeamTestScore.objects.filter(
+                team=self.contestant.team,
+                task_test=self.contestant.navigation_task.tasktest,
+            ).update(points=self.score)
+
+        self.__push_change()
+
+    @property
+    def contest_summary(self):
+        from display.models import ContestSummary
+
+        try:
+            return ContestSummary.objects.get(
+                team=self.contestant.team,
+                contest=self.contestant.navigation_task.contest,
+            ).points
+        except ObjectDoesNotExist:
+            return None
+
+    def update_last_gate(self, gate_name, time_difference):
+        self.last_gate = gate_name
+        self.last_gate_time_offset = time_difference
+        self.save(update_fields=["last_gate", "last_gate_time_offset"])
+        self.__push_change()
+
+    def update_score(self, score):
+        from display.models import TeamTestScore
+
+        if self.score != score:
+            self.score = score
+            self.save(update_fields=["score"])
+            # Update task test score if it exists
+            if hasattr(self.contestant.navigation_task, "tasktest"):
+                TeamTestScore.objects.update_or_create(
+                    team=self.contestant.team,
+                    task_test=self.contestant.navigation_task.tasktest,
+                    defaults={"points": score},
+                )
+            self.__push_change()
+
+    def increment_score(self, score_increment):
+        if score_increment != 0:
+            # Atomic update of ContestantTrack score field in the database.
+            # We use .update() to avoid the overhead of retrieving the entire object and to be resilient if it was deleted.
+            updated_count = self._atomic_increment_track_score(score_increment)
+
+            if updated_count > 0:
+                # TeamTestScore has signals for the leaderboard, so we use .save() with an F
+                # expression to keep it atomic while triggering summary updates.
+                if hasattr(self.contestant.navigation_task, "tasktest"):
+                    self._atomic_increment_team_test_score(
+                        self.contestant.team,
+                        self.contestant.navigation_task.tasktest,
+                        score_increment,
+                    )
+
+                # Update the instance score locally so that __push_change() sends the most up-to-date information.
+                # Note: This might be slightly different from DB ground truth if there were concurrent updates,
+                # but it's close enough for the UI and will be corrected during periodic refreshes.
+                if not isinstance(self.score, F):
+                    self.score += score_increment
+                self.__push_change()
+
+    @retry_on_lock_timeout()
+    def _atomic_increment_track_score(self, score_increment) -> int:
+        return type(self).objects.filter(pk=self.pk).update(score=F("score") + score_increment)
+
+    @staticmethod
+    @retry_on_lock_timeout()
+    def _atomic_increment_team_test_score(team, task_test, score_increment) -> None:
+        from display.models import TeamTestScore
+
+        tts, _ = TeamTestScore.objects.get_or_create(
+            team=team,
+            task_test=task_test,
+            defaults={"points": 0},
+        )
+        tts.points = F("points") + score_increment
+        tts.save(update_fields=["points"])
+
+    def updates_current_state(self, state: str):
+        if self.current_state != state:
+            self.current_state = state
+            self.save(update_fields=["current_state"])
+            self.__push_change()
+
+    def update_current_leg(self, current_leg: str):
+        if self.current_leg != current_leg:
+            self.current_leg = current_leg
+            self.save(update_fields=["current_leg"])
+            self.__push_change()
+
+    def set_calculator_finished(self):
+        rows_updated = type(self).objects.filter(pk=self.pk).update(
+            calculator_finished=True,
+            current_state="Finished",
+        )
+        if rows_updated == 0:
+            logger.warning(
+                "ContestantTrack %s disappeared before set_calculator_finished() could persist state; suppressing shutdown noise",
+                self.pk,
+            )
+            return
+        self.calculator_finished = True
+        self.current_state = "Finished"
+        self.__push_change()
+
+    def set_calculator_started(self):
+        from display.models import ContestUsageLedger
+        from display.services.capacity_enforcement import assert_can_start_contestant
+
+        if self.calculator_started:
+            self.__push_change()
+            return
+        assert_can_start_contestant(self.contestant)
+        self.calculator_started = True
+        self.save(update_fields=["calculator_started"])
+        contest = self.contestant.navigation_task.contest
+        is_owner_team = False
+        if contest.created_by_id:
+            try:
+                is_owner_team = self.contestant.team.crew.member1_id == contest.created_by.person.id
+            except Exception:
+                is_owner_team = False
+        if not is_owner_team:
+            pilot = self.contestant.team.crew.member1
+            ContestUsageLedger.objects.get_or_create(
+                contest=contest,
+                pilot=pilot,
+                kind=ContestUsageLedger.CONTEST_PILOT_STARTED,
+                defaults={
+                    "navigation_task": self.contestant.navigation_task,
+                    "team": self.contestant.team,
+                    "contestant": self.contestant,
+                },
+            )
+            ContestUsageLedger.objects.get_or_create(
+                contest=contest,
+                navigation_task=self.contestant.navigation_task,
+                pilot=pilot,
+                kind=ContestUsageLedger.TASK_PILOT_STARTED,
+                defaults={
+                    "team": self.contestant.team,
+                    "contestant": self.contestant,
+                },
+            )
+        self.__push_change()
+
+    def set_passed_starting_gate(self):
+        self.passed_starting_gate = True
+        self.save(update_fields=["passed_starting_gate"])
+        self.__push_change()
+
+    def set_passed_finish_gate(self):
+        self.passed_finish_gate = True
+        self.save(update_fields=["passed_finish_gate"])
+        self.__push_change()
+
+    def __push_change(self):
+        from websocket_channels import WebsocketFacade
+
+        ws = WebsocketFacade()
+        ws.transmit_basic_information(self.contestant)
