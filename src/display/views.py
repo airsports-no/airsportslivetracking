@@ -1293,7 +1293,17 @@ def restart_contestant_calculator(request, pk):
     restart on the next received position. Redirects to the navigation task detail page.
     """
     contestant = get_object_or_404(Contestant, pk=pk)
-    contestant.blocking_request_calculator_termination()
+    try:
+        contestant.blocking_request_calculator_termination()
+    except TimeoutError:
+        # Do not reset/restart while the old calculator may still be running - that would race
+        # a second ContestantProcessor against it (see GH #29). Let the user retry once it has
+        # actually stopped.
+        messages.warning(
+            request,
+            "Calculator termination requested, but it did not stop in time. Please try restarting again shortly.",
+        )
+        return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
     messages.success(
         request,
         "Calculator should have been restarted. It may take a few minutes for it to come back to life.",

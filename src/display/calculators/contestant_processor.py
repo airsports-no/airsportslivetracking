@@ -485,6 +485,16 @@ class ContestantProcessor:
             self.orchestrator.finished_processing()
 
         self.contestant_track.set_calculator_finished()
+        # Refresh the "running" heartbeat before the (normally fast, but unbounded) drain/join
+        # below. Without this, a slow queue drain or thread join can outlast the heartbeat's
+        # normal <=5s-refresh/30s-TTL cadence (its last refresh was up to LOOP_TIME ago, from
+        # inside the now-exited while loop), so the key expires and is_calculator_running()
+        # reports False while this processor is still shutting down. blocking_request_calculator_termination()
+        # (contestant.py) polls exactly that key, so a stale False lets a "Restart calculator"
+        # click race a second ContestantProcessor against this one instead of waiting for it to
+        # actually finish (see GH #29). calculator_is_terminated() below clears the key for real
+        # as soon as shutdown completes, so this only matters for that stale-expiry window.
+        calculator_is_alive(self.contestant.pk, 60)
         # Drain the position queue efficiently
         while True:
             try:

@@ -788,10 +788,17 @@ class BatchContestantUpdateForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.navigation_task = navigation_task
         if navigation_task:
+            from display.utilities.calculator_running_utilities import is_calculator_running, is_dispatch_pending
+
             choices = []
             for c in navigation_task.contestant_set.select_related("contestanttrack").order_by("takeoff_time"):
-                calculator_started = hasattr(c, "contestanttrack") and c.contestanttrack.calculator_started
-                if not calculator_started:
+                # Exclude only contestants whose calculator is *currently* running - not merely
+                # ones whose calculator has ever started. calculator_started is set once at
+                # dispatch and never reverts to False on a normal finish, so filtering on it
+                # instead would permanently lock out batch time edits (e.g. fixing a wrong
+                # takeoff time) for any contestant who has already flown. See GH #29.
+                currently_running = is_calculator_running(c.pk) or is_dispatch_pending(c.pk)
+                if not currently_running:
                     choices.append((str(c.pk), str(c)))
             self.fields["contestant_ids"].choices = choices
 
