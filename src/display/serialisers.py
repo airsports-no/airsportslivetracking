@@ -1389,7 +1389,13 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
             team_serialiser = TeamNestedSerialiser(instance=team_instance, data=team_data)
             team_serialiser.is_valid(raise_exception=True)
             team = team_serialiser.save()
-            validated_data.update({"team": team.pk})
+            # An actual Team instance, not team.pk: update_contestant_with_related_state
+            # now applies validated_data via setattr(instance, field_name, value) (so
+            # Contestant.clean()'s guards run against the real pre-request row - see the
+            # 2026-08-28 review's SENSITIVE "REST update bypasses calculator-start guard"
+            # finding), and a ForeignKey descriptor rejects a bare pk there, unlike the
+            # queryset .update() call this replaced.
+            validated_data.update({"team": team})
         return super().update(instance, validated_data)
 
 
