@@ -63,7 +63,7 @@ spec:
               done
       containers:
         - name: traccar
-          image: traccar/traccar:5.10-alpine
+          image: traccar/traccar:6.15-alpine
           lifecycle:
             preStop:
               exec:
