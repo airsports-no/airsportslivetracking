@@ -9,16 +9,16 @@ from drf_spectacular.extensions import OpenApiAuthenticationExtension
 
 
 class FirebaseAuthenticationScheme(OpenApiAuthenticationExtension):
-    """Gives FirebaseAuthentication its own security scheme name.
+    """Gives FirebaseTokenAuthentication its own security scheme name.
 
-    FirebaseAuthentication subclasses rest_framework.authentication.TokenAuthentication,
+    FirebaseTokenAuthentication subclasses rest_framework.authentication.TokenAuthentication,
     so drf-spectacular's built-in TokenScheme (match_subclasses=True) also matches it,
     and both authentication classes end up sharing the "tokenAuth" component name. This
-    extension matches FirebaseAuthentication specifically and, with a higher priority
+    extension matches FirebaseTokenAuthentication specifically and, with a higher priority
     than TokenScheme's, wins the match so the two schemes get distinct names.
     """
 
-    target_class = "drf_firebase_auth.authentication.FirebaseAuthentication"
+    target_class = "display.authentication.FirebaseTokenAuthentication"
     name = "firebaseAuth"
     priority = 1
 

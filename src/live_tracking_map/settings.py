@@ -21,12 +21,7 @@ from google.auth.exceptions import DefaultCredentialsError
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 from pytz import UTC
 
-import django
-from django.utils.encoding import smart_str
 from log_configuration import LOG_CONFIGURATION
-
-# drf_firebase_auth hack
-django.utils.encoding.smart_text = smart_str
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
 
@@ -168,9 +163,6 @@ IS_UNIT_TESTING = (
 )
 
 
-if not IS_UNIT_TESTING:
-    INSTALLED_APPS.append("drf_firebase_auth")
-
 LOCATION_FIELD = {
     "map.provider": "openstreetmap",
     "provider.openstreetmap.max_zoom": 18,
@@ -203,10 +195,11 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 DEFAULT_FROM_EMAIL = EMAIL_FROM
 
-DRF_FIREBASE_AUTH = {
-    "FIREBASE_SERVICE_ACCOUNT_KEY": "/secret/airsports-firebase-admin.json",
-    "FIREBASE_AUTH_EMAIL_VERIFICATION": True,
-}
+# Read directly by FirebaseMigrationBackend._initialize_firebase() (auth_backends.py) and by
+# FirebaseTokenAuthentication (authentication.py, via the same helper). Formerly nested inside
+# a DRF_FIREBASE_AUTH dict shared with the now-removed drf_firebase_auth package; pulled out to
+# a plain setting since it's genuinely this app's own config, not that package's.
+FIREBASE_SERVICE_ACCOUNT_KEY = "/secret/airsports-firebase-admin.json"
 FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY", "AIzaSyD_LDULS2RvLvhTtnLyEzARtbs-WgtFOAo")
 
 MIDDLEWARE = [
@@ -277,7 +270,7 @@ SPECTACULAR_SETTINGS = {
 }
 if not IS_UNIT_TESTING:
     REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(
-        0, "drf_firebase_auth.authentication.FirebaseAuthentication"
+        0, "display.authentication.FirebaseTokenAuthentication"
     )
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases

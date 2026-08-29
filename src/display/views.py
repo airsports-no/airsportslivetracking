@@ -2681,11 +2681,11 @@ def firebase_token_login(request):
     """
     Manual view for authenticating with firebase. Used by apps
     """
-    from drf_firebase_auth.authentication import FirebaseAuthentication
+    from display.authentication import FirebaseTokenAuthentication
 
     token = request.GET.get("token")
     logger.debug(f"Token {token}")
-    firebase_authenticator = FirebaseAuthentication()
+    firebase_authenticator = FirebaseTokenAuthentication()
     try:
         user, decoded_token = firebase_authenticator.authenticate_credentials(token)
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
