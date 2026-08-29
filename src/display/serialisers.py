@@ -63,7 +63,11 @@ from display.models import (
     UserTokenGrant,
 )
 from display.services.access_resolver import resolve_contest_access
-from display.services.capacity_enforcement import assert_can_add_navigation_task
+from display.services.capacity_enforcement import (
+    _assert_can_reserve_task_slot,
+    assert_can_add_navigation_task,
+    assert_can_register_team,
+)
 from display.services.contestant_persistence import (
     create_contestant_with_related_state,
     update_contestant_with_related_state,
@@ -961,6 +965,11 @@ class SignupSerialiser(serializers.Serializer):
         )
 
         contest = self.context["contest"]
+        # assert_can_register_team enforces the contest's resolved team-registration
+        # capacity - imported elsewhere in this module's capacity checks but never
+        # actually called here, so a contest at its registration limit had no cap
+        # on new public signups.
+        assert_can_register_team(contest, team)
         if ContestTeam.objects.filter(contest=contest, team=team).exists():
             raise ValidationError(f"Team {team} is already registered for contest {contest}")
         teams = ContestTeam.objects.filter(
@@ -1376,6 +1385,15 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
         team_serialiser = TeamNestedSerialiser(data=team_data)
         team_serialiser.is_valid(raise_exception=True)
         team = team_serialiser.save()
+        # Capacity check moved here rather than ContestantViewSet.create()'s
+        # pre-save check (which only sees the still-unresolved nested `team`
+        # dict): this is the earliest point team is a real Team/Person we can
+        # capacity-check against, and it's still before the Contestant itself
+        # (with its Traccar device side effect) is created.
+        navigation_task = self.context.get("navigation_task")
+        if navigation_task is not None:
+            resolution = resolve_contest_access(navigation_task.contest)
+            _assert_can_reserve_task_slot(navigation_task, team, resolution)
         validated_data["team"] = team
         return super().create(validated_data)
 
@@ -1389,6 +1407,11 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
             team_serialiser = TeamNestedSerialiser(instance=team_instance, data=team_data)
             team_serialiser.is_valid(raise_exception=True)
             team = team_serialiser.save()
+            # Same reasoning as create() above.
+            navigation_task = instance.navigation_task
+            if navigation_task is not None:
+                resolution = resolve_contest_access(navigation_task.contest)
+                _assert_can_reserve_task_slot(navigation_task, team, resolution, current_contestant=instance)
             # An actual Team instance, not team.pk: update_contestant_with_related_state
             # now applies validated_data via setattr(instance, field_name, value) (so
             # Contestant.clean()'s guards run against the real pre-request row - see the

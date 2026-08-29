@@ -973,7 +973,6 @@ def upload_gpx_track_for_contesant(request, pk):
     if request.method == "POST":
         form = GPXTrackImportForm(request.POST, request.FILES)
         if form.is_valid():
-            contestant.reset_track_and_score()
             track_file = request.FILES["track_file"]
             data = track_file.read().decode("utf-8")
             try:
@@ -981,6 +980,11 @@ def upload_gpx_track_for_contesant(request, pk):
             except Exception as e:
                 form.add_error(None, str(e))
             else:
+                # Only wipe the existing track once the upload has actually validated -
+                # reset_track_and_score() used to run unconditionally before this point,
+                # so an invalid file destroyed the contestant's positions/score log and
+                # left the form error as the only feedback, with nothing to fall back to.
+                contestant.reset_track_and_score()
                 import_gpx_track.apply_async((contestant.pk, data))
                 messages.success(request, "Started loading track")
                 return HttpResponseRedirect(

@@ -2040,16 +2040,36 @@ class ContestantViewSet(ModelViewSet):
         if serialiser.is_valid():
             navigation_task = serialiser.context.get("navigation_task")
             team = serialiser.validated_data.get("team")
-            if navigation_task is not None and team is not None:
+            # Only a resolved Team instance can be capacity-checked here (the
+            # flat ContestantSerialiser's team is a PrimaryKeyRelatedField, so
+            # it always is one). ContestantNestedTeamSerialiser's team is a
+            # nested TeamNestedSerialiser payload - still a plain dict at this
+            # point, not yet resolved to a Team/Person - so that path runs its
+            # own equivalent check once it has resolved a real instance, in
+            # ContestantNestedTeamSerialiser.create() below.
+            if navigation_task is not None and isinstance(team, Team):
                 resolution = resolve_contest_access(navigation_task.contest)
                 _assert_can_reserve_task_slot(navigation_task, team, resolution)
             serialiser.save()
-            return Response(serialiser.data)
+            # create_with_team used to bypass this override entirely (calling
+            # super().create(), DRF's CreateModelMixin, which always returns 201) -
+            # now that it's routed through here too (see create_with_team below),
+            # preserve that 201 for it specifically, while the plain create action
+            # keeps its pre-existing 200 (asserted by several other tests already).
+            status_code = status.HTTP_201_CREATED if self.action == "create_with_team" else status.HTTP_200_OK
+            return Response(serialiser.data, status=status_code)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["post"])
     def create_with_team(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
+        # self.create, not super().create: this class's own create() override
+        # (above) is what runs the _assert_can_reserve_task_slot capacity check -
+        # super().create() skips straight to DRF's default CreateModelMixin,
+        # letting a contest at its pilot limit add unlimited contestants through
+        # this action. self.get_serializer_class() still resolves correctly to
+        # ContestantNestedTeamSerialiser since it keys off self.action
+        # ("create_with_team"), not which method literally runs.
+        return self.create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -2063,7 +2083,8 @@ class ContestantViewSet(ModelViewSet):
             # of which route (nested or the top-level /contestant/) was used.
             navigation_task = instance.navigation_task
             team = serialiser.validated_data.get("team")
-            if navigation_task is not None and team is not None:
+            # See the equivalent isinstance guard in create() above.
+            if navigation_task is not None and isinstance(team, Team):
                 resolution = resolve_contest_access(navigation_task.contest)
                 _assert_can_reserve_task_slot(navigation_task, team, resolution, current_contestant=instance)
             serialiser.save()
@@ -2072,7 +2093,8 @@ class ContestantViewSet(ModelViewSet):
 
     @action(detail=True, methods=["put", "patch"])
     def update_with_team(self, request, *args, **kwargs):
-        return super().update(request, *args, **kwargs)
+        # self.update, not super().update - same reasoning as create_with_team above.
+        return self.update(request, *args, **kwargs)
 
     @extend_schema(
         responses={200: OpenApiTypes.OBJECT},
@@ -2438,10 +2460,14 @@ class ContestantViewSet(ModelViewSet):
         Consumes a FC GPX file that contains the GPS track of a contestant.
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        # Validate (via GpxTrackSerialiser - presence + valid base64) before wiping the
+        # existing track: reset_track_and_score() used to run unconditionally first, so a
+        # missing or malformed upload destroyed the contestant's positions/score log and
+        # returned a 400 with nothing to replace them.
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        track_file = serialiser.validated_data["track_file"]
         contestant.reset_track_and_score()
-        track_file = request.data.get("track_file", None)
-        if not track_file:
-            raise drf_exceptions.ValidationError("Missing track_file")
         import_gpx_track.apply_async(
             (
                 contestant.pk,
