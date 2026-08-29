@@ -8,6 +8,7 @@ from typing import Dict, List
 
 from django.templatetags.static import static
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.views import View
 from django.views.static import serve
 
@@ -1114,6 +1115,7 @@ EDITABLEROUTE_PERMISSION_MAP = {
 }
 
 
+@require_POST
 @guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
 def delete_user_editableroute_permissions(request, pk, user_pk):
     """
@@ -1121,6 +1123,10 @@ def delete_user_editableroute_permissions(request, pk, user_pk):
     """
     editableroute = get_object_or_404(EditableRoute, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
+    # See delete_user_contest_permissions for why both of these are here.
+    if user.pk == request.user.pk:
+        messages.error(request, "You cannot remove your own permissions for this route.")
+        return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
     for permission in EDITABLEROUTE_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, editableroute)
     return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
@@ -1219,6 +1225,7 @@ CONTEST_PERMISSION_MAP = {
 }
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def delete_user_contest_permissions(request, pk, user_pk):
     """
@@ -1226,6 +1233,15 @@ def delete_user_contest_permissions(request, pk, user_pk):
     """
     contest = get_object_or_404(Contest, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
+    # Previously a bare GET with no CSRF protection (GET isn't covered by CSRF middleware) and
+    # no server-side check - "don't remove your own access" was enforced only by hiding the
+    # button client-side, so any user holding just change_contest could revoke ANY other user's
+    # permissions, including the actual owner's, via a one-click <img src="..."> on any page a
+    # logged-in editor visited. @require_POST closes the CSRF vector; this check closes
+    # accidental/malicious self-lockout via a legitimate POST too.
+    if user.pk == request.user.pk:
+        messages.error(request, "You cannot remove your own permissions for this contest.")
+        return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
     for permission in CONTEST_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, contest)
     return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
@@ -2609,10 +2625,15 @@ USERUPLOADEDMAP_PERMISSION_MAP = {
 }
 
 
+@require_POST
 @guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
 def delete_user_useruploadedmap_permissions(request, pk, user_pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
+    # See delete_user_contest_permissions for why both of these are here.
+    if user.pk == request.user.pk:
+        messages.error(request, "You cannot remove your own permissions for this map.")
+        return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
     for permission in USERUPLOADEDMAP_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, user_uploaded_map)
     return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))

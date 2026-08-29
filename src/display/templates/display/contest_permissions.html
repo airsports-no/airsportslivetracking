@@ -37,7 +37,10 @@
                 <td>
                   {% if user.email != local_user.email %}
                     <a href="{% url 'contest_permissions_change' contest.pk local_user.pk %}" class="btn btn-primary btn-sm">Change</a>
-                    <a href="{% url 'contest_permissions_delete' contest.pk local_user.pk %}" class="btn btn-error btn-sm ml-2">Delete</a>
+                    <form method="post" action="{% url 'contest_permissions_delete' contest.pk local_user.pk %}" class="inline" onsubmit="return confirm('Remove all permissions for {{ local_user.email }}?');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-error btn-sm ml-2">Delete</button>
+                    </form>
                   {% endif %}
                 </td>
               </tr>
