@@ -16,7 +16,6 @@ import sys
 import json
 from pathlib import Path
 from django.core.cache import cache
-from google.auth.exceptions import DefaultCredentialsError
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 from pytz import UTC

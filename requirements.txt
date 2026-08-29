@@ -21,8 +21,7 @@ lucide[django]
 drf-nested-routers==0.95.0
 drf-spectacular==0.29.0
 fastkml==1.4.0
-# No longer capped by drf-firebase-auth (replaced by display.authentication.FirebaseTokenAuthentication)
-firebase-admin==4.5.3
+firebase-admin==7.5.0
 fpdf2==2.8.5
 geopy==2.4.1
 gpx-converter==2.1.0
