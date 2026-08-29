@@ -1430,6 +1430,16 @@ class NavigationTaskViewSet(ModelViewSet):
             if first_takeoff_time.tzinfo is None:
                 first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
 
+            # The frontend has sent this since SchedulingForm.tsx's "Next Takeoff Time" field
+            # was added, but it was never read here - schedule_and_create_contestants has always
+            # accepted it (falling back to first_takeoff_time when None), the wiring from the
+            # API layer down to it was just missing, so the field silently did nothing.
+            next_takeoff_time = None
+            if data.get("next_takeoff_time"):
+                next_takeoff_time = dateutil.parser.parse(data.get("next_takeoff_time"))
+                if next_takeoff_time.tzinfo is None:
+                    next_takeoff_time = next_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
+
             capacity_preview = scheduling_capacity_preview(
                 navigation_task,
                 contest_teams_pks,
@@ -1460,6 +1470,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 minimum_finish_interval=int(data.get("minutes_between_contestants_at_finish", 2)),
                 crew_switch_time=int(data.get("minutes_for_crew_switch", 15)),
                 optimise=data.get("optimise", False),
+                next_takeoff_time=next_takeoff_time,
             )
 
             if success:

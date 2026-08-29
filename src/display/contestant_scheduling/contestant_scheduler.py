@@ -1,10 +1,11 @@
 import datetime
 import logging
-from typing import List, Dict, Tuple, Optional
-import numpy as np
-import pulp as pulp
+import os
+from typing import Dict, List, Optional
 
-logging.basicConfig(level=logging.DEBUG)
+import numpy as np
+from ortools.sat.python import cp_model
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,6 +49,29 @@ class TeamDefinition:
 
 
 class Solver:
+    """
+    Schedules contestant takeoff times for a navigation task: minimise the makespan (first
+    takeoff -> last landing) subject to two kinds of hard constraint -
+
+    - Resource exclusivity: two contestants sharing an aircraft, tracker, or crew member cannot
+      fly simultaneously, and need a resource-specific switch-time buffer between one landing
+      and the next one taking off (aircraft_switch_time / tracker_switch_time / crew_switch_time).
+    - No overtaking: for every pair of contestants (regardless of shared resources), whichever
+      one starts first must also finish first - by at least minimum_finish_interval - and starts
+      must be at least minimum_start_interval apart. Aircraft flying the same route must never
+      cross the finish line out of the order they crossed the start line in.
+
+    Modelled as a CP-SAT constraint-satisfaction problem (see __add_resource_no_overlap_constraints
+    and __add_precedence_constraints). Previously a big-M MILP solved with PuLP/CBC, with a
+    hand-rolled greedy heuristic used as the actual production schedule whenever optimise=False;
+    CP-SAT solves this problem shape (interval scheduling, disjunctive resource constraints,
+    precedence) fast enough that the greedy shortcut is no longer needed - optimise is still
+    accepted for call-site compatibility but no longer changes behaviour, this always solves
+    for a real optimum (or best-found-within-budget) schedule.
+    """
+
+    MAX_SOLVE_SECONDS = 60
+
     def __init__(
         self,
         first_takeoff_time: datetime.datetime,
@@ -64,17 +88,15 @@ class Solver:
         self.first_takeoff_time = first_takeoff_time
         self.teams = teams
         self.team_map = {team.pk: team for team in teams}
-        self.optimise = optimise
-        self.problem = None
+        self.optimise = optimise  # retained for call-site compatibility; no longer used.
         self.minutes_per_slot = 1
-        self.contest_duration = 1440 * 2  # Two days # int(np.ceil(contest_duration / self.minutes_per_slot))
+        self.contest_duration = 1440 * 2  # Two days
         self.minimum_start_interval = int(np.ceil(minimum_start_interval / self.minutes_per_slot))
         self.minimum_finish_interval = int(np.ceil(minimum_finish_interval / self.minutes_per_slot))
         self.aircraft_switch_time = int(np.ceil(aircraft_switch_time / self.minutes_per_slot))
         self.tracker_switch_time = int(np.ceil(tracker_switch_time / self.minutes_per_slot))
         self.crew_switch_time = int(np.ceil(crew_switch_time / self.minutes_per_slot))
         self.tracker_start_lead_time = int(np.ceil(tracker_start_lead_time / self.minutes_per_slot))
-        self.very_large_variable = self.contest_duration**2
         self.optimisation_messages = []
 
         self.optimal_solution = False
@@ -87,43 +109,72 @@ class Solver:
 
         :return: Dictionary where the keys are team pk and the values are takeoff times
         """
-        self.__initiate_problem()
-        self.__latest_finish_time_constraints()
-        self.__nonoverlapping_team_members()
-        self.__nonoverlapping_aircraft()
-        self.__nonoverlapping_trackers()
-        self.__minimum_start_and_finish_interval_between_teams()
+        model = cp_model.CpModel()
+        start_vars = self.__create_start_variables(model)
 
-        self.__create_obvious_solution()
-        logger.debug("Obvious solution")
-        for team in self.teams:
-            logger.debug(f"{team.pk} starting slot {self.start_slot_numbers[f'{team.pk}'].value()}")
-        logger.debug("Running solve")
-        # status = self.problem.solve(pulp.SCIP_CMD(timeLimit=600))
-        status = self.problem.solve(pulp.PULP_CBC_CMD(timeLimit=60000, warmStart=True))
-        self.optimal_solution = status == pulp.LpStatusOptimal
-        logger.debug(f"Optimisation status {pulp.LpStatus[status]}")
-        logger.debug("Solver executed, solution status {}, {}".format(status, pulp.LpStatus[status]))
-        logger.debug(f"Objective function value: {pulp.value(self.problem.objective)}")
+        finish_exprs = [start_vars[team.pk] + team.flight_time for team in self.teams]
+        latest_finish = model.NewIntVar(
+            min(team.flight_time for team in self.teams), self.contest_duration, "latest_finish"
+        )
+        model.AddMaxEquality(latest_finish, finish_exprs)
+        model.Minimize(latest_finish)
 
-        if self.optimal_solution:
-            return self.__generate_takeoff_times_from_solution()
-        # Previously this branch was unreachable: status was unconditionally overwritten to
-        # LpStatusOptimal above, so an infeasible/non-optimal solve (e.g. from the resource-
-        # tracking bug fixed in select_team, or an over-constrained set of frozen teams) still
-        # returned a full schedule built from whatever the LP variables happened to hold -
-        # written to the database and reported as "status": "success" by the caller, with no
-        # indication that teams could be double-booked on the same aircraft/tracker/crew.
+        self.__add_resource_no_overlap_constraints(model, start_vars)
+        self.__add_precedence_constraints(model, start_vars)
+
+        solver = cp_model.CpSolver()
+        solver.parameters.max_time_in_seconds = self.MAX_SOLVE_SECONDS
+        # CP-SAT defaults to single-threaded search; proving optimality (not just finding a
+        # feasible schedule) on this problem shape benefits substantially from parallel search
+        # portfolios sharing learned clauses.
+        solver.parameters.num_search_workers = min(8, os.cpu_count() or 1)
+        logger.debug("Running CP-SAT solve")
+        status = solver.Solve(model)
+
+        self.optimal_solution = status == cp_model.OPTIMAL
+        status_name = solver.StatusName(status)
+        logger.debug(f"CP-SAT solve status: {status_name}")
+
+        if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+            if not self.optimal_solution:
+                self.optimisation_messages.append(
+                    f"Schedule found but not proven optimal within {self.MAX_SOLVE_SECONDS}s (status: "
+                    f"{status_name}). All constraints are still satisfied - this is a valid, safe "
+                    "schedule, just not guaranteed to minimise total contest time."
+                )
+            return self.__generate_takeoff_times_from_solution(solver, start_vars)
+
+        # A genuinely infeasible/unsolvable input (e.g. conflicting frozen contestants) correctly
+        # returns [] here rather than a corrupted schedule - see the fixed status-masking bug
+        # this replaces (commit 5054bc0d) for why that distinction matters.
         self.optimisation_messages.append(
-            f"No feasible schedule found (solver status: {pulp.LpStatus[status]}). This usually means "
+            f"No feasible schedule found (solver status: {status_name}). This usually means "
             "the frozen/locked contestants' start times conflict with each other or with the "
             "minimum start/finish intervals - try unlocking one of them or widening the intervals."
         )
         return []
 
-    def __generate_takeoff_times_from_solution(self) -> List[TeamDefinition]:
+    def __create_start_variables(self, model: cp_model.CpModel) -> Dict[int, cp_model.IntVar]:
+        max_duration = self.contest_duration - min(team.flight_time for team in self.teams)
+        start_vars = {}
         for team in self.teams:
-            slot = self.start_slot_numbers[f"{team.pk}"].value()
+            if team.frozen:
+                if team.start_time is None:
+                    # Should not happen for frozen teams, but fallback
+                    lower_bound, upper_bound = 0, max_duration
+                else:
+                    slot = self.time_to_slot(team.start_time)
+                    lower_bound = upper_bound = slot
+            else:
+                lower_bound, upper_bound = 0, max_duration
+            start_vars[team.pk] = model.NewIntVar(lower_bound, upper_bound, f"start_{team.pk}")
+        return start_vars
+
+    def __generate_takeoff_times_from_solution(
+        self, solver: cp_model.CpSolver, start_vars: Dict[int, cp_model.IntVar]
+    ) -> List[TeamDefinition]:
+        for team in self.teams:
+            slot = solver.Value(start_vars[team.pk])
             self.team_map[team.pk].start_time = self.first_takeoff_time + datetime.timedelta(
                 minutes=slot * self.minutes_per_slot
             )
@@ -136,413 +187,82 @@ class Solver:
         for team in teams:
             logger.debug(f"Team {team} will start in slot {team.start_slot} at {team.start_time}")
 
-    def __initiate_problem(self):
-        logger.debug("Initiating problem")
-        self.problem = pulp.LpProblem("Minimise contest time", pulp.LpMinimize)
-        self.start_slot_numbers = pulp.LpVariable.dicts(
-            "start_slot_numbers",
-            [f"{team.pk}" for team in self.teams],
-            lowBound=None,
-            upBound=None,
-            cat=pulp.LpInteger,
-        )
-        
-        # Apply specific bounds
-        max_duration = self.contest_duration - min([team.flight_time for team in self.teams])
-        
+    def __resource_groups(self):
+        aircraft_groups, tracker_groups, crew_groups = {}, {}, {}
         for team in self.teams:
-            var = self.start_slot_numbers[f"{team.pk}"]
-            if team.frozen:
-                if team.start_time is None:
-                    # Should not happen for frozen teams, but fallback
-                    var.lowBound = 0
-                    var.upBound = max_duration
-                else:
-                    slot = self.time_to_slot(team.start_time)
-                    # Fix the variable
-                    var.lowBound = slot
-                    var.upBound = slot
-            else:
-                var.lowBound = 0
-                var.upBound = max_duration
-
-        self.aircraft_team_variables = {}
-        self.tracker_team_variables = {}
-        self.crew_team_variables = {}
-        self.start_after = {}
-        for index in range(len(self.teams)):
-            team = self.teams[index]
-            for other_index in range(index + 1, len(self.teams)):
-                other_team = self.teams[other_index]
-                if team == other_team:
-                    continue
-                self.start_after[f"{team.pk}_{other_team.pk}"] = pulp.LpVariable(
-                    f"{team.pk}_{other_team.pk}", lowBound=0, upBound=1, cat=pulp.LpInteger
-                )
-
-        self.latest_finish_time = pulp.LpVariable(
-            "latest_finish_time", lowBound=min([team.flight_time for team in self.teams]), upBound=self.contest_duration
-        )
-
-        self.problem += self.latest_finish_time
-        # self.problem += 999 * self.latest_finish_time + pulp.lpSum(
-        #     [self.start_slot_numbers[f"{team.pk}"] * 1 / team.flight_time for team in self.teams])
-        # self.problem += pulp.lpSum([self.start_slot_numbers[f"{team.pk}"] * team.flight_time for team in self.teams])
-
-    def __latest_finish_time_constraints(self):
-        for team in self.teams:
-            self.problem += (
-                self.start_slot_numbers[f"{team.pk}"] + team.flight_time - self.latest_finish_time <= 0,
-                f"latest_finish_time_{team.pk}",
-            )
-
-    def __create_obvious_solution(self):
-        overlapping_trackers = {}
-        overlapping_aircraft = {}
-        overlapping_crew = {}
-        for team in self.teams:
-            if team.get_tracker_id() not in overlapping_trackers:
-                overlapping_trackers[team.get_tracker_id()] = []
-            overlapping_trackers[team.get_tracker_id()].append(team)
-            if team.aircraft_registration not in overlapping_aircraft:
-                overlapping_aircraft[team.aircraft_registration] = []
-            overlapping_aircraft[team.aircraft_registration].append(team)
+            aircraft_groups.setdefault(team.aircraft_registration, []).append(team)
+            tracker_groups.setdefault(team.get_tracker_id(), []).append(team)
             if team.member1 is not None:
-                if team.member1 not in overlapping_crew:
-                    overlapping_crew[team.member1] = []
-                overlapping_crew[team.member1].append(team)
+                crew_groups.setdefault(team.member1, []).append(team)
             if team.member2 is not None:
-                if team.member2 not in overlapping_crew:
-                    overlapping_crew[team.member2] = []
-                overlapping_crew[team.member2].append(team)
-        used_teams = set()
-        next_aircraft_available = {}
-        next_tracker_available = {}
-        next_crew_available = {}
+                crew_groups.setdefault(team.member2, []).append(team)
+        return aircraft_groups, tracker_groups, crew_groups
 
-        def get_next_possibility_for_team(team, earliest_slot):
-            return np.amax(
-                [
-                    next_crew_available.get(team.member1, earliest_slot),
-                    next_crew_available.get(team.member2, earliest_slot),
-                    next_tracker_available.get(team.get_tracker_id(), earliest_slot),
-                    next_aircraft_available.get(team.aircraft_registration, earliest_slot),
-                    earliest_slot,
+    def __add_resource_no_overlap_constraints(
+        self, model: cp_model.CpModel, start_vars: Dict[int, cp_model.IntVar]
+    ):
+        """
+        Two contestants sharing an aircraft/tracker/crew member cannot fly simultaneously, and
+        need that resource's switch-time buffer between one landing and the next taking off.
+        One NewFixedSizeIntervalVar per team per resource it participates in (sized
+        flight_time + switch_time so the buffer is baked into the interval itself), then a
+        single native AddNoOverlap per resource group - replaces the old ~150 lines of
+        hand-rolled big-M pairwise constraints (display/contestant_scheduling/contestant_scheduler.py
+        pre-rewrite, __nonoverlapping_aircraft/_trackers/_team_members) with no big-M numerical
+        fragility and no risk of the two directions of a pair being independently non-binding.
+        """
+        aircraft_groups, tracker_groups, crew_groups = self.__resource_groups()
+        # Tracker switch uses the more conservative (larger) of the two buffers the old code used
+        # inconsistently depending on direction - see the migration plan for why.
+        tracker_switch = max(self.tracker_switch_time, self.tracker_start_lead_time)
+
+        for groups, switch_time, label in (
+            (aircraft_groups, self.aircraft_switch_time, "aircraft"),
+            (tracker_groups, tracker_switch, "tracker"),
+            (crew_groups, self.crew_switch_time, "crew"),
+        ):
+            for key, teams in groups.items():
+                if len(teams) <= 1:
+                    continue
+                intervals = [
+                    model.NewFixedSizeIntervalVar(
+                        start_vars[team.pk],
+                        team.flight_time + switch_time,
+                        f"{label}_{key}_{team.pk}",
+                    )
+                    for team in teams
                 ]
-            )
+                model.AddNoOverlap(intervals)
 
-        def select_team(team, selected_slot):
-            used_teams.add(team)
-            latest_finish = selected_slot + team.flight_time
-            # max(), not plain assignment: a resource (aircraft/tracker/crew member) can already
-            # be reserved past this point by another team assigned earlier in this loop (this
-            # matters most for frozen teams, which are all select_team()'d up front in whatever
-            # order they appear in self.teams - two frozen teams sharing an aircraft, processed
-            # out of chronological order, would otherwise have the later-finishing team's
-            # reservation silently erased by the earlier-finishing one's shorter window).
-            # Overwriting here let the greedy solution - which becomes the actual final schedule
-            # whenever optimise=False (the API default) via fixValue() below - place a new team
-            # on a resource that a frozen team already legitimately occupied, producing an
-            # overlapping/double-booked schedule.
-            next_aircraft_available[team.aircraft_registration] = max(
-                next_aircraft_available.get(team.aircraft_registration, 0),
-                selected_slot + team.flight_time + self.aircraft_switch_time,
-            )
-            next_tracker_available[team.get_tracker_id()] = max(
-                next_tracker_available.get(team.get_tracker_id(), 0),
-                selected_slot + team.flight_time + self.tracker_switch_time + self.tracker_start_lead_time,
-            )
-            if team.member1 is not None:
-                next_crew_available[team.member1] = max(
-                    next_crew_available.get(team.member1, 0),
-                    selected_slot + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time,
+    def __add_precedence_constraints(self, model: cp_model.CpModel, start_vars: Dict[int, cp_model.IntVar]):
+        """
+        No-overtaking: for every pair of teams (independent of shared resources - all
+        contestants in one navigation task fly the same route), whichever one starts first must
+        also finish first, with the configured minimum_finish_interval buffer, and starts must
+        be at least minimum_start_interval apart. One reified boolean per pair
+        (OnlyEnforceIf/.Not() - a true either/or, unlike the old independent-binary-per-direction
+        formulation this replaces) picks which team starts first; the required gap in each
+        direction is max(minimum_start_interval, (starter's flight_time - other's flight_time) +
+        minimum_finish_interval) - applied uniformly regardless of which team is faster, fixing
+        the bug where the "roughly equal speed" case dropped this flight-time-difference
+        correction term and could silently erode the configured finish-line buffer.
+        """
+        for i in range(len(self.teams)):
+            team = self.teams[i]
+            for j in range(i + 1, len(self.teams)):
+                other_team = self.teams[j]
+                team_first = model.NewBoolVar(f"before_{team.pk}_{other_team.pk}")
+                gap_if_team_first = max(
+                    self.minimum_start_interval,
+                    (team.flight_time - other_team.flight_time) + self.minimum_finish_interval,
                 )
-            if team.member2 is not None:
-                next_crew_available[team.member2] = max(
-                    next_crew_available.get(team.member2, 0),
-                    selected_slot + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time,
+                gap_if_other_first = max(
+                    self.minimum_start_interval,
+                    (other_team.flight_time - team.flight_time) + self.minimum_finish_interval,
                 )
-            self.start_slot_numbers[f"{team.pk}"].setInitialValue(selected_slot)
-            return latest_finish
-
-        for team in self.teams:
-            team.priority = (
-                len(overlapping_trackers[team.get_tracker_id()])
-                * len(overlapping_aircraft[team.aircraft_registration])
-                * len(overlapping_crew.get(team.member1, [1]))
-                * len(overlapping_crew.get(team.member2, [1]))
-            )
-            if team.frozen:
-                # The team has to have a start time if it is frozen
-                select_team(team, self.time_to_slot(team.start_time))
-
-        current_slot = 0
-        latest_finish = 0
-
-        while len(used_teams) < len(self.teams):
-            found = False
-            increment = 0
-            sorted_teams = sorted(
-                set(self.teams) - used_teams, key=lambda k: (k.priority, -k.flight_time), reverse=True
-            )
-            while not found:
-                for team in sorted_teams:
-                    next_available = get_next_possibility_for_team(team, current_slot)
-                    local_latest_finish = next_available + team.flight_time
-                    while local_latest_finish <= latest_finish + self.minimum_finish_interval:
-                        next_available += 1
-                        local_latest_finish = next_available + team.flight_time
-                    if next_available <= current_slot + increment:
-                        found = True
-                        latest_finish = select_team(team, next_available)
-                        current_slot = next_available + self.minimum_start_interval
-                        break
-                increment += 1
-        if not self.optimise:
-            for team in self.teams:
-                self.start_slot_numbers[f"{team.pk}"].fixValue()
-        
-        overall_latest_finish = max(
-            [self.start_slot_numbers[f"{team.pk}"].value() + team.flight_time for team in self.teams],
-            default=0
-        )
-        self.__initialise_extra_variables(overall_latest_finish)
-
-    def __nonoverlapping_aircraft(self):
-        logger.debug("Nonoverlapping aircraft")
-        overlapping_aircraft = {}
-        for team in self.teams:
-            if team.aircraft_registration not in overlapping_aircraft:
-                overlapping_aircraft[team.aircraft_registration] = []
-            overlapping_aircraft[team.aircraft_registration].append(team)
-        for aircraft, teams in overlapping_aircraft.items():
-            if len(teams) > 1:
-                self.aircraft_team_variables.update(
-                    pulp.LpVariable.dicts(
-                        "team_aircraft_usage",
-                        [f"{team.pk}_{other_team.pk}" for team in teams for other_team in teams],
-                        lowBound=0,
-                        upBound=1,
-                        cat=pulp.LpInteger,
-                    )
+                model.Add(start_vars[other_team.pk] >= start_vars[team.pk] + gap_if_team_first).OnlyEnforceIf(
+                    team_first
                 )
-                for team in teams:
-                    # Get slot number of team aircraft usage
-                    for other_team in teams:
-                        if team != other_team:
-                            # Ensure no overlap
-                            self.problem += (
-                                self.start_slot_numbers[f"{team.pk}"]
-                                - self.start_slot_numbers[f"{other_team.pk}"]
-                                + team.flight_time
-                                + self.aircraft_switch_time
-                                - self.very_large_variable * self.aircraft_team_variables[f"{team.pk}_{other_team.pk}"]
-                                <= 0,
-                                f"team_use_aircraft_before_other_{team.pk}_{other_team.pk}",
-                            )
-                            # 1 = before
-                            self.problem += (
-                                self.start_slot_numbers[f"{other_team.pk}"]
-                                - self.start_slot_numbers[f"{team.pk}"]
-                                + other_team.flight_time
-                                + self.aircraft_switch_time
-                                - self.very_large_variable
-                                * (1 - self.aircraft_team_variables[f"{team.pk}_{other_team.pk}"])
-                                <= 0,
-                                f"other_use_aircraft_before_team_{team.pk}_{other_team.pk}",
-                            )
-
-    def __initialise_extra_variables(self, latest_finish):
-        self.latest_finish_time.setInitialValue(latest_finish)
-        for index in range(len(self.teams)):
-            team = self.teams[index]
-            for other_index in range(index + 1, len(self.teams)):
-                other_team = self.teams[other_index]
-                if team == other_team:
-                    continue
-                if self.start_slot_numbers[f"{team.pk}"].value() < self.start_slot_numbers[f"{other_team.pk}"].value():
-                    self.start_after[f"{team.pk}_{other_team.pk}"].setInitialValue(0)
-                else:
-                    self.start_after[f"{team.pk}_{other_team.pk}"].setInitialValue(1)
-        for name, parameter in self.aircraft_team_variables.items():
-            team, other_team = name.split("_")
-            if self.start_slot_numbers[f"{team}"].value() < self.start_slot_numbers[f"{other_team}"].value():
-                self.aircraft_team_variables[name].setInitialValue(0)
-            else:
-                self.aircraft_team_variables[name].setInitialValue(1)
-        for name, parameter in self.tracker_team_variables.items():
-            team, other_team = name.split("_")
-            if self.start_slot_numbers[f"{team}"].value() < self.start_slot_numbers[f"{other_team}"].value():
-                self.tracker_team_variables[name].setInitialValue(0)
-            else:
-                self.tracker_team_variables[name].setInitialValue(1)
-        for name, parameter in self.crew_team_variables.items():
-            team, other_team = name.split("_")
-            if self.start_slot_numbers[f"{team}"].value() < self.start_slot_numbers[f"{other_team}"].value():
-                self.crew_team_variables[name].setInitialValue(0)
-            else:
-                self.crew_team_variables[name].setInitialValue(1)
-
-    def __nonoverlapping_trackers(self):
-        logger.debug("Nonoverlapping trackers")
-        overlapping_trackers = {}
-        for team in self.teams:
-            if team.get_tracker_id() not in overlapping_trackers:
-                overlapping_trackers[team.get_tracker_id()] = []
-            overlapping_trackers[team.get_tracker_id()].append(team)
-        for tracker, teams in overlapping_trackers.items():
-            logger.debug(f"Constraints for overlapping trackers {tracker} with {len(teams)} teams")
-            if len(teams) > 1:
-                self.tracker_team_variables.update(
-                    pulp.LpVariable.dicts(
-                        "team_tracker_usage",
-                        [f"{team.pk}_{other_team.pk}" for team in teams for other_team in teams],
-                        lowBound=0,
-                        upBound=1,
-                        cat=pulp.LpInteger,
-                    )
+                model.Add(start_vars[team.pk] >= start_vars[other_team.pk] + gap_if_other_first).OnlyEnforceIf(
+                    team_first.Not()
                 )
-                for team in teams:
-                    # Get slot number of team aircraft usage
-                    for other_team in teams:
-                        if team != other_team:
-                            # Ensure no overlap
-                            self.problem += (
-                                self.start_slot_numbers[f"{team.pk}"]
-                                - self.start_slot_numbers[f"{other_team.pk}"]
-                                + team.flight_time
-                                + max(self.tracker_switch_time, self.tracker_start_lead_time)
-                                - self.very_large_variable * self.tracker_team_variables[f"{team.pk}_{other_team.pk}"]
-                                <= 0,
-                                f"team_use_tracker_before_other_{team.pk}_{other_team.pk}",
-                            )
-                            # 1 = before
-                            self.problem += (
-                                self.start_slot_numbers[f"{other_team.pk}"]
-                                - self.start_slot_numbers[f"{team.pk}"]
-                                + other_team.flight_time
-                                + self.tracker_switch_time
-                                - self.very_large_variable
-                                * (1 - self.tracker_team_variables[f"{team.pk}_{other_team.pk}"])
-                                <= 0,
-                                f"other_use_tracker_before_team_{team.pk}_{other_team.pk}",
-                            )
-
-    def __nonoverlapping_team_members(self):
-        logger.debug("Nonoverlapping team members")
-        overlapping_members = {}
-        for team in self.teams:
-            if team.member1 not in overlapping_members:
-                overlapping_members[team.member1] = []
-            overlapping_members[team.member1].append(team)
-            if team.member2:
-                if team.member2 not in overlapping_members:
-                    overlapping_members[team.member2] = []
-                overlapping_members[team.member2].append(team)
-        for member, teams in overlapping_members.items():
-            logger.debug(f"Constraints for overlapping members {member} with {len(teams)} teams")
-            if len(teams) > 1:
-                self.crew_team_variables.update(
-                    pulp.LpVariable.dicts(
-                        "team_member_usage",
-                        [f"{team.pk}_{other_team.pk}" for team in teams for other_team in teams],
-                        lowBound=0,
-                        upBound=1,
-                        cat=pulp.LpInteger,
-                    )
-                )
-                for team in teams:
-                    # Get slot number of team aircraft usage
-                    for other_team in teams:
-                        if team != other_team:
-                            # Ensure no overlap
-                            self.problem += (
-                                self.start_slot_numbers[f"{team.pk}"]
-                                - self.start_slot_numbers[f"{other_team.pk}"]
-                                + team.flight_time
-                                + self.crew_switch_time
-                                - self.very_large_variable * self.crew_team_variables[f"{team.pk}_{other_team.pk}"]
-                                <= 0,
-                                f"team_use_member_before_other_{team.pk}_{other_team.pk}",
-                            )
-                            # 1 = before
-                            self.problem += (
-                                self.start_slot_numbers[f"{other_team.pk}"]
-                                - self.start_slot_numbers[f"{team.pk}"]
-                                + other_team.flight_time
-                                + self.crew_switch_time
-                                - self.very_large_variable
-                                * (1 - self.crew_team_variables[f"{team.pk}_{other_team.pk}"])
-                                <= 0,
-                                f"other_use_member_before_team_{team.pk}_{other_team.pk}",
-                            )
-
-    def __minimum_start_and_finish_interval_between_teams(self):
-        logger.debug("Minimum start interval between teams")
-        for index in range(len(self.teams)):
-            team = self.teams[index]
-            for other_index in range(index + 1, len(self.teams)):
-                other_team = self.teams[other_index]
-                if team == other_team:
-                    continue
-                flight_time_difference = team.flight_time - other_team.flight_time
-                if flight_time_difference >= self.minimum_start_interval:  # other_team is fastest
-                    # 0 =  other team starts after team
-                    self.problem += (
-                        self.start_slot_numbers[f"{team.pk}"]
-                        - self.start_slot_numbers[f"{other_team.pk}"]
-                        + flight_time_difference
-                        + self.minimum_finish_interval
-                        - self.very_large_variable * self.start_after[f"{team.pk}_{other_team.pk}"]
-                        <= 0,
-                        f"team_start_flight_difference_before_other_{team.pk}_{other_team.pk}",
-                    )
-                    # 1 = other team starts before team
-                    self.problem += (
-                        self.start_slot_numbers[f"{other_team.pk}"]
-                        - self.start_slot_numbers[f"{team.pk}"]
-                        + max(self.minimum_start_interval, self.minimum_finish_interval - flight_time_difference)
-                        - self.very_large_variable * (1 - self.start_after[f"{team.pk}_{other_team.pk}"])
-                        <= 0,
-                        f"other_start_immediately_before_team_{team.pk}_{other_team.pk}",
-                    )
-                elif flight_time_difference <= -self.minimum_start_interval:  # team is fastest
-                    flight_time_difference *= -1
-                    # 0 = team starts after other team
-                    self.problem += (
-                        self.start_slot_numbers[f"{other_team.pk}"]
-                        - self.start_slot_numbers[f"{team.pk}"]
-                        + flight_time_difference
-                        + self.minimum_finish_interval
-                        - self.very_large_variable * self.start_after[f"{team.pk}_{other_team.pk}"]
-                        <= 0,
-                        f"team_start_flight_difference_before_other_{team.pk}_{other_team.pk}",
-                    )
-                    # 1 = team starts before other team
-                    self.problem += (
-                        self.start_slot_numbers[f"{team.pk}"]
-                        - self.start_slot_numbers[f"{other_team.pk}"]
-                        + max(self.minimum_start_interval, self.minimum_finish_interval - flight_time_difference)
-                        - self.very_large_variable * (1 - self.start_after[f"{team.pk}_{other_team.pk}"])
-                        <= 0,
-                        f"other_start_immediately_before_team_{team.pk}_{other_team.pk}",
-                    )
-                else:  # both teams are equally fast
-                    # 0 = after
-                    self.problem += (
-                        self.start_slot_numbers[f"{team.pk}"]
-                        - self.start_slot_numbers[f"{other_team.pk}"]
-                        + max(self.minimum_start_interval, self.minimum_finish_interval)
-                        - self.very_large_variable * self.start_after[f"{team.pk}_{other_team.pk}"]
-                        <= 0,
-                        f"team_start_flight_difference_before_other_{team.pk}_{other_team.pk}",
-                    )
-                    # 1 = before
-                    self.problem += (
-                        self.start_slot_numbers[f"{other_team.pk}"]
-                        - self.start_slot_numbers[f"{team.pk}"]
-                        + max(self.minimum_start_interval, self.minimum_finish_interval)
-                        - self.very_large_variable * (1 - self.start_after[f"{team.pk}_{other_team.pk}"])
-                        <= 0,
-                        f"other_start_immediately_before_team_{team.pk}_{other_team.pk}",
-                    )
