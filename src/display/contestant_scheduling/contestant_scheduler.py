@@ -103,12 +103,22 @@ class Solver:
         status = self.problem.solve(pulp.PULP_CBC_CMD(timeLimit=60000, warmStart=True))
         self.optimal_solution = status == pulp.LpStatusOptimal
         logger.debug(f"Optimisation status {pulp.LpStatus[status]}")
-        status = pulp.LpStatusOptimal
         logger.debug("Solver executed, solution status {}, {}".format(status, pulp.LpStatus[status]))
         logger.debug(f"Objective function value: {pulp.value(self.problem.objective)}")
 
-        if status == pulp.LpStatusOptimal:
+        if self.optimal_solution:
             return self.__generate_takeoff_times_from_solution()
+        # Previously this branch was unreachable: status was unconditionally overwritten to
+        # LpStatusOptimal above, so an infeasible/non-optimal solve (e.g. from the resource-
+        # tracking bug fixed in select_team, or an over-constrained set of frozen teams) still
+        # returned a full schedule built from whatever the LP variables happened to hold -
+        # written to the database and reported as "status": "success" by the caller, with no
+        # indication that teams could be double-booked on the same aircraft/tracker/crew.
+        self.optimisation_messages.append(
+            f"No feasible schedule found (solver status: {pulp.LpStatus[status]}). This usually means "
+            "the frozen/locked contestants' start times conflict with each other or with the "
+            "minimum start/finish intervals - try unlocking one of them or widening the intervals."
+        )
         return []
 
     def __generate_takeoff_times_from_solution(self) -> List[TeamDefinition]:
@@ -224,19 +234,33 @@ class Solver:
         def select_team(team, selected_slot):
             used_teams.add(team)
             latest_finish = selected_slot + team.flight_time
-            next_aircraft_available[team.aircraft_registration] = (
-                selected_slot + team.flight_time + self.aircraft_switch_time
+            # max(), not plain assignment: a resource (aircraft/tracker/crew member) can already
+            # be reserved past this point by another team assigned earlier in this loop (this
+            # matters most for frozen teams, which are all select_team()'d up front in whatever
+            # order they appear in self.teams - two frozen teams sharing an aircraft, processed
+            # out of chronological order, would otherwise have the later-finishing team's
+            # reservation silently erased by the earlier-finishing one's shorter window).
+            # Overwriting here let the greedy solution - which becomes the actual final schedule
+            # whenever optimise=False (the API default) via fixValue() below - place a new team
+            # on a resource that a frozen team already legitimately occupied, producing an
+            # overlapping/double-booked schedule.
+            next_aircraft_available[team.aircraft_registration] = max(
+                next_aircraft_available.get(team.aircraft_registration, 0),
+                selected_slot + team.flight_time + self.aircraft_switch_time,
             )
-            next_tracker_available[team.get_tracker_id()] = (
-                selected_slot + team.flight_time + self.tracker_switch_time + self.tracker_start_lead_time
+            next_tracker_available[team.get_tracker_id()] = max(
+                next_tracker_available.get(team.get_tracker_id(), 0),
+                selected_slot + team.flight_time + self.tracker_switch_time + self.tracker_start_lead_time,
             )
             if team.member1 is not None:
-                next_crew_available[team.member1] = (
-                    selected_slot + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time
+                next_crew_available[team.member1] = max(
+                    next_crew_available.get(team.member1, 0),
+                    selected_slot + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time,
                 )
             if team.member2 is not None:
-                next_crew_available[team.member2] = (
-                    selected_slot + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time
+                next_crew_available[team.member2] = max(
+                    next_crew_available.get(team.member2, 0),
+                    selected_slot + team.flight_time + self.crew_switch_time + self.tracker_start_lead_time,
                 )
             self.start_slot_numbers[f"{team.pk}"].setInitialValue(selected_slot)
             return latest_finish
