@@ -2235,6 +2235,7 @@ def _extract_values_from_form(form: ModelForm) -> List:
     return content
 
 
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def navigation_task_view_detailed_score(request, pk):
     """
     Render scorecard overview page that shows scorecard values and gate score values with options to modify them.
