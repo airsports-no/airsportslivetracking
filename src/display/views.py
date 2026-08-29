@@ -147,7 +147,6 @@ ADMINISTRATIVE_PENALTY_CATEGORIES = {
     },
 }
 from display.flight_order_and_maps.generate_flight_orders import (
-    generate_flight_orders,
     embed_map_in_pdf,
 )
 from display.flight_order_and_maps.map_constants import A4
@@ -785,25 +784,6 @@ def get_contestant_email_flight_orders_link(request, key):
     """
     map_link = get_object_or_404(EmailMapLink, id=key)
     response = HttpResponse(map_link.orders, content_type="application/pdf")
-    response["Content-Disposition"] = "attachment; filename=flight_orders.pdf"
-    return response
-
-
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
-def get_contestant_email_flying_orders_link(request, pk):
-    """
-    View to synchronously generate refined orders for contestant and download the PDF file. Mostly used for testing.
-    """
-    # Previously had no decorator at all: sequential integer pks made every contestant's flight
-    # order (route maps, gate times, crew details, and - for unknown-legs/CIMA tasks - the
-    # turning-point answer key for a task not yet flown) trivially enumerable by an anonymous
-    # visitor, and each hit synchronously ran full PDF/map generation (a free DoS lever). The
-    # legitimate public-facing download path is get_contestant_email_flight_orders_link below,
-    # a UUID capability URL (/maplink/<uuid:key>/) handed out via the notification email - this
-    # pk-based endpoint is for a signed-in contest manager to preview/test generation.
-    contestant = get_object_or_404(Contestant, id=pk)
-    report = generate_flight_orders(contestant)
-    response = HttpResponse(bytes(report), content_type="application/pdf")
     response["Content-Disposition"] = "attachment; filename=flight_orders.pdf"
     return response
 

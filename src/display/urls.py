@@ -49,7 +49,6 @@ from display.views import (
     get_contestant_email_flight_orders_link,
     EditableRouteDeleteView,
     refresh_editable_route_navigation_task,
-    get_contestant_email_flying_orders_link,
     upload_gpx_track_for_contesant,
     healthz,
     readyz,
@@ -215,7 +214,6 @@ urlpatterns = [
     ),
     path("navigationtask/<int:pk>/remove_contestants/", clear_contestants, name="navigationtask_removecontestants"),
     path("maplink/<uuid:key>/", get_contestant_email_flight_orders_link, name="email_map_link"),
-    path("mapreport/<int:pk>/", get_contestant_email_flying_orders_link, name="email_report_link"),
     path("contestant/<int:navigationtask_pk>/create/", ContestantCreateView.as_view(), name="contestant_create"),
     path(
         "contestant/<int:navigationtask_pk>/quickcreate/",
