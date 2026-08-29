@@ -1041,9 +1041,14 @@ class ContestViewSet(ModelViewSet):
         """
         # I think this is required for the permissions to work
         contest = self.get_object()
+        # Task has no direct FK back to the authorised contest to pin like
+        # update_contest_summary does for ContestSummary - scope the lookup
+        # itself instead, so a task id from another contest 404s rather than
+        # letting an organiser overwrite another contest's published results.
+        task = get_object_or_404(Task, pk=request.data["task"], contest=contest)
         summary, created = TaskSummary.objects.get_or_create(
             team_id=request.data["team"],
-            task_id=request.data["task"],
+            task=task,
             defaults={"points": request.data["points"]},
         )
         if not created:
@@ -1062,9 +1067,12 @@ class ContestViewSet(ModelViewSet):
         """
         # I think this is required for the permissions to work
         contest = self.get_object()
+        # Same cross-contest scoping as update_task_summary above - TaskTest
+        # only reaches the authorised contest via task__contest.
+        task_test = get_object_or_404(TaskTest, pk=int(request.data["task_test"]), task__contest=contest)
         results, created = TeamTestScore.objects.get_or_create(
             team_id=int(request.data["team"]),
-            task_test_id=int(request.data["task_test"]),
+            task_test=task_test,
             defaults={"points": int(request.data["points"])},
         )
         if not created:
@@ -1504,6 +1512,13 @@ class NavigationTaskViewSet(ModelViewSet):
             serialiser = self.get_serializer(data=request.data)
             serialiser.is_valid(raise_exception=True)
             contest_team = serialiser.validated_data["contest_team"]
+            # contest_team has no contest scoping in SelfManagementSerialiser (a bare
+            # PrimaryKeyRelatedField over ContestTeam.objects.all()) - without this check
+            # a pilot registered in ANY contest could self-register into a public
+            # self-managed task in a contest they never joined, inheriting that other
+            # registration's air_speed/tracking config.
+            if contest_team.contest_id != navigation_task.contest_id:
+                raise drf_exceptions.ValidationError("This team is not registered for this contest")
             assert_can_self_register_contestant(navigation_task, contest_team)
             if contest_team.team.crew.member1.email != request.user.email:
                 raise drf_exceptions.ValidationError("You cannot add a team where you are not the pilot")
@@ -2500,6 +2515,10 @@ class TaskViewSet(ModelViewSet):
         contest_id = self.kwargs.get("contest_pk")
         return Task.objects.filter(contest_id=contest_id)
 
+    def perform_create(self, serializer):
+        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
+        serializer.save(contest=contest)
+
     def destroy(self, request, *args, **kwargs):
         task = self.get_object()
         if task.tasktest_set.filter(navigation_task__isnull=False).exists():
@@ -2539,6 +2558,17 @@ class TaskTestViewSet(ModelViewSet):
         contest_id = self.kwargs.get("contest_pk")
         return TaskTest.objects.filter(task__contest_id=contest_id)
 
+    def perform_create(self, serializer):
+        # task is client-writable input (which task within this contest), unlike
+        # Task.contest - but it must still belong to the URL's contest, otherwise
+        # an organiser with change_contest on contest A could attach a test to a
+        # task in contest B by supplying {"task": <id in contest B>}.
+        contest_id = self.kwargs.get("contest_pk")
+        task = serializer.validated_data.get("task")
+        if task is not None and str(task.contest_id) != str(contest_id):
+            raise drf_exceptions.ValidationError("The selected task does not belong to this contest.")
+        serializer.save()
+
     def destroy(self, request, *args, **kwargs):
         task_test = self.get_object()
         if task_test.navigation_task_id is not None:
@@ -2553,6 +2583,10 @@ class TaskTestViewSet(ModelViewSet):
             raise drf_exceptions.ValidationError(
                 "Cannot modify a test that is linked to a navigation task. Modify the navigation task instead."
             )
+        contest_id = self.kwargs.get("contest_pk")
+        new_task_id = request.data.get("task")
+        if new_task_id is not None and not Task.objects.filter(pk=new_task_id, contest_id=contest_id).exists():
+            raise drf_exceptions.ValidationError("The selected task does not belong to this contest.")
         return super().update(request, *args, **kwargs)
 
 

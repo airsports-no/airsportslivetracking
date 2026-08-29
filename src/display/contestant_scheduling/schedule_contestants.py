@@ -97,7 +97,10 @@ def schedule_and_create_contestants_landing_task(
     optimise: bool = False,
     next_takeoff_time: datetime.datetime = None,
 ) -> Tuple[bool, List[str]]:
-    selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks)
+    # contest= scoping is deliberate: contest_teams_pks is client-supplied (only coerced to
+    # ints by _normalize_contest_team_ids, no ownership check), so without this an organiser
+    # could pull another contest's team - and its tracker_device_id - into this task.
+    selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks, contest=navigation_task.contest)
 
     for index, contest_team in enumerate(selected_contest_teams):
         try:
@@ -175,7 +178,9 @@ def schedule_and_create_contestants_navigation_tasks(
     # But what if it had a contestant BEFORE the start time? The prompt implies "scheduling process owns everything that happens after the first take off time".
     # So we leave "past" contestants alone.
 
-    selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks)
+    # contest= scoping is deliberate - see the comment on the equivalent line in
+    # schedule_and_create_contestants_landing_task above.
+    selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks, contest=navigation_task.contest)
     if not selected_contest_teams.exists():
         mutable_contestants.delete()
         return True, []

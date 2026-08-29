@@ -1857,6 +1857,11 @@ class TaskSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = "__all__"
+        # contest is pinned from the URL (TaskViewSet.perform_create) rather than
+        # left client-writable - fields = "__all__" otherwise let an organiser with
+        # change_contest on contest A create or move a task into contest B by
+        # supplying {"contest": B} in the request body.
+        read_only_fields = ("contest",)
 
 
 class TaskTestSerialiser(serializers.ModelSerializer):
