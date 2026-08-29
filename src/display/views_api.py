@@ -204,7 +204,10 @@ def clear_flight_order_generation_cache(request, pk):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+# change_contest, not view_contest: this deletes every selected contestant's existing
+# flight-order links and (re-)triggers generation/email - a read-only collaborator
+# should not be able to invalidate distributed links for the whole start list.
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def generate_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     contestant_pks = request.GET.get("contestant_pks")
@@ -235,7 +238,9 @@ def generate_navigation_task_orders(request, pk):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+# change_contest, not view_contest: this mail-bombs every selected contestant's
+# member1.email - a read-only collaborator should not be able to trigger that.
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def broadcast_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     contestant_pks = request.GET.get("contestant_pks")
