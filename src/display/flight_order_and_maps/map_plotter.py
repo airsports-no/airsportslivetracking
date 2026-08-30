@@ -379,6 +379,7 @@ class MyGoogleWTS(GoogleWTS):
         if cached_file in self.cache:
             img = np.load(cached_file, allow_pickle=False)
         else:
+            is_fallback_tile = False
             if self._background_fetch_aborted:
                 with self._tile_fetch_lock:
                     self._blank_tile_count += 1
@@ -398,6 +399,7 @@ class MyGoogleWTS(GoogleWTS):
                         "; abandoning background rendering" if should_abort else "",
                     )
                     img = _blank_tile()
+                    is_fallback_tile = True
                     with self._tile_fetch_lock:
                         self._blank_tile_count += 1
                 else:
@@ -410,11 +412,19 @@ class MyGoogleWTS(GoogleWTS):
                 if getattr(getattr(err, "response", None), "status_code", None) == 429:
                     self._record_rate_limit_and_should_abort()
                 img = _blank_tile()
+                is_fallback_tile = True
                 with self._tile_fetch_lock:
                     self._blank_tile_count += 1
 
             img = img.convert(self.desired_tile_form)
-            if self.cache_path is not None:
+            # Never disk-cache a fallback/blank tile: a later get_image() call for the same
+            # coordinate would hit the cache branch above and load it as if it were real
+            # imagery, incrementing _tile_fetch_count but not _blank_tile_count - silently
+            # defeating check_tile_fetch_health's blank-tile detection on any subsequent
+            # render that reuses this cache (cache_path is currently never enabled by any
+            # caller in this file, so this path is unreachable today, but stays correct if
+            # that changes).
+            if self.cache_path is not None and not is_fallback_tile:
                 np.save(cached_file, img, allow_pickle=False)
                 self.cache.add(cached_file)
 
