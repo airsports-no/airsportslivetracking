@@ -103,7 +103,15 @@ def schedule_and_create_contestants_landing_task(
     # could pull another contest's team - and its tracker_device_id - into this task.
     selected_contest_teams = ContestTeam.objects.filter(pk__in=contest_teams_pks, contest=navigation_task.contest)
 
-    for index, contest_team in enumerate(selected_contest_teams):
+    # Numbers by list position (index + 1) collided with any contestant already in the
+    # task for a team NOT in the current selection (e.g. a mixed re-run: some teams
+    # already scheduled, some new) - raising IntegrityError on the (navigation_task,
+    # contestant_number) unique constraint. Track every number already in use across the
+    # whole task instead, and hand out the next free one to each newly-created contestant.
+    used_numbers = set(navigation_task.contestant_set.values_list("contestant_number", flat=True))
+    next_number = 1
+
+    for contest_team in selected_contest_teams:
         try:
             contestant = navigation_task.contestant_set.get(team=contest_team.team)
             contestant.takeoff_time = next_takeoff_time
@@ -115,6 +123,9 @@ def schedule_and_create_contestants_landing_task(
                 force=True,
             )
         except ObjectDoesNotExist:
+            while next_number in used_numbers:
+                next_number += 1
+            used_numbers.add(next_number)
             contestant = Contestant.objects.create(
                 takeoff_time=next_takeoff_time,
                 finished_by_time=navigation_task.finish_time,
@@ -128,7 +139,7 @@ def schedule_and_create_contestants_landing_task(
                 tracker_device_id=contest_team.tracker_device_id,
                 tracking_device=contest_team.tracking_device,
                 tracker_start_time=navigation_task.start_time,
-                contestant_number=index + 1,
+                contestant_number=next_number,
             )
             ContestantTaskCompiler(contestant).compile(
                 declaration_payload=_build_default_declaration_payload(navigation_task),
