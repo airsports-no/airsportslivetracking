@@ -36,9 +36,10 @@
                         <div class="text-xs mb-1 flex justify-between items-start gap-2">
                             <span>{{ item.text }}</span>
                             {% if "change_contest" in contest_permissions %}
-                                <a href="{% url 'contestant_remove_score_item' item.pk %}"
-                                   onclick="return confirm('Remove penalty?')" 
-                                   class="btn btn-ghost btn-xs text-error h-auto min-h-0 p-0">Remove</a>
+                                <form method="post" action="{% url 'contestant_remove_score_item' item.pk %}" class="inline" onsubmit="return confirm('Remove penalty?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-ghost btn-xs text-error h-auto min-h-0 p-0">Remove</button>
+                                </form>
                             {% endif %}
                         </div>
                     {% endfor %}

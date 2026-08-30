@@ -535,6 +535,7 @@ def refresh_editable_route_navigation_task(request, pk):
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
 def clear_profile_image_background(request, contest_pk, pk):
     """
@@ -548,7 +549,9 @@ def clear_profile_image_background(request, contest_pk, pk):
         messages.error(request, f"Background removal failed for {person}: {result}")
     else:
         messages.success(request, f"Background removal successful for {person}")
-    return redirect(reverse("contest_team_images", kwargs={"pk": contest_pk}))
+    # "contest_team_images" is not a real URL name - this redirect has always 500'd on
+    # success (NoReverseMatch), only noticed now via this finding's own regression test.
+    return redirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
 
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
@@ -562,7 +565,10 @@ def upload_profile_picture(request, contest_pk, pk):
         form = PersonPictureForm(request.POST, request.FILES, instance=person)
         if form.is_valid():
             form.save()
-            return redirect(reverse("contest_team_images", kwargs={"pk": contest_pk}))
+            # "contest_team_images" is not a real URL name - this redirect has always
+            # 500'd on success (NoReverseMatch), only noticed now via an adjacent fix's
+            # regression test.
+            return redirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
     form = PersonPictureForm(instance=person)
     return render(
         request,
@@ -1290,6 +1296,7 @@ def add_user_contest_permissions(request, pk):
 ###### Contest permission management ends
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def terminate_contestant_calculator(request, pk):
     """
@@ -1306,6 +1313,7 @@ def terminate_contestant_calculator(request, pk):
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def restart_contestant_calculator(request, pk):
     """
@@ -1585,6 +1593,7 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return reverse("contest_details", kwargs={"pk": self.get_object().contest.pk})
 
 
+@require_POST
 @transaction.atomic
 @guardian_permission_required(
     "display.change_contest",
@@ -2452,6 +2461,7 @@ def copy_editable_route(request, pk):
     return HttpResponseRedirect(fe_url("ROUTE_EDITOR_EDIT", routeId=editable_route.pk))
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
 def remove_team_from_contest(request, contest_pk, team_pk):
     contest = get_object_or_404(Contest, pk=contest_pk)
@@ -2460,6 +2470,7 @@ def remove_team_from_contest(request, contest_pk, team_pk):
     return HttpResponseRedirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
 
 
+@require_POST
 @permission_required("display.change_contest")
 def renew_token(request):
     user = request.user

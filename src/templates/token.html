@@ -11,12 +11,12 @@
                         <span class="break-all">{{ user.auth_token }}</span>
                     </div>
                     <div class="card-actions justify-end">
-                        <a href="{% url 'renewtoken' %}" class="btn btn-primary">Renew token</a>
+                        <form method="post" action="{% url 'renewtoken' %}" onsubmit="return confirm('Renew your API token? Any application using the current token will stop working.')">{% csrf_token %}<button type="submit" class="btn btn-primary">Renew token</button></form>
                     </div>
                 {% else %}
                      <p>You do not have an API token yet.</p>
                     <div class="card-actions justify-end">
-                        <a href="{% url 'renewtoken' %}" class="btn btn-primary">Create token</a>
+                        <form method="post" action="{% url 'renewtoken' %}">{% csrf_token %}<button type="submit" class="btn btn-primary">Create token</button></form>
                     </div>
                 {% endif %}
             {% else %}
