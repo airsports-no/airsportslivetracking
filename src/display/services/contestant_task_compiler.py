@@ -106,7 +106,14 @@ class CurveOrPrecisionNavigationStrategy(ContestantTaskCompilerStrategy):
                 gate_times[key] = parser.parse(value).isoformat()
         if self.subtype != PRECISION_NAVIGATION:
             return gate_times
+        # expected_names is turnpoints only (organizers never declare predictions
+        # for takeoff/landing gates), but takeoff/landing gate times still need to
+        # survive this filter - TakeoffAndLandingGateCalculator.initiate_takeoff_and_landing_gates
+        # does an unguarded gate_times[gate.name] lookup for every route.takeoff_gates/landing_gates
+        # entry and KeyErrors at calculator construction otherwise.
         expected_names = set(self.compiler._get_precision_navigation_prediction_names())
+        route = self.compiler.contestant.navigation_task.route
+        expected_names |= {gate.name for gate in route.takeoff_gates} | {gate.name for gate in route.landing_gates}
         return {key: value for key, value in gate_times.items() if key in expected_names}
 
     def build_declaration_payload_from_input(self, declaration_input: dict) -> dict:
