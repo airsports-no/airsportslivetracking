@@ -34,7 +34,7 @@
 </style>
 
 <script>
-    import { escapeHtml, safeUrl } from '../scripts/html-safety.js';
+    import { escapeHtml, safeUrlForProperty } from '../scripts/html-safety.js';
 
     async function updateTicker() {
         const container = document.getElementById('live-ticker-container');
@@ -64,7 +64,10 @@
             // Create items
             const items = data.map(task => {
                 const item = document.createElement('a');
-                item.href = safeUrl(API_BASE+task.tracking_link);
+                // DOM property assignment, not an HTML string - safeUrlForProperty (not
+                // safeUrl) so an eventual "&"-containing tracking_link isn't HTML-escaped
+                // into a literal "&amp;" in the URL the browser actually navigates to.
+                item.href = safeUrlForProperty(API_BASE+task.tracking_link);
                 item.target = '_blank';
                 item.rel = 'noopener noreferrer';
                 item.className = 'flex items-center gap-3 hover:text-blue-200 transition-colors group';

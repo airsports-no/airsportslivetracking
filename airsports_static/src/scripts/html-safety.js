@@ -14,18 +14,37 @@ export function escapeHtml(value) {
         .replace(/'/g, "&#39;");
 }
 
-// For values placed inside a src="" or href="" attribute: rejects any scheme other than
-// http(s)/relative (blocking javascript:/data: URLs), and HTML-escapes the result so a
-// "-containing value can't break out of the attribute.
-export function safeUrl(value, base = window.location.origin) {
-    if (!value) return "#";
+// Shared scheme validation for both helpers below: only http(s) (or relative, resolved
+// against `base`) URLs are allowed, blocking javascript:/data: URLs. Returns the resolved
+// href, or null if the value is missing/malformed/an unsafe scheme.
+function validatedHref(value, base) {
+    if (!value) return null;
     try {
         const parsed = new URL(String(value), base);
         if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-            return escapeHtml(parsed.href);
+            return parsed.href;
         }
     } catch (e) {
-        // Malformed URL - fall through to the safe default below.
+        // Malformed URL - fall through to null below.
     }
-    return "#";
+    return null;
+}
+
+// For values placed inside a src="" or href="" attribute *as part of an HTML string*
+// (i.e. interpolated into a template string that then gets assigned to .innerHTML): rejects
+// any scheme other than http(s)/relative, and HTML-escapes the result so a "-containing
+// value can't break out of the attribute. The browser's HTML parser decodes the escaped
+// entities back when it parses that markup, so the resulting attribute value is correct.
+export function safeUrl(value, base = window.location.origin) {
+    const href = validatedHref(value, base);
+    return href === null ? "#" : escapeHtml(href);
+}
+
+// For assigning directly to a DOM property (e.g. anchor.href = ...) rather than interpolating
+// into an HTML string: DOM property assignment does not run the HTML parser, so - unlike
+// safeUrl above - the value must NOT be HTML-escaped, or the literal escaped entities (e.g.
+// "&amp;" instead of "&") end up in the URL the browser actually navigates to.
+export function safeUrlForProperty(value, base = window.location.origin) {
+    const href = validatedHref(value, base);
+    return href === null ? "#" : href;
 }
