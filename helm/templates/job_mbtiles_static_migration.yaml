@@ -34,17 +34,26 @@ spec:
       # This Job's pod and the still-running mbtiles Deployment pod (see
       # deployment_mbtileserver.yml) both mount legacyPvcName (ReadWriteOnce) at the same
       # time - a pre-upgrade hook runs before Helm updates the Deployment, so the old pod is
-      # still up. ReadWriteOnce allows concurrent mounters only on the same node; without this
-      # affinity the scheduler could place this pod on a different node than the mbtiles pod,
-      # producing a FailedAttachVolume/Multi-Attach error that leaves the Job stuck Pending
-      # for up to activeDeadlineSeconds, failing the whole upgrade.
+      # still up. ReadWriteOnce allows concurrent mounters only on the same node, so without
+      # this affinity the scheduler could place this pod on a different node than the mbtiles
+      # pod, producing a FailedAttachVolume/Multi-Attach error.
+      #
+      # Soft (preferred), not hard (required): a required affinity blocks scheduling entirely
+      # whenever no service=mbtiles pod happens to be up at that instant (a node drain, an
+      # OOM-kill, anything transient) - stuck Pending until activeDeadlineSeconds, failing the
+      # whole upgrade for an unrelated, momentary reason. Soft affinity still steers the
+      # scheduler onto the same node in the normal case (mbtiles pod running - the only case
+      # where the Multi-Attach risk above is even possible), while still letting this pod
+      # schedule anywhere if no mbtiles pod exists to contend with the PVC at all.
       affinity:
         podAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchLabels:
-                  service: mbtiles
-              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    service: mbtiles
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: mbtiles-static-migration
           image: "alpine:3.20"
