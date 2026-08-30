@@ -824,6 +824,17 @@ def get_navigation_task_orders_status_object(pk: int) -> Dict:
     }
 
 
+def _safe_zip_entry_name(text: str, extension: str) -> str:
+    """
+    Builds a flat, path-traversal-safe zip entry name from free text (e.g. a crew/team name
+    interpolated via Contestant.__str__). Not every zip extractor sanitises "../" the way
+    Python's own zipfile does, so this strips path separators and anything else that isn't
+    safe in a plain filename before an entry is ever written to the archive.
+    """
+    sanitized = re.sub(r"[^\w\- ()]", "_", text)
+    return f"{sanitized}.{extension}"
+
+
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def download_navigation_task_orders(request, pk):
     """
@@ -845,7 +856,7 @@ def download_navigation_task_orders(request, pk):
         byte_stream = BytesIO()
         zf = zipfile.ZipFile(byte_stream, "w")
         for order in EmailMapLink.objects.filter(contestant__in=contestants):
-            zf.writestr(f"{order.contestant}.pdf", order.orders)
+            zf.writestr(_safe_zip_entry_name(str(order.contestant), "pdf"), order.orders)
         zf.close()
         response = HttpResponse(byte_stream.getvalue(), content_type="application/x-zip-compressed")
         response["Content-Disposition"] = "attachment; filename=%s" % zip_filename
