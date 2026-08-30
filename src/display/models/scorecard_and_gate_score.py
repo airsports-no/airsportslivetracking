@@ -1,6 +1,8 @@
 import datetime
+import uuid
 from typing import Optional
 
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import QuerySet
@@ -178,18 +180,27 @@ class Scorecard(models.Model):
             simple_clone(gate, {"scorecard": obj})
         return obj
 
+    # Process-local: safe because every cache key is namespaced by
+    # _gate_scorecard_cache_version(), a token stored in the shared Redis cache
+    # and rewritten by bump_gate_scorecard_cache_version (display/signals.py)
+    # whenever a GateScore is saved/deleted. A stale entry just stops matching
+    # the current token instead of ever being read - see get_gate_scorecard.
     SCORECARD_CACHE = {}
+
+    def _gate_scorecard_cache_version(self) -> str:
+        return cache.get_or_set(f"gate_scorecard_version_{self.pk}", lambda: uuid.uuid4().hex, timeout=None)
 
     def get_gate_scorecard(self, gate_type: str) -> "GateScore":
         """
         Get the scorecard for a specific gate type.
         """
+        cache_key = (self.pk, gate_type, self._gate_scorecard_cache_version())
         try:
-            return self.SCORECARD_CACHE[(self.pk, gate_type)]
+            return self.SCORECARD_CACHE[cache_key]
         except KeyError:
             try:
-                self.SCORECARD_CACHE[(self.pk, gate_type)] = self.gatescore_set.get(gate_type=gate_type)
-                return self.SCORECARD_CACHE[(self.pk, gate_type)]
+                self.SCORECARD_CACHE[cache_key] = self.gatescore_set.get(gate_type=gate_type)
+                return self.SCORECARD_CACHE[cache_key]
             except ObjectDoesNotExist:
                 raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
 

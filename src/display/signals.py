@@ -1,5 +1,6 @@
 import datetime
 import logging
+import uuid
 from functools import wraps
 from random import choice
 from string import ascii_uppercase, ascii_lowercase, digits
@@ -38,7 +39,7 @@ from display.models import (
     ContestTokenAssignment,
     UserTokenGrant,
 )
-from display.models.scorecard_and_gate_score import Scorecard
+from display.models.scorecard_and_gate_score import GateScore, Scorecard
 from display.utilities.traccar_factory import get_traccar_instance
 from display.utilities.tracking_definitions import TrackingService
 
@@ -601,6 +602,16 @@ def sync_scorecard_sorting_direction(sender, instance: Scorecard, **kwargs):
             nt.tasktest.save(update_fields=["sorting"])
             nt.tasktest.task.summary_score_sorting_direction = instance.score_sorting_direction
             nt.tasktest.task.save(update_fields=["summary_score_sorting_direction"])
+
+
+@receiver(post_save, sender=GateScore)
+@receiver(post_delete, sender=GateScore)
+def bump_gate_scorecard_cache_version(sender, instance: GateScore, **kwargs):
+    # Scorecard.get_gate_scorecard() memoizes GateScore per-process, keyed by this
+    # version token - rewriting it here makes every daphne/celery/live-calculator
+    # process notice a mid-event scoring-rule edit on its next lookup instead of
+    # silently scoring against a copy cached before the edit until it restarts.
+    cache.set(f"gate_scorecard_version_{instance.scorecard_id}", uuid.uuid4().hex, timeout=None)
 
 
 @receiver(post_save, sender=EditableRoute)

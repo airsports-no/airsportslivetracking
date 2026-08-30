@@ -1070,7 +1070,17 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             setattr(instance, field_name, value)
         instance.save()
         for gate in gate_scores:
-            instance.gatescore_set.filter(gate_type=gate["gate_type"]).update(**gate)
+            # Per-instance save(), not a queryset .update(): the latter skips
+            # post_save/post_delete entirely, so bump_gate_scorecard_cache_version
+            # (display/signals.py) never ran - other already-warm daphne/celery/
+            # live-calculator processes kept scoring against a GateScore cached
+            # before this edit until they happened to restart.
+            gate_score = instance.gatescore_set.filter(gate_type=gate["gate_type"]).first()
+            if gate_score is None:
+                continue
+            for field_name, value in gate.items():
+                setattr(gate_score, field_name, value)
+            gate_score.save()
         return instance
 
 
