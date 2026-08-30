@@ -3029,9 +3029,10 @@ def quick_register(request, pk):
             # 3. Create/Get Team
             team, _ = Team.objects.get_or_create(aeroplane=aeroplane, crew=crew)
 
-            # 4. Create ContestTeam
-            contest_team, _ = ContestTeam.objects.get_or_create(contest=contest, team=team)
-
+            # 4. Capacity check before mutating anything else - _assert_can_reserve_task_slot
+            # only needs navigation_task/team/resolution, not a ContestTeam row, so this can (and
+            # must) run before step 5 creates one. Checking after would leave a ContestTeam
+            # registered for a rejected registration attempt, since there is no rollback here.
             resolution = resolve_contest_access(contest)
             try:
                 _assert_can_reserve_task_slot(navigation_task, team, resolution)
@@ -3042,7 +3043,10 @@ def quick_register(request, pk):
                     "error": exc,
                 })
 
-            # 5. Create Contestant (Scheduled Flight)
+            # 5. Create ContestTeam
+            contest_team, _ = ContestTeam.objects.get_or_create(contest=contest, team=team)
+
+            # 6. Create Contestant (Scheduled Flight)
             # Determine next contestant number
             last_contestant = Contestant.objects.filter(navigation_task=navigation_task).order_by("-contestant_number").first()
             next_number = (last_contestant.contestant_number + 1) if last_contestant else 1

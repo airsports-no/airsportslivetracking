@@ -18,6 +18,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from display.models import (
     Aeroplane,
     Contest,
+    ContestTeam,
     Contestant,
     Crew,
     NavigationTask,
@@ -125,3 +126,21 @@ class TestQuickRegisterAuthorization(TestCase):
         response = self.client.post(url, data={"tail_number": "LN-TAS"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(0, Contestant.objects.filter(navigation_task=navigation_task).count())
+
+    @patch("display.views._assert_can_reserve_task_slot")
+    def test_capacity_limit_rejection_does_not_leave_an_orphaned_contest_team(self, mock_assert):
+        # ultrareview bug_006: the capacity check used to run *after*
+        # ContestTeam.objects.get_or_create(), so a rejected registration - told "capacity
+        # reached" - silently left its team registered for the contest anyway, with no
+        # rollback (no transaction wraps this view).
+        mock_assert.side_effect = DRFValidationError("Contestant limit reached")
+        navigation_task = _make_poker_task()
+        self.client.force_login(user=self.pilot_user)
+        url = reverse("quick_register", kwargs={"pk": navigation_task.pk})
+
+        response = self.client.post(url, data={"tail_number": "LN-TAS"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            0,
+            ContestTeam.objects.filter(contest=navigation_task.contest, team__aeroplane__registration="LN-TAS").count(),
+        )
