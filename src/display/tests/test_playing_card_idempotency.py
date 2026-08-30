@@ -20,7 +20,19 @@ from unittest.mock import patch
 from django.test import TransactionTestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Aeroplane, Contest, Contestant, Crew, NavigationTask, Person, PlayingCard, Route, Team
+from display.models import (
+    Aeroplane,
+    Contest,
+    Contestant,
+    Crew,
+    NavigationTask,
+    Person,
+    PlayingCard,
+    Route,
+    ScoreLogEntry,
+    Team,
+    TrackAnnotation,
+)
 from utilities.mock_utilities import TraccarMock
 
 
@@ -97,3 +109,29 @@ class TestPlayingCardIdempotency(TransactionTestCase):
             thread.join()
 
         self.assertEqual(self.contestant.playingcard_set.count(), 1)
+
+    def test_a_failure_partway_through_rolls_back_the_card_instead_of_leaving_orphaned_score_state(self, *args):
+        # CodeRabbit review of PR #734: add_contestant_card persisted the card via get_or_create
+        # before the score-log/annotation/score-update effects ran, with no transaction tying
+        # them together. A crash between the two left the card persisted but its score effects
+        # missing - and since the card already existed, the idempotent-restart replay path
+        # (`if not created: return poker_card`) would skip those effects forever on retry.
+        card = PlayingCard.get_random_unique_card(self.contestant)
+
+        with patch(
+            "display.models.TrackAnnotation.create_and_push", side_effect=RuntimeError("simulated mid-flow crash")
+        ):
+            with self.assertRaises(RuntimeError):
+                PlayingCard.add_contestant_card(self.contestant, card, "TP1", 0)
+
+        # The card insert (and the ScoreLogEntry created just before the simulated crash) must
+        # have rolled back together with everything else in the same transaction.
+        self.assertEqual(self.contestant.playingcard_set.count(), 0)
+        self.assertEqual(ScoreLogEntry.objects.filter(contestant=self.contestant).count(), 0)
+
+        # A retry (exactly what idempotent-restart does) must now do the full work - not skip
+        # it because a half-committed card row already existed.
+        PlayingCard.add_contestant_card(self.contestant, card, "TP1", 0)
+        self.assertEqual(self.contestant.playingcard_set.count(), 1)
+        self.assertEqual(ScoreLogEntry.objects.filter(contestant=self.contestant).count(), 1)
+        self.assertEqual(TrackAnnotation.objects.filter(contestant=self.contestant).count(), 1)
