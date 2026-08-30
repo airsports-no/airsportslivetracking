@@ -2719,7 +2719,7 @@ def firebase_token_login(request):
 
     authorization = request.headers.get("Authorization", "")
     scheme, _, header_token = authorization.partition(" ")
-    token = header_token if scheme == FirebaseTokenAuthentication.keyword and header_token else None
+    token = header_token if scheme.lower() == FirebaseTokenAuthentication.keyword.lower() and header_token else None
     if not token:
         token = request.GET.get("token")
     logger.debug("Received Firebase login token")

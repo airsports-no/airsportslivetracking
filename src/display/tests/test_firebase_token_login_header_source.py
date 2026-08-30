@@ -36,3 +36,20 @@ class TestFirebaseTokenLoginHeaderSource(TestCase):
         self.client.get("/firebase_login/", data={"token": "legacy-query-token"})
 
         mock_authenticate_credentials.assert_called_once_with("legacy-query-token")
+
+    @patch("display.authentication.FirebaseTokenAuthentication.authenticate_credentials")
+    def test_accepts_lowercase_authorization_scheme(self, mock_authenticate_credentials):
+        # RFC 9110: HTTP auth-scheme names are case-insensitive - "jwt" must be treated the
+        # same as "JWT", not silently fall back to the (stale/absent) query string.
+        from django.contrib.auth import get_user_model
+
+        user = get_user_model().objects.create(email="firebase-case-test@example.com")
+        mock_authenticate_credentials.return_value = (user, {})
+
+        self.client.get(
+            "/firebase_login/",
+            data={"token": "stale-query-token"},
+            HTTP_AUTHORIZATION="jwt lowercase-scheme-token",
+        )
+
+        mock_authenticate_credentials.assert_called_once_with("lowercase-scheme-token")
