@@ -53,7 +53,10 @@ class MBTilesHelper:
             tile = self.mbtiles.read_tile(*tile_coordinate)
             image = Image.open(BytesIO(tile))
             image = image.resize((scaled_tile_width, scaled_tile_height), Image.LANCZOS)
-            position_y = self.num_y - tile_coordinate.y + self.min_y if self.tms else tile_coordinate.y - self.min_y
+            # TMS y increases northward (0 = south); ranging position_y over [0, num_y-1]
+            # requires max_y - y, not num_y - y + min_y, which ranges over [1, num_y] instead -
+            # the southernmost tile pastes at y == height, a silent PIL no-op.
+            position_y = self.max_y - tile_coordinate.y if self.tms else tile_coordinate.y - self.min_y
             result_image.paste(
                 image,
                 (
@@ -76,8 +79,20 @@ class MBTilesHelper:
             return lon_deg, lat_deg
 
         zoom = self.tiles[0].z
-        min_lon, max_lat = tile_to_lon_lat(self.min_x, self.min_y, zoom)
-        max_lon, min_lat = tile_to_lon_lat(self.max_x + 1, self.max_y + 1, zoom)
         if self.tms:
-            min_lat, max_lat = max_lat, min_lat
+            # tile_to_lon_lat assumes XYZ addressing (y=0 at the north edge, increasing
+            # southward). TMS y increases northward instead, so the tile y-range itself
+            # must be converted (y_xyz = 2**z - 1 - y_tms) before calling it - swapping the
+            # resulting min/max lat labels (the previous fix attempt) doesn't correct for
+            # tile_to_lon_lat having been fed raw TMS y values as though they were XYZ
+            # ones, and produces bounds that are both inverted and mirrored about the
+            # equator.
+            n_tiles = int(2**zoom)
+            top_y = n_tiles - 1 - self.max_y
+            bottom_y = n_tiles - self.min_y
+        else:
+            top_y = self.min_y
+            bottom_y = self.max_y + 1
+        min_lon, max_lat = tile_to_lon_lat(self.min_x, top_y, zoom)
+        max_lon, min_lat = tile_to_lon_lat(self.max_x + 1, bottom_y, zoom)
         return min_lon, min_lat, max_lon, max_lat
