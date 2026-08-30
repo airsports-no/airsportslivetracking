@@ -180,11 +180,12 @@ class Scorecard(models.Model):
             simple_clone(gate, {"scorecard": obj})
         return obj
 
-    # Process-local: safe because every cache key is namespaced by
-    # _gate_scorecard_cache_version(), a token stored in the shared Redis cache
-    # and rewritten by bump_gate_scorecard_cache_version (display/signals.py)
-    # whenever a GateScore is saved/deleted. A stale entry just stops matching
-    # the current token instead of ever being read - see get_gate_scorecard.
+    # Process-local: safe because every entry is stamped with the version token below (a
+    # value from the shared Redis cache, rewritten by bump_gate_scorecard_cache_version in
+    # display/signals.py whenever a GateScore is saved/deleted) and get_gate_scorecard
+    # replaces (not accumulates) the entry for a given (pk, gate_type) on a version
+    # mismatch - so this stays bounded to one entry per (scorecard, gate_type) actually
+    # looked up, not one per edit-since-process-start.
     SCORECARD_CACHE = {}
 
     def _gate_scorecard_cache_version(self) -> str:
@@ -194,15 +195,17 @@ class Scorecard(models.Model):
         """
         Get the scorecard for a specific gate type.
         """
-        cache_key = (self.pk, gate_type, self._gate_scorecard_cache_version())
+        cache_key = (self.pk, gate_type)
+        current_version = self._gate_scorecard_cache_version()
+        cached = self.SCORECARD_CACHE.get(cache_key)
+        if cached is not None and cached[0] == current_version:
+            return cached[1]
         try:
-            return self.SCORECARD_CACHE[cache_key]
-        except KeyError:
-            try:
-                self.SCORECARD_CACHE[cache_key] = self.gatescore_set.get(gate_type=gate_type)
-                return self.SCORECARD_CACHE[cache_key]
-            except ObjectDoesNotExist:
-                raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
+            gate_score = self.gatescore_set.get(gate_type=gate_type)
+        except ObjectDoesNotExist:
+            raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
+        self.SCORECARD_CACHE[cache_key] = (current_version, gate_score)
+        return gate_score
 
     def calculate_penalty_zone_score(self, enter: datetime.datetime, leave: datetime.datetime):
         """

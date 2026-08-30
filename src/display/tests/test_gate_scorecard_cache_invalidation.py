@@ -92,6 +92,19 @@ class TestGateScorecardCacheInvalidation(TestCase):
         self.assertIsNotNone(after)
         self.assertNotEqual(before, after)
 
-    def tearDown(self):
-        Scorecard.SCORECARD_CACHE.clear()
-        cache.delete(f"gate_scorecard_version_{self.scorecard.pk}")
+    def test_repeated_edits_do_not_accumulate_stale_entries_in_scorecard_cache(self):
+        # ultrareview bug_004: SCORECARD_CACHE used to be keyed by (pk, gate_type, version),
+        # so a version bump never evicted the old entry - it just stopped being read,
+        # leaking one retained GateScore instance per edit for the process's lifetime.
+        for penalty in (10, 20, 30, 40):
+            self.gate_score.penalty_per_second = penalty
+            self.gate_score.save()
+            self.scorecard.get_gate_scorecard(TURNPOINT)
+
+        matching_keys = [key for key in Scorecard.SCORECARD_CACHE if key[:2] == (self.scorecard.pk, TURNPOINT)]
+        self.assertEqual(
+            len(matching_keys),
+            1,
+            "SCORECARD_CACHE must hold at most one entry per (scorecard, gate_type) - "
+            "repeated edits should replace it in place, not accumulate one stale entry per edit.",
+        )
