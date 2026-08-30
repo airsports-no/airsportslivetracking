@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: pvc-mbtiles
+  name: {{ .Values.mbtiles.staticPvcName }}
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: 30Gi
-  storageClassName: standard-rwo
+      storage: {{ .Values.mbtiles.staticStorageSize }}
+  storageClassName: {{ .Values.mbtiles.staticStorageClass }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -21,7 +21,10 @@ spec:
     matchLabels:
       service: mbtiles
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   template:
     metadata:
       labels:
@@ -34,7 +37,7 @@ spec:
       volumes:
         - name: mbtiles-static
           persistentVolumeClaim:
-            claimName: pvc-mbtiles
+            claimName: {{ .Values.mbtiles.staticPvcName }}
         - name: mbtiles-uploaded
           csi:
             driver: gcsfuse.csi.storage.gke.io
@@ -70,6 +73,7 @@ spec:
           volumeMounts:
             - mountPath: {{ .Values.mbtiles.staticMountPath | quote }}
               name: mbtiles-static
+              readOnly: true
             - mountPath: "/tilesets-user"
               name: mbtiles-uploaded
 ---

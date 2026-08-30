@@ -106,10 +106,26 @@ mbtiles:
   publicUrl: https://mbtiles.airsports.no/
   publishRoot: /tilesets
   bucketName: airsports-data
+  staticPvcName: pvc-mbtiles-static
+  staticStorageClass: filestore-maps
+  staticStorageSize: 30Gi
   uploadedMountPath: /tilesets/user_uploaded_maps
   staticMountPath: /tilesets-static
   gcsfuse:
     mountOptions: implicit-dirs
+  # One-off migration from the old ReadWriteOnce/standard-rwo PVC (pvc-mbtiles) to the
+  # ReadWriteMany/filestore-maps PVC above (staticPvcName) - accessModes/storageClassName
+  # are immutable on an existing PVC, so the switch to RWX (needed so a new mbtiles pod can
+  # mount the static tiles before the old pod is torn down - see the Deployment's
+  # RollingUpdate strategy) had to be a new PVC, not an in-place change. See
+  # job_mbtiles_static_migration.yaml: it runs as a pre-upgrade hook, copying data from
+  # legacyPvcName onto staticPvcName before Helm prunes the now-undeclared legacy PVC.
+  # Set runStaticMigration to false once the migration has been confirmed to have
+  # succeeded (checked its Job logs) - after that first upgrade, legacyPvcName no longer
+  # exists, and a pod referencing a missing PVC would just hang Pending, timing out every
+  # future `helm upgrade` until this is flipped off.
+  runStaticMigration: true
+  legacyPvcName: pvc-mbtiles
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

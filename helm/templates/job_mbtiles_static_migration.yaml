@@ -1,0 +1,53 @@
+{{- if .Values.mbtiles.runStaticMigration }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mbtiles-static-migration-{{ now | unixEpoch }}
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 100
+  backoffLimit: 2
+  activeDeadlineSeconds: 3600
+  template:
+    metadata:
+      labels:
+        date: "{{ now | unixEpoch }}"
+    spec:
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: mbtiles-static-migration
+          image: "alpine:3.20"
+          command:
+            - "sh"
+            - "-c"
+            - >
+              set -eu;
+              echo "Copying static mbtiles from the legacy volume to the new ReadWriteMany volume...";
+              cp -a /source/. /dest/;
+              echo "Done. Destination contents:";
+              ls -la /dest
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: mbtiles-static-legacy
+              mountPath: /source
+              readOnly: true
+            - name: mbtiles-static
+              mountPath: /dest
+      volumes:
+        - name: mbtiles-static-legacy
+          persistentVolumeClaim:
+            claimName: {{ .Values.mbtiles.legacyPvcName }}
+            readOnly: true
+        - name: mbtiles-static
+          persistentVolumeClaim:
+            claimName: {{ .Values.mbtiles.staticPvcName }}
+{{- end }}
