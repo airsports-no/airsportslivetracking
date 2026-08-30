@@ -38,7 +38,7 @@
                         <td><span class="badge badge-lg">{{ user.permission }}</span></td>
                         <td>
                             <a href="{% url 'editableroute_permissions_change' editableroute.pk user.pk %}" class="link">Change permissions</a> |
-                            <form method="post" action="{% url 'editableroute_permissions_delete' editableroute.pk user.pk %}" class="inline" onsubmit="return confirm('Remove all permissions for {{ user.email }}?');">
+                            <form method="post" action="{% url 'editableroute_permissions_delete' editableroute.pk user.pk %}" class="inline" onsubmit="return confirm('Remove all permissions for {{ user.email|escapejs }}?');">
                               {% csrf_token %}
                               <button type="submit" class="link link-error">Delete permissions</button>
                             </form>
