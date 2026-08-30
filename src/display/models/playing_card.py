@@ -23,6 +23,14 @@ class PlayingCard(models.Model):
     waypoint_name = models.CharField(max_length=50, blank=True, null=True)
     waypoint_index = models.IntegerField(default=0)
 
+    class Meta:
+        # Backs add_contestant_card's application-level get_or_create with a real DB
+        # constraint, matching ScoreLogEntry.get_or_create_and_push's pattern - a poker
+        # gate awards a contestant at most one card, ever, so a race between two
+        # concurrent writers for the same contestant can't both insert one. MySQL treats
+        # each NULL as distinct, so this doesn't constrain any waypoint_name=None rows.
+        unique_together = ("contestant", "waypoint_name")
+
     def __str__(self):
         return f"{self.card} for {self.contestant} at {self.waypoint_name} (waypoint {self.waypoint_index})"
 
@@ -162,17 +170,26 @@ class PlayingCard(models.Model):
         """
         Adds a specific card to the contestant, updates the score, and pushes this to the front end. Requires the
         waypoint index to identify at which waypoint the card was dealt.
+
+        Idempotent per (contestant, waypoint): a poker gate awards at most one card, ever. This
+        is what makes a live-calculator restart mid-flight safe - idempotent-restart replays the
+        whole track from the beginning (see contestant_processor.py), and
+        PokerCalculator.passed_gates (which would otherwise prevent a duplicate
+        PokerGatePassedEvent for an already-passed gate) is in-memory only and rebuilds empty on
+        restart. Without this, a restart re-fired every already-passed gate and dealt a second
+        (and, since hand evaluation is best-5-of-N, never-worse) card.
         """
         from display.models import ScoreLogEntry, ANOMALY, TrackAnnotation
 
         previous_hand_score, _ = cls.get_relative_score(contestant)
 
-        poker_card = cls.objects.create(
+        poker_card, created = cls.objects.get_or_create(
             contestant=contestant,
-            card=card,
             waypoint_name=waypoint,
-            waypoint_index=waypoint_index,
+            defaults={"card": card, "waypoint_index": waypoint_index},
         )
+        if not created:
+            return poker_card
         new_hand_score, hand_description = cls.get_relative_score(contestant)
         message = "Received card {}, current hand is {}".format(poker_card.get_card_display(), hand_description)
         entry = ScoreLogEntry.create_and_push(
