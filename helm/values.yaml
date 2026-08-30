@@ -118,6 +118,15 @@ mbtiles:
   staticMountPath: /tilesets-static
   gcsfuse:
     mountOptions: implicit-dirs
+  # Local (node ephemeral storage/Local SSD-backed) cache for the static tiles gcsfuse
+  # volume - see fileCacheForRangeRead/fileCacheCapacity in deployment_mbtileserver.yml.
+  # staticFileCacheSize bounds the cache itself; the sidecar storage values must stay
+  # comfortably above it (headroom for cache overhead/in-flight downloads) since the
+  # gcsfuse sidecar's ephemeral-storage limit is shared across every gcsfuse volume in
+  # the pod, not just this one.
+  staticFileCacheSize: 10Gi
+  staticFileCacheSidecarStorageRequest: 12Gi
+  staticFileCacheSidecarStorageLimit: 15Gi
   # One-off migration from the old ReadWriteOnce/standard-rwo PVC (pvc-mbtiles) onto
   # staticGcsPrefix above. See job_mbtiles_static_migration.yaml: it runs as a
   # pre-upgrade hook, copying data from legacyPvcName into the bucket before Helm

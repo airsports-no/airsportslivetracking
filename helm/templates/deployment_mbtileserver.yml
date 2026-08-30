@@ -19,6 +19,15 @@ spec:
         service: mbtiles
       annotations:
         gke-gcsfuse/volumes: "true"
+        # gcsfuse serves reads directly against GCS (byte-range GETs) without needing the
+        # whole file locally, but mbtileserver's SQLite queries into the static .mbtiles
+        # files are small random-offset reads - each one is otherwise a separate network
+        # round trip. fileCacheForRangeRead (below) makes the first such read per file
+        # trigger a background full-file download into a local cache, so it needs sidecar
+        # ephemeral storage well above staticFileCacheSize to hold that cache plus temp
+        # download state - the pre-GKE-1.29.1-gke.1670000 sidecar default is only 5Gi.
+        gke-gcsfuse/ephemeral-storage-limit: {{ .Values.mbtiles.staticFileCacheSidecarStorageLimit | quote }}
+        gke-gcsfuse/ephemeral-storage-request: {{ .Values.mbtiles.staticFileCacheSidecarStorageRequest | quote }}
     spec:
       terminationGracePeriodSeconds: 25
       serviceAccountName: calculator-scheduler
@@ -38,6 +47,14 @@ spec:
             volumeAttributes:
               bucketName: {{ .Values.mbtiles.bucketName | quote }}
               mountOptions: {{ printf "%s,only-dir=%s" .Values.mbtiles.gcsfuse.mountOptions .Values.mbtiles.staticGcsPrefix | quote }}
+              # SQLite's B-tree lookups into the .mbtiles files are scattered random-offset
+              # reads - fileCacheForRangeRead makes the first such read on a file trigger an
+              # async full-file download into the local cache (backed by node ephemeral
+              # storage/Local SSD, see the ephemeral-storage annotations above), so every
+              # later read of that file - from any pod - is served locally instead of over
+              # the network. fileCacheCapacity bounds the cache so it can't fill node disk.
+              fileCacheForRangeRead: "true"
+              fileCacheCapacity: {{ .Values.mbtiles.staticFileCacheSize | quote }}
         - name: mbtiles-uploaded
           csi:
             driver: gcsfuse.csi.storage.gke.io
