@@ -462,7 +462,22 @@ class WebsocketFacade:
     def contest_results_channel_name(self, contest: "Contest") -> str:
         return "contestresults_{}".format(contest.pk)
 
-    def transmit_teams(self, contest: "Contest"):
+    def _safe_send(self, channel_name: str, data: dict):
+        """
+        Like _safe_group_send but unicasts directly to a single channel by name instead of
+        broadcasting to every member of a group. No buffer-and-retry on transient Redis errors
+        here (unlike _safe_group_send): a dropped unicast to a channel that's mid-reconnect is
+        moot by the time any retry would land, since the consumer's own connect() will re-request
+        this same data fresh.
+        """
+        try:
+            async_to_sync(self.channel_layer.send)(channel_name, data)
+        except (RedisError, ReadOnlyError) as e:
+            logger.warning(f"Failed to send to websocket channel {channel_name} due to Redis error: {e}. Dropping.")
+        except Exception as e:
+            logger.error(f"Unexpected error in _safe_send for {channel_name}: {e}")
+
+    def transmit_teams(self, contest: "Contest", channel_name: Optional[str] = None):
         from display.models import Team
         from display.serialisers import TeamNestedSerialiser
 
@@ -472,9 +487,12 @@ class WebsocketFacade:
             "type": "contestresults",
             "content": {"type": "contest.teams", "teams": serialiser.data},
         }
-        self._safe_group_send(self.contest_results_channel_name(contest), data)
+        if channel_name:
+            self._safe_send(channel_name, data)
+        else:
+            self._safe_group_send(self.contest_results_channel_name(contest), data)
 
-    def transmit_tasks(self, contest: "Contest"):
+    def transmit_tasks(self, contest: "Contest", channel_name: Optional[str] = None):
         from display.models import Task
         from display.serialisers import TaskSerialiser
 
@@ -486,9 +504,12 @@ class WebsocketFacade:
                 "tasks": TaskSerialiser(tasks, many=True).data,
             },
         }
-        self._safe_group_send(self.contest_results_channel_name(contest), data)
+        if channel_name:
+            self._safe_send(channel_name, data)
+        else:
+            self._safe_group_send(self.contest_results_channel_name(contest), data)
 
-    def transmit_tests(self, contest: "Contest"):
+    def transmit_tests(self, contest: "Contest", channel_name: Optional[str] = None):
         from display.models import TaskTest
         from display.serialisers import TaskTestSerialiser
 
@@ -500,7 +521,10 @@ class WebsocketFacade:
                 "tests": TaskTestSerialiser(tests, many=True).data,
             },
         }
-        self._safe_group_send(self.contest_results_channel_name(contest), data)
+        if channel_name:
+            self._safe_send(channel_name, data)
+        else:
+            self._safe_group_send(self.contest_results_channel_name(contest), data)
 
     def transmit_score_update(
         self,

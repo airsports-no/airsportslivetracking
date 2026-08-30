@@ -174,9 +174,14 @@ class ContestResultsConsumer(ParallelDispatchMixin, WebsocketConsumer):
         async_to_sync(self.channel_layer.group_add)(self.contest_results_group_name, self.channel_name)
         self.accept()
         ws = WebsocketFacade()
-        ws.transmit_teams(contest)
-        ws.transmit_tasks(contest)
-        ws.transmit_tests(contest)
+        # channel_name=self.channel_name: unicast the initial dump to just this connection,
+        # not group_send to the whole contestresults_<pk> group - every already-connected
+        # viewer used to get a redundant full teams/tasks/tests dump whenever *anyone*
+        # connected, O(N^2) messages for N viewers, which self-amplifies into a reconnect
+        # storm exactly when a pod rollout closes every socket at once during a live contest.
+        ws.transmit_teams(contest, channel_name=self.channel_name)
+        ws.transmit_tasks(contest, channel_name=self.channel_name)
+        ws.transmit_tests(contest, channel_name=self.channel_name)
         # Initial contest results must be retrieved through rest to get the correct user credentials
         # ws.transmit_contest_results(self.user, contest)
 
