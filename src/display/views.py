@@ -2708,11 +2708,20 @@ class ContestCreationEmailExample(SuperuserRequiredMixin, View):
 
 def firebase_token_login(request):
     """
-    Manual view for authenticating with firebase. Used by apps
+    Manual view for authenticating with firebase. Used by apps.
+
+    Prefers the token from the ``Authorization: JWT <token>`` header (not logged by
+    reverse proxies/CDNs the way a query string is), falling back to the legacy
+    ``?token=`` query parameter so already-deployed app builds that only know the old
+    URL-based flow keep working.
     """
     from display.authentication import FirebaseTokenAuthentication
 
-    token = request.GET.get("token")
+    authorization = request.headers.get("Authorization", "")
+    scheme, _, header_token = authorization.partition(" ")
+    token = header_token if scheme == FirebaseTokenAuthentication.keyword and header_token else None
+    if not token:
+        token = request.GET.get("token")
     logger.debug("Received Firebase login token")
     firebase_authenticator = FirebaseTokenAuthentication()
     try:
