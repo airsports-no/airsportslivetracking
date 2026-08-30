@@ -1,9 +1,12 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+import redis
 
 import calculator_pool_scaler
-from calculator_pool_scaler import desired_replicas, wake_pool_if_cold
+from calculator_pool_scaler import _reconcile_once, desired_replicas, wake_pool_if_cold
+from display.utilities.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
+from live_tracking_map import settings
 
 
 class TestDesiredReplicas:
@@ -136,3 +139,53 @@ class TestRunForeverStartup:
 
         assert mock_build_api.call_count == 2
         mock_reconcile.assert_called_once()
+
+
+class TestReconcileOnceIndependentFloor:
+    """
+    Regression test for the "independent floor" finding: _reconcile_once must not shrink the
+    pool out from under a calculator that's still genuinely running, even when the schedule query
+    no longer includes its contestant (e.g. it's draining its position queue past
+    finished_by_time, or should_i_terminate() advanced finished_by_time to an inferred landing
+    time). count_running(scheduled_pks) could never catch this, since it can only report a subset
+    of whatever pks the schedule query itself just produced.
+    """
+
+    PK = 90_000_101
+
+    def setup_method(self):
+        calculator_is_terminated(self.PK)
+
+    def teardown_method(self):
+        calculator_is_terminated(self.PK)
+
+    @patch("calculator_pool_scaler._current_replicas", return_value=0)
+    @patch("calculator_pool_scaler._scheduled_contestant_pks", return_value=[])
+    def test_a_calculator_missing_from_the_schedule_query_still_holds_the_pool_open(
+        self, mock_scheduled, mock_current
+    ):
+        calculator_is_alive(self.PK, 30)
+
+        cache_redis_connection = redis.Redis.from_url(settings.REDIS_CACHE_URL)
+        mock_apps_api = MagicMock()
+        mock_broker_redis = MagicMock()
+        mock_broker_redis.llen.return_value = 0
+
+        with patch("calculator_pool_scaler._patch_replicas") as mock_patch:
+            _reconcile_once(
+                mock_apps_api,
+                mock_broker_redis,
+                cache_redis_connection,
+                {
+                    "deployment": "live-calculator",
+                    "namespace": "default",
+                    "slots_per_pod": 12,
+                    "max_replicas": 4,
+                    "prewarm_minutes": 15,
+                },
+            )
+
+        # scheduled=0 and queued=0, but the still-running calculator must have kept the
+        # target above zero - a bare count_running(scheduled_pks=[]) would always be 0 here.
+        mock_patch.assert_called_once()
+        assert mock_patch.call_args.args[-1] >= 1

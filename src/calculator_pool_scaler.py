@@ -26,7 +26,7 @@ import redis
 from django.utils import timezone
 
 from display.models.contestant import Contestant
-from display.utilities.calculator_running_utilities import count_running
+from display.utilities.calculator_running_utilities import count_all_running
 from live_tracking_map import settings
 
 logger = logging.getLogger(__name__)
@@ -164,9 +164,12 @@ def wake_pool_if_cold():
         logger.exception("calculator_pool_scaler: failed to wake pool")
 
 
-def _reconcile_once(apps_api, redis_connection: redis.Redis, config: dict):
+def _reconcile_once(apps_api, redis_connection: redis.Redis, cache_redis_connection: redis.Redis, config: dict):
     scheduled_pks = _scheduled_contestant_pks(config["prewarm_minutes"])
-    running = count_running(scheduled_pks)
+    # count_all_running, not count_running(scheduled_pks): the latter can only ever report a
+    # subset of whatever pks the schedule query just produced, collapsing the "independent floor"
+    # to the schedule query's own opinion - see count_all_running's docstring.
+    running = count_all_running(cache_redis_connection)
     queued = _queued_count(redis_connection)
     target = desired_replicas(
         scheduled=len(scheduled_pks),
@@ -211,12 +214,17 @@ def run_forever():
     # days - with nothing else noticing, so retry instead of propagating.
     apps_api = None
     redis_connection = None
-    while apps_api is None or redis_connection is None:
+    cache_redis_connection = None
+    while apps_api is None or redis_connection is None or cache_redis_connection is None:
         try:
             apps_api = _build_apps_api()
+            # Broker DB (queue depth) - separate from the cache DB below on purpose, same
+            # DB split as the FLUSHDB fix (settings.REDIS_CACHE_URL).
             redis_connection = redis.Redis(
                 host=settings.REDIS_HOST, port=settings.REDIS_PORT, password=settings.REDIS_PASSWORD
             )
+            # Cache DB (CALCULATOR_RUNNING_* heartbeats) - see count_all_running.
+            cache_redis_connection = redis.Redis.from_url(settings.REDIS_CACHE_URL)
         except Exception:
             logger.exception(f"calculator_pool_scaler: failed to initialise, retrying in {poll_seconds}s")
             time.sleep(poll_seconds)
@@ -224,7 +232,7 @@ def run_forever():
     logger.info(f"calculator_pool_scaler: starting with {scaler_config}, polling every {poll_seconds}s")
     while True:
         try:
-            _reconcile_once(apps_api, redis_connection, scaler_config)
+            _reconcile_once(apps_api, redis_connection, cache_redis_connection, scaler_config)
         except Exception:
             logger.exception("calculator_pool_scaler: failed to reconcile replica count")
         time.sleep(poll_seconds)
