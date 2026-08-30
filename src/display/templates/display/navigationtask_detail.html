@@ -275,6 +275,7 @@
                                         {% lucide "ellipsis-vertical" size=20 class="inline-block stroke-current" %}
                                     </label>
                                     <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-20">
+                                        <li><a href="{% url 'contestant_gate_times' contestant.pk %}">View / remove penalties</a></li>
                                         <li><a href="{% url 'contestant_map' contestant.pk %}">Map</a></li>
                                         {% if object.task_subtype == 'turnpoint_hunt' or object.task_subtype == 'limited_fuel_turnpoint_hunt' or object.task_subtype == 'contract_navigation_time_controls' %}
                                             <li><a href="/contestant-declaration/{{ object.contest.pk }}/{{ object.pk }}/{{ contestant.pk }}">Edit declaration</a></li>
@@ -349,11 +350,6 @@
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Mobile Gate Times Link -->
-                            <a href="{% url 'contestant_gate_times' contestant.pk %}" class="btn btn-sm btn-outline btn-block mt-3">
-                                View Gate Times
-                            </a>
                         </div>
                     </div>
                     {% endfor %}
@@ -371,7 +367,6 @@
                             <th>Timing</th>
                             <th class="w-8">AS</th>
                             <th class="w-8">Wind</th>
-                            <th class="w-8 text-center">Gates</th>
                             <th>State</th>
                             <th class="w-16">Actions</th>
                         </tr>
@@ -380,7 +375,7 @@
                         {% for contestant in object.contestant_set.all|dictsort:"contestant_number" %}
                             {% ifchanged contestant.takeoff_time|date:"Y-m-d" %}
                                 <tr class="bg-base-200 font-bold">
-                                    <td colspan="10" class="text-center py-2 text-base-content/80">
+                                    <td colspan="9" class="text-center py-2 text-base-content/80">
                                         {{ contestant.takeoff_time|date:"l, F j, Y" }}
                                     </td>
                                 </tr>
@@ -472,14 +467,12 @@
                                         {{ contestant.wind_direction|stringformat:"03d" }}/{{ contestant.wind_speed }}
                                     </div>
                                 </td>
-                                <td class="text-center">
-                                    <a href="{% url 'contestant_gate_times' contestant.pk %}" class="btn btn-ghost btn-xs text-primary px-1">View</a>
-                                </td>
                                 <td><span class="badge badge-outline badge-xs whitespace-nowrap">{{ contestant.contestanttrack.current_state }}</span></td>
                                 <td>
                                     <div class="dropdown dropdown-end dropdown-left">
                                         <label tabindex="0" class="btn btn-ghost btn-xs px-1">Actions</label>
                                         <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-50">
+                                            <li><a href="{% url 'contestant_gate_times' contestant.pk %}">View / remove penalties</a></li>
                                             <li><a href="{% url 'contestant_map' contestant.pk %}">Map</a></li>
                                             {% if object.task_subtype == 'turnpoint_hunt' or object.task_subtype == 'limited_fuel_turnpoint_hunt' or object.task_subtype == 'contract_navigation_time_controls' %}
                                                 <li><a href="/contestant-declaration/{{ object.contest.pk }}/{{ object.pk }}/{{ contestant.pk }}">Edit declaration</a></li>
