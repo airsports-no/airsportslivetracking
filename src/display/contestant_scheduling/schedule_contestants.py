@@ -230,7 +230,18 @@ def schedule_and_create_contestants_navigation_tasks(
         # Frozen teams with start_time < first_takeoff_time might cause issues with negative slots if not handled.
         # But we can just pass their fixed start time.
 
-        ct = ContestTeam.objects.get(contest=navigation_task.contest, team=contestant.team)
+        try:
+            ct = ContestTeam.objects.get(contest=navigation_task.contest, team=contestant.team)
+        except ContestTeam.DoesNotExist:
+            # The team's registration was removed from the contest after this contestant
+            # was locked in. Its ContestTeam-derived defaults (air_speed etc.) no longer
+            # exist to build a constraint from, so it can't be included as a frozen team -
+            # skip it rather than 500ing the whole scheduling request for every other team.
+            logger.warning(
+                f"Skipping locked contestant {contestant} in scheduling: its team's ContestTeam "
+                f"registration for contest {navigation_task.contest} no longer exists."
+            )
+            continue
         # If this team was also selected, the locked contestant takes precedence?
         # Or does "selected" mean "I want to schedule a NEW flight"?
         # Usually, one team = one contestant per task.
