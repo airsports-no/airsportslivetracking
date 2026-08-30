@@ -1,7 +1,7 @@
 import datetime
 import os
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.test import TransactionTestCase
 from PIL import Image
@@ -14,6 +14,22 @@ from display.utilities.route_building_utilities import create_precision_route_fr
 from utilities.mock_utilities import TraccarMock
 
 
+def _fake_tile_response(*args, **kwargs):
+    # Real (unmocked) network calls to a live OSM tile server made this suite flaky under
+    # load - beyond the usual "slow CI" flakiness, MapTileRenderingDegradedError
+    # (map_plotter.py's check_tile_fetch_health, added to catch a map silently rendered
+    # from mostly-blank tiles) means real rate-limiting/timeouts during a long full-suite
+    # run can now make these tests fail outright instead of just fetching a placeholder.
+    buffer = BytesIO()
+    Image.new("RGB", (256, 256), color=(200, 200, 200)).save(buffer, format="PNG")
+    response = Mock()
+    response.status_code = 200
+    response.content = buffer.getvalue()
+    response.raise_for_status = Mock()
+    return response
+
+
+@patch("display.flight_order_and_maps.map_plotter.requests.get", side_effect=_fake_tile_response)
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
 @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
 class GenerateFlightOrdersTests(TransactionTestCase):
