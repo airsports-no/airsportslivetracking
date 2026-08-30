@@ -312,7 +312,12 @@ class Contestant(models.Model):
 
     def save(self, **kwargs):
         self.tracker_device_id = self.tracker_device_id.strip() if self.tracker_device_id else ""
-        if self.tracking_service == TrackingService.TRACCAR:
+        # Guard matches the equivalent signal handler (create_tracker_in_traccar,
+        # display/signals.py) - without len(...) > 0, every app-tracked contestant
+        # (empty tracker_device_id, see Person.simulator_tracking_id's help text)
+        # made a synchronous Traccar round-trip on every save, including bulk
+        # scheduler writes, and could POST-create a device with an empty uniqueId.
+        if self.tracking_service == TrackingService.TRACCAR and len(self.tracker_device_id) > 0:
             traccar = get_traccar_instance()
             traccar.get_or_create_device(self.tracker_device_id, self.tracker_device_id)
         super().save(**kwargs)
