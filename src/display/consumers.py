@@ -3,7 +3,8 @@ import json
 import logging
 import threading
 
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
+from channels.consumer import SyncConsumer
 from channels.generic.websocket import WebsocketConsumer
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -11,6 +12,35 @@ from display.models import NavigationTask, Contest
 from websocket_channels import WebsocketFacade
 
 logger = logging.getLogger(__name__)
+
+
+class ParallelDispatchMixin(SyncConsumer):
+    """
+    Channels' SyncConsumer.dispatch is wrapped with @database_sync_to_async, which defaults to
+    thread_sensitive=True - asgiref then pins ALL sync-consumer dispatch (every event: connect,
+    receive, disconnect, every group-handler call) for the WHOLE ASGI process onto one single
+    shared thread (asgiref.sync.SyncToAsync.single_thread_executor, a class-level
+    ThreadPoolExecutor(max_workers=1); verified against asgiref 3.12.1 sources - Channels never
+    establishes a per-connection ThreadSensitiveContext to opt out of this). A slow handler on
+    one connection (e.g. ContestResultsConsumer.connect's DB query + full serialization) blocks
+    every other connection's message processing on the same pod, including simple ping/pong
+    keepalives, which can cascade into a mass-reconnect storm right when a pod rollout already
+    closed every socket at once.
+
+    thread_sensitive=False lets asgiref dispatch to its normal (much larger, per asgiref's own
+    default sizing) thread pool instead. This is Django/Channels' own documented escape hatch for
+    exactly this situation, not a workaround: each dispatch() call is a self-contained unit of
+    work that still gets a normal per-thread Django DB connection, the same way a plain
+    synchronous view running under gunicorn already works - there's no shared mutable state
+    between separate dispatch calls for thread_sensitive=True to protect here (confirmed: all
+    three consumers below only touch per-instance `self.` attributes).
+    """
+
+    # SyncConsumer.dispatch (attribute access) triggers SyncToAsync's descriptor protocol and
+    # returns a bound partial, not the raw function - __dict__ access bypasses that and gets the
+    # actual DatabaseSyncToAsync wrapper instance, whose .func is the original undecorated
+    # dispatch() Channels defines.
+    dispatch = sync_to_async(SyncConsumer.__dict__["dispatch"].func, thread_sensitive=False)
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -26,7 +56,7 @@ class DateTimeEncoder(json.JSONEncoder):
         return encoded_object
 
 
-class TrackingConsumer(WebsocketConsumer):
+class TrackingConsumer(ParallelDispatchMixin, WebsocketConsumer):
     def connect(self):
         self.navigation_task_pk = self.scope["url_route"]["kwargs"]["navigation_task"]
         self.navigation_task_group_name = "tracking_{}".format(self.navigation_task_pk)
@@ -75,7 +105,7 @@ class TrackingConsumer(WebsocketConsumer):
         self.send(text_data=json.dumps(event["data"], cls=DateTimeEncoder))
 
 
-class AirsportsPositionsConsumer(WebsocketConsumer):
+class AirsportsPositionsConsumer(ParallelDispatchMixin, WebsocketConsumer):
     """
     ws/traffic/airsports/ - the outbound live-traffic feed ASLT provides for
     external partners (SafeSky) to consume, not something ASLT consumes.
@@ -114,7 +144,7 @@ class AirsportsPositionsConsumer(WebsocketConsumer):
         self.send(text_data=data)
 
 
-class ContestResultsConsumer(WebsocketConsumer):
+class ContestResultsConsumer(ParallelDispatchMixin, WebsocketConsumer):
     def connect(self):
         self.user = self.scope.get("user")
         self.contest_pk = self.scope["url_route"]["kwargs"]["contest_pk"]
