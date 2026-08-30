@@ -991,7 +991,16 @@ class ContestantTaskCompiler:
 
         gate_times = {"SP": base_time.isoformat()}
         gate_times.update(build_segment_times(before_names, "MP", base_time, float(t_seconds), before_distance))
-        mp_time = datetime.datetime.fromisoformat(gate_times["MP"])
+        mp_gate_time = gate_times.get("MP")
+        if mp_gate_time is None:
+            # No "MP" in effective_waypoints - normally impossible (effective waypoints are
+            # synthesized to always include it), but the REST API path lets a client post
+            # declared_sequence directly, skipping that synthesis. Return what we have instead
+            # of KeyError-ing here: _validate_declaration (ContractNavigationStrategy, which
+            # requires exactly one "MP" in declared_sequence) runs right after this and turns
+            # the real problem into a proper validation error instead of a 500.
+            return gate_times
+        mp_time = datetime.datetime.fromisoformat(mp_gate_time)
         gate_times.update(build_segment_times(after_names, "FP", mp_time, float(t_seconds), after_distance))
         return gate_times
 
