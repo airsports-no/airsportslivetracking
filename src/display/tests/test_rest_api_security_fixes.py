@@ -263,6 +263,49 @@ class TestPhotoViewSetScoping(APITestCase):
         self.assertEqual(1, Photo.objects.filter(route=self.private_route).count())
 
 
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+class TestPhotoViewSetRequiresPublicContestNotJustPublicTask(APITestCase):
+    """CodeRabbit review of PR #734: PhotoViewSet.get_queryset's public-visibility branch only
+    checked navigationtask.is_public, not the parent contest's is_public - so a navigation task
+    marked public inside an otherwise-private contest still exposed its photos (the
+    observation-photo answer key, including is_decoy) to any authenticated user, and even
+    anonymous ones. Every other visibility check in this codebase (websocket consumers, REST
+    permissions) requires both flags."""
+
+    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def setUp(self, *args):
+        scorecard = get_default_scorecard()
+        with open("display/tests/NM.csv", "r") as file:
+            editable_route, _ = EditableRoute.create_from_csv("Test", file.readlines()[1:])
+            self.route = editable_route.create_precision_route(True, scorecard)
+        self.private_contest = Contest.objects.create(
+            name="Private contest, public task",
+            is_public=False,
+            start_time=datetime.datetime.now(datetime.timezone.utc),
+            finish_time=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1),
+            location="60, 11",
+        )
+        self.public_task_in_private_contest = _make_navigation_task(
+            self.private_contest, self.route, scorecard, is_public=True
+        )
+        self.photo = Photo.objects.create(
+            name="Answer key photo", route=self.route, latitude=60.0, longitude=11.0
+        )
+        self.outsider_user = get_user_model().objects.create(email="outsider2@example.com")
+
+    def test_outsider_cannot_list_photos_for_a_public_task_in_a_private_contest(self, *args):
+        self.client.force_login(user=self.outsider_user)
+        response = self.client.get(f"/api/v1/photos/?route={self.route.pk}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([], response.json())
+
+    def test_anonymous_user_cannot_list_photos_for_a_public_task_in_a_private_contest(self, *args):
+        response = self.client.get(f"/api/v1/photos/?route={self.route.pk}")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
 class TestTeamViewSetScoping(APITestCase):
     """Finding #11: TeamViewSet had no queryset scoping, so any authenticated user could list
     every pilot's name/email/phone system-wide via GET /api/v1/teams/."""

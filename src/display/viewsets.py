@@ -1653,9 +1653,12 @@ class PhotoViewSet(ModelViewSet):
                 user, "display.view_contest", klass=Contest, accept_global_perms=False
             )
             return queryset.filter(
-                Q(route__navigationtask__is_public=True) | Q(route__navigationtask__contest__in=visible_contests)
+                Q(route__navigationtask__is_public=True, route__navigationtask__contest__is_public=True)
+                | Q(route__navigationtask__contest__in=visible_contests)
             ).distinct()
-        return queryset.filter(route__navigationtask__is_public=True)
+        return queryset.filter(
+            route__navigationtask__is_public=True, route__navigationtask__contest__is_public=True
+        )
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated & PhotoPermissions])
     def revert(self, request, pk=None):
