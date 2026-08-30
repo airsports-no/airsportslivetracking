@@ -957,40 +957,47 @@ class SignupSerialiser(serializers.Serializer):
 
     def create(self, validated_data):
         request = self.context["request"]
-        team = Team.get_or_create_from_signup(
-            self.context["request"].user,
-            validated_data["copilot_id"],
-            validated_data["aircraft_registration"],
-            validated_data["club_name"],
-        )
-
         contest = self.context["contest"]
-        # assert_can_register_team enforces the contest's resolved team-registration
-        # capacity - imported elsewhere in this module's capacity checks but never
-        # actually called here, so a contest at its registration limit had no cap
-        # on new public signups.
-        assert_can_register_team(contest, team)
-        if ContestTeam.objects.filter(contest=contest, team=team).exists():
-            raise ValidationError(f"Team {team} is already registered for contest {contest}")
-        teams = ContestTeam.objects.filter(
-            Q(team__crew__member1_id=request.user.person.pk) | Q(team__crew__member2_id=request.user.person.pk),
-            contest=contest,
-        )
-        if teams.exists():
-            raise ValidationError(
-                f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
+        # Lock the contest row before materializing the team or checking capacity, and keep
+        # both inside the same transaction - matches the established pattern in
+        # ContestantTrack.set_calculator_started (contestant_track.py). Without this, two
+        # concurrent public signups for the contest's last slot could both read the
+        # pre-insert count, both pass assert_can_register_team, and both register.
+        with transaction.atomic():
+            Contest.objects.select_for_update().get(pk=contest.pk)
+            team = Team.get_or_create_from_signup(
+                self.context["request"].user,
+                validated_data["copilot_id"],
+                validated_data["aircraft_registration"],
+                validated_data["club_name"],
             )
-        if validated_data["copilot_id"]:
+
+            # assert_can_register_team enforces the contest's resolved team-registration
+            # capacity - imported elsewhere in this module's capacity checks but never
+            # actually called here, so a contest at its registration limit had no cap
+            # on new public signups.
+            assert_can_register_team(contest, team)
+            if ContestTeam.objects.filter(contest=contest, team=team).exists():
+                raise ValidationError(f"Team {team} is already registered for contest {contest}")
             teams = ContestTeam.objects.filter(
-                Q(team__crew__member1=validated_data["copilot_id"])
-                | Q(team__crew__member2=validated_data["copilot_id"]),
+                Q(team__crew__member1_id=request.user.person.pk) | Q(team__crew__member2_id=request.user.person.pk),
                 contest=contest,
             )
             if teams.exists():
                 raise ValidationError(
-                    f"The co-pilot is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
+                    f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
                 )
-        return contest.replace_team(None, team, {"air_speed": validated_data["airspeed"]})
+            if validated_data["copilot_id"]:
+                teams = ContestTeam.objects.filter(
+                    Q(team__crew__member1=validated_data["copilot_id"])
+                    | Q(team__crew__member2=validated_data["copilot_id"]),
+                    contest=contest,
+                )
+                if teams.exists():
+                    raise ValidationError(
+                        f"The co-pilot is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
+                    )
+            return contest.replace_team(None, team, {"air_speed": validated_data["airspeed"]})
 
     aircraft_registration = serializers.CharField()
     club_name = serializers.CharField()
@@ -1400,43 +1407,59 @@ class ContestantNestedTeamSerialiser(ContestantSerialiser):
 
     def create(self, validated_data):
         team_data = validated_data.pop("team")
-        team_serialiser = TeamNestedSerialiser(data=team_data)
-        team_serialiser.is_valid(raise_exception=True)
-        team = team_serialiser.save()
-        # Capacity check moved here rather than ContestantViewSet.create()'s
-        # pre-save check (which only sees the still-unresolved nested `team`
-        # dict): this is the earliest point team is a real Team/Person we can
-        # capacity-check against, and it's still before the Contestant itself
-        # (with its Traccar device side effect) is created.
         navigation_task = self.context.get("navigation_task")
-        if navigation_task is not None:
-            resolution = resolve_contest_access(navigation_task.contest)
-            _assert_can_reserve_task_slot(navigation_task, team, resolution)
-        validated_data["team"] = team
-        return super().create(validated_data)
+        # Lock the contest row before materializing the nested team or checking capacity,
+        # and keep both inside the same transaction - matches the established pattern in
+        # ContestantTrack.set_calculator_started (contestant_track.py). Without this, two
+        # concurrent requests for the contest's last slot could both read the pre-insert
+        # count, both pass _assert_can_reserve_task_slot, and both save; and even a single
+        # rejected request would otherwise leave its nested TeamNestedSerialiser.save()
+        # writes (Person/Crew/Team/ContestTeam) persisted despite the "registration
+        # failed" response, since there was no rollback for a check that runs after the
+        # nested save.
+        with transaction.atomic():
+            if navigation_task is not None:
+                Contest.objects.select_for_update().get(pk=navigation_task.contest_id)
+            team_serialiser = TeamNestedSerialiser(data=team_data)
+            team_serialiser.is_valid(raise_exception=True)
+            team = team_serialiser.save()
+            # Capacity check moved here rather than ContestantViewSet.create()'s
+            # pre-save check (which only sees the still-unresolved nested `team`
+            # dict): this is the earliest point team is a real Team/Person we can
+            # capacity-check against, and it's still before the Contestant itself
+            # (with its Traccar device side effect) is created.
+            if navigation_task is not None:
+                resolution = resolve_contest_access(navigation_task.contest)
+                _assert_can_reserve_task_slot(navigation_task, team, resolution)
+            validated_data["team"] = team
+            return super().create(validated_data)
 
     def update(self, instance, validated_data):
         team_data = validated_data.pop("team", None)
         if team_data:
-            try:
-                team_instance = Team.objects.get(pk=team_data.get("id"))
-            except ObjectDoesNotExist:
-                team_instance = None
-            team_serialiser = TeamNestedSerialiser(instance=team_instance, data=team_data)
-            team_serialiser.is_valid(raise_exception=True)
-            team = team_serialiser.save()
-            # Same reasoning as create() above.
             navigation_task = instance.navigation_task
-            if navigation_task is not None:
-                resolution = resolve_contest_access(navigation_task.contest)
-                _assert_can_reserve_task_slot(navigation_task, team, resolution, current_contestant=instance)
-            # An actual Team instance, not team.pk: update_contestant_with_related_state
-            # now applies validated_data via setattr(instance, field_name, value) (so
-            # Contestant.clean()'s guards run against the real pre-request row - see the
-            # 2026-08-28 review's SENSITIVE "REST update bypasses calculator-start guard"
-            # finding), and a ForeignKey descriptor rejects a bare pk there, unlike the
-            # queryset .update() call this replaced.
-            validated_data.update({"team": team})
+            # Same locking reasoning as create() above.
+            with transaction.atomic():
+                if navigation_task is not None:
+                    Contest.objects.select_for_update().get(pk=navigation_task.contest_id)
+                try:
+                    team_instance = Team.objects.get(pk=team_data.get("id"))
+                except ObjectDoesNotExist:
+                    team_instance = None
+                team_serialiser = TeamNestedSerialiser(instance=team_instance, data=team_data)
+                team_serialiser.is_valid(raise_exception=True)
+                team = team_serialiser.save()
+                if navigation_task is not None:
+                    resolution = resolve_contest_access(navigation_task.contest)
+                    _assert_can_reserve_task_slot(navigation_task, team, resolution, current_contestant=instance)
+                # An actual Team instance, not team.pk: update_contestant_with_related_state
+                # now applies validated_data via setattr(instance, field_name, value) (so
+                # Contestant.clean()'s guards run against the real pre-request row - see the
+                # 2026-08-28 review's SENSITIVE "REST update bypasses calculator-start guard"
+                # finding), and a ForeignKey descriptor rejects a bare pk there, unlike the
+                # queryset .update() call this replaced.
+                validated_data.update({"team": team})
+                return super().update(instance, validated_data)
         return super().update(instance, validated_data)
 
 

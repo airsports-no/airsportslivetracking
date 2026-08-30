@@ -2051,9 +2051,20 @@ class ContestantViewSet(ModelViewSet):
             # own equivalent check once it has resolved a real instance, in
             # ContestantNestedTeamSerialiser.create() below.
             if navigation_task is not None and isinstance(team, Team):
-                resolution = resolve_contest_access(navigation_task.contest)
-                _assert_can_reserve_task_slot(navigation_task, team, resolution)
-            serialiser.save()
+                # select_for_update() on the contest row before checking, inside the same
+                # transaction as the save below - matches the established pattern in
+                # ContestantTrack.set_calculator_started (contestant_track.py). Without a
+                # lock spanning read+write, two concurrent requests for the contest's last
+                # slot can both read the pre-insert count, both pass
+                # _assert_can_reserve_task_slot, and both save - exceeding the resolved
+                # tier's contestant_limit.
+                with transaction.atomic():
+                    Contest.objects.select_for_update().get(pk=navigation_task.contest_id)
+                    resolution = resolve_contest_access(navigation_task.contest)
+                    _assert_can_reserve_task_slot(navigation_task, team, resolution)
+                    serialiser.save()
+            else:
+                serialiser.save()
             # create_with_team used to bypass this override entirely (calling
             # super().create(), DRF's CreateModelMixin, which always returns 201) -
             # now that it's routed through here too (see create_with_team below),
@@ -2086,11 +2097,15 @@ class ContestantViewSet(ModelViewSet):
             # of which route (nested or the top-level /contestant/) was used.
             navigation_task = instance.navigation_task
             team = serialiser.validated_data.get("team")
-            # See the equivalent isinstance guard in create() above.
+            # See the equivalent isinstance guard and locking rationale in create() above.
             if navigation_task is not None and isinstance(team, Team):
-                resolution = resolve_contest_access(navigation_task.contest)
-                _assert_can_reserve_task_slot(navigation_task, team, resolution, current_contestant=instance)
-            serialiser.save()
+                with transaction.atomic():
+                    Contest.objects.select_for_update().get(pk=navigation_task.contest_id)
+                    resolution = resolve_contest_access(navigation_task.contest)
+                    _assert_can_reserve_task_slot(navigation_task, team, resolution, current_contestant=instance)
+                    serialiser.save()
+            else:
+                serialiser.save()
             return Response(serialiser.data)
         return Response(serialiser.errors, status=status.HTTP_400_BAD_REQUEST)
 
