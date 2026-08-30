@@ -3,8 +3,9 @@ import json
 import logging
 import threading
 
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import async_to_sync
 from channels.consumer import SyncConsumer
+from channels.db import database_sync_to_async
 from channels.generic.websocket import WebsocketConsumer
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -39,8 +40,14 @@ class ParallelDispatchMixin(SyncConsumer):
     # SyncConsumer.dispatch (attribute access) triggers SyncToAsync's descriptor protocol and
     # returns a bound partial, not the raw function - __dict__ access bypasses that and gets the
     # actual DatabaseSyncToAsync wrapper instance, whose .func is the original undecorated
-    # dispatch() Channels defines.
-    dispatch = sync_to_async(SyncConsumer.__dict__["dispatch"].func, thread_sensitive=False)
+    # dispatch() Channels defines. Re-wrapped with channels.db.database_sync_to_async (not plain
+    # asgiref.sync.sync_to_async - DatabaseSyncToAsync inherits __init__ unchanged, so it accepts
+    # thread_sensitive=False identically) so dispatch keeps the close_old_connections() cleanup
+    # the original decorator ran before/after every call. Without it, CONN_MAX_AGE=60
+    # (settings.py) persistent MySQL connections on the larger asgiref thread pool this now
+    # dispatches to are never recycled, and the next query on a long-idle pool thread hits
+    # "MySQL server has gone away".
+    dispatch = database_sync_to_async(SyncConsumer.__dict__["dispatch"].func, thread_sensitive=False)
 
 
 class DateTimeEncoder(json.JSONEncoder):
