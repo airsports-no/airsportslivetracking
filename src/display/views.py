@@ -2167,6 +2167,7 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
         return HttpResponseRedirect(self.get_success_url())
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def clear_contestants(request, pk):
     """
@@ -2712,7 +2713,7 @@ def firebase_token_login(request):
     from display.authentication import FirebaseTokenAuthentication
 
     token = request.GET.get("token")
-    logger.debug(f"Token {token}")
+    logger.debug("Received Firebase login token")
     firebase_authenticator = FirebaseTokenAuthentication()
     try:
         user, decoded_token = firebase_authenticator.authenticate_credentials(token)

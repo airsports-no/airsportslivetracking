@@ -116,7 +116,12 @@ class TestDeleteSelfManagedContestantOwnership(APITestCase):
 
 class TestClearContestantsRequiresChangePermission(APITestCase):
     """Finding #2: clear_contestants required only view_contest but deleted every contestant.
-    Fix: now requires change_contest, matching its sibling destructive views."""
+    Fix: now requires change_contest, matching its sibling destructive views.
+
+    Also covers a CodeRabbit review finding on PR #734: clear_contestants had no @require_POST,
+    so a GET request (not covered by Django's CSRF middleware) deleted every contestant - a
+    crafted <img src="..."> or link visited by a logged-in manager could silently wipe a task's
+    contestants."""
 
     def setUp(self):
         self.contest = Contest.objects.create(
@@ -154,14 +159,20 @@ class TestClearContestantsRequiresChangePermission(APITestCase):
 
     def test_view_only_user_cannot_clear_contestants(self):
         self.client.force_login(user=self.viewer_user)
-        response = self.client.get(self.url)
+        response = self.client.post(self.url)
         self.assertNotEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(1, self.navigation_task.contestant_set.count())
 
     def test_manager_can_clear_contestants(self):
         self.client.force_login(user=self.manager_user)
-        self.client.get(self.url)
+        self.client.post(self.url)
         self.assertEqual(0, self.navigation_task.contestant_set.count())
+
+    def test_get_is_rejected_without_deleting_contestants(self):
+        self.client.force_login(user=self.manager_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(1, self.navigation_task.contestant_set.count())
 
 
 class TestContestListCacheDoesNotLeakAcrossUsers(APITestCase):

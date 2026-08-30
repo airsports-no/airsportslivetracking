@@ -86,7 +86,12 @@
                             {% lucide "settings" size=16 class="lucide lucide-settings" %}
                         </label>
                         <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-64">
-                            <li><a href="{% url 'navigationtask_removecontestants' object.pk %}" class="text-error">Remove contestants</a></li>
+                            <li>
+                                <form method="post" action="{% url 'navigationtask_removecontestants' object.pk %}" onsubmit="return confirm('Remove all contestants from this navigation task?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="text-error w-full text-left">Remove contestants</button>
+                                </form>
+                            </li>
                             {% if object.editable_route %}
                                 <li><hr class="my-1 border-base-200"></li>
                                 <li><a href="{% fe_url 'ROUTE_EDITOR_EDIT' routeId=object.editable_route.id %}">Edit route</a></li>
