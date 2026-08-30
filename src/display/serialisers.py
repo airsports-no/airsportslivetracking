@@ -1059,8 +1059,16 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         gate_scores = validated_data.pop("gatescore_set")
-        Scorecard.objects.filter(pk=instance.pk).update(**validated_data)
-        instance.refresh_from_db()
+        # instance.save(), not a queryset .update(): the latter skips pre_save/post_save
+        # entirely, so update_contestant_initial_score (propagates an initial_score delta
+        # onto every contestant track) and sync_scorecard_sorting_direction (mirrors
+        # score_sorting_direction onto the linked TaskTest/Task) never ran - editing a
+        # scorecard via the API silently left contestant scores un-adjusted and
+        # results-sorting stale, while the admin/form path (which does use save()) was
+        # correct.
+        for field_name, value in validated_data.items():
+            setattr(instance, field_name, value)
+        instance.save()
         for gate in gate_scores:
             instance.gatescore_set.filter(gate_type=gate["gate_type"]).update(**gate)
         return instance
