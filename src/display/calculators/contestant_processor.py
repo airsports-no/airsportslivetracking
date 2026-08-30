@@ -590,8 +590,18 @@ class ContestantProcessor:
                 elif last_gate:
                     lat, lon = last_gate.latitude, last_gate.longitude
                     planned = last_gate.expected_time
-                elif self.route.waypoints:
-                    lat, lon = self.route.waypoints[0].latitude, self.route.waypoints[0].longitude
+                elif self.contestant.navigation_task.route.waypoints:
+                    # ContestantProcessor is not a Calculator subclass - it never had a
+                    # self.route (only Calculator.__init__ sets that) - hit whenever a manual
+                    # termination is requested while position is None and
+                    # orchestrator.get_last_gate() is None (normal pre-first-position state,
+                    # and permanent for POKER/LANDING tasks, whose calculators never emit
+                    # NextGateExpectedEvent). The AttributeError fired before
+                    # notify_termination(), so track_terminated never got set.
+                    lat, lon = (
+                        self.contestant.navigation_task.route.waypoints[0].latitude,
+                        self.contestant.navigation_task.route.waypoints[0].longitude,
+                    )
 
                 self.score_processing_queue.put_nowait(
                     UpdateScoreMessage(
