@@ -14,8 +14,11 @@ spec:
     metadata:
       labels:
         date: "{{ now | unixEpoch }}"
+      annotations:
+        gke-gcsfuse/volumes: "true"
     spec:
       restartPolicy: Never
+      serviceAccountName: calculator-scheduler
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -28,7 +31,7 @@ spec:
             - "-c"
             - >
               set -eu;
-              echo "Copying static mbtiles from the legacy volume to the new ReadWriteMany volume...";
+              echo "Copying static mbtiles from the legacy volume to the static_maps GCS prefix...";
               cp -a /source/. /dest/;
               echo "Done. Destination contents:";
               ls -la /dest
@@ -47,7 +50,12 @@ spec:
           persistentVolumeClaim:
             claimName: {{ .Values.mbtiles.legacyPvcName }}
             readOnly: true
+        # Not readOnly here (unlike the Deployment's mount of the same prefix) - this
+        # Job is the writer that populates it.
         - name: mbtiles-static
-          persistentVolumeClaim:
-            claimName: {{ .Values.mbtiles.staticPvcName }}
+          csi:
+            driver: gcsfuse.csi.storage.gke.io
+            volumeAttributes:
+              bucketName: {{ .Values.mbtiles.bucketName | quote }}
+              mountOptions: {{ printf "%s,only-dir=%s" .Values.mbtiles.gcsfuse.mountOptions .Values.mbtiles.staticGcsPrefix | quote }}
 {{- end }}
