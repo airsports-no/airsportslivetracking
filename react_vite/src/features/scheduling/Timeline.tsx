@@ -18,15 +18,22 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
     const itemsRef = useRef<DataSet<DataItem> | null>(null); // DataSet
     const groupsRef = useRef<DataSet<DataGroup> | null>(null); // DataSet
 
-    if (!navigationTask || !navigationTask.contestant_set || navigationTask.contestant_set.length === 0) {
-        return <div className="text-center p-4">No contestants scheduled yet.</div>;
-    }
+    const contestantSet = navigationTask?.contestant_set;
+    const hasContestants = Boolean(contestantSet?.length);
 
+    // Hooks must run unconditionally on every render (Rules of Hooks) - an early
+    // return here based on a prop that changes over the component's lifetime
+    // (contestant_set going from empty to populated, or back) changes how many
+    // hooks run between renders and crashes the whole subtree ("Rendered more
+    // hooks than during the previous render"). The empty-state message is
+    // rendered as an overlay in the JSX below instead, so the container div -
+    // and every hook - stays mounted regardless of contestant count.
     const contestants = useMemo(() => {
-        return [...navigationTask.contestant_set].sort((a, b) => 
+        if (!contestantSet) return [];
+        return [...contestantSet].sort((a, b) =>
             new Date(a.takeoff_time).getTime() - new Date(b.takeoff_time).getTime()
         );
-    }, [navigationTask.contestant_set]);
+    }, [contestantSet]);
 
     // Group by aircraft
     const aircraftGroups = useMemo(() => {
@@ -279,7 +286,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
     }, [timelineItems, aircraftGroups, firstTakeoffTime, contestants]);
 
     return (
-        <div className="w-full h-full">
+        <div className="w-full h-full relative">
             <style>{`
                 .vis-item-locked {
                     background-color: #9ca3af;
@@ -302,6 +309,11 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                     z-index: 2;
                 }
             `}</style>
+            {!hasContestants && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center text-center p-4 bg-base-100">
+                    No contestants scheduled yet.
+                </div>
+            )}
             <div ref={containerRef} className="w-full border border-base-300 rounded-lg bg-base-100 h-full" />
         </div>
     );
