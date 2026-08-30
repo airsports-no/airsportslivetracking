@@ -16,6 +16,14 @@ spec:
         date: "{{ now | unixEpoch }}"
       annotations:
         gke-gcsfuse/volumes: "true"
+        # gcsfuse rejects ownership/permission changes outright - see the note on the "cp -R,
+        # not cp -a" choice below. This Job still stages the copy on the sidecar's local
+        # ephemeral storage before uploading, so it needs the same headroom as the Deployment's
+        # gcsfuse mount of the same prefix (see deployment_mbtileserver.yml) - a single
+        # .mbtiles file close to the sidecar's pre-GKE-1.29.1-gke.1670000 default (5Gi) would
+        # otherwise fail the copy or get the pod evicted for exceeding ephemeral storage.
+        gke-gcsfuse/ephemeral-storage-limit: {{ .Values.mbtiles.staticFileCacheSidecarStorageLimit | quote }}
+        gke-gcsfuse/ephemeral-storage-request: {{ .Values.mbtiles.staticFileCacheSidecarStorageRequest | quote }}
     spec:
       restartPolicy: Never
       serviceAccountName: calculator-scheduler
@@ -23,6 +31,20 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      # This Job's pod and the still-running mbtiles Deployment pod (see
+      # deployment_mbtileserver.yml) both mount legacyPvcName (ReadWriteOnce) at the same
+      # time - a pre-upgrade hook runs before Helm updates the Deployment, so the old pod is
+      # still up. ReadWriteOnce allows concurrent mounters only on the same node; without this
+      # affinity the scheduler could place this pod on a different node than the mbtiles pod,
+      # producing a FailedAttachVolume/Multi-Attach error that leaves the Job stuck Pending
+      # for up to activeDeadlineSeconds, failing the whole upgrade.
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  service: mbtiles
+              topologyKey: kubernetes.io/hostname
       containers:
         - name: mbtiles-static-migration
           image: "alpine:3.20"
@@ -32,7 +54,7 @@ spec:
             - >
               set -eu;
               echo "Copying static mbtiles from the legacy volume to the static_maps GCS prefix...";
-              cp -a /source/. /dest/;
+              cp -R /source/. /dest/;
               echo "Done. Destination contents:";
               ls -la /dest
           resources:
