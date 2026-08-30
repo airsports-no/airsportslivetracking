@@ -4,6 +4,12 @@ and broadcast_navigation_task_orders only required display.view_contest, despite
 selected contestant's existing flight-order links and (re-)triggering generation/notification
 emails to the whole start list. A read-only collaborator could invalidate all distributed
 flight-order links and mail-bomb every contestant.
+
+Also covers a CodeRabbit review finding on PR #734: both views were exposed as
+@api_view(["GET"]) - GET isn't covered by CSRF protection (Django's/DRF's CSRF middleware only
+guards unsafe methods), so a change_contest-holding manager visiting a crafted cross-site page
+(a plain <img src="..."> tag is enough) would silently trigger either action with their session.
+Fixed by switching both to POST, which DRF's SessionAuthentication does enforce CSRF on.
 """
 
 import datetime
@@ -72,25 +78,48 @@ class TestFlightOrderBroadcastAuthorization(TestCase):
 
     def test_viewer_cannot_generate_flight_orders(self, *args):
         self.client.force_login(user=self.viewer)
-        response = self.client.get(self.generate_url)
+        response = self.client.post(self.generate_url)
         self.assertNotEqual(response.status_code, 200)
         self.assertTrue(EmailMapLink.objects.filter(pk=self.email_link.pk).exists())
 
     def test_viewer_cannot_broadcast_flight_orders(self, *args):
         self.client.force_login(user=self.viewer)
-        response = self.client.get(self.broadcast_url)
+        response = self.client.post(self.broadcast_url)
         self.assertNotEqual(response.status_code, 200)
 
     @patch("display.views_api.generate_and_maybe_notify_flight_order")
     def test_manager_can_generate_flight_orders(self, mock_generate, *args):
         self.client.force_login(user=self.manager)
-        response = self.client.get(self.generate_url)
+        response = self.client.post(self.generate_url)
         self.assertEqual(response.status_code, 200, response.content)
         mock_generate.apply_async.assert_called_once()
 
     @patch("display.views_api.notify_flight_order")
     def test_manager_can_broadcast_flight_orders(self, mock_notify, *args):
         self.client.force_login(user=self.manager)
-        response = self.client.get(self.broadcast_url)
+        response = self.client.post(self.broadcast_url)
         self.assertEqual(response.status_code, 200, response.content)
         mock_notify.apply_async.assert_called_once()
+
+    def test_get_cannot_generate_flight_orders(self, *args):
+        self.client.force_login(user=self.manager)
+        response = self.client.get(self.generate_url)
+        self.assertEqual(response.status_code, 405)
+        self.assertTrue(EmailMapLink.objects.filter(pk=self.email_link.pk).exists())
+
+    def test_get_cannot_broadcast_flight_orders(self, *args):
+        self.client.force_login(user=self.manager)
+        response = self.client.get(self.broadcast_url)
+        self.assertEqual(response.status_code, 405)
+
+    def test_cross_site_post_without_csrf_token_is_rejected(self, *args):
+        # A same-origin POST (Django's test Client attaches a valid CSRF cookie+token
+        # automatically) still works via generate/broadcast above; this proves the missing
+        # ingredient - a valid CSRF token - is actually enforced now that these are POST.
+        from django.test import Client
+
+        strict_client = Client(enforce_csrf_checks=True)
+        strict_client.force_login(user=self.manager)
+        response = strict_client.post(self.generate_url)
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(EmailMapLink.objects.filter(pk=self.email_link.pk).exists())

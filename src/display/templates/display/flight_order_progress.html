@@ -152,7 +152,10 @@
         disableGenerate();
         clearStatus();
         try {
-            const response = await fetch(`{% url 'navigationtask_generateflightorders' navigation_task.pk %}?contestant_pks=${selected.join(",")}`);
+            const response = await fetch(`{% url 'navigationtask_generateflightorders' navigation_task.pk %}?contestant_pks=${selected.join(",")}`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': document.configuration.csrftoken }
+            });
             const data = await response.json();
             updateRunningStatus(data, true);
         } catch (e) {
@@ -170,7 +173,10 @@
         }
 
         try {
-            const response = await fetch(`{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}?contestant_pks=${selected.join(",")}`);
+            const response = await fetch(`{% url 'navigationtask_broadcastflightorders' navigation_task.pk %}?contestant_pks=${selected.join(",")}`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': document.configuration.csrftoken }
+            });
             const data = await response.json();
             updateRunningStatus(data);
         } catch (e) {
