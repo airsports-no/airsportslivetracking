@@ -186,7 +186,16 @@ class ContestResultsConsumer(ParallelDispatchMixin, WebsocketConsumer):
         # ws.transmit_contest_results(self.user, contest)
 
     def receive(self, text_data, **kwargs):
-        message = json.loads(text_data)
+        try:
+            message = json.loads(text_data)
+        except json.JSONDecodeError:
+            # An uncaught exception here propagates out of the Channels dispatch loop
+            # without ever running websocket_disconnect, so group_discard never runs and
+            # the dead channel stays registered in the group until the 24h group_expiry,
+            # receiving sends nobody reads - see TrackingConsumer.receive, guarded the
+            # same way.
+            logger.debug(f"Received non-JSON message: {text_data}")
+            return
         logger.debug(message)
 
     def contestresults(self, event):
