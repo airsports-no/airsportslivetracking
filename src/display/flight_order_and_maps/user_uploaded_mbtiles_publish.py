@@ -61,12 +61,27 @@ def request_mbtiles_reload() -> None:
     if not pods:
         raise RuntimeError(f"Could not find mbtiles pod with selector '{label_selector}' in namespace '{namespace}'")
 
-    # Signal every matching pod, not just one: with more than one mbtiles replica, only
+    # Only signal pods that are actually Ready and not being torn down. During a rollout or
+    # a node-consolidation replacement, list_namespaced_pod can return a pod that's still
+    # starting (exec would just fail - nothing to run the command in yet) or already
+    # Terminating (about to disappear) alongside the pod(s) actually serving traffic. Without
+    # this filter, execing into one of those would report a false failure for an
+    # upload/replace/delete even though every pod that matters got reloaded.
+    ready_pods = [
+        pod
+        for pod in pods
+        if pod.metadata.deletion_timestamp is None
+        and any(condition.type == "Ready" and condition.status == "True" for condition in pod.status.conditions or [])
+    ]
+    if not ready_pods:
+        raise RuntimeError(f"No ready mbtiles pod found with selector '{label_selector}' in namespace '{namespace}'")
+
+    # Signal every ready pod, not just one: with more than one mbtiles replica, only
     # reloading pods[0] would leave the others silently serving stale tilesets until their
     # own restart. One pod's exec failing shouldn't stop the others from being signaled, so
     # errors are collected and raised together at the end rather than aborting the loop.
     errors = []
-    for pod in pods:
+    for pod in ready_pods:
         pod_name = pod.metadata.name
         try:
             stream(
@@ -83,5 +98,5 @@ def request_mbtiles_reload() -> None:
             errors.append(f"{pod_name}: {ex}")
 
     if errors:
-        raise RuntimeError(f"Failed to reload {len(errors)}/{len(pods)} mbtiles pod(s): {'; '.join(errors)}")
+        raise RuntimeError(f"Failed to reload {len(errors)}/{len(ready_pods)} mbtiles pod(s): {'; '.join(errors)}")
     return None
