@@ -133,10 +133,29 @@ def get_default_scorecard():
         {"gate_type": FINISHPOINT},
         existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=FINISHPOINT)),
     )
-    simple_clone(
-        regular_gate_score,
-        {"gate_type": STARTINGPOINT},
-        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=STARTINGPOINT)),
+    GateScore.objects.update_or_create(
+        scorecard=scorecard,
+        gate_type=STARTINGPOINT,
+        defaults={
+            "extended_gate_width": 2,
+            "bad_crossing_extended_gate_penalty": 200,
+            "graceperiod_before": 2,
+            "graceperiod_after": 2,
+            "maximum_penalty": 100,
+            "penalty_per_second": 3,
+            "missed_penalty": 100,
+            "missed_procedure_turn_penalty": 0,
+            "backtracking_after_steep_gate_grace_period_seconds": 45,
+            "included_fields": [
+                [
+                    "Penalties",
+                    "penalty_per_second",
+                    "maximum_penalty",
+                    "missed_penalty",
+                ],
+                ["Time limits", "graceperiod_before", "graceperiod_after"],
+            ],
+        },
     )
     simple_clone(
         regular_gate_score,
