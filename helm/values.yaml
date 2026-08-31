@@ -145,14 +145,19 @@ mbtiles:
   staticFileCacheSidecarStorageRequest: 7Gi
   staticFileCacheSidecarStorageLimit: 8Gi
   # One-off migration from the old ReadWriteOnce/standard-rwo PVC (pvc-mbtiles) onto
-  # staticGcsPrefix above. See job_mbtiles_static_migration.yaml: it runs as a
+  # staticGcsPrefix above. See job_mbtiles_static_migration.yaml: it ran as a
   # pre-upgrade hook, copying data from legacyPvcName into the bucket before Helm
-  # prunes the now-undeclared legacy PVC. Set runStaticMigration to false once the
-  # migration has been confirmed to have succeeded (checked its Job logs) - after
-  # that first upgrade, legacyPvcName no longer exists, and a pod referencing a
-  # missing PVC would just hang Pending, timing out every future `helm upgrade`
-  # until this is flipped off.
-  runStaticMigration: true
+  # prunes the now-undeclared legacy PVC.
+  #
+  # Migration confirmed complete 2026-08-31: gs://airsports-data/static_maps/ holds
+  # all 6 files (21 GiB total), matching the legacy PVC's contents exactly (verified
+  # via `gsutil ls -l` against both). runStaticMigration is now off - the legacy PVC
+  # (legacyPvcName below) is no longer referenced anywhere in this chart and can be
+  # deleted manually once nothing else needs it; leaving it stopped Helm from
+  # pruning it automatically (it was never declared as its own PVC resource in this
+  # chart, only referenced by claimName, so Helm never owned/tracked it for pruning
+  # in the first place).
+  runStaticMigration: false
   legacyPvcName: pvc-mbtiles
 
 resources: {}
