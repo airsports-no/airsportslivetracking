@@ -1416,7 +1416,7 @@ def plot_catalogue_targets(targets: list[dict], colour: str, scorecard: Optional
     # own lookup) - task_config never carries them, so reading task_config
     # here always drew the 200/750 defaults regardless of the configured
     # scorecard values.
-    cima_config = CimaScoringConfig.from_scorecard(scorecard)
+    cima_config = CimaScoringConfig() if scorecard is None else CimaScoringConfig.from_scorecard(scorecard)
     min_radius_m = cima_config.circle_radius_min_m
     max_radius_m = cima_config.circle_radius_max_m
     for radius, edge_colour, line_width, dash_pattern in (

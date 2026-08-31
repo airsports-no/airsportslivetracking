@@ -866,7 +866,6 @@ class MapFallbackTests(TestCase):
         max_ring_radius_m = calculate_distance_lat_lon(center, (max_ring_lats[0], max_ring_lons[0]))
         self.assertAlmostEqual(min_ring_radius_m, 250, delta=1)
         self.assertAlmostEqual(max_ring_radius_m, 500, delta=1)
-
         self.assertEqual(circle_calls[0].kwargs["color"], "#0f9d58")
         self.assertEqual(circle_calls[1].kwargs["color"], "#b91c1c")
         self.assertEqual(circle_calls[0].kwargs["linewidth"], 2.4)
@@ -879,6 +878,20 @@ class MapFallbackTests(TestCase):
         self.assertIn(((11.0, 11.01), (60.0, 60.01)), rendered_segments)
         self.assertIn(((11.01, 11.02), (60.01, 60.02)), rendered_segments)
         self.assertIn(((11.02, 11.03), (60.02, 60.03)), rendered_segments)
+
+    @patch('display.flight_order_and_maps.map_plotter.plt')
+    @patch('display.flight_order_and_maps.map_plotter.ccrs')
+    def test_plot_catalogue_targets_with_circle_marker_and_no_scorecard_does_not_raise(self, mock_ccrs, mock_plt):
+        # Regression test: plot_catalogue_targets defaults scorecard=None (NavigationTask.scorecard
+        # is nullable), but CimaScoringConfig.from_scorecard(None) would raise AttributeError -
+        # falls back to CimaScoringConfig()'s own defaults (200/750) instead.
+        mock_ccrs.PlateCarree.return_value = MagicMock()
+        targets = [{"name": "CM", "coordinates": [11.02, 60.02], "kind": "circle_center_marker"}]
+
+        try:
+            plot_catalogue_targets(targets, "#0000ff", scorecard=None)
+        except AttributeError:
+            self.fail("plot_catalogue_targets must not raise when scorecard is None")
 
     def test_plot_leg_bearing_skips_zero_length_leg(self):
         from display.flight_order_and_maps.map_plotter import plot_leg_bearing
