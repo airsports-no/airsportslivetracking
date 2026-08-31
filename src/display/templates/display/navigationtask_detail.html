@@ -95,7 +95,7 @@
                             {% if object.editable_route %}
                                 <li><hr class="my-1 border-base-200"></li>
                                 <li><a href="{% fe_url 'ROUTE_EDITOR_EDIT' routeId=object.editable_route.id %}">Edit route</a></li>
-                                <li><a href="{% url 'navigationtask_refresheditableroute' object.pk %}">Reload route</a></li>
+                                <li><form method="post" action="{% url 'navigationtask_refresheditableroute' object.pk %}" onsubmit="return confirm('Reload the route from the linked editable route?')">{% csrf_token %}<button type="submit" class="w-full text-left">Reload route</button></form></li>
                             {% endif %}
                             <li><hr class="my-1 border-base-200"></li>
                                 <li><a href="{% url 'navigationtask_flightorderconfiguration' object.pk %}">Flight order configuration</a></li>

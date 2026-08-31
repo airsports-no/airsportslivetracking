@@ -520,6 +520,7 @@ def share_navigation_task(request, pk):
     )
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def refresh_editable_route_navigation_task(request, pk):
     """
