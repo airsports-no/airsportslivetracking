@@ -61,15 +61,27 @@ def request_mbtiles_reload() -> None:
     if not pods:
         raise RuntimeError(f"Could not find mbtiles pod with selector '{label_selector}' in namespace '{namespace}'")
 
-    pod_name = pods[0].metadata.name
-    stream(
-        core_v1_api.connect_get_namespaced_pod_exec,
-        name=pod_name,
-        namespace=namespace,
-        command=["/bin/sh", "-c", "kill -HUP 1"],
-        stderr=True,
-        stdin=False,
-        stdout=True,
-        tty=False,
-    )
+    # Signal every matching pod, not just one: with more than one mbtiles replica, only
+    # reloading pods[0] would leave the others silently serving stale tilesets until their
+    # own restart. One pod's exec failing shouldn't stop the others from being signaled, so
+    # errors are collected and raised together at the end rather than aborting the loop.
+    errors = []
+    for pod in pods:
+        pod_name = pod.metadata.name
+        try:
+            stream(
+                core_v1_api.connect_get_namespaced_pod_exec,
+                name=pod_name,
+                namespace=namespace,
+                command=["/bin/sh", "-c", "kill -HUP 1"],
+                stderr=True,
+                stdin=False,
+                stdout=True,
+                tty=False,
+            )
+        except Exception as ex:  # noqa: BLE001 - collected below, not swallowed
+            errors.append(f"{pod_name}: {ex}")
+
+    if errors:
+        raise RuntimeError(f"Failed to reload {len(errors)}/{len(pods)} mbtiles pod(s): {'; '.join(errors)}")
     return None

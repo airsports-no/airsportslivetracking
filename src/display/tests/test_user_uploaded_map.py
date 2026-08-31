@@ -194,6 +194,57 @@ class RequestMbtilesReloadTests(TestCase):
         self.assertEqual(kwargs["namespace"], "default")
         self.assertEqual(kwargs["command"], ["/bin/sh", "-c", "kill -HUP 1"])
 
+    @override_settings(
+        MBTILES_RELOAD_METHOD="kubernetes",
+        MBTILES_RELOAD_NAMESPACE="default",
+        MBTILES_RELOAD_POD_LABEL_SELECTOR="service=mbtiles",
+    )
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.stream")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.client.CoreV1Api")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.config.load_incluster_config")
+    def test_request_mbtiles_reload_signals_every_matching_pod(self, load_config_mock, core_api_cls, stream_mock):
+        from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
+
+        pod_a, pod_b = MagicMock(), MagicMock()
+        pod_a.metadata.name = "mbtiles-pod-1"
+        pod_b.metadata.name = "mbtiles-pod-2"
+        core_api = core_api_cls.return_value
+        core_api.list_namespaced_pod.return_value.items = [pod_a, pod_b]
+
+        request_mbtiles_reload()
+
+        self.assertEqual(stream_mock.call_count, 2)
+        signaled_names = {call.kwargs["name"] for call in stream_mock.call_args_list}
+        self.assertEqual(signaled_names, {"mbtiles-pod-1", "mbtiles-pod-2"})
+
+    @override_settings(
+        MBTILES_RELOAD_METHOD="kubernetes",
+        MBTILES_RELOAD_NAMESPACE="default",
+        MBTILES_RELOAD_POD_LABEL_SELECTOR="service=mbtiles",
+    )
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.stream")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.client.CoreV1Api")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.config.load_incluster_config")
+    def test_request_mbtiles_reload_signals_remaining_pods_after_one_failure(
+        self, load_config_mock, core_api_cls, stream_mock
+    ):
+        from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
+
+        pod_a, pod_b = MagicMock(), MagicMock()
+        pod_a.metadata.name = "mbtiles-pod-1"
+        pod_b.metadata.name = "mbtiles-pod-2"
+        core_api = core_api_cls.return_value
+        core_api.list_namespaced_pod.return_value.items = [pod_a, pod_b]
+        stream_mock.side_effect = [Exception("exec failed"), None]
+
+        with self.assertRaises(RuntimeError) as ctx:
+            request_mbtiles_reload()
+
+        # Both pods still got an exec attempt despite the first one failing.
+        self.assertEqual(stream_mock.call_count, 2)
+        self.assertIn("mbtiles-pod-1", str(ctx.exception))
+        self.assertIn("1/2", str(ctx.exception))
+
 
 class MapSourceDefinitionPayloadTests(APITransactionTestCase):
     reset_sequences = True

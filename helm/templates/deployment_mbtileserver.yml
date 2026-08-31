@@ -40,6 +40,23 @@ spec:
     spec:
       terminationGracePeriodSeconds: 25
       serviceAccountName: calculator-scheduler
+      # Soft (preferred, not required) anti-affinity: without this, nothing stops the
+      # scheduler from placing both replicas on the same node, which would silently defeat
+      # the point of replicas: 2 above - an actual node failure (as opposed to the voluntary
+      # drain the PodDisruptionBudget guards against) would still take out every mbtiles pod
+      # at once. Preferred rather than required for the same reason as the migration Job's
+      # podAffinity (see job_mbtiles_static_migration.yaml): a required rule would leave the
+      # second replica stuck Pending whenever the cluster genuinely has no second suitable
+      # node free, instead of just falling back to co-location.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    service: mbtiles
+                topologyKey: kubernetes.io/hostname
       volumes:
         # GCS (via gcsfuse) rather than a PersistentVolumeClaim: a PVC would need
         # ReadWriteMany to let a new pod mount the same static tiles before the old one
