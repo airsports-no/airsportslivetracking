@@ -1271,7 +1271,11 @@ class ContestantTaskCompiler:
         )
 
     def _lock_if_needed(self, config: ContestantTaskConfiguration) -> None:
-        if self.contestant.tracker_start_time <= self.contestant.takeoff_time:
+        # Once a contestant has a real compiled declaration, the scheduler must not silently
+        # re-time them (schedule_contestants.py excludes schedule_locked contestants) - doing so
+        # would invalidate gate times/timing the declaration already committed to. An invalid
+        # config isn't a real declaration yet, so leave scheduling eligibility open until it is.
+        if not config.is_valid or self.contestant.schedule_locked:
             return
         self.contestant.schedule_locked = True
         self.contestant.save(update_fields=["schedule_locked"])
