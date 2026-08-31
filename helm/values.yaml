@@ -109,10 +109,11 @@ mbtiles:
   # GCS prefix (within bucketName) the static tiles are served from - mirrors
   # user_uploaded_maps below, mounted read-only via gcsfuse. Not a PVC: the only
   # RWX-capable StorageClass (filestore-maps) has a 1TiB standard-tier minimum
-  # (~$220/month) for what is a ~30GB dataset, and GCS has no concurrent-mounter
-  # restriction at all, so it needs no special access mode to let a new mbtiles pod
-  # mount the same tiles before the old pod terminates (see the Deployment's
-  # RollingUpdate strategy).
+  # (~$220/month) for what is a ~21GB dataset (verified via `kubectl exec ... du`
+  # against the legacy PVC; largest single file ~7.9Gi), and GCS has no
+  # concurrent-mounter restriction at all, so it needs no special access mode to let a
+  # new mbtiles pod mount the same tiles before the old pod terminates (see the
+  # Deployment's RollingUpdate strategy).
   staticGcsPrefix: static_maps
   uploadedMountPath: /tilesets/user_uploaded_maps
   staticMountPath: /tilesets-static
@@ -120,19 +121,26 @@ mbtiles:
     mountOptions: implicit-dirs
   # Local (node ephemeral storage/Local SSD-backed) cache for the static tiles gcsfuse
   # volume - see fileCacheForRangeRead/fileCacheCapacity in deployment_mbtileserver.yml.
-  # staticFileCacheSize bounds the cache itself; the sidecar storage values must stay
-  # comfortably above it (headroom for cache overhead/in-flight downloads) since the
-  # gcsfuse sidecar's ephemeral-storage limit is shared across every gcsfuse volume in
-  # the pod, not just this one.
+  # Only the Deployment uses these values now - job_mbtiles_static_migration.yaml writes
+  # via `gcloud storage rsync` instead of a gcsfuse-mounted destination, specifically to
+  # stay off this ceiling (see the comment there).
   #
-  # Capped well under GKE Autopilot's hard 10Gi ephemeral-storage-per-pod ceiling (not
-  # just a request/limit knob - Autopilot's admission webhook flatly rejects the pod
-  # otherwise): staticFileCacheSidecarStorageRequest plus the ~1Gi Autopilot auto-adds
-  # to the main container (mbtiles, or mbtiles-static-migration's alpine container -
-  # see job_mbtiles_static_migration.yaml, which shares these same values) must stay
-  # under 10Gi. The previous 12Gi/15Gi values exceeded that on both the Deployment and
-  # the migration Job's pre-upgrade hook, which silently never created a pod and hung
-  # every `helm upgrade` until it hit --timeout.
+  # staticFileCacheSize bounds the cache itself; the sidecar storage values must stay
+  # comfortably above it (headroom for cache overhead/in-flight downloads), and the
+  # total is capped well under GKE Autopilot's hard 10Gi ephemeral-storage-per-pod
+  # ceiling - not just a request/limit knob, Autopilot's admission webhook flatly
+  # rejects the pod otherwise, silently (no pod ever gets created, so nothing shows up
+  # to debug beyond Job/Deployment events) hanging every `helm upgrade` that touches
+  # this Deployment until it hits --timeout. The previous 12Gi/15Gi values exceeded
+  # that ceiling outright.
+  #
+  # 8Gi is still short of the legacy dataset's two largest files combined (7.9Gi +
+  # 6.3Gi > 8Gi) - fileCacheForRangeRead's LRU eviction just means whichever of those
+  # two was read less recently gets re-downloaded on the next read instead of staying
+  # warm. That's an accepted perf trade-off (the whole point of this cache is a
+  # performance optimization, not a correctness requirement), not a fix candidate: the
+  # 10Gi Autopilot ceiling has no headroom to raise this further short of a Local SSD
+  # compute class, which the cluster's node pools don't have.
   staticFileCacheSize: 6Gi
   staticFileCacheSidecarStorageRequest: 7Gi
   staticFileCacheSidecarStorageLimit: 8Gi

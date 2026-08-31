@@ -14,16 +14,6 @@ spec:
     metadata:
       labels:
         date: "{{ now | unixEpoch }}"
-      annotations:
-        gke-gcsfuse/volumes: "true"
-        # gcsfuse rejects ownership/permission changes outright - see the note on the "cp -R,
-        # not cp -a" choice below. This Job still stages the copy on the sidecar's local
-        # ephemeral storage before uploading, so it needs the same headroom as the Deployment's
-        # gcsfuse mount of the same prefix (see deployment_mbtileserver.yml) - a single
-        # .mbtiles file close to the sidecar's pre-GKE-1.29.1-gke.1670000 default (5Gi) would
-        # otherwise fail the copy or get the pod evicted for exceeding ephemeral storage.
-        gke-gcsfuse/ephemeral-storage-limit: {{ .Values.mbtiles.staticFileCacheSidecarStorageLimit | quote }}
-        gke-gcsfuse/ephemeral-storage-request: {{ .Values.mbtiles.staticFileCacheSidecarStorageRequest | quote }}
     spec:
       restartPolicy: Never
       serviceAccountName: calculator-scheduler
@@ -56,37 +46,45 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: mbtiles-static-migration
-          image: "alpine:3.20"
+          # Deliberately NOT writing through a gcsfuse-mounted destination volume (the
+          # previous approach): gcsfuse's CSI driver stages every write through the pod's
+          # ephemeral-storage-backed sidecar cache before uploading, and GKE Autopilot's
+          # standard compute class hard-caps total pod ephemeral storage at 10Gi - not
+          # adjustable via the gke-gcsfuse/ephemeral-storage-* annotations (Autopilot
+          # silently clamps any higher value). The legacy dataset's largest single file
+          # (Norway250k.mbtiles, ~7.9Gi as of writing - verified via `kubectl exec ... du`
+          # against the legacy PVC) leaves too little headroom under that ceiling to trust
+          # a gcsfuse-mediated write; see
+          # https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/issues/21, an open,
+          # unresolved upstream issue about files approaching this same limit.
+          #
+          # `gcloud storage rsync` instead streams straight to the GCS JSON API over
+          # network, authenticated via this Job's existing Workload Identity binding
+          # (calculator-scheduler) - no local staging of whole files, so it isn't subject
+          # to the ephemeral-storage ceiling at all, and rsync (vs. cp) makes this Job
+          # idempotent/safely retryable if backoffLimit above kicks in.
+          image: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
           command:
             - "sh"
             - "-c"
             - >
               set -eu;
-              echo "Copying static mbtiles from the legacy volume to the static_maps GCS prefix...";
-              cp -R /source/. /dest/;
+              echo "Syncing static mbtiles from the legacy volume to the static_maps GCS prefix...";
+              gcloud storage rsync --recursive /source
+              gs://{{ .Values.mbtiles.bucketName }}/{{ .Values.mbtiles.staticGcsPrefix }};
               echo "Done. Destination contents:";
-              ls -la /dest
+              gcloud storage ls gs://{{ .Values.mbtiles.bucketName }}/{{ .Values.mbtiles.staticGcsPrefix }}/
           resources:
             requests:
               cpu: 200m
-              memory: 256Mi
+              memory: 512Mi
           volumeMounts:
             - name: mbtiles-static-legacy
               mountPath: /source
               readOnly: true
-            - name: mbtiles-static
-              mountPath: /dest
       volumes:
         - name: mbtiles-static-legacy
           persistentVolumeClaim:
             claimName: {{ .Values.mbtiles.legacyPvcName }}
             readOnly: true
-        # Not readOnly here (unlike the Deployment's mount of the same prefix) - this
-        # Job is the writer that populates it.
-        - name: mbtiles-static
-          csi:
-            driver: gcsfuse.csi.storage.gke.io
-            volumeAttributes:
-              bucketName: {{ .Values.mbtiles.bucketName | quote }}
-              mountOptions: {{ printf "%s,only-dir=%s" .Values.mbtiles.gcsfuse.mountOptions .Values.mbtiles.staticGcsPrefix | quote }}
 {{- end }}
