@@ -214,8 +214,8 @@ class CircleCalculator(Calculator):
         radius_m = self._calculate_radius_m(current_position)
         if radius_m is None:
             return False
-        min_radius = float(getattr(self.scorecard, "circle_radius_min_m", 200) or 200)
-        max_radius = float(getattr(self.scorecard, "circle_radius_max_m", 750) or 750)
+        min_radius = self.cima_config.circle_radius_min_m
+        max_radius = self.cima_config.circle_radius_max_m
         return radius_m < min_radius or radius_m > max_radius
 
     def _calculate_radius_m(self, current_position):

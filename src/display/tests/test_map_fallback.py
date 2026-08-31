@@ -866,7 +866,6 @@ class MapFallbackTests(TestCase):
         max_ring_radius_m = calculate_distance_lat_lon(center, (max_ring_lats[0], max_ring_lons[0]))
         self.assertAlmostEqual(min_ring_radius_m, 250, delta=1)
         self.assertAlmostEqual(max_ring_radius_m, 500, delta=1)
-
         self.assertEqual(circle_calls[0].kwargs["color"], "#0f9d58")
         self.assertEqual(circle_calls[1].kwargs["color"], "#b91c1c")
         self.assertEqual(circle_calls[0].kwargs["linewidth"], 2.4)
@@ -879,6 +878,40 @@ class MapFallbackTests(TestCase):
         self.assertIn(((11.0, 11.01), (60.0, 60.01)), rendered_segments)
         self.assertIn(((11.01, 11.02), (60.01, 60.02)), rendered_segments)
         self.assertIn(((11.02, 11.03), (60.02, 60.03)), rendered_segments)
+
+    @patch('display.flight_order_and_maps.map_plotter.plt')
+    @patch('display.flight_order_and_maps.map_plotter.ccrs')
+    def test_plot_catalogue_targets_with_circle_marker_and_no_scorecard_does_not_raise(self, mock_ccrs, mock_plt):
+        # Regression test: plot_catalogue_targets defaults scorecard=None (NavigationTask.scorecard
+        # is nullable), but CimaScoringConfig.from_scorecard(None) would raise AttributeError -
+        # falls back to CimaScoringConfig()'s own defaults (200/750) instead.
+        mock_ccrs.PlateCarree.return_value = MagicMock()
+        targets = [{"name": "CM", "coordinates": [11.02, 60.02], "kind": "circle_center_marker"}]
+
+        try:
+            plot_catalogue_targets(targets, "#0000ff", scorecard=None)
+        except AttributeError:
+            self.fail("plot_catalogue_targets must not raise when scorecard is None")
+
+        # Assert the fallback actually used CimaScoringConfig's default radii (200/750 m),
+        # not just that nothing raised - a skipped render or wrong radii would also pass a
+        # bare exception check.
+        from display.utilities.coordinate_utilities import calculate_distance_lat_lon
+
+        plot_calls = mock_plt.plot.call_args_list
+        circle_calls = [
+            call
+            for call in plot_calls
+            if len(call.args) >= 2 and isinstance(call.args[0], tuple) and len(call.args[0]) > 10 and call.kwargs.get("linestyle") in {(0, (3, 3)), (0, (10, 4))}
+        ]
+        self.assertEqual(len(circle_calls), 2)
+        center = (60.02, 11.02)
+        min_ring_lons, min_ring_lats = circle_calls[0].args[0], circle_calls[0].args[1]
+        max_ring_lons, max_ring_lats = circle_calls[1].args[0], circle_calls[1].args[1]
+        min_ring_radius_m = calculate_distance_lat_lon(center, (min_ring_lats[0], min_ring_lons[0]))
+        max_ring_radius_m = calculate_distance_lat_lon(center, (max_ring_lats[0], max_ring_lons[0]))
+        self.assertAlmostEqual(min_ring_radius_m, 200, delta=1)
+        self.assertAlmostEqual(max_ring_radius_m, 750, delta=1)
 
     def test_plot_leg_bearing_skips_zero_length_leg(self):
         from display.flight_order_and_maps.map_plotter import plot_leg_bearing

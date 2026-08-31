@@ -210,7 +210,7 @@ class AnrCorridorCalculator(Calculator):
         if before_start and not self.route_to_sp_scored and not self._is_inside_auxiliary_polygon(position, self.route_to_sp_polygon):
             self.route_to_sp_scored = True
             gate = self.route.first_takeoff_gate or self.route.waypoints[0]
-            penalty = float(getattr(self.scorecard, "anr_route_to_sp_penalty", 200) or 200)
+            penalty = self.cima_config.anr_route_to_sp_penalty
             self.update_score(
                 UpdateScoreMessage(
                     position.time,
@@ -226,7 +226,7 @@ class AnrCorridorCalculator(Calculator):
         if after_finish and not self.route_from_fp_scored and not self._is_inside_auxiliary_polygon(position, self.route_from_fp_polygon):
             self.route_from_fp_scored = True
             gate = self.route.first_landing_gate or self.route.waypoints[-1]
-            penalty = float(getattr(self.scorecard, "anr_route_from_fp_penalty", 200) or 200)
+            penalty = self.cima_config.anr_route_from_fp_penalty
             self.update_score(
                 UpdateScoreMessage(
                     position.time,
