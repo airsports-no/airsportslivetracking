@@ -162,7 +162,7 @@ if __name__ == "__main__":
                 logger.error("Failed connecting to traccar %d consecutive times", failed_connecting_count)
             time.sleep(5)
             continue
-        field_connecting_count = 0
+        failed_connecting_count = 0
         websocket.enableTrace(False)
         logger.info("Initiating session and getting cookie")
         ws = websocket.WebSocketApp(
