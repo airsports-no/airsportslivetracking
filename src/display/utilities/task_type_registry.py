@@ -5,17 +5,25 @@ scoring pipeline is now "add one TaskTypeSpec entry" instead of finding and edit
 
 Scope note (see the scorecard-system review roadmap): this registry deliberately does NOT also
 cover the route-builder dispatch (EditableRoute.create_route vs NavigationTask.refresh_editable_route)
-or the task-type display name used outside Scorecard.calculator's own choices. Investigation while
-building this found those two already disagree with each other in ways a "zero behavior change"
-refactor can't paper over without a real decision:
-  - refresh_editable_route (navigation_task.py) is missing the NO_BACKBONE_TASK_SUBTYPES branch
-    and the LANDING case that create_route (editable_route.py) has - refreshing a landing task's
-    route is already a silent no-op today, not something this registry should either fix or
-    quietly perpetuate under a "consolidated" banner.
-  - NAVIGATION_TASK_TYPES' labels ("Precision", "AirSport Challenge") differ from
-    task_information.FAMILY_DISPLAY_NAMES' labels ("Precision navigation", "Air Sport Challenge")
-    for two of six entries - merging would change user-visible text at at least one site.
-Both are flagged as separate follow-ups rather than folded in here.
+or the task-type display name used outside Scorecard.calculator's own choices.
+
+Follow-up investigation on the display-name question found the "AirSport Challenge" vs
+"Air Sport Challenge" difference was a plain typo (fixed: NAVIGATION_TASK_TYPES now reads "Air
+Sport Challenge", matching task_information.FAMILY_DISPLAY_NAMES, the scorecard name settled on
+in the earlier duplicate-scorecard merge, and CIMA's own LEGACY_AIRSPORT_CHALLENGE.display_name).
+"Precision" (NAVIGATION_TASK_TYPES, seen only in the organizer-facing task-creation wizard's
+dropdown) vs "Precision navigation" (FAMILY_DISPLAY_NAMES, shown as the prominent heading in the
+pilot/spectator-facing TaskInfoModal) was left alone - a terse dropdown option vs. a fuller
+heading is a defensible intentional split, not the same class of accidental drift.
+
+Follow-up on the route-builder dispatch question: refresh_editable_route (navigation_task.py)
+was missing the NO_BACKBONE_TASK_SUBTYPES branch and the LANDING case that create_route
+(editable_route.py) has, so "Reload route" reported success while silently doing nothing for
+those task types - fixed by adding the equivalent branches to refresh_editable_route directly
+(not by merging the two dispatches into one, since create_route also validates/derives
+rounded_corners/corridor_width from wizard input that refresh_editable_route has no equivalent
+of - they remain two separate functions with the same per-task-type behavior, not one shared
+dispatch table). See test_refresh_editable_route_landing_and_no_backbone.py.
 """
 
 from typing import TYPE_CHECKING, Callable
