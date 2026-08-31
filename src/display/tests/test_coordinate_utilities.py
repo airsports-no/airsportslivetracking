@@ -1,10 +1,12 @@
+import math
 from unittest import TestCase
 from parameterized import parameterized
 
 from display.utilities.coordinate_utilities import calculate_bearing, get_heading_difference, extend_line, \
     fraction_of_leg, Projector, get_procedure_turn_track, create_bisecting_line_between_segments, \
     create_bisecting_line_between_segments_corridor_width_lonlat, \
-    create_bisecting_line_between_segments_corridor_width_xy, equirectangular_distance, calculate_distance_lat_lon
+    create_bisecting_line_between_segments_corridor_width_xy, equirectangular_distance, calculate_distance_lat_lon, \
+    calculate_bounding_box
 
 
 class TestCoordinateUtilities(TestCase):
@@ -107,6 +109,51 @@ class TestCoordinateUtilities(TestCase):
         ])
     def test_distance(self,b,e,expected):
         self.assertEqual(expected, calculate_distance_lat_lon(b,e))
+
+class TestCalculateBoundingBox(TestCase):
+    """
+    Regression test (local code review, calculator-adjacent utilities section, finding #9):
+    calculate_bounding_box's dy formula omitted the 2*pi radian-to-degree conversion
+    (~6.28x too tall), and its dx formula multiplied by cos(lat) instead of dividing -
+    correct in the wrong direction, so the box got too *narrow* east-west at exactly the
+    high (Nordic) latitudes this platform serves.
+    """
+
+    @parameterized.expand([
+        (0.0, 11.0),
+        (60.0, 11.0),
+        (66.5, 11.0),
+    ])
+    def test_bounding_box_spans_two_radii_in_both_directions(self, latitude, longitude):
+        centre = (latitude, longitude)
+        radius_m = 5000.0
+        south, west, north, east = calculate_bounding_box(centre, radius_m)
+
+        north_south_km = calculate_distance_lat_lon((south, longitude), (north, longitude)) / 1000.0
+        east_west_km = calculate_distance_lat_lon((latitude, west), (latitude, east)) / 1000.0
+        expected_km = 2 * radius_m / 1000.0
+
+        self.assertAlmostEqual(north_south_km, expected_km, delta=0.5)
+        self.assertAlmostEqual(east_west_km, expected_km, delta=0.5)
+
+    @parameterized.expand([
+        (90.0, 11.0),
+        (-90.0, 11.0),
+        (89.9999, 11.0),
+    ])
+    def test_polar_and_near_polar_latitudes_stay_within_valid_bounds(self, latitude, longitude):
+        # CodeRabbit review (PR #738): cos(latitude) is 0 at the poles and near-0 close to
+        # them, which would divide by zero or blow the longitude span towards infinity, and
+        # centre[0] +/- dy could exceed +/-90 degrees latitude.
+        south, west, north, east = calculate_bounding_box((latitude, longitude), 5000.0)
+
+        self.assertGreaterEqual(south, -90.0)
+        self.assertLessEqual(north, 90.0)
+        self.assertTrue(math.isfinite(west))
+        self.assertTrue(math.isfinite(east))
+        self.assertLessEqual(abs(east - longitude), 180.0)
+        self.assertLessEqual(abs(west - longitude), 180.0)
+
 
 class TestProcedureTurnPoints(TestCase):
     def test_simple(self):

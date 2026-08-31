@@ -15,6 +15,14 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
+from display.management.commands.find_swapped_routes import (
+    Command as FindSwappedRoutesCommand,
+)
+from display.management.commands.find_swapped_routes import (
+    contest_for_route,
+    has_any_invalid_lat,
+    route_bbox_centroid,
+)
 from display.models import EditableRoute
 
 
@@ -78,11 +86,43 @@ class Command(BaseCommand):
             default="route_swap_backups",
             help="Directory where pre-fix route JSON is written. Default: ./route_swap_backups",
         )
+        parser.add_argument(
+            "--threshold-km",
+            type=float,
+            default=500.0,
+            help="Same meaning as find_swapped_routes --threshold-km - used to re-verify each "
+            "route is still SUSPICIOUS immediately before swapping it. Default: 500 km.",
+        )
+        parser.add_argument(
+            "--improvement-ratio",
+            type=float,
+            default=5.0,
+            help="Same meaning as find_swapped_routes --improvement-ratio. Default: 5.",
+        )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Swap anyway even if the route no longer classifies as SUSPICIOUS. A route "
+            "list gathered earlier (or with different thresholds) can be stale by the time "
+            "this runs - --force skips that safety check.",
+        )
 
     def handle(self, *args, **opts):
         dry_run: bool = opts["dry_run"]
         backup_dir = Path(opts["backup_dir"])
         route_ids: list[int] = opts["route_ids"]
+        threshold_km: float = opts["threshold_km"]
+        improvement_ratio: float = opts["improvement_ratio"]
+        force: bool = opts["force"]
+
+        if threshold_km < 0:
+            raise CommandError("--threshold-km must be non-negative")
+        if improvement_ratio < 1:
+            raise CommandError(
+                "--improvement-ratio must be at least 1 - below 1 it makes the SUSPICIOUS check "
+                "easier to satisfy (swapped_dist * ratio < dist), so it could reclassify a "
+                "correctly-ordered route as SUSPICIOUS and swap it without --force."
+            )
 
         if not dry_run:
             backup_dir.mkdir(parents=True, exist_ok=True)
@@ -96,6 +136,24 @@ class Command(BaseCommand):
                 raise CommandError(f"EditableRoute {rid} not found")
 
             original = route.route or {}
+
+            if not force:
+                centroid = route_bbox_centroid(original)
+                ref = contest_for_route(route)
+                invalid_lat = has_any_invalid_lat(original)
+                verdict, _dist, _swapped_dist = FindSwappedRoutesCommand._classify(
+                    centroid, ref, threshold_km, improvement_ratio, invalid_lat
+                )
+                if verdict != "SUSPICIOUS":
+                    self.stderr.write(
+                        self.style.ERROR(
+                            f"Route {rid}: currently classifies as {verdict}, not SUSPICIOUS - "
+                            f"refusing to swap it (a repair applied to a route that's actually "
+                            f"fine would invert it). Pass --force to override."
+                        )
+                    )
+                    continue
+
             try:
                 swapped = swap_route_coordinates(original)
             except ValueError as e:

@@ -143,6 +143,37 @@ class TestContestantTaskConfiguration(TestCase):
         )
         self.assertIn("SP", compiled.compiled_gate_times_payload)
 
+    def test_compiling_a_valid_declaration_locks_the_schedule(self):
+        # Regression test (local code review, models/services section, finding #3):
+        # _lock_if_needed's condition was always true for any persisted contestant
+        # (Contestant.clean() already guarantees tracker_start_time <= takeoff_time), so it
+        # always returned early and schedule_locked never got set - a contestant with a real
+        # compiled declaration remained eligible for silent re-timing by schedule_contestants.
+        self.assertFalse(self.contestant.schedule_locked)
+        ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={"known_time_gate_predictions": {"SP": "2020-08-01T08:11:00Z"}}
+        )
+        self.contestant.refresh_from_db()
+        self.assertTrue(self.contestant.schedule_locked)
+
+    def test_compiling_an_invalid_declaration_does_not_lock_the_schedule(self):
+        self.navigation_task.task_config = {"curve_navigation_tmax_seconds": 600}
+        self.navigation_task.save(update_fields=["task_config"])
+
+        compiled = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={
+                "known_time_gate_predictions": {
+                    "SP": "2020-08-01T08:11:00Z",
+                    "FP": "2020-08-01T08:22:30Z",
+                }
+            },
+            force=True,
+        )
+
+        self.assertFalse(compiled.is_valid)
+        self.contestant.refresh_from_db()
+        self.assertFalse(self.contestant.schedule_locked)
+
     def test_contestant_gate_times_prefers_compiled_configuration(self):
         compiled = ContestantTaskCompiler(self.contestant).compile(
             declaration_payload={"known_time_gate_predictions": {"SP": "2020-08-01T08:11:00Z"}}

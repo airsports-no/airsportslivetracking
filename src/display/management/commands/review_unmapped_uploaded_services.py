@@ -37,11 +37,17 @@ class Command(BaseCommand):
         delete_files = options["delete_files"]
         execute = options["execute"]
 
-        mapped_relative_paths = {
-            uploaded_map.published_relative_path
-            for uploaded_map in UserUploadedMap.objects.exclude(published_relative_path="")
-            if uploaded_map.published_relative_path
-        }
+        mapped_relative_paths = set()
+        for uploaded_map in UserUploadedMap.objects.all():
+            if uploaded_map.published_relative_path:
+                mapped_relative_paths.add(uploaded_map.published_relative_path)
+            # A row can still be actively served by mbtileserver via map_file alone before
+            # published_relative_path is backfilled (see reconcile_uploaded_map_storage's
+            # --backfill-metadata) - excluding those left the still-referenced blob looking
+            # orphaned and eligible for --delete-files.
+            map_file_name = getattr(uploaded_map.map_file, "name", "") or ""
+            if map_file_name:
+                mapped_relative_paths.add(map_file_name)
         mapped_service_keys = {
             service_key_from_uploaded_relative_path(relative_path)
             for relative_path in mapped_relative_paths

@@ -34,12 +34,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--delete-objects",
             action="store_true",
-            help="Delete matching UserUploadedMap database rows.",
+            help="Delete matching UserUploadedMap database rows. Neither this nor --delete-files "
+            "given means report-only, even with --execute.",
         )
         parser.add_argument(
             "--delete-files",
             action="store_true",
-            help="Delete matching storage files (default_storage) for offending filenames.",
+            help="Delete matching storage files (default_storage) for offending filenames. "
+            "Neither this nor --delete-objects given means report-only, even with --execute.",
         )
         parser.add_argument(
             "--execute",
@@ -73,10 +75,6 @@ class Command(BaseCommand):
         delete_files = options["delete_files"]
         execute = options["execute"]
 
-        if not delete_objects and not delete_files:
-            delete_objects = True
-            delete_files = True
-
         matched_object_ids = set()
         files_deleted = 0
         objects_deleted = 0
@@ -84,9 +82,13 @@ class Command(BaseCommand):
 
         for filename in filenames:
             self.stdout.write(self.style.MIGRATE_HEADING(f"\n=== {filename} ==="))
-            queryset = UserUploadedMap.objects.filter(map_file__endswith=filename) | UserUploadedMap.objects.filter(
-                published_relative_path__endswith=filename
-            )
+            # Require a path-separator boundary immediately before the filename (every stored
+            # path carries the "user_uploaded_maps/" upload_to prefix) - a bare __endswith=filename
+            # also matches a longer user-chosen name like "my-map.mbtiles" against "map.mbtiles".
+            boundary_suffix = f"/{filename}"
+            queryset = UserUploadedMap.objects.filter(
+                map_file__endswith=boundary_suffix
+            ) | UserUploadedMap.objects.filter(published_relative_path__endswith=boundary_suffix)
             queryset = queryset.distinct().order_by("pk")
 
             if queryset.exists():

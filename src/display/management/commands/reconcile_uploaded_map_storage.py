@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from display.models.user_uploaded_map import UserUploadedMap
@@ -59,6 +59,16 @@ class Command(BaseCommand):
         list_orphan_files = options["list_orphan_files"]
         delete_orphan_files = options["delete_orphan_files"]
         execute = options["execute"]
+
+        if (list_orphan_files or delete_orphan_files) and (limit is not None or after_id is not None):
+            raise CommandError(
+                "--list-orphan-files/--delete-orphan-files build the referenced-paths set from "
+                "the rows this run inspects - combined with --limit/--after-id, every row "
+                "outside that narrowed slice would look unreferenced and get treated as an "
+                "orphan. Run --list-orphan-files/--delete-orphan-files without --limit/--after-id "
+                "(a separate pass over the full table), or drop the orphan-file flags for a "
+                "limited/batched metadata-only run."
+            )
 
         queryset = UserUploadedMap.objects.all().order_by("pk")
         if after_id is not None:

@@ -20,7 +20,14 @@ from display.utilities.navigation_task_type_definitions import AIRSPORT_CHALLENG
 
 
 def get_default_scorecard():
-    Scorecard.objects.filter(name="Airsports Challenge 2023").update(name="AirSport Challenge 2023")
+    # Historical rename step for a genuinely fresh/very old environment that still has the
+    # original name and no canonical row yet. Guarded on the canonical name not already
+    # existing - Scorecard.name is unique, and once the canonical row exists (the normal case
+    # after get_default_scorecard has run at least once) this would otherwise raise
+    # IntegrityError. See migration 0170 for the one-time cleanup of the mismatched-target
+    # duplicate this line used to create on every environment that had already been renamed.
+    if not Scorecard.objects.filter(name="Air Sport Challenge 2023").exists():
+        Scorecard.objects.filter(name="Airsports Challenge 2023").update(name="Air Sport Challenge 2023")
     scorecard, created = Scorecard.objects.update_or_create(
         name="Air Sport Challenge 2023",
         defaults={
