@@ -893,6 +893,26 @@ class MapFallbackTests(TestCase):
         except AttributeError:
             self.fail("plot_catalogue_targets must not raise when scorecard is None")
 
+        # Assert the fallback actually used CimaScoringConfig's default radii (200/750 m),
+        # not just that nothing raised - a skipped render or wrong radii would also pass a
+        # bare exception check.
+        from display.utilities.coordinate_utilities import calculate_distance_lat_lon
+
+        plot_calls = mock_plt.plot.call_args_list
+        circle_calls = [
+            call
+            for call in plot_calls
+            if len(call.args) >= 2 and isinstance(call.args[0], tuple) and len(call.args[0]) > 10 and call.kwargs.get("linestyle") in {(0, (3, 3)), (0, (10, 4))}
+        ]
+        self.assertEqual(len(circle_calls), 2)
+        center = (60.02, 11.02)
+        min_ring_lons, min_ring_lats = circle_calls[0].args[0], circle_calls[0].args[1]
+        max_ring_lons, max_ring_lats = circle_calls[1].args[0], circle_calls[1].args[1]
+        min_ring_radius_m = calculate_distance_lat_lon(center, (min_ring_lats[0], min_ring_lons[0]))
+        max_ring_radius_m = calculate_distance_lat_lon(center, (max_ring_lats[0], max_ring_lons[0]))
+        self.assertAlmostEqual(min_ring_radius_m, 200, delta=1)
+        self.assertAlmostEqual(max_ring_radius_m, 750, delta=1)
+
     def test_plot_leg_bearing_skips_zero_length_leg(self):
         from display.flight_order_and_maps.map_plotter import plot_leg_bearing
 
