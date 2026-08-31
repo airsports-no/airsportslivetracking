@@ -183,3 +183,18 @@ class TestDestructiveViewsRequirePost(TestCase):
             response = self.client.post(url)
             self.assertEqual(response.status_code, 302)
             mock_refresh.assert_called_once()
+
+    def test_refresh_editable_route_cross_site_post_without_csrf_token_is_rejected(self, *args):
+        # A same-origin POST (Django's test Client attaches a valid CSRF cookie+token
+        # automatically) still works via the test above; this proves the missing ingredient - a
+        # valid CSRF token - is actually enforced now that this is POST, i.e. the view isn't
+        # accidentally @csrf_exempt (which would silently defeat the whole point of this fix).
+        from django.test import Client
+
+        strict_client = Client(enforce_csrf_checks=True)
+        strict_client.force_login(user=self.manager)
+        url = reverse("navigationtask_refresheditableroute", kwargs={"pk": self.navigation_task.pk})
+        with patch("display.models.navigation_task.NavigationTask.refresh_editable_route") as mock_refresh:
+            response = strict_client.post(url)
+            self.assertEqual(response.status_code, 403)
+            mock_refresh.assert_not_called()
