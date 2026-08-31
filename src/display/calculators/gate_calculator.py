@@ -699,7 +699,7 @@ class GateCalculator(Calculator):
             return
         if any(score_type == "limited_fuel_deadline" for _, score_type in self.scored_gates if _ == gate.name):
             return
-        penalty = float(getattr(self.scorecard, "fuel_deadline_penalty", 100) or 100)
+        penalty = self.cima_config.fuel_deadline_penalty
         self.update_gate_score(
             position,
             gate,
@@ -729,7 +729,7 @@ class GateCalculator(Calculator):
             return
         if any(score_type == "turnpoint_hunt_maximum_duration" for _, score_type in self.scored_gates if _ == gate.name):
             return
-        penalty = float(getattr(self.scorecard, "maximum_task_duration_penalty", 100) or 100)
+        penalty = self.cima_config.maximum_task_duration_penalty
         self.update_gate_score(
             position,
             gate,
@@ -775,8 +775,8 @@ class GateCalculator(Calculator):
         )
         actual_speed_kt = distance_m / elapsed_seconds * 3600 / 1852
         declared_speed_kt = self.contestant.air_speed
-        tolerance_kt = float(getattr(self.scorecard, "speed_keeping_tolerance_kt", 5) or 5)
-        penalty_per_kt = float(getattr(self.scorecard, "speed_keeping_penalty_per_kt", 1) or 1)
+        tolerance_kt = self.cima_config.speed_keeping_tolerance_kt
+        penalty_per_kt = self.cima_config.speed_keeping_penalty_per_kt
 
         deviation = abs(actual_speed_kt - declared_speed_kt)
         if deviation <= tolerance_kt:

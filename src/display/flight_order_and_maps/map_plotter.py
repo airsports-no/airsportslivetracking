@@ -72,6 +72,7 @@ from display.utilities.coordinate_utilities import (
     normalise_bearing,
 )
 from display.flight_order_and_maps.map_constants import A3
+from display.utilities.cima_scoring_config import CimaScoringConfig
 from display.utilities.gate_definitions import (
     SECRETPOINT,
     ANR_TP,
@@ -1415,8 +1416,9 @@ def plot_catalogue_targets(targets: list[dict], colour: str, scorecard: Optional
     # own lookup) - task_config never carries them, so reading task_config
     # here always drew the 200/750 defaults regardless of the configured
     # scorecard values.
-    min_radius_m = float(getattr(scorecard, "circle_radius_min_m", 200) or 200)
-    max_radius_m = float(getattr(scorecard, "circle_radius_max_m", 750) or 750)
+    cima_config = CimaScoringConfig.from_scorecard(scorecard)
+    min_radius_m = cima_config.circle_radius_min_m
+    max_radius_m = cima_config.circle_radius_max_m
     for radius, edge_colour, line_width, dash_pattern in (
         (min_radius_m, "#0f9d58", 2.4, (0, (3, 3))),
         (max_radius_m, "#b91c1c", 1.6, (0, (10, 4))),

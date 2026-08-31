@@ -39,7 +39,7 @@ class DurationCalculator(Calculator):
         self._emit_landing_area_penalty(event)
 
     def _emit_normalized_duration_score(self, event: LandingPassedEvent):
-        policy = getattr(self.scorecard, "duration_normalization_policy", "")
+        policy = self.cima_config.duration_normalization_policy
         if policy != "raw_minutes":
             return
         duration_seconds = (event.intersection_time - self.takeoff_intersection_time).total_seconds()

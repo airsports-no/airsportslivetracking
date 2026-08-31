@@ -5,6 +5,7 @@ from rest_framework import serializers
 
 from display.models import ContestantTaskConfiguration
 from display.services.task_compiler import TaskCompiler
+from display.utilities.cima_scoring_config import CimaScoringConfig
 from display.utilities.cima_task_type_definitions import (
     CIRCLE,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
@@ -273,9 +274,7 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
             "effective_waypoint_names": effective_waypoint_names,
             "effective_waypoints": effective_waypoints,
             "compulsory_timing_gate_names": compulsory_timing_gate_names,
-            "compulsory_timing_tolerance_seconds": int(
-                getattr(self.compiler.contestant.navigation_task.scorecard, "compulsory_timing_tolerance_seconds", 10) or 10
-            ),
+            "compulsory_timing_tolerance_seconds": self.compiler.cima_config.compulsory_timing_tolerance_seconds,
             "free_targets": free_targets,
             "free_target_names": [item["name"] for item in free_targets],
             "free_target_evidence": {
@@ -285,11 +284,7 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
             "observation_photos": self.compiler._build_turnpoint_hunt_observation_photos(free_targets),
             "scored_target_values": self.compiler._build_turnpoint_hunt_scored_target_values(free_targets),
         }
-        maximum_task_duration_minutes = getattr(
-            self.compiler.contestant.navigation_task.scorecard,
-            "maximum_task_duration_minutes",
-            None,
-        )
+        maximum_task_duration_minutes = self.compiler.cima_config.maximum_task_duration_minutes
         if maximum_task_duration_minutes is not None:
             payload["maximum_task_duration_minutes"] = int(maximum_task_duration_minutes)
             payload["maximum_task_duration_deadline"] = (
@@ -491,6 +486,10 @@ class ContestantTaskCompiler:
     def __init__(self, contestant):
         self.contestant = contestant
 
+    @property
+    def cima_config(self) -> CimaScoringConfig:
+        return CimaScoringConfig.from_scorecard(self.contestant.navigation_task.scorecard)
+
     def _get_strategy(self) -> ContestantTaskCompilerStrategy:
         subtype = self.contestant.navigation_task.task_subtype
         if subtype in (CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION):
@@ -610,9 +609,7 @@ class ContestantTaskCompiler:
             "effective_waypoint_names": [item["name"] for item in effective_waypoints],
             "effective_waypoints": effective_waypoints,
             "compulsory_timing_gate_names": compulsory_point_names,
-            "compulsory_timing_tolerance_seconds": int(
-                getattr(self.contestant.navigation_task.scorecard, "compulsory_timing_tolerance_seconds", 10) or 10
-            ),
+            "compulsory_timing_tolerance_seconds": self.cima_config.compulsory_timing_tolerance_seconds,
             "free_targets": free_targets,
             "free_target_names": [item["name"] for item in free_targets],
             "free_target_evidence": {
@@ -622,11 +619,7 @@ class ContestantTaskCompiler:
             "observation_photos": self._build_turnpoint_hunt_observation_photos(free_targets),
             "scored_target_values": self._build_turnpoint_hunt_scored_target_values(free_targets),
         }
-        maximum_task_duration_minutes = getattr(
-            self.contestant.navigation_task.scorecard,
-            "maximum_task_duration_minutes",
-            None,
-        )
+        maximum_task_duration_minutes = self.cima_config.maximum_task_duration_minutes
         if maximum_task_duration_minutes is not None:
             payload["maximum_task_duration_minutes"] = int(maximum_task_duration_minutes)
             payload["maximum_task_duration_deadline"] = (
@@ -643,8 +636,8 @@ class ContestantTaskCompiler:
 
     def _build_duration_payload(self) -> dict:
         duration_review = {}
-        if getattr(self.contestant.navigation_task.scorecard, "duration_normalization_policy", ""):
-            duration_review["duration_normalization_policy"] = self.contestant.navigation_task.scorecard.duration_normalization_policy
+        if self.cima_config.duration_normalization_policy:
+            duration_review["duration_normalization_policy"] = self.cima_config.duration_normalization_policy
         task_config = self.contestant.navigation_task.task_config or {}
         editable_route = self.contestant.navigation_task.editable_route
         if editable_route is not None:
@@ -654,11 +647,7 @@ class ContestantTaskCompiler:
                 if len(polygon) > 1 and polygon[0] == polygon[-1]:
                     polygon = polygon[:-1]
                 duration_review["duration_landing_area_polygon"] = polygon
-        if task_config.get("duration_residual_fuel_required") or getattr(
-            self.contestant.navigation_task.scorecard,
-            "duration_residual_fuel_required",
-            False,
-        ):
+        if task_config.get("duration_residual_fuel_required") or self.cima_config.duration_residual_fuel_required:
             duration_review["duration_residual_fuel_required"] = True
         return {"duration_review": duration_review} if duration_review else {}
 

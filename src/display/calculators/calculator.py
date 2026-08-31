@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import Contestant, Route, Scorecard
 from display.models.contestant_utility_models import ContestantReceivedPosition
+from display.utilities.cima_scoring_config import CimaScoringConfig
 
 if TYPE_CHECKING:
     from display.calculators.positions_and_gates import Gate
@@ -185,6 +186,13 @@ class Calculator(ABC):
             raise ValueError("Projector must be provided to the calculator")
 
         logger.debug(f"{contestant}: Starting calculator {self}")
+
+    @property
+    def cima_config(self) -> CimaScoringConfig:
+        # A property, not a value cached at __init__ time: matches the "read-time adapter"
+        # semantics of the getattr(self.scorecard, ...) calls this replaced, which always read
+        # self.scorecard's current state rather than a snapshot from construction.
+        return CimaScoringConfig.from_scorecard(self.scorecard)
 
     def update_score(self, update_score_message: UpdateScoreMessage) -> None:
         self.score_processing_queue.put_nowait(update_score_message)
