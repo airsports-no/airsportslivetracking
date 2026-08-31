@@ -72,7 +72,13 @@ spec:
             requests:
               cpu: 800m
               memory: 1.5Gi  # Uses 773Mi
-          command: ["java", "-Xms1024m", "-Xmx1024m", "-Djava.net.preferIPv4Stack=true"]
+          # Full path, not just "java": the 6.x image line (unlike 5.10-alpine) bundles its
+          # own JRE at /opt/traccar/jre and does not put it on PATH - its own default
+          # ENTRYPOINT already invokes the full path (see `docker inspect`), but this
+          # command override replaces that entrypoint outright, so it has to spell out the
+          # same path itself. Confirmed by execing into the 6.15-alpine image directly:
+          # `which java` finds nothing, `ls /opt/traccar/jre/bin/java` does.
+          command: ["/opt/traccar/jre/bin/java", "-Xms1024m", "-Xmx1024m", "-Djava.net.preferIPv4Stack=true"]
           args: ["-jar", "tracker-server.jar", "conf/traccar.xml"]
           ports:
             - name: http
