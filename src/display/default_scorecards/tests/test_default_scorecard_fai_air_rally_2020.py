@@ -30,3 +30,14 @@ class TestDefaultScorecardFaiAirRally2020(TestCase):
         self.assertNotEqual(
             starting_point.bad_crossing_extended_gate_penalty, turnpoint.bad_crossing_extended_gate_penalty
         )
+
+    def test_starting_point_extended_gate_fields_are_visible_in_the_admin_form(self):
+        # Regression test (CodeRabbit review of PR #738): GateScore.visible_fields derives the
+        # organizer-facing edit form's fields from included_fields - extended_gate_width and
+        # bad_crossing_extended_gate_penalty were configured but not listed, so administrators
+        # could not view or edit the very rule this scorecard exists to configure.
+        scorecard = get_default_scorecard()
+
+        starting_point = scorecard.gatescore_set.get(gate_type=STARTINGPOINT)
+        self.assertIn("extended_gate_width", starting_point.visible_fields)
+        self.assertIn("bad_crossing_extended_gate_penalty", starting_point.visible_fields)
