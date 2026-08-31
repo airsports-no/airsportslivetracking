@@ -203,8 +203,15 @@ def clear_flight_order_generation_cache(request, pk):
 
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
-@api_view(["GET"])
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+@api_view(["POST"])
+# POST, not GET: this deletes every selected contestant's existing flight-order links and
+# (re-)triggers generation/email - GET isn't covered by CSRF protection, so exposing this as
+# GET let a crafted <img src="..."> or link, visited by a logged-in manager, silently trigger
+# it. contestant_pks is still read from the query string (request.GET), so only the HTTP
+# method - not the parameter format - changed.
+# change_contest, not view_contest: a read-only collaborator should not be able to invalidate
+# distributed links for the whole start list.
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def generate_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     contestant_pks = request.GET.get("contestant_pks")
@@ -234,8 +241,11 @@ def generate_navigation_task_orders(request, pk):
 
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
-@api_view(["GET"])
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+@api_view(["POST"])
+# POST, not GET - see generate_navigation_task_orders above for why.
+# change_contest, not view_contest: this mail-bombs every selected contestant's
+# member1.email - a read-only collaborator should not be able to trigger that.
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def broadcast_navigation_task_orders(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     contestant_pks = request.GET.get("contestant_pks")

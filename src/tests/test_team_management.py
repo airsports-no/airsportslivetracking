@@ -9,7 +9,7 @@ from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from display.models import Contest, Person, Aeroplane, Crew, Team
+from display.models import Contest, ContestTeam, Person, Aeroplane, Crew, Team
 from utilities.mock_utilities import TraccarMock
 
 TEAM_DATA = {
@@ -71,6 +71,12 @@ class TestTeamApi(APITestCase):
         aeroplane = Aeroplane.objects.create(registration="registration")
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Mister", last_name="Pilot"))
         self.team = Team.objects.create(crew=crew, aeroplane=aeroplane)
+        # TeamViewSet is scoped to teams the requester can legitimately see (their own team, or a
+        # team registered in a contest they hold view_contest on) - see the 2026-08-28 security
+        # review's TeamViewSet PII-exposure finding. Registering the fixture team into the owner's
+        # own contest reflects the realistic workflow (an organiser's team roster is scoped to
+        # their contest) and is what actually makes it visible to user_owner below.
+        ContestTeam.objects.create(team=self.team, contest=self.contest, air_speed=70)
 
     def test_fetch_team_list_without_login(self, *args):
         self.client.logout()
@@ -98,6 +104,9 @@ class TestTeamApi(APITestCase):
         print(result)
         print(result.json())
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
+        # A newly created team isn't visible to anyone until it's registered to a contest -
+        # simulates the organiser immediately adding it to their own contest's roster.
+        ContestTeam.objects.create(team_id=result.json()["id"], contest=self.contest, air_speed=70)
         result = self.client.get(reverse("teams-list"))
         self.assertEqual(2, len(result.json()))
 
@@ -117,6 +126,9 @@ class TestTeamApi(APITestCase):
     def test_put_team_with_privileges(self, *args):
         result = self.client.post(reverse("teams-list"), TEAM_DATA, format="json")
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
+        # See test_post_team_with_privileges - must be registered to a visible contest to be
+        # gettable/editable at all under the post-fix scoping.
+        ContestTeam.objects.create(team_id=result.json()["id"], contest=self.contest, air_speed=70)
         modified = deepcopy(TEAM_DATA)
         modified["crew"] = {
             "member1": {"first_name": "first_name", "last_name": "last_name", "email": "name2@domain.com"}
@@ -145,11 +157,17 @@ class TestTeamApi(APITestCase):
     def test_post_existing_team(self, *args):
         result = self.client.post(reverse("teams-list"), TEAM_DATA, format="json")
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
+        # See test_post_team_with_privileges - must be registered to a visible contest to show up
+        # in the list under the post-fix scoping. get_or_create below relies on POSTing the same
+        # TEAM_DATA twice resolving to the same underlying Team (verified by the assertEqual(2, ...)
+        # not growing on the second POST).
+        ContestTeam.objects.get_or_create(team_id=result.json()["id"], contest=self.contest, defaults={"air_speed": 70})
         result = self.client.get(reverse("teams-list"))
         self.assertEqual(result.status_code, status.HTTP_200_OK)
         self.assertEqual(2, len(result.json()))
         result = self.client.post(reverse("teams-list"), TEAM_DATA, format="json")
         self.assertEqual(result.status_code, status.HTTP_201_CREATED)
+        ContestTeam.objects.get_or_create(team_id=result.json()["id"], contest=self.contest, defaults={"air_speed": 70})
         result = self.client.get(reverse("teams-list"))
         self.assertEqual(result.status_code, status.HTTP_200_OK)
         self.assertEqual(2, len(result.json()))

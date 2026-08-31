@@ -288,7 +288,7 @@ class TestAccessContest(APITestCase):
         )
         ContestTeam.objects.create(team=team, contest=self.contest)
         self.client.logout()
-        result = self.client.get(reverse("remove_team", kwargs={"contest_pk": self.contest_id, "team_pk": team.pk}))
+        result = self.client.post(reverse("remove_team", kwargs={"contest_pk": self.contest_id, "team_pk": team.pk}))
         self.assertEqual(result.status_code, status.HTTP_302_FOUND, result.content)
 
     def test_remove_team_from_contest_as_someone_else(self, *args):
@@ -300,7 +300,7 @@ class TestAccessContest(APITestCase):
         )
         ContestTeam.objects.create(team=team, contest=self.contest)
         self.client.force_login(user=self.user_someone_else)
-        result = self.client.get(reverse("remove_team", kwargs={"contest_pk": self.contest_id, "team_pk": team.pk}))
+        result = self.client.post(reverse("remove_team", kwargs={"contest_pk": self.contest_id, "team_pk": team.pk}))
         self.assertEqual(result.status_code, status.HTTP_302_FOUND, result.content)
 
     def test_remove_team_from_contest_as_creator(self, *args):
@@ -312,7 +312,7 @@ class TestAccessContest(APITestCase):
         )
         ContestTeam.objects.create(team=team, contest=self.contest)
         self.client.force_login(user=self.user_owner)
-        result = self.client.get(reverse("remove_team", kwargs={"contest_pk": self.contest_id, "team_pk": team.pk}))
+        result = self.client.post(reverse("remove_team", kwargs={"contest_pk": self.contest_id, "team_pk": team.pk}))
         print(result)
         self.assertEqual(result.status_code, status.HTTP_302_FOUND)
 

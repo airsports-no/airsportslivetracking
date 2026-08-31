@@ -1,15 +1,3 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: pvc-mbtiles
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 30Gi
-  storageClassName: standard-rwo
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,20 +9,52 @@ spec:
     matchLabels:
       service: mbtiles
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   template:
     metadata:
       labels:
         service: mbtiles
       annotations:
         gke-gcsfuse/volumes: "true"
+        # gcsfuse serves reads directly against GCS (byte-range GETs) without needing the
+        # whole file locally, but mbtileserver's SQLite queries into the static .mbtiles
+        # files are small random-offset reads - each one is otherwise a separate network
+        # round trip. fileCacheForRangeRead (below) makes the first such read per file
+        # trigger a background full-file download into a local cache, so it needs sidecar
+        # ephemeral storage well above staticFileCacheSize to hold that cache plus temp
+        # download state - the pre-GKE-1.29.1-gke.1670000 sidecar default is only 5Gi.
+        gke-gcsfuse/ephemeral-storage-limit: {{ .Values.mbtiles.staticFileCacheSidecarStorageLimit | quote }}
+        gke-gcsfuse/ephemeral-storage-request: {{ .Values.mbtiles.staticFileCacheSidecarStorageRequest | quote }}
     spec:
       terminationGracePeriodSeconds: 25
       serviceAccountName: calculator-scheduler
       volumes:
+        # GCS (via gcsfuse) rather than a PersistentVolumeClaim: a PVC would need
+        # ReadWriteMany to let a new pod mount the same static tiles before the old one
+        # terminates (see the RollingUpdate strategy above), and the only RWX-capable
+        # StorageClass available (filestore-maps, GCP Filestore) has a 1TiB standard-tier
+        # minimum - ~$220/month for what is a ~30GB dataset. GCS buckets have no
+        # accessMode/concurrent-mounter restriction at all, and this repo already relies on
+        # gcsfuse serving .mbtiles files to this exact mbtileserver binary for the
+        # user-uploaded-maps volume below, so this is a proven pattern, not a new one.
         - name: mbtiles-static
-          persistentVolumeClaim:
-            claimName: pvc-mbtiles
+          csi:
+            driver: gcsfuse.csi.storage.gke.io
+            readOnly: true
+            volumeAttributes:
+              bucketName: {{ .Values.mbtiles.bucketName | quote }}
+              mountOptions: {{ printf "%s,only-dir=%s" .Values.mbtiles.gcsfuse.mountOptions .Values.mbtiles.staticGcsPrefix | quote }}
+              # SQLite's B-tree lookups into the .mbtiles files are scattered random-offset
+              # reads - fileCacheForRangeRead makes the first such read on a file trigger an
+              # async full-file download into the local cache (backed by node ephemeral
+              # storage/Local SSD, see the ephemeral-storage annotations above), so every
+              # later read of that file - from any pod - is served locally instead of over
+              # the network. fileCacheCapacity bounds the cache so it can't fill node disk.
+              fileCacheForRangeRead: "true"
+              fileCacheCapacity: {{ .Values.mbtiles.staticFileCacheSize | quote }}
         - name: mbtiles-uploaded
           csi:
             driver: gcsfuse.csi.storage.gke.io
@@ -70,6 +90,7 @@ spec:
           volumeMounts:
             - mountPath: {{ .Values.mbtiles.staticMountPath | quote }}
               name: mbtiles-static
+              readOnly: true
             - mountPath: "/tilesets-user"
               name: mbtiles-uploaded
 ---

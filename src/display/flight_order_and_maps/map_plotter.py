@@ -125,6 +125,16 @@ LINEWIDTH = 0.5
 logger = logging.getLogger(__name__)
 
 TILE_RATE_LIMIT_ABORT_THRESHOLD = 10
+# Fraction of a rendered map's tiles that may come back blank (fetch error, rate limit,
+# or the background-fetch-aborted short-circuit) before the map is treated as too
+# degraded to serve - see MapTileRenderingDegradedError below.
+BLANK_TILE_ABORT_FRACTION = 0.1
+
+
+class MapTileRenderingDegradedError(Exception):
+    """Raised when too many of a rendered map's tiles came back blank due to fetch
+    failures/rate limiting, instead of silently returning a degraded map that would
+    otherwise be stored and emailed as a contestant's competition navigation map."""
 
 
 def _blank_tile(fill=(250, 250, 250)):
@@ -343,6 +353,10 @@ class MyGoogleWTS(GoogleWTS):
         self._tile_fetch_lock = threading.Lock()
         self._tile_rate_limit_errors = 0
         self._background_fetch_aborted = False
+        # Tracks how much of the rendered map is real imagery vs a blank fetch-failure
+        # placeholder - see check_tile_fetch_health(), called after rendering completes.
+        self._tile_fetch_count = 0
+        self._blank_tile_count = 0
 
     def _record_rate_limit_and_should_abort(self) -> bool:
         with self._tile_fetch_lock:
@@ -359,10 +373,16 @@ class MyGoogleWTS(GoogleWTS):
         else:
             cached_file = None
 
+        with self._tile_fetch_lock:
+            self._tile_fetch_count += 1
+
         if cached_file in self.cache:
             img = np.load(cached_file, allow_pickle=False)
         else:
+            is_fallback_tile = False
             if self._background_fetch_aborted:
+                with self._tile_fetch_lock:
+                    self._blank_tile_count += 1
                 img = _blank_tile()
                 return img.convert(self.desired_tile_form), self.tileextent(tile), "lower"
             url = self._image_url(tile)
@@ -379,6 +399,9 @@ class MyGoogleWTS(GoogleWTS):
                         "; abandoning background rendering" if should_abort else "",
                     )
                     img = _blank_tile()
+                    is_fallback_tile = True
+                    with self._tile_fetch_lock:
+                        self._blank_tile_count += 1
                 else:
                     response.raise_for_status()
                     im_data = io.BytesIO(response.content)
@@ -389,13 +412,42 @@ class MyGoogleWTS(GoogleWTS):
                 if getattr(getattr(err, "response", None), "status_code", None) == 429:
                     self._record_rate_limit_and_should_abort()
                 img = _blank_tile()
+                is_fallback_tile = True
+                with self._tile_fetch_lock:
+                    self._blank_tile_count += 1
 
             img = img.convert(self.desired_tile_form)
-            if self.cache_path is not None:
+            # Never disk-cache a fallback/blank tile: a later get_image() call for the same
+            # coordinate would hit the cache branch above and load it as if it were real
+            # imagery, incrementing _tile_fetch_count but not _blank_tile_count - silently
+            # defeating check_tile_fetch_health's blank-tile detection on any subsequent
+            # render that reuses this cache (cache_path is currently never enabled by any
+            # caller in this file, so this path is unreachable today, but stays correct if
+            # that changes).
+            if self.cache_path is not None and not is_fallback_tile:
                 np.save(cached_file, img, allow_pickle=False)
                 self.cache.add(cached_file)
 
         return img, self.tileextent(tile), "lower"
+
+
+def check_tile_fetch_health(imagery) -> None:
+    """
+    Call after rendering (once cartopy has actually fetched every tile via
+    imagery.get_image, i.e. after plt.savefig) - raises MapTileRenderingDegradedError
+    if too many tiles came back blank due to fetch failures/rate limiting, so callers
+    treat a degraded map as a failure instead of silently storing/emailing it.
+    """
+    fetch_count = getattr(imagery, "_tile_fetch_count", 0)
+    blank_count = getattr(imagery, "_blank_tile_count", 0)
+    if fetch_count == 0 or blank_count == 0:
+        return
+    blank_fraction = blank_count / fetch_count
+    if blank_fraction > BLANK_TILE_ABORT_FRACTION:
+        raise MapTileRenderingDegradedError(
+            f"{blank_count}/{fetch_count} map tiles ({blank_fraction:.0%}) came back blank "
+            f"due to fetch failures/rate limiting - refusing to return a degraded map."
+        )
 
 
 class AirsportsOSM(MyGoogleWTS):
@@ -448,7 +500,12 @@ class FlightContest(MyGoogleWTS):
     def get_image(self, tile):
         from urllib.request import urlopen, Request
 
+        with self._tile_fetch_lock:
+            self._tile_fetch_count += 1
+
         if self._background_fetch_aborted:
+            with self._tile_fetch_lock:
+                self._blank_tile_count += 1
             img = _blank_tile()
             return img.convert(self.desired_tile_form), self.tileextent(tile), "lower"
 
@@ -473,6 +530,8 @@ class FlightContest(MyGoogleWTS):
                     "; abandoning background rendering" if should_abort else "",
                 )
             img = _blank_tile((255, 255, 255))
+            with self._tile_fetch_lock:
+                self._blank_tile_count += 1
 
         img = img.convert(self.desired_tile_form)
         return img, self.tileextent(tile), "lower"
@@ -1893,6 +1952,7 @@ def plot_route(
     )  # , bbox_inches="tight", pad_inches=margin_inches/2)
     plt.clf()
     plt.close()
+    check_tile_fetch_health(imagery)
     figdata.seek(0)
     if landscape:
         image = Image.open(figdata)

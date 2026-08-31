@@ -106,10 +106,37 @@ mbtiles:
   publicUrl: https://mbtiles.airsports.no/
   publishRoot: /tilesets
   bucketName: airsports-data
+  # GCS prefix (within bucketName) the static tiles are served from - mirrors
+  # user_uploaded_maps below, mounted read-only via gcsfuse. Not a PVC: the only
+  # RWX-capable StorageClass (filestore-maps) has a 1TiB standard-tier minimum
+  # (~$220/month) for what is a ~30GB dataset, and GCS has no concurrent-mounter
+  # restriction at all, so it needs no special access mode to let a new mbtiles pod
+  # mount the same tiles before the old pod terminates (see the Deployment's
+  # RollingUpdate strategy).
+  staticGcsPrefix: static_maps
   uploadedMountPath: /tilesets/user_uploaded_maps
   staticMountPath: /tilesets-static
   gcsfuse:
     mountOptions: implicit-dirs
+  # Local (node ephemeral storage/Local SSD-backed) cache for the static tiles gcsfuse
+  # volume - see fileCacheForRangeRead/fileCacheCapacity in deployment_mbtileserver.yml.
+  # staticFileCacheSize bounds the cache itself; the sidecar storage values must stay
+  # comfortably above it (headroom for cache overhead/in-flight downloads) since the
+  # gcsfuse sidecar's ephemeral-storage limit is shared across every gcsfuse volume in
+  # the pod, not just this one.
+  staticFileCacheSize: 10Gi
+  staticFileCacheSidecarStorageRequest: 12Gi
+  staticFileCacheSidecarStorageLimit: 15Gi
+  # One-off migration from the old ReadWriteOnce/standard-rwo PVC (pvc-mbtiles) onto
+  # staticGcsPrefix above. See job_mbtiles_static_migration.yaml: it runs as a
+  # pre-upgrade hook, copying data from legacyPvcName into the bucket before Helm
+  # prunes the now-undeclared legacy PVC. Set runStaticMigration to false once the
+  # migration has been confirmed to have succeeded (checked its Job logs) - after
+  # that first upgrade, legacyPvcName no longer exists, and a pod referencing a
+  # missing PVC would just hang Pending, timing out every future `helm upgrade`
+  # until this is flipped off.
+  runStaticMigration: true
+  legacyPvcName: pvc-mbtiles
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

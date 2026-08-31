@@ -34,6 +34,8 @@
 </style>
 
 <script>
+    import { escapeHtml, safeUrlForProperty } from '../scripts/html-safety.js';
+
     async function updateTicker() {
         const container = document.getElementById('live-ticker-container');
         const content = document.getElementById('ticker-content');
@@ -62,15 +64,19 @@
             // Create items
             const items = data.map(task => {
                 const item = document.createElement('a');
-                item.href = API_BASE+task.tracking_link;
+                // DOM property assignment, not an HTML string - safeUrlForProperty (not
+                // safeUrl) so an eventual "&"-containing tracking_link isn't HTML-escaped
+                // into a literal "&amp;" in the URL the browser actually navigates to.
+                item.href = safeUrlForProperty(API_BASE+task.tracking_link);
                 item.target = '_blank';
+                item.rel = 'noopener noreferrer';
                 item.className = 'flex items-center gap-3 hover:text-blue-200 transition-colors group';
-                
+
                 const activeCount = task.active_contestants ? task.active_contestants.length : 0;
-                
+
                 item.innerHTML = `
-                    <span class="font-bold uppercase italic text-xs tracking-wider">${task.contest.name}: <span class="text-blue-100 group-hover:text-white transition-colors">${task.name}</span></span>
-                    <span class="bg-white/10 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border border-white/10">${activeCount} Active</span>
+                    <span class="font-bold uppercase italic text-xs tracking-wider">${escapeHtml(task.contest.name)}: <span class="text-blue-100 group-hover:text-white transition-colors">${escapeHtml(task.name)}</span></span>
+                    <span class="bg-white/10 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border border-white/10">${escapeHtml(activeCount)} Active</span>
                 `;
                 return item;
             });

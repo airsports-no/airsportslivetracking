@@ -106,7 +106,14 @@ class CurveOrPrecisionNavigationStrategy(ContestantTaskCompilerStrategy):
                 gate_times[key] = parser.parse(value).isoformat()
         if self.subtype != PRECISION_NAVIGATION:
             return gate_times
+        # expected_names is turnpoints only (organizers never declare predictions
+        # for takeoff/landing gates), but takeoff/landing gate times still need to
+        # survive this filter - TakeoffAndLandingGateCalculator.initiate_takeoff_and_landing_gates
+        # does an unguarded gate_times[gate.name] lookup for every route.takeoff_gates/landing_gates
+        # entry and KeyErrors at calculator construction otherwise.
         expected_names = set(self.compiler._get_precision_navigation_prediction_names())
+        route = self.compiler.contestant.navigation_task.route
+        expected_names |= {gate.name for gate in route.takeoff_gates} | {gate.name for gate in route.landing_gates}
         return {key: value for key, value in gate_times.items() if key in expected_names}
 
     def build_declaration_payload_from_input(self, declaration_input: dict) -> dict:
@@ -984,7 +991,16 @@ class ContestantTaskCompiler:
 
         gate_times = {"SP": base_time.isoformat()}
         gate_times.update(build_segment_times(before_names, "MP", base_time, float(t_seconds), before_distance))
-        mp_time = datetime.datetime.fromisoformat(gate_times["MP"])
+        mp_gate_time = gate_times.get("MP")
+        if mp_gate_time is None:
+            # No "MP" in effective_waypoints - normally impossible (effective waypoints are
+            # synthesized to always include it), but the REST API path lets a client post
+            # declared_sequence directly, skipping that synthesis. Return what we have instead
+            # of KeyError-ing here: _validate_declaration (ContractNavigationStrategy, which
+            # requires exactly one "MP" in declared_sequence) runs right after this and turns
+            # the real problem into a proper validation error instead of a 500.
+            return gate_times
+        mp_time = datetime.datetime.fromisoformat(mp_gate_time)
         gate_times.update(build_segment_times(after_names, "FP", mp_time, float(t_seconds), after_distance))
         return gate_times
 

@@ -43,7 +43,7 @@
                                 </div>
                             </div>
                             {% if object.team.crew.member1.picture %}
-                                <a href="{% url 'clear_profile_image_background' contest.pk object.team.crew.member1.pk %}" class="btn btn-xs btn-primary">Remove BG</a>
+                                <form method="post" action="{% url 'clear_profile_image_background' contest.pk object.team.crew.member1.pk %}" class="inline">{% csrf_token %}<button type="submit" class="btn btn-xs btn-primary">Remove BG</button></form>
                             {% endif %}
                         </div>
                         {% if object.team.crew.member2 %}
@@ -58,7 +58,7 @@
                                 </div>
                             </div>
                             {% if object.team.crew.member2.picture %}
-                                <a href="{% url 'clear_profile_image_background' contest.pk object.team.crew.member2.pk %}" class="btn btn-xs btn-primary">Remove BG</a>
+                                <form method="post" action="{% url 'clear_profile_image_background' contest.pk object.team.crew.member2.pk %}" class="inline">{% csrf_token %}<button type="submit" class="btn btn-xs btn-primary">Remove BG</button></form>
                             {% endif %}
                         </div>
                         {% endif %}
@@ -77,7 +77,7 @@
                                 <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">
                                     <li><a href="{% url 'team_wizard' contest.pk object.team.pk %}">Modify team information</a></li>
                                     <li><a href="{% url 'contestteamtracking_update' contest.pk object.pk %}">Update tracking information</a></li>
-                                    <li><a href="{% url 'remove_team' contest.pk object.team.pk %}" class="link-error">Remove team</a></li>
+                                    <li><form method="post" action="{% url 'remove_team' contest.pk object.team.pk %}" onsubmit="return confirm('Remove this team from the contest?')">{% csrf_token %}<button type="submit" class="link-error w-full text-left">Remove team</button></form></li>
                                     {% if user.is_superuser %}
                                         <li><a href="{% url 'person_update' object.team.crew.member1.pk %}">Edit crewmember one</a></li>
                                         {% if object.team.crew.member2 %}

@@ -34,6 +34,9 @@ from display.models import Contestant, TrackAnnotation, ScoreLogEntry, Contestan
 
 DANGER_LEVEL_REPORT_INTERVAL = 5
 CHECK_BUFFERED_DATA_TIME_LIMIT = 6
+# Poll interval while waiting for enqueue_positions_thread's (unbounded) initial Traccar history
+# fetch to finish, so the "running" heartbeat gets refreshed instead of expiring on a slow fetch.
+INITIAL_POSITION_LOAD_HEARTBEAT_POLL_SECONDS = 15
 # Minimum horizontal distance (metres) between two positions before we trust a
 # track-derived bearing. Below this, GPS jitter dominates and the bearing is
 # unreliable, so we leave the heading at 0 rather than emitting noise.
@@ -353,8 +356,16 @@ class ContestantProcessor:
         self.queuer_thread.start()
         receiving = False
         number_of_positions = 0
-        # Wait while the thread loads outstanding positions.
-        self.finished_loading_initial_positions.wait()
+        # Wait while the thread loads outstanding positions, refreshing the "running" heartbeat
+        # periodically so a slow Traccar history fetch (unbounded, see enqueue_positions_thread)
+        # doesn't outlast the heartbeat's 30s TTL. Without this, a fetch exceeding 30s expires the
+        # key, is_calculator_running() reports False while this processor is still starting up, and
+        # a broker redelivery (acks-late/visibility timeout, expected per run_live_contestant_calculator's
+        # own docstring) spins up a second ContestantProcessor for the same contestant against the same
+        # Redis queue, splitting positions between two divergent tracks (same failure class as the
+        # shutdown-window race fixed for GH #29, just the other end of the run).
+        while not self.finished_loading_initial_positions.wait(timeout=INITIAL_POSITION_LOAD_HEARTBEAT_POLL_SECONDS):
+            calculator_is_alive(self.contestant.pk, 30)
 
         # Check for termination again after wait
         if self.is_termination_commanded():
@@ -579,8 +590,18 @@ class ContestantProcessor:
                 elif last_gate:
                     lat, lon = last_gate.latitude, last_gate.longitude
                     planned = last_gate.expected_time
-                elif self.route.waypoints:
-                    lat, lon = self.route.waypoints[0].latitude, self.route.waypoints[0].longitude
+                elif self.contestant.navigation_task.route.waypoints:
+                    # ContestantProcessor is not a Calculator subclass - it never had a
+                    # self.route (only Calculator.__init__ sets that) - hit whenever a manual
+                    # termination is requested while position is None and
+                    # orchestrator.get_last_gate() is None (normal pre-first-position state,
+                    # and permanent for POKER/LANDING tasks, whose calculators never emit
+                    # NextGateExpectedEvent). The AttributeError fired before
+                    # notify_termination(), so track_terminated never got set.
+                    lat, lon = (
+                        self.contestant.navigation_task.route.waypoints[0].latitude,
+                        self.contestant.navigation_task.route.waypoints[0].longitude,
+                    )
 
                 self.score_processing_queue.put_nowait(
                     UpdateScoreMessage(

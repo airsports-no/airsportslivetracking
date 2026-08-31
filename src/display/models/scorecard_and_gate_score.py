@@ -1,6 +1,8 @@
 import datetime
+import uuid
 from typing import Optional
 
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import QuerySet
@@ -178,20 +180,32 @@ class Scorecard(models.Model):
             simple_clone(gate, {"scorecard": obj})
         return obj
 
+    # Process-local: safe because every entry is stamped with the version token below (a
+    # value from the shared Redis cache, rewritten by bump_gate_scorecard_cache_version in
+    # display/signals.py whenever a GateScore is saved/deleted) and get_gate_scorecard
+    # replaces (not accumulates) the entry for a given (pk, gate_type) on a version
+    # mismatch - so this stays bounded to one entry per (scorecard, gate_type) actually
+    # looked up, not one per edit-since-process-start.
     SCORECARD_CACHE = {}
+
+    def _gate_scorecard_cache_version(self) -> str:
+        return cache.get_or_set(f"gate_scorecard_version_{self.pk}", lambda: uuid.uuid4().hex, timeout=None)
 
     def get_gate_scorecard(self, gate_type: str) -> "GateScore":
         """
         Get the scorecard for a specific gate type.
         """
+        cache_key = (self.pk, gate_type)
+        current_version = self._gate_scorecard_cache_version()
+        cached = self.SCORECARD_CACHE.get(cache_key)
+        if cached is not None and cached[0] == current_version:
+            return cached[1]
         try:
-            return self.SCORECARD_CACHE[(self.pk, gate_type)]
-        except KeyError:
-            try:
-                self.SCORECARD_CACHE[(self.pk, gate_type)] = self.gatescore_set.get(gate_type=gate_type)
-                return self.SCORECARD_CACHE[(self.pk, gate_type)]
-            except ObjectDoesNotExist:
-                raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
+            gate_score = self.gatescore_set.get(gate_type=gate_type)
+        except ObjectDoesNotExist:
+            raise ValueError(f"Unknown gate type '{gate_type}' or undefined score")
+        self.SCORECARD_CACHE[cache_key] = (current_version, gate_score)
+        return gate_score
 
     def calculate_penalty_zone_score(self, enter: datetime.datetime, leave: datetime.datetime):
         """

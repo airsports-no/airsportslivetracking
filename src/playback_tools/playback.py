@@ -194,7 +194,7 @@ def validate_gpx_file(file):
     for track in gpx.tracks:
         for segment in track.segments:
             for point in segment.points:
-                if point.time.tzinfo is None:
+                if point.time is None or point.time.tzinfo is None:
                     raise InvalidGpxTimeFormatException("Timezone information is missing")
 
 

@@ -23,6 +23,14 @@ class PlayingCard(models.Model):
     waypoint_name = models.CharField(max_length=50, blank=True, null=True)
     waypoint_index = models.IntegerField(default=0)
 
+    class Meta:
+        # Backs add_contestant_card's application-level get_or_create with a real DB
+        # constraint, matching ScoreLogEntry.get_or_create_and_push's pattern - a poker
+        # gate awards a contestant at most one card, ever, so a race between two
+        # concurrent writers for the same contestant can't both insert one. MySQL treats
+        # each NULL as distinct, so this doesn't constrain any waypoint_name=None rows.
+        unique_together = ("contestant", "waypoint_name")
+
     def __str__(self):
         return f"{self.card} for {self.contestant} at {self.waypoint_name} (waypoint {self.waypoint_index})"
 
@@ -162,48 +170,68 @@ class PlayingCard(models.Model):
         """
         Adds a specific card to the contestant, updates the score, and pushes this to the front end. Requires the
         waypoint index to identify at which waypoint the card was dealt.
+
+        Idempotent per (contestant, waypoint): a poker gate awards at most one card, ever. This
+        is what makes a live-calculator restart mid-flight safe - idempotent-restart replays the
+        whole track from the beginning (see contestant_processor.py), and
+        PokerCalculator.passed_gates (which would otherwise prevent a duplicate
+        PokerGatePassedEvent for an already-passed gate) is in-memory only and rebuilds empty on
+        restart. Without this, a restart re-fired every already-passed gate and dealt a second
+        (and, since hand evaluation is best-5-of-N, never-worse) card.
+
+        The card row and its score effects (ScoreLogEntry, TrackAnnotation, contestanttrack
+        score/version) are persisted in one transaction.atomic() block - without it, a crash
+        between the get_or_create() and the score-effects below would leave the card persisted
+        but its score effects missing; the idempotent-restart replay above would then hit
+        `if not created: return poker_card` and skip them forever, since the card row already
+        exists on the next attempt.
         """
         from display.models import ScoreLogEntry, ANOMALY, TrackAnnotation
+        from django.db import transaction
 
         previous_hand_score, _ = cls.get_relative_score(contestant)
 
-        poker_card = cls.objects.create(
-            contestant=contestant,
-            card=card,
-            waypoint_name=waypoint,
-            waypoint_index=waypoint_index,
-        )
-        new_hand_score, hand_description = cls.get_relative_score(contestant)
-        message = "Received card {}, current hand is {}".format(poker_card.get_card_display(), hand_description)
-        entry = ScoreLogEntry.create_and_push(
-            contestant=contestant,
-            time=datetime.datetime.now(datetime.timezone.utc),
-            gate=waypoint,
-            message=message,
-            points=-previous_hand_score + new_hand_score,
-            type=ANOMALY,
-            string="{}: {}".format(waypoint, message),
-        )
-        if pos is None:
-            pos = contestant.get_latest_position()
+        with transaction.atomic():
+            poker_card, created = cls.objects.get_or_create(
+                contestant=contestant,
+                waypoint_name=waypoint,
+                defaults={"card": card, "waypoint_index": waypoint_index},
+            )
+            if not created:
+                return poker_card
+            new_hand_score, hand_description = cls.get_relative_score(contestant)
+            message = "Received card {}, current hand is {}".format(poker_card.get_card_display(), hand_description)
+            entry = ScoreLogEntry.create_and_push(
+                contestant=contestant,
+                time=datetime.datetime.now(datetime.timezone.utc),
+                gate=waypoint,
+                message=message,
+                points=-previous_hand_score + new_hand_score,
+                type=ANOMALY,
+                string="{}: {}".format(waypoint, message),
+            )
+            if pos is None:
+                pos = contestant.get_latest_position()
 
-        longitude = 0
-        latitude = 0
-        if pos:
-            latitude = pos.latitude
-            longitude = pos.longitude
-        TrackAnnotation.create_and_push(
-            contestant=contestant,
-            latitude=latitude,
-            longitude=longitude,
-            message=entry.string,
-            type=ANOMALY,
-            time=datetime.datetime.now(datetime.timezone.utc),
-            score_log_entry=entry,
-        )
-        contestant.contestanttrack.update_score(contestant.contestanttrack.score - previous_hand_score + new_hand_score)
-        type(contestant).objects.filter(pk=contestant.pk).update(score_version=F("score_version") + 1)
-        from websocket_channels import WebsocketFacade
+            longitude = 0
+            latitude = 0
+            if pos:
+                latitude = pos.latitude
+                longitude = pos.longitude
+            TrackAnnotation.create_and_push(
+                contestant=contestant,
+                latitude=latitude,
+                longitude=longitude,
+                message=entry.string,
+                type=ANOMALY,
+                time=datetime.datetime.now(datetime.timezone.utc),
+                score_log_entry=entry,
+            )
+            contestant.contestanttrack.update_score(
+                contestant.contestanttrack.score - previous_hand_score + new_hand_score
+            )
+            type(contestant).objects.filter(pk=contestant.pk).update(score_version=F("score_version") + 1)
 
-        ws = WebsocketFacade()
-        ws.transmit_playing_cards(contestant)
+            from websocket_channels import WebsocketFacade
+
+            transaction.on_commit(lambda: WebsocketFacade().transmit_playing_cards(contestant))

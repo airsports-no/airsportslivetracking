@@ -1,0 +1,92 @@
+{{- if .Values.mbtiles.runStaticMigration }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mbtiles-static-migration-{{ now | unixEpoch }}
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 100
+  backoffLimit: 2
+  activeDeadlineSeconds: 3600
+  template:
+    metadata:
+      labels:
+        date: "{{ now | unixEpoch }}"
+      annotations:
+        gke-gcsfuse/volumes: "true"
+        # gcsfuse rejects ownership/permission changes outright - see the note on the "cp -R,
+        # not cp -a" choice below. This Job still stages the copy on the sidecar's local
+        # ephemeral storage before uploading, so it needs the same headroom as the Deployment's
+        # gcsfuse mount of the same prefix (see deployment_mbtileserver.yml) - a single
+        # .mbtiles file close to the sidecar's pre-GKE-1.29.1-gke.1670000 default (5Gi) would
+        # otherwise fail the copy or get the pod evicted for exceeding ephemeral storage.
+        gke-gcsfuse/ephemeral-storage-limit: {{ .Values.mbtiles.staticFileCacheSidecarStorageLimit | quote }}
+        gke-gcsfuse/ephemeral-storage-request: {{ .Values.mbtiles.staticFileCacheSidecarStorageRequest | quote }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: calculator-scheduler
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # This Job's pod and the still-running mbtiles Deployment pod (see
+      # deployment_mbtileserver.yml) both mount legacyPvcName (ReadWriteOnce) at the same
+      # time - a pre-upgrade hook runs before Helm updates the Deployment, so the old pod is
+      # still up. ReadWriteOnce allows concurrent mounters only on the same node, so without
+      # this affinity the scheduler could place this pod on a different node than the mbtiles
+      # pod, producing a FailedAttachVolume/Multi-Attach error.
+      #
+      # Soft (preferred), not hard (required): a required affinity blocks scheduling entirely
+      # whenever no service=mbtiles pod happens to be up at that instant (a node drain, an
+      # OOM-kill, anything transient) - stuck Pending until activeDeadlineSeconds, failing the
+      # whole upgrade for an unrelated, momentary reason. Soft affinity still steers the
+      # scheduler onto the same node in the normal case (mbtiles pod running - the only case
+      # where the Multi-Attach risk above is even possible), while still letting this pod
+      # schedule anywhere if no mbtiles pod exists to contend with the PVC at all.
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    service: mbtiles
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: mbtiles-static-migration
+          image: "alpine:3.20"
+          command:
+            - "sh"
+            - "-c"
+            - >
+              set -eu;
+              echo "Copying static mbtiles from the legacy volume to the static_maps GCS prefix...";
+              cp -R /source/. /dest/;
+              echo "Done. Destination contents:";
+              ls -la /dest
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: mbtiles-static-legacy
+              mountPath: /source
+              readOnly: true
+            - name: mbtiles-static
+              mountPath: /dest
+      volumes:
+        - name: mbtiles-static-legacy
+          persistentVolumeClaim:
+            claimName: {{ .Values.mbtiles.legacyPvcName }}
+            readOnly: true
+        # Not readOnly here (unlike the Deployment's mount of the same prefix) - this
+        # Job is the writer that populates it.
+        - name: mbtiles-static
+          csi:
+            driver: gcsfuse.csi.storage.gke.io
+            volumeAttributes:
+              bucketName: {{ .Values.mbtiles.bucketName | quote }}
+              mountOptions: {{ printf "%s,only-dir=%s" .Values.mbtiles.gcsfuse.mountOptions .Values.mbtiles.staticGcsPrefix | quote }}
+{{- end }}

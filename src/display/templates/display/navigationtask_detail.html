@@ -86,7 +86,12 @@
                             {% lucide "settings" size=16 class="lucide lucide-settings" %}
                         </label>
                         <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-64">
-                            <li><a href="{% url 'navigationtask_removecontestants' object.pk %}" class="text-error">Remove contestants</a></li>
+                            <li>
+                                <form method="post" action="{% url 'navigationtask_removecontestants' object.pk %}" onsubmit="return confirm('Remove all contestants from this navigation task?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="text-error w-full text-left">Remove contestants</button>
+                                </form>
+                            </li>
                             {% if object.editable_route %}
                                 <li><hr class="my-1 border-base-200"></li>
                                 <li><a href="{% fe_url 'ROUTE_EDITOR_EDIT' routeId=object.editable_route.id %}">Edit route</a></li>
@@ -270,15 +275,16 @@
                                         {% lucide "ellipsis-vertical" size=20 class="inline-block stroke-current" %}
                                     </label>
                                     <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-20">
+                                        <li><a href="{% url 'contestant_gate_times' contestant.pk %}">View / remove penalties</a></li>
                                         <li><a href="{% url 'contestant_map' contestant.pk %}">Map</a></li>
                                         {% if object.task_subtype == 'turnpoint_hunt' or object.task_subtype == 'limited_fuel_turnpoint_hunt' or object.task_subtype == 'contract_navigation_time_controls' %}
                                             <li><a href="/contestant-declaration/{{ object.contest.pk }}/{{ object.pk }}/{{ contestant.pk }}">Edit declaration</a></li>
                                         {% endif %}
                                         {% if "change_contest" in contest_permissions %}
                                             {% if contestant.contestanttrack.calculator_finished %}
-                                                <li><a href="{% url 'contestant_restart_calculator' contestant.pk %}" onclick="return confirm('Restart?')">Restart Calculator</a></li>
+                                                <li><form method="post" action="{% url 'contestant_restart_calculator' contestant.pk %}" onsubmit="return confirm('Restart?')">{% csrf_token %}<button type="submit" class="w-full text-left">Restart Calculator</button></form></li>
                                             {% else %}
-                                                 <li><a href="{% url 'contestant_stop_calculator' contestant.pk %}" onclick="return confirm('Stop?')">Stop Calculator</a></li>
+                                                 <li><form method="post" action="{% url 'contestant_stop_calculator' contestant.pk %}" onsubmit="return confirm('Stop?')">{% csrf_token %}<button type="submit" class="w-full text-left">Stop Calculator</button></form></li>
                                             {% endif %}
                                             <li><hr class="my-1 border-base-200"></li>
                                             <li><a href="{% url 'navigationtask_flightordersprogress' object.pk %}?contestant_pk={{ contestant.pk }}">New Flight Order</a></li>
@@ -344,11 +350,6 @@
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Mobile Gate Times Link -->
-                            <a href="{% url 'contestant_gate_times' contestant.pk %}" class="btn btn-sm btn-outline btn-block mt-3">
-                                View Gate Times
-                            </a>
                         </div>
                     </div>
                     {% endfor %}
@@ -366,7 +367,6 @@
                             <th>Timing</th>
                             <th class="w-8">AS</th>
                             <th class="w-8">Wind</th>
-                            <th class="w-8 text-center">Gates</th>
                             <th>State</th>
                             <th class="w-16">Actions</th>
                         </tr>
@@ -375,7 +375,7 @@
                         {% for contestant in object.contestant_set.all|dictsort:"contestant_number" %}
                             {% ifchanged contestant.takeoff_time|date:"Y-m-d" %}
                                 <tr class="bg-base-200 font-bold">
-                                    <td colspan="10" class="text-center py-2 text-base-content/80">
+                                    <td colspan="9" class="text-center py-2 text-base-content/80">
                                         {{ contestant.takeoff_time|date:"l, F j, Y" }}
                                     </td>
                                 </tr>
@@ -421,15 +421,19 @@
                                 <td>
                                     <!-- Live Status Indicators -->
                                     <div class="contestant_live_running_{{ contestant.pk }}" style="display: none">
-                                        <a class="tooltip tooltip-right" data-tip="Calculator is running." href="{% url 'contestant_stop_calculator' contestant.pk %}" onclick="return confirm('Stop calculator?')">
-                                            <div class="w-3 h-3 rounded-full bg-success animate-pulse"></div>
-                                        </a>
+                                        <form method="post" action="{% url 'contestant_stop_calculator' contestant.pk %}" onsubmit="return confirm('Stop calculator?')" class="inline">{% csrf_token %}
+                                            <button type="submit" class="tooltip tooltip-right p-0 border-0 bg-transparent" data-tip="Calculator is running.">
+                                                <div class="w-3 h-3 rounded-full bg-success animate-pulse"></div>
+                                            </button>
+                                        </form>
                                     </div>
                                     <div class="contestant_live_not_running_{{ contestant.pk }}" style="display: none">
                                         {% if contestant.contestanttrack.calculator_finished %}
-                                            <a class="tooltip tooltip-right" data-tip="Restart calculator." href="{% url 'contestant_restart_calculator' contestant.pk %}" onclick="return confirm('Restart calculator?')">
-                                                <div class="w-3 h-3 rounded-full bg-error/50"></div>
-                                            </a>
+                                            <form method="post" action="{% url 'contestant_restart_calculator' contestant.pk %}" onsubmit="return confirm('Restart calculator?')" class="inline">{% csrf_token %}
+                                                <button type="submit" class="tooltip tooltip-right p-0 border-0 bg-transparent" data-tip="Restart calculator.">
+                                                    <div class="w-3 h-3 rounded-full bg-error/50"></div>
+                                                </button>
+                                            </form>
                                         {% else %}
                                             <div class="tooltip tooltip-right" data-tip="Not running.">
                                                 <div class="w-3 h-3 rounded-full bg-error"></div>
@@ -463,14 +467,12 @@
                                         {{ contestant.wind_direction|stringformat:"03d" }}/{{ contestant.wind_speed }}
                                     </div>
                                 </td>
-                                <td class="text-center">
-                                    <a href="{% url 'contestant_gate_times' contestant.pk %}" class="btn btn-ghost btn-xs text-primary px-1">View</a>
-                                </td>
                                 <td><span class="badge badge-outline badge-xs whitespace-nowrap">{{ contestant.contestanttrack.current_state }}</span></td>
                                 <td>
                                     <div class="dropdown dropdown-end dropdown-left">
                                         <label tabindex="0" class="btn btn-ghost btn-xs px-1">Actions</label>
                                         <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-50">
+                                            <li><a href="{% url 'contestant_gate_times' contestant.pk %}">View / remove penalties</a></li>
                                             <li><a href="{% url 'contestant_map' contestant.pk %}">Map</a></li>
                                             {% if object.task_subtype == 'turnpoint_hunt' or object.task_subtype == 'limited_fuel_turnpoint_hunt' or object.task_subtype == 'contract_navigation_time_controls' %}
                                                 <li><a href="/contestant-declaration/{{ object.contest.pk }}/{{ object.pk }}/{{ contestant.pk }}">Edit declaration</a></li>

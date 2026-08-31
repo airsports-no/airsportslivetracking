@@ -38,6 +38,29 @@ def count_running(contestant_pks) -> int:
     return sum(1 for value in values.values() if value is True)
 
 
+def count_all_running(redis_connection) -> int:
+    """
+    Counts every live CALCULATOR_RUNNING_* heartbeat key directly in Redis, independent of any
+    schedule query - unlike count_running(contestant_pks) above, which can only ever report a
+    subset of whatever pks it's handed.
+
+    calculator_pool_scaler.desired_replicas() relies on running+queued being a genuinely
+    independent floor derived from what's actually happening on the broker/heartbeat side, so a
+    gap in the schedule query can never cause a shrink that evicts a live contestant. Passing it
+    count_running(scheduled_pks) (the same pks the schedule query just produced) can't provide
+    that: running <= len(scheduled_pks) always, collapsing the floor to just the schedule query's
+    own opinion. A calculator can legitimately still be running with its contestant no longer in
+    that query's result - e.g. draining its position queue past finished_by_time
+    (contestant_processor.py's queue-drain wait), or should_i_terminate() advancing
+    finished_by_time to an inferred landing time - and count_running would silently exclude it.
+
+    Uses SCAN (cursor-based, non-blocking), not KEYS, and cache.make_key() to build the pattern
+    so it's correct regardless of the cache's KEY_PREFIX/VERSION settings.
+    """
+    pattern = cache.make_key(f"{KEY_BASE}_") + "*"
+    return sum(1 for _ in redis_connection.scan_iter(match=pattern, count=100))
+
+
 def calculator_dispatch_pending(contestant_pk: int, timeout: float):
     """
     Marks that a calculator task has just been dispatched to Celery for this

@@ -47,8 +47,7 @@ class FirebaseMigrationBackend(ModelBackend):
             firebase_admin.get_app()
         except ValueError:
             # Firebase not initialized, try to initialize it using settings
-            firebase_conf = getattr(settings, "DRF_FIREBASE_AUTH", {})
-            cert_path = firebase_conf.get("FIREBASE_SERVICE_ACCOUNT_KEY")
+            cert_path = getattr(settings, "FIREBASE_SERVICE_ACCOUNT_KEY", None)
             
             if cert_path:
                 import os

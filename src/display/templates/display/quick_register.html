@@ -11,7 +11,13 @@
             <h2 class="card-title text-2xl mb-1">{{ contest.name }}</h2>
             <h3 class="text-lg font-semibold mb-4 text-primary">{{ navigation_task.name }}</h3>
             <p class="mb-6">Enter your aircraft tail number to join the Poker Run.</p>
-            
+
+            {% if error %}
+            <div class="alert alert-error mb-4">
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
             <form method="post">
                 {% csrf_token %}
                 <div class="form-control w-full">

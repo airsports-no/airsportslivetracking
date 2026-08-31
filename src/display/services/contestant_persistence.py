@@ -88,13 +88,18 @@ def update_contestant_with_related_state(instance: Contestant, validated_data: d
         normalized_data = _apply_contest_team_defaults(contest_team, normalized_data)
     parsed_gate_times = _parse_gate_times(gate_times)
 
-    # Ordering is deliberate here too: persist base contestant fields,
-    # refresh/apply gate-time overrides, then recompile declaration-derived
-    # contestant state, and only afterwards mirror the resolved tracking/speed
-    # defaults back onto ContestTeam.
+    # Ordering is deliberate here too: apply base contestant fields to the
+    # in-memory instance, apply gate-time overrides, then persist everything
+    # in one save() - this must go through save() (not a queryset .update(),
+    # which bypasses pre_save/clean() entirely) so Contestant.clean()'s
+    # "no timing changes after calculator start" guard actually compares
+    # against the real pre-request DB row instead of a row this call already
+    # overwrote. Then recompile declaration-derived contestant state, and
+    # only afterwards mirror the resolved tracking/speed defaults back onto
+    # ContestTeam.
     with transaction.atomic():
-        Contestant.objects.filter(pk=instance.pk).update(**normalized_data)
-        instance.refresh_from_db()
+        for field_name, value in normalized_data.items():
+            setattr(instance, field_name, value)
         # Serializer/view callers pass gate_times=None when they intend to
         # clear predefined overrides, so updates always rewrite the persisted
         # gate-time payload instead of silently preserving stale values.

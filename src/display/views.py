@@ -1,12 +1,14 @@
 import datetime
 import json
 import os
+import re
 from collections import defaultdict
 from io import BytesIO
 from typing import Dict, List
 
 from django.templatetags.static import static
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.views import View
 from django.views.static import serve
 
@@ -145,7 +147,6 @@ ADMINISTRATIVE_PENALTY_CATEGORIES = {
     },
 }
 from display.flight_order_and_maps.generate_flight_orders import (
-    generate_flight_orders,
     embed_map_in_pdf,
 )
 from display.flight_order_and_maps.map_constants import A4
@@ -534,6 +535,7 @@ def refresh_editable_route_navigation_task(request, pk):
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
 def clear_profile_image_background(request, contest_pk, pk):
     """
@@ -547,7 +549,9 @@ def clear_profile_image_background(request, contest_pk, pk):
         messages.error(request, f"Background removal failed for {person}: {result}")
     else:
         messages.success(request, f"Background removal successful for {person}")
-    return redirect(reverse("contest_team_images", kwargs={"pk": contest_pk}))
+    # "contest_team_images" is not a real URL name - this redirect has always 500'd on
+    # success (NoReverseMatch), only noticed now via this finding's own regression test.
+    return redirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
 
 
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
@@ -561,7 +565,10 @@ def upload_profile_picture(request, contest_pk, pk):
         form = PersonPictureForm(request.POST, request.FILES, instance=person)
         if form.is_valid():
             form.save()
-            return redirect(reverse("contest_team_images", kwargs={"pk": contest_pk}))
+            # "contest_team_images" is not a real URL name - this redirect has always
+            # 500'd on success (NoReverseMatch), only noticed now via an adjacent fix's
+            # regression test.
+            return redirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
     form = PersonPictureForm(instance=person)
     return render(
         request,
@@ -787,17 +794,6 @@ def get_contestant_email_flight_orders_link(request, key):
     return response
 
 
-def get_contestant_email_flying_orders_link(request, pk):
-    """
-    View to synchronously generate refined orders for contestant and download the PDF file. Mostly used for testing.
-    """
-    contestant = get_object_or_404(Contestant, id=pk)
-    report = generate_flight_orders(contestant)
-    response = HttpResponse(bytes(report), content_type="application/pdf")
-    response["Content-Disposition"] = "attachment; filename=flight_orders.pdf"
-    return response
-
-
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def generatenavigation_task_orders_template(request, pk):
     """
@@ -834,6 +830,17 @@ def get_navigation_task_orders_status_object(pk: int) -> Dict:
     }
 
 
+def _safe_zip_entry_name(text: str, extension: str) -> str:
+    """
+    Builds a flat, path-traversal-safe zip entry name from free text (e.g. a crew/team name
+    interpolated via Contestant.__str__). Not every zip extractor sanitises "../" the way
+    Python's own zipfile does, so this strips path separators and anything else that isn't
+    safe in a plain filename before an entry is ever written to the archive.
+    """
+    sanitized = re.sub(r"[^\w\- ()]", "_", text)
+    return f"{sanitized}.{extension}"
+
+
 @guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def download_navigation_task_orders(request, pk):
     """
@@ -855,7 +862,7 @@ def download_navigation_task_orders(request, pk):
         byte_stream = BytesIO()
         zf = zipfile.ZipFile(byte_stream, "w")
         for order in EmailMapLink.objects.filter(contestant__in=contestants):
-            zf.writestr(f"{order.contestant}.pdf", order.orders)
+            zf.writestr(_safe_zip_entry_name(str(order.contestant), "pdf"), order.orders)
         zf.close()
         response = HttpResponse(byte_stream.getvalue(), content_type="application/x-zip-compressed")
         response["Content-Disposition"] = "attachment; filename=%s" % zip_filename
@@ -983,7 +990,6 @@ def upload_gpx_track_for_contesant(request, pk):
     if request.method == "POST":
         form = GPXTrackImportForm(request.POST, request.FILES)
         if form.is_valid():
-            contestant.reset_track_and_score()
             track_file = request.FILES["track_file"]
             data = track_file.read().decode("utf-8")
             try:
@@ -991,6 +997,11 @@ def upload_gpx_track_for_contesant(request, pk):
             except Exception as e:
                 form.add_error(None, str(e))
             else:
+                # Only wipe the existing track once the upload has actually validated -
+                # reset_track_and_score() used to run unconditionally before this point,
+                # so an invalid file destroyed the contestant's positions/score log and
+                # left the form error as the only feedback, with nothing to fall back to.
+                contestant.reset_track_and_score()
                 import_gpx_track.apply_async((contestant.pk, data))
                 messages.success(request, "Started loading track")
                 return HttpResponseRedirect(
@@ -1105,6 +1116,7 @@ EDITABLEROUTE_PERMISSION_MAP = {
 }
 
 
+@require_POST
 @guardian_permission_required("display.change_editableroute", (EditableRoute, "pk", "pk"))
 def delete_user_editableroute_permissions(request, pk, user_pk):
     """
@@ -1112,6 +1124,10 @@ def delete_user_editableroute_permissions(request, pk, user_pk):
     """
     editableroute = get_object_or_404(EditableRoute, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
+    # See delete_user_contest_permissions for why both of these are here.
+    if user.pk == request.user.pk:
+        messages.error(request, "You cannot remove your own permissions for this route.")
+        return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
     for permission in EDITABLEROUTE_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, editableroute)
     return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
@@ -1210,6 +1226,7 @@ CONTEST_PERMISSION_MAP = {
 }
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
 def delete_user_contest_permissions(request, pk, user_pk):
     """
@@ -1217,6 +1234,15 @@ def delete_user_contest_permissions(request, pk, user_pk):
     """
     contest = get_object_or_404(Contest, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
+    # Previously a bare GET with no CSRF protection (GET isn't covered by CSRF middleware) and
+    # no server-side check - "don't remove your own access" was enforced only by hiding the
+    # button client-side, so any user holding just change_contest could revoke ANY other user's
+    # permissions, including the actual owner's, via a one-click <img src="..."> on any page a
+    # logged-in editor visited. @require_POST closes the CSRF vector; this check closes
+    # accidental/malicious self-lockout via a legitimate POST too.
+    if user.pk == request.user.pk:
+        messages.error(request, "You cannot remove your own permissions for this contest.")
+        return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
     for permission in CONTEST_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, contest)
     return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
@@ -1270,6 +1296,7 @@ def add_user_contest_permissions(request, pk):
 ###### Contest permission management ends
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def terminate_contestant_calculator(request, pk):
     """
@@ -1286,6 +1313,7 @@ def terminate_contestant_calculator(request, pk):
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def restart_contestant_calculator(request, pk):
     """
@@ -1565,6 +1593,7 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return reverse("contest_details", kwargs={"pk": self.get_object().contest.pk})
 
 
+@require_POST
 @transaction.atomic
 @guardian_permission_required(
     "display.change_contest",
@@ -2138,7 +2167,8 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
         return HttpResponseRedirect(self.get_success_url())
 
 
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+@require_POST
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def clear_contestants(request, pk):
     """
     Deletes all contestants from the navigation task and redirects to the navigation task detail page.
@@ -2230,6 +2260,7 @@ def _extract_values_from_form(form: ModelForm) -> List:
     return content
 
 
+@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
 def navigation_task_view_detailed_score(request, pk):
     """
     Render scorecard overview page that shows scorecard values and gate score values with options to modify them.
@@ -2431,6 +2462,7 @@ def copy_editable_route(request, pk):
     return HttpResponseRedirect(fe_url("ROUTE_EDITOR_EDIT", routeId=editable_route.pk))
 
 
+@require_POST
 @guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
 def remove_team_from_contest(request, contest_pk, team_pk):
     contest = get_object_or_404(Contest, pk=contest_pk)
@@ -2439,6 +2471,7 @@ def remove_team_from_contest(request, contest_pk, team_pk):
     return HttpResponseRedirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
 
 
+@require_POST
 @permission_required("display.change_contest")
 def renew_token(request):
     user = request.user
@@ -2600,10 +2633,15 @@ USERUPLOADEDMAP_PERMISSION_MAP = {
 }
 
 
+@require_POST
 @guardian_permission_required("display.change_useruploadedmap", (UserUploadedMap, "pk", "pk"))
 def delete_user_useruploadedmap_permissions(request, pk, user_pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     user = get_object_or_404(MyUser, pk=user_pk)
+    # See delete_user_contest_permissions for why both of these are here.
+    if user.pk == request.user.pk:
+        messages.error(request, "You cannot remove your own permissions for this map.")
+        return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
     for permission in USERUPLOADEDMAP_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, user_uploaded_map)
     return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
@@ -2670,13 +2708,22 @@ class ContestCreationEmailExample(SuperuserRequiredMixin, View):
 
 def firebase_token_login(request):
     """
-    Manual view for authenticating with firebase. Used by apps
-    """
-    from drf_firebase_auth.authentication import FirebaseAuthentication
+    Manual view for authenticating with firebase. Used by apps.
 
-    token = request.GET.get("token")
-    logger.debug(f"Token {token}")
-    firebase_authenticator = FirebaseAuthentication()
+    Prefers the token from the ``Authorization: JWT <token>`` header (not logged by
+    reverse proxies/CDNs the way a query string is), falling back to the legacy
+    ``?token=`` query parameter so already-deployed app builds that only know the old
+    URL-based flow keep working.
+    """
+    from display.authentication import FirebaseTokenAuthentication
+
+    authorization = request.headers.get("Authorization", "")
+    scheme, _, header_token = authorization.partition(" ")
+    token = header_token if scheme.lower() == FirebaseTokenAuthentication.keyword.lower() and header_token else None
+    if not token:
+        token = request.GET.get("token")
+    logger.debug("Received Firebase login token")
+    firebase_authenticator = FirebaseTokenAuthentication()
     try:
         user, decoded_token = firebase_authenticator.authenticate_credentials(token)
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
@@ -2933,12 +2980,28 @@ def check_map_generation_status(request, task_id, contestant_id):
         return JsonResponse(result)
     return JsonResponse({"status": "pending"})
 
+TAIL_NUMBER_RE = re.compile(r"^[A-Za-z0-9\-]{1,20}$")
+
+
 def quick_register(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     if not navigation_task.is_poker_run:
         raise Http404("Quick registration is only available for Poker Run tasks.")
     contest = navigation_task.contest
-    
+
+    # Quick-register is a low-friction walk-up flow, but it must still respect the same
+    # visibility gate as every other self-managed-contestant path: only a task the organiser has
+    # explicitly opened for self-management and made public, or a manager of the contest itself
+    # (e.g. testing the flow), may reach it. Previously any authenticated user could self-enrol
+    # in ANY poker task regardless of visibility, bypassing is_public/allow_self_management and
+    # every capacity limit.
+    is_publicly_self_manageable = (
+        navigation_task.allow_self_management and navigation_task.is_public and contest.is_public
+    )
+    is_contest_manager = request.user.is_authenticated and request.user.has_perm("display.change_contest", contest)
+    if not is_publicly_self_manageable and not is_contest_manager:
+        raise Http404("Quick registration is only available for Poker Run tasks.")
+
     if not request.user.is_authenticated:
         return render(request, "display/quick_register_login.html", {"contest": contest, "navigation_task": navigation_task})
 
@@ -2960,20 +3023,40 @@ def quick_register(request, pk):
 
     if request.method == "POST":
         tail_number = request.POST.get("tail_number", "").strip().upper()
+        if tail_number and not TAIL_NUMBER_RE.fullmatch(tail_number):
+            return render(request, "display/quick_register.html", {
+                "contest": contest,
+                "navigation_task": navigation_task,
+                "error": "Tail number must be 1-20 alphanumeric characters or hyphens.",
+            })
         if tail_number:
             # 1. Create/Get Aeroplane
             aeroplane, _ = Aeroplane.objects.get_or_create(registration=tail_number)
-            
+
             # 2. Create/Get Crew (member1 is current user)
             crew, _ = Crew.objects.get_or_create(member1=request.user.person, member2=None)
-            
+
             # 3. Create/Get Team
             team, _ = Team.objects.get_or_create(aeroplane=aeroplane, crew=crew)
-            
-            # 4. Create ContestTeam
+
+            # 4. Capacity check before mutating anything else - _assert_can_reserve_task_slot
+            # only needs navigation_task/team/resolution, not a ContestTeam row, so this can (and
+            # must) run before step 5 creates one. Checking after would leave a ContestTeam
+            # registered for a rejected registration attempt, since there is no rollback here.
+            resolution = resolve_contest_access(contest)
+            try:
+                _assert_can_reserve_task_slot(navigation_task, team, resolution)
+            except (ValidationError, drf_exceptions.ValidationError) as exc:
+                return render(request, "display/quick_register.html", {
+                    "contest": contest,
+                    "navigation_task": navigation_task,
+                    "error": exc,
+                })
+
+            # 5. Create ContestTeam
             contest_team, _ = ContestTeam.objects.get_or_create(contest=contest, team=team)
-            
-            # 5. Create Contestant (Scheduled Flight)
+
+            # 6. Create Contestant (Scheduled Flight)
             # Determine next contestant number
             last_contestant = Contestant.objects.filter(navigation_task=navigation_task).order_by("-contestant_number").first()
             next_number = (last_contestant.contestant_number + 1) if last_contestant else 1

@@ -177,7 +177,7 @@ services:
   traccar:
     # Pinned to match helm/templates/deployment_traccar.yml's version exactly
     # (was an unpinned :ubuntu tag, which could silently drift ahead of prod).
-    image: traccar/traccar:5.10-alpine
+    image: traccar/traccar:6.15-alpine
     restart: unless-stopped
     container_name: traccar
     volumes:
