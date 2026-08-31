@@ -1031,7 +1031,16 @@ class ScorecardForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         instance = kwargs.get("instance", None)
         if instance:
-            kwargs["initial"] = {"corridor_width": instance.corridor_width}
+            # Only corridor_width used to need this - it isn't a model field at all. Now
+            # that the 26 SCORECARD_CONFIG_FIELDS are declared form fields backed by
+            # ConfigField properties rather than real model fields too, ModelForm's usual
+            # instance-to-initial-data path (model_to_dict(), which only looks at real model
+            # fields) can't see them either - without this, editing an existing scorecard
+            # would render every one of them blank instead of its current value.
+            initial = {"corridor_width": instance.corridor_width}
+            initial.update({field: getattr(instance, field) for field in SCORECARD_CONFIG_FIELDS})
+            initial.update(kwargs.get("initial") or {})
+            kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
 
         navigation_task = getattr(self.instance, "navigation_task_override", None)

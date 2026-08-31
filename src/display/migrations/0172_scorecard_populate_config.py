@@ -1,6 +1,6 @@
 import logging
 
-from django.db import migrations
+from django.db import migrations, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -62,16 +62,23 @@ def populate_config(apps, schema_editor):
     failed = []
     for scorecard in Scorecard.objects.all().iterator():
         try:
-            config = {field: getattr(scorecard, field) for field in SCORECARD_CONFIG_FIELDS}
-            config["included_fields"] = scorecard.included_fields
-            gates = {}
-            for gate in scorecard.gatescore_set.all():
-                gate_config = {field: getattr(gate, field) for field in GATE_SCORE_FIELDS}
-                gate_config["included_fields"] = gate.included_fields
-                gates[gate.gate_type] = gate_config
-            config["gates"] = gates
-            scorecard.config = config
-            scorecard.save(update_fields=["config"])
+            # Wrapped in its own savepoint: RunPython runs inside the overall migration
+            # transaction, and on backends that abort the whole transaction on the first
+            # error (e.g. PostgreSQL), an unwrapped failure would make every subsequent
+            # iteration fail too - not because that scorecard has a problem, but because the
+            # connection is stuck in an aborted-transaction state. A per-row savepoint keeps
+            # one bad row's rollback isolated from the rest of the backfill.
+            with transaction.atomic():
+                config = {field: getattr(scorecard, field) for field in SCORECARD_CONFIG_FIELDS}
+                config["included_fields"] = scorecard.included_fields
+                gates = {}
+                for gate in scorecard.gatescore_set.all():
+                    gate_config = {field: getattr(gate, field) for field in GATE_SCORE_FIELDS}
+                    gate_config["included_fields"] = gate.included_fields
+                    gates[gate.gate_type] = gate_config
+                config["gates"] = gates
+                scorecard.config = config
+                scorecard.save(update_fields=["config"])
             succeeded += 1
         except Exception:
             failed.append(scorecard.pk)

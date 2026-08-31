@@ -1064,34 +1064,40 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     # so the API's exposed shape and write behavior are unchanged. `below_minimum_altitude_penalty`
     # / `below_minimum_altitude_maximum_penalty` are not carried forward - confirmed fully
     # dead (zero read sites), dropped rather than migrated.
-    backtracking_penalty = serializers.FloatField()
-    backtracking_bearing_difference = serializers.FloatField()
-    backtracking_grace_time_seconds = serializers.FloatField()
-    backtracking_maximum_penalty = serializers.FloatField()
-    prohibited_zone_penalty = serializers.FloatField()
-    prohibited_zone_grace_time = serializers.FloatField()
-    prohibited_zone_maximum = serializers.FloatField()
-    penalty_zone_grace_time = serializers.FloatField()
-    penalty_zone_penalty_per_second = serializers.FloatField()
-    penalty_zone_maximum = serializers.FloatField()
-    corridor_grace_time = serializers.IntegerField()
-    corridor_outside_penalty = serializers.FloatField()
-    corridor_maximum_penalty = serializers.FloatField()
-    corridor_maximum_penalty_is_per_leg = serializers.BooleanField()
-    anr_route_to_sp_penalty = serializers.FloatField()
-    anr_route_from_fp_penalty = serializers.FloatField()
-    compulsory_timing_tolerance_seconds = serializers.IntegerField()
+    #
+    # All required=False: every one of these had a Django `default=` on the real column, and
+    # ModelSerializer auto-generates required=False for any field with a model-level default
+    # - explicit declarations need to say so themselves, or a PUT that omits one (this view
+    # doesn't set partial=True) would 400 instead of leaving the stored value alone, unlike
+    # before this migration.
+    backtracking_penalty = serializers.FloatField(required=False)
+    backtracking_bearing_difference = serializers.FloatField(required=False)
+    backtracking_grace_time_seconds = serializers.FloatField(required=False)
+    backtracking_maximum_penalty = serializers.FloatField(required=False)
+    prohibited_zone_penalty = serializers.FloatField(required=False)
+    prohibited_zone_grace_time = serializers.FloatField(required=False)
+    prohibited_zone_maximum = serializers.FloatField(required=False)
+    penalty_zone_grace_time = serializers.FloatField(required=False)
+    penalty_zone_penalty_per_second = serializers.FloatField(required=False)
+    penalty_zone_maximum = serializers.FloatField(required=False)
+    corridor_grace_time = serializers.IntegerField(required=False)
+    corridor_outside_penalty = serializers.FloatField(required=False)
+    corridor_maximum_penalty = serializers.FloatField(required=False)
+    corridor_maximum_penalty_is_per_leg = serializers.BooleanField(required=False)
+    anr_route_to_sp_penalty = serializers.FloatField(required=False)
+    anr_route_from_fp_penalty = serializers.FloatField(required=False)
+    compulsory_timing_tolerance_seconds = serializers.IntegerField(required=False)
     maximum_task_duration_minutes = serializers.IntegerField(required=False, allow_null=True)
-    maximum_task_duration_penalty = serializers.FloatField()
-    fuel_deadline_penalty = serializers.FloatField()
+    maximum_task_duration_penalty = serializers.FloatField(required=False)
+    fuel_deadline_penalty = serializers.FloatField(required=False)
     duration_normalization_policy = serializers.ChoiceField(
         choices=DURATION_NORMALIZATION_POLICIES, required=False, allow_blank=True
     )
-    duration_residual_fuel_required = serializers.BooleanField()
-    circle_radius_min_m = serializers.FloatField()
-    circle_radius_max_m = serializers.FloatField()
-    speed_keeping_tolerance_kt = serializers.FloatField()
-    speed_keeping_penalty_per_kt = serializers.FloatField()
+    duration_residual_fuel_required = serializers.BooleanField(required=False)
+    circle_radius_min_m = serializers.FloatField(required=False)
+    circle_radius_max_m = serializers.FloatField(required=False)
+    speed_keeping_tolerance_kt = serializers.FloatField(required=False)
+    speed_keeping_penalty_per_kt = serializers.FloatField(required=False)
 
     class Meta:
         model = Scorecard

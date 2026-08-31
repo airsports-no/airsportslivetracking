@@ -631,26 +631,36 @@ def sync_gate_score_to_scorecard_config(sender, instance: GateScore, **kwargs):
     # most dangerous gap identified in the Phase 2 roadmap doc. Scorecard.save() below also
     # fires bump_gate_scorecard_cache_version above, so the shared cache-version token is
     # rewritten exactly as it would be for a config-only edit.
+    #
+    # select_for_update() + transaction.atomic(): folding every gate's config into one
+    # shared Scorecard.config JSON blob turned what used to be independent per-row UPDATEs
+    # (one gate's edit could never clobber another's) into a read-modify-write on a single
+    # column - two gates saved close together would otherwise both read the same pre-edit
+    # config, and whichever writes last would silently drop the other's change. Locking the
+    # Scorecard row for the duration serializes concurrent gate saves against it.
     data = {field: getattr(instance, field) for field in GATE_SCORE_SYNC_FIELDS}
     data["included_fields"] = instance.included_fields
-    scorecard = instance.scorecard
-    gates = scorecard.config.setdefault("gates", {})
-    gates[instance.gate_type] = data
-    scorecard.save(update_fields=["config"])
+    with transaction.atomic():
+        scorecard = Scorecard.objects.select_for_update().get(pk=instance.scorecard_id)
+        gates = scorecard.config.setdefault("gates", {})
+        gates[instance.gate_type] = data
+        scorecard.save(update_fields=["config"])
 
 
 @receiver(post_delete, sender=GateScore)
 def remove_gate_score_from_scorecard_config(sender, instance: GateScore, **kwargs):
     # Mirror image of sync_gate_score_to_scorecard_config above - a deleted GateScore row
-    # should stop being scored, not linger in config["gates"] forever.
-    try:
-        scorecard = instance.scorecard
-    except Scorecard.DoesNotExist:
-        return
-    gates = scorecard.config.get("gates", {})
-    if instance.gate_type in gates:
-        del gates[instance.gate_type]
-        scorecard.save(update_fields=["config"])
+    # should stop being scored, not linger in config["gates"] forever. Same
+    # select_for_update()/transaction.atomic() reasoning as that function.
+    with transaction.atomic():
+        try:
+            scorecard = Scorecard.objects.select_for_update().get(pk=instance.scorecard_id)
+        except Scorecard.DoesNotExist:
+            return
+        gates = scorecard.config.get("gates", {})
+        if instance.gate_type in gates:
+            del gates[instance.gate_type]
+            scorecard.save(update_fields=["config"])
 
 
 @receiver(post_save, sender=EditableRoute)

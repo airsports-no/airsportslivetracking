@@ -127,41 +127,22 @@ class GateScoreValue:
 
     @classmethod
     def from_dict(cls, gate_type: str, data: dict) -> "GateScoreValue":
-        return cls(
-            gate_type=gate_type,
-            extended_gate_width=data.get("extended_gate_width", 0),
-            bad_crossing_extended_gate_penalty=data.get("bad_crossing_extended_gate_penalty", 200),
-            graceperiod_before=data.get("graceperiod_before", 3),
-            graceperiod_after=data.get("graceperiod_after", 3),
-            maximum_penalty=data.get("maximum_penalty", 100),
-            penalty_per_second=data.get("penalty_per_second", 2),
-            missed_penalty=data.get("missed_penalty", 100),
-            missed_procedure_turn_penalty=data.get("missed_procedure_turn_penalty", 200),
-            backtracking_after_steep_gate_grace_period_seconds=data.get(
-                "backtracking_after_steep_gate_grace_period_seconds", 0
-            ),
-            backtracking_before_gate_grace_period_nm=data.get("backtracking_before_gate_grace_period_nm", 0),
-            backtracking_after_gate_grace_period_nm=data.get("backtracking_after_gate_grace_period_nm", 0.5),
-            included_fields=data.get("included_fields", []),
-        )
+        # Field names/defaults come from the dataclass fields themselves (one place, above),
+        # not restated here - unknown keys in data are ignored, missing keys fall back to the
+        # declared defaults. included_fields is copied rather than aliased: data is normally
+        # `scorecard.config["gates"][gate_type]`, and this value gets cached in
+        # SCORECARD_CACHE - without the copy, a caller mutating a cached GateScoreValue's
+        # included_fields in place would silently mutate the scorecard's stored config too.
+        known = {field.name for field in dataclasses.fields(cls)} - {"gate_type"}
+        values = {name: value for name, value in data.items() if name in known}
+        if "included_fields" in values:
+            values["included_fields"] = list(values["included_fields"])
+        return cls(gate_type=gate_type, **values)
 
     def to_dict(self) -> dict:
-        return {
-            "extended_gate_width": self.extended_gate_width,
-            "bad_crossing_extended_gate_penalty": self.bad_crossing_extended_gate_penalty,
-            "graceperiod_before": self.graceperiod_before,
-            "graceperiod_after": self.graceperiod_after,
-            "maximum_penalty": self.maximum_penalty,
-            "penalty_per_second": self.penalty_per_second,
-            "missed_penalty": self.missed_penalty,
-            "missed_procedure_turn_penalty": self.missed_procedure_turn_penalty,
-            "backtracking_after_steep_gate_grace_period_seconds": (
-                self.backtracking_after_steep_gate_grace_period_seconds
-            ),
-            "backtracking_before_gate_grace_period_nm": self.backtracking_before_gate_grace_period_nm,
-            "backtracking_after_gate_grace_period_nm": self.backtracking_after_gate_grace_period_nm,
-            "included_fields": self.included_fields,
-        }
+        data = dataclasses.asdict(self)
+        data.pop("gate_type")
+        return data
 
     def get_gate_type_display(self) -> str:
         return _GATE_TYPE_DISPLAY_NAMES.get(self.gate_type, self.gate_type)
@@ -379,8 +360,13 @@ class Scorecard(models.Model):
         List of field names that should be visible in forms. Hand-written (not a ConfigField)
         because the default is a mutable list - ConfigField's shared-default would alias the
         same list object across every scorecard that has never set one.
+
+        Uses setdefault (not get) so the returned list is the one actually stored in
+        `config` - callers that mutate it in place (e.g. ScorecardForm.__init__ appending a
+        task-subtype-specific block) need that mutation to be visible on the next read/save,
+        not silently discarded because it landed on a throwaway `[]` from `.get(..., [])`.
         """
-        return self.config.get("included_fields", [])
+        return self.config.setdefault("included_fields", [])
 
     @included_fields.setter
     def included_fields(self, value: list) -> None:
