@@ -50,4 +50,13 @@ def get_default_scorecard():
         existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=UNKNOWN_LEG)),
     )
 
+    # The gate scores above are created/updated after `scorecard` was fetched or
+    # created; each one's post_save signal (sync_gate_score_to_scorecard_config,
+    # display/signals.py) mirrors itself into the *database row's* config["gates"]
+    # via a fresh, separate fetch of the owning Scorecard - it can't reach back into
+    # this in-memory `scorecard` object. Refresh so the object this function returns
+    # (used directly by every default_scorecards/*.py caller and test) reflects all of
+    # those gates instead of whatever config it had at its own fetch/creation time -
+    # empty, on the very first creation of this scorecard.
+    scorecard.refresh_from_db()
     return scorecard

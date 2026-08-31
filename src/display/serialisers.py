@@ -62,6 +62,7 @@ from display.models import (
     TrackAnnotation,
     UserTokenGrant,
 )
+from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import (
     _assert_can_reserve_task_slot,
@@ -1053,10 +1054,84 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     corridor_width = serializers.FloatField(read_only=True)
     task_type = serializers.SerializerMethodField()
 
+    # Phase 2 of the scorecard-system review roadmap moved these 26 fields off of real
+    # Scorecard columns and into Scorecard.config (see ConfigField in
+    # models/scorecard_and_gate_score.py) - they no longer show up in
+    # model._meta.get_fields(), so ModelSerializer's `exclude`-based auto-introspection (the
+    # previous approach here) would silently drop every one of them from the API, while
+    # picking up their renamed-out-of-the-way `legacy_*` columns instead. They're declared
+    # explicitly here, with the same DRF field types the auto-generated fields used to have,
+    # so the API's exposed shape and write behavior are unchanged. `below_minimum_altitude_penalty`
+    # / `below_minimum_altitude_maximum_penalty` are not carried forward - confirmed fully
+    # dead (zero read sites), dropped rather than migrated.
+    backtracking_penalty = serializers.FloatField()
+    backtracking_bearing_difference = serializers.FloatField()
+    backtracking_grace_time_seconds = serializers.FloatField()
+    backtracking_maximum_penalty = serializers.FloatField()
+    prohibited_zone_penalty = serializers.FloatField()
+    prohibited_zone_grace_time = serializers.FloatField()
+    prohibited_zone_maximum = serializers.FloatField()
+    penalty_zone_grace_time = serializers.FloatField()
+    penalty_zone_penalty_per_second = serializers.FloatField()
+    penalty_zone_maximum = serializers.FloatField()
+    corridor_grace_time = serializers.IntegerField()
+    corridor_outside_penalty = serializers.FloatField()
+    corridor_maximum_penalty = serializers.FloatField()
+    corridor_maximum_penalty_is_per_leg = serializers.BooleanField()
+    anr_route_to_sp_penalty = serializers.FloatField()
+    anr_route_from_fp_penalty = serializers.FloatField()
+    compulsory_timing_tolerance_seconds = serializers.IntegerField()
+    maximum_task_duration_minutes = serializers.IntegerField(required=False, allow_null=True)
+    maximum_task_duration_penalty = serializers.FloatField()
+    fuel_deadline_penalty = serializers.FloatField()
+    duration_normalization_policy = serializers.ChoiceField(
+        choices=DURATION_NORMALIZATION_POLICIES, required=False, allow_blank=True
+    )
+    duration_residual_fuel_required = serializers.BooleanField()
+    circle_radius_min_m = serializers.FloatField()
+    circle_radius_max_m = serializers.FloatField()
+    speed_keeping_tolerance_kt = serializers.FloatField()
+    speed_keeping_penalty_per_kt = serializers.FloatField()
+
     class Meta:
         model = Scorecard
         read_only_fields = ["task_type"]
-        exclude = ("id", "original", "included_fields", "calculator", "name", "use_procedure_turns")
+        fields = (
+            "shortcut_name",
+            "valid_from",
+            "free_text",
+            "score_sorting_direction",
+            "initial_score",
+            "task_type",
+            "corridor_width",
+            "gatescore_set",
+            "backtracking_penalty",
+            "backtracking_bearing_difference",
+            "backtracking_grace_time_seconds",
+            "backtracking_maximum_penalty",
+            "prohibited_zone_penalty",
+            "prohibited_zone_grace_time",
+            "prohibited_zone_maximum",
+            "penalty_zone_grace_time",
+            "penalty_zone_penalty_per_second",
+            "penalty_zone_maximum",
+            "corridor_grace_time",
+            "corridor_outside_penalty",
+            "corridor_maximum_penalty",
+            "corridor_maximum_penalty_is_per_leg",
+            "anr_route_to_sp_penalty",
+            "anr_route_from_fp_penalty",
+            "compulsory_timing_tolerance_seconds",
+            "maximum_task_duration_minutes",
+            "maximum_task_duration_penalty",
+            "fuel_deadline_penalty",
+            "duration_normalization_policy",
+            "duration_residual_fuel_required",
+            "circle_radius_min_m",
+            "circle_radius_max_m",
+            "speed_keeping_tolerance_kt",
+            "speed_keeping_penalty_per_kt",
+        )
 
     def get_task_type(self, instance) -> list:
         return instance.task_type

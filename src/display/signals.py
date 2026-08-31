@@ -3,43 +3,43 @@ import logging
 import uuid
 from functools import wraps
 from random import choice
-from string import ascii_uppercase, ascii_lowercase, digits
+from string import ascii_lowercase, ascii_uppercase, digits
 
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group, User
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q
-from django.db.models.signals import post_save, post_delete, pre_delete, pre_save, m2m_changed
+from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete, pre_save
 from django.dispatch import receiver
 
-from django.core.cache import cache
 from display.flight_order_and_maps.map_plotter_shared_utilities import country_code_to_map_source
 from display.models import (
-    TeamTestScore,
-    TaskSummary,
-    ContestSummary,
-    Task,
-    TaskTest,
-    ContestTeam,
+    TRACKING_DEVICE,
+    Aeroplane,
+    Club,
+    Contest,
     Contestant,
     ContestantTrack,
-    ScoreLogEntry,
-    Crew,
-    Club,
-    Aeroplane,
-    Route,
-    Photo,
-    NavigationTask,
-    FlightOrderConfiguration,
-    TRACKING_DEVICE,
-    Person,
-    MyUser,
-    EditableRoute,
-    Contest,
+    ContestSummary,
+    ContestTeam,
     ContestTokenAssignment,
+    Crew,
+    EditableRoute,
+    FlightOrderConfiguration,
+    MyUser,
+    NavigationTask,
+    Person,
+    Photo,
+    Route,
+    ScoreLogEntry,
+    Task,
+    TaskSummary,
+    TaskTest,
+    TeamTestScore,
     UserTokenGrant,
 )
-from display.models.scorecard_and_gate_score import GateScore, Scorecard
+from display.models.scorecard_and_gate_score import GATE_SCORE_SYNC_FIELDS, GateScore, Scorecard
 from display.utilities.traccar_factory import get_traccar_instance
 from display.utilities.tracking_definitions import TrackingService
 
@@ -123,8 +123,6 @@ def queue_team_test_score_update(instance: TeamTestScore):
     transaction.on_commit(send_update)
 
 
-
-
 @receiver(post_delete, sender=Photo)
 def auto_delete_file_on_delete(sender, instance: Photo, **kwargs):
     """
@@ -190,7 +188,9 @@ def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
 
             contest_summary = ContestSummary.objects.filter(contest=instance.task.contest, team=instance.team).first()
             if contest_summary is None:
-                contest_summary = ContestSummary(contest=instance.task.contest, team=instance.team, points=instance.points)
+                contest_summary = ContestSummary(
+                    contest=instance.task.contest, team=instance.team, points=instance.points
+                )
                 contest_summary._skip_results_broadcast = True
                 try:
                     contest_summary.save()
@@ -232,6 +232,7 @@ def post_contest_team_change(sender, instance: ContestTeam, **kwargs):
     ws = WebsocketFacade()
     ws.transmit_teams(instance.contest)
 
+
 @receiver(post_save, sender=TeamTestScore)
 @receiver(post_delete, sender=TeamTestScore)
 def post_team_test_score_change(sender, instance: TeamTestScore, **kwargs):
@@ -239,7 +240,6 @@ def post_team_test_score_change(sender, instance: TeamTestScore, **kwargs):
         queue_team_test_score_update(instance)
     except ObjectDoesNotExist:
         pass
-
 
 
 @receiver(post_save, sender=TaskSummary)
@@ -255,7 +255,6 @@ def post_task_summary_change(sender, instance: TaskSummary, **kwargs):
         ws.transmit_contest_results(None, instance.task.contest)
 
     transaction.on_commit(send_update)
-
 
 
 @receiver(post_save, sender=ContestSummary)
@@ -560,14 +559,14 @@ def create_random_password_for_user(sender, instance: MyUser, created: bool, **k
         if person and person.validated:
             # This is a new user object for an already existing valid person. Send the welcome email.
             instance.send_welcome_email(person)
-    
+
     # Do NOT set random passwords for users who are migrated to Firebase.
     # Firebase-migrated users have unusable passwords by design.
     # Also prevent infinite recursion if we do decide to save.
     if not instance.has_usable_password() and not getattr(instance, "_is_firebase_migrated", False):
-        # Only set a random password if it's a truly new/empty local user 
+        # Only set a random password if it's a truly new/empty local user
         # that hasn't been explicitly marked as Firebase-migrated.
-        # But wait, if they have an unusable password, we should probably 
+        # But wait, if they have an unusable password, we should probably
         # only set a random one if they were just created and aren't migrated.
         if created:
             instance.set_password(make_random_password(length=20))
@@ -604,14 +603,54 @@ def sync_scorecard_sorting_direction(sender, instance: Scorecard, **kwargs):
             nt.tasktest.task.save(update_fields=["summary_score_sorting_direction"])
 
 
-@receiver(post_save, sender=GateScore)
-@receiver(post_delete, sender=GateScore)
-def bump_gate_scorecard_cache_version(sender, instance: GateScore, **kwargs):
-    # Scorecard.get_gate_scorecard() memoizes GateScore per-process, keyed by this
+@receiver(post_save, sender=Scorecard)
+def bump_gate_scorecard_cache_version(sender, instance: Scorecard, **kwargs):
+    # Scorecard.get_gate_scorecard() memoizes GateScoreValue per-process, keyed by this
     # version token - rewriting it here makes every daphne/celery/live-calculator
     # process notice a mid-event scoring-rule edit on its next lookup instead of
     # silently scoring against a copy cached before the edit until it restarts.
-    cache.set(f"gate_scorecard_version_{instance.scorecard_id}", uuid.uuid4().hex, timeout=None)
+    #
+    # Phase 2 of the scorecard-system review roadmap moved per-gate scoring config out of
+    # the GateScore table and into Scorecard.config["gates"][...], so this now fires on
+    # every Scorecard save (a superset of the old GateScore-only trigger: any save,
+    # including ones only touching gate config through `config`, invalidates the cache) -
+    # it used to be a post_save/post_delete pair on GateScore directly. GateScore writes
+    # still happen (see sync_gate_score_to_scorecard_config below) and still end up here,
+    # just indirectly via the Scorecard save it now triggers.
+    cache.set(f"gate_scorecard_version_{instance.pk}", uuid.uuid4().hex, timeout=None)
+
+
+@receiver(post_save, sender=GateScore)
+def sync_gate_score_to_scorecard_config(sender, instance: GateScore, **kwargs):
+    # GateScore is legacy as of Phase 2 (see its docstring) - scoring reads exclusively from
+    # Scorecard.config["gates"][gate_type] now. Existing writers (default_scorecards/*.py
+    # seed files, ScorecardNestedSerialiser.update(), GateScoreForm) are left untouched
+    # rather than rewritten in 2a; this mirrors every one of their writes into the owning
+    # Scorecard's config instead, so they keep actually affecting live scoring. Without this,
+    # every one of them would silently write to a table nothing reads anymore - the single
+    # most dangerous gap identified in the Phase 2 roadmap doc. Scorecard.save() below also
+    # fires bump_gate_scorecard_cache_version above, so the shared cache-version token is
+    # rewritten exactly as it would be for a config-only edit.
+    data = {field: getattr(instance, field) for field in GATE_SCORE_SYNC_FIELDS}
+    data["included_fields"] = instance.included_fields
+    scorecard = instance.scorecard
+    gates = scorecard.config.setdefault("gates", {})
+    gates[instance.gate_type] = data
+    scorecard.save(update_fields=["config"])
+
+
+@receiver(post_delete, sender=GateScore)
+def remove_gate_score_from_scorecard_config(sender, instance: GateScore, **kwargs):
+    # Mirror image of sync_gate_score_to_scorecard_config above - a deleted GateScore row
+    # should stop being scored, not linger in config["gates"] forever.
+    try:
+        scorecard = instance.scorecard
+    except Scorecard.DoesNotExist:
+        return
+    gates = scorecard.config.get("gates", {})
+    if instance.gate_type in gates:
+        del gates[instance.gate_type]
+        scorecard.save(update_fields=["config"])
 
 
 @receiver(post_save, sender=EditableRoute)

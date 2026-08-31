@@ -15,19 +15,27 @@ from display.models import Scorecard
 
 
 def _seed_cima_runtime_defaults():
-    precision_cards = Scorecard.objects.filter(shortcut_name="FAI Precision")
-    precision_cards.update(
-        compulsory_timing_tolerance_seconds=10,
-        maximum_task_duration_minutes=None,
-        maximum_task_duration_penalty=100,
-        fuel_deadline_penalty=100,
-        anr_route_to_sp_penalty=200,
-        anr_route_from_fp_penalty=200,
-        duration_normalization_policy="",
-        duration_residual_fuel_required=False,
-        circle_radius_min_m=200,
-        circle_radius_max_m=750,
-    )
+    # A bulk queryset .update() (the previous implementation here) skips pre_save/post_save
+    # entirely - besides bypassing bump_gate_scorecard_cache_version (display/signals.py), it
+    # relies on every key being a real column, which stopped being true once Phase 2 of the
+    # scorecard-system review roadmap moved these fields into Scorecard.config (see
+    # ConfigField in models/scorecard_and_gate_score.py): QuerySet.update() resolves each
+    # kwarg via a raw model._meta.get_field() lookup with no property/descriptor
+    # special-casing at all, so it would raise FieldDoesNotExist for every one of these.
+    # Per-instance setattr + save() routes through the ConfigField property setters (so it
+    # still works) and fires the normal signals (so it no longer silently skips them either).
+    for card in Scorecard.objects.filter(shortcut_name="FAI Precision"):
+        card.compulsory_timing_tolerance_seconds = 10
+        card.maximum_task_duration_minutes = None
+        card.maximum_task_duration_penalty = 100
+        card.fuel_deadline_penalty = 100
+        card.anr_route_to_sp_penalty = 200
+        card.anr_route_from_fp_penalty = 200
+        card.duration_normalization_policy = ""
+        card.duration_residual_fuel_required = False
+        card.circle_radius_min_m = 200
+        card.circle_radius_max_m = 750
+        card.save()
 
 
 def create_scorecards():

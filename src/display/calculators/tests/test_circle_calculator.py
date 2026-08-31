@@ -41,7 +41,7 @@ class TestCircleCalculator(TestCase):
         )
         self.navigation_task.scorecard.circle_radius_min_m = 200
         self.navigation_task.scorecard.circle_radius_max_m = 750
-        self.navigation_task.scorecard.save(update_fields=["circle_radius_min_m", "circle_radius_max_m"])
+        self.navigation_task.scorecard.save(update_fields=["config"])
         crew = Crew.objects.create(member1=Person.objects.create(first_name="Circle", last_name="Pilot"))
         team = Team.objects.create(crew=crew, aeroplane=Aeroplane.objects.create(registration="LN-CIRCLE"))
         start_time = datetime.datetime(2020, 8, 1, 8, 5, tzinfo=datetime.timezone.utc)
@@ -70,22 +70,42 @@ class TestCircleCalculator(TestCase):
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "cm-1", "name": "CM", "pointType": "circle_center", "featureType": "circle_center_marker"},
+                        "properties": {
+                            "id": "cm-1",
+                            "name": "CM",
+                            "pointType": "circle_center",
+                            "featureType": "circle_center_marker",
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "cs-1", "name": "SP-C", "pointType": "circle_start", "featureType": "circle_start_marker"},
+                        "properties": {
+                            "id": "cs-1",
+                            "name": "SP-C",
+                            "pointType": "circle_start",
+                            "featureType": "circle_start_marker",
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "ce-1", "name": "X", "pointType": "circle_entry", "featureType": "circle_entry_marker"},
+                        "properties": {
+                            "id": "ce-1",
+                            "name": "X",
+                            "pointType": "circle_entry",
+                            "featureType": "circle_entry_marker",
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "cx-1", "name": "WP", "pointType": "circle_exit", "featureType": "circle_exit_marker"},
+                        "properties": {
+                            "id": "cx-1",
+                            "name": "WP",
+                            "pointType": "circle_exit",
+                            "featureType": "circle_exit_marker",
+                        },
                         "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
                     },
                 ],
@@ -94,7 +114,14 @@ class TestCircleCalculator(TestCase):
         self.navigation_task.save(update_fields=["editable_route"])
         self.projector = self.navigation_task.get_projector()
 
-    def _make_event(self, gate_name: str, timestamp: datetime.datetime, latitude: float = 60.0, longitude: float = 11.0, altitude: float = 0.0):
+    def _make_event(
+        self,
+        gate_name: str,
+        timestamp: datetime.datetime,
+        latitude: float = 60.0,
+        longitude: float = 11.0,
+        altitude: float = 0.0,
+    ):
         gate = MagicMock()
         gate.name = gate_name
         gate.expected_time = timestamp
@@ -141,7 +168,7 @@ class TestCircleCalculator(TestCase):
     def test_circle_calculator_emits_start_entry_and_exit_messages(self):
         self.navigation_task.scorecard.circle_radius_min_m = 0
         self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["circle_radius_min_m", "circle_radius_max_m"])
+        self.navigation_task.scorecard.save(update_fields=["config"])
         self.contestant.navigation_task = self.navigation_task
         calculator = CircleCalculator(
             self.contestant,
@@ -151,14 +178,24 @@ class TestCircleCalculator(TestCase):
             live_processing=False,
             projector=self.navigation_task.get_projector(),
         )
-        with patch.object(calculator, "_is_clockwise_turn", return_value=False), patch.object(
-            calculator, "_is_radius_outside_limits", return_value=False
-        ), patch.object(calculator, "_has_invalid_score_ratio", return_value=False), patch.object(
-            calculator, "_has_completed_scored_arc", return_value=True
-        ), patch.object(calculator, "_is_center_outside_flown_circle", return_value=False):
-            calculator.on_gate_passed(self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1))
-            calculator.on_gate_passed(self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3))
-            calculator.on_gate_passed(self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.2015, 11.2015))
+        with (
+            patch.object(calculator, "_is_clockwise_turn", return_value=False),
+            patch.object(calculator, "_is_radius_outside_limits", return_value=False),
+            patch.object(calculator, "_has_invalid_score_ratio", return_value=False),
+            patch.object(calculator, "_has_completed_scored_arc", return_value=True),
+            patch.object(calculator, "_is_center_outside_flown_circle", return_value=False),
+        ):
+            calculator.on_gate_passed(
+                self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
+            )
+            calculator.on_gate_passed(
+                self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
+            )
+            calculator.on_gate_passed(
+                self._make_event(
+                    "WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.2015, 11.2015
+                )
+            )
 
         first = calculator.score_processing_queue.get_nowait()
         second = calculator.score_processing_queue.get_nowait()
@@ -196,7 +233,9 @@ class TestCircleCalculator(TestCase):
             live_processing=False,
             projector=self.navigation_task.get_projector(),
         )
-        calculator.on_gate_passed(self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.35, 11.35))
+        calculator.on_gate_passed(
+            self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.35, 11.35)
+        )
 
         message = calculator.score_processing_queue.get_nowait()
         self.assertEqual(message.score_type, "circle_invalid_exit")
@@ -212,7 +251,9 @@ class TestCircleCalculator(TestCase):
             live_processing=False,
             projector=self.navigation_task.get_projector(),
         )
-        calculator.on_gate_passed(self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3))
+        calculator.on_gate_passed(
+            self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
+        )
 
         message = calculator.score_processing_queue.get_nowait()
         self.assertEqual(message.score_type, "circle_invalid_entry")
@@ -228,8 +269,12 @@ class TestCircleCalculator(TestCase):
             live_processing=False,
             projector=self.navigation_task.get_projector(),
         )
-        calculator.on_gate_passed(self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1))
-        calculator.on_gate_passed(self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.22, 11.10))
+        calculator.on_gate_passed(
+            self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
+        )
+        calculator.on_gate_passed(
+            self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.22, 11.10)
+        )
 
         first = calculator.score_processing_queue.get_nowait()
         second = calculator.score_processing_queue.get_nowait()
@@ -256,8 +301,12 @@ class TestCircleCalculator(TestCase):
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
-        calculator.on_gate_passed(self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1))
-        calculator.on_gate_passed(self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.22, 11.10))
+        calculator.on_gate_passed(
+            self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
+        )
+        calculator.on_gate_passed(
+            self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.22, 11.10)
+        )
         self.assertFalse(calculator.score_processing_queue.empty())
 
     def test_circle_calculator_marks_clockwise_turn_as_anomaly(self):
@@ -269,9 +318,15 @@ class TestCircleCalculator(TestCase):
             live_processing=False,
             projector=self.navigation_task.get_projector(),
         )
-        calculator.on_gate_passed(self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1))
-        calculator.on_gate_passed(self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3))
-        calculator.on_gate_passed(self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.15, 11.35))
+        calculator.on_gate_passed(
+            self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
+        )
+        calculator.on_gate_passed(
+            self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
+        )
+        calculator.on_gate_passed(
+            self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.15, 11.35)
+        )
 
         first = calculator.score_processing_queue.get_nowait()
         second = calculator.score_processing_queue.get_nowait()
@@ -291,9 +346,15 @@ class TestCircleCalculator(TestCase):
             live_processing=False,
             projector=self.navigation_task.get_projector(),
         )
-        calculator.on_gate_passed(self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1))
-        calculator.on_gate_passed(self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3))
-        calculator.on_gate_passed(self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.8, 11.8))
+        calculator.on_gate_passed(
+            self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
+        )
+        calculator.on_gate_passed(
+            self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
+        )
+        calculator.on_gate_passed(
+            self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.8, 11.8)
+        )
 
         first = calculator.score_processing_queue.get_nowait()
         second = calculator.score_processing_queue.get_nowait()
@@ -307,7 +368,7 @@ class TestCircleCalculator(TestCase):
     def test_circle_calculator_marks_invalid_score_ratio_as_anomaly(self):
         self.navigation_task.scorecard.circle_radius_min_m = 0
         self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["circle_radius_min_m", "circle_radius_max_m"])
+        self.navigation_task.scorecard.save(update_fields=["config"])
         self.contestant.navigation_task = self.navigation_task
         calculator = CircleCalculator(
             self.contestant,
@@ -317,13 +378,23 @@ class TestCircleCalculator(TestCase):
             live_processing=False,
             projector=self.navigation_task.get_projector(),
         )
-        with patch.object(calculator, "_is_clockwise_turn", return_value=False), patch.object(
-            calculator, "_is_radius_outside_limits", return_value=False
-        ), patch.object(calculator, "_has_invalid_score_ratio", return_value=True):
+        with (
+            patch.object(calculator, "_is_clockwise_turn", return_value=False),
+            patch.object(calculator, "_is_radius_outside_limits", return_value=False),
+            patch.object(calculator, "_has_invalid_score_ratio", return_value=True),
+        ):
             calculator.progress_radius_samples = [200.0, 450.0]
-            calculator.on_gate_passed(self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1))
-            calculator.on_gate_passed(self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3))
-            calculator.on_gate_passed(self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.2015, 11.2015))
+            calculator.on_gate_passed(
+                self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
+            )
+            calculator.on_gate_passed(
+                self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
+            )
+            calculator.on_gate_passed(
+                self._make_event(
+                    "WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.2015, 11.2015
+                )
+            )
 
         first = calculator.score_processing_queue.get_nowait()
         second = calculator.score_processing_queue.get_nowait()
@@ -337,7 +408,7 @@ class TestCircleCalculator(TestCase):
     def test_circle_calculator_marks_center_outside_flown_circle_as_anomaly(self):
         self.navigation_task.scorecard.circle_radius_min_m = 0
         self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["circle_radius_min_m", "circle_radius_max_m"])
+        self.navigation_task.scorecard.save(update_fields=["config"])
         self.contestant.navigation_task = self.navigation_task
         calculator = CircleCalculator(
             self.contestant,
@@ -347,15 +418,25 @@ class TestCircleCalculator(TestCase):
             live_processing=False,
             projector=self.navigation_task.get_projector(),
         )
-        with patch.object(calculator, "_is_clockwise_turn", return_value=False), patch.object(
-            calculator, "_is_radius_outside_limits", return_value=False
-        ), patch.object(calculator, "_has_invalid_score_ratio", return_value=False), patch.object(
-            calculator, "_has_completed_scored_arc", return_value=True
-        ), patch.object(calculator, "_is_center_outside_flown_circle", return_value=True):
+        with (
+            patch.object(calculator, "_is_clockwise_turn", return_value=False),
+            patch.object(calculator, "_is_radius_outside_limits", return_value=False),
+            patch.object(calculator, "_has_invalid_score_ratio", return_value=False),
+            patch.object(calculator, "_has_completed_scored_arc", return_value=True),
+            patch.object(calculator, "_is_center_outside_flown_circle", return_value=True),
+        ):
             calculator.progress_radius_samples = [250.0, 260.0, 255.0]
-            calculator.on_gate_passed(self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1))
-            calculator.on_gate_passed(self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3))
-            calculator.on_gate_passed(self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.3015, 11.3315))
+            calculator.on_gate_passed(
+                self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
+            )
+            calculator.on_gate_passed(
+                self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
+            )
+            calculator.on_gate_passed(
+                self._make_event(
+                    "WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.3015, 11.3315
+                )
+            )
 
         first = calculator.score_processing_queue.get_nowait()
         second = calculator.score_processing_queue.get_nowait()
@@ -369,7 +450,7 @@ class TestCircleCalculator(TestCase):
     def test_circle_calculator_applies_altitude_spread_penalty(self):
         self.navigation_task.scorecard.circle_radius_min_m = 0
         self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["circle_radius_min_m", "circle_radius_max_m"])
+        self.navigation_task.scorecard.save(update_fields=["config"])
         self.contestant.navigation_task = self.navigation_task
         calculator = CircleCalculator(
             self.contestant,
@@ -379,15 +460,37 @@ class TestCircleCalculator(TestCase):
             live_processing=False,
             projector=self.navigation_task.get_projector(),
         )
-        with patch.object(calculator, "_is_clockwise_turn", return_value=False), patch.object(
-            calculator, "_is_radius_outside_limits", return_value=False
-        ), patch.object(calculator, "_has_invalid_score_ratio", return_value=False), patch.object(
-            calculator, "_has_completed_scored_arc", return_value=True
-        ), patch.object(calculator, "_is_center_outside_flown_circle", return_value=False):
-            calculator.on_gate_passed(self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1, altitude=1000))
-            calculator.on_gate_passed(self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3, altitude=1000))
+        with (
+            patch.object(calculator, "_is_clockwise_turn", return_value=False),
+            patch.object(calculator, "_is_radius_outside_limits", return_value=False),
+            patch.object(calculator, "_has_invalid_score_ratio", return_value=False),
+            patch.object(calculator, "_has_completed_scored_arc", return_value=True),
+            patch.object(calculator, "_is_center_outside_flown_circle", return_value=False),
+        ):
+            calculator.on_gate_passed(
+                self._make_event(
+                    "SP-C",
+                    datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc),
+                    60.1,
+                    11.1,
+                    altitude=1000,
+                )
+            )
+            calculator.on_gate_passed(
+                self._make_event(
+                    "X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3, altitude=1000
+                )
+            )
             calculator.altitude_samples_ft.extend([1000.0, 1305.0])
-            calculator.on_gate_passed(self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.2015, 11.2015, altitude=1305))
+            calculator.on_gate_passed(
+                self._make_event(
+                    "WP",
+                    datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc),
+                    60.2015,
+                    11.2015,
+                    altitude=1305,
+                )
+            )
 
         first = calculator.score_processing_queue.get_nowait()
         second = calculator.score_processing_queue.get_nowait()
@@ -406,7 +509,7 @@ class TestCircleCalculator(TestCase):
     def test_circle_calculator_marks_incomplete_scored_arc_as_anomaly(self):
         self.navigation_task.scorecard.circle_radius_min_m = 0
         self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["circle_radius_min_m", "circle_radius_max_m"])
+        self.navigation_task.scorecard.save(update_fields=["config"])
         self.contestant.navigation_task = self.navigation_task
         calculator = CircleCalculator(
             self.contestant,
@@ -416,12 +519,22 @@ class TestCircleCalculator(TestCase):
             live_processing=False,
             projector=self.navigation_task.get_projector(),
         )
-        with patch.object(calculator, "_is_clockwise_turn", return_value=False), patch.object(
-            calculator, "_is_radius_outside_limits", return_value=False
-        ), patch.object(calculator, "_has_invalid_score_ratio", return_value=False):
-            calculator.on_gate_passed(self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1))
-            calculator.on_gate_passed(self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3))
-            calculator.on_gate_passed(self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.2015, 11.2015))
+        with (
+            patch.object(calculator, "_is_clockwise_turn", return_value=False),
+            patch.object(calculator, "_is_radius_outside_limits", return_value=False),
+            patch.object(calculator, "_has_invalid_score_ratio", return_value=False),
+        ):
+            calculator.on_gate_passed(
+                self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
+            )
+            calculator.on_gate_passed(
+                self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
+            )
+            calculator.on_gate_passed(
+                self._make_event(
+                    "WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.2015, 11.2015
+                )
+            )
 
         first = calculator.score_processing_queue.get_nowait()
         second = calculator.score_processing_queue.get_nowait()
@@ -510,12 +623,22 @@ class TestCircleCalculator(TestCase):
         )
         # Each step below is a 90 degree increment around the circle center;
         # cumulative_progress_deg after N steps is 90*N.
-        bearings = [0, 90, 180, 270, 360, 450, 540]  # cumulative: 90,180,270,360,450,540,630 (first sample is baseline, contributes 0)
+        bearings = [
+            0,
+            90,
+            180,
+            270,
+            360,
+            450,
+            540,
+        ]  # cumulative: 90,180,270,360,450,540,630 (first sample is baseline, contributes 0)
         for bearing in bearings[:-1]:
             pos = self._circle_position(bearing, 260)
             calculator._record_progress_sample(pos)
             self.assertLess(calculator.cumulative_progress_deg, 540)
-            self.assertFalse(calculator.final_score_ready, f"should not be ready at {calculator.cumulative_progress_deg} degrees")
+            self.assertFalse(
+                calculator.final_score_ready, f"should not be ready at {calculator.cumulative_progress_deg} degrees"
+            )
         # One more 90 degree step: cumulative goes from 540 to 630, crossing the boundary.
         pos = self._circle_position(bearings[-1], 260)
         calculator._record_progress_sample(pos)
@@ -653,7 +776,7 @@ class TestCircleCalculator(TestCase):
         at a time like the existing tests do."""
         self.navigation_task.scorecard.circle_radius_min_m = 0
         self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["circle_radius_min_m", "circle_radius_max_m"])
+        self.navigation_task.scorecard.save(update_fields=["config"])
         self.contestant.navigation_task = self.navigation_task
         calculator = CircleCalculator(
             self.contestant,
@@ -696,7 +819,9 @@ class TestCircleCalculator(TestCase):
         calculator.on_gate_passed(self._make_event("WP", exit_time, last_position.latitude, last_position.longitude))
 
         messages = [calculator.score_processing_queue.get_nowait() for _ in range(4)]
-        self.assertEqual([m.score_type for m in messages], ["circle_start", "circle_entry", "circle_score", "circle_exit"])
+        self.assertEqual(
+            [m.score_type for m in messages], ["circle_start", "circle_entry", "circle_score", "circle_exit"]
+        )
         # Near-constant radius (real geodesic placement introduces a little
         # noise, a few tenths of a meter) -> ratio close to but not
         # necessarily exactly 1.0 -> near-max score.
@@ -711,7 +836,7 @@ class TestCircleCalculator(TestCase):
         (not a patched-out anomaly check like the other anomaly tests)."""
         self.navigation_task.scorecard.circle_radius_min_m = 0
         self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["circle_radius_min_m", "circle_radius_max_m"])
+        self.navigation_task.scorecard.save(update_fields=["config"])
         self.contestant.navigation_task = self.navigation_task
         calculator = CircleCalculator(
             self.contestant,
@@ -749,7 +874,9 @@ class TestCircleCalculator(TestCase):
         calculator.on_gate_passed(self._make_event("WP", exit_time, last_position.latitude, last_position.longitude))
 
         messages = [calculator.score_processing_queue.get_nowait() for _ in range(3)]
-        self.assertEqual([m.score_type for m in messages], ["circle_start", "circle_entry", "circle_invalid_score_ratio"])
+        self.assertEqual(
+            [m.score_type for m in messages], ["circle_start", "circle_entry", "circle_invalid_score_ratio"]
+        )
         self.assertTrue(calculator.score_processing_queue.empty())
         for message in messages:
             self.assertNotEqual(message.score_type, "circle_score")
