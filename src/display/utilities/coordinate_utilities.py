@@ -801,5 +801,9 @@ def calculate_bounding_box(centre: Tuple[float, float], radius: float) -> Tuple[
     :return: most_south, most_west, most_north, most_east
     """
     dy = np.degrees(radius / R)
-    dx = dy / np.cos(to_rad(centre[0]))
-    return centre[0] - dy, centre[1] - dx, centre[0] + dy, centre[1] + dx
+    cos_lat = np.cos(to_rad(centre[0]))
+    # cos(latitude) is 0 (or very close to it) at and near the poles, which would divide by
+    # zero or blow dx up towards infinity - clamp to the widest a longitude span can sensibly
+    # be (180 degrees each way) instead.
+    dx = min(dy / cos_lat, 180.0) if abs(cos_lat) > 1e-9 else 180.0
+    return max(centre[0] - dy, -90.0), centre[1] - dx, min(centre[0] + dy, 90.0), centre[1] + dx

@@ -1,3 +1,4 @@
+import math
 from unittest import TestCase
 from parameterized import parameterized
 
@@ -134,6 +135,24 @@ class TestCalculateBoundingBox(TestCase):
 
         self.assertAlmostEqual(north_south_km, expected_km, delta=0.5)
         self.assertAlmostEqual(east_west_km, expected_km, delta=0.5)
+
+    @parameterized.expand([
+        (90.0, 11.0),
+        (-90.0, 11.0),
+        (89.9999, 11.0),
+    ])
+    def test_polar_and_near_polar_latitudes_stay_within_valid_bounds(self, latitude, longitude):
+        # CodeRabbit review (PR #738): cos(latitude) is 0 at the poles and near-0 close to
+        # them, which would divide by zero or blow the longitude span towards infinity, and
+        # centre[0] +/- dy could exceed +/-90 degrees latitude.
+        south, west, north, east = calculate_bounding_box((latitude, longitude), 5000.0)
+
+        self.assertGreaterEqual(south, -90.0)
+        self.assertLessEqual(north, 90.0)
+        self.assertTrue(math.isfinite(west))
+        self.assertTrue(math.isfinite(east))
+        self.assertLessEqual(abs(east - longitude), 180.0)
+        self.assertLessEqual(abs(west - longitude), 180.0)
 
 
 class TestProcedureTurnPoints(TestCase):
