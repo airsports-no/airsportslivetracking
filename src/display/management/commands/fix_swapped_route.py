@@ -115,6 +115,15 @@ class Command(BaseCommand):
         improvement_ratio: float = opts["improvement_ratio"]
         force: bool = opts["force"]
 
+        if threshold_km < 0:
+            raise CommandError("--threshold-km must be non-negative")
+        if improvement_ratio < 1:
+            raise CommandError(
+                "--improvement-ratio must be at least 1 - below 1 it makes the SUSPICIOUS check "
+                "easier to satisfy (swapped_dist * ratio < dist), so it could reclassify a "
+                "correctly-ordered route as SUSPICIOUS and swap it without --force."
+            )
+
         if not dry_run:
             backup_dir.mkdir(parents=True, exist_ok=True)
 

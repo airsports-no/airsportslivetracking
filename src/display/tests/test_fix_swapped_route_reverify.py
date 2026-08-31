@@ -7,8 +7,9 @@ make it worse" heuristic), would get unconditionally inverted, turning a good ro
 
 import datetime
 from io import StringIO
+from tempfile import TemporaryDirectory
 
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.test import TestCase
 
 from display.default_scorecards.create_scorecards import create_scorecards
@@ -69,17 +70,30 @@ class TestFixSwappedRouteReverify(TestCase):
 
     def test_force_overrides_the_reverification(self):
         out = StringIO()
-        call_command(
-            "fix_swapped_route",
-            str(self.editable_route.id),
-            "--force",
-            "--backup-dir",
-            "/tmp/test_fix_swapped_route_reverify_backups",
-            stdout=out,
-        )
+        with TemporaryDirectory() as backup_dir:
+            call_command(
+                "fix_swapped_route",
+                str(self.editable_route.id),
+                "--force",
+                "--backup-dir",
+                backup_dir,
+                stdout=out,
+            )
 
         self.editable_route.refresh_from_db()
         self.assertEqual(
             self.editable_route.route["features"][0]["geometry"]["coordinates"],
             [[60.2, 11.2], [60.3, 11.3]],
         )
+
+    def test_rejects_a_negative_threshold(self):
+        with self.assertRaises(CommandError):
+            call_command("fix_swapped_route", str(self.editable_route.id), "--threshold-km", "-1", "--dry-run")
+
+    def test_rejects_an_improvement_ratio_below_one(self):
+        # Below 1, swapped_dist * ratio < dist becomes easier to satisfy, which could
+        # reclassify a correctly-ordered route as SUSPICIOUS and swap it without --force.
+        with self.assertRaises(CommandError):
+            call_command(
+                "fix_swapped_route", str(self.editable_route.id), "--improvement-ratio", "0.5", "--dry-run"
+            )
