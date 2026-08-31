@@ -697,7 +697,7 @@ class GateCalculator(Calculator):
         deadline_dt = datetime.datetime.fromisoformat(fuel_deadline)
         if passing_time <= deadline_dt:
             return
-        if any(score_type == "limited_fuel_deadline" for _, score_type in self.scored_gates if _ == gate.name):
+        if any(score_type == "limited_fuel_deadline_exceeded" for _, score_type in self.scored_gates if _ == gate.name):
             return
         penalty = float(getattr(self.scorecard, "fuel_deadline_penalty", 100) or 100)
         self.update_gate_score(
@@ -727,7 +727,7 @@ class GateCalculator(Calculator):
         deadline_dt = datetime.datetime.fromisoformat(deadline)
         if passing_time <= deadline_dt:
             return
-        if any(score_type == "turnpoint_hunt_maximum_duration" for _, score_type in self.scored_gates if _ == gate.name):
+        if any(score_type == "turnpoint_hunt_maximum_duration_exceeded" for _, score_type in self.scored_gates if _ == gate.name):
             return
         penalty = float(getattr(self.scorecard, "maximum_task_duration_penalty", 100) or 100)
         self.update_gate_score(
