@@ -159,6 +159,15 @@ class ProcessUserUploadedMapTaskTests(TestCase):
         self.assertTrue(second_thumbnail_mock.called)
 
 
+def _make_mbtiles_pod(name, ready=True, terminating=False):
+    pod = MagicMock()
+    pod.metadata.name = name
+    pod.metadata.deletion_timestamp = "2026-08-31T00:00:00Z" if terminating else None
+    ready_condition = MagicMock(type="Ready", status="True" if ready else "False")
+    pod.status.conditions = [ready_condition]
+    return pod
+
+
 class RequestMbtilesReloadTests(TestCase):
     @override_settings(MBTILES_RELOAD_METHOD="noop")
     @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.requests.post")
@@ -179,8 +188,7 @@ class RequestMbtilesReloadTests(TestCase):
     def test_request_mbtiles_reload_uses_kubernetes_exec(self, load_config_mock, core_api_cls, stream_mock):
         from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
 
-        pod = MagicMock()
-        pod.metadata.name = "mbtiles-pod-1"
+        pod = _make_mbtiles_pod("mbtiles-pod-1")
         core_api = core_api_cls.return_value
         core_api.list_namespaced_pod.return_value.items = [pod]
 
@@ -193,6 +201,104 @@ class RequestMbtilesReloadTests(TestCase):
         self.assertEqual(kwargs["name"], "mbtiles-pod-1")
         self.assertEqual(kwargs["namespace"], "default")
         self.assertEqual(kwargs["command"], ["/bin/sh", "-c", "kill -HUP 1"])
+
+    @override_settings(
+        MBTILES_RELOAD_METHOD="kubernetes",
+        MBTILES_RELOAD_NAMESPACE="default",
+        MBTILES_RELOAD_POD_LABEL_SELECTOR="service=mbtiles",
+    )
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.stream")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.client.CoreV1Api")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.config.load_incluster_config")
+    def test_request_mbtiles_reload_signals_every_matching_pod(self, load_config_mock, core_api_cls, stream_mock):
+        from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
+
+        pod_a = _make_mbtiles_pod("mbtiles-pod-1")
+        pod_b = _make_mbtiles_pod("mbtiles-pod-2")
+        core_api = core_api_cls.return_value
+        core_api.list_namespaced_pod.return_value.items = [pod_a, pod_b]
+
+        request_mbtiles_reload()
+
+        self.assertEqual(stream_mock.call_count, 2)
+        signaled_names = {call.kwargs["name"] for call in stream_mock.call_args_list}
+        self.assertEqual(signaled_names, {"mbtiles-pod-1", "mbtiles-pod-2"})
+
+    @override_settings(
+        MBTILES_RELOAD_METHOD="kubernetes",
+        MBTILES_RELOAD_NAMESPACE="default",
+        MBTILES_RELOAD_POD_LABEL_SELECTOR="service=mbtiles",
+    )
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.stream")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.client.CoreV1Api")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.config.load_incluster_config")
+    def test_request_mbtiles_reload_signals_remaining_pods_after_one_failure(
+        self, load_config_mock, core_api_cls, stream_mock
+    ):
+        from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
+
+        pod_a = _make_mbtiles_pod("mbtiles-pod-1")
+        pod_b = _make_mbtiles_pod("mbtiles-pod-2")
+        core_api = core_api_cls.return_value
+        core_api.list_namespaced_pod.return_value.items = [pod_a, pod_b]
+        stream_mock.side_effect = [Exception("exec failed"), None]
+
+        with self.assertRaises(RuntimeError) as ctx:
+            request_mbtiles_reload()
+
+        # Both pods still got an exec attempt despite the first one failing.
+        self.assertEqual(stream_mock.call_count, 2)
+        self.assertIn("mbtiles-pod-1", str(ctx.exception))
+        self.assertIn("1/2", str(ctx.exception))
+
+    @override_settings(
+        MBTILES_RELOAD_METHOD="kubernetes",
+        MBTILES_RELOAD_NAMESPACE="default",
+        MBTILES_RELOAD_POD_LABEL_SELECTOR="service=mbtiles",
+    )
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.stream")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.client.CoreV1Api")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.config.load_incluster_config")
+    def test_request_mbtiles_reload_skips_not_ready_and_terminating_pods(
+        self, load_config_mock, core_api_cls, stream_mock
+    ):
+        # A rollout or node-consolidation replacement can leave list_namespaced_pod
+        # returning a pod that's still starting, or one that's Terminating, alongside the
+        # pod actually serving traffic - neither should be exec'd into, and neither should
+        # count as a failure just because it wasn't signaled.
+        from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
+
+        ready_pod = _make_mbtiles_pod("mbtiles-pod-ready")
+        starting_pod = _make_mbtiles_pod("mbtiles-pod-starting", ready=False)
+        terminating_pod = _make_mbtiles_pod("mbtiles-pod-terminating", terminating=True)
+        core_api = core_api_cls.return_value
+        core_api.list_namespaced_pod.return_value.items = [ready_pod, starting_pod, terminating_pod]
+
+        request_mbtiles_reload()
+
+        stream_mock.assert_called_once()
+        _, kwargs = stream_mock.call_args
+        self.assertEqual(kwargs["name"], "mbtiles-pod-ready")
+
+    @override_settings(
+        MBTILES_RELOAD_METHOD="kubernetes",
+        MBTILES_RELOAD_NAMESPACE="default",
+        MBTILES_RELOAD_POD_LABEL_SELECTOR="service=mbtiles",
+    )
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.stream")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.client.CoreV1Api")
+    @patch("display.flight_order_and_maps.user_uploaded_mbtiles_publish.config.load_incluster_config")
+    def test_request_mbtiles_reload_raises_when_no_pod_is_ready(self, load_config_mock, core_api_cls, stream_mock):
+        from display.flight_order_and_maps.user_uploaded_mbtiles_publish import request_mbtiles_reload
+
+        starting_pod = _make_mbtiles_pod("mbtiles-pod-starting", ready=False)
+        core_api = core_api_cls.return_value
+        core_api.list_namespaced_pod.return_value.items = [starting_pod]
+
+        with self.assertRaises(RuntimeError):
+            request_mbtiles_reload()
+
+        stream_mock.assert_not_called()
 
 
 class MapSourceDefinitionPayloadTests(APITransactionTestCase):
