@@ -8,7 +8,7 @@ NAVIGATION_TASK_TYPES = (
     (PRECISION, "Precision"),
     (ANR_CORRIDOR, "ANR Corridor"),
     (AIRSPORTS, "Air Sports Race"),
-    (AIRSPORT_CHALLENGE, "AirSport Challenge"),
+    (AIRSPORT_CHALLENGE, "Air Sport Challenge"),
     (POKER, "Poker run"),
     (LANDING, "Landing"),
 )

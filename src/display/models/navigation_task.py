@@ -22,8 +22,9 @@ from display.utilities.navigation_task_type_definitions import (
     ANR_CORRIDOR,
     AIRSPORTS,
     AIRSPORT_CHALLENGE,
+    LANDING,
 )
-from display.utilities.cima_task_type_definitions import get_default_task_subtype_for_family
+from display.utilities.cima_task_type_definitions import NO_BACKBONE_TASK_SUBTYPES, get_default_task_subtype_for_family
 from display.utilities.task_information import build_navigation_task_information
 
 if typing.TYPE_CHECKING:
@@ -358,19 +359,39 @@ class NavigationTask(models.Model):
         Requires that there are no contestants in the navigation task.
         :return:
         """
+        from display.models import Route
+
         if self.contestant_set.all().count() > 0:
             raise ValidationError("Cannot refresh the route as long as they are contestants")
         if self.editable_route is None:
             raise ValidationError("There is no route to refresh")
         route = None
         if self.scorecard.calculator in (PRECISION, POKER):
-            route = self.editable_route.create_precision_route(self.route.use_procedure_turns, self.scorecard)
+            if self.task_subtype in NO_BACKBONE_TASK_SUBTYPES:
+                # Mirrors EditableRoute.create_route's NO_BACKBONE_TASK_SUBTYPES branch: these
+                # subtypes have no authored route backbone, so there is no track for
+                # create_precision_route to turn into Route.waypoints (it would just return
+                # None). Rebuild the same empty-placeholder route it creates at task-creation
+                # time, so "Reload route" still picks up edited non-backbone features (photos,
+                # prohibited zones, etc.) instead of silently doing nothing.
+                route = Route.objects.create(
+                    name=self.editable_route.name,
+                    waypoints=[],
+                    takeoff_gates=[],
+                    landing_gates=[],
+                    use_procedure_turns=False,
+                )
+                self.editable_route.amend_route_with_additional_features(route)
+            else:
+                route = self.editable_route.create_precision_route(self.route.use_procedure_turns, self.scorecard)
         elif self.scorecard.calculator == ANR_CORRIDOR:
             route = self.editable_route.create_anr_route(
                 self.route.rounded_corners, self.route.corridor_width, self.scorecard
             )
         elif self.scorecard.calculator in (AIRSPORTS, AIRSPORT_CHALLENGE):
             route = self.editable_route.create_airsports_route(self.route.rounded_corners, self.scorecard)
+        elif self.scorecard.calculator == LANDING:
+            route = self.editable_route.create_landing_route()
         if route:
             old_route = self.route
             self.route = route

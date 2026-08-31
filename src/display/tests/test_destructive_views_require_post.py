@@ -8,6 +8,10 @@ the CSRF protection was missing.
 Covers: contestant_remove_score_item (delete_score_item), contestant_stop_calculator
 (terminate_contestant_calculator), contestant_restart_calculator (restart_contestant_calculator),
 clear_profile_image_background, remove_team, renewtoken (renew_token).
+
+navigationtask_refresheditableroute (refresh_editable_route_navigation_task) is the same finding
+class, discovered separately while investigating the scorecard-system review roadmap's Phase 0
+follow-ups - missed by the original batch above.
 """
 
 import datetime
@@ -23,8 +27,8 @@ from display.default_scorecards.default_scorecard_fai_precision_2020 import get_
 from display.models import (
     Aeroplane,
     Contest,
-    ContestTeam,
     Contestant,
+    ContestTeam,
     Crew,
     NavigationTask,
     Person,
@@ -165,3 +169,32 @@ class TestDestructiveViewsRequirePost(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Token.objects.filter(pk=existing.pk).exists())
         self.assertTrue(Token.objects.filter(user=self.manager).exists())
+
+    def test_refresh_editable_route_rejects_get(self, *args):
+        url = reverse("navigationtask_refresheditableroute", kwargs={"pk": self.navigation_task.pk})
+        with patch("display.models.navigation_task.NavigationTask.refresh_editable_route") as mock_refresh:
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 405)
+            mock_refresh.assert_not_called()
+
+    def test_refresh_editable_route_post_succeeds(self, *args):
+        url = reverse("navigationtask_refresheditableroute", kwargs={"pk": self.navigation_task.pk})
+        with patch("display.models.navigation_task.NavigationTask.refresh_editable_route") as mock_refresh:
+            response = self.client.post(url)
+            self.assertEqual(response.status_code, 302)
+            mock_refresh.assert_called_once()
+
+    def test_refresh_editable_route_cross_site_post_without_csrf_token_is_rejected(self, *args):
+        # A same-origin POST (Django's test Client attaches a valid CSRF cookie+token
+        # automatically) still works via the test above; this proves the missing ingredient - a
+        # valid CSRF token - is actually enforced now that this is POST, i.e. the view isn't
+        # accidentally @csrf_exempt (which would silently defeat the whole point of this fix).
+        from django.test import Client
+
+        strict_client = Client(enforce_csrf_checks=True)
+        strict_client.force_login(user=self.manager)
+        url = reverse("navigationtask_refresheditableroute", kwargs={"pk": self.navigation_task.pk})
+        with patch("display.models.navigation_task.NavigationTask.refresh_editable_route") as mock_refresh:
+            response = strict_client.post(url)
+            self.assertEqual(response.status_code, 403)
+            mock_refresh.assert_not_called()
