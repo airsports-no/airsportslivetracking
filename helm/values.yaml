@@ -124,9 +124,18 @@ mbtiles:
   # comfortably above it (headroom for cache overhead/in-flight downloads) since the
   # gcsfuse sidecar's ephemeral-storage limit is shared across every gcsfuse volume in
   # the pod, not just this one.
-  staticFileCacheSize: 10Gi
-  staticFileCacheSidecarStorageRequest: 12Gi
-  staticFileCacheSidecarStorageLimit: 15Gi
+  #
+  # Capped well under GKE Autopilot's hard 10Gi ephemeral-storage-per-pod ceiling (not
+  # just a request/limit knob - Autopilot's admission webhook flatly rejects the pod
+  # otherwise): staticFileCacheSidecarStorageRequest plus the ~1Gi Autopilot auto-adds
+  # to the main container (mbtiles, or mbtiles-static-migration's alpine container -
+  # see job_mbtiles_static_migration.yaml, which shares these same values) must stay
+  # under 10Gi. The previous 12Gi/15Gi values exceeded that on both the Deployment and
+  # the migration Job's pre-upgrade hook, which silently never created a pod and hung
+  # every `helm upgrade` until it hit --timeout.
+  staticFileCacheSize: 6Gi
+  staticFileCacheSidecarStorageRequest: 7Gi
+  staticFileCacheSidecarStorageLimit: 8Gi
   # One-off migration from the old ReadWriteOnce/standard-rwo PVC (pvc-mbtiles) onto
   # staticGcsPrefix above. See job_mbtiles_static_migration.yaml: it runs as a
   # pre-upgrade hook, copying data from legacyPvcName into the bucket before Helm
