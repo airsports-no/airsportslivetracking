@@ -4,7 +4,16 @@ metadata:
   name: mbtiles
 
 spec:
-  replicas: 1
+  # 2, not 1: GKE Autopilot's Node Auto-Provisioning periodically consolidates/scales down
+  # underutilized nodes, deleting whatever pods are on them outright - that's a normal,
+  # frequent event, not a failure, but with a single replica it left mbtiles.airsports.no
+  # with zero healthy backends until the replacement pod passed its readiness probe
+  # (observed live: the mbtiles-service NEG hit "EnterDegradedMode" - endpoint count went to
+  # zero - during a routine scale-down consolidation). This Deployment was already designed
+  # for >1 replica: the switch to gcsfuse (see the mbtiles-static volume comment below) was
+  # specifically so any number of pods could read the same GCS prefix concurrently, with no
+  # accessMode/concurrent-mounter restriction to work around.
+  replicas: 2
   selector:
     matchLabels:
       service: mbtiles
@@ -93,6 +102,20 @@ spec:
               readOnly: true
             - mountPath: "/tilesets-user"
               name: mbtiles-uploaded
+---
+# Backstop for the replica count above: without this, Cluster Autoscaler/NAP is still free
+# to evict both mbtiles pods for the same node-consolidation event (nothing stops it from
+# picking two nodes to drain in the same pass), recreating the zero-endpoint gap this was
+# meant to close. minAvailable: 1 forces it to drain one node at a time for this workload.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mbtiles
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      service: mbtiles
 ---
 apiVersion: v1
 kind: Service
