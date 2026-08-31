@@ -800,6 +800,6 @@ def calculate_bounding_box(centre: Tuple[float, float], radius: float) -> Tuple[
     :param radius: metres
     :return: most_south, most_west, most_north, most_east
     """
-    dy = 360 * radius / R
-    dx = dy * np.cos(to_rad(centre[0]))
+    dy = np.degrees(radius / R)
+    dx = dy / np.cos(to_rad(centre[0]))
     return centre[0] - dy, centre[1] - dx, centre[0] + dy, centre[1] + dx
