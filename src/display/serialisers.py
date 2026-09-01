@@ -1046,7 +1046,26 @@ class ScorecardSerialiser(serializers.ModelSerializer):
 class GateScoreSerialiser(serializers.ModelSerializer):
     class Meta:
         model = GateScore
-        exclude = ("id", "scorecard", "included_fields")
+        # Pinned to an explicit field list (Phase 2b of the scorecard-system review roadmap)
+        # rather than exclude=("id", "scorecard", "included_fields") - GateScore's columns
+        # are unchanged by Phase 2, so exclude-based introspection isn't broken today, but an
+        # explicit list locks the API contract in place before any future column change on
+        # this model can silently reshape it, matching ScorecardNestedSerialiser's approach.
+        fields = (
+            "gate_type",
+            "extended_gate_width",
+            "bad_crossing_extended_gate_penalty",
+            "graceperiod_before",
+            "graceperiod_after",
+            "maximum_penalty",
+            "penalty_per_second",
+            "missed_penalty",
+            "bad_course_crossing_penalty",
+            "missed_procedure_turn_penalty",
+            "backtracking_after_steep_gate_grace_period_seconds",
+            "backtracking_before_gate_grace_period_nm",
+            "backtracking_after_gate_grace_period_nm",
+        )
 
 
 class ScorecardNestedSerialiser(serializers.ModelSerializer):
