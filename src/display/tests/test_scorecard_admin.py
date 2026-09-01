@@ -35,6 +35,24 @@ class TestScorecardAdmin(TestCase):
         self.assertEqual(form.initial["backtracking_penalty"], self.scorecard.backtracking_penalty)
         self.assertEqual(form.initial["corridor_grace_time"], self.scorecard.corridor_grace_time)
 
+    def test_admin_add_form_saves_config_defaults_not_none_or_false(self):
+        # Regression test: Django's admin add_view constructs the form with no `instance`
+        # kwarg at all (only change_view passes one) - __init__ used to only populate
+        # `initial` when an instance was truthy, so a blank add-form FloatField saved None
+        # and an unchecked BooleanField saved False through ConfigField._set(), silently
+        # overriding real defaults like corridor_maximum_penalty_is_per_leg=True for every
+        # newly-created scorecard.
+        form_class = admin.site._registry[Scorecard].get_form(None)
+        blank_form = form_class()
+        data = dict(blank_form.initial)
+        data.update(model_to_dict(Scorecard(name="Admin Add Regression", shortcut_name="admin-add-regression")))
+        data["free_text"] = data.get("free_text") or "x"
+        bound_form = form_class(data=data)
+        self.assertTrue(bound_form.is_valid(), bound_form.errors)
+        new_scorecard = bound_form.save()
+        self.assertEqual(200, new_scorecard.circle_radius_min_m)
+        self.assertIs(True, new_scorecard.corridor_maximum_penalty_is_per_leg)
+
     def test_admin_form_save_actually_changes_live_scoring_config(self):
         form_class = admin.site._registry[Scorecard].get_form(None)
         data = model_to_dict(self.scorecard, exclude=["config"])

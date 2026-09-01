@@ -284,12 +284,18 @@ class ScorecardAdminForm(forms.ModelForm):
         )
 
     def __init__(self, *args, **kwargs):
-        instance = kwargs.get("instance")
-        if instance:
-            initial = dict(kwargs.get("initial") or {})
-            for field_name in SCORECARD_CONFIG_FIELDS:
-                initial.setdefault(field_name, getattr(instance, field_name))
-            kwargs["initial"] = initial
+        # Django's admin add_view constructs this form with no `instance` kwarg at all (only
+        # change_view passes one) - falling back to a fresh, unsaved Scorecard() reuses
+        # ConfigField's own declared defaults (an unsaved instance's .config is {}, so each
+        # ConfigField getter returns its default) instead of leaving `initial` unpopulated.
+        # Without this, a blank FloatField saves None and an unchecked BooleanField saves
+        # False through ConfigField._set(), silently overriding real defaults like
+        # corridor_maximum_penalty_is_per_leg=True for every newly-created scorecard.
+        instance = kwargs.get("instance") or Scorecard()
+        initial = dict(kwargs.get("initial") or {})
+        for field_name in SCORECARD_CONFIG_FIELDS:
+            initial.setdefault(field_name, getattr(instance, field_name))
+        kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
 
     def save(self, commit=True):
