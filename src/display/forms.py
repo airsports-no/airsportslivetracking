@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.utils.safestring import mark_safe
+from django.utils.text import capfirst
 
 from display.flight_order_and_maps.map_constants import (
     MAP_SIZES,
@@ -1042,6 +1043,18 @@ class ScorecardForm(forms.ModelForm):
             initial.update(kwargs.get("initial") or {})
             kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
+
+        # ModelForm auto-generates a field's .label from the model field's verbose_name
+        # (fields_for_model(), django/forms/models.py) - for a field with no explicit
+        # verbose_name, Django defaults that to capfirst(name.replace("_", " ")). The 26
+        # SCORECARD_CONFIG_FIELDS declared above aren't model fields, so they never go
+        # through that path and keep label=None. Rendering through a BoundField (plain
+        # template display) falls back to a pretty name anyway, masking this - but
+        # views.py's _extract_values_from_form() (used by the scorecard detail page) reads
+        # form.fields[name].label directly, so without this every one of these 26 rows
+        # showed "None:" as its label instead of e.g. "Backtracking penalty".
+        for field_name in SCORECARD_CONFIG_FIELDS:
+            self.fields[field_name].label = capfirst(field_name.replace("_", " "))
 
         navigation_task = getattr(self.instance, "navigation_task_override", None)
         if navigation_task and navigation_task.task_subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
