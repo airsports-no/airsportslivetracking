@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 
 from django.contrib.auth import get_user_model
@@ -5,6 +6,7 @@ from django_use_email_as_username.admin import BaseUserAdmin
 from guardian.admin import GuardedModelAdmin
 from guardian.shortcuts import assign_perm
 
+from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES, SCORECARD_CONFIG_FIELDS
 from display.services.token_assignment import revert_token_assignment_for_support
 from display.models import (
     NavigationTask,
@@ -237,12 +239,87 @@ class ContestTokenAssignmentAdmin(admin.ModelAdmin):
             revert_token_assignment_for_support(assignment, request.user)
 
 
+class ScorecardAdminForm(forms.ModelForm):
+    # Phase 2c of the scorecard-system review roadmap. Scorecard.get_form() previously
+    # auto-generated its admin form from real model fields, which - since Phase 2 moved
+    # these 26 fields onto Scorecard.config-backed properties (see ConfigField in
+    # models/scorecard_and_gate_score.py) - meant the admin form exposed `config` as a raw
+    # JSON textarea plus all 27 inert `legacy_*` columns, and none of the fields that
+    # actually affect scoring. Editing a `legacy_*` field there silently did nothing - the
+    # same silent-no-op trap already fixed for ScorecardForm/ScorecardNestedSerialiser.
+    # Declared explicitly here instead, same field-type mapping as those two.
+    backtracking_penalty = forms.FloatField(required=False)
+    backtracking_bearing_difference = forms.FloatField(required=False)
+    backtracking_grace_time_seconds = forms.FloatField(required=False)
+    backtracking_maximum_penalty = forms.FloatField(required=False)
+    prohibited_zone_penalty = forms.FloatField(required=False)
+    prohibited_zone_grace_time = forms.FloatField(required=False)
+    prohibited_zone_maximum = forms.FloatField(required=False)
+    penalty_zone_grace_time = forms.FloatField(required=False)
+    penalty_zone_penalty_per_second = forms.FloatField(required=False)
+    penalty_zone_maximum = forms.FloatField(required=False)
+    corridor_grace_time = forms.IntegerField(required=False)
+    corridor_outside_penalty = forms.FloatField(required=False)
+    corridor_maximum_penalty = forms.FloatField(required=False)
+    corridor_maximum_penalty_is_per_leg = forms.BooleanField(required=False)
+    anr_route_to_sp_penalty = forms.FloatField(required=False)
+    anr_route_from_fp_penalty = forms.FloatField(required=False)
+    compulsory_timing_tolerance_seconds = forms.IntegerField(required=False)
+    maximum_task_duration_minutes = forms.IntegerField(required=False)
+    maximum_task_duration_penalty = forms.FloatField(required=False)
+    fuel_deadline_penalty = forms.FloatField(required=False)
+    duration_normalization_policy = forms.ChoiceField(choices=DURATION_NORMALIZATION_POLICIES, required=False)
+    duration_residual_fuel_required = forms.BooleanField(required=False)
+    circle_radius_min_m = forms.FloatField(required=False)
+    circle_radius_max_m = forms.FloatField(required=False)
+    speed_keeping_tolerance_kt = forms.FloatField(required=False)
+    speed_keeping_penalty_per_kt = forms.FloatField(required=False)
+
+    class Meta:
+        model = Scorecard
+        exclude = (
+            ("config", "included_fields")
+            + tuple(f"legacy_{field}" for field in SCORECARD_CONFIG_FIELDS)
+            + ("legacy_included_fields",)
+        )
+
+    def __init__(self, *args, **kwargs):
+        instance = kwargs.get("instance")
+        if instance:
+            initial = dict(kwargs.get("initial") or {})
+            for field_name in SCORECARD_CONFIG_FIELDS:
+                initial.setdefault(field_name, getattr(instance, field_name))
+            kwargs["initial"] = initial
+        super().__init__(*args, **kwargs)
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        for field_name in SCORECARD_CONFIG_FIELDS:
+            setattr(instance, field_name, self.cleaned_data[field_name])
+        if commit:
+            instance.save()
+        return instance
+
+
+class ScorecardAdmin(admin.ModelAdmin):
+    form = ScorecardAdminForm
+    list_display = ("name", "shortcut_name", "calculator", "original", "valid_from")
+    list_filter = ("calculator", "original")
+    search_fields = ("name", "shortcut_name")
+
+
+class GateScoreAdmin(admin.ModelAdmin):
+    list_display = ("scorecard", "gate_type", "maximum_penalty", "penalty_per_second")
+    list_filter = ("gate_type",)
+    search_fields = ("scorecard__name", "scorecard__shortcut_name")
+
+
 admin.site.register(get_user_model(), BaseUserAdmin)
 admin.site.register(NavigationTask, NavigationTaskAdmin)
-admin.site.register(Scorecard)
+admin.site.register(Scorecard, ScorecardAdmin)
 admin.site.register(Route)
 admin.site.register(Contest, ContestAdmin)
-admin.site.register(GateScore)
+admin.site.register(GateScore, GateScoreAdmin)
 admin.site.register(Aeroplane)
 admin.site.register(Team)
 admin.site.register(Crew)
