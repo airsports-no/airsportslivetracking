@@ -46,6 +46,7 @@ from display.models import (
     Club,
 )
 
+from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES, SCORECARD_CONFIG_FIELDS
 from display.models.user_uploaded_map import validate_file_size
 from display.models.my_user import MyUser
 from display.poker.poker_cards import PLAYING_CARDS
@@ -471,9 +472,13 @@ class ContestForm(forms.ModelForm):
         token_grant_queryset = kwargs.pop("token_grant_queryset", UserTokenGrant.objects.none())
         managed_club_queryset = kwargs.pop("managed_club_queryset", Club.objects.none())
         super().__init__(*args, **kwargs)
-        self.fields["initial_token_grant"].queryset = token_grant_queryset.filter(quantity_total__gt=models.F("quantity_consumed"))
+        self.fields["initial_token_grant"].queryset = token_grant_queryset.filter(
+            quantity_total__gt=models.F("quantity_consumed")
+        )
         self.fields["initial_token_grant"].label = "Initial token grant (optional)"
-        self.fields["initial_token_grant"].help_text = "Assign a token immediately when creating the contest. Spent tokens are never restored."
+        self.fields[
+            "initial_token_grant"
+        ].help_text = "Assign a token immediately when creating the contest. Spent tokens are never restored."
         self.fields["organizing_club"].queryset = managed_club_queryset
         self.fields["organizing_club"].required = False
         datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
@@ -936,14 +941,106 @@ class GPXTrackImportForm(forms.Form):
 class ScorecardForm(forms.ModelForm):
     corridor_width = forms.FloatField()
 
+    # Phase 2 of the scorecard-system review roadmap moved these 26 fields off of real
+    # Scorecard columns and onto Scorecard.config (see ConfigField in
+    # models/scorecard_and_gate_score.py). ModelForm's `exclude`-based auto-introspection
+    # (construct_instance(), django/forms/models.py) only ever applies real model fields to
+    # the instance on save - a plain (name-matching) declared field here would validate but
+    # then be silently dropped, exactly like this form's pre-existing `corridor_width` (never
+    # applied by construct_instance() either, applied manually - see save() below). Declared
+    # explicitly, with save() below applying them, so the organizer-facing form keeps
+    # actually writing what it lets you edit.
+    backtracking_penalty = forms.FloatField()
+    backtracking_bearing_difference = forms.FloatField()
+    backtracking_grace_time_seconds = forms.FloatField()
+    backtracking_maximum_penalty = forms.FloatField()
+    prohibited_zone_penalty = forms.FloatField()
+    prohibited_zone_grace_time = forms.FloatField()
+    prohibited_zone_maximum = forms.FloatField()
+    penalty_zone_grace_time = forms.FloatField()
+    penalty_zone_penalty_per_second = forms.FloatField()
+    penalty_zone_maximum = forms.FloatField()
+    corridor_grace_time = forms.IntegerField()
+    corridor_outside_penalty = forms.FloatField()
+    corridor_maximum_penalty = forms.FloatField()
+    corridor_maximum_penalty_is_per_leg = forms.BooleanField(required=False)
+    anr_route_to_sp_penalty = forms.FloatField()
+    anr_route_from_fp_penalty = forms.FloatField()
+    compulsory_timing_tolerance_seconds = forms.IntegerField()
+    maximum_task_duration_minutes = forms.IntegerField(required=False)
+    maximum_task_duration_penalty = forms.FloatField()
+    fuel_deadline_penalty = forms.FloatField()
+    duration_normalization_policy = forms.ChoiceField(choices=DURATION_NORMALIZATION_POLICIES, required=False)
+    duration_residual_fuel_required = forms.BooleanField(required=False)
+    circle_radius_min_m = forms.FloatField()
+    circle_radius_max_m = forms.FloatField()
+    speed_keeping_tolerance_kt = forms.FloatField()
+    speed_keeping_penalty_per_kt = forms.FloatField()
+
     class Meta:
         model = Scorecard
-        exclude = ("name", "original", "included_fields", "calculator", "task_type", "use_procedure_turns", "free_text")
+        exclude = (
+            "name",
+            "original",
+            "included_fields",
+            "calculator",
+            "task_type",
+            "use_procedure_turns",
+            "free_text",
+            "config",
+            "legacy_backtracking_penalty",
+            "legacy_backtracking_bearing_difference",
+            "legacy_backtracking_grace_time_seconds",
+            "legacy_backtracking_maximum_penalty",
+            "legacy_prohibited_zone_penalty",
+            "legacy_prohibited_zone_grace_time",
+            "legacy_prohibited_zone_maximum",
+            "legacy_penalty_zone_grace_time",
+            "legacy_penalty_zone_penalty_per_second",
+            "legacy_penalty_zone_maximum",
+            "legacy_corridor_grace_time",
+            "legacy_corridor_outside_penalty",
+            "legacy_corridor_maximum_penalty",
+            "legacy_corridor_maximum_penalty_is_per_leg",
+            "legacy_anr_route_to_sp_penalty",
+            "legacy_anr_route_from_fp_penalty",
+            "legacy_compulsory_timing_tolerance_seconds",
+            "legacy_maximum_task_duration_minutes",
+            "legacy_maximum_task_duration_penalty",
+            "legacy_fuel_deadline_penalty",
+            "legacy_duration_normalization_policy",
+            "legacy_duration_residual_fuel_required",
+            "legacy_circle_radius_min_m",
+            "legacy_circle_radius_max_m",
+            "legacy_speed_keeping_tolerance_kt",
+            "legacy_speed_keeping_penalty_per_kt",
+            "legacy_included_fields",
+        )
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # See the class docstring comment above the declared fields: construct_instance()
+        # only ever applies real model fields, so these 26 config-backed ones need applying
+        # by hand.
+        for field_name in SCORECARD_CONFIG_FIELDS:
+            setattr(instance, field_name, self.cleaned_data[field_name])
+        if commit:
+            instance.save()
+        return instance
 
     def __init__(self, *args, **kwargs):
         instance = kwargs.get("instance", None)
         if instance:
-            kwargs["initial"] = {"corridor_width": instance.corridor_width}
+            # Only corridor_width used to need this - it isn't a model field at all. Now
+            # that the 26 SCORECARD_CONFIG_FIELDS are declared form fields backed by
+            # ConfigField properties rather than real model fields too, ModelForm's usual
+            # instance-to-initial-data path (model_to_dict(), which only looks at real model
+            # fields) can't see them either - without this, editing an existing scorecard
+            # would render every one of them blank instead of its current value.
+            initial = {"corridor_width": instance.corridor_width}
+            initial.update({field: getattr(instance, field) for field in SCORECARD_CONFIG_FIELDS})
+            initial.update(kwargs.get("initial") or {})
+            kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
 
         navigation_task = getattr(self.instance, "navigation_task_override", None)

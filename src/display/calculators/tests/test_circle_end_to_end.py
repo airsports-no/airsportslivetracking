@@ -26,7 +26,18 @@ from display.calculators.calculator_factory import calculator_factory
 from display.calculators.gate_calculator import GateCalculator
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
-from display.models import INFORMATION, Aeroplane, Contest, Contestant, Crew, EditableRoute, NavigationTask, Person, Scorecard, Team
+from display.models import (
+    INFORMATION,
+    Aeroplane,
+    Contest,
+    Contestant,
+    Crew,
+    EditableRoute,
+    NavigationTask,
+    Person,
+    Scorecard,
+    Team,
+)
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.utilities.cima_task_type_definitions import CIRCLE
 from display.utilities.coordinate_utilities import project_position_lat_lon
@@ -50,7 +61,7 @@ class TestCircleEndToEnd(TestCase):
         self.scorecard = Scorecard.get_originals().get(shortcut_name="FAI Precision")
         self.scorecard.circle_radius_min_m = 200
         self.scorecard.circle_radius_max_m = 750
-        self.scorecard.save(update_fields=["circle_radius_min_m", "circle_radius_max_m"])
+        self.scorecard.save(update_fields=["config"])
 
         sp_lat, sp_lon = _circle_point(90)  # due east of center, on the circle boundary
         x_lat, x_lon = _circle_point(0)  # due north - straight-line SP->X passes near the center
@@ -63,22 +74,42 @@ class TestCircleEndToEnd(TestCase):
                 "features": [
                     {
                         "type": "Feature",
-                        "properties": {"id": "cs-1", "name": "SP", "pointType": "circle_start", "featureType": "circle_start_marker"},
+                        "properties": {
+                            "id": "cs-1",
+                            "name": "SP",
+                            "pointType": "circle_start",
+                            "featureType": "circle_start_marker",
+                        },
                         "geometry": {"type": "Point", "coordinates": [sp_lon, sp_lat]},
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "ce-1", "name": "X", "pointType": "circle_entry", "featureType": "circle_entry_marker"},
+                        "properties": {
+                            "id": "ce-1",
+                            "name": "X",
+                            "pointType": "circle_entry",
+                            "featureType": "circle_entry_marker",
+                        },
                         "geometry": {"type": "Point", "coordinates": [x_lon, x_lat]},
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "cm-1", "name": "CM", "pointType": "circle_center", "featureType": "circle_center_marker"},
+                        "properties": {
+                            "id": "cm-1",
+                            "name": "CM",
+                            "pointType": "circle_center",
+                            "featureType": "circle_center_marker",
+                        },
                         "geometry": {"type": "Point", "coordinates": [CENTER_LON, CENTER_LAT]},
                     },
                     {
                         "type": "Feature",
-                        "properties": {"id": "cx-1", "name": "WP", "pointType": "circle_exit", "featureType": "circle_exit_marker"},
+                        "properties": {
+                            "id": "cx-1",
+                            "name": "WP",
+                            "pointType": "circle_exit",
+                            "featureType": "circle_exit_marker",
+                        },
                         "geometry": {"type": "Point", "coordinates": [wp_lon, wp_lat]},
                     },
                 ],
@@ -158,9 +189,7 @@ class TestCircleEndToEnd(TestCase):
             projector=self.navigation_task.get_projector(),
         )
         gate_calculator.finalise([])
-        gate_score_calls = [
-            call for call in queue.put_nowait.call_args_list if call.args[0].score_type == "gate_score"
-        ]
+        gate_score_calls = [call for call in queue.put_nowait.call_args_list if call.args[0].score_type == "gate_score"]
         self.assertEqual(gate_score_calls, [])
 
     def test_projector_is_centered_on_the_circle_not_the_origin(self):

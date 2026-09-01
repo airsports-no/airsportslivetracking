@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from display.default_scorecards import default_scorecard_airsports
-from display.models import Scorecard, GateScore
+from display.models import GateScore, Scorecard
 
 
 class TestCloneObject(TestCase):
@@ -11,7 +11,22 @@ class TestCloneObject(TestCase):
         self.assertEqual(8, GateScore.objects.all().count())
         new_scorecard = scorecard.copy(f"navigationtasks_{scorecard.name}")
         self.assertEqual(2, Scorecard.objects.all().count())
+        # Phase 2 of the scorecard-system review roadmap folded per-gate scoring config into
+        # Scorecard.config["gates"], but GateScore is still what ScorecardNestedSerialiser's
+        # gatescore_set field, navigation_task_gatescore_override_view, and
+        # navigation_task_view_detailed_score read from (see GateScore's docstring), so
+        # copy() still clones per-gate rows too, same as before Phase 2.
         self.assertEqual(16, GateScore.objects.all().count())
         self.assertNotEqual(scorecard.pk, new_scorecard.pk)
-        self.assertNotEqual(scorecard.gatescore_set.get(gate_type="to"),
-                            new_scorecard.gatescore_set.get(gate_type="to"))
+        self.assertNotEqual(
+            scorecard.gatescore_set.get(gate_type="to"), new_scorecard.gatescore_set.get(gate_type="to")
+        )
+        self.assertEqual(
+            scorecard.get_gate_scorecard("to").to_dict(),
+            new_scorecard.get_gate_scorecard("to").to_dict(),
+        )
+        # Independent copies: mutating one's config must not affect the other's.
+        self.assertIsNot(scorecard.config["gates"], new_scorecard.config["gates"])
+        new_scorecard.config["gates"]["to"]["maximum_penalty"] = 999999
+        new_scorecard.save(update_fields=["config"])
+        self.assertNotEqual(999999, scorecard.get_gate_scorecard("to").maximum_penalty)

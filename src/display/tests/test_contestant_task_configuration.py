@@ -1838,9 +1838,7 @@ class TestContestantTaskConfiguration(TestCase):
         self.navigation_task.task_subtype = "duration"
         self.navigation_task.scorecard.duration_normalization_policy = "raw_minutes"
         self.navigation_task.scorecard.duration_residual_fuel_required = True
-        self.navigation_task.scorecard.save(
-            update_fields=["duration_normalization_policy", "duration_residual_fuel_required"]
-        )
+        self.navigation_task.scorecard.save(update_fields=["config"])
         self.navigation_task.editable_route = EditableRoute.objects.create(
             name="Duration review primitives",
             route={

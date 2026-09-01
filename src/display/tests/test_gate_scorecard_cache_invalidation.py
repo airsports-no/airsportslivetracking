@@ -25,9 +25,13 @@ class TestGateScorecardCacheInvalidation(TestCase):
     def setUp(self):
         Scorecard.SCORECARD_CACHE.clear()
         self.scorecard = Scorecard.objects.create(name="Cache invalidation test", shortcut_name="cache-inv-test")
-        self.gate_score = GateScore.objects.create(
-            scorecard=self.scorecard, gate_type=TURNPOINT, penalty_per_second=2
-        )
+        self.gate_score = GateScore.objects.create(scorecard=self.scorecard, gate_type=TURNPOINT, penalty_per_second=2)
+        # sync_gate_score_to_scorecard_config (display/signals.py) mirrors the gate score
+        # into config via its own select_for_update() fetch of the Scorecard - a separate
+        # Python object from self.scorecard, so self.scorecard's in-memory config never sees
+        # it without an explicit refresh. Same reasoning applies after every further
+        # self.gate_score.save()/.delete() below.
+        self.scorecard.refresh_from_db()
 
     def tearDown(self):
         Scorecard.SCORECARD_CACHE.clear()
@@ -39,6 +43,7 @@ class TestGateScorecardCacheInvalidation(TestCase):
 
         self.gate_score.penalty_per_second = 99
         self.gate_score.save()
+        self.scorecard.refresh_from_db()
 
         refreshed = self.scorecard.get_gate_scorecard(TURNPOINT)
         self.assertEqual(refreshed.penalty_per_second, 99)
@@ -46,6 +51,7 @@ class TestGateScorecardCacheInvalidation(TestCase):
     def test_get_gate_scorecard_reflects_a_delete(self):
         self.scorecard.get_gate_scorecard(TURNPOINT)  # populate the cache
         self.gate_score.delete()
+        self.scorecard.refresh_from_db()
 
         # Deleting invalidates the memoized entry too - the next lookup must hit the
         # DB again (and raise the documented ValueError) rather than keep returning
@@ -67,6 +73,7 @@ class TestGateScorecardCacheInvalidation(TestCase):
         )
         serialiser.is_valid(raise_exception=True)
         serialiser.save()
+        self.scorecard.refresh_from_db()
 
         # A bulk .update() would have written the new value to the DB while
         # leaving both the version token and the in-process cache untouched -
