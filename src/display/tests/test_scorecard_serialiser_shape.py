@@ -6,7 +6,10 @@ precisely so the API contract can no longer drift silently the next time a scori
 changes - this test is the guardrail that would actually catch that drift. (Phase 2e retired
 the GateScore table entirely - GateScoreSerialiser now reads a GateScoreValue, not a model
 instance, but the exposed key set is unchanged apart from dropping the confirmed-dead
-bad_course_crossing_penalty.)
+bad_course_crossing_penalty. Phase 3 added a read-only `visible_fields` key to both - see
+serialisers.py - deliberately widening the contract so the new React scorecard editor can use
+scorecard/gate curation as a grouping hint instead of GateScoreForm/ScorecardForm's previous
+hard filter.)
 """
 
 import datetime
@@ -28,6 +31,7 @@ EXPECTED_SCORECARD_NESTED_KEYS = {
     "task_type",
     "corridor_width",
     "gatescore_set",
+    "visible_fields",
     "backtracking_penalty",
     "backtracking_bearing_difference",
     "backtracking_grace_time_seconds",
@@ -69,6 +73,7 @@ EXPECTED_GATE_SCORE_KEYS = {
     "backtracking_after_steep_gate_grace_period_seconds",
     "backtracking_before_gate_grace_period_nm",
     "backtracking_after_gate_grace_period_nm",
+    "visible_fields",
 }
 
 

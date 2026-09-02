@@ -147,6 +147,7 @@ from display.services.capacity_enforcement import (
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
 from display.services.route_compatibility import extract_route_primitives, get_blocking_reasons
+from display.services.scorecard_gate_applicability import get_applicable_gate_types
 from display.services.task_compiler import TaskCompiler
 from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
 from display.tasks import (
@@ -1294,6 +1295,27 @@ class NavigationTaskViewSet(ModelViewSet):
             "It is not possible to modify existing navigation tasks except to publish or hide them"
         )
 
+    def _build_scorecard_response_data(self, navigation_task: "NavigationTask", serialiser) -> dict:
+        """
+        Scorecard Phase 3: the React scorecard editor needs two things alongside the plain
+        nested scorecard that ScorecardNestedSerialiser already produces - which of the
+        scorecard's configured gate types are actually relevant to this specific task (most
+        task types only use a handful of the 16 defined gate types, see
+        services/scorecard_gate_applicability.py), and the task's original/standard scorecard
+        to diff against and to build "reset this field/gate" payloads from. Both are
+        task-scoped, not scorecard-scoped (a Scorecard fetched standalone via /scorecards/<id>/
+        has no navigation task to be applicable *to*), so they're merged in here at the view
+        layer rather than added to the serializer itself.
+        """
+        data = dict(serialiser.data)
+        data["applicable_gate_types"] = sorted(get_applicable_gate_types(navigation_task))
+        data["original_scorecard"] = (
+            ScorecardNestedSerialiser(navigation_task.original_scorecard).data
+            if navigation_task.original_scorecard_id
+            else None
+        )
+        return data
+
     @action(
         detail=True,
         methods=["get", "put"],
@@ -1305,10 +1327,25 @@ class NavigationTaskViewSet(ModelViewSet):
             serialiser = self.get_serializer(instance=navigation_task.scorecard, data=request.data)
             serialiser.is_valid(raise_exception=True)
             serialiser.save()
-            return Response(serialiser.data, status=status.HTTP_200_OK)
         else:
             serialiser = self.get_serializer(instance=navigation_task.scorecard)
-            return Response(serialiser.data, status=status.HTTP_200_OK)
+        return Response(self._build_scorecard_response_data(navigation_task, serialiser), status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[permissions.IsAuthenticated & NavigationTaskContestPermissions],
+    )
+    def reset_scorecard(self, request, *args, **kwargs):
+        """
+        Scorecard Phase 3: API equivalent of the legacy "Reset to standard" button
+        (navigation_task_restore_original_scorecard_view, views.py) - discards the task's
+        scorecard copy and replaces it with a fresh copy of original_scorecard.
+        """
+        navigation_task = self.get_object()  # type: NavigationTask
+        navigation_task.assign_scorecard_from_original(force=True)
+        serialiser = ScorecardNestedSerialiser(navigation_task.scorecard)
+        return Response(self._build_scorecard_response_data(navigation_task, serialiser), status=status.HTTP_200_OK)
 
     @action(
         detail=True,
