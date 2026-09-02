@@ -979,6 +979,8 @@ class ScorecardForm(forms.ModelForm):
 
     class Meta:
         model = Scorecard
+        # Phase 2e of the scorecard-system review roadmap dropped the legacy_* columns for
+        # real (migration 0174) - no longer anything to exclude by name here.
         exclude = (
             "name",
             "original",
@@ -988,33 +990,6 @@ class ScorecardForm(forms.ModelForm):
             "use_procedure_turns",
             "free_text",
             "config",
-            "legacy_backtracking_penalty",
-            "legacy_backtracking_bearing_difference",
-            "legacy_backtracking_grace_time_seconds",
-            "legacy_backtracking_maximum_penalty",
-            "legacy_prohibited_zone_penalty",
-            "legacy_prohibited_zone_grace_time",
-            "legacy_prohibited_zone_maximum",
-            "legacy_penalty_zone_grace_time",
-            "legacy_penalty_zone_penalty_per_second",
-            "legacy_penalty_zone_maximum",
-            "legacy_corridor_grace_time",
-            "legacy_corridor_outside_penalty",
-            "legacy_corridor_maximum_penalty",
-            "legacy_corridor_maximum_penalty_is_per_leg",
-            "legacy_anr_route_to_sp_penalty",
-            "legacy_anr_route_from_fp_penalty",
-            "legacy_compulsory_timing_tolerance_seconds",
-            "legacy_maximum_task_duration_minutes",
-            "legacy_maximum_task_duration_penalty",
-            "legacy_fuel_deadline_penalty",
-            "legacy_duration_normalization_policy",
-            "legacy_duration_residual_fuel_required",
-            "legacy_circle_radius_min_m",
-            "legacy_circle_radius_max_m",
-            "legacy_speed_keeping_tolerance_kt",
-            "legacy_speed_keeping_penalty_per_kt",
-            "legacy_included_fields",
         )
 
     def save(self, commit=True):
