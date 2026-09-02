@@ -1056,9 +1056,22 @@ class ScorecardForm(forms.ModelForm):
         for field_name in SCORECARD_CONFIG_FIELDS:
             self.fields[field_name].label = capfirst(field_name.replace("_", " "))
 
+        # __init__ runs on every construction, including every POST to the scorecard
+        # override page - self.instance.included_fields is a live list stored in
+        # Scorecard.config (see the included_fields property), so appending here
+        # unconditionally added another copy of the matching block on every save of a
+        # navigation task with one of these subtypes, growing without bound. Guard each
+        # append with a check for whether a block with that title is already present.
+        existing_block_titles = {block[0] for block in self.instance.included_fields}
+
+        def _append_block_once(block: list) -> None:
+            if block[0] not in existing_block_titles:
+                self.instance.included_fields.append(block)
+                existing_block_titles.add(block[0])
+
         navigation_task = getattr(self.instance, "navigation_task_override", None)
         if navigation_task and navigation_task.task_subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
-            self.instance.included_fields.append(
+            _append_block_once(
                 [
                     "Turnpoint hunt configuration",
                     "compulsory_timing_tolerance_seconds",
@@ -1068,7 +1081,7 @@ class ScorecardForm(forms.ModelForm):
                 ]
             )
         if navigation_task and navigation_task.task_subtype == ANR_CATALOGUE:
-            self.instance.included_fields.append(
+            _append_block_once(
                 [
                     "ANR catalogue configuration",
                     "anr_route_to_sp_penalty",
@@ -1076,7 +1089,7 @@ class ScorecardForm(forms.ModelForm):
                 ]
             )
         if navigation_task and navigation_task.task_subtype == DURATION:
-            self.instance.included_fields.append(
+            _append_block_once(
                 [
                     "Duration configuration",
                     "duration_normalization_policy",
@@ -1084,7 +1097,7 @@ class ScorecardForm(forms.ModelForm):
                 ]
             )
         if navigation_task and navigation_task.task_subtype == CIRCLE:
-            self.instance.included_fields.append(
+            _append_block_once(
                 [
                     "Circle configuration",
                     "circle_radius_min_m",

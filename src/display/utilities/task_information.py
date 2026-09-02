@@ -53,7 +53,7 @@ def _precision_family_overrides(navigation_task) -> list[str]:
             "Timed gates currently score "
             f"{_format_float(scorecard.get_penalty_per_second_for_gate_type('tp'))} point(s) per second "
             f"after {_format_float(scorecard.get_graceperiod_after_for_gate_type('tp'))} s grace, "
-            f"with maximum {_format_float(scorecard.get_maximum_penalty_for_gate_type('tp'))} points and "
+            f"with maximum {_format_float(scorecard.get_maximum_timing_penalty_for_gate_type('tp'))} points and "
             f"missed-gate penalty {_format_float(scorecard.get_missed_penalty_for_gate_type('tp'))}."
         )
     except Exception:
