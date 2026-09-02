@@ -625,3 +625,68 @@ class TestAccessNavigationTask(APITestCase):
             reverse("navigationtasks-scorecard", kwargs={"contest_pk": self.contest_id, "pk": self.navigation_task.id})
         )
         self.assertEqual(result.status_code, status.HTTP_401_UNAUTHORIZED, result.content)
+
+    def test_scorecard_response_includes_applicable_gate_types_and_original_scorecard(self):
+        # Scorecard Phase 3: the new React scorecard editor needs to know which gate types
+        # matter for this specific task (services/scorecard_gate_applicability.py) and what
+        # the task's standard/original scorecard looks like (to diff against and build
+        # "reset this field" payloads) - both are merged into the scorecard action's response
+        # rather than requiring a second request.
+        self.client.force_login(user=self.user_owner)
+        scorecard_data = self.client.get(
+            reverse("navigationtasks-scorecard", kwargs={"contest_pk": self.contest_id, "pk": self.navigation_task.id})
+        ).json()
+        self.assertIn("applicable_gate_types", scorecard_data)
+        self.assertIsInstance(scorecard_data["applicable_gate_types"], list)
+        self.assertGreater(len(scorecard_data["applicable_gate_types"]), 0)
+        # dummy is never applicable to any task - see scorecard_gate_applicability.py
+        self.assertNotIn("dummy", scorecard_data["applicable_gate_types"])
+        self.assertIsNotNone(scorecard_data["original_scorecard"])
+        self.assertEqual(
+            get_default_scorecard().backtracking_penalty,
+            scorecard_data["original_scorecard"]["backtracking_penalty"],
+        )
+
+    def test_scorecard_response_exposes_visible_fields_for_curation_not_hiding(self):
+        # visible_fields used to only exist to decide what the legacy Django form even
+        # rendered (a hard filter that made some scorecards' organizer pages show nothing at
+        # all) - now exposed read-only so the new editor can use it as a grouping hint while
+        # still showing every field.
+        self.client.force_login(user=self.user_owner)
+        scorecard_data = self.client.get(
+            reverse("navigationtasks-scorecard", kwargs={"contest_pk": self.contest_id, "pk": self.navigation_task.id})
+        ).json()
+        self.assertIn("visible_fields", scorecard_data)
+        self.assertIsInstance(scorecard_data["visible_fields"], list)
+        for gate in scorecard_data["gatescore_set"]:
+            self.assertIn("visible_fields", gate)
+            self.assertIsInstance(gate["visible_fields"], list)
+
+    def test_reset_scorecard_action_restores_original_values(self):
+        self.client.force_login(user=self.user_owner)
+        self.navigation_task.scorecard.backtracking_penalty = 999999
+        self.navigation_task.scorecard.save()
+
+        result = self.client.post(
+            reverse(
+                "navigationtasks-reset-scorecard",
+                kwargs={"contest_pk": self.contest_id, "pk": self.navigation_task.id},
+            )
+        )
+        self.assertEqual(result.status_code, status.HTTP_200_OK, result.content)
+        self.assertEqual(get_default_scorecard().backtracking_penalty, result.json()["backtracking_penalty"])
+        self.navigation_task.refresh_from_db()
+        self.assertEqual(
+            get_default_scorecard().backtracking_penalty, self.navigation_task.scorecard.backtracking_penalty
+        )
+
+    def test_reset_scorecard_requires_change_permission(self):
+        self.client.force_login(user=self.user_view_permissions)
+        assign_perm("view_contest", self.user_view_permissions, self.contest)
+        result = self.client.post(
+            reverse(
+                "navigationtasks-reset-scorecard",
+                kwargs={"contest_pk": self.contest_id, "pk": self.navigation_task.id},
+            )
+        )
+        self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN, result.content)

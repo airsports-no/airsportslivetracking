@@ -1063,6 +1063,12 @@ class GateScoreSerialiser(serializers.Serializer):
     backtracking_after_steep_gate_grace_period_seconds = serializers.FloatField(required=False)
     backtracking_before_gate_grace_period_nm = serializers.FloatField(required=False)
     backtracking_after_gate_grace_period_nm = serializers.FloatField(required=False)
+    # Scorecard Phase 3: previously only used internally (views.py's _extract_values_from_form)
+    # to decide which fields the legacy Django form even rendered - exposed here read-only so
+    # the new React scorecard editor can use it to group fields into "commonly edited" vs
+    # "advanced" instead of hiding the rest outright (the bug that made Landing/Poker Run's
+    # organizer pages show nothing at all - see GateScoreValue.visible_fields).
+    visible_fields = serializers.ListField(child=serializers.CharField(), read_only=True)
 
     def create(self, validated_data):
         raise NotImplementedError("Gate scores are only ever nested under ScorecardNestedSerialiser")
@@ -1080,6 +1086,9 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     gatescore_set = GateScoreSerialiser(many=True, source="gate_scores")
     corridor_width = serializers.FloatField(read_only=True)
     task_type = serializers.SerializerMethodField()
+    # Scorecard Phase 3: see the matching comment on GateScoreSerialiser.visible_fields - same
+    # reasoning, scorecard-level instead of per-gate.
+    visible_fields = serializers.ListField(child=serializers.CharField(), read_only=True)
 
     # Phase 2 of the scorecard-system review roadmap moved these 26 fields off of real
     # Scorecard columns and into Scorecard.config (see ConfigField in
@@ -1138,6 +1147,7 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "task_type",
             "corridor_width",
             "gatescore_set",
+            "visible_fields",
             "backtracking_penalty",
             "backtracking_bearing_difference",
             "backtracking_grace_time_seconds",
