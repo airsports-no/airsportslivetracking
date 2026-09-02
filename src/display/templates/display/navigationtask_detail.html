@@ -40,7 +40,7 @@
                 </div>
 
                 <div class="flex-none flex items-center gap-1">
-                    <a href="{% url 'navigationtask_scoredetails' object.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Scorecard">
+                    <a href="{% fe_url 'SCORECARD_EDITOR' contestId=object.contest.pk navigationTaskId=object.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Scorecard">
                         {% lucide "clipboard-list" size=16 class="lucide lucide-clipboard-list" %}
                         <span class="hidden sm:inline">Scorecard</span>
                     </a>
