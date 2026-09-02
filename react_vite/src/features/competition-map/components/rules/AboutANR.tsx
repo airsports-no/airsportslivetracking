@@ -30,7 +30,7 @@ const AboutANR: React.FC<Props> = ({ scorecard, route }) => {
             or {getGateValue(scorecard, "sp", "graceperiod_after")} seconds
             late gives {getGateValue(scorecard, "sp", "penalty_per_second")} points per additional
             second. The maximum score for being late or early at the gate
-            is {getGateValue(scorecard, "sp", "maximum_timing_penalty")} points.
+            is {getGateValue(scorecard, "sp", "maximum_penalty")} points.
         </p>
         <p>
             Missing the finish point gives a penalty
@@ -39,7 +39,7 @@ const AboutANR: React.FC<Props> = ({ scorecard, route }) => {
             or {getGateValue(scorecard, "fp", "graceperiod_after")} seconds
             late gives {getGateValue(scorecard, "fp", "penalty_per_second")} points per additional
             second. The maximum score for being late or early at the gate
-            is {getGateValue(scorecard, "fp", "maximum_timing_penalty")} points.
+            is {getGateValue(scorecard, "fp", "maximum_penalty")} points.
 
         </p>
         {route.takeoff_gates.length > 0 && getGateValue(scorecard, "to", "maximum_penalty") > 0 ?

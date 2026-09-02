@@ -139,7 +139,6 @@ export interface GateScoreRule {
   graceperiod_after: number;
   penalty_per_second: number;
   maximum_penalty: number;
-  maximum_timing_penalty?: number;
   missed_penalty: number;
   missed_procedure_turn_penalty?: number;
   extended_gate_width?: number;
