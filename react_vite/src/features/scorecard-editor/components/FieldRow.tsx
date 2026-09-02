@@ -117,7 +117,10 @@ export const FieldRow: React.FC<FieldRowProps> = ({
                     setText(raw);
                     if (raw.trim() === '') return;
                     const parsed = Number(raw);
-                    if (!Number.isNaN(parsed)) {
+                    // validity.valid also enforces the min/step attributes above (e.g. a
+                    // negative value on a min:0 field, or a decimal on an integer field) -
+                    // Number.isNaN alone let those through and stage an out-of-range value.
+                    if (!Number.isNaN(parsed) && e.currentTarget.validity.valid) {
                         onChange(parsed);
                     }
                 }}

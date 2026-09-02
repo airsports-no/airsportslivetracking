@@ -77,6 +77,15 @@ export default function ScorecardEditorPage() {
         }
     };
 
+    const handleBack = () => {
+        // beforeunload only guards a full page reload/tab close, not this client-side
+        // navigate(-1) - without this check, unsaved edits were discarded silently.
+        if (dirty && !window.confirm('Discard unsaved scorecard changes?')) {
+            return;
+        }
+        navigate(-1);
+    };
+
     const handleResetToStandard = async () => {
         if (!contestId || !navigationTaskId) return;
         if (!window.confirm('Reset every scoring value on this task back to the standard scorecard? This cannot be undone.')) {
@@ -123,7 +132,7 @@ export default function ScorecardEditorPage() {
                     <p className="text-sm text-base-content/70">Scoring parameters</p>
                 </div>
                 <div className="flex gap-2">
-                    <button className="btn btn-secondary" onClick={() => navigate(-1)}>
+                    <button className="btn btn-secondary" onClick={handleBack}>
                         Back
                     </button>
                     {canEdit && (
