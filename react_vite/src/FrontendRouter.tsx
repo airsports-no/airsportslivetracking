@@ -8,6 +8,7 @@ const RouteEditor = lazy(() => import("./features/route-editor/containers/RouteE
 const MissionDashboard = lazy(() => import("./features/mission-dashboard/MissionDashboard"));
 const ContestDashboard = lazy(() => import("./features/mission-dashboard/ContestDashboard"));
 const CompetitionMapPage = lazy(() => import("./features/competition-map/CompetitionMapPage"));
+const ScorecardEditorPage = lazy(() => import("./features/scorecard-editor/ScorecardEditorPage"));
 const ContestResultsTable = lazy(() => import("./features/contest-results/ContestResultsTable").then(module => ({ default: module.ContestResultsTable })));
 const ContestantScheduling = lazy(() => import("./features/scheduling/ContestantScheduling"));
 const ContestantDeclarationPage = lazy(() => import("./features/scheduling/ContestantDeclarationPage"));
@@ -29,6 +30,7 @@ export const FrontendRouter = () => {
                     <Route path={routes.MISSION_DASHBOARD} element={<MissionDashboard />} />
                     <Route path={routes.COMPETITION_MAP} element={<CompetitionMapPage />} />
                     <Route path={routes.COMPETITION_MAP_DETAIL} element={<CompetitionMapPage />} />
+                    <Route path={routes.SCORECARD_EDITOR} element={<ScorecardEditorPage />} />
 
                     <Route path={routes.CONTEST_RESULTS_TABLE} element={<ContestResultsTable />} />
                     <Route path={routes.SCHEDULE_FLIGHT} element={<ScheduleFlightPage />} />
