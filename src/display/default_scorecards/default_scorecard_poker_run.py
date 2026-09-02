@@ -1,17 +1,28 @@
 #
 import datetime
 
-from display.utilities.clone_object import simple_clone, get_or_none
-from display.models import (
-    GateScore,
-    Scorecard,
-)
-from display.utilities.gate_definitions import TURNPOINT, GATE_TYPES
+from display.models import Scorecard
+from display.utilities.gate_definitions import GATE_TYPES
 from display.utilities.navigation_task_type_definitions import POKER
 
 
 def get_default_scorecard():
     Scorecard.objects.filter(name="Poker run").update(name="Pilot Poker Run")
+
+    turning_point = {
+        "extended_gate_width": 6,
+        "bad_crossing_extended_gate_penalty": 0,
+        "graceperiod_before": 2,
+        "graceperiod_after": 2,
+        "maximum_penalty": 0,
+        "penalty_per_second": 0,
+        "missed_penalty": 0,
+        "missed_procedure_turn_penalty": 0,
+        "backtracking_after_steep_gate_grace_period_seconds": 0,
+    }
+    # Every gate type gets the same config as the turning point.
+    gates = {gate_type: dict(turning_point) for gate_type, friendly_name in GATE_TYPES}
+
     scorecard, created = Scorecard.objects.update_or_create(
         name="Pilot Poker Run",
         defaults={
@@ -49,36 +60,9 @@ def get_default_scorecard():
             """,
         },
     )
-
-    turning_point, _ = GateScore.objects.update_or_create(
-        scorecard=scorecard,
-        gate_type=TURNPOINT,
-        defaults={
-            "extended_gate_width": 6,
-            "bad_crossing_extended_gate_penalty": 0,
-            "graceperiod_before": 2,
-            "graceperiod_after": 2,
-            "maximum_penalty": 0,
-            "penalty_per_second": 0,
-            "missed_penalty": 0,
-            "missed_procedure_turn_penalty": 0,
-            "backtracking_after_steep_gate_grace_period_seconds": 0,
-        },
-    )
-    for gate_type, friendly_name in GATE_TYPES:
-        if gate_type != TURNPOINT:
-            simple_clone(
-                turning_point,
-                {"gate_type": gate_type},
-                existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=gate_type)),
-            )
-    # The gate scores above are created/updated after `scorecard` was fetched or
-    # created; each one's post_save signal (sync_gate_score_to_scorecard_config,
-    # display/signals.py) mirrors itself into the *database row's* config["gates"]
-    # via a fresh, separate fetch of the owning Scorecard - it can't reach back into
-    # this in-memory `scorecard` object. Refresh so the object this function returns
-    # (used directly by every default_scorecards/*.py caller and test) reflects all of
-    # those gates instead of whatever config it had at its own fetch/creation time -
-    # empty, on the very first creation of this scorecard.
-    scorecard.refresh_from_db()
+    # Phase 2e of the scorecard-system review roadmap: gates are built as plain dicts and
+    # written straight into config["gates"] - no more per-gate GateScore rows or the
+    # signal-mirror round trip that used to require a refresh_from_db() at the end.
+    scorecard.config["gates"] = gates
+    scorecard.save(update_fields=["config"])
     return scorecard

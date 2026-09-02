@@ -52,7 +52,7 @@ class TestScorecardUpdateSignals(TestCase):
         original_initial_score = scorecard.initial_score
         self.assertEqual(self.contestant.contestanttrack.score, 0)
 
-        ScorecardNestedSerialiser().update(scorecard, {"initial_score": original_initial_score + 25, "gatescore_set": []})
+        ScorecardNestedSerialiser().update(scorecard, {"initial_score": original_initial_score + 25, "gate_scores": []})
 
         self.contestant.contestanttrack.refresh_from_db()
         self.assertEqual(self.contestant.contestanttrack.score, 25)
@@ -63,7 +63,7 @@ class TestScorecardUpdateSignals(TestCase):
         opposite_direction = "desc" if scorecard.score_sorting_direction == "asc" else "asc"
         self.assertNotEqual(tasktest.sorting, opposite_direction)
 
-        ScorecardNestedSerialiser().update(scorecard, {"score_sorting_direction": opposite_direction, "gatescore_set": []})
+        ScorecardNestedSerialiser().update(scorecard, {"score_sorting_direction": opposite_direction, "gate_scores": []})
 
         tasktest.refresh_from_db()
         tasktest.task.refresh_from_db()

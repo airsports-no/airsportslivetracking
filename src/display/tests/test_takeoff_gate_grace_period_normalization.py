@@ -19,12 +19,12 @@ from display.utilities.gate_definitions import TAKEOFF_GATE
 class TestTakeoffGateGracePeriodNormalization(TestCase):
     def test_airsports_takeoff_gate_has_zero_graceperiod_before(self):
         scorecard = get_airsports_scorecard()
-        gate_score = scorecard.gatescore_set.get(gate_type=TAKEOFF_GATE)
+        gate_score = scorecard.get_gate_scorecard(TAKEOFF_GATE)
         self.assertEqual(0, gate_score.graceperiod_before)
         self.assertEqual(60, gate_score.graceperiod_after)
 
     def test_airsport_challenge_takeoff_gate_has_zero_graceperiod_before(self):
         scorecard = get_airsport_challenge_scorecard()
-        gate_score = scorecard.gatescore_set.get(gate_type=TAKEOFF_GATE)
+        gate_score = scorecard.get_gate_scorecard(TAKEOFF_GATE)
         self.assertEqual(0, gate_score.graceperiod_before)
         self.assertEqual(60, gate_score.graceperiod_after)

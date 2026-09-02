@@ -177,7 +177,7 @@ urlpatterns = [
         name="navigationtask_updatescorecardoverride",
     ),
     path(
-        "navigationtask/<int:pk>/updategatescoreoverride/<int:gate_score_pk>/",
+        "navigationtask/<int:pk>/updategatescoreoverride/<str:gate_type>/",
         navigation_task_gatescore_override_view,
         name="navigationtask_updategatescoreoverride",
     ),

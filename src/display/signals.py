@@ -39,7 +39,7 @@ from display.models import (
     TeamTestScore,
     UserTokenGrant,
 )
-from display.models.scorecard_and_gate_score import GATE_SCORE_SYNC_FIELDS, GateScore, Scorecard
+from display.models.scorecard_and_gate_score import Scorecard
 from display.utilities.traccar_factory import get_traccar_instance
 from display.utilities.tracking_definitions import TrackingService
 
@@ -611,56 +611,11 @@ def bump_gate_scorecard_cache_version(sender, instance: Scorecard, **kwargs):
     # silently scoring against a copy cached before the edit until it restarts.
     #
     # Phase 2 of the scorecard-system review roadmap moved per-gate scoring config out of
-    # the GateScore table and into Scorecard.config["gates"][...], so this now fires on
-    # every Scorecard save (a superset of the old GateScore-only trigger: any save,
-    # including ones only touching gate config through `config`, invalidates the cache) -
-    # it used to be a post_save/post_delete pair on GateScore directly. GateScore writes
-    # still happen (see sync_gate_score_to_scorecard_config below) and still end up here,
-    # just indirectly via the Scorecard save it now triggers.
+    # the GateScore table and into Scorecard.config["gates"][...] - this fires on every
+    # Scorecard save, including ones only touching gate config through `config` (Phase 2e
+    # made every writer, seed data included, write config directly instead of going through
+    # a GateScore row + mirror signal, so this is now the only trigger).
     cache.set(f"gate_scorecard_version_{instance.pk}", uuid.uuid4().hex, timeout=None)
-
-
-@receiver(post_save, sender=GateScore)
-def sync_gate_score_to_scorecard_config(sender, instance: GateScore, **kwargs):
-    # GateScore is legacy as of Phase 2 (see its docstring) - scoring reads exclusively from
-    # Scorecard.config["gates"][gate_type] now. Existing writers (default_scorecards/*.py
-    # seed files, ScorecardNestedSerialiser.update(), GateScoreForm) are left untouched
-    # rather than rewritten in 2a; this mirrors every one of their writes into the owning
-    # Scorecard's config instead, so they keep actually affecting live scoring. Without this,
-    # every one of them would silently write to a table nothing reads anymore - the single
-    # most dangerous gap identified in the Phase 2 roadmap doc. Scorecard.save() below also
-    # fires bump_gate_scorecard_cache_version above, so the shared cache-version token is
-    # rewritten exactly as it would be for a config-only edit.
-    #
-    # select_for_update() + transaction.atomic(): folding every gate's config into one
-    # shared Scorecard.config JSON blob turned what used to be independent per-row UPDATEs
-    # (one gate's edit could never clobber another's) into a read-modify-write on a single
-    # column - two gates saved close together would otherwise both read the same pre-edit
-    # config, and whichever writes last would silently drop the other's change. Locking the
-    # Scorecard row for the duration serializes concurrent gate saves against it.
-    data = {field: getattr(instance, field) for field in GATE_SCORE_SYNC_FIELDS}
-    data["included_fields"] = instance.included_fields
-    with transaction.atomic():
-        scorecard = Scorecard.objects.select_for_update().get(pk=instance.scorecard_id)
-        gates = scorecard.config.setdefault("gates", {})
-        gates[instance.gate_type] = data
-        scorecard.save(update_fields=["config"])
-
-
-@receiver(post_delete, sender=GateScore)
-def remove_gate_score_from_scorecard_config(sender, instance: GateScore, **kwargs):
-    # Mirror image of sync_gate_score_to_scorecard_config above - a deleted GateScore row
-    # should stop being scored, not linger in config["gates"] forever. Same
-    # select_for_update()/transaction.atomic() reasoning as that function.
-    with transaction.atomic():
-        try:
-            scorecard = Scorecard.objects.select_for_update().get(pk=instance.scorecard_id)
-        except Scorecard.DoesNotExist:
-            return
-        gates = scorecard.config.get("gates", {})
-        if instance.gate_type in gates:
-            del gates[instance.gate_type]
-            scorecard.save(update_fields=["config"])
 
 
 @receiver(post_save, sender=EditableRoute)

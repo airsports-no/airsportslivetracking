@@ -397,7 +397,14 @@ class Scorecard(models.Model):
         """
         Create a copy of the scorecard that can be modified by the user.
         """
-        obj = simple_clone(
+        # `config["gates"]` (including per-gate scoring config) travels for free as part of
+        # this single-row clone - simple_clone() re-fetches the whole row, config JSONField
+        # included. Phase 2e of the scorecard-system review roadmap moved every consumer
+        # (ScorecardNestedSerialiser's `gatescore_set` field, the gate-score override view,
+        # the detailed-score view) off of the GateScore table and onto config-backed reads,
+        # so a copy no longer needs its own real GateScore rows too - config is now the only
+        # thing anything reads.
+        return simple_clone(
             self,
             {
                 "name": f"{self.name}_{name_postfix}",
@@ -405,17 +412,6 @@ class Scorecard(models.Model):
                 "original": False,
             },
         )
-        # `config["gates"]` (including per-gate scoring config) already travelled for free as
-        # part of the single-row clone above - simple_clone() re-fetches the whole row,
-        # config JSONField included. But GateScore is still what ScorecardNestedSerialiser's
-        # `gatescore_set` field, navigation_task_gatescore_override_view, and
-        # navigation_task_view_detailed_score read from (see those files - rewriting them to
-        # stop depends on GateScore is deferred to a later phase), so a copy needs its own
-        # real GateScore rows too, not just config - otherwise every organizer-facing
-        # gate-scoring read/edit on a freshly-copied scorecard would silently see no gates.
-        for gate in self.gatescore_set.all():
-            simple_clone(gate, {"scorecard": obj})
-        return obj
 
     # Process-local: safe because every entry is stamped with the version token below (a
     # value from the shared Redis cache, rewritten by bump_gate_scorecard_cache_version in
