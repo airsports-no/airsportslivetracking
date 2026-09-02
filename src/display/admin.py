@@ -276,11 +276,9 @@ class ScorecardAdminForm(forms.ModelForm):
 
     class Meta:
         model = Scorecard
-        exclude = (
-            ("config", "included_fields")
-            + tuple(f"legacy_{field}" for field in SCORECARD_CONFIG_FIELDS)
-            + ("legacy_included_fields",)
-        )
+        # Phase 2e of the scorecard-system review roadmap dropped the legacy_* columns for
+        # real (migration 0174) - no longer anything to exclude by name here.
+        exclude = ("config", "included_fields")
 
     def __init__(self, *args, **kwargs):
         # Django's admin add_view constructs this form with no `instance` kwarg at all (only

@@ -4,8 +4,9 @@ registered bare (admin.site.register(Scorecard)), so its auto-generated admin fo
 from real model fields only - Phase 2 of the scorecard-system review roadmap moved 26
 scoring-parameter fields off of real columns onto Scorecard.config-backed properties (see
 ConfigField in models/scorecard_and_gate_score.py), so the admin form ended up exposing
-`config` as a raw JSON textarea plus all 27 inert `legacy_*` columns, and none of the fields
-that actually affect scoring - editing a `legacy_*` field there silently did nothing.
+`config` as a raw JSON textarea plus all 27 inert `legacy_*` columns (since dropped for real,
+Phase 2e), and none of the fields that actually affect scoring - editing a `legacy_*` field
+there silently did nothing.
 """
 
 from django.contrib import admin
@@ -26,7 +27,6 @@ class TestScorecardAdmin(TestCase):
         field_names = set(form_class.base_fields.keys())
         for field_name in SCORECARD_CONFIG_FIELDS:
             self.assertIn(field_name, field_names, f"{field_name} should be a real admin form field")
-            self.assertNotIn(f"legacy_{field_name}", field_names, f"legacy_{field_name} should not be editable")
         self.assertNotIn("config", field_names)
 
     def test_admin_form_initial_values_match_the_instance(self):

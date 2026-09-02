@@ -229,8 +229,9 @@ class Scorecard(models.Model):
     # per-gate-type config). Phase 2 of the scorecard-system review roadmap moved them into
     # this one JSON blob - see ConfigField's docstring above for how existing
     # `scorecard.some_field` call sites keep working unchanged. The pre-migration columns
-    # were renamed to legacy_* (not dropped) by the same migration, as a rollback/verification
-    # path - see migration 0173_scorecard_config_rename_legacy_columns.
+    # were briefly kept around, renamed to legacy_*, as a rollback/verification window
+    # (migration 0173) before being dropped for real (migration 0174, Phase 2e) once every
+    # consumer had been reworked onto this field.
     #
     # below_minimum_altitude_penalty / below_minimum_altitude_maximum_penalty were dropped
     # entirely rather than migrated - confirmed fully dead (zero read sites anywhere; their
@@ -266,87 +267,6 @@ class Scorecard(models.Model):
     circle_radius_max_m = ConfigField(750)
     speed_keeping_tolerance_kt = ConfigField(5)
     speed_keeping_penalty_per_kt = ConfigField(1)
-
-    # Renamed out of the way (not dropped) by migration 0173, at the same time these
-    # ConfigFields/the included_fields property above took over the un-prefixed attribute
-    # names - Django doesn't allow a model field and a same-named property/descriptor to
-    # coexist. These columns still hold pre-migration data as a rollback/verification
-    # snapshot; nothing reads or writes them anymore. Scheduled for real removal in a later,
-    # separate cleanup migration (Phase 2e) once the JSON-backed config has been live for a
-    # while. Do not read/write these - use the un-prefixed name (routed through `config`).
-    legacy_backtracking_penalty = models.FloatField(
-        default=200, help_text="The number of points given for backtracking"
-    )
-    legacy_backtracking_bearing_difference = models.FloatField(
-        default=90,
-        help_text="The bearing difference from the leg direction to initiate backtracking",
-    )
-    legacy_backtracking_grace_time_seconds = models.FloatField(
-        default=5,
-        help_text="The number of seconds the contestant is allowed to backtrack before backtracking penalty is applied",
-    )
-    legacy_backtracking_maximum_penalty = models.FloatField(
-        default=-1, help_text="Negative numbers means the maximum is ignored"
-    )
-    legacy_prohibited_zone_penalty = models.FloatField(
-        default=200,
-        help_text="Penalty for entering prohibited zone such as controlled airspace or other prohibited areas",
-    )
-    legacy_prohibited_zone_grace_time = models.FloatField(
-        default=3,
-        help_text="The number of seconds the contestant can be within the prohibited zone before getting penalty",
-    )
-    legacy_prohibited_zone_maximum = models.FloatField(
-        default=0,
-        help_text="The maximum score that can be given for entering prohibited zones. Zero means the maximum is ignored",
-    )
-    legacy_penalty_zone_grace_time = models.FloatField(
-        default=3,
-        help_text="The number of seconds the contestant can be within the penalty zone before getting penalty",
-    )
-    legacy_penalty_zone_penalty_per_second = models.FloatField(
-        default=3, help_text="The number of points per second beyond the grace time while inside the penalty zone"
-    )
-    legacy_penalty_zone_maximum = models.FloatField(default=100, help_text="Maximum penalty within a single zone")
-    legacy_corridor_grace_time = models.IntegerField(default=5, help_text="The corridor grace time for ANR tasks")
-    legacy_corridor_outside_penalty = models.FloatField(
-        default=3, help_text="The penalty awarded for leaving the ANR corridor"
-    )
-    legacy_corridor_maximum_penalty = models.FloatField(
-        default=-1, help_text="The maximum penalty for leaving the corridor"
-    )
-    legacy_corridor_maximum_penalty_is_per_leg = models.BooleanField(
-        default=True, help_text="If true, the maximum corridor penalty is reset for each leg"
-    )
-    legacy_anr_route_to_sp_penalty = models.FloatField(
-        default=200,
-        help_text="Penalty for not following the auxiliary route to the start point in ANR catalogue tasks",
-    )
-    legacy_anr_route_from_fp_penalty = models.FloatField(
-        default=200,
-        help_text="Penalty for not following the auxiliary route from the finish point in ANR catalogue tasks",
-    )
-    legacy_compulsory_timing_tolerance_seconds = models.IntegerField(default=10)
-    legacy_maximum_task_duration_minutes = models.IntegerField(null=True, blank=True)
-    legacy_maximum_task_duration_penalty = models.FloatField(default=100)
-    legacy_fuel_deadline_penalty = models.FloatField(default=100)
-    legacy_duration_normalization_policy = models.CharField(
-        max_length=40, blank=True, default="", choices=DURATION_NORMALIZATION_POLICIES
-    )
-    legacy_duration_residual_fuel_required = models.BooleanField(default=False)
-    legacy_circle_radius_min_m = models.FloatField(default=200)
-    legacy_circle_radius_max_m = models.FloatField(default=750)
-    legacy_speed_keeping_tolerance_kt = models.FloatField(
-        default=5,
-        help_text="Allowed deviation (in knots) from the declared speed on a known-circuit leg before a speed-keeping penalty applies",
-    )
-    legacy_speed_keeping_penalty_per_kt = models.FloatField(
-        default=1,
-        help_text="Penalty per knot of speed deviation beyond the tolerance on a known-circuit leg",
-    )
-    legacy_included_fields = MyPickledObjectField(
-        default=list, help_text="List of field names that should be visible in forms"
-    )
 
     def __str__(self):
         return self.name
@@ -550,96 +470,3 @@ class Scorecard(models.Model):
         """
         gate_score = self.get_gate_scorecard(gate_type)
         return gate_score.backtracking_after_gate_grace_period_nm
-
-
-GATE_SCORE_SYNC_FIELDS = [
-    "extended_gate_width",
-    "bad_crossing_extended_gate_penalty",
-    "graceperiod_before",
-    "graceperiod_after",
-    "maximum_penalty",
-    "penalty_per_second",
-    "missed_penalty",
-    "missed_procedure_turn_penalty",
-    "backtracking_after_steep_gate_grace_period_seconds",
-    "backtracking_before_gate_grace_period_nm",
-    "backtracking_after_gate_grace_period_nm",
-]
-
-
-class GateScore(models.Model):
-    """
-    Legacy as of Phase 2 of the scorecard-system review roadmap: actual scoring now reads
-    exclusively from Scorecard.config["gates"][gate_type] (see GateScoreValue above), not
-    this table. Existing writers (the 11 default_scorecards/*.py seed files,
-    ScorecardNestedSerialiser.update(), GateScoreForm) are intentionally left untouched here
-    in 2a rather than rewritten - a post_save/post_delete signal pair
-    (sync_gate_score_to_scorecard_config in signals.py) transparently mirrors every write into
-    the owning Scorecard's config (and bumps its cache-version token via the normal Scorecard
-    post_save signal), so those existing call sites keep actually affecting live scoring with
-    no code changes of their own. Without this mirroring, any of them would silently write to
-    an inert table - see the Phase 2 roadmap doc's "single most dangerous item" callout.
-    Rewriting those call sites to stop using this table entirely, and dropping the table for
-    real, is deferred to a later cleanup phase once config has been live for a while.
-    """
-
-    scorecard = models.ForeignKey("Scorecard", on_delete=models.CASCADE)
-    gate_type = models.CharField(choices=GATE_TYPES, max_length=20)
-    included_fields = MyPickledObjectField(
-        default=list, help_text="List of field names that should be visible in forms"
-    )
-    extended_gate_width = models.FloatField(
-        default=0,
-        help_text="For SP it is 2 (1 nm each side), for tp with procedure turn it is 6",
-    )
-    bad_crossing_extended_gate_penalty = models.FloatField(default=200)
-    graceperiod_before = models.FloatField(default=3)
-    graceperiod_after = models.FloatField(default=3)
-    maximum_penalty = models.FloatField(default=100)
-    penalty_per_second = models.FloatField(default=2)
-    missed_penalty = models.FloatField(default=100)
-    bad_course_crossing_penalty = models.FloatField(default=0)
-    missed_procedure_turn_penalty = models.FloatField(default=200)
-    backtracking_after_steep_gate_grace_period_seconds = models.FloatField(default=0)
-    backtracking_before_gate_grace_period_nm = models.FloatField(default=0)
-    backtracking_after_gate_grace_period_nm = models.FloatField(default=0.5)
-
-    class Meta:
-        unique_together = ("scorecard", "gate_type")
-        ordering = ("gate_type",)
-
-    def __str__(self):
-        return f"{self.scorecard.name} - {self.get_gate_type_display()}"
-
-    @property
-    def visible_fields(self) -> list[str]:
-        """
-        The list of field names that should be visible in the GUI.
-        """
-        return [field for block in self.included_fields for field in block[1:]]
-
-    def calculate_score(
-        self,
-        planned_time: datetime.datetime,
-        actual_time: Optional[datetime.datetime],
-    ) -> float:
-        """
-        Given the planned passing time and the actual passing time, calculate the timing penalty for the gate.  If
-        actual_time is None, then, the gate is treated as missed.
-        """
-        if actual_time is None:
-            return self.missed_penalty
-        time_difference = (actual_time - planned_time).total_seconds()
-        if -self.graceperiod_before < time_difference < self.graceperiod_after:
-            return 0
-        else:
-            if time_difference > 0:
-                grace_limit = self.graceperiod_after
-            else:
-                grace_limit = self.graceperiod_before
-            score = (round(abs(time_difference) - grace_limit)) * self.penalty_per_second
-            if self.maximum_penalty > 0:
-                return min(self.maximum_penalty, score)
-            elif self.maximum_penalty < 0:
-                return max(self.maximum_penalty, score)
-            return score
