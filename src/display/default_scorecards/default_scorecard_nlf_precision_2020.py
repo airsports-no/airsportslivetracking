@@ -1,11 +1,7 @@
 #
 import datetime
 
-from display.utilities.clone_object import simple_clone, get_or_none
-from display.models import (
-    GateScore,
-    Scorecard,
-)
+from display.models import Scorecard
 from display.utilities.gate_definitions import (
     TURNPOINT,
     TAKEOFF_GATE,
@@ -20,6 +16,78 @@ from display.utilities.navigation_task_type_definitions import PRECISION
 
 
 def get_default_scorecard():
+    regular_gate = {
+        "extended_gate_width": 6,  # used for PT,
+        "bad_crossing_extended_gate_penalty": 0,
+        "graceperiod_before": 2,
+        "graceperiod_after": 2,
+        "maximum_penalty": 100,
+        "penalty_per_second": 3,
+        "missed_penalty": 100,
+        "missed_procedure_turn_penalty": 200,
+        "included_fields": [
+            [
+                "Penalties",
+                "penalty_per_second",
+                "maximum_penalty",
+                "missed_penalty",
+            ],
+            ["Time limits", "graceperiod_before", "graceperiod_after"],
+        ],
+    }
+    gates = {
+        TURNPOINT: regular_gate,
+        TAKEOFF_GATE: {
+            "extended_gate_width": 0,
+            "bad_crossing_extended_gate_penalty": 0,
+            "graceperiod_before": 0,
+            "graceperiod_after": 60,
+            "maximum_penalty": 200,
+            "penalty_per_second": 200,
+            "missed_penalty": 0,
+            "missed_procedure_turn_penalty": 0,
+            "included_fields": [
+                ["Penalties", "maximum_penalty", "missed_penalty"],
+                ["Time limits", "graceperiod_before", "graceperiod_after"],
+            ],
+        },
+        LANDING_GATE: {
+            "extended_gate_width": 0,
+            "bad_crossing_extended_gate_penalty": 0,
+            "graceperiod_before": 0,
+            "graceperiod_after": 60,
+            "maximum_penalty": 0,
+            "penalty_per_second": 0,
+            "missed_penalty": 0,
+            "missed_procedure_turn_penalty": 0,
+            "included_fields": [["Penalties", "maximum_penalty", "missed_penalty"]],
+        },
+        STARTINGPOINT: {
+            "extended_gate_width": 2,
+            "bad_crossing_extended_gate_penalty": 200,
+            "graceperiod_before": 2,
+            "graceperiod_after": 2,
+            "maximum_penalty": 100,
+            "penalty_per_second": 3,
+            "missed_penalty": 100,
+            "missed_procedure_turn_penalty": 200,
+            "included_fields": [
+                [
+                    "Penalties",
+                    "penalty_per_second",
+                    "maximum_penalty",
+                    "missed_penalty",
+                    "bad_crossing_extended_gate_penalty",
+                ],
+                ["Time limits", "graceperiod_before", "graceperiod_after"],
+            ],
+        },
+        SECRETPOINT: dict(regular_gate),
+        FINISHPOINT: dict(regular_gate),
+        DUMMY: dict(regular_gate),
+        UNKNOWN_LEG: dict(regular_gate),
+    }
+
     scorecard, created = Scorecard.objects.update_or_create(
         name="NLF Precision 2020",
         defaults={
@@ -54,119 +122,9 @@ def get_default_scorecard():
             ],
         },
     )
-
-    regular_gate_score, created = GateScore.objects.update_or_create(
-        scorecard=scorecard,
-        gate_type=TURNPOINT,
-        defaults={
-            "extended_gate_width": 6,  # used for PT,
-            "bad_crossing_extended_gate_penalty": 0,
-            "graceperiod_before": 2,
-            "graceperiod_after": 2,
-            "maximum_penalty": 100,
-            "penalty_per_second": 3,
-            "missed_penalty": 100,
-            "missed_procedure_turn_penalty": 200,
-            "included_fields": [
-                [
-                    "Penalties",
-                    "penalty_per_second",
-                    "maximum_penalty",
-                    "missed_penalty",
-                ],
-                ["Time limits", "graceperiod_before", "graceperiod_after"],
-            ],
-        },
-    )
-
-    GateScore.objects.update_or_create(
-        scorecard=scorecard,
-        gate_type=TAKEOFF_GATE,
-        defaults={
-            "extended_gate_width": 0,
-            "bad_crossing_extended_gate_penalty": 0,
-            "graceperiod_before": 0,
-            "graceperiod_after": 60,
-            "maximum_penalty": 200,
-            "penalty_per_second": 200,
-            "missed_penalty": 0,
-            "missed_procedure_turn_penalty": 0,
-            "included_fields": [
-                ["Penalties", "maximum_penalty", "missed_penalty"],
-                ["Time limits", "graceperiod_before", "graceperiod_after"],
-            ],
-        },
-    )
-
-    GateScore.objects.update_or_create(
-        scorecard=scorecard,
-        gate_type=LANDING_GATE,
-        defaults={
-            "extended_gate_width": 0,
-            "bad_crossing_extended_gate_penalty": 0,
-            "graceperiod_before": 0,
-            "graceperiod_after": 60,
-            "maximum_penalty": 0,
-            "penalty_per_second": 0,
-            "missed_penalty": 0,
-            "missed_procedure_turn_penalty": 0,
-            "included_fields": [["Penalties", "maximum_penalty", "missed_penalty"]],
-        },
-    )
-
-    GateScore.objects.update_or_create(
-        scorecard=scorecard,
-        gate_type=STARTINGPOINT,
-        defaults={
-            "extended_gate_width": 2,
-            "bad_crossing_extended_gate_penalty": 200,
-            "graceperiod_before": 2,
-            "graceperiod_after": 2,
-            "maximum_penalty": 100,
-            "penalty_per_second": 3,
-            "missed_penalty": 100,
-            "missed_procedure_turn_penalty": 200,
-            "included_fields": [
-                [
-                    "Penalties",
-                    "penalty_per_second",
-                    "maximum_penalty",
-                    "missed_penalty",
-                    "bad_crossing_extended_gate_penalty",
-                ],
-                ["Time limits", "graceperiod_before", "graceperiod_after"],
-            ],
-        },
-    )
-
-    simple_clone(
-        regular_gate_score,
-        {"gate_type": SECRETPOINT},
-        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=SECRETPOINT)),
-    )
-    simple_clone(
-        regular_gate_score,
-        {"gate_type": FINISHPOINT},
-        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=FINISHPOINT)),
-    )
-    simple_clone(
-        regular_gate_score,
-        {"gate_type": DUMMY},
-        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=DUMMY)),
-    )
-    simple_clone(
-        regular_gate_score,
-        {"gate_type": UNKNOWN_LEG},
-        existing_clone=get_or_none(scorecard.gatescore_set.filter(gate_type=UNKNOWN_LEG)),
-    )
-
-    # The gate scores above are created/updated after `scorecard` was fetched or
-    # created; each one's post_save signal (sync_gate_score_to_scorecard_config,
-    # display/signals.py) mirrors itself into the *database row's* config["gates"]
-    # via a fresh, separate fetch of the owning Scorecard - it can't reach back into
-    # this in-memory `scorecard` object. Refresh so the object this function returns
-    # (used directly by every default_scorecards/*.py caller and test) reflects all of
-    # those gates instead of whatever config it had at its own fetch/creation time -
-    # empty, on the very first creation of this scorecard.
-    scorecard.refresh_from_db()
+    # Phase 2e of the scorecard-system review roadmap: gates are built as plain dicts and
+    # written straight into config["gates"] - no more per-gate GateScore rows or the
+    # signal-mirror round trip that used to require a refresh_from_db() at the end.
+    scorecard.config["gates"] = gates
+    scorecard.save(update_fields=["config"])
     return scorecard

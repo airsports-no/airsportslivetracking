@@ -173,7 +173,6 @@ from display.models import (
     ScoreLogEntry,
     EmailMapLink,
     EditableRoute,
-    GateScore,
     FlightOrderConfiguration,
     UserUploadedMap,
     TrackAnnotation,
@@ -2215,17 +2214,21 @@ def navigation_task_scorecard_override_view(request, pk):
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
-def navigation_task_gatescore_override_view(request, pk, gate_score_pk):
+def navigation_task_gatescore_override_view(request, pk, gate_type):
     """
     Renders form to update the values of a gate score copy for the navigation task.
     """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    gate_score = get_object_or_404(GateScore, pk=gate_score_pk)
-    form = GateScoreForm(instance=gate_score)
+    scorecard = navigation_task.scorecard
+    try:
+        gate_score = scorecard.get_gate_scorecard(gate_type)
+    except ValueError:
+        raise Http404(f"Unknown gate type '{gate_type}'")
+    form = GateScoreForm(scorecard=scorecard, gate_type=gate_type)
     if request.method == "POST":
         if "cancel" in request.POST:
             return redirect(reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk}))
-        form = GateScoreForm(request.POST, instance=gate_score)
+        form = GateScoreForm(request.POST, scorecard=scorecard, gate_type=gate_type)
         if form.is_valid():
             form.save()
             return redirect(reverse("navigationtask_scoredetails", kwargs={"pk": navigation_task.pk}))
@@ -2276,10 +2279,10 @@ def navigation_task_view_detailed_score(request, pk):
     scorecard_form.content = content
     scorecard_form.free_text = navigation_task.scorecard.free_text
     gate_score_forms = []
-    for gate_score in navigation_task.scorecard.gatescore_set.all().order_by("gate_type"):
+    for gate_score in navigation_task.scorecard.gate_scores():
         if len(gate_score.visible_fields) > 0:
-            form = GateScoreForm(instance=gate_score)
-            form.pk = gate_score.pk
+            form = GateScoreForm(scorecard=navigation_task.scorecard, gate_type=gate_score.gate_type)
+            form.pk = gate_score.gate_type  # a gate type key now, not a database pk - see urls.py
             form.name = gate_score.get_gate_type_display()
             content = _extract_values_from_form(form)
             for key in list(form.fields.keys()):

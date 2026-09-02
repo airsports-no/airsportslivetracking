@@ -16,7 +16,6 @@ from display.models import (
     Contestant,
     ContestantTrack,
     Scorecard,
-    GateScore,
     Contest,
     Crew,
     Person,
@@ -314,18 +313,14 @@ class ScorecardAdmin(admin.ModelAdmin):
     search_fields = ("name", "shortcut_name")
 
 
-class GateScoreAdmin(admin.ModelAdmin):
-    list_display = ("scorecard", "gate_type", "maximum_penalty", "penalty_per_second")
-    list_filter = ("gate_type",)
-    search_fields = ("scorecard__name", "scorecard__shortcut_name")
-
-
 admin.site.register(get_user_model(), BaseUserAdmin)
 admin.site.register(NavigationTask, NavigationTaskAdmin)
 admin.site.register(Scorecard, ScorecardAdmin)
 admin.site.register(Route)
 admin.site.register(Contest, ContestAdmin)
-admin.site.register(GateScore, GateScoreAdmin)
+# GateScore is no longer administered here (Phase 2e of the scorecard-system review
+# roadmap) - nothing writes real GateScore rows anymore, so nothing to edit; the table
+# itself is still around as a historical snapshot until it's dropped for real.
 admin.site.register(Aeroplane)
 admin.site.register(Team)
 admin.site.register(Crew)

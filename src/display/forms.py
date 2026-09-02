@@ -39,7 +39,6 @@ from display.models import (
     Team,
     ContestTeam,
     Scorecard,
-    GateScore,
     FlightOrderConfiguration,
     UserUploadedMap,
     TokenType,
@@ -1130,12 +1129,39 @@ class ScorecardForm(forms.ModelForm):
         )
 
 
-class GateScoreForm(forms.ModelForm):
-    class Meta:
-        model = GateScore
-        fields = "__all__"
+class GateScoreForm(forms.Form):
+    # Phase 2e of the scorecard-system review roadmap: GateScore is no longer a database
+    # table - this form is bound to a Scorecard + gate_type (GateScoreForm(scorecard=...,
+    # gate_type=...)) instead of a GateScore instance, and reads/writes
+    # Scorecard.config["gates"][gate_type] via GateScoreValue
+    # (models/scorecard_and_gate_score.py). Same 11 editable fields the previous ModelForm's
+    # fields="__all__" ended up exposing once id/scorecard/gate_type were hidden by
+    # views.py's visible_fields-based pop loop downstream - those three were never meant to
+    # be user-editable, so they're not declared here either.
+    extended_gate_width = forms.FloatField(required=False)
+    bad_crossing_extended_gate_penalty = forms.FloatField(required=False)
+    graceperiod_before = forms.FloatField(required=False)
+    graceperiod_after = forms.FloatField(required=False)
+    maximum_penalty = forms.FloatField(required=False)
+    penalty_per_second = forms.FloatField(required=False)
+    missed_penalty = forms.FloatField(required=False)
+    missed_procedure_turn_penalty = forms.FloatField(required=False)
+    backtracking_after_steep_gate_grace_period_seconds = forms.FloatField(required=False)
+    backtracking_before_gate_grace_period_nm = forms.FloatField(required=False)
+    backtracking_after_gate_grace_period_nm = forms.FloatField(required=False)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, scorecard, gate_type, **kwargs):
+        self.scorecard = scorecard
+        self.gate_type = gate_type
+        # self.instance (not a Django/ModelForm convention here, just matching that naming so
+        # _extract_values_from_form() - shared with ScorecardForm - keeps working unchanged):
+        # a GateScoreValue has every field name below as a plain attribute, plus
+        # included_fields/visible_fields/get_gate_type_display(), same as GateScore used to.
+        self.instance = scorecard.get_gate_scorecard(gate_type)
+        initial = dict(kwargs.get("initial") or {})
+        for field_name in self.base_fields:
+            initial.setdefault(field_name, getattr(self.instance, field_name))
+        kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_class = "form mt-4"
@@ -1151,6 +1177,11 @@ class GateScoreForm(forms.ModelForm):
                 ),
             ),
         )
+
+    def save(self):
+        gates = self.scorecard.config.setdefault("gates", {})
+        gates.setdefault(self.gate_type, {}).update(self.cleaned_data)
+        self.scorecard.save(update_fields=["config"])
 
 
 class ScorecardFormSetHelper(FormHelper):

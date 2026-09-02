@@ -1,10 +1,12 @@
 """
 Phase 2b of the scorecard-system review roadmap: pins the exact set of keys the scorecard
-API serializers expose. Both ScorecardNestedSerialiser and GateScoreSerialiser were rewritten
-during Phase 2 from `exclude=(...)` (whatever columns the model happens to have) to an
-explicit field list, precisely so the API contract can no longer drift silently the next time
-a Scorecard/GateScore column changes - this test is the guardrail that would actually catch
-that drift.
+API serializers expose. Both ScorecardNestedSerialiser and GateScoreSerialiser use an
+explicit field list (not `exclude=(...)`, whatever columns/attributes happen to exist),
+precisely so the API contract can no longer drift silently the next time a scoring field
+changes - this test is the guardrail that would actually catch that drift. (Phase 2e retired
+the GateScore table entirely - GateScoreSerialiser now reads a GateScoreValue, not a model
+instance, but the exposed key set is unchanged apart from dropping the confirmed-dead
+bad_course_crossing_penalty.)
 """
 
 import datetime
@@ -63,7 +65,6 @@ EXPECTED_GATE_SCORE_KEYS = {
     "maximum_penalty",
     "penalty_per_second",
     "missed_penalty",
-    "bad_course_crossing_penalty",
     "missed_procedure_turn_penalty",
     "backtracking_after_steep_gate_grace_period_seconds",
     "backtracking_before_gate_grace_period_nm",
@@ -104,6 +105,6 @@ class TestScorecardSerialiserShape(TestCase):
         self.assertEqual(EXPECTED_SCORECARD_NESTED_KEYS, set(serialiser.data.keys()))
 
     def test_gate_score_serialiser_exposes_exactly_the_expected_keys(self):
-        gate_score = self.scorecard.gatescore_set.get(gate_type=TURNPOINT)
+        gate_score = self.scorecard.get_gate_scorecard(TURNPOINT)
         serialiser = GateScoreSerialiser(gate_score)
         self.assertEqual(EXPECTED_GATE_SCORE_KEYS, set(serialiser.data.keys()))

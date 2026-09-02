@@ -42,7 +42,6 @@ from display.models import (
     Crew,
     EditableRoute,
     GateCumulativeScore,
-    GateScore,
     HighlightedContest,
     MyUser,
     NavigationTask,
@@ -1043,33 +1042,42 @@ class ScorecardSerialiser(serializers.ModelSerializer):
         return instance.task_type
 
 
-class GateScoreSerialiser(serializers.ModelSerializer):
-    class Meta:
-        model = GateScore
-        # Pinned to an explicit field list (Phase 2b of the scorecard-system review roadmap)
-        # rather than exclude=("id", "scorecard", "included_fields") - GateScore's columns
-        # are unchanged by Phase 2, so exclude-based introspection isn't broken today, but an
-        # explicit list locks the API contract in place before any future column change on
-        # this model can silently reshape it, matching ScorecardNestedSerialiser's approach.
-        fields = (
-            "gate_type",
-            "extended_gate_width",
-            "bad_crossing_extended_gate_penalty",
-            "graceperiod_before",
-            "graceperiod_after",
-            "maximum_penalty",
-            "penalty_per_second",
-            "missed_penalty",
-            "bad_course_crossing_penalty",
-            "missed_procedure_turn_penalty",
-            "backtracking_after_steep_gate_grace_period_seconds",
-            "backtracking_before_gate_grace_period_nm",
-            "backtracking_after_gate_grace_period_nm",
-        )
+class GateScoreSerialiser(serializers.Serializer):
+    # Phase 2e of the scorecard-system review roadmap: GateScore is no longer a database
+    # table - this reads/writes Scorecard.config["gates"][gate_type] via GateScoreValue
+    # (models/scorecard_and_gate_score.py) instead, but keeps the exact same field set (minus
+    # bad_course_crossing_penalty, confirmed fully dead - zero read sites anywhere, zero
+    # frontend references under any name) so the API's gatescore_set shape - and every
+    # existing consumer of it, frontend included - is unchanged. All required=False except
+    # gate_type, matching the previous ModelSerializer's auto-generated required-ness (every
+    # GateScore column had a default, gate_type didn't).
+    gate_type = serializers.ChoiceField(choices=GATE_TYPES)
+    extended_gate_width = serializers.FloatField(required=False)
+    bad_crossing_extended_gate_penalty = serializers.FloatField(required=False)
+    graceperiod_before = serializers.FloatField(required=False)
+    graceperiod_after = serializers.FloatField(required=False)
+    maximum_penalty = serializers.FloatField(required=False)
+    penalty_per_second = serializers.FloatField(required=False)
+    missed_penalty = serializers.FloatField(required=False)
+    missed_procedure_turn_penalty = serializers.FloatField(required=False)
+    backtracking_after_steep_gate_grace_period_seconds = serializers.FloatField(required=False)
+    backtracking_before_gate_grace_period_nm = serializers.FloatField(required=False)
+    backtracking_after_gate_grace_period_nm = serializers.FloatField(required=False)
+
+    def create(self, validated_data):
+        raise NotImplementedError("Gate scores are only ever nested under ScorecardNestedSerialiser")
+
+    def update(self, instance, validated_data):
+        raise NotImplementedError("Gate scores are only ever nested under ScorecardNestedSerialiser")
 
 
 class ScorecardNestedSerialiser(serializers.ModelSerializer):
-    gatescore_set = GateScoreSerialiser(many=True)
+    # source="gate_scores": Scorecard no longer has a real `gatescore_set` reverse-FK
+    # manager (Phase 2e) - DRF calls a zero-arg-callable `source` automatically, so this
+    # reads instance.gate_scores() (models/scorecard_and_gate_score.py, config-backed,
+    # already sorted by gate_type) instead. Kept the `gatescore_set` field *name* so the API
+    # response shape - and every existing consumer of it - is unchanged.
+    gatescore_set = GateScoreSerialiser(many=True, source="gate_scores")
     corridor_width = serializers.FloatField(read_only=True)
     task_type = serializers.SerializerMethodField()
 
@@ -1165,7 +1173,10 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
         raise NotImplementedError("Manually creating scorecards is not supported")
 
     def update(self, instance, validated_data):
-        gate_scores = validated_data.pop("gatescore_set")
+        # "gate_scores", not "gatescore_set": the field's source= remaps the *validated_data*
+        # key (the wire-format/input key clients send is still "gatescore_set" - see
+        # get_value(), which keys off field_name, not source).
+        gate_scores = validated_data.pop("gate_scores")
         # instance.save(), not a queryset .update(): the latter skips pre_save/post_save
         # entirely, so update_contestant_initial_score (propagates an initial_score delta
         # onto every contestant track) and sync_scorecard_sorting_direction (mirrors
@@ -1175,19 +1186,23 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
         # correct.
         for field_name, value in validated_data.items():
             setattr(instance, field_name, value)
-        instance.save()
+        # Phase 2e: gates are merged into Scorecard.config["gates"] directly instead of
+        # being written to individual GateScore rows - same semantics as before (only
+        # existing gate types are updated, unknown ones are silently skipped rather than
+        # creating a new gate type via the API; only the fields present in each incoming
+        # gate dict are overwritten, so a partial=True PUT touching one field still leaves
+        # the rest of that gate's config alone). One instance.save() at the end covers both
+        # the scalar fields and every gate change - still fires
+        # bump_gate_scorecard_cache_version (display/signals.py) exactly once.
+        gates = instance.config.get("gates", {})
         for gate in gate_scores:
-            # Per-instance save(), not a queryset .update(): the latter skips
-            # post_save/post_delete entirely, so bump_gate_scorecard_cache_version
-            # (display/signals.py) never ran - other already-warm daphne/celery/
-            # live-calculator processes kept scoring against a GateScore cached
-            # before this edit until they happened to restart.
-            gate_score = instance.gatescore_set.filter(gate_type=gate["gate_type"]).first()
-            if gate_score is None:
+            gate_type = gate["gate_type"]
+            if gate_type not in gates:
                 continue
-            for field_name, value in gate.items():
-                setattr(gate_score, field_name, value)
-            gate_score.save()
+            gates[gate_type].update(
+                {field_name: value for field_name, value in gate.items() if field_name != "gate_type"}
+            )
+        instance.save()
         return instance
 
 
@@ -1627,7 +1642,9 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         This method is used by viewsets to optimise database queries
         """
         queryset = queryset.select_related("route", "scorecard", "contest").prefetch_related(
-            "scorecard__gatescore_set",
+            # No more "scorecard__gatescore_set" (Phase 2e) - gate scores read from
+            # scorecard.config now, which is already loaded with the row; nothing to
+            # prefetch.
             "route__prohibited_set",
             Prefetch(
                 "contestant_set",

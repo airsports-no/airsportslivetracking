@@ -617,7 +617,7 @@ class TestAccessNavigationTask(APITestCase):
         self.assertEqual(result.status_code, status.HTTP_200_OK, result.content)
         self.navigation_task.scorecard.refresh_from_db()
         self.assertEqual(1234, self.navigation_task.scorecard.backtracking_penalty)
-        self.assertEqual(4321, self.navigation_task.scorecard.gatescore_set.get(gate_type="fp").graceperiod_before)
+        self.assertEqual(4321, self.navigation_task.scorecard.get_gate_scorecard("fp").graceperiod_before)
 
     def test_anonymous_cannot_view_scorecard(self):
         self.client.logout()
