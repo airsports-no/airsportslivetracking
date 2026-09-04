@@ -63,5 +63,5 @@ images:
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  machineType: E2_MEDIUM
+  machineType: E2_HIGHCPU_4
 timeout: '7200s'
