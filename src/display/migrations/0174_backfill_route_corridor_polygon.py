@@ -7,18 +7,24 @@ from django.db import migrations
 def _uniform_width_waypoints(waypoints):
     """
     Returns a copy of ``waypoints`` with the SP/FP width normalized to match the interior
-    ("secret") waypoints, for feeding into generate_corridor_polygon().
+    ("secret") waypoints, for feeding into generate_corridor_polygon(). ANR_CORRIDOR ONLY -
+    see the call site below, which only invokes this for that task type.
 
-    ANR-family corridors are uniform-width along their whole length by design - see
-    EditableRoute._create_waypoint_list (display/models/editable_route.py), which assigns the
-    same corridor_width to every waypoint including SP/FP when building a route through the
-    current pipeline (its commented-out lines 460/465 show an SP/FP-specific "extended gate
-    width" override that has since been disabled). Some legacy routes (e.g. navigation task
-    1197's route 1721: interior waypoints at 0.3 NM, SP/FP at 1.0 NM) were created back when
-    that override was active, so their stored SP/FP width is wider than the rest of the route.
+    ANR routes are uniform-width along their whole length by design - see create_anr_route
+    (display/models/editable_route.py), which always passes an explicit corridor_width so
+    _create_waypoint_list() assigns the same width to every waypoint including SP/FP (its
+    commented-out lines 460/465 show an SP/FP-specific "extended gate width" override that has
+    since been disabled). Some legacy ANR routes (e.g. navigation task 1197's route 1721:
+    interior waypoints at 0.3 NM, SP/FP at 1.0 NM) were created back when that override was
+    active, so their stored SP/FP width is wider than the rest of the route.
     generate_corridor_polygon() uses each waypoint's own width, so feeding it that legacy data
     unmodified bulges the polygon's first and last legs out to the SP/FP width instead of the
     correct uniform corridor width.
+
+    AIRSPORTS/AIRSPORT_CHALLENGE routes (create_airsports_route) have no such uniform-width
+    constraint - _create_waypoint_list() falls back to each point's own individually-configured
+    width when no corridor_width is passed, so a different SP/FP width there is a legitimate
+    route-editor choice, not a bug, and must NOT be normalized away.
 
     Only SP/FP are touched, and only for this function's own polygon computation - the
     waypoints actually stored on the route (and their real .width) are left untouched.
@@ -101,9 +107,11 @@ def backfill_corridor_polygon(apps, schema_editor):
         if not route.waypoints or len(route.waypoints) < 2:
             continue
 
-        corridor_polygon, _path_points = generate_corridor_polygon(
-            _uniform_width_waypoints(route.waypoints), route.rounded_corners
+        # Width normalization only makes sense for ANR_CORRIDOR - see _uniform_width_waypoints.
+        waypoints_for_polygon = (
+            _uniform_width_waypoints(route.waypoints) if ANR_CORRIDOR in task_type else route.waypoints
         )
+        corridor_polygon, _path_points = generate_corridor_polygon(waypoints_for_polygon, route.rounded_corners)
         if not corridor_polygon:
             skipped_short += 1
             continue

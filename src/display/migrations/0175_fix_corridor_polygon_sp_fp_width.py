@@ -34,28 +34,39 @@ def _uniform_width_waypoints(waypoints):
 
 def fix_corridor_polygon_sp_fp_width(apps, schema_editor):
     """
-    Re-fixes corridor_polygon on corridor-type routes whose SP/FP waypoint width diverges from
+    Re-fixes corridor_polygon on ANR Corridor routes whose SP/FP waypoint width diverges from
     the rest of the route (see 0174's _uniform_width_waypoints docstring for why that happens
     on legacy data).
+
+    Scoped to ANR_CORRIDOR only, NOT the other two corridor-family task types (AIRSPORTS,
+    AIRSPORT_CHALLENGE) that 0174 covers for its own (different) purpose. ANR routes are
+    uniform-width along their whole length by construction - see create_anr_route
+    (display/models/editable_route.py), which always passes an explicit corridor_width so
+    every waypoint including SP/FP gets the same width. AIRSPORTS/AIRSPORT_CHALLENGE routes
+    (create_airsports_route) have no such constraint: _create_waypoint_list() falls back to
+    each point's own individually-configured width when no corridor_width is passed, so a
+    genuinely different SP/FP width on those routes is a legitimate route-editor choice, not a
+    bug - normalizing it the way this migration does for ANR would corrupt real data. A dev-DB
+    check found 55 AIRSPORTS/AIRSPORT_CHALLENGE routes with a "mismatched" SP/FP width that
+    must NOT be touched, alongside 51 genuinely-buggy ANR_CORRIDOR routes that should be.
 
     0174 (this migration's predecessor) was supposed to fix this when it backfilled
     corridor_polygon, but the fix landed in a later commit that edited 0174's *file* after
     0174 had already run and been recorded as applied in django_migrations - Django tracks
     migrations by (app, name), not file content, so redeploying that edit did not re-run it.
-    Every route 0174 backfilled in production still has the original SP/FP-bulged polygon.
+    Every ANR route 0174 backfilled in production still has the original SP/FP-bulged polygon.
 
     This migration doesn't gate on corridor_polygon being empty (0174's guard) - it looks at
-    every corridor-type route with waypoints and regenerates corridor_polygon whenever SP/FP
+    every ANR_CORRIDOR route with waypoints and regenerates corridor_polygon whenever SP/FP
     width doesn't match the interior width, whether or not a polygon already exists. That
     covers both 0174's backfilled-but-wrong routes and any pre-existing routes that were
     originally created with this same width bug baked in (confirmed present on some routes
-    that already had a non-empty polygon before 0174 ever ran - a spot check on the dev DB
-    found 106 such routes in total).
+    that already had a non-empty polygon before 0174 ever ran).
     """
     from display.utilities.corridor_renderer import generate_corridor_polygon
-    from display.utilities.navigation_task_type_definitions import AIRSPORT_CHALLENGE, AIRSPORTS, ANR_CORRIDOR
+    from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
 
-    CORRIDOR_TASK_TYPES = {ANR_CORRIDOR, AIRSPORTS, AIRSPORT_CHALLENGE}
+    CORRIDOR_TASK_TYPES = {ANR_CORRIDOR}
 
     NavigationTask = apps.get_model("display", "NavigationTask")
     Scorecard = apps.get_model("display", "Scorecard")
