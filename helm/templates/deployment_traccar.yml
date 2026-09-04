@@ -68,10 +68,22 @@ spec:
             preStop:
               exec:
                 command: ["/bin/sh", "-c", "sleep 20"]
+          # CPU request lowered from 800m: the recommendation-only VPA (traccar-recommender)
+          # shows actual usage around 9m over the last two idle weeks, and 90 days of real
+          # cluster-wide usage never exceeded ~1.2 vCPU even in the busier June-August period.
+          # 250m sits just above Autopilot's 1:6.5 vCPU:GiB requests ratio floor for 1.5Gi
+          # memory (~231m) - going lower would just get silently bumped back up by Autopilot.
+          # No HPA on this deployment (single replica, stateful-ish Traccar sessions), so unlike
+          # tracker-app/tracker-celery there's no scale-out safety net - hence the generous CPU
+          # limit for bursting rather than trusting the request alone. Re-check after a real
+          # contest day; tighten further only if cfs_throttled_periods_count stays flat.
           resources:
             requests:
-              cpu: 800m
+              cpu: 250m
               memory: 1.5Gi  # Uses 773Mi
+            limits:
+              cpu: 1500m
+              memory: 1.5Gi
           # Full path, not just "java": the 6.x image line (unlike 5.10-alpine) bundles its
           # own JRE at /opt/traccar/jre and does not put it on PATH - its own default
           # ENTRYPOINT already invokes the full path (see `docker inspect`), but this

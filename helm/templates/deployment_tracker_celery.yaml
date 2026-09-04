@@ -53,12 +53,24 @@ spec:
             value: "default"
           - name: MBTILES_RELOAD_POD_LABEL_SELECTOR
             value: "service=mbtiles"
+        # CPU request lowered from 500m: tracker-celery-recommender (recommendation-only VPA)
+        # shows actual usage around 25m over the last two idle weeks. Kept at 250m rather than
+        # the VPA number - that's the Autopilot 1:6.5 vCPU:GiB requests ratio floor for 1536Mi
+        # memory (~231m), so it's the real achievable minimum, not a guess. Limit raised to
+        # 1000m (a full core) so a single periodic heavy task (track recalculation, flight
+        # order generation) can burst instead of getting throttled at a quarter core - but no
+        # higher, since this pod runs exactly one prefork worker (--concurrency 1) and a single
+        # GIL-bound Python process can't use more than one core anyway. hpa-tracker-celery
+        # (1-10 replicas) covers sustained/concurrent load; this limit is just about not
+        # choking a single in-flight heavy task. Memory left untouched - a past OOM incident
+        # sized it, and the VPA target (1332Mi) is close enough to current that touching it
+        # isn't worth the risk.
         resources:
           requests:
-            cpu: 500m
+            cpu: 250m
             memory: 1536Mi
           limits:
-            cpu: 500m
+            cpu: 1000m
             memory: 3Gi
         volumeMounts:
           - mountPath: /secret
