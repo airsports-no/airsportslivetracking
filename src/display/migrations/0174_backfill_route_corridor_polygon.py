@@ -1,4 +1,43 @@
+import copy
+from collections import Counter
+
 from django.db import migrations
+
+
+def _uniform_width_waypoints(waypoints):
+    """
+    Returns a copy of ``waypoints`` with the SP/FP width normalized to match the interior
+    ("secret") waypoints, for feeding into generate_corridor_polygon().
+
+    ANR-family corridors are uniform-width along their whole length by design - see
+    EditableRoute._create_waypoint_list (display/models/editable_route.py), which assigns the
+    same corridor_width to every waypoint including SP/FP when building a route through the
+    current pipeline (its commented-out lines 460/465 show an SP/FP-specific "extended gate
+    width" override that has since been disabled). Some legacy routes (e.g. navigation task
+    1197's route 1721: interior waypoints at 0.3 NM, SP/FP at 1.0 NM) were created back when
+    that override was active, so their stored SP/FP width is wider than the rest of the route.
+    generate_corridor_polygon() uses each waypoint's own width, so feeding it that legacy data
+    unmodified bulges the polygon's first and last legs out to the SP/FP width instead of the
+    correct uniform corridor width.
+
+    Only SP/FP are touched, and only for this function's own polygon computation - the
+    waypoints actually stored on the route (and their real .width) are left untouched.
+    """
+    interior_widths = [wp.width for wp in waypoints if wp.type not in ("sp", "fp")]
+    if not interior_widths:
+        return waypoints
+
+    # Mode rather than the first interior point's width, in case one interior waypoint is
+    # itself an outlier - the width shared by the most waypoints is the corridor's real width.
+    reference_width = Counter(interior_widths).most_common(1)[0][0]
+
+    normalized = list(waypoints)
+    for index, wp in enumerate(waypoints):
+        if wp.type in ("sp", "fp") and wp.width != reference_width:
+            wp_copy = copy.copy(wp)
+            wp_copy.width = reference_width
+            normalized[index] = wp_copy
+    return normalized
 
 
 def backfill_corridor_polygon(apps, schema_editor):
@@ -18,7 +57,8 @@ def backfill_corridor_polygon(apps, schema_editor):
     (anr_corridor_calculator.py's build_polygon() reads the same field).
 
     This recomputes corridor_polygon from each affected route's already-stored waypoints
-    (lat/lon/width - unaffected by this gap) using the same generate_corridor_polygon()
+    (lat/lon/width - unaffected by this gap, aside from the legacy SP/FP width quirk
+    _uniform_width_waypoints() corrects for) using the same generate_corridor_polygon()
     function real route creation uses. It touches only corridor_polygon: gate_line and every
     other waypoint field are left exactly as they are, since those already render/score
     correctly for these legacy routes and re-deriving them risks changing data that isn't
@@ -61,7 +101,9 @@ def backfill_corridor_polygon(apps, schema_editor):
         if not route.waypoints or len(route.waypoints) < 2:
             continue
 
-        corridor_polygon, _path_points = generate_corridor_polygon(route.waypoints, route.rounded_corners)
+        corridor_polygon, _path_points = generate_corridor_polygon(
+            _uniform_width_waypoints(route.waypoints), route.rounded_corners
+        )
         if not corridor_polygon:
             skipped_short += 1
             continue
