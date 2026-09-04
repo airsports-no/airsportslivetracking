@@ -49,7 +49,17 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const setScoreLogByContestantRef = useRef(setScoreLogByContestant);
     useEffect(() => { setScoreLogByContestantRef.current = setScoreLogByContestant; }, [setScoreLogByContestant]);
 
-    const latestMsgIdsRef = useRef<Record<number, number>>({});
+    // Keyed by `${contestantId}:${msg.type}`, not just contestantId: position_data (main
+    // thread) and score_log/gate_score/annotations (score_updater_thread, see
+    // ContestantProcessor.score_updater_thread) are independent streams sent from different
+    // backend threads via time.time_ns() msg_ids that are not guaranteed to arrive in
+    // generation order relative to EACH OTHER (only within their own stream). A single
+    // contestant-wide counter let a fast-arriving message of one type retroactively mark a
+    // still-in-flight, legitimately newer message of another type as "out of order" and drop
+    // it - most visible during a recalculation replay, which bursts many messages of both
+    // kinds in quick succession, producing the flicker/stuck-wrong-value bug that only a full
+    // reload (which re-fetches via REST instead of trusting this ordering heuristic) fixed.
+    const latestMsgIdsRef = useRef<Record<string, number>>({});
 
     const wsBufferRef = useRef<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
@@ -120,19 +130,23 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             }
 
             if (msgId) {
-                const latestMsgId = latestMsgIdsRef.current[contestantId] || 0;
+                // Ordering is only meaningful within a single message type's own stream (see
+                // the latestMsgIdsRef declaration above) - a differently-typed message must
+                // never be able to mark this one as stale.
+                const msgTypeKey = `${contestantId}:${msg.type}`;
+                const latestMsgId = latestMsgIdsRef.current[msgTypeKey] || 0;
                 if (msgId < latestMsgId) {
                     // Only reject based on msgId if the versions are the SAME.
                     // If the message has a HIGHER version, it overrides msgId (reset event).
                     const sameTrackVersion = payload.track_version === undefined || (existing && payload.track_version === existing.track_version);
                     const sameScoreVersion = payload.score_version === undefined || (existing && payload.score_version === existing.score_version);
-                    
+
                     if (sameTrackVersion && sameScoreVersion) {
                         // console.debug(`WS: Rejecting out-of-order message for ${contestantId} (${msgId} < ${latestMsgId})`);
                         return;
                     }
                 }
-                latestMsgIdsRef.current[contestantId] = msgId;
+                latestMsgIdsRef.current[msgTypeKey] = msgId;
             }
 
             if (msg.type === 'contestant') {
