@@ -123,10 +123,14 @@ class TestCimaDescendingScoring(TestCase):
         self.assertEqual(self.precision_original.score_sorting_direction, "asc")
         self.assertEqual(self.precision_original.initial_score, 0)
 
-    def test_cima_anr_catalogue_subtype_gets_descending_scorecard_with_max_of_2000(self, *args):
+    def test_cima_anr_catalogue_subtype_gets_descending_scorecard_with_max_of_1000(self, *args):
+        # 1000, not 2000: the catalogue's own Q formula starts at 2000, but its final
+        # P = 1000 * Q / Qmax step (Qmax fixed at 2000 for ANR) halves everything - initial_score
+        # is 1000 here so self.score always reflects P directly. See
+        # get_cima_fixed_scale_factor/CIMA_FIXED_SCALE_FACTORS.
         task = self._make_task(self.anr_original, task_subtype=ANR_CATALOGUE)
         self.assertEqual(task.scorecard.score_sorting_direction, "desc")
-        self.assertEqual(task.scorecard.initial_score, 2000)
+        self.assertEqual(task.scorecard.initial_score, 1000)
 
     def test_legacy_task_scorecard_is_unaffected(self, *args):
         task = self._make_task(self.precision_original, task_subtype=None)
@@ -455,3 +459,273 @@ class TestTurnpointHuntAchievementSignHandling(TestCase):
         processor.update_score_from_thread(self._message("turnpoint_hunt_sequence_bonus", 50))
         # 100 + 200 - 25 + 50 = 325
         self.assertEqual(processor.score, 325)
+
+
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+class TestAnrFixedScaleFactor(TestCase):
+    """
+    2.A8's catalogue formula is "Q = 2000 - Pnav - Ptime - Pfpr - Pto - Prr - Pbc,
+    P = 1000 * Q / Qmax" with Qmax fixed at 2000 - a uniform half-scale applied to every one of
+    ANR's penalty terms (including backtracking/circling, which - unlike 2.A1-2.A5 - the
+    catalogue counts INSIDE this formula, not as a separate flat deduction). initial_score=1000
+    (not 2000) plus get_cima_fixed_scale_factor halving every score message reproduces this
+    exactly.
+    """
+
+    def setUp(self, *args):
+        create_scorecards()
+        self.anr_original = Scorecard.get_originals().get(shortcut_name="FAI ANR")
+        self.contest = Contest.objects.create(
+            name="ANR fixed scale test contest",
+            start_time=datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 1, 2, tzinfo=datetime.timezone.utc),
+        )
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Anr", last_name="Pilot"))
+        self.team = Team.objects.create(crew=crew, aeroplane=Aeroplane.objects.create(registration="LN-ANRF"))
+
+    def _make_task(self) -> NavigationTask:
+        return NavigationTask.create(
+            name="anr-fixed-scale-task",
+            contest=self.contest,
+            route=Route.objects.create(name="anr-fixed-scale-route"),
+            original_scorecard=self.anr_original,
+            start_time=datetime.datetime(2026, 1, 1, 6, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 1, 1, 16, tzinfo=datetime.timezone.utc),
+            task_subtype=ANR_CATALOGUE,
+        )
+
+    def _make_contestant(self, navigation_task: NavigationTask) -> Contestant:
+        start_time = datetime.datetime(2026, 1, 1, 8, tzinfo=datetime.timezone.utc)
+        return Contestant.objects.create(
+            navigation_task=navigation_task,
+            team=self.team,
+            takeoff_time=start_time,
+            tracker_start_time=start_time - datetime.timedelta(minutes=30),
+            finished_by_time=start_time + datetime.timedelta(hours=2),
+            tracker_device_id=f"anr-fixed-scale-{navigation_task.pk}",
+            contestant_number=1,
+        )
+
+    def _bare_processor(self, contestant: Contestant) -> ContestantProcessor:
+        processor = object.__new__(ContestantProcessor)
+        processor.contestant = contestant
+        processor.scorecard = contestant.navigation_task.scorecard
+        processor.accumulated_scores = ScoreAccumulator()
+        processor.gate_scores = {}
+        processor.suppress_side_effects = True
+        processor.score = processor.scorecard.initial_score
+        return processor
+
+    @staticmethod
+    def _message(score_type: str, points: float) -> UpdateScoreMessage:
+        return UpdateScoreMessage(
+            time=datetime.datetime(2026, 1, 1, 8, 5, tzinfo=datetime.timezone.utc),
+            gate=SimpleNamespace(name="SP"),
+            score=points,
+            message="test",
+            latitude=60.0,
+            longitude=11.0,
+            annotation_type=ANOMALY,
+            score_type=score_type,
+        )
+
+    def test_anr_starts_at_1000_not_2000(self, *args):
+        task = self._make_task()
+        self.assertEqual(task.scorecard.score_sorting_direction, "desc")
+        self.assertEqual(task.scorecard.initial_score, 1000)
+
+    def test_corridor_deviation_penalty_is_halved(self, *args):
+        task = self._make_task()
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+        self.assertEqual(processor.score, 1000)
+
+        processor.update_score_from_thread(self._message("gate_score", 40))
+        self.assertEqual(processor.score, 980)  # 1000 - 40/2, NOT 1000 - 40
+
+    def test_backtracking_penalty_is_also_halved(self, *args):
+        # Unlike 2.A1-2.A5 (where backtracking is a separate flat deduction, excluded from
+        # Qmax), 2.A8's own Q formula sums Pbc together with every other term - so it must get
+        # the same uniform scale, not the untouched-linear treatment backtracking gets elsewhere.
+        task = self._make_task()
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+
+        processor.update_score_from_thread(self._message("backtracking", 200))
+        self.assertEqual(processor.score, 900)  # 1000 - 200/2, NOT 1000 - 200
+
+    def test_mixed_anr_penalties_all_scaled_consistently(self, *args):
+        task = self._make_task()
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+
+        processor.update_score_from_thread(self._message("gate_score", 40))
+        processor.update_score_from_thread(self._message("anr_route_to_sp", 200))
+        processor.update_score_from_thread(self._message("anr_takeoff_timing", 100))
+        processor.update_score_from_thread(self._message("backtracking", 200))
+        # 1000 - (40 + 200 + 100 + 200) / 2 = 1000 - 270 = 730
+        self.assertEqual(processor.score, 730)
+
+    def test_non_anr_desc_subtype_is_not_scaled(self, *args):
+        # get_cima_fixed_scale_factor must be scoped to ANR_CATALOGUE only - a 2.A1-2.A5 task
+        # (no route, so get_cima_gate_qmax returns None and this falls back to raw magnitude)
+        # must not also get halved.
+        precision_original = Scorecard.get_originals().get(shortcut_name="FAI Precision")
+        task = NavigationTask.create(
+            name="precision-not-scaled-task",
+            contest=self.contest,
+            route=Route.objects.create(name="precision-not-scaled-route"),
+            original_scorecard=precision_original,
+            start_time=datetime.datetime(2026, 1, 1, 6, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 1, 1, 16, tzinfo=datetime.timezone.utc),
+            task_subtype=PRECISION_NAVIGATION,
+        )
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+        self.assertEqual(processor.score, 1000)
+
+        processor.update_score_from_thread(self._message("test_penalty", 40))
+        self.assertEqual(processor.score, 960)  # 1000 - 40, not halved
+
+
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+class TestTurnpointHuntAchievementQmaxNormalization(TestCase):
+    """
+    2.A6/2.B2's final P = 1000 * Q / Qmax normalization, applied to the achievement component
+    only (turnpoint_hunt_target_value + turnpoint_hunt_sequence_bonus combined) - see
+    get_cima_achievement_qmax. Penalty score_types (gate_score, compulsory timing, ...) keep
+    accumulating linearly, untouched, exactly like TestCimaGateQmaxNormalization from earlier in
+    this file for 2.A1-2.A5's non-gate penalties.
+    """
+
+    def setUp(self, *args):
+        create_scorecards()
+        Scorecard.SCORECARD_CACHE.clear()
+        self.precision_original = Scorecard.get_originals().get(shortcut_name="FAI Precision")
+        self.contest = Contest.objects.create(
+            name="Turnpoint hunt achievement qmax test contest",
+            start_time=datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 1, 2, tzinfo=datetime.timezone.utc),
+        )
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Achv", last_name="Qmax"))
+        self.team = Team.objects.create(crew=crew, aeroplane=Aeroplane.objects.create(registration="LN-ACHVQ"))
+
+    def tearDown(self, *args):
+        Scorecard.SCORECARD_CACHE.clear()
+
+    def _make_task_and_contestant_with_targets(self, target_values: dict, sequence_bonus: float = 0):
+        task = NavigationTask.create(
+            name="achv-qmax-task",
+            contest=self.contest,
+            route=Route.objects.create(name="achv-qmax-route"),
+            original_scorecard=self.precision_original,
+            start_time=datetime.datetime(2026, 1, 1, 6, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 1, 1, 16, tzinfo=datetime.timezone.utc),
+            task_subtype=TURNPOINT_HUNT,
+        )
+        if sequence_bonus:
+            task.scorecard.config["turnpoint_hunt_sequence_bonus"] = sequence_bonus
+            task.scorecard.save(update_fields=["config"])
+        start_time = datetime.datetime(2026, 1, 1, 8, tzinfo=datetime.timezone.utc)
+        contestant = Contestant.objects.create(
+            navigation_task=task,
+            team=self.team,
+            takeoff_time=start_time,
+            tracker_start_time=start_time - datetime.timedelta(minutes=30),
+            finished_by_time=start_time + datetime.timedelta(hours=2),
+            tracker_device_id=f"achv-qmax-{task.pk}",
+            contestant_number=1,
+        )
+        ContestantTaskConfiguration.objects.create(
+            contestant=contestant,
+            task_subtype=TURNPOINT_HUNT,
+            is_valid=True,
+            compiled_effective_route_payload={"scored_target_values": target_values},
+        )
+        return contestant
+
+    def _bare_processor(self, contestant: Contestant) -> ContestantProcessor:
+        processor = object.__new__(ContestantProcessor)
+        processor.contestant = contestant
+        processor.scorecard = contestant.navigation_task.scorecard
+        processor.accumulated_scores = ScoreAccumulator()
+        processor.gate_scores = {}
+        processor.suppress_side_effects = True
+        processor.score = processor.scorecard.initial_score
+        return processor
+
+    @staticmethod
+    def _message(score_type: str, points: float, gate_name: str = "A") -> UpdateScoreMessage:
+        return UpdateScoreMessage(
+            time=datetime.datetime(2026, 1, 1, 8, 5, tzinfo=datetime.timezone.utc),
+            gate=SimpleNamespace(name=gate_name),
+            score=points,
+            message="test",
+            latitude=60.0,
+            longitude=11.0,
+            annotation_type=ANOMALY,
+            score_type=score_type,
+        )
+
+    def test_achievement_normalized_against_declared_target_value_ceiling(self, *args):
+        # Two declared targets worth 100 total (60 + 40) -> qmax = 100.
+        contestant = self._make_task_and_contestant_with_targets({"A": 60, "B": 40})
+        processor = self._bare_processor(contestant)
+        self.assertEqual(processor.score, 0)
+
+        # Achieved 60 of 100 -> 1000 * 60/100 = 600, NOT the raw 60.
+        processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 60, "A"))
+        self.assertEqual(processor.score, 600)
+
+        # Achieved 100 of 100 -> full 1000.
+        processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 40, "B"))
+        self.assertEqual(processor.score, 1000)
+
+    def test_sequence_bonus_included_in_achievement_qmax_and_component(self, *args):
+        # One target worth 80, plus a 20-point sequence bonus -> qmax = 100.
+        contestant = self._make_task_and_contestant_with_targets({"A": 80}, sequence_bonus=20)
+        processor = self._bare_processor(contestant)
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 80, "A"))
+        self.assertEqual(processor.score, 800)  # 1000 * 80/100
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_sequence_bonus", 20, "A"))
+        self.assertEqual(processor.score, 1000)  # 1000 * 100/100
+
+    def test_penalty_score_types_still_accumulate_linearly_alongside_normalized_achievement(self, *args):
+        contestant = self._make_task_and_contestant_with_targets({"A": 100})
+        processor = self._bare_processor(contestant)
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 50, "A"))
+        self.assertEqual(processor.score, 500)  # 1000 * 50/100
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_compulsory_timing", 30, "CP1"))
+        self.assertEqual(processor.score, 470)  # 500 - 30, penalty untouched by normalization
+
+    def test_no_valid_declaration_falls_back_to_raw_achievement_sum(self, *args):
+        task = NavigationTask.create(
+            name="achv-no-config-task",
+            contest=self.contest,
+            route=Route.objects.create(name="achv-no-config-route"),
+            original_scorecard=self.precision_original,
+            start_time=datetime.datetime(2026, 1, 1, 6, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 1, 1, 16, tzinfo=datetime.timezone.utc),
+            task_subtype=TURNPOINT_HUNT,
+        )
+        start_time = datetime.datetime(2026, 1, 1, 8, tzinfo=datetime.timezone.utc)
+        contestant = Contestant.objects.create(
+            navigation_task=task,
+            team=self.team,
+            takeoff_time=start_time,
+            tracker_start_time=start_time - datetime.timedelta(minutes=30),
+            finished_by_time=start_time + datetime.timedelta(hours=2),
+            tracker_device_id=f"achv-no-config-{task.pk}",
+            contestant_number=1,
+        )
+        # No ContestantTaskConfiguration at all - get_cima_achievement_qmax returns None.
+        processor = self._bare_processor(contestant)
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 42, "A"))
+        self.assertEqual(processor.score, 42)  # raw, un-normalized

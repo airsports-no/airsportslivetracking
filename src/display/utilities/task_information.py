@@ -376,9 +376,10 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
             "Real-time scoring may be used when the approved live-tracking system is active.",
         ])
         info["scoring"] = _clean_lines([
-            "Competitors start with 2000 points; penalties are subtracted for corridor deviations, timing errors, start/take-off issues, route-to-SP / route-from-FP violations, and backtracking/circling.",
+            "Competitors start with 2000 points on the catalogue's own scale; penalties are subtracted for corridor deviations, timing errors, start/take-off issues, route-to-SP / route-from-FP violations, and backtracking/circling.",
             "Timing penalties at SP and FP apply after ±1 second with 3 points per full second up to 200 points per gate.",
             "Route compliance outside the corridor is accumulated according to the configured corridor grace time and penalty rate.",
+            "The catalogue then normalizes that 0-2000 total onto the platform's standard 0-1000 scale (halving it) for the officially displayed score, so it stays comparable with every other task type.",
         ])
         info["penalties"] = _clean_lines([
             "Breach of quarantine is a 100% penalty.",

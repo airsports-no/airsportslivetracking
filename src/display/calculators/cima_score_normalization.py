@@ -73,13 +73,18 @@ the existing flat per-event subtraction instead, unchanged from before this modu
   it is a documented future feature, not something Qmax needs to (or can) account for yet. What
   Qmax DOES cover for 2.A4/2.A5 is the hidden-gate-crossing component only (real secret-point
   gates authored on the route, scored the same GATE_SCORE_TYPE way as 2.A1/2.A2's hidden gates).
-- Every other CIMA subtype (2.A6-2.A8, 2.B2, 2.B3): each has either a different formula shape
-  (2.A6/2.B2's is additive and route-dependent, not a ratio - see
-  cima_task_type_definitions.py's CIMA_SCORING_BASELINE docstring) or hasn't had its gate-vs-
-  achievement semantics confirmed yet. Extending get_cima_gate_qmax to a new subtype requires
-  confirming its calculator(s) only ever emit GATE_SCORE_TYPE deficits the same way
-  gate_calculator.py does for 2.A1-2.A5 - do not just add a subtype to _QMAX_ELIGIBLE_SUBTYPES
-  without checking that first.
+- 2.A7 (Circle) and 2.A8 (ANR): both use a FIXED (not route-dependent) Qmax - see
+  cima_task_type_definitions.get_cima_fixed_scale_factor for ANR's uniform half-scale; Circle's
+  own Pmax=250 formula is already handled entirely inside circle_calculator.py.
+- 2.A6/2.B2 (Turnpoint hunt): a different formula shape (additive, not a "start at ceiling,
+  subtract" ratio) with its own Qmax function - see get_cima_achievement_qmax below - not an
+  extension of get_cima_gate_qmax, since GATE_SCORE_TYPE plays a different role there (a genuine,
+  separate penalty bucket, not the thing being normalized).
+- Every other CIMA subtype (2.B3): hasn't had its achievement-vs-penalty semantics confirmed yet
+  (see cima_task_type_definitions.py's CIMA_SCORING_BASELINE docstring). Extending
+  get_cima_gate_qmax to a new subtype requires confirming its calculator(s) only ever emit
+  GATE_SCORE_TYPE deficits the same way gate_calculator.py does for 2.A1-2.A5 - do not just add a
+  subtype to _QMAX_ELIGIBLE_SUBTYPES without checking that first.
 """
 
 from __future__ import annotations
@@ -91,7 +96,9 @@ from display.utilities.cima_task_type_definitions import (
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     CURVE_NAVIGATION_TIME_ESTIMATION,
     KNOWN_CIRCUIT,
+    LIMITED_FUEL_TURNPOINT_HUNT,
     PRECISION_NAVIGATION,
+    TURNPOINT_HUNT,
     UNKNOWN_LEGS,
 )
 from display.utilities.gate_definitions import DUMMY, LANDING_GATE, TAKEOFF_GATE
@@ -161,5 +168,39 @@ def get_cima_gate_qmax(contestant: "Contestant") -> float | None:
         total += _worst_case_penalty(scorecard, TAKEOFF_GATE, gate_check=False, time_check=True)
     if route.landing_gates:
         total += _worst_case_penalty(scorecard, LANDING_GATE, gate_check=False, time_check=True)
+
+    return total if total > 0 else None
+
+
+_ACHIEVEMENT_QMAX_ELIGIBLE_SUBTYPES = frozenset({TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT})
+
+
+def get_cima_achievement_qmax(contestant: "Contestant") -> float | None:
+    """
+    2.A6/2.B2's achievement-side Qmax: the maximum possible sum of target values this
+    contestant could achieve (every one of THEIR declared/predicted targets - scored_target_values
+    is already scoped to those, not every catalogue point the organizer ever placed) plus the
+    scorecard's turnpoint_hunt_sequence_bonus if one is configured. This is independent of
+    get_cima_gate_qmax/GATE_SCORE_TYPE deficits by design - see this module's docstring and
+    cima_task_type_definitions.CIMA_SCORING_BASELINE's comment on TURNPOINT_HUNT for why the two
+    streams don't need reconciling.
+
+    Returns None for any other subtype, or when there's nothing to normalize against yet (no
+    valid declaration, or a scorecard with 0 target value and 0 sequence bonus configured) -
+    callers should treat None as "leave the achievement score as a raw, un-normalized sum",
+    the same convention every other Qmax function in this module uses.
+    """
+    navigation_task = contestant.navigation_task
+    if navigation_task.effective_task_subtype not in _ACHIEVEMENT_QMAX_ELIGIBLE_SUBTYPES:
+        return None
+
+    config = getattr(contestant, "contestanttaskconfiguration", None)
+    if config is None or not config.is_valid:
+        return None
+
+    payload = config.compiled_effective_route_payload or {}
+    scored_target_values = payload.get("scored_target_values") or {}
+    total = sum(float(value) for value in scored_target_values.values())
+    total += navigation_task.scorecard.turnpoint_hunt_sequence_bonus or 0
 
     return total if total > 0 else None

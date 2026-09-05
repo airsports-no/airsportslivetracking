@@ -11,13 +11,14 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import IntegrityError
 
 from display.calculators.calculator_factory import calculator_factory
-from display.calculators.cima_score_normalization import get_cima_gate_qmax
+from display.calculators.cima_score_normalization import get_cima_achievement_qmax, get_cima_gate_qmax
 from display.calculators.gate_calculator import (
     GATE_SCORE_TYPE,
     TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE,
     TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE,
 )
 from display.calculators.update_score_message import UpdateScoreMessage
+from display.utilities.cima_task_type_definitions import get_cima_fixed_scale_factor
 from display.models.contestant_track import ContestantTrack
 from display.utilities.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
 from display.utilities.calculator_termination_utilities import is_termination_requested
@@ -771,6 +772,38 @@ class ContestantProcessor:
         self._cima_gate_component = new_component
         return delta
 
+    def _get_cima_achievement_qmax(self) -> Optional[float]:
+        # Same lazy-cache rationale as _get_cima_gate_qmax above. Starts the achievement
+        # component at 0, not scorecard.initial_score - 2.A6/2.B2 climb FROM 0, they don't
+        # start at a ceiling (see cima_task_type_definitions.CIMA_SCORING_BASELINE).
+        if not hasattr(self, "_cima_achievement_qmax_cache"):
+            self._cima_achievement_qmax_cache = get_cima_achievement_qmax(self.contestant)
+            self._cima_achievement_component = 0.0
+        return self._cima_achievement_qmax_cache
+
+    def _cima_normalized_achievement_score_delta(self) -> Optional[float]:
+        """
+        The catalogue's P = 1000 * Q / Qmax normalization applied to 2.A6/2.B2's achievement
+        component (turnpoint_hunt_target_value + turnpoint_hunt_sequence_bonus combined - see
+        get_cima_achievement_qmax) - converted into a delta the same way
+        _cima_normalized_gate_score_delta does for 2.A1-2.A5's gate component. Every other
+        turnpoint-hunt score_type (GATE_SCORE_TYPE, compulsory timing, fuel/duration deadlines)
+        is a genuine penalty and keeps accumulating linearly, untouched by this.
+
+        Returns None (meaning: use the raw achievement magnitude, un-normalized) when this
+        task's subtype/declaration isn't eligible for achievement-Qmax normalization.
+        """
+        qmax = self._get_cima_achievement_qmax()
+        if qmax is None:
+            return None
+        achieved = self.accumulated_scores.related_score.get(
+            TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE, 0
+        ) + self.accumulated_scores.related_score.get(TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE, 0)
+        new_component = 1000 * (achieved / qmax)
+        delta = new_component - self._cima_achievement_component
+        self._cima_achievement_component = new_component
+        return delta
+
     def update_score_from_thread(self, update_score_message: UpdateScoreMessage):
         """
         Constructs the score structures required to update the contestants score. Optionally cap the score if it has a
@@ -807,6 +840,18 @@ class ContestantProcessor:
             normalized_delta = self._cima_normalized_gate_score_delta()
             if normalized_delta is not None:
                 score = normalized_delta
+        elif update_score_message.score_type in ACHIEVEMENT_SCORE_TYPES:
+            normalized_delta = self._cima_normalized_achievement_score_delta()
+            if normalized_delta is not None:
+                score = normalized_delta
+        # ANR_CATALOGUE only (see cima_task_type_definitions.CIMA_FIXED_SCALE_FACTORS): unlike
+        # the component-specific normalizations above, this applies uniformly to every score_type
+        # (backtracking/circling is one of ANR's own summed penalty terms, not excluded the way
+        # it is for 2.A1-2.A5), after the sign flip and the (mutually exclusive, since ANR isn't
+        # gate/achievement-Qmax-eligible) component normalizations above.
+        scale_factor = get_cima_fixed_scale_factor(self.contestant.navigation_task.effective_task_subtype)
+        if scale_factor is not None:
+            score *= scale_factor
         if update_score_message.planned is not None and update_score_message.actual is not None:
             offset = (update_score_message.actual - update_score_message.planned).total_seconds()
             # Must use round, this is the same as used in the score calculation
