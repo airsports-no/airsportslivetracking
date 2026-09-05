@@ -22,6 +22,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
+from display.calculators.cima_score_normalization import get_cima_gate_qmax
 from display.calculators.contestant_processor import ContestantProcessor, ScoreAccumulator
 from display.calculators.gate_calculator import GATE_SCORE_TYPE
 from display.calculators.update_score_message import UpdateScoreMessage
@@ -31,6 +32,7 @@ from display.models import (
     Aeroplane,
     Contest,
     Contestant,
+    ContestantTaskConfiguration,
     Crew,
     NavigationTask,
     Person,
@@ -38,7 +40,11 @@ from display.models import (
     Scorecard,
     Team,
 )
-from display.utilities.cima_task_type_definitions import ANR_CATALOGUE, PRECISION_NAVIGATION
+from display.utilities.cima_task_type_definitions import (
+    ANR_CATALOGUE,
+    CONTRACT_NAVIGATION_TIME_CONTROLS,
+    PRECISION_NAVIGATION,
+)
 from display.utilities.gate_definitions import TURNPOINT
 from display.waypoint import Waypoint
 from utilities.mock_utilities import TraccarMock
@@ -184,6 +190,11 @@ class TestCimaGateQmaxNormalization(TestCase):
     def _turnpoint(name: str) -> Waypoint:
         waypoint = Waypoint(name)
         waypoint.type = TURNPOINT
+        # gate_check/time_check must be explicitly set - a Waypoint defaults both to False (see
+        # waypoint.py), and get_cima_gate_qmax only counts a gate's worst-case penalty toward
+        # Qmax if at least one of these is set, matching what could actually be scored for it.
+        waypoint.gate_check = True
+        waypoint.time_check = True
         return waypoint
 
     def _make_two_turnpoint_task(self) -> NavigationTask:
@@ -271,3 +282,47 @@ class TestCimaGateQmaxNormalization(TestCase):
 
         processor.update_score_from_thread(self._gate_penalty_message("TP1", 30))
         self.assertEqual(processor.score, 30)
+
+    def test_qmax_uses_contestant_declared_subset_not_the_full_shared_route(self, *args):
+        # 2.A3 (CONTRACT_NAVIGATION_TIME_CONTROLS): the organizer's shared route can carry many
+        # more catalogue turnpoints than any one contestant declares to fly - see
+        # cima_score_normalization.py's docstring on why Qmax must read the contestant's
+        # EFFECTIVE route (via get_effective_route_waypoints), not navigation_task.route.
+        # Three shared-route turnpoints, but this contestant only declared one of them.
+        route = Route.objects.create(
+            name="contract-route",
+            waypoints=[self._turnpoint("TP1"), self._turnpoint("TP2"), self._turnpoint("TP3")],
+        )
+        task = NavigationTask.create(
+            name="contract-task",
+            contest=self.contest,
+            route=route,
+            original_scorecard=self.precision_original,
+            start_time=datetime.datetime(2026, 1, 1, 6, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 1, 1, 16, tzinfo=datetime.timezone.utc),
+            task_subtype=CONTRACT_NAVIGATION_TIME_CONTROLS,
+        )
+        task.scorecard.config.setdefault("gates", {})[TURNPOINT] = {"missed_penalty": 200, "maximum_penalty": 150}
+        task.scorecard.save(update_fields=["config"])
+        contestant = self._make_contestant(task)
+        ContestantTaskConfiguration.objects.create(
+            contestant=contestant,
+            task_subtype=CONTRACT_NAVIGATION_TIME_CONTROLS,
+            is_valid=True,
+            compiled_effective_route_payload={
+                "effective_waypoints": [
+                    {
+                        "name": "TP1",
+                        "latitude": 0.0,
+                        "longitude": 0.0,
+                        "type": TURNPOINT,
+                        "width": 0.1,
+                        "time_check": True,
+                        "gate_check": True,
+                    }
+                ]
+            },
+        )
+
+        # Only TP1 was declared -> qmax = 200, not 3 * 200 = 600 for the full shared route.
+        self.assertEqual(get_cima_gate_qmax(contestant), 200)

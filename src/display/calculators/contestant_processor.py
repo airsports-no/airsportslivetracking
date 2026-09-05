@@ -731,7 +731,7 @@ class ContestantProcessor:
         # task's route + scorecard, neither of which changes mid-flight, so computing it once
         # and reusing it is safe regardless of when in the processor's lifecycle this first runs.
         if not hasattr(self, "_cima_gate_qmax_cache"):
-            self._cima_gate_qmax_cache = get_cima_gate_qmax(self.contestant.navigation_task)
+            self._cima_gate_qmax_cache = get_cima_gate_qmax(self.contestant)
             self._cima_gate_component = self.contestant.navigation_task.scorecard.initial_score
         return self._cima_gate_qmax_cache
 
