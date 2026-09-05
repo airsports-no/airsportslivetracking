@@ -64,3 +64,38 @@ class TestScorecardAdmin(TestCase):
         form.save()
         self.scorecard.refresh_from_db()
         self.assertEqual(12345, self.scorecard.backtracking_penalty)
+
+    def test_admin_form_clearing_a_field_does_not_permanently_shadow_its_config_default(self):
+        # Regression test: every ConfigField-backed field here is required=False, so clearing
+        # one on the change form submits an empty value - cleaned_data holds None for it.
+        # ConfigField._get reads instance.config.get(name, default), which returns the stored
+        # None (not the declared default) once the key is present at all. save() used to write
+        # that None through unconditionally, permanently shadowing the real default (e.g.
+        # circle_radius_min_m=200) on every future read, even after the admin "fixed" it again
+        # by leaving the field blank a second time.
+        form_class = admin.site._registry[Scorecard].get_form(None)
+        data = model_to_dict(self.scorecard, exclude=["config"])
+        data.update(form_class(instance=self.scorecard).initial)
+        data["free_text"] = data.get("free_text") or "x"
+        data["circle_radius_min_m"] = ""  # cleared by the admin
+        form = form_class(data=data, instance=self.scorecard)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.scorecard.refresh_from_db()
+        self.assertEqual(200, self.scorecard.circle_radius_min_m)
+
+    def test_admin_form_still_allows_the_one_genuinely_nullable_field_to_be_cleared(self):
+        # maximum_task_duration_minutes is the one ConfigField whose declared default is
+        # itself None (models/scorecard_and_gate_score.py) - clearing it must still work.
+        self.scorecard.maximum_task_duration_minutes = 45
+        self.scorecard.save()
+        form_class = admin.site._registry[Scorecard].get_form(None)
+        data = model_to_dict(self.scorecard, exclude=["config"])
+        data.update(form_class(instance=self.scorecard).initial)
+        data["free_text"] = data.get("free_text") or "x"
+        data["maximum_task_duration_minutes"] = ""
+        form = form_class(data=data, instance=self.scorecard)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.scorecard.refresh_from_db()
+        self.assertIsNone(self.scorecard.maximum_task_duration_minutes)

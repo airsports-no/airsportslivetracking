@@ -1083,7 +1083,10 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     # reads instance.gate_scores() (models/scorecard_and_gate_score.py, config-backed,
     # already sorted by gate_type) instead. Kept the `gatescore_set` field *name* so the API
     # response shape - and every existing consumer of it - is unchanged.
-    gatescore_set = GateScoreSerialiser(many=True, source="gate_scores")
+    # required=False: a scalar-only PUT (no gate changes at all) shouldn't have to include an
+    # empty gatescore_set just to pass validation - update() below defaults the corresponding
+    # validated_data key the same way.
+    gatescore_set = GateScoreSerialiser(many=True, source="gate_scores", required=False)
     corridor_width = serializers.FloatField(read_only=True)
     task_type = serializers.SerializerMethodField()
     # Scorecard Phase 3: see the matching comment on GateScoreSerialiser.visible_fields - same
@@ -1185,8 +1188,10 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         # "gate_scores", not "gatescore_set": the field's source= remaps the *validated_data*
         # key (the wire-format/input key clients send is still "gatescore_set" - see
-        # get_value(), which keys off field_name, not source).
-        gate_scores = validated_data.pop("gate_scores")
+        # get_value(), which keys off field_name, not source). Now that the field is
+        # required=False, a scalar-only PUT that omits gatescore_set entirely leaves this key
+        # absent from validated_data too - default to an empty list rather than KeyError.
+        gate_scores = validated_data.pop("gate_scores", [])
         # instance.save(), not a queryset .update(): the latter skips pre_save/post_save
         # entirely, so update_contestant_initial_score (propagates an initial_score delta
         # onto every contestant track) and sync_scorecard_sorting_direction (mirrors

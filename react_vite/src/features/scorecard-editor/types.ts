@@ -60,6 +60,7 @@ export interface ScorecardData {
 
     // Merged in by the scorecard action (viewsets.py), not part of the plain serializer shape.
     applicable_gate_types: string[];
+    applicable_scalar_groups: string[];
     original_scorecard: ScorecardData | null;
 }
 
@@ -75,6 +76,7 @@ export type ScalarFieldName = Exclude<
     | 'gatescore_set'
     | 'visible_fields'
     | 'applicable_gate_types'
+    | 'applicable_scalar_groups'
     | 'original_scorecard'
 >;
 

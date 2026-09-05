@@ -124,6 +124,20 @@ class TestScorecardGateApplicability(TestCase):
         # synthesized interpolation points that happen to share its type.
         self.assertIn(SECRETPOINT, get_applicable_gate_types(navigation_task))
 
+    def test_curve_interpolation_only_secretpoint_is_excluded_with_no_authored_gate_present(self):
+        # The other test above only exercises the "still included" side (an authored
+        # SECRETPOINT masks whether the curved one was actually filtered). With no authored
+        # SECRETPOINT at all, the curved-only one must not make the gate type applicable.
+        navigation_task = self._make_navigation_task(
+            get_precision_scorecard(),
+            waypoints=[
+                make_waypoint(STARTINGPOINT),
+                make_waypoint(SECRETPOINT, name="curve interpolation point", on_curved_segment=True),
+                make_waypoint(FINISHPOINT),
+            ],
+        )
+        self.assertNotIn(SECRETPOINT, get_applicable_gate_types(navigation_task))
+
     def test_anr_task_uses_sp_anrtp_fp_and_gate_lines_not_secret_or_dummy(self):
         navigation_task = self._make_navigation_task(
             get_anr_scorecard(),

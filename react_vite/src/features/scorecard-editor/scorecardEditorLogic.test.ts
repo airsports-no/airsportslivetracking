@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildSavePayload,
     emptyEditorState,
+    formatCardSummary,
     getGateFieldValue,
     getScalarValue,
     isDirty,
@@ -189,5 +190,41 @@ describe('buildSavePayload', () => {
         const payload = buildSavePayload(state);
         expect(payload).toEqual({ backtracking_penalty: 0, gatescore_set: [] });
         expect('corridor_maximum_penalty' in payload).toBe(false);
+    });
+});
+
+describe('formatCardSummary', () => {
+    it('joins label/value/unit entries with a middle dot', () => {
+        expect(
+            formatCardSummary([
+                { label: 'Grace period before', value: 2, unit: 's' },
+                { label: 'Maximum penalty', value: 100 },
+            ]),
+        ).toBe('Grace period before: 2s · Maximum penalty: 100');
+    });
+
+    it('renders booleans as Yes/No', () => {
+        expect(formatCardSummary([{ label: 'Per leg', value: true }])).toBe('Per leg: Yes');
+        expect(formatCardSummary([{ label: 'Per leg', value: false }])).toBe('Per leg: No');
+    });
+
+    it('skips entries with no value at all', () => {
+        expect(
+            formatCardSummary([
+                { label: 'Set', value: 5 },
+                { label: 'Unset', value: null },
+                { label: 'Also unset', value: undefined },
+                { label: 'Blank', value: '' },
+            ]),
+        ).toBe('Set: 5');
+    });
+
+    it('falls back to a placeholder when nothing is set', () => {
+        expect(formatCardSummary([{ label: 'Unset', value: null }])).toBe('No values configured');
+        expect(formatCardSummary([])).toBe('No values configured');
+    });
+
+    it('does not skip a real falsy numeric value like 0', () => {
+        expect(formatCardSummary([{ label: 'Backtracking penalty', value: 0 }])).toBe('Backtracking penalty: 0');
     });
 });

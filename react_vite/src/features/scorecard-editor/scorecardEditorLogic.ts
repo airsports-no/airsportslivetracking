@@ -149,3 +149,22 @@ export function buildSavePayload(state: ScorecardEditorState): SavePayload {
 export function findGate(scorecard: ScorecardData, gateType: string): GateScoreData | undefined {
     return scorecard.gatescore_set.find((g) => g.gate_type === gateType);
 }
+
+export interface SummaryEntry {
+    label: string;
+    value: number | boolean | string | null | undefined;
+    unit?: string;
+}
+
+// The one-line summary shown on a collapsed card - "the current value of the common fields",
+// per the design decision. A boolean renders as Yes/No; a field with no value at all (null/
+// undefined/empty string) is skipped rather than shown as blank.
+export function formatCardSummary(entries: SummaryEntry[]): string {
+    const parts = entries
+        .filter((entry) => entry.value !== null && entry.value !== undefined && entry.value !== '')
+        .map((entry) => {
+            const displayValue = typeof entry.value === 'boolean' ? (entry.value ? 'Yes' : 'No') : String(entry.value);
+            return `${entry.label}: ${displayValue}${entry.unit ?? ''}`;
+        });
+    return parts.length > 0 ? parts.join(' · ') : 'No values configured';
+}

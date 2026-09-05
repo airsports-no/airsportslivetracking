@@ -1154,8 +1154,15 @@ class GateScoreForm(forms.Form):
         )
 
     def save(self):
+        # Every field here is required=False and none of GateScoreValue's fields declare a
+        # None default (all 11 have real numeric defaults, models/scorecard_and_gate_score.py)
+        # - so a cleared numeric input's None must never be merged in, or it would permanently
+        # overwrite the configured value with None on every future read of this gate.
+        cleaned_values = {
+            field_name: value for field_name, value in self.cleaned_data.items() if value is not None
+        }
         gates = self.scorecard.config.setdefault("gates", {})
-        gates.setdefault(self.gate_type, {}).update(self.cleaned_data)
+        gates.setdefault(self.gate_type, {}).update(cleaned_values)
         self.scorecard.save(update_fields=["config"])
 
 

@@ -147,7 +147,7 @@ from display.services.capacity_enforcement import (
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
 from display.services.route_compatibility import extract_route_primitives, get_blocking_reasons
-from display.services.scorecard_gate_applicability import get_applicable_gate_types
+from display.services.scorecard_gate_applicability import get_applicable_gate_types, get_applicable_scalar_groups
 from display.services.task_compiler import TaskCompiler
 from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
 from display.tasks import (
@@ -1297,18 +1297,20 @@ class NavigationTaskViewSet(ModelViewSet):
 
     def _build_scorecard_response_data(self, navigation_task: "NavigationTask", serialiser) -> dict:
         """
-        Scorecard Phase 3: the React scorecard editor needs two things alongside the plain
+        Scorecard Phase 3: the React scorecard editor needs three things alongside the plain
         nested scorecard that ScorecardNestedSerialiser already produces - which of the
-        scorecard's configured gate types are actually relevant to this specific task (most
-        task types only use a handful of the 16 defined gate types, see
-        services/scorecard_gate_applicability.py), and the task's original/standard scorecard
-        to diff against and to build "reset this field/gate" payloads from. Both are
-        task-scoped, not scorecard-scoped (a Scorecard fetched standalone via /scorecards/<id>/
-        has no navigation task to be applicable *to*), so they're merged in here at the view
-        layer rather than added to the serializer itself.
+        scorecard's configured gate types are actually relevant to this specific task, which of
+        the 8 scalar-field UI groups are backed by a calculator that actually runs for it (most
+        task types only use a handful of the 16 defined gate types and a handful of the scalar
+        field groups - see services/scorecard_gate_applicability.py), and the task's original/
+        standard scorecard to diff against and to build "reset this field/gate" payloads from.
+        All three are task-scoped, not scorecard-scoped (a Scorecard fetched standalone via
+        /scorecards/<id>/ has no navigation task to be applicable *to*), so they're merged in
+        here at the view layer rather than added to the serializer itself.
         """
         data = dict(serialiser.data)
         data["applicable_gate_types"] = sorted(get_applicable_gate_types(navigation_task))
+        data["applicable_scalar_groups"] = sorted(get_applicable_scalar_groups(navigation_task))
         data["original_scorecard"] = (
             ScorecardNestedSerialiser(navigation_task.original_scorecard).data
             if navigation_task.original_scorecard_id

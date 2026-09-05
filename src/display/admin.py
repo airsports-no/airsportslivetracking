@@ -295,10 +295,22 @@ class ScorecardAdminForm(forms.ModelForm):
         kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
 
+    # ConfigField._get reads instance.config.get(name, default) - once a key is present in
+    # config at all, that lookup returns the stored value even when it's None, not the
+    # declared default (dict.get's fallback only applies when the key is absent). Every field
+    # here is required=False, so clearing a previously-set numeric input on the change form
+    # submits None for it - writing that through setattr would permanently shadow the real
+    # ConfigField default (e.g. circle_radius_min_m=200) with a stored None. Skip None values
+    # on save instead, except for the one field whose declared default genuinely is None.
+    _NULLABLE_CONFIG_FIELDS = {"maximum_task_duration_minutes"}
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         for field_name in SCORECARD_CONFIG_FIELDS:
-            setattr(instance, field_name, self.cleaned_data[field_name])
+            value = self.cleaned_data.get(field_name)
+            if value is None and field_name not in self._NULLABLE_CONFIG_FIELDS:
+                continue
+            setattr(instance, field_name, value)
         if commit:
             instance.save()
         return instance

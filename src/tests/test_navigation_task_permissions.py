@@ -641,6 +641,12 @@ class TestAccessNavigationTask(APITestCase):
         self.assertGreater(len(scorecard_data["applicable_gate_types"]), 0)
         # dummy is never applicable to any task - see scorecard_gate_applicability.py
         self.assertNotIn("dummy", scorecard_data["applicable_gate_types"])
+        self.assertIn("applicable_scalar_groups", scorecard_data)
+        self.assertIsInstance(scorecard_data["applicable_scalar_groups"], list)
+        # this fixture's task is a precision task - Corridor/ANR route/Duration/Circle/Speed
+        # keeping are never applicable to it, see scorecard_gate_applicability.py
+        for irrelevant_group in ("Corridor", "ANR route", "Duration", "Circle", "Speed keeping"):
+            self.assertNotIn(irrelevant_group, scorecard_data["applicable_scalar_groups"])
         self.assertIsNotNone(scorecard_data["original_scorecard"])
         self.assertEqual(
             get_default_scorecard().backtracking_penalty,
@@ -690,3 +696,19 @@ class TestAccessNavigationTask(APITestCase):
             )
         )
         self.assertEqual(result.status_code, status.HTTP_403_FORBIDDEN, result.content)
+
+    def test_scorecard_put_without_gatescore_set_key_does_not_400(self):
+        # Regression test (PR #753 review): gatescore_set used to be a required nested field,
+        # so a scalar-only PUT that omits the key entirely failed validation even though
+        # nothing about a gate score was being changed. The React scorecard editor happens to
+        # always send an (possibly empty) gatescore_set list, so this never surfaced there -
+        # but any other PUT caller sending a genuinely scalar-only body would 400.
+        self.client.force_login(user=self.user_owner)
+        result = self.client.put(
+            reverse("navigationtasks-scorecard", kwargs={"contest_pk": self.contest_id, "pk": self.navigation_task.id}),
+            data={"backtracking_penalty": 4242},
+            format="json",
+        )
+        self.assertEqual(result.status_code, status.HTTP_200_OK, result.content)
+        self.navigation_task.scorecard.refresh_from_db()
+        self.assertEqual(4242, self.navigation_task.scorecard.backtracking_penalty)

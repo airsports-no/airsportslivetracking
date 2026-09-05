@@ -122,6 +122,7 @@ export default function ScorecardEditorPage() {
 
     const canEdit = navigationTask.user_has_change_permission;
     const applicableGates = scorecard.applicable_gate_types;
+    const applicableScalarGroups = new Set(scorecard.applicable_scalar_groups);
 
     return (
         <div className="container mx-auto p-4 md:p-8">
@@ -158,30 +159,38 @@ export default function ScorecardEditorPage() {
             </p>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-4">
-                    {SCALAR_FIELD_GROUPS.map((group) => (
-                        <ScalarFieldGroup
-                            key={group.title}
-                            title={group.title}
-                            fields={group.fields}
-                            scorecard={scorecard}
-                            state={editorState}
-                            onChange={setEditorState}
-                            disabled={!canEdit || saving}
-                        />
-                    ))}
+                <div>
+                    <h2 className="text-lg font-semibold border-b border-base-300 pb-1 mb-3">Scoring rules</h2>
+                    <div className="flex flex-col gap-4">
+                        {SCALAR_FIELD_GROUPS.filter((group) => applicableScalarGroups.has(group.title)).map(
+                            (group) => (
+                                <ScalarFieldGroup
+                                    key={group.title}
+                                    title={group.title}
+                                    fields={group.fields}
+                                    scorecard={scorecard}
+                                    state={editorState}
+                                    onChange={setEditorState}
+                                    disabled={!canEdit || saving}
+                                />
+                            ),
+                        )}
+                    </div>
                 </div>
-                <div className="flex flex-col gap-4">
-                    {applicableGates.map((gateType) => (
-                        <GateSection
-                            key={gateType}
-                            gateType={gateType}
-                            scorecard={scorecard}
-                            state={editorState}
-                            onChange={setEditorState}
-                            disabled={!canEdit || saving}
-                        />
-                    ))}
+                <div>
+                    <h2 className="text-lg font-semibold border-b border-base-300 pb-1 mb-3">Gates</h2>
+                    <div className="flex flex-col gap-4">
+                        {applicableGates.map((gateType) => (
+                            <GateSection
+                                key={gateType}
+                                gateType={gateType}
+                                scorecard={scorecard}
+                                state={editorState}
+                                onChange={setEditorState}
+                                disabled={!canEdit || saving}
+                            />
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>

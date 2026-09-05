@@ -1,5 +1,6 @@
 """
-Which gate types actually matter for a given navigation task.
+Which gate types - and which scalar scorecard field groups - actually matter for a given
+navigation task.
 
 `Scorecard.gate_scores()` (models/scorecard_and_gate_score.py) returns every gate type the
 scorecard happens to have configured (8-16 of them), unfiltered by task - a precision
@@ -26,8 +27,10 @@ from __future__ import annotations
 import typing
 
 from display.utilities.cima_task_type_definitions import (
+    ANR_CATALOGUE,
     CIRCLE,
     DURATION,
+    KNOWN_CIRCUIT,
     LIMITED_FUEL_TURNPOINT_HUNT,
     NO_BACKBONE_TASK_SUBTYPES,
     TURNPOINT_HUNT,
@@ -40,6 +43,13 @@ from display.utilities.gate_definitions import (
     LANDING_GATE,
     TAKEOFF_GATE,
     TURNPOINT,
+)
+from display.utilities.navigation_task_type_definitions import (
+    AIRSPORT_CHALLENGE,
+    AIRSPORTS,
+    ANR_CORRIDOR,
+    POKER,
+    PRECISION,
 )
 
 if typing.TYPE_CHECKING:
@@ -87,3 +97,77 @@ def get_applicable_gate_types(navigation_task: "NavigationTask") -> set[str]:
     if route.landing_gates:
         gate_types.add(LANDING_GATE)
     return gate_types
+
+
+# Scorecard.config's 26 scalar scoring fields are grouped into 7 UI cards (see
+# react_vite/src/features/scorecard-editor/fieldMetadata.ts's SCALAR_FIELD_GROUPS, whose
+# titles this set matches exactly - "Zones" merges the old separate "Prohibited zone"/"Penalty
+# zone" cards, which were always applicable together anyway, see below). Which cards are worth
+# showing for a given task depends on which calculators actually run for it - verified against
+# the real pipeline (utilities/task_type_registry.py) and each calculator's own subtype gating,
+# not guessed:
+#
+# - Backtracking -> BacktrackingAndProcedureTurnsCalculator: in the PRECISION pipeline for
+#   every subtype except CIRCLE (removed, calculators/task_type_registry.py:88), and always in
+#   the ANR-style (ANR_CORRIDOR/AIRSPORTS/AIRSPORT_CHALLENGE) pipeline. Never for LANDING/POKER.
+# - Zones (prohibited + penalty) -> ProhibitedZoneCalculator/PenaltyZoneCalculator: in both the
+#   PRECISION and ANR-style pipelines unconditionally (every subtype, since neither branch
+#   removes them), and in the POKER pipeline. Never for LANDING (calculators/
+#   task_type_registry.py:112-113, its pipeline is LandingPatternCalculator alone).
+# - Corridor -> AnrCorridorCalculator: only the ANR-style pipeline.
+# - ANR route -> AnrCorridorCalculator._check_auxiliary_route_compliance, explicitly gated on
+#   `task_subtype == ANR_CATALOGUE` (calculators/anr_corridor_calculator.py) - not legacy ANR
+#   corridor, not AIRSPORTS/AIRSPORT_CHALLENGE despite sharing the same calculator.
+# - Duration -> DurationCalculator (subtype == DURATION only) plus GateCalculator's
+#   turnpoint-hunt-specific scoring methods, each individually gated on
+#   `subtype in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt")`
+#   (calculators/gate_calculator.py: _score_turnpoint_hunt_maximum_duration,
+#   _score_limited_fuel_deadline, _score_turnpoint_hunt_compulsory_timing).
+# - Circle -> CircleCalculator: subtype == CIRCLE only.
+# - Speed keeping -> GateCalculator._score_speed_keeping, gated on
+#   `subtype == "known_circuit"` only (calculators/gate_calculator.py:744-751).
+BACKTRACKING = "Backtracking"
+ZONES = "Zones"
+CORRIDOR = "Corridor"
+ANR_ROUTE = "ANR route"
+DURATION_GROUP = "Duration"
+CIRCLE_GROUP = "Circle"
+SPEED_KEEPING = "Speed keeping"
+
+_TURNPOINT_HUNT_SUBTYPES = (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT)
+
+
+def get_applicable_scalar_groups(navigation_task: "NavigationTask") -> set[str]:
+    """
+    The set of SCALAR_FIELD_GROUPS card titles that actually matter for this navigation task -
+    i.e. the ones some calculator in its pipeline actually reads a value from.
+    """
+    family = navigation_task.coarse_task_family
+    subtype = navigation_task.effective_task_subtype
+
+    if family == PRECISION:
+        groups = {ZONES}
+        if subtype != CIRCLE:
+            groups.add(BACKTRACKING)
+        if subtype == CIRCLE:
+            groups.add(CIRCLE_GROUP)
+        elif subtype == DURATION:
+            groups.add(DURATION_GROUP)
+        elif subtype in _TURNPOINT_HUNT_SUBTYPES:
+            groups.add(DURATION_GROUP)
+        elif subtype == KNOWN_CIRCUIT:
+            groups.add(SPEED_KEEPING)
+        return groups
+
+    if family in (ANR_CORRIDOR, AIRSPORTS, AIRSPORT_CHALLENGE):
+        groups = {BACKTRACKING, ZONES, CORRIDOR}
+        if subtype == ANR_CATALOGUE:
+            groups.add(ANR_ROUTE)
+        return groups
+
+    if family == POKER:
+        return {ZONES}
+
+    # LANDING (LandingPatternCalculator alone) and anything else unrecognised: none of the
+    # scalar groups are backed by a calculator that actually runs.
+    return set()

@@ -25,12 +25,15 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
         ],
     },
     {
-        title: 'Prohibited zone',
-        fields: ['prohibited_zone_penalty', 'prohibited_zone_grace_time', 'prohibited_zone_maximum'],
-    },
-    {
-        title: 'Penalty zone',
-        fields: ['penalty_zone_grace_time', 'penalty_zone_penalty_per_second', 'penalty_zone_maximum'],
+        title: 'Zones',
+        fields: [
+            'prohibited_zone_penalty',
+            'prohibited_zone_grace_time',
+            'prohibited_zone_maximum',
+            'penalty_zone_grace_time',
+            'penalty_zone_penalty_per_second',
+            'penalty_zone_maximum',
+        ],
     },
     {
         title: 'Corridor',
