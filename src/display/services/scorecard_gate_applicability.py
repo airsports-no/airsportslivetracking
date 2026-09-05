@@ -126,6 +126,7 @@ def get_applicable_gate_types(navigation_task: "NavigationTask") -> set[str]:
 # - Circle -> CircleCalculator: subtype == CIRCLE only.
 # - Speed keeping -> GateCalculator._score_speed_keeping, gated on
 #   `subtype == "known_circuit"` only (calculators/gate_calculator.py:744-751).
+GENERAL = "General"
 BACKTRACKING = "Backtracking"
 ZONES = "Zones"
 CORRIDOR = "Corridor"
@@ -141,12 +142,16 @@ def get_applicable_scalar_groups(navigation_task: "NavigationTask") -> set[str]:
     """
     The set of SCALAR_FIELD_GROUPS card titles that actually matter for this navigation task -
     i.e. the ones some calculator in its pipeline actually reads a value from.
+
+    GENERAL (initial_score / score_sorting_direction) is unconditional: every task type has a
+    Scorecard with a starting score and a sort direction, unlike the calculator-specific groups
+    below which only matter for the subset of task types their calculator actually runs for.
     """
     family = navigation_task.coarse_task_family
     subtype = navigation_task.effective_task_subtype
 
     if family == PRECISION:
-        groups = {ZONES}
+        groups = {GENERAL, ZONES}
         if subtype != CIRCLE:
             groups.add(BACKTRACKING)
         if subtype == CIRCLE:
@@ -160,14 +165,14 @@ def get_applicable_scalar_groups(navigation_task: "NavigationTask") -> set[str]:
         return groups
 
     if family in (ANR_CORRIDOR, AIRSPORTS, AIRSPORT_CHALLENGE):
-        groups = {BACKTRACKING, ZONES, CORRIDOR}
+        groups = {GENERAL, BACKTRACKING, ZONES, CORRIDOR}
         if subtype == ANR_CATALOGUE:
             groups.add(ANR_ROUTE)
         return groups
 
     if family == POKER:
-        return {ZONES}
+        return {GENERAL, ZONES}
 
-    # LANDING (LandingPatternCalculator alone) and anything else unrecognised: none of the
-    # scalar groups are backed by a calculator that actually runs.
-    return set()
+    # LANDING (LandingPatternCalculator alone) and anything else unrecognised: no
+    # calculator-specific scalar group applies, but General still does.
+    return {GENERAL}

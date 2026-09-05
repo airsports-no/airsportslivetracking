@@ -66,7 +66,7 @@ class TestScorecardScalarGroupApplicability(TestCase):
     def test_legacy_precision_shows_backtracking_and_zones_only(self):
         navigation_task = self._make_navigation_task(PRECISION)
         self.assertEqual(
-            {"Backtracking", "Zones"},
+            {"General", "Backtracking", "Zones"},
             get_applicable_scalar_groups(navigation_task),
         )
 
@@ -75,7 +75,7 @@ class TestScorecardScalarGroupApplicability(TestCase):
         groups = get_applicable_scalar_groups(navigation_task)
         self.assertNotIn("Backtracking", groups)
         self.assertIn("Circle", groups)
-        self.assertEqual({"Zones", "Circle"}, groups)
+        self.assertEqual({"General", "Zones", "Circle"}, groups)
 
     def test_duration_subtype_adds_duration_group(self):
         navigation_task = self._make_navigation_task(PRECISION, task_subtype=DURATION)
@@ -99,7 +99,7 @@ class TestScorecardScalarGroupApplicability(TestCase):
     def test_legacy_anr_corridor_shows_backtracking_zones_and_corridor_but_not_anr_route(self):
         navigation_task = self._make_navigation_task(ANR_CORRIDOR)
         self.assertEqual(
-            {"Backtracking", "Zones", "Corridor"},
+            {"General", "Backtracking", "Zones", "Corridor"},
             get_applicable_scalar_groups(navigation_task),
         )
 
@@ -114,24 +114,24 @@ class TestScorecardScalarGroupApplicability(TestCase):
         # calculator that runs for the AIRSPORTS family.
         navigation_task = self._make_navigation_task(AIRSPORTS)
         groups = get_applicable_scalar_groups(navigation_task)
-        self.assertEqual({"Backtracking", "Zones", "Corridor"}, groups)
+        self.assertEqual({"General", "Backtracking", "Zones", "Corridor"}, groups)
         for irrelevant in ("ANR route", "Duration", "Circle", "Speed keeping"):
             self.assertNotIn(irrelevant, groups)
 
     def test_legacy_airsport_challenge_matches_airsports_shape(self):
         navigation_task = self._make_navigation_task(AIRSPORT_CHALLENGE)
         self.assertEqual(
-            {"Backtracking", "Zones", "Corridor"},
+            {"General", "Backtracking", "Zones", "Corridor"},
             get_applicable_scalar_groups(navigation_task),
         )
 
     def test_legacy_poker_shows_only_zones(self):
         navigation_task = self._make_navigation_task(POKER)
-        self.assertEqual({"Zones"}, get_applicable_scalar_groups(navigation_task))
+        self.assertEqual({"General", "Zones"}, get_applicable_scalar_groups(navigation_task))
 
-    def test_legacy_landing_shows_no_scalar_groups_at_all(self):
+    def test_legacy_landing_shows_only_general(self):
         navigation_task = self._make_navigation_task(LANDING)
-        self.assertEqual(set(), get_applicable_scalar_groups(navigation_task))
+        self.assertEqual({"General"}, get_applicable_scalar_groups(navigation_task))
 
     def test_real_precision_default_scorecard_still_resolves_correctly(self):
         # Sanity check against a real, fully-populated default scorecard rather than only the
@@ -145,6 +145,6 @@ class TestScorecardScalarGroupApplicability(TestCase):
             finish_time=datetime.datetime(2026, 1, 1, 16, tzinfo=datetime.timezone.utc),
         )
         self.assertEqual(
-            {"Backtracking", "Zones"},
+            {"General", "Backtracking", "Zones"},
             get_applicable_scalar_groups(navigation_task),
         )

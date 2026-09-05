@@ -11,6 +11,11 @@ from display.utilities.gate_definitions import CIRCLE_CENTER, CIRCLE_ENTRY, CIRC
 
 logger = logging.getLogger(__name__)
 
+# The catalogue's 2.A7 Pmax (documentation/cima/cima_task_catalog.md: "P = (Rmin/Rmax - 0,5) *
+# 500 ... Pmax = 250"), and also this calculator's "lose the whole task" penalty for a
+# disqualifying violation - both express the same maximum, so a single constant.
+CIRCLE_MAXIMUM_SCORE = 250.0
+
 
 class CircleCalculator(Calculator):
     def __init__(
@@ -79,7 +84,7 @@ class CircleCalculator(Calculator):
         if event.gate.name in entry_names and not self.started:
             self.entered = True
             self.entry_position = event.position
-            self._emit(event, 250, "circle entry before circle start", ANOMALY, "circle_invalid_entry")
+            self._emit(event, CIRCLE_MAXIMUM_SCORE, "circle entry before circle start", ANOMALY, "circle_invalid_entry")
             return
 
         if event.gate.name in entry_names and not self.entered:
@@ -92,14 +97,20 @@ class CircleCalculator(Calculator):
             self.cumulative_progress_deg = 0.0
             self.final_score_ready = False
             if not self._is_valid_straight_entry():
-                self._emit(event, 250, "circle entry not flown over SP and CM", ANOMALY, "circle_invalid_entry_line")
+                self._emit(
+                    event,
+                    CIRCLE_MAXIMUM_SCORE,
+                    "circle entry not flown over SP and CM",
+                    ANOMALY,
+                    "circle_invalid_entry_line",
+                )
                 return
             self._emit(event, 0, "circle entry passed", INFORMATION, "circle_entry")
             return
 
         if event.gate.name in exit_names and not self.entered:
             self.exited = True
-            self._emit(event, 250, "circle exit before circle entry", ANOMALY, "circle_invalid_exit")
+            self._emit(event, CIRCLE_MAXIMUM_SCORE, "circle exit before circle entry", ANOMALY, "circle_invalid_exit")
             return
 
         if event.gate.name in exit_names and self.entered and not self.exited:
@@ -110,25 +121,60 @@ class CircleCalculator(Calculator):
                 self.radius_samples_m.append(radius_m)
             self._capture_altitude(event.position)
             if self._is_clockwise_turn(event.position):
-                self._emit(event, 250, "circle flown clockwise", ANOMALY, "circle_invalid_direction")
+                self._emit(event, CIRCLE_MAXIMUM_SCORE, "circle flown clockwise", ANOMALY, "circle_invalid_direction")
                 return
             if self._is_radius_outside_limits(event.position):
-                self._emit(event, 250, "circle radius outside allowed limits", ANOMALY, "circle_invalid_radius")
+                self._emit(
+                    event,
+                    CIRCLE_MAXIMUM_SCORE,
+                    "circle radius outside allowed limits",
+                    ANOMALY,
+                    "circle_invalid_radius",
+                )
                 return
             if self._has_invalid_score_ratio():
-                self._emit(event, 250, "circle score ratio outside allowed limits", ANOMALY, "circle_invalid_score_ratio")
+                self._emit(
+                    event,
+                    CIRCLE_MAXIMUM_SCORE,
+                    "circle score ratio outside allowed limits",
+                    ANOMALY,
+                    "circle_invalid_score_ratio",
+                )
                 return
             if self._is_center_outside_flown_circle():
-                self._emit(event, 250, "circle center marker outside flown circle", ANOMALY, "circle_invalid_center")
+                self._emit(
+                    event,
+                    CIRCLE_MAXIMUM_SCORE,
+                    "circle center marker outside flown circle",
+                    ANOMALY,
+                    "circle_invalid_center",
+                )
                 return
             if not self._has_completed_scored_arc():
-                self._emit(event, 250, "circle scored arc not completed", ANOMALY, "circle_incomplete_scored_arc")
+                self._emit(
+                    event,
+                    CIRCLE_MAXIMUM_SCORE,
+                    "circle scored arc not completed",
+                    ANOMALY,
+                    "circle_incomplete_scored_arc",
+                )
                 return
             score = self._calculate_circle_score()
-            self._emit(event, score, f"circle score {score:.1f} points", INFORMATION, "circle_score")
+            # _emit's value is a penalty magnitude subtracted from the scorecard's initial_score
+            # (see contestant_processor.update_score_from_thread's desc-sign handling) - every
+            # other call site in this method already emits one directly (250 = "lose the whole
+            # task"). The achieved circle score is the opposite shape (higher = better), so it
+            # must be converted to "how much of the maximum was lost" here, not emitted as-is -
+            # emitting it directly previously made a near-perfect circle score almost as badly
+            # as an outright violation once combined with a descending scorecard.
+            self._emit(
+                event, CIRCLE_MAXIMUM_SCORE - score, f"circle score {score:.1f} points", INFORMATION, "circle_score"
+            )
             altitude_penalty = self._calculate_altitude_penalty(score)
             if altitude_penalty > 0:
-                self._emit(event, altitude_penalty, "circle altitude spread penalty", ANOMALY, "circle_altitude_penalty")
+                self._emit(
+                    event, altitude_penalty, "circle altitude spread penalty", ANOMALY, "circle_altitude_penalty"
+                )
             self._emit(event, 0, "circle exit passed", INFORMATION, "circle_exit")
 
     def _resolve_circle_geometry(self):
@@ -266,14 +312,14 @@ class CircleCalculator(Calculator):
         if not samples:
             samples = [sample for sample in self.radius_samples_m if sample is not None and sample > 0]
         if not samples:
-            return 250.0
+            return CIRCLE_MAXIMUM_SCORE
         rmin = min(samples)
         rmax = max(samples)
         if rmax <= 0:
-            return 250.0
+            return CIRCLE_MAXIMUM_SCORE
         ratio = rmin / rmax
         score = (ratio - 0.5) * 500
-        return max(0.0, min(250.0, round(score, 1)))
+        return max(0.0, min(CIRCLE_MAXIMUM_SCORE, round(score, 1)))
 
     def _has_invalid_score_ratio(self) -> bool:
         samples = [sample for sample in self.progress_radius_samples if sample is not None and sample > 0]

@@ -249,3 +249,51 @@ def validate_subtype_family_compatibility(subtype: str | None, coarse_family: st
 
 def get_default_task_subtype_for_family(coarse_family: str) -> str | None:
     return LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(coarse_family)
+
+
+# The catalogue's per-task maximum score, for subtypes where that maximum is a fixed constant
+# (not route-/declaration-dependent) and where the scoring calculator has been confirmed to emit
+# properly-signed penalty magnitudes (see contestant_processor.update_score_from_thread's
+# desc-sign handling): (score_sorting_direction, initial_score).
+#
+# - 2.A1-2.A5 (CURVE_NAVIGATION_TIME_ESTIMATION..UNKNOWN_LEGS): the catalogue normalizes every
+#   one of these onto a fixed 0-1000 scale ("P = 1000 x Q / Qmax") - gate_calculator.py /
+#   backtracking_and_procedure_turns.py, which score all of them, only ever emit positive
+#   penalty magnitudes (no positive "achievement" values mixed in), so this is a safe default.
+# - CIRCLE (2.A7): Pmax = 250 (documentation/cima/cima_task_catalog.md), matches
+#   circle_calculator.py's CIRCLE_MAXIMUM_SCORE.
+# - ANR_CATALOGUE (2.A8): "the competitor will start with 2.000 points" (cima_task_catalog.md).
+#   anr_corridor_calculator.py only ever emits positive penalty magnitudes.
+#
+# Deliberately excluded - do not add without also confirming/fixing the underlying calculator:
+# - TURNPOINT_HUNT / LIMITED_FUEL_TURNPOINT_HUNT (2.A6/2.B2): the catalogue's maximum is
+#   additive and route-dependent (100/photo + 200/gate + a sequence bonus - grows with however
+#   many photos/gates the organizer places), not a fixed constant: there is no single correct
+#   default here yet, and no calculator computing it from the route. The organizer can still set
+#   a value manually via the scorecard editor's General group.
+# - DURATION (2.B3): duration_calculator.py mixes a positive "achievement" value (more minutes
+#   flown = better, meant to add) with a positive-penalty landing-area-outside deduction (meant
+#   to subtract) using the same unconditional-positive convention as circle_calculator.py used
+#   to before its fix - flipping this default without first giving duration_calculator.py the
+#   same treatment would make an out-of-area landing score *better* under a descending scorecard.
+CIMA_SCORING_BASELINE: dict[str, tuple[str, float]] = {
+    CURVE_NAVIGATION_TIME_ESTIMATION: ("desc", 1000),
+    PRECISION_NAVIGATION: ("desc", 1000),
+    CONTRACT_NAVIGATION_TIME_CONTROLS: ("desc", 1000),
+    KNOWN_CIRCUIT: ("desc", 1000),
+    UNKNOWN_LEGS: ("desc", 1000),
+    CIRCLE: ("desc", 250),
+    ANR_CATALOGUE: ("desc", 2000),
+}
+
+
+def get_cima_scoring_baseline(subtype: str | None) -> tuple[str, float] | None:
+    """
+    (score_sorting_direction, initial_score) to apply to a freshly-copied task scorecard for the
+    given CIMA task subtype, or None if this subtype has no known fixed-maximum default (legacy
+    tasks, an unrecognised/blank subtype, and the subtypes documented above as deliberately
+    excluded all return None here - callers should leave the copied scorecard untouched).
+    """
+    if subtype in (None, ""):
+        return None
+    return CIMA_SCORING_BASELINE.get(subtype)

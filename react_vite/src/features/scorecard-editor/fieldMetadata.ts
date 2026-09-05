@@ -16,6 +16,10 @@ export interface FieldMeta {
 // them as sections instead of one long flat list.
 export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[] = [
     {
+        title: 'General',
+        fields: ['score_sorting_direction', 'initial_score'],
+    },
+    {
         title: 'Backtracking',
         fields: [
             'backtracking_penalty',
@@ -70,6 +74,18 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
 ];
 
 export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
+    score_sorting_direction: {
+        label: 'Score sorting direction',
+        kind: 'choice',
+        choices: [
+            { value: 'asc', label: 'Ascending (lowest wins)' },
+            { value: 'desc', label: 'Descending (highest wins)' },
+        ],
+    },
+    initial_score: {
+        label: 'Initial score',
+        kind: 'number',
+    },
     backtracking_penalty: { label: 'Backtracking penalty', kind: 'number', min: 0 },
     backtracking_bearing_difference: { label: 'Backtracking bearing difference', kind: 'number', unit: '°', min: 0 },
     backtracking_grace_time_seconds: { label: 'Backtracking grace time', kind: 'number', unit: 's', min: 0 },

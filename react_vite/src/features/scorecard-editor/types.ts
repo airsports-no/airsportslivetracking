@@ -69,8 +69,6 @@ export type ScalarFieldName = Exclude<
     | 'shortcut_name'
     | 'valid_from'
     | 'free_text'
-    | 'score_sorting_direction'
-    | 'initial_score'
     | 'task_type'
     | 'corridor_width'
     | 'gatescore_set'

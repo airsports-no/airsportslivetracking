@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models, IntegrityError
+from django.db import IntegrityError, models
 from django.db.models import Q
 from django.urls import reverse
 from geopy import Nominatim
@@ -14,17 +14,23 @@ from geopy.exc import GeopyError
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 
 from display.fields.my_pickled_object_field import MyPickledObjectField
+from display.flight_order_and_maps.map_plotter_shared_utilities import (
+    get_available_map_source_definitions_for_navigation_task,
+)
 from display.templatetags.frontend_urls import fe_url
-from display.flight_order_and_maps.map_plotter_shared_utilities import get_available_map_source_definitions_for_navigation_task
+from display.utilities.cima_task_type_definitions import (
+    NO_BACKBONE_TASK_SUBTYPES,
+    get_cima_scoring_baseline,
+    get_default_task_subtype_for_family,
+)
 from display.utilities.navigation_task_type_definitions import (
+    AIRSPORT_CHALLENGE,
+    AIRSPORTS,
+    ANR_CORRIDOR,
+    LANDING,
     POKER,
     PRECISION,
-    ANR_CORRIDOR,
-    AIRSPORTS,
-    AIRSPORT_CHALLENGE,
-    LANDING,
 )
-from display.utilities.cima_task_type_definitions import NO_BACKBONE_TASK_SUBTYPES, get_default_task_subtype_for_family
 from display.utilities.task_information import build_navigation_task_information
 
 if typing.TYPE_CHECKING:
@@ -345,7 +351,20 @@ class NavigationTask(models.Model):
             if self.scorecard:
                 self.scorecard.delete()
             self.scorecard = self.original_scorecard.copy(self.pk)
+            # Link the new scorecard to this task before touching its fields below, not after -
+            # Scorecard's pre_save signal (update_contestant_initial_score, signals.py) propagates
+            # an initial_score change onto every existing contestant's track via the scorecard's
+            # reverse `navigation_task_override` relation, which only resolves once this FK is
+            # actually persisted (relevant on `force=True`, i.e. resetting an in-progress task's
+            # scorecard back to standard - a brand new task has no contestants yet either way).
             self.save(update_fields=("scorecard",))
+            baseline = get_cima_scoring_baseline(self.task_subtype)
+            if baseline is not None:
+                # Only the fresh per-task copy is touched, never original_scorecard itself -
+                # the same "FAI Precision"/"FAI ANR" originals are shared with legacy tasks,
+                # which must keep their ascending-from-zero defaults untouched.
+                self.scorecard.score_sorting_direction, self.scorecard.initial_score = baseline
+                self.scorecard.save(update_fields=("score_sorting_direction", "initial_score"))
             if hasattr(self, "tasktest"):
                 self.tasktest.sorting = self.score_sorting_direction
                 self.tasktest.save(update_fields=["sorting"])
