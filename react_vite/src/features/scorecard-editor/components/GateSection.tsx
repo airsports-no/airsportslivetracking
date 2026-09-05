@@ -52,10 +52,13 @@ export const GateSection: React.FC<GateSectionProps> = ({ gateType, scorecard, s
         })),
     );
 
+    const anyOverridden = GATE_FIELD_ORDER.some((field) => isGateFieldOverridden(scorecard, state, gateType, field));
+
     return (
         <CollapsibleCard
             title={getGateTypeDisplayName(gateType)}
             summary={summary}
+            overridden={anyOverridden}
             headerExtra={
                 <button
                     type="button"

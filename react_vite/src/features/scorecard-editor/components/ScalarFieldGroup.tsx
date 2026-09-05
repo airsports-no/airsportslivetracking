@@ -60,8 +60,10 @@ export const ScalarFieldGroup: React.FC<ScalarFieldGroupProps> = ({
         })),
     );
 
+    const anyOverridden = fields.some((field) => isScalarFieldOverridden(scorecard, state, field));
+
     return (
-        <CollapsibleCard title={title} summary={summary}>
+        <CollapsibleCard title={title} summary={summary} overridden={anyOverridden}>
             {primaryFields.map(renderField)}
             {advancedFields.length > 0 && (
                 <div className="collapse collapse-arrow bg-base-200 mt-2">
