@@ -45,6 +45,8 @@ export const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
                                 {overridden ? (
                                     <span
                                         className="badge badge-xs badge-warning"
+                                        role="img"
+                                        aria-label="One or more values differ from standard"
                                         title="One or more values differ from standard"
                                     />
                                 ) : null}
