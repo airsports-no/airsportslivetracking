@@ -289,6 +289,41 @@ class TestCimaGateQmaxNormalization(TestCase):
         processor.update_score_from_thread(self._gate_penalty_message("TP1", 30))
         self.assertEqual(processor.score, 30)
 
+    def test_falls_back_to_flat_addition_when_scorecard_reconfigured_to_ascending(self, *args):
+        # Regression test (CodeRabbit finding on #756): score_sorting_direction and
+        # initial_score are freely organizer-editable independent of task_subtype (the
+        # scorecard editor's General group) - get_cima_gate_qmax only checks
+        # effective_task_subtype, so it still returns a qmax here even though the scorecard was
+        # edited back to ascending after creation. Without the direction guard,
+        # _cima_normalized_gate_score_delta would apply the "start at ceiling, subtract" formula
+        # to a scorecard that isn't one, producing a nonsensical negative-going result instead
+        # of the correct ascending-accumulate-from-0 behavior.
+        task = self._make_two_turnpoint_task()
+        task.scorecard.score_sorting_direction = "asc"
+        task.scorecard.initial_score = 0
+        task.scorecard.save(update_fields=["score_sorting_direction", "initial_score"])
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+        self.assertEqual(processor.score, 0)
+
+        processor.update_score_from_thread(self._gate_penalty_message("TP1", 50))
+        self.assertEqual(processor.score, 50)  # raw magnitude, added - not desc-normalized
+
+    def test_falls_back_to_flat_subtraction_when_initial_score_is_cleared_to_zero(self, *args):
+        # Same organizer-editability concern, the other failure mode: initial_score=0 with
+        # score_sorting_direction still "desc" would make new_component = 0 * (...) always 0,
+        # silently erasing all scoring signal regardless of actual performance, if
+        # _cima_normalized_gate_score_delta didn't guard against it.
+        task = self._make_two_turnpoint_task()
+        task.scorecard.initial_score = 0
+        task.scorecard.save(update_fields=["initial_score"])
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+        self.assertEqual(processor.score, 0)
+
+        processor.update_score_from_thread(self._gate_penalty_message("TP1", 50))
+        self.assertEqual(processor.score, -50)  # raw magnitude, sign-flipped and subtracted from 0
+
     def test_qmax_uses_contestant_declared_subset_not_the_full_shared_route(self, *args):
         # 2.A3 (CONTRACT_NAVIGATION_TIME_CONTROLS): the organizer's shared route can carry many
         # more catalogue turnpoints than any one contestant declares to fly - see
@@ -729,3 +764,16 @@ class TestTurnpointHuntAchievementQmaxNormalization(TestCase):
 
         processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 42, "A"))
         self.assertEqual(processor.score, 42)  # raw, un-normalized
+
+    def test_falls_back_to_raw_sum_when_scorecard_reconfigured_to_ascending(self, *args):
+        # Same organizer-editability concern as TestCimaGateQmaxNormalization's analogous test:
+        # score_sorting_direction is freely editable independent of task_subtype, so
+        # get_cima_achievement_qmax still returns a qmax here even after the scorecard was
+        # edited away from the desc/climb-from-0 model this normalization assumes.
+        contestant = self._make_task_and_contestant_with_targets({"A": 60, "B": 40})
+        contestant.navigation_task.scorecard.score_sorting_direction = "asc"
+        contestant.navigation_task.scorecard.save(update_fields=["score_sorting_direction"])
+        processor = self._bare_processor(contestant)
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 60, "A"))
+        self.assertEqual(processor.score, 60)  # raw magnitude, not normalized to 1000*60/100

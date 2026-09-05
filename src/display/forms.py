@@ -976,7 +976,8 @@ class ScorecardForm(forms.ModelForm):
     circle_radius_max_m = forms.FloatField()
     speed_keeping_tolerance_kt = forms.FloatField()
     speed_keeping_penalty_per_kt = forms.FloatField()
-    turnpoint_hunt_sequence_bonus = forms.FloatField()
+    # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
+    turnpoint_hunt_sequence_bonus = forms.FloatField(min_value=0)
 
     class Meta:
         model = Scorecard

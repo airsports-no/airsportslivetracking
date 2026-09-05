@@ -760,12 +760,24 @@ class ContestantProcessor:
         before, only the GATE_SCORE_TYPE component is normalized.
 
         Returns None (meaning: use the raw magnitude, unchanged from before this method existed)
-        when this task's subtype/route isn't eligible for gate-Qmax normalization.
+        when this task's subtype/route isn't eligible for gate-Qmax normalization, or when the
+        scorecard's own sort direction/initial_score no longer match the "start at a ceiling,
+        subtract" model this formula assumes. get_cima_gate_qmax only checks
+        effective_task_subtype - score_sorting_direction and initial_score are freely organizer-
+        editable independent of subtype (the scorecard editor's General group), so a CIMA task
+        whose scorecard was edited back to ascending, or to a 0/negative initial_score, must fall
+        back to the raw magnitude instead of computing a nonsensical result: initial_score <= 0
+        would make new_component always 0 regardless of actual performance (silently erasing all
+        scoring signal), and a non-desc direction means the "start at ceiling, subtract" shape
+        doesn't apply at all.
         """
         qmax = self._get_cima_gate_qmax()
         if qmax is None:
             return None
-        initial_score = self.contestant.navigation_task.scorecard.initial_score
+        scorecard = self.contestant.navigation_task.scorecard
+        if scorecard.score_sorting_direction != "desc" or scorecard.initial_score <= 0:
+            return None
+        initial_score = scorecard.initial_score
         gate_deficit = self.accumulated_scores.related_score.get(GATE_SCORE_TYPE, 0)
         new_component = initial_score * (1 - gate_deficit / qmax)
         delta = new_component - self._cima_gate_component
@@ -791,10 +803,15 @@ class ContestantProcessor:
         is a genuine penalty and keeps accumulating linearly, untouched by this.
 
         Returns None (meaning: use the raw achievement magnitude, un-normalized) when this
-        task's subtype/declaration isn't eligible for achievement-Qmax normalization.
+        task's subtype/declaration isn't eligible for achievement-Qmax normalization, or when
+        the scorecard's own sort direction no longer matches the additive-desc model this
+        assumes (see the analogous check in _cima_normalized_gate_score_delta -
+        score_sorting_direction is freely organizer-editable independent of subtype).
         """
         qmax = self._get_cima_achievement_qmax()
         if qmax is None:
+            return None
+        if self.contestant.navigation_task.scorecard.score_sorting_direction != "desc":
             return None
         achieved = self.accumulated_scores.related_score.get(
             TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE, 0

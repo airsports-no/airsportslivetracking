@@ -1137,7 +1137,8 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     circle_radius_max_m = serializers.FloatField(required=False)
     speed_keeping_tolerance_kt = serializers.FloatField(required=False)
     speed_keeping_penalty_per_kt = serializers.FloatField(required=False)
-    turnpoint_hunt_sequence_bonus = serializers.FloatField(required=False)
+    # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
+    turnpoint_hunt_sequence_bonus = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
 
     class Meta:
         model = Scorecard
