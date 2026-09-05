@@ -37,6 +37,7 @@ function makeScorecard(overrides: Partial<ScorecardData> = {}): ScorecardData {
             },
         ],
         applicable_gate_types: ['tp'],
+        applicable_scalar_groups: [],
         original_scorecard: null,
         ...overrides,
     };

@@ -8,18 +8,29 @@ dataclass's real default, since the key is present), and every calculator/task_i
 call doing arithmetic on that field raises TypeError or silently produces "None" in rendered
 text (see PR #753 review, flagged against the same class of bug already fixed for
 ScorecardAdminForm in test_scorecard_admin.py).
+
+Assertions reload the Scorecard from the database (and clear SCORECARD_CACHE first) rather
+than reading straight off the same in-memory instance GateScoreForm mutated - form.save()
+mutates self.scorecard.config in place before the actual `.save()` call, so reading that same
+object afterwards would pass even if the `.save()` call itself were accidentally removed and
+nothing was ever persisted (also flagged in the PR #753 review).
 """
 
 from django.test import TestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.forms import GateScoreForm
+from display.models import Scorecard
 from display.utilities.gate_definitions import TURNPOINT
 
 
 class TestGateScoreFormSave(TestCase):
     def setUp(self):
+        Scorecard.SCORECARD_CACHE.clear()
         self.scorecard = get_default_scorecard()
+
+    def tearDown(self):
+        Scorecard.SCORECARD_CACHE.clear()
 
     def _bound_form(self, **overrides):
         gate = self.scorecard.get_gate_scorecard(TURNPOINT)
@@ -27,15 +38,20 @@ class TestGateScoreFormSave(TestCase):
         data.update(overrides)
         return GateScoreForm(data=data, scorecard=self.scorecard, gate_type=TURNPOINT)
 
+    def _reloaded_maximum_penalty(self) -> float:
+        self.scorecard.refresh_from_db()
+        Scorecard.SCORECARD_CACHE.clear()
+        return self.scorecard.get_gate_scorecard(TURNPOINT).maximum_penalty
+
     def test_clearing_a_field_does_not_wipe_the_configured_value(self):
         before = self.scorecard.get_gate_scorecard(TURNPOINT).maximum_penalty
         form = self._bound_form(maximum_penalty="")
         self.assertTrue(form.is_valid(), form.errors)
         form.save()
-        self.assertEqual(before, self.scorecard.get_gate_scorecard(TURNPOINT).maximum_penalty)
+        self.assertEqual(before, self._reloaded_maximum_penalty())
 
     def test_setting_a_field_still_saves_normally(self):
         form = self._bound_form(maximum_penalty=999)
         self.assertTrue(form.is_valid(), form.errors)
         form.save()
-        self.assertEqual(999, self.scorecard.get_gate_scorecard(TURNPOINT).maximum_penalty)
+        self.assertEqual(999, self._reloaded_maximum_penalty())
