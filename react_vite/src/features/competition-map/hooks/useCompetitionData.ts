@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchNavigationTask, fetchContestantPaginatedTrack, fetchContestantScoreData, makeWebSocket, fetchContestantSlice } from '../api';
 import type { Contestant, NavigationTask, TrackPosition, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData, Waypoint } from '../types';
+import { evaluateIncomingMessage, mergeAcceptedVersions, takeHigherVersion, VersionState } from './wsMessageOrdering';
 
 export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback', showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void) {
     const [staticNavTaskData, setStaticNavTaskData] = useState<NavigationTask | null>(null);
@@ -61,6 +62,37 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     // reload (which re-fetches via REST instead of trusting this ordering heuristic) fixed.
     const latestMsgIdsRef = useRef<Record<string, number>>({});
 
+    // Tracks the latest ACCEPTED track_version/score_version per contestant, updated
+    // synchronously the instant a message is processed below. This is deliberately separate
+    // from contestantsByIdRef, which only reflects committed React state and is synced by a
+    // useEffect that runs after a render commits - one or more renders behind during a
+    // recalculation burst (this hook can receive hundreds of position_data/score_log messages
+    // back-to-back before React gets a chance to re-render). If the stale-message guard below
+    // compared against contestantsByIdRef instead, every message in such a burst would be
+    // checked against the SAME pre-burst snapshot, so a genuinely stale message (an old
+    // track_version/score_version still in flight from before the recalculation) could slip
+    // past the guard even after a newer message for the same contestant was already accepted
+    // moments earlier in the same burst - and since updateContestant() merges track_version/
+    // score_version unconditionally (it trusts the guard, not re-checking itself), that stale
+    // message would then regress the contestant's version fields (and whatever score/track data
+    // came with it) right after the correct, newer value had just been applied.
+    const latestVersionsRef = useRef<Record<number, VersionState>>({});
+
+    // Seeds/raises latestVersionsRef from authoritative REST data (initial load, or the
+    // full re-fetch handleStaleConnection does before replaying buffered ws messages) so the
+    // stale-message guard in processWsMessage has a correct baseline immediately, rather than
+    // only learning a contestant's version from whatever the next ws message happens to say.
+    const seedVersionsFromContestants = useCallback((contestants: Contestant[]) => {
+        contestants.forEach((c) => {
+            if (!c) return;
+            const prev = latestVersionsRef.current[c.id];
+            latestVersionsRef.current[c.id] = {
+                track_version: takeHigherVersion(prev?.track_version, c.track_version),
+                score_version: takeHigherVersion(prev?.score_version, c.score_version),
+            };
+        });
+    }, []);
+
     const wsBufferRef = useRef<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimerRef = useRef<number | null>(null);
@@ -114,39 +146,28 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             
             if (!contestantId) return;
 
-            // Handle ordering and versioning
+            // Handle ordering and versioning. Use latestVersionsRef (synchronous, see its
+            // declaration above), not contestantsByIdRef - the latter lags behind by however
+            // many messages in this burst haven't triggered a React render yet. See
+            // wsMessageOrdering.ts for why this can't just read post-render state.
             const msgId = payload.msg_id;
-            const existing = contestantsByIdRef.current[contestantId];
-            
-            if (existing) {
-                // If the message has a lower version than what we have, reject it.
-                // This is crucial for fast recalculations where old states might still be in flight.
-                if (payload.track_version !== undefined && payload.track_version < existing.track_version) {
-                    return;
-                }
-                if (payload.score_version !== undefined && payload.score_version < existing.score_version) {
-                    return;
-                }
+            const msgTypeKey = `${contestantId}:${msg.type}`;
+            const versions = latestVersionsRef.current[contestantId];
+            const latestMsgId = latestMsgIdsRef.current[msgTypeKey] || 0;
+
+            const evaluation = evaluateIncomingMessage(versions, latestMsgId, {
+                msgId,
+                trackVersion: payload.track_version,
+                scoreVersion: payload.score_version,
+            });
+            if (!evaluation.accept) {
+                // console.debug(`WS: Rejecting out-of-order/stale message for ${contestantId}`);
+                return;
             }
-
-            if (msgId) {
-                // Ordering is only meaningful within a single message type's own stream (see
-                // the latestMsgIdsRef declaration above) - a differently-typed message must
-                // never be able to mark this one as stale.
-                const msgTypeKey = `${contestantId}:${msg.type}`;
-                const latestMsgId = latestMsgIdsRef.current[msgTypeKey] || 0;
-                if (msgId < latestMsgId) {
-                    // Only reject based on msgId if the versions are the SAME.
-                    // If the message has a HIGHER version, it overrides msgId (reset event).
-                    const sameTrackVersion = payload.track_version === undefined || (existing && payload.track_version === existing.track_version);
-                    const sameScoreVersion = payload.score_version === undefined || (existing && payload.score_version === existing.score_version);
-
-                    if (sameTrackVersion && sameScoreVersion) {
-                        // console.debug(`WS: Rejecting out-of-order message for ${contestantId} (${msgId} < ${latestMsgId})`);
-                        return;
-                    }
-                }
-                latestMsgIdsRef.current[msgTypeKey] = msgId;
+            latestMsgIdsRef.current[msgTypeKey] = evaluation.nextLatestMsgId;
+            const mergedVersions = mergeAcceptedVersions(versions, payload.track_version, payload.score_version);
+            if (mergedVersions) {
+                latestVersionsRef.current[contestantId] = mergedVersions;
             }
 
             if (msg.type === 'contestant') {
@@ -156,6 +177,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             }
 
             if (msg.type === 'contestant_delete') {
+                delete latestVersionsRef.current[contestantId];
                 setContestantsById(prev => {
                     const newContestants = { ...prev };
                     delete newContestants[contestantId];
@@ -457,6 +479,11 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         if (contestantsToRefetch.length > 0) {
             const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(contestantsToRefetch, setProgress);
 
+            // Seed BEFORE replaying the buffer below, so any buffered message that's actually
+            // stale relative to what we just fetched gets correctly rejected instead of being
+            // judged against a baseline that doesn't know about this fetch yet.
+            seedVersionsFromContestants(Object.values(contestantUpdates));
+
             setPositionsByContestant(prev => ({...prev, ...positionUpdates}));
             setAnnotationsByContestant(prev => ({...prev, ...annotationUpdates}));
             setScoreLogByContestant(prev => ({...prev, ...scoreLogUpdates}));
@@ -469,7 +496,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         wsBufferRef.current = [];
 
         setIsReFetching(false);
-    }, [fetchAllContestantData, processWsMessage]);
+    }, [fetchAllContestantData, processWsMessage, seedVersionsFromContestants]);
 
     // Effect to handle mode change to 'realtime'
     useEffect(() => {
@@ -494,10 +521,12 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                         return acc;
                     }, {} as Record<number, Contestant>);
                     setContestantsById(initialContestantsMap);
+                    seedVersionsFromContestants(task.contestant_set);
                     setShouldConnectWs(true);
 
                     const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(task.contestant_set, setProgress);
                     if (!cancelled) {
+                        seedVersionsFromContestants(Object.values(contestantUpdates));
                         setPositionsByContestant(positionUpdates);
                         setAnnotationsByContestant(annotationUpdates);
                         setScoreLogByContestant(scoreLogUpdates);
@@ -515,7 +544,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         return () => {
             cancelled = true;
         };
-    }, [contestIdNum, navigationTaskIdNum, fetchAllContestantData]);
+    }, [contestIdNum, navigationTaskIdNum, fetchAllContestantData, seedVersionsFromContestants]);
 
     // WebSocket and Stale Connection Detector
     useEffect(() => {
