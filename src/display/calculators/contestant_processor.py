@@ -11,6 +11,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import IntegrityError
 
 from display.calculators.calculator_factory import calculator_factory
+from display.calculators.cima_score_normalization import get_cima_gate_qmax
+from display.calculators.gate_calculator import GATE_SCORE_TYPE
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_track import ContestantTrack
 from display.utilities.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
@@ -721,6 +723,41 @@ class ContestantProcessor:
                         break
                     time.sleep(0.5)
 
+    def _get_cima_gate_qmax(self) -> Optional[float]:
+        # Lazily computed and cached on first use rather than in __init__: some tests
+        # (test_cima_descending_scoring.py) construct a bare ContestantProcessor via
+        # object.__new__ specifically to exercise this scoring logic without __init__'s
+        # Redis/Traccar/thread setup - see that module's docstring. Qmax only depends on the
+        # task's route + scorecard, neither of which changes mid-flight, so computing it once
+        # and reusing it is safe regardless of when in the processor's lifecycle this first runs.
+        if not hasattr(self, "_cima_gate_qmax_cache"):
+            self._cima_gate_qmax_cache = get_cima_gate_qmax(self.contestant.navigation_task)
+            self._cima_gate_component = self.contestant.navigation_task.scorecard.initial_score
+        return self._cima_gate_qmax_cache
+
+    def _cima_normalized_gate_score_delta(self) -> Optional[float]:
+        """
+        The catalogue's P = 1000 * Q / Qmax normalization (see cima_score_normalization.py),
+        converted into a delta to apply to self.score in place of the raw per-event penalty
+        magnitude. self._cima_gate_component tracks the gate-crossing component's current
+        contribution to self.score (starting at scorecard.initial_score) so that only the
+        INCREMENTAL change from this one event is returned - self.score's other bookkeeping
+        (backtracking, procedure turns, ...) is untouched and keeps accumulating linearly as
+        before, only the GATE_SCORE_TYPE component is normalized.
+
+        Returns None (meaning: use the raw magnitude, unchanged from before this method existed)
+        when this task's subtype/route isn't eligible for gate-Qmax normalization.
+        """
+        qmax = self._get_cima_gate_qmax()
+        if qmax is None:
+            return None
+        initial_score = self.contestant.navigation_task.scorecard.initial_score
+        gate_deficit = self.accumulated_scores.related_score.get(GATE_SCORE_TYPE, 0)
+        new_component = initial_score * (1 - gate_deficit / qmax)
+        delta = new_component - self._cima_gate_component
+        self._cima_gate_component = new_component
+        return delta
+
     def update_score_from_thread(self, update_score_message: UpdateScoreMessage):
         """
         Constructs the score structures required to update the contestants score. Optionally cap the score if it has a
@@ -746,6 +783,10 @@ class ContestantProcessor:
         # is always present, and __init__ reads the scorecard the same way (line ~134 above).
         if self.contestant.navigation_task.scorecard.score_sorting_direction == "desc":
             score = -score
+        if update_score_message.score_type == GATE_SCORE_TYPE:
+            normalized_delta = self._cima_normalized_gate_score_delta()
+            if normalized_delta is not None:
+                score = normalized_delta
         if update_score_message.planned is not None and update_score_message.actual is not None:
             offset = (update_score_message.actual - update_score_message.planned).total_seconds()
             # Must use round, this is the same as used in the score calculation
