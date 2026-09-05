@@ -9,6 +9,12 @@ from display.utilities.cima_task_type_definitions import (
     CURVE_NAVIGATION_TIME_ESTIMATION,
     DURATION,
     KNOWN_CIRCUIT,
+    LEGACY_AIRSPORT_CHALLENGE,
+    LEGACY_AIRSPORTS,
+    LEGACY_ANR_CORRIDOR,
+    LEGACY_LANDING,
+    LEGACY_POKER,
+    LEGACY_PRECISION,
     LIMITED_FUEL_TURNPOINT_HUNT,
     PRECISION_NAVIGATION,
     TURNPOINT_HUNT,
@@ -77,10 +83,130 @@ def _anr_family_overrides(navigation_task) -> list[str]:
         f"{_format_float(scorecard.corridor_grace_time)} s grace at "
         f"{_format_float(scorecard.corridor_outside_penalty)} point(s) per second.",
     ]
-    if getattr(scorecard, "corridor_maximum_penalty", 0):
+    if getattr(scorecard, "corridor_maximum_penalty", -1) >= 0:
         per_leg_text = " per leg" if getattr(scorecard, "corridor_maximum_penalty_is_per_leg", False) else ""
         overrides.append(
             f"Maximum corridor penalty is {_format_float(scorecard.corridor_maximum_penalty)} points{per_leg_text}."
+        )
+    return _clean_lines(overrides)
+
+
+def _gate_width_range_line(route) -> list[str]:
+    widths = [waypoint.width for waypoint in route.waypoints]
+    if not widths:
+        return []
+    low, high = min(widths), max(widths)
+    if low == high:
+        return [f"Gate width is currently {_format_float(low, 2)} NM."]
+    return [f"Gate width currently ranges between {_format_float(low, 2)} and {_format_float(high, 2)} NM."]
+
+
+def _takeoff_landing_gate_overrides(navigation_task) -> list[str]:
+    scorecard = navigation_task.scorecard
+    route = navigation_task.route
+    overrides = []
+    if route.takeoff_gates:
+        try:
+            penalty = scorecard.get_maximum_timing_penalty_for_gate_type("to")
+            if penalty > 0:
+                overrides.append(
+                    "The route has a takeoff gate - crossing it before the takeoff time or more than one "
+                    f"minute after currently gives a penalty of {_format_float(penalty)} points."
+                )
+        except Exception:
+            pass
+    if route.landing_gates:
+        try:
+            penalty = scorecard.get_maximum_timing_penalty_for_gate_type("ldg")
+            if penalty > 0:
+                overrides.append(
+                    "The route has a landing gate - not crossing it by the contestant's finish time currently "
+                    f"gives a penalty of {_format_float(penalty)} points."
+                )
+        except Exception:
+            pass
+    return overrides
+
+
+def _legacy_precision_overrides(navigation_task) -> list[str]:
+    scorecard = navigation_task.scorecard
+    route = navigation_task.route
+    overrides = list(_precision_family_overrides(navigation_task))
+    overrides.extend(_gate_width_range_line(route))
+    try:
+        overrides.append(
+            "Crossing the extended starting line "
+            f"({_format_float(scorecard.get_extended_gate_width_for_gate_type('sp'), 2)} NM wide) backwards "
+            f"currently gives a penalty of {_format_float(scorecard.get_bad_crossing_extended_gate_penalty_for_gate_type('sp'))} points."
+        )
+    except Exception:
+        pass
+    overrides.extend(_takeoff_landing_gate_overrides(navigation_task))
+    return _clean_lines(overrides)
+
+
+def _legacy_anr_corridor_overrides(navigation_task) -> list[str]:
+    scorecard = navigation_task.scorecard
+    overrides = list(_anr_family_overrides(navigation_task))
+    for gate_type, gate_name in (("sp", "starting point"), ("fp", "finish point")):
+        try:
+            overrides.append(
+                f"Missing the {gate_name} currently gives a penalty of "
+                f"{_format_float(scorecard.get_missed_penalty_for_gate_type(gate_type))} points; crossing it more than "
+                f"{_format_float(scorecard.get_graceperiod_before_for_gate_type(gate_type))} s early or "
+                f"{_format_float(scorecard.get_graceperiod_after_for_gate_type(gate_type))} s late currently gives "
+                f"{_format_float(scorecard.get_penalty_per_second_for_gate_type(gate_type))} point(s) per additional second, "
+                f"up to a maximum of {_format_float(scorecard.get_maximum_timing_penalty_for_gate_type(gate_type))} points."
+            )
+        except Exception:
+            pass
+    overrides.extend(_takeoff_landing_gate_overrides(navigation_task))
+    return _clean_lines(overrides)
+
+
+def _legacy_airsports_family_overrides(navigation_task) -> list[str]:
+    scorecard = navigation_task.scorecard
+    route = navigation_task.route
+    overrides = _gate_width_range_line(route)
+    overrides.append(
+        "Leaving the corridor currently gives a penalty of "
+        f"{_format_float(scorecard.corridor_outside_penalty)} point(s) per second beyond the first "
+        f"{_format_float(scorecard.corridor_grace_time)} s grace."
+    )
+    if getattr(scorecard, "corridor_maximum_penalty", -1) >= 0:
+        per_leg_text = " per leg" if getattr(scorecard, "corridor_maximum_penalty_is_per_leg", False) else ""
+        overrides.append(
+            f"Maximum corridor penalty is {_format_float(scorecard.corridor_maximum_penalty)} points{per_leg_text}."
+        )
+    overrides.append(
+        "Entering a prohibited zone currently gives a one-off penalty of "
+        f"{_format_float(scorecard.prohibited_zone_penalty)} points; a penalty zone gives "
+        f"{_format_float(scorecard.penalty_zone_penalty_per_second)} point(s) per second beyond the first "
+        f"{_format_float(scorecard.penalty_zone_grace_time)} s grace."
+        + (
+            f" Each penalty zone is capped at {_format_float(scorecard.penalty_zone_maximum)} points."
+            if getattr(scorecard, "penalty_zone_maximum", -1) >= 0
+            else ""
+        )
+    )
+    for gate_type, gate_name in (("tp", "Regular gates"), ("secret", "Secret gates")):
+        try:
+            overrides.append(
+                f"{gate_name} currently score "
+                f"{_format_float(scorecard.get_penalty_per_second_for_gate_type(gate_type))} point(s) per second "
+                f"after {_format_float(scorecard.get_graceperiod_after_for_gate_type(gate_type))} s grace, with maximum "
+                f"{_format_float(scorecard.get_maximum_timing_penalty_for_gate_type(gate_type))} points and missed-gate "
+                f"penalty {_format_float(scorecard.get_missed_penalty_for_gate_type(gate_type))}."
+            )
+        except Exception:
+            pass
+    overrides.extend(_takeoff_landing_gate_overrides(navigation_task))
+    if getattr(scorecard, "backtracking_penalty", None) is not None:
+        overrides.append(
+            "Backtracking currently penalises deviations beyond "
+            f"{_format_float(scorecard.backtracking_bearing_difference)}° for more than "
+            f"{_format_float(scorecard.backtracking_grace_time_seconds)} s with "
+            f"{_format_float(scorecard.backtracking_penalty)} points."
         )
     return _clean_lines(overrides)
 
@@ -327,6 +453,51 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
                 "A landing area polygon is noted in the task configuration for reference; scoring uses the "
                 "landing area zone drawn in the route editor, not this configuration value."
             )
+    elif subtype == LEGACY_PRECISION:
+        info["objective"] = (
+            "Cross each timing gate as close as possible to the declared time while recognising the "
+            "provided ground-feature pictures along the route."
+        )
+        info["summary"] = _clean_lines(
+            [
+                "The only navigation tools available to the pilot are a paper map annotated with the "
+                "prescribed route and the expected passing times for the gates.",
+            ]
+        )
+        info["overrides"].extend(_legacy_precision_overrides(navigation_task))
+    elif subtype == LEGACY_ANR_CORRIDOR:
+        info["objective"] = (
+            "Keep the aircraft inside the predefined corridor and cross the start and finish lines at "
+            "the predefined times."
+        )
+        info["overrides"].extend(_legacy_anr_corridor_overrides(navigation_task))
+    elif subtype in (LEGACY_AIRSPORTS, LEGACY_AIRSPORT_CHALLENGE):
+        info["objective"] = (
+            "Cross the known and secret gates at the declared times while remaining inside the corridor "
+            "and avoiding any prohibited or penalty zones."
+        )
+        info["summary"] = _clean_lines(
+            [
+                "The only navigation tools available to the pilot are a paper map annotated with the "
+                "prescribed route and the expected passing times for the scorecard.",
+            ]
+        )
+        info["overrides"].extend(_legacy_airsports_family_overrides(navigation_task))
+    elif subtype == LEGACY_POKER:
+        info["objective"] = "Fly the published track and collect a playing card at each waypoint to form the best poker hand."
+        info["summary"] = _clean_lines(
+            [
+                "Each aircraft receives a playing card at each waypoint along a track covering a set of airports or waypoints.",
+                "At the end of the run the collected cards are evaluated as a poker hand; the crew with the highest hand wins.",
+            ]
+        )
+    elif subtype == LEGACY_LANDING:
+        info["objective"] = "Fly the published landing pattern and cross the landing gate as accurately as possible on each round."
+        info["summary"] = _clean_lines(
+            [
+                "Each successful pass through the landing gate currently scores one point as a completed landing round.",
+            ]
+        )
     else:
         coarse_family = navigation_task.coarse_task_family or family_display_name
         info["objective"] = f"This task uses the {str(coarse_family).lower()} family."
