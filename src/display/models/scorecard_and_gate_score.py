@@ -50,6 +50,7 @@ SCORECARD_CONFIG_FIELDS = [
     "circle_radius_max_m",
     "speed_keeping_tolerance_kt",
     "speed_keeping_penalty_per_kt",
+    "turnpoint_hunt_sequence_bonus",
 ]
 
 
@@ -267,6 +268,7 @@ class Scorecard(models.Model):
     circle_radius_max_m = ConfigField(750)
     speed_keeping_tolerance_kt = ConfigField(5)
     speed_keeping_penalty_per_kt = ConfigField(1)
+    turnpoint_hunt_sequence_bonus = ConfigField(0)
 
     def __str__(self):
         return self.name

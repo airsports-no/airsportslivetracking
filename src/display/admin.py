@@ -273,6 +273,10 @@ class ScorecardAdminForm(forms.ModelForm):
     circle_radius_max_m = forms.FloatField(required=False)
     speed_keeping_tolerance_kt = forms.FloatField(required=False)
     speed_keeping_penalty_per_kt = forms.FloatField(required=False)
+    # min_value=0: GateCalculator._score_turnpoint_hunt_sequence_bonus adds this straight through
+    # as an achievement score (see contestant_processor.ACHIEVEMENT_SCORE_TYPES) - a negative
+    # value would silently subtract from a contestant's score for completing the full sequence.
+    turnpoint_hunt_sequence_bonus = forms.FloatField(required=False, min_value=0)
 
     class Meta:
         model = Scorecard

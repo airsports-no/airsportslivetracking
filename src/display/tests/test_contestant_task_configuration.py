@@ -901,7 +901,15 @@ class TestContestantTaskConfiguration(TestCase):
             payload = {}
         self.assertEqual(payload.get("compulsory_point_names"), ["CP1", "CP2", "CP3"])
         self.assertEqual(payload.get("declared_sequence"), ["A", "CP2", "B", "CP1", "CP3"])
-        self.assertEqual(payload.get("effective_waypoint_names"), ["A", "B"])
+        # Regression: effective_waypoint_names used to silently drop every compulsory
+        # (known_time_gate) name from an interleaved declared_sequence, which meant
+        # create_gates() (gate_calculator.py) never built a real Gate for CP1/CP2/CP3 here - no
+        # Gate meant no on_gate_passed event, which meant _score_turnpoint_hunt_compulsory_timing
+        # could never fire despite this declaration being fully valid and required (by
+        # validate_declaration, above) to include every compulsory point. Fixed in
+        # contestant_task_compiler.py's ContestantTaskCompiler._build_turnpoint_hunt_effective_waypoints
+        # - compulsory points now keep their declared position instead of being skipped.
+        self.assertEqual(payload.get("effective_waypoint_names"), ["A", "CP2", "B", "CP1", "CP3"])
 
         duplicate = ContestantTaskCompiler(self.contestant).compile(
             declaration_payload={

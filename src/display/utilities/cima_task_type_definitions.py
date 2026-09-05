@@ -262,15 +262,35 @@ def get_default_task_subtype_for_family(coarse_family: str) -> str | None:
 #   penalty magnitudes (no positive "achievement" values mixed in), so this is a safe default.
 # - CIRCLE (2.A7): Pmax = 250 (documentation/cima/cima_task_catalog.md), matches
 #   circle_calculator.py's CIRCLE_MAXIMUM_SCORE.
-# - ANR_CATALOGUE (2.A8): "the competitor will start with 2.000 points" (cima_task_catalog.md).
-#   anr_corridor_calculator.py only ever emits positive penalty magnitudes.
+# - ANR_CATALOGUE (2.A8): "the competitor will start with 2.000 points" (cima_task_catalog.md) -
+#   that's the catalogue's intermediate Q, not its final "P = 1000 * Q / Qmax" (Qmax fixed at
+#   2000, not route-dependent - unlike 2.A1-2.A5's Qmax, none of ANR's penalty terms
+#   (Pnav/Ptime/Pfpr/Pto/Prr/Pbc) are counted per-gate the way Qh/Qt are, so there's no route
+#   configuration to derive a ceiling from). initial_score=1000 here (not 2000) plus
+#   get_cima_fixed_scale_factor halving every ANR score message reproduces the full formula
+#   exactly: 1000 - sum(halved penalties) == (2000 - sum(penalties)) / 2. anr_corridor_calculator.py
+#   only ever emits positive penalty magnitudes.
+# - TURNPOINT_HUNT / LIMITED_FUEL_TURNPOINT_HUNT (2.A6/2.B2): unlike every subtype above, this is
+#   an ADDITIVE-from-zero model, not "start at a ceiling, subtract" - the catalogue's maximum is
+#   route-dependent (100/photo + 200/gate + a sequence bonus, growing with however many
+#   photos/gates the organizer places), so there is no fixed ceiling to start from at all.
+#   initial_score=0 with desc here means "climb from 0, higher final score wins" - see
+#   contestant_processor.ACHIEVEMENT_SCORE_TYPES for how update_score_from_thread tells this
+#   apart from the "start at max, subtract" subtypes above (both use score_sorting_direction=desc,
+#   but must NOT both sign-flip incoming scores the same way). gate_calculator.py's
+#   _score_turnpoint_hunt_target_value (achievement, added as-is) and
+#   _score_turnpoint_hunt_sequence_bonus (achievement, added as-is) are the only two score_types
+#   that must be exempted from the sign flip; every other turnpoint-hunt score_type
+#   (GATE_SCORE_TYPE, turnpoint_hunt_compulsory_timing, limited_fuel_deadline_exceeded,
+#   turnpoint_hunt_maximum_duration_exceeded) is a genuine penalty and must still flip-and-subtract
+#   like every other desc subtype. Final P = 1000*Q/Qmax normalization applies ONLY to the
+#   achievement component (cima_score_normalization.get_cima_achievement_qmax - sum of every
+#   declared target's score_value, plus the sequence bonus): the two are independent streams by
+#   design, so there's no double-counting question to resolve - a missed target's GATE_SCORE_TYPE
+#   penalty (if the organizer configures one) still applies as a completely separate, linear
+#   deduction on top, exactly like backtracking does for 2.A1-2.A5.
 #
 # Deliberately excluded - do not add without also confirming/fixing the underlying calculator:
-# - TURNPOINT_HUNT / LIMITED_FUEL_TURNPOINT_HUNT (2.A6/2.B2): the catalogue's maximum is
-#   additive and route-dependent (100/photo + 200/gate + a sequence bonus - grows with however
-#   many photos/gates the organizer places), not a fixed constant: there is no single correct
-#   default here yet, and no calculator computing it from the route. The organizer can still set
-#   a value manually via the scorecard editor's General group.
 # - DURATION (2.B3): duration_calculator.py mixes a positive "achievement" value (more minutes
 #   flown = better, meant to add) with a positive-penalty landing-area-outside deduction (meant
 #   to subtract) using the same unconditional-positive convention as circle_calculator.py used
@@ -283,8 +303,29 @@ CIMA_SCORING_BASELINE: dict[str, tuple[str, float]] = {
     KNOWN_CIRCUIT: ("desc", 1000),
     UNKNOWN_LEGS: ("desc", 1000),
     CIRCLE: ("desc", 250),
-    ANR_CATALOGUE: ("desc", 2000),
+    ANR_CATALOGUE: ("desc", 1000),
+    TURNPOINT_HUNT: ("desc", 0),
+    LIMITED_FUEL_TURNPOINT_HUNT: ("desc", 0),
 }
+
+# Uniform per-message scale factor for subtypes whose catalogue Qmax is a FIXED constant rather
+# than route-dependent (see ANR_CATALOGUE's comment above) - applied to every score message
+# regardless of score_type, unlike get_cima_gate_qmax/get_cima_achievement_qmax's component-
+# specific normalization, because ANR's Q formula already sums every one of its penalty terms
+# together with no separate "excluded, linear" bucket the way backtracking is for 2.A1-2.A5.
+CIMA_FIXED_SCALE_FACTORS: dict[str, float] = {
+    ANR_CATALOGUE: 0.5,
+}
+
+
+def get_cima_fixed_scale_factor(subtype: str | None) -> float | None:
+    """
+    A constant multiplier to apply to every score message for this subtype (see
+    CIMA_FIXED_SCALE_FACTORS), or None if this subtype doesn't use one.
+    """
+    if subtype in (None, ""):
+        return None
+    return CIMA_FIXED_SCALE_FACTORS.get(subtype)
 
 
 def get_cima_scoring_baseline(subtype: str | None) -> tuple[str, float] | None:

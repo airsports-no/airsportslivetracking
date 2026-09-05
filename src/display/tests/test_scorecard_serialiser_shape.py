@@ -58,6 +58,7 @@ EXPECTED_SCORECARD_NESTED_KEYS = {
     "circle_radius_max_m",
     "speed_keeping_tolerance_kt",
     "speed_keeping_penalty_per_kt",
+    "turnpoint_hunt_sequence_bonus",
 }
 
 EXPECTED_GATE_SCORE_KEYS = {

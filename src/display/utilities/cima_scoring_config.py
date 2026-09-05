@@ -56,6 +56,7 @@ class CimaScoringConfig:
     speed_keeping_penalty_per_kt: float = 1
     anr_route_to_sp_penalty: float = 200
     anr_route_from_fp_penalty: float = 200
+    turnpoint_hunt_sequence_bonus: float = 0
 
     @classmethod
     def from_scorecard(cls, scorecard: "Scorecard") -> "CimaScoringConfig":
@@ -72,4 +73,5 @@ class CimaScoringConfig:
             speed_keeping_penalty_per_kt=scorecard.speed_keeping_penalty_per_kt,
             anr_route_to_sp_penalty=scorecard.anr_route_to_sp_penalty,
             anr_route_from_fp_penalty=scorecard.anr_route_from_fp_penalty,
+            turnpoint_hunt_sequence_bonus=scorecard.turnpoint_hunt_sequence_bonus,
         )

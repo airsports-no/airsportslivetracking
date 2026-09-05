@@ -136,6 +136,38 @@ class TestTurnpointHuntTimingModel(TestCase):
         self.assertEqual(payload.get('scored_target_values'), {'A': 42.0, 'B': 17.0})
         self.assertEqual(payload.get('free_target_evidence'), {'A': ['A'], 'B': ['B']})
 
+    def test_declared_sequence_interleaving_compulsory_and_free_targets_keeps_all_compulsory_gates(self):
+        # Regression test: _build_turnpoint_hunt_effective_waypoints used to silently DROP a
+        # compulsory (known_time_gate) point from the effective waypoint list whenever it
+        # appeared inside a declared_sequence - which validate_declaration requires it to
+        # (see "declared_sequence must include each compulsory point exactly once"). Losing it
+        # from effective_waypoints meant create_gates() (gate_calculator.py) never built a real
+        # Gate for it, so _score_turnpoint_hunt_compulsory_timing could never fire - compulsory
+        # timing scoring was silently broken for every contestant who submitted a real,
+        # validation-passing declaration with an interleaved order like this one.
+        self._set_editable_route()
+        self.navigation_task.task_subtype = LIMITED_FUEL_TURNPOINT_HUNT
+        self.navigation_task.save(update_fields=['task_subtype'])
+        compiled = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={
+                'compulsory_point_times': {
+                    'CP1': '2020-08-01T08:15:00Z',
+                    'CP2': '2020-08-01T08:16:00Z',
+                    'CP3': '2020-08-01T08:17:00Z',
+                },
+                'declared_sequence': ['CP1', 'A', 'CP2', 'B', 'CP3'],
+                'fuel_metadata': {'declared_endurance_minutes': 95},
+            },
+            force=True,
+        )
+        self.assertTrue(compiled.is_valid, compiled.validation_errors)
+        payload = compiled.compiled_effective_route_payload
+        self.assertEqual(payload.get('effective_waypoint_names'), ['CP1', 'A', 'CP2', 'B', 'CP3'])
+        self.assertEqual(sorted(payload.get('compulsory_timing_gate_names')), ['CP1', 'CP2', 'CP3'])
+
+        calculator = self._build_calculator()
+        self.assertEqual([gate.name for gate in calculator.gates], ['CP1', 'A', 'CP2', 'B', 'CP3'])
+
     def test_limited_fuel_turnpoint_hunt_gate_times_preserve_fuel_metadata(self):
         self._set_editable_route()
         compiled = self._compile_turnpoint_hunt(
@@ -250,3 +282,110 @@ class TestTurnpointHuntTimingModel(TestCase):
             messages.append(calculator.score_processing_queue.get_nowait())
         self.assertEqual([msg.score_type for msg in messages], ['gate_score'])
         self.assertNotIn('SC 1/1', calculator.scored_turnpoint_hunt_compulsory_gates)
+
+    def _compile_and_build_calculator_with_declared_sequence(self, declared_sequence, sequence_bonus=None):
+        self._set_editable_route()
+        self.navigation_task.task_subtype = LIMITED_FUEL_TURNPOINT_HUNT
+        self.navigation_task.save(update_fields=['task_subtype'])
+        compiled = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={
+                'compulsory_point_times': {
+                    'CP1': '2020-08-01T08:15:00Z',
+                    'CP2': '2020-08-01T08:16:00Z',
+                    'CP3': '2020-08-01T08:17:00Z',
+                },
+                'declared_sequence': declared_sequence,
+                'fuel_metadata': {'declared_endurance_minutes': 95},
+            },
+            force=True,
+        )
+        self.assertTrue(compiled.is_valid, compiled.validation_errors)
+        if sequence_bonus is not None:
+            # The task's OWN scorecard copy (navigation_task.scorecard), never self.scorecard
+            # (the shared "FAI Precision" original every test in this file copies from) - see
+            # cima_task_type_definitions.CIMA_SCORING_BASELINE's docstring on never mutating
+            # originals.
+            self.navigation_task.scorecard.config['turnpoint_hunt_sequence_bonus'] = sequence_bonus
+            self.navigation_task.scorecard.save(update_fields=['config'])
+        return self._build_calculator()
+
+    @staticmethod
+    def _fire_gate_passed(calculator, gate_name: str):
+        gate = {gate.name: gate for gate in calculator.gates}[gate_name]
+        passing_time = gate.expected_time
+        event = GatePassedEvent(
+            gate,
+            type('Pos', (), {'time': passing_time, 'latitude': gate.latitude, 'longitude': gate.longitude})(),
+            passing_time,
+            previous_gate=calculator.starting_line,
+        )
+        calculator.on_gate_passed(event)
+
+    @staticmethod
+    def _drain_queue(calculator) -> list:
+        messages = []
+        while not calculator.score_processing_queue.empty():
+            messages.append(calculator.score_processing_queue.get_nowait())
+        return messages
+
+    def _finalise_with_synthetic_track(self, calculator):
+        last_gate = calculator.gates[-1]
+        track = [
+            type(
+                'Pos', (), {'time': last_gate.expected_time, 'latitude': last_gate.latitude, 'longitude': last_gate.longitude}
+            )()
+        ]
+        calculator.finalise(track)
+
+    def test_sequence_bonus_awarded_when_actual_order_matches_declared(self):
+        declared_sequence = ['CP1', 'A', 'CP2', 'B', 'CP3']
+        calculator = self._compile_and_build_calculator_with_declared_sequence(declared_sequence, sequence_bonus=50)
+        for gate_name in declared_sequence:
+            self._fire_gate_passed(calculator, gate_name)
+        self._drain_queue(calculator)  # discard the per-gate messages, only finalise's matters here
+
+        self._finalise_with_synthetic_track(calculator)
+
+        bonus_messages = [msg for msg in self._drain_queue(calculator) if msg.score_type == 'turnpoint_hunt_sequence_bonus']
+        self.assertEqual(len(bonus_messages), 1, bonus_messages)
+        self.assertEqual(bonus_messages[0].score, 50.0)
+
+    def test_sequence_bonus_not_awarded_when_actual_order_differs_from_declared(self):
+        declared_sequence = ['CP1', 'A', 'CP2', 'B', 'CP3']
+        calculator = self._compile_and_build_calculator_with_declared_sequence(declared_sequence, sequence_bonus=50)
+        # Visit CP2 before A - same set of gates, wrong order.
+        for gate_name in ['CP1', 'CP2', 'A', 'B', 'CP3']:
+            self._fire_gate_passed(calculator, gate_name)
+        self._drain_queue(calculator)
+
+        self._finalise_with_synthetic_track(calculator)
+
+        bonus_messages = [msg for msg in self._drain_queue(calculator) if msg.score_type == 'turnpoint_hunt_sequence_bonus']
+        self.assertEqual(bonus_messages, [])
+
+    def test_sequence_bonus_not_awarded_when_a_declared_target_is_missed(self):
+        declared_sequence = ['CP1', 'A', 'CP2', 'B', 'CP3']
+        calculator = self._compile_and_build_calculator_with_declared_sequence(declared_sequence, sequence_bonus=50)
+        # 'B' never visited - finalise()'s missed-gate sweep will mark it missed, so
+        # turnpoint_hunt_actual_order never gets a 'B' entry and can't equal declared_sequence.
+        for gate_name in ['CP1', 'A', 'CP2', 'CP3']:
+            self._fire_gate_passed(calculator, gate_name)
+        self._drain_queue(calculator)
+
+        self._finalise_with_synthetic_track(calculator)
+
+        bonus_messages = [msg for msg in self._drain_queue(calculator) if msg.score_type == 'turnpoint_hunt_sequence_bonus']
+        self.assertEqual(bonus_messages, [])
+
+    def test_sequence_bonus_not_awarded_when_scorecard_has_no_bonus_configured(self):
+        declared_sequence = ['CP1', 'A', 'CP2', 'B', 'CP3']
+        # sequence_bonus left at its default (0) - deliberately not passing sequence_bonus=.
+        calculator = self._compile_and_build_calculator_with_declared_sequence(declared_sequence)
+        for gate_name in declared_sequence:
+            self._fire_gate_passed(calculator, gate_name)
+        self._drain_queue(calculator)
+
+        self._finalise_with_synthetic_track(calculator)
+
+        bonus_messages = [msg for msg in self._drain_queue(calculator) if msg.score_type == 'turnpoint_hunt_sequence_bonus']
+        self.assertEqual(bonus_messages, [])
