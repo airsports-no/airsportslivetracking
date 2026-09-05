@@ -976,6 +976,7 @@ class ScorecardForm(forms.ModelForm):
     circle_radius_max_m = forms.FloatField()
     speed_keeping_tolerance_kt = forms.FloatField()
     speed_keeping_penalty_per_kt = forms.FloatField()
+    turnpoint_hunt_sequence_bonus = forms.FloatField()
 
     class Meta:
         model = Scorecard

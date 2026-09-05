@@ -266,7 +266,16 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
         free_targets = self.compiler._build_turnpoint_hunt_targets_payload()
         declared_sequence = declaration_payload.get("declared_sequence", [])
         effective_waypoint_names = [item["name"] for item in effective_waypoints]
-        compulsory_timing_gate_names = effective_waypoint_names[: len(compulsory_point_names)]
+        # Not a positional slice of effective_waypoint_names (was `effective_waypoint_names[:
+        # len(compulsory_point_names)]`) - that assumed the 3 compulsory gates always sort first
+        # in the effective sequence, which only held when there was no declared_sequence at all.
+        # With one (the normal case - validation requires every compulsory name to appear in
+        # it), the contestant can freely interleave compulsory and free targets ("CP1, A, CP2,
+        # B, CP3"), so a positional slice silently picked up free targets instead of (or as well
+        # as) real compulsory names. compulsory_point_names is already exactly the right set,
+        # computed independently of ordering - just reuse it, matching the sibling
+        # (no-declaration) codepath below, which never had this bug.
+        compulsory_timing_gate_names = compulsory_point_names
         payload = {
             "compulsory_point_names": compulsory_point_names,
             "compulsory_point_times": compulsory_point_times,
@@ -1135,12 +1144,20 @@ class ContestantTaskCompiler:
                 if item in seen_names:
                     continue
                 seen_names.add(item)
-                # Compulsory (timed) points are tracked separately via
-                # compulsory_point_names/compulsory_timing_gate_names and
-                # must not also appear in the free-target effective sequence,
-                # even though they now live in route_waypoints_by_name too
-                # (needed for the no-declared-sequence fallback below).
+                # A compulsory (timed) point still needs its own real Gate - create_gates()
+                # (gate_calculator.py) builds calculator.gates EXCLUSIVELY from this method's
+                # output (via get_effective_route_waypoints), so skipping it here entirely (as
+                # this branch used to) meant a compulsory gate the contestant correctly declared
+                # and validation required them to include - see validate_declaration's
+                # "declared_sequence must include each compulsory point exactly once" - could
+                # never actually be scored: no Gate object, no on_gate_passed event, no
+                # _score_turnpoint_hunt_compulsory_timing call, ever. route_waypoints_by_name
+                # already holds the real compulsory waypoint (see comment on that dict above),
+                # so just place it at its declared position like any other waypoint instead of
+                # dropping it.
                 if item in known_time_gate_names:
+                    if item in route_waypoints_by_name:
+                        ordered_waypoints.append(route_waypoints_by_name[item])
                     continue
                 if item in route_waypoints_by_name:
                     ordered_waypoints.append(route_waypoints_by_name[item])

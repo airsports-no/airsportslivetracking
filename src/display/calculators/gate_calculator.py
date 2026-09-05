@@ -48,6 +48,11 @@ GATE_SCORE_TYPE = "gate_score"
 CIRCLE_CROSSING_GATE_TYPES = {CIRCLE_START, CIRCLE_ENTRY, CIRCLE_EXIT}
 BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 ADAPTIVE_TIMING_START_SCORE_TYPE = "adaptive_timing_start"
+# 2.A6/2.B2 achievement score types - see contestant_processor.ACHIEVEMENT_SCORE_TYPES for why
+# these two, alone among every turnpoint-hunt score_type, must be added as-is rather than
+# sign-flipped under a descending scorecard.
+TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE = "turnpoint_hunt_target_value"
+TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE = "turnpoint_hunt_sequence_bonus"
 
 
 class GateCalculator(Calculator):
@@ -83,6 +88,10 @@ class GateCalculator(Calculator):
         self.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self._last_speed_keeping_gate: Optional[Gate] = None
         self._last_speed_keeping_time: Optional[datetime.datetime] = None
+        # 2.A6/2.B2 sequence bonus: the order actual gate PASSES happened in, compared against
+        # the contestant's declared_sequence at finalise() - see
+        # _score_turnpoint_hunt_sequence_bonus. Empty and unused for every other subtype.
+        self.turnpoint_hunt_actual_order: List[str] = []
 
     def create_gates(self) -> List[Gate]:
         """
@@ -499,6 +508,9 @@ class GateCalculator(Calculator):
                 gate.missed = True
                 self.on_gate_missed(GateMissedEvent(None, gate, track[-1] if track else None))
         self.outstanding_gates = []
+        # After the sweep above, so a gate missed only because it's swept here (rather than
+        # actually passed) correctly breaks turnpoint_hunt_actual_order's equality check.
+        self._score_turnpoint_hunt_sequence_bonus(track)
 
     def on_gate_missed(self, event: GateMissedEvent):
         if event.gate not in self.gates:
@@ -608,6 +620,7 @@ class GateCalculator(Calculator):
                 event.gate.expected_time,
                 passing_time,
             )
+        self._track_turnpoint_hunt_actual_order(event.gate)
         self._score_turnpoint_hunt_compulsory_timing(event.gate, passing_position, passing_time)
         self._score_turnpoint_hunt_target_value(event.gate, passing_position, passing_time)
         self._score_limited_fuel_deadline(event.gate, passing_position, passing_time)
@@ -658,6 +671,20 @@ class GateCalculator(Calculator):
             passing_time,
         )
 
+    def _track_turnpoint_hunt_actual_order(self, gate: Gate):
+        """
+        Records the order gates were ACTUALLY passed in, for
+        _score_turnpoint_hunt_sequence_bonus's comparison against declared_sequence. A gate
+        already recorded (e.g. re-processed during an idempotent restart replay) is not added
+        twice - order reflects the first genuine pass only.
+        """
+        subtype = self.contestant.navigation_task.task_subtype
+        if subtype not in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
+            return
+        if gate.name in self.turnpoint_hunt_actual_order:
+            return
+        self.turnpoint_hunt_actual_order.append(gate.name)
+
     def _score_turnpoint_hunt_target_value(self, gate: Gate, position, passing_time: datetime.datetime):
         subtype = self.contestant.navigation_task.task_subtype
         if subtype not in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
@@ -675,11 +702,50 @@ class GateCalculator(Calculator):
             position,
             gate,
             float(scored_values[gate.name]),
-            "turnpoint_hunt_target_value",
+            TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE,
             "catalogue target collected",
             INFORMATION,
             gate.expected_time,
             passing_time,
+        )
+
+    def _score_turnpoint_hunt_sequence_bonus(self, track: Sequence[ContestantReceivedPosition]):
+        """
+        2.A6/2.B2: "an additional score will be awarded if the full and correct turnpoint and
+        gate sequence is achieved" (cima_task_catalog.md). Evaluated once, at finalise() (after
+        any remaining missed gates have already been swept), by comparing the order gates were
+        ACTUALLY passed in (turnpoint_hunt_actual_order) against the contestant's own
+        declared_sequence - an exact match (same items, same order, nothing missing) is required;
+        there is no partial credit, matching the catalogue's "full and correct" wording.
+        """
+        subtype = self.contestant.navigation_task.task_subtype
+        if subtype not in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
+            return
+        bonus = self.cima_config.turnpoint_hunt_sequence_bonus
+        if not bonus:
+            return
+        if not hasattr(self.contestant, "contestanttaskconfiguration"):
+            return
+        config = self.contestant.contestanttaskconfiguration
+        if not config.is_valid:
+            return
+        payload = config.compiled_effective_route_payload or {}
+        declared_sequence = [item for item in (payload.get("declared_sequence") or []) if isinstance(item, str)]
+        if not declared_sequence or self.turnpoint_hunt_actual_order != declared_sequence:
+            return
+        last_gate = self.gates[-1] if self.gates else None
+        position = track[-1] if track else None
+        if last_gate is None or position is None:
+            return
+        self.update_gate_score(
+            position,
+            last_gate,
+            float(bonus),
+            TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE,
+            "full declared sequence achieved",
+            INFORMATION,
+            last_gate.expected_time,
+            position.time,
         )
 
     def _score_limited_fuel_deadline(self, gate: Gate, position, passing_time: datetime.datetime):

@@ -12,7 +12,11 @@ from django.db.utils import IntegrityError
 
 from display.calculators.calculator_factory import calculator_factory
 from display.calculators.cima_score_normalization import get_cima_gate_qmax
-from display.calculators.gate_calculator import GATE_SCORE_TYPE
+from display.calculators.gate_calculator import (
+    GATE_SCORE_TYPE,
+    TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE,
+    TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE,
+)
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_track import ContestantTrack
 from display.utilities.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
@@ -44,6 +48,15 @@ INITIAL_POSITION_LOAD_HEARTBEAT_POLL_SECONDS = 15
 # unreliable, so we leave the heading at 0 rather than emitting noise.
 MIN_DISTANCE_FOR_BEARING_M = 5.0
 logger = logging.getLogger(__name__)
+
+# 2.A6/2.B2 (turnpoint hunt) are the only CIMA subtypes using an ADDITIVE-from-zero scoring
+# model rather than "start at a ceiling, subtract" - see cima_task_type_definitions.
+# CIMA_SCORING_BASELINE's docstring for the full rationale. Every other desc score_type in the
+# codebase is a penalty magnitude and must still be sign-flipped-and-subtracted; these two
+# achievement score_types (gate_calculator.py's _score_turnpoint_hunt_target_value and
+# _score_turnpoint_hunt_sequence_bonus) must be added as-is instead, even though their
+# scorecard's score_sorting_direction is also "desc".
+ACHIEVEMENT_SCORE_TYPES = frozenset({TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE, TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE})
 
 
 class ScoreAccumulator:
@@ -768,20 +781,27 @@ class ContestantProcessor:
         )
         # Every UpdateScoreMessage.score value is authored as a penalty magnitude (positive =
         # worse) - true for every calculator, including CIMA ones (circle_calculator.py emits
-        # the deficit from Pmax, not the achieved value directly). For an ascending scorecard
-        # (legacy default) that magnitude is added as-is, same as always. For a descending CIMA
-        # scorecard the contestant starts at scorecard.initial_score (a maximum) and each
-        # penalty must subtract from it instead - per the original CIMA design intent ("applying
-        # negative penalties", documentation/cima/CIMA_Task_catalogue_implementation_plan.md)
-        # which was never wired up. Applied here, once, after set_and_update_score's per-type
-        # capping (which itself must stay unsigned - maximum_score there is a positive ceiling
-        # on a penalty magnitude, independent of the scorecard's sort direction).
+        # the deficit from Pmax, not the achieved value directly) - EXCEPT the two turnpoint-hunt
+        # achievement score_types in ACHIEVEMENT_SCORE_TYPES, which are genuine achievement
+        # values (positive = better) even though their scorecard is also "desc" - see that
+        # constant's comment. For an ascending scorecard (legacy default) a penalty magnitude is
+        # added as-is, same as always. For a descending CIMA scorecard using the "start at a
+        # ceiling, subtract" model, the contestant starts at scorecard.initial_score (a maximum)
+        # and each penalty must subtract from it instead - per the original CIMA design intent
+        # ("applying negative penalties",
+        # documentation/cima/CIMA_Task_catalogue_implementation_plan.md) which was never wired up.
+        # Applied here, once, after set_and_update_score's per-type capping (which itself must
+        # stay unsigned - maximum_score there is a positive ceiling on a penalty magnitude,
+        # independent of the scorecard's sort direction).
         # Reads through self.contestant.navigation_task.scorecard, not self.scorecard - some
         # tests construct a bare ContestantProcessor (object.__new__) that only sets the
         # handful of attributes update_score_from_thread otherwise touches, without a cached
         # self.scorecard (see e.g. test_idempotent_restart.py's replay test); self.contestant
         # is always present, and __init__ reads the scorecard the same way (line ~134 above).
-        if self.contestant.navigation_task.scorecard.score_sorting_direction == "desc":
+        if (
+            self.contestant.navigation_task.scorecard.score_sorting_direction == "desc"
+            and update_score_message.score_type not in ACHIEVEMENT_SCORE_TYPES
+        ):
             score = -score
         if update_score_message.score_type == GATE_SCORE_TYPE:
             normalized_delta = self._cima_normalized_gate_score_delta()

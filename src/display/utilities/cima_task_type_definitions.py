@@ -264,13 +264,29 @@ def get_default_task_subtype_for_family(coarse_family: str) -> str | None:
 #   circle_calculator.py's CIRCLE_MAXIMUM_SCORE.
 # - ANR_CATALOGUE (2.A8): "the competitor will start with 2.000 points" (cima_task_catalog.md).
 #   anr_corridor_calculator.py only ever emits positive penalty magnitudes.
+# - TURNPOINT_HUNT / LIMITED_FUEL_TURNPOINT_HUNT (2.A6/2.B2): unlike every subtype above, this is
+#   an ADDITIVE-from-zero model, not "start at a ceiling, subtract" - the catalogue's maximum is
+#   route-dependent (100/photo + 200/gate + a sequence bonus, growing with however many
+#   photos/gates the organizer places), so there is no fixed ceiling to start from at all.
+#   initial_score=0 with desc here means "climb from 0, higher final score wins" - see
+#   contestant_processor.ACHIEVEMENT_SCORE_TYPES for how update_score_from_thread tells this
+#   apart from the "start at max, subtract" subtypes above (both use score_sorting_direction=desc,
+#   but must NOT both sign-flip incoming scores the same way). gate_calculator.py's
+#   _score_turnpoint_hunt_target_value (achievement, added as-is) and
+#   _score_turnpoint_hunt_sequence_bonus (achievement, added as-is) are the only two score_types
+#   that must be exempted from the sign flip; every other turnpoint-hunt score_type
+#   (GATE_SCORE_TYPE, turnpoint_hunt_compulsory_timing, limited_fuel_deadline_exceeded,
+#   turnpoint_hunt_maximum_duration_exceeded) is a genuine penalty and must still flip-and-subtract
+#   like every other desc subtype. Final P = 1000*Q/Qmax normalization (matching the catalogue,
+#   and get_cima_gate_qmax's Qmax pattern for 2.A1-2.A5) is deliberately NOT done for these two
+#   yet - it requires resolving whether a missed target's GATE_SCORE_TYPE penalty should apply on
+#   top of losing its achievement value, which is an organizer-configuration question (does a
+#   missed photo/gate for THIS scorecard have missed_penalty=0, relying solely on the foregone
+#   achievement as "the" penalty, or a genuine separate deduction?) rather than something to
+#   guess at - un-normalized raw point totals still rank contestants correctly against each other
+#   without it, so this is a display/comparability refinement, not a correctness gap.
 #
 # Deliberately excluded - do not add without also confirming/fixing the underlying calculator:
-# - TURNPOINT_HUNT / LIMITED_FUEL_TURNPOINT_HUNT (2.A6/2.B2): the catalogue's maximum is
-#   additive and route-dependent (100/photo + 200/gate + a sequence bonus - grows with however
-#   many photos/gates the organizer places), not a fixed constant: there is no single correct
-#   default here yet, and no calculator computing it from the route. The organizer can still set
-#   a value manually via the scorecard editor's General group.
 # - DURATION (2.B3): duration_calculator.py mixes a positive "achievement" value (more minutes
 #   flown = better, meant to add) with a positive-penalty landing-area-outside deduction (meant
 #   to subtract) using the same unconditional-positive convention as circle_calculator.py used
@@ -284,6 +300,8 @@ CIMA_SCORING_BASELINE: dict[str, tuple[str, float]] = {
     UNKNOWN_LEGS: ("desc", 1000),
     CIRCLE: ("desc", 250),
     ANR_CATALOGUE: ("desc", 2000),
+    TURNPOINT_HUNT: ("desc", 0),
+    LIMITED_FUEL_TURNPOINT_HUNT: ("desc", 0),
 }
 
 

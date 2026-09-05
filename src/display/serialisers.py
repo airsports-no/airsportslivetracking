@@ -1137,6 +1137,7 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     circle_radius_max_m = serializers.FloatField(required=False)
     speed_keeping_tolerance_kt = serializers.FloatField(required=False)
     speed_keeping_penalty_per_kt = serializers.FloatField(required=False)
+    turnpoint_hunt_sequence_bonus = serializers.FloatField(required=False)
 
     class Meta:
         model = Scorecard
@@ -1177,6 +1178,7 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "circle_radius_max_m",
             "speed_keeping_tolerance_kt",
             "speed_keeping_penalty_per_kt",
+            "turnpoint_hunt_sequence_bonus",
         )
 
     def get_task_type(self, instance) -> list:

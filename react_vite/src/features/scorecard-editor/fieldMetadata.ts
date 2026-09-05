@@ -61,6 +61,7 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
             'fuel_deadline_penalty',
             'duration_normalization_policy',
             'duration_residual_fuel_required',
+            'turnpoint_hunt_sequence_bonus',
         ],
     },
     {
@@ -119,6 +120,7 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
     circle_radius_max_m: { label: 'Circle radius max', kind: 'number', unit: 'm', min: 0 },
     speed_keeping_tolerance_kt: { label: 'Speed keeping tolerance', kind: 'number', unit: 'kt', min: 0 },
     speed_keeping_penalty_per_kt: { label: 'Speed keeping penalty per kt', kind: 'number', min: 0 },
+    turnpoint_hunt_sequence_bonus: { label: 'Turnpoint hunt sequence bonus', kind: 'number', min: 0 },
 };
 
 export const GATE_FIELD_ORDER: GateFieldName[] = [

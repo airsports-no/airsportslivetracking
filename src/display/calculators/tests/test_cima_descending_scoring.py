@@ -43,7 +43,9 @@ from display.models import (
 from display.utilities.cima_task_type_definitions import (
     ANR_CATALOGUE,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
+    LIMITED_FUEL_TURNPOINT_HUNT,
     PRECISION_NAVIGATION,
+    TURNPOINT_HUNT,
 )
 from display.utilities.gate_definitions import TURNPOINT
 from display.waypoint import Waypoint
@@ -326,3 +328,130 @@ class TestCimaGateQmaxNormalization(TestCase):
 
         # Only TP1 was declared -> qmax = 200, not 3 * 200 = 600 for the full shared route.
         self.assertEqual(get_cima_gate_qmax(contestant), 200)
+
+
+@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
+@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+class TestTurnpointHuntAchievementSignHandling(TestCase):
+    """
+    2.A6/2.B2 are the only CIMA subtypes using an ADDITIVE-from-zero model rather than "start at
+    a ceiling, subtract" (see cima_task_type_definitions.CIMA_SCORING_BASELINE's docstring) -
+    their achievement score_types (turnpoint_hunt_target_value, turnpoint_hunt_sequence_bonus)
+    must be added as-is under score_sorting_direction=desc, NOT sign-flipped like every other
+    desc score_type. Without ACHIEVEMENT_SCORE_TYPES, more achievement would produce a LOWER
+    total (since the flip would subtract it from 0), ranking a contestant who identifies more
+    targets WORSE - the opposite of the catalogue's intent.
+    """
+
+    def setUp(self, *args):
+        create_scorecards()
+        self.precision_original = Scorecard.get_originals().get(shortcut_name="FAI Precision")
+        self.contest = Contest.objects.create(
+            name="Turnpoint hunt sign test contest",
+            start_time=datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 1, 2, tzinfo=datetime.timezone.utc),
+        )
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Achievement", last_name="Pilot"))
+        self.team = Team.objects.create(crew=crew, aeroplane=Aeroplane.objects.create(registration="LN-ACHV"))
+
+    def _make_task(self, task_subtype) -> NavigationTask:
+        return NavigationTask.create(
+            name=f"achievement-task-{task_subtype}",
+            contest=self.contest,
+            route=Route.objects.create(name=f"achievement-route-{task_subtype}"),
+            original_scorecard=self.precision_original,
+            start_time=datetime.datetime(2026, 1, 1, 6, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 1, 1, 16, tzinfo=datetime.timezone.utc),
+            task_subtype=task_subtype,
+        )
+
+    def _make_contestant(self, navigation_task: NavigationTask) -> Contestant:
+        start_time = datetime.datetime(2026, 1, 1, 8, tzinfo=datetime.timezone.utc)
+        return Contestant.objects.create(
+            navigation_task=navigation_task,
+            team=self.team,
+            takeoff_time=start_time,
+            tracker_start_time=start_time - datetime.timedelta(minutes=30),
+            finished_by_time=start_time + datetime.timedelta(hours=2),
+            tracker_device_id=f"achievement-{navigation_task.pk}",
+            contestant_number=1,
+        )
+
+    def _bare_processor(self, contestant: Contestant) -> ContestantProcessor:
+        processor = object.__new__(ContestantProcessor)
+        processor.contestant = contestant
+        processor.scorecard = contestant.navigation_task.scorecard
+        processor.accumulated_scores = ScoreAccumulator()
+        processor.gate_scores = {}
+        processor.suppress_side_effects = True
+        processor.score = processor.scorecard.initial_score
+        return processor
+
+    @staticmethod
+    def _message(score_type: str, points: float) -> UpdateScoreMessage:
+        return UpdateScoreMessage(
+            time=datetime.datetime(2026, 1, 1, 8, 5, tzinfo=datetime.timezone.utc),
+            gate=SimpleNamespace(name="A"),
+            score=points,
+            message="test",
+            latitude=60.0,
+            longitude=11.0,
+            annotation_type=ANOMALY,
+            score_type=score_type,
+        )
+
+    def test_turnpoint_hunt_subtype_gets_additive_desc_zero_baseline(self, *args):
+        task = self._make_task(TURNPOINT_HUNT)
+        self.assertEqual(task.scorecard.score_sorting_direction, "desc")
+        self.assertEqual(task.scorecard.initial_score, 0)
+
+    def test_limited_fuel_turnpoint_hunt_subtype_gets_additive_desc_zero_baseline(self, *args):
+        task = self._make_task(LIMITED_FUEL_TURNPOINT_HUNT)
+        self.assertEqual(task.scorecard.score_sorting_direction, "desc")
+        self.assertEqual(task.scorecard.initial_score, 0)
+
+    def test_target_value_achievement_is_added_not_subtracted(self, *args):
+        task = self._make_task(TURNPOINT_HUNT)
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+        self.assertEqual(processor.score, 0)
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 100))
+        self.assertEqual(processor.score, 100)  # NOT -100
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 200))
+        self.assertEqual(processor.score, 300)  # NOT -300
+
+    def test_sequence_bonus_achievement_is_added_not_subtracted(self, *args):
+        task = self._make_task(TURNPOINT_HUNT)
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_sequence_bonus", 50))
+        self.assertEqual(processor.score, 50)  # NOT -50
+
+    def test_genuine_penalty_score_types_still_subtract_under_desc(self, *args):
+        # gate_score (a genuine penalty for turnpoint hunt too - a missed photo/gate) and the
+        # other turnpoint-hunt penalty types must NOT be exempted - only the two achievement
+        # types in ACHIEVEMENT_SCORE_TYPES are.
+        task = self._make_task(TURNPOINT_HUNT)
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+
+        processor.update_score_from_thread(self._message("gate_score", 30))
+        self.assertEqual(processor.score, -30)
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_compulsory_timing", 20))
+        self.assertEqual(processor.score, -50)
+
+    def test_mixed_achievement_and_penalty_nets_correctly(self, *args):
+        task = self._make_task(TURNPOINT_HUNT)
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 100))
+        processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 200))
+        processor.update_score_from_thread(self._message("turnpoint_hunt_compulsory_timing", 25))
+        processor.update_score_from_thread(self._message("turnpoint_hunt_sequence_bonus", 50))
+        # 100 + 200 - 25 + 50 = 325
+        self.assertEqual(processor.score, 325)

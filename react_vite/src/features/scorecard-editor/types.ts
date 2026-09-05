@@ -57,6 +57,7 @@ export interface ScorecardData {
     circle_radius_max_m?: number;
     speed_keeping_tolerance_kt?: number;
     speed_keeping_penalty_per_kt?: number;
+    turnpoint_hunt_sequence_bonus?: number;
 
     // Merged in by the scorecard action (viewsets.py), not part of the plain serializer shape.
     applicable_gate_types: string[];
