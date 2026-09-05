@@ -26,7 +26,11 @@ steps:
     - |
       if [ "$BRANCH_NAME" = "main" ]
       then
-      gcloud builds triggers run Deploy --branch=main --region=europe-west1 --project=${PROJECT_ID}
+      # Pinned to this build's exact commit, not --branch=main: triggering by branch name
+      # re-resolves against whatever is currently HEAD of main when this step runs, which
+      # can be a *different*, not-yet-built commit if pushes land close together - that
+      # raced a deploy onto an image that was never pushed (2026-09-04 incident).
+      gcloud builds triggers run Deploy --sha=$COMMIT_SHA --region=europe-west1 --project=${PROJECT_ID}
       fi
 - name: 'gcr.io/cloud-builders/docker'
   id: 'Start Dependencies'
@@ -63,5 +67,5 @@ images:
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  machineType: E2_MEDIUM
+  machineType: E2_HIGHCPU_8
 timeout: '7200s'
