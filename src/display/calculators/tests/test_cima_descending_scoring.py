@@ -777,3 +777,19 @@ class TestTurnpointHuntAchievementQmaxNormalization(TestCase):
 
         processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 60, "A"))
         self.assertEqual(processor.score, 60)  # raw magnitude, not normalized to 1000*60/100
+
+    def test_falls_back_to_raw_sum_when_scorecard_has_a_non_zero_initial_score(self, *args):
+        # Regression test (CodeRabbit follow-up finding on #756): score_sorting_direction alone
+        # isn't enough to guard this - self._cima_achievement_component always starts at 0 (see
+        # _get_cima_achievement_qmax), but self.score starts at scorecard.initial_score. If an
+        # organizer keeps "desc" and sets initial_score to 100, a full achievement would apply a
+        # delta of 1000 on top of that starting 100, landing on 1100 instead of the intended
+        # fixed 1000 ceiling - the two trackers silently drift apart.
+        contestant = self._make_task_and_contestant_with_targets({"A": 100})
+        contestant.navigation_task.scorecard.initial_score = 100
+        contestant.navigation_task.scorecard.save(update_fields=["initial_score"])
+        processor = self._bare_processor(contestant)
+        self.assertEqual(processor.score, 100)
+
+        processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 100, "A"))
+        self.assertEqual(processor.score, 200)  # 100 + raw 100, NOT 100 + 1000*100/100 = 1100

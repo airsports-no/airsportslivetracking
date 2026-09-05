@@ -804,14 +804,20 @@ class ContestantProcessor:
 
         Returns None (meaning: use the raw achievement magnitude, un-normalized) when this
         task's subtype/declaration isn't eligible for achievement-Qmax normalization, or when
-        the scorecard's own sort direction no longer matches the additive-desc model this
-        assumes (see the analogous check in _cima_normalized_gate_score_delta -
-        score_sorting_direction is freely organizer-editable independent of subtype).
+        the scorecard's own sort direction/initial_score no longer match the additive-desc-
+        from-0 model this assumes (see the analogous check in _cima_normalized_gate_score_delta
+        - both are freely organizer-editable independent of subtype). initial_score must be
+        exactly 0, not just non-positive: self._cima_achievement_component always starts at 0
+        (see _get_cima_achievement_qmax), so if self.score itself started somewhere else (e.g.
+        an organizer-set initial_score=100), the two would no longer track each other -
+        self.score += delta would land on initial_score + 1000 at full achievement instead of
+        the intended fixed 1000 ceiling.
         """
         qmax = self._get_cima_achievement_qmax()
         if qmax is None:
             return None
-        if self.contestant.navigation_task.scorecard.score_sorting_direction != "desc":
+        scorecard = self.contestant.navigation_task.scorecard
+        if scorecard.score_sorting_direction != "desc" or scorecard.initial_score != 0:
             return None
         achieved = self.accumulated_scores.related_score.get(
             TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE, 0
