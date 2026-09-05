@@ -8,6 +8,8 @@ title: "Route Creation and Task Configuration"
 
 The most critical part of an air sports event is the **Route**. A route is more than just a list of waypoints; it is a complex mathematical structure that defines the scoring gates, the corridors, and the rules of the flight.
 
+> Running an **FAI CIMA** microlight task (2.A1–2.A8, 2.B2, 2.B3)? This guide covers the platform's original "Legacy" task types. See the dedicated [**CIMA Task Guide**](/docs/11_CIMA_Task_Guide) for task-by-task route editor steps, contestant declarations, and CIMA's max-score-minus-penalties scoring model.
+
 ---
 
 ## 1. Creating a Route with the Editor
@@ -65,4 +67,4 @@ To support a Poker Run, your route must have **Gate Polygons**.
 ---
 
 ## 4. Finalizing and Testing
-Once a task is created, use the **"Test Calculator"** button. This allows you to upload a sample GPX file to see how the system would score it before you invite real contestants to fly.
+There's no separate sandbox mode — you test a task by running a real track through it. Register a contestant on the task (a placeholder one works fine), then choose **Upload GPX** from their action menu on the task detail page. This feeds a GPX file through that contestant's calculator exactly as if they'd flown it, so you can see how the task scores before inviting real contestants — but it first **resets that contestant's existing track and score**, so don't run it against an entrant whose live data you want to keep.

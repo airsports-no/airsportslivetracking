@@ -8,6 +8,8 @@ title: "Competition Types and Scorecards: Defining the Rules"
 
 Every competition type in ASLT is governed by a **Scorecard**, which defines the penalties applied by the calculation engine. This guide explains how to select and customize these rules.
 
+> Setting up an **FAI CIMA** microlight task? Most CIMA task types (2.A1–2.A8, 2.B2) score the *opposite* way from the types below: contestants start at a maximum score and penalties are subtracted, rather than starting at zero and accumulating penalties. See the [**CIMA Task Guide**](/docs/11_CIMA_Task_Guide#tuning-the-scorecard-for-your-cima-task) for the CIMA-specific scoring model and how to set it up.
+
 ---
 
 ## 1. Primary Competition Types
