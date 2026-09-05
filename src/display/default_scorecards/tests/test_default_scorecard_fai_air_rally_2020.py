@@ -17,15 +17,15 @@ class TestDefaultScorecardFaiAirRally2020(TestCase):
     def test_starting_point_has_its_own_extended_gate_rule(self):
         scorecard = get_default_scorecard()
 
-        starting_point = scorecard.gatescore_set.get(gate_type=STARTINGPOINT)
+        starting_point = scorecard.get_gate_scorecard(STARTINGPOINT)
         self.assertEqual(starting_point.extended_gate_width, 2)
         self.assertEqual(starting_point.bad_crossing_extended_gate_penalty, 200)
 
     def test_starting_point_is_no_longer_an_identical_clone_of_the_turnpoint_gate(self):
         scorecard = get_default_scorecard()
 
-        starting_point = scorecard.gatescore_set.get(gate_type=STARTINGPOINT)
-        turnpoint = scorecard.gatescore_set.get(gate_type=TURNPOINT)
+        starting_point = scorecard.get_gate_scorecard(STARTINGPOINT)
+        turnpoint = scorecard.get_gate_scorecard(TURNPOINT)
         self.assertNotEqual(starting_point.extended_gate_width, turnpoint.extended_gate_width)
         self.assertNotEqual(
             starting_point.bad_crossing_extended_gate_penalty, turnpoint.bad_crossing_extended_gate_penalty
@@ -38,6 +38,6 @@ class TestDefaultScorecardFaiAirRally2020(TestCase):
         # could not view or edit the very rule this scorecard exists to configure.
         scorecard = get_default_scorecard()
 
-        starting_point = scorecard.gatescore_set.get(gate_type=STARTINGPOINT)
+        starting_point = scorecard.get_gate_scorecard(STARTINGPOINT)
         self.assertIn("extended_gate_width", starting_point.visible_fields)
         self.assertIn("bad_crossing_extended_gate_penalty", starting_point.visible_fields)

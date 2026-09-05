@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 
 from django.contrib.auth import get_user_model
@@ -5,6 +6,7 @@ from django_use_email_as_username.admin import BaseUserAdmin
 from guardian.admin import GuardedModelAdmin
 from guardian.shortcuts import assign_perm
 
+from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES, SCORECARD_CONFIG_FIELDS
 from display.services.token_assignment import revert_token_assignment_for_support
 from display.models import (
     NavigationTask,
@@ -14,7 +16,6 @@ from display.models import (
     Contestant,
     ContestantTrack,
     Scorecard,
-    GateScore,
     Contest,
     Crew,
     Person,
@@ -237,12 +238,99 @@ class ContestTokenAssignmentAdmin(admin.ModelAdmin):
             revert_token_assignment_for_support(assignment, request.user)
 
 
+class ScorecardAdminForm(forms.ModelForm):
+    # Phase 2c of the scorecard-system review roadmap. Scorecard.get_form() previously
+    # auto-generated its admin form from real model fields, which - since Phase 2 moved
+    # these 26 fields onto Scorecard.config-backed properties (see ConfigField in
+    # models/scorecard_and_gate_score.py) - meant the admin form exposed `config` as a raw
+    # JSON textarea plus all 27 inert `legacy_*` columns, and none of the fields that
+    # actually affect scoring. Editing a `legacy_*` field there silently did nothing - the
+    # same silent-no-op trap already fixed for ScorecardForm/ScorecardNestedSerialiser.
+    # Declared explicitly here instead, same field-type mapping as those two.
+    backtracking_penalty = forms.FloatField(required=False)
+    backtracking_bearing_difference = forms.FloatField(required=False)
+    backtracking_grace_time_seconds = forms.FloatField(required=False)
+    backtracking_maximum_penalty = forms.FloatField(required=False)
+    prohibited_zone_penalty = forms.FloatField(required=False)
+    prohibited_zone_grace_time = forms.FloatField(required=False)
+    prohibited_zone_maximum = forms.FloatField(required=False)
+    penalty_zone_grace_time = forms.FloatField(required=False)
+    penalty_zone_penalty_per_second = forms.FloatField(required=False)
+    penalty_zone_maximum = forms.FloatField(required=False)
+    corridor_grace_time = forms.IntegerField(required=False)
+    corridor_outside_penalty = forms.FloatField(required=False)
+    corridor_maximum_penalty = forms.FloatField(required=False)
+    corridor_maximum_penalty_is_per_leg = forms.BooleanField(required=False)
+    anr_route_to_sp_penalty = forms.FloatField(required=False)
+    anr_route_from_fp_penalty = forms.FloatField(required=False)
+    compulsory_timing_tolerance_seconds = forms.IntegerField(required=False)
+    maximum_task_duration_minutes = forms.IntegerField(required=False)
+    maximum_task_duration_penalty = forms.FloatField(required=False)
+    fuel_deadline_penalty = forms.FloatField(required=False)
+    duration_normalization_policy = forms.ChoiceField(choices=DURATION_NORMALIZATION_POLICIES, required=False)
+    duration_residual_fuel_required = forms.BooleanField(required=False)
+    circle_radius_min_m = forms.FloatField(required=False)
+    circle_radius_max_m = forms.FloatField(required=False)
+    speed_keeping_tolerance_kt = forms.FloatField(required=False)
+    speed_keeping_penalty_per_kt = forms.FloatField(required=False)
+
+    class Meta:
+        model = Scorecard
+        # Phase 2e of the scorecard-system review roadmap dropped the legacy_* columns for
+        # real (migration 0174) - no longer anything to exclude by name here.
+        exclude = ("config", "included_fields")
+
+    def __init__(self, *args, **kwargs):
+        # Django's admin add_view constructs this form with no `instance` kwarg at all (only
+        # change_view passes one) - falling back to a fresh, unsaved Scorecard() reuses
+        # ConfigField's own declared defaults (an unsaved instance's .config is {}, so each
+        # ConfigField getter returns its default) instead of leaving `initial` unpopulated.
+        # Without this, a blank FloatField saves None and an unchecked BooleanField saves
+        # False through ConfigField._set(), silently overriding real defaults like
+        # corridor_maximum_penalty_is_per_leg=True for every newly-created scorecard.
+        instance = kwargs.get("instance") or Scorecard()
+        initial = dict(kwargs.get("initial") or {})
+        for field_name in SCORECARD_CONFIG_FIELDS:
+            initial.setdefault(field_name, getattr(instance, field_name))
+        kwargs["initial"] = initial
+        super().__init__(*args, **kwargs)
+
+    # ConfigField._get reads instance.config.get(name, default) - once a key is present in
+    # config at all, that lookup returns the stored value even when it's None, not the
+    # declared default (dict.get's fallback only applies when the key is absent). Every field
+    # here is required=False, so clearing a previously-set numeric input on the change form
+    # submits None for it - writing that through setattr would permanently shadow the real
+    # ConfigField default (e.g. circle_radius_min_m=200) with a stored None. Skip None values
+    # on save instead, except for the one field whose declared default genuinely is None.
+    _NULLABLE_CONFIG_FIELDS = {"maximum_task_duration_minutes"}
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        for field_name in SCORECARD_CONFIG_FIELDS:
+            value = self.cleaned_data.get(field_name)
+            if value is None and field_name not in self._NULLABLE_CONFIG_FIELDS:
+                continue
+            setattr(instance, field_name, value)
+        if commit:
+            instance.save()
+        return instance
+
+
+class ScorecardAdmin(admin.ModelAdmin):
+    form = ScorecardAdminForm
+    list_display = ("name", "shortcut_name", "calculator", "original", "valid_from")
+    list_filter = ("calculator", "original")
+    search_fields = ("name", "shortcut_name")
+
+
 admin.site.register(get_user_model(), BaseUserAdmin)
 admin.site.register(NavigationTask, NavigationTaskAdmin)
-admin.site.register(Scorecard)
+admin.site.register(Scorecard, ScorecardAdmin)
 admin.site.register(Route)
 admin.site.register(Contest, ContestAdmin)
-admin.site.register(GateScore)
+# GateScore is no longer administered here (Phase 2e of the scorecard-system review
+# roadmap) - nothing writes real GateScore rows anymore, so nothing to edit; the table
+# itself is still around as a historical snapshot until it's dropped for real.
 admin.site.register(Aeroplane)
 admin.site.register(Team)
 admin.site.register(Crew)

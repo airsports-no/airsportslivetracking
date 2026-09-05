@@ -177,8 +177,8 @@ class TestCircleEndToEnd(TestCase):
     def test_gate_calculator_finalise_does_not_crash_and_scores_no_circle_gates(self):
         # Regression guard for the ValueError previously raised by
         # Scorecard.get_gate_scorecard for unknown gate types (circle_start
-        # etc. have no GateScore row in any scorecard) once these gates
-        # started being created at all.
+        # etc. have no config["gates"] entry in any scorecard) once these
+        # gates started being created at all.
         queue = MagicMock()
         gate_calculator = GateCalculator(
             self.contestant,
@@ -312,8 +312,8 @@ class TestCircleEndToEnd(TestCase):
         # passed (see on_gate_passed's else branch) - that's expected
         # bookkeeping, not a scored penalty. What must never happen is a real
         # scored/anomaly gate_score, which would mean get_gate_scorecard was
-        # asked for a "circle_start"/"circle_entry"/"circle_exit" GateScore
-        # row that does not exist in any scorecard.
+        # asked for a "circle_start"/"circle_entry"/"circle_exit" gate config
+        # entry that does not exist in any scorecard.
         gate_score_messages = [message for message in messages if message.score_type == "gate_score"]
         for message in gate_score_messages:
             self.assertEqual(message.score, 0)

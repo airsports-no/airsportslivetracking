@@ -729,6 +729,23 @@ class ContestantProcessor:
         score, capped = self.accumulated_scores.set_and_update_score(
             update_score_message.score, update_score_message.score_type, update_score_message.maximum_score
         )
+        # Every UpdateScoreMessage.score value is authored as a penalty magnitude (positive =
+        # worse) - true for every calculator, including CIMA ones (circle_calculator.py emits
+        # the deficit from Pmax, not the achieved value directly). For an ascending scorecard
+        # (legacy default) that magnitude is added as-is, same as always. For a descending CIMA
+        # scorecard the contestant starts at scorecard.initial_score (a maximum) and each
+        # penalty must subtract from it instead - per the original CIMA design intent ("applying
+        # negative penalties", documentation/cima/CIMA_Task_catalogue_implementation_plan.md)
+        # which was never wired up. Applied here, once, after set_and_update_score's per-type
+        # capping (which itself must stay unsigned - maximum_score there is a positive ceiling
+        # on a penalty magnitude, independent of the scorecard's sort direction).
+        # Reads through self.contestant.navigation_task.scorecard, not self.scorecard - some
+        # tests construct a bare ContestantProcessor (object.__new__) that only sets the
+        # handful of attributes update_score_from_thread otherwise touches, without a cached
+        # self.scorecard (see e.g. test_idempotent_restart.py's replay test); self.contestant
+        # is always present, and __init__ reads the scorecard the same way (line ~134 above).
+        if self.contestant.navigation_task.scorecard.score_sorting_direction == "desc":
+            score = -score
         if update_score_message.planned is not None and update_score_message.actual is not None:
             offset = (update_score_message.actual - update_score_message.planned).total_seconds()
             # Must use round, this is the same as used in the score calculation

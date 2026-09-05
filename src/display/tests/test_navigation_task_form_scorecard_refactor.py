@@ -121,6 +121,36 @@ class TestNavigationTaskFormScorecardRefactor(TestCase):
         for field_name in SCORECARD_CONFIG_FIELDS:
             self.assertIsNotNone(form.fields[field_name].label, f"{field_name} should have a non-None label")
 
+    def test_scorecard_form_does_not_duplicate_the_subtype_block_on_repeated_construction(self):
+        # Regression test: __init__ runs on every construction, including every POST to the
+        # scorecard-override page - self.instance.included_fields.append(...) used to run
+        # unconditionally, so re-editing a scorecard for a task with one of these subtypes
+        # added another copy of the matching block every time.
+        navigation_task = NavigationTask.create(
+            name="Dedup Regression Task",
+            contest=self.contest,
+            route=self.route,
+            original_scorecard=self.scorecard,
+            start_time=datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 8, 1, 17, 0, tzinfo=datetime.timezone.utc),
+            task_subtype=CIRCLE,
+        )
+        # First "request": construct the form and save, as the override view does on a POST.
+        form1 = ScorecardForm(instance=navigation_task.scorecard)
+        form1.instance.save()
+
+        # Second "request": a fresh fetch (a new HTTP request would re-query from scratch),
+        # so the already-persisted block from the first save is loaded from the DB this time.
+        second_instance = Scorecard.objects.get(pk=navigation_task.scorecard.pk)
+        form2 = ScorecardForm(instance=second_instance)
+        form2.instance.save()
+
+        final = Scorecard.objects.get(pk=navigation_task.scorecard.pk)
+        circle_blocks = [block for block in final.included_fields if block[0] == "Circle configuration"]
+        self.assertEqual(
+            1, len(circle_blocks), f"expected exactly one Circle configuration block, got: {circle_blocks}"
+        )
+
     def test_scorecard_detail_page_extracted_values_have_no_none_labels(self):
         navigation_task = NavigationTask.create(
             name="Label Regression Task 2",

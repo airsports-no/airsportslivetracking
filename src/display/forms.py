@@ -39,7 +39,6 @@ from display.models import (
     Team,
     ContestTeam,
     Scorecard,
-    GateScore,
     FlightOrderConfiguration,
     UserUploadedMap,
     TokenType,
@@ -980,6 +979,8 @@ class ScorecardForm(forms.ModelForm):
 
     class Meta:
         model = Scorecard
+        # Phase 2e of the scorecard-system review roadmap dropped the legacy_* columns for
+        # real (migration 0174) - no longer anything to exclude by name here.
         exclude = (
             "name",
             "original",
@@ -989,33 +990,6 @@ class ScorecardForm(forms.ModelForm):
             "use_procedure_turns",
             "free_text",
             "config",
-            "legacy_backtracking_penalty",
-            "legacy_backtracking_bearing_difference",
-            "legacy_backtracking_grace_time_seconds",
-            "legacy_backtracking_maximum_penalty",
-            "legacy_prohibited_zone_penalty",
-            "legacy_prohibited_zone_grace_time",
-            "legacy_prohibited_zone_maximum",
-            "legacy_penalty_zone_grace_time",
-            "legacy_penalty_zone_penalty_per_second",
-            "legacy_penalty_zone_maximum",
-            "legacy_corridor_grace_time",
-            "legacy_corridor_outside_penalty",
-            "legacy_corridor_maximum_penalty",
-            "legacy_corridor_maximum_penalty_is_per_leg",
-            "legacy_anr_route_to_sp_penalty",
-            "legacy_anr_route_from_fp_penalty",
-            "legacy_compulsory_timing_tolerance_seconds",
-            "legacy_maximum_task_duration_minutes",
-            "legacy_maximum_task_duration_penalty",
-            "legacy_fuel_deadline_penalty",
-            "legacy_duration_normalization_policy",
-            "legacy_duration_residual_fuel_required",
-            "legacy_circle_radius_min_m",
-            "legacy_circle_radius_max_m",
-            "legacy_speed_keeping_tolerance_kt",
-            "legacy_speed_keeping_penalty_per_kt",
-            "legacy_included_fields",
         )
 
     def save(self, commit=True):
@@ -1056,9 +1030,22 @@ class ScorecardForm(forms.ModelForm):
         for field_name in SCORECARD_CONFIG_FIELDS:
             self.fields[field_name].label = capfirst(field_name.replace("_", " "))
 
+        # __init__ runs on every construction, including every POST to the scorecard
+        # override page - self.instance.included_fields is a live list stored in
+        # Scorecard.config (see the included_fields property), so appending here
+        # unconditionally added another copy of the matching block on every save of a
+        # navigation task with one of these subtypes, growing without bound. Guard each
+        # append with a check for whether a block with that title is already present.
+        existing_block_titles = {block[0] for block in self.instance.included_fields}
+
+        def _append_block_once(block: list) -> None:
+            if block[0] not in existing_block_titles:
+                self.instance.included_fields.append(block)
+                existing_block_titles.add(block[0])
+
         navigation_task = getattr(self.instance, "navigation_task_override", None)
         if navigation_task and navigation_task.task_subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
-            self.instance.included_fields.append(
+            _append_block_once(
                 [
                     "Turnpoint hunt configuration",
                     "compulsory_timing_tolerance_seconds",
@@ -1068,7 +1055,7 @@ class ScorecardForm(forms.ModelForm):
                 ]
             )
         if navigation_task and navigation_task.task_subtype == ANR_CATALOGUE:
-            self.instance.included_fields.append(
+            _append_block_once(
                 [
                     "ANR catalogue configuration",
                     "anr_route_to_sp_penalty",
@@ -1076,7 +1063,7 @@ class ScorecardForm(forms.ModelForm):
                 ]
             )
         if navigation_task and navigation_task.task_subtype == DURATION:
-            self.instance.included_fields.append(
+            _append_block_once(
                 [
                     "Duration configuration",
                     "duration_normalization_policy",
@@ -1084,7 +1071,7 @@ class ScorecardForm(forms.ModelForm):
                 ]
             )
         if navigation_task and navigation_task.task_subtype == CIRCLE:
-            self.instance.included_fields.append(
+            _append_block_once(
                 [
                     "Circle configuration",
                     "circle_radius_min_m",
@@ -1117,12 +1104,39 @@ class ScorecardForm(forms.ModelForm):
         )
 
 
-class GateScoreForm(forms.ModelForm):
-    class Meta:
-        model = GateScore
-        fields = "__all__"
+class GateScoreForm(forms.Form):
+    # Phase 2e of the scorecard-system review roadmap: GateScore is no longer a database
+    # table - this form is bound to a Scorecard + gate_type (GateScoreForm(scorecard=...,
+    # gate_type=...)) instead of a GateScore instance, and reads/writes
+    # Scorecard.config["gates"][gate_type] via GateScoreValue
+    # (models/scorecard_and_gate_score.py). Same 11 editable fields the previous ModelForm's
+    # fields="__all__" ended up exposing once id/scorecard/gate_type were hidden by
+    # views.py's visible_fields-based pop loop downstream - those three were never meant to
+    # be user-editable, so they're not declared here either.
+    extended_gate_width = forms.FloatField(required=False)
+    bad_crossing_extended_gate_penalty = forms.FloatField(required=False)
+    graceperiod_before = forms.FloatField(required=False)
+    graceperiod_after = forms.FloatField(required=False)
+    maximum_penalty = forms.FloatField(required=False)
+    penalty_per_second = forms.FloatField(required=False)
+    missed_penalty = forms.FloatField(required=False)
+    missed_procedure_turn_penalty = forms.FloatField(required=False)
+    backtracking_after_steep_gate_grace_period_seconds = forms.FloatField(required=False)
+    backtracking_before_gate_grace_period_nm = forms.FloatField(required=False)
+    backtracking_after_gate_grace_period_nm = forms.FloatField(required=False)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, scorecard, gate_type, **kwargs):
+        self.scorecard = scorecard
+        self.gate_type = gate_type
+        # self.instance (not a Django/ModelForm convention here, just matching that naming so
+        # _extract_values_from_form() - shared with ScorecardForm - keeps working unchanged):
+        # a GateScoreValue has every field name below as a plain attribute, plus
+        # included_fields/visible_fields/get_gate_type_display(), same as GateScore used to.
+        self.instance = scorecard.get_gate_scorecard(gate_type)
+        initial = dict(kwargs.get("initial") or {})
+        for field_name in self.base_fields:
+            initial.setdefault(field_name, getattr(self.instance, field_name))
+        kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_class = "form mt-4"
@@ -1138,6 +1152,18 @@ class GateScoreForm(forms.ModelForm):
                 ),
             ),
         )
+
+    def save(self):
+        # Every field here is required=False and none of GateScoreValue's fields declare a
+        # None default (all 11 have real numeric defaults, models/scorecard_and_gate_score.py)
+        # - so a cleared numeric input's None must never be merged in, or it would permanently
+        # overwrite the configured value with None on every future read of this gate.
+        cleaned_values = {
+            field_name: value for field_name, value in self.cleaned_data.items() if value is not None
+        }
+        gates = self.scorecard.config.setdefault("gates", {})
+        gates.setdefault(self.gate_type, {}).update(cleaned_values)
+        self.scorecard.save(update_fields=["config"])
 
 
 class ScorecardFormSetHelper(FormHelper):

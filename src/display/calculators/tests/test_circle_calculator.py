@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from display.calculators.calculator import GatePassedEvent, OrchestratorState
 from display.calculators.calculator_factory import calculator_factory
-from display.calculators.circle_calculator import CircleCalculator
+from display.calculators.circle_calculator import CIRCLE_MAXIMUM_SCORE, CircleCalculator
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Aeroplane, Contest, Contestant, Crew, EditableRoute, NavigationTask, Person, Scorecard, Team
 from display.utilities.cima_task_type_definitions import CIRCLE
@@ -503,7 +503,11 @@ class TestCircleCalculator(TestCase):
         self.assertEqual(fourth.score_type, "circle_altitude_penalty")
         self.assertEqual(fourth.annotation_type, "anomaly")
         self.assertEqual(fourth.message, "circle altitude spread penalty")
-        self.assertAlmostEqual(fourth.score, round(third.score * 0.2, 1))
+        # third.score is the penalty magnitude emitted for "circle_score" (CIRCLE_MAXIMUM_SCORE
+        # minus the achieved value, not the achieved value itself - see circle_calculator.py's
+        # on_gate_passed), so recover the achieved value before checking the 20% relationship.
+        achieved_circle_score = CIRCLE_MAXIMUM_SCORE - third.score
+        self.assertAlmostEqual(fourth.score, round(achieved_circle_score * 0.2, 1))
         self.assertEqual(fifth.score_type, "circle_exit")
 
     def test_circle_calculator_marks_incomplete_scored_arc_as_anomaly(self):
@@ -824,8 +828,11 @@ class TestCircleCalculator(TestCase):
         )
         # Near-constant radius (real geodesic placement introduces a little
         # noise, a few tenths of a meter) -> ratio close to but not
-        # necessarily exactly 1.0 -> near-max score.
-        self.assertGreaterEqual(messages[2].score, 245.0)
+        # necessarily exactly 1.0 -> near-max achieved score -> near-zero
+        # penalty (messages[2].score is CIRCLE_MAXIMUM_SCORE minus the
+        # achieved value, not the achieved value itself - see
+        # circle_calculator.py's on_gate_passed).
+        self.assertLessEqual(messages[2].score, 5.0)
         self.assertTrue(calculator.score_processing_queue.empty())
 
     def test_circle_calculator_deviation_path_invalid_ratio_blocks_score(self):
