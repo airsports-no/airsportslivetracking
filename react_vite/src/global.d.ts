@@ -9,6 +9,8 @@ declare global {
       gateCimaTaskVisibility?: boolean;
       STATIC_FILE_LOCATION: string;
       contest_list_version?: string;
+      sentryDsn?: string;
+      release?: string;
     };
   }
 }
