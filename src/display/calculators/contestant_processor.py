@@ -3,8 +3,7 @@ import logging
 import redis
 import threading
 import time
-import traceback
-from queue import Queue
+from queue import Full, Queue
 from typing import List, Optional, Tuple, Dict
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -630,7 +629,7 @@ class ContestantProcessor:
                             planned=planned,
                         )
                     )
-                except queue.Full:
+                except Full:
                     logger.warning(
                         "%s: score processing queue full while recording manual termination; continuing shutdown",
                         self.contestant,
