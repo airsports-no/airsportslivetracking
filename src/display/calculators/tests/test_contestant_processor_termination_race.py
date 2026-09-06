@@ -122,6 +122,11 @@ class TestContestantProcessorTerminationRace(TestCase):
             thread.start()
         for thread in threads:
             thread.join(timeout=5)
+            # join(timeout=...) returns on timeout too, silently - without this, a deadlock in
+            # _finalize_track_termination()'s lock usage could leave a thread still blocked here
+            # while the assertions below happen to still pass (e.g. exactly one earlier thread
+            # already finalized before the deadlock), masking the deadlock as a false pass.
+            self.assertFalse(thread.is_alive(), "termination worker did not complete")
 
         self.assertTrue(processor.track_terminated)
         # The whole point of _finalize_track_termination()'s lock: no matter how many
