@@ -140,8 +140,8 @@ class ContestantTrack(models.Model):
             current_state="Finished",
         )
         if rows_updated == 0:
-            logger.warning(
-                "ContestantTrack %s disappeared before set_calculator_finished() could persist state; suppressing shutdown noise",
+            logger.info(
+                "ContestantTrack %s disappeared before set_calculator_finished() could persist state; suppressing expected shutdown race",
                 self.pk,
             )
             return
