@@ -835,6 +835,14 @@ class ContestantProcessor:
         score, capped = self.accumulated_scores.set_and_update_score(
             update_score_message.score, update_score_message.score_type, update_score_message.maximum_score
         )
+        # The unsigned, pre-normalization magnitude for THIS one event - kept around so the
+        # normalization branches below can append a human-readable "raw -> normalized" note to
+        # update_score_message.message, the only place a viewer (the /gates/ page's per-gate
+        # score log, and the live map's ScoreLogTable - both just render ScoreLogEntry.message)
+        # can see how a CIMA-normalized score was actually arrived at. Without this, a viewer
+        # only ever sees the already-normalized delta with no way to tell it apart from a raw
+        # penalty, or to verify the arithmetic themselves.
+        raw_magnitude = score
         # Every UpdateScoreMessage.score value is authored as a penalty magnitude (positive =
         # worse) - true for every calculator, including CIMA ones (circle_calculator.py emits
         # the deficit from Pmax, not the achieved value directly) - EXCEPT the two turnpoint-hunt
@@ -862,10 +870,18 @@ class ContestantProcessor:
         if update_score_message.score_type == GATE_SCORE_TYPE:
             normalized_delta = self._cima_normalized_gate_score_delta()
             if normalized_delta is not None:
+                update_score_message.message += (
+                    f" [Qmax-normalized: {raw_magnitude:.1f} raw pts of Qmax "
+                    f"{self._cima_gate_qmax_cache:.15g} -> {normalized_delta:+.1f} pts]"
+                )
                 score = normalized_delta
         elif update_score_message.score_type in ACHIEVEMENT_SCORE_TYPES:
             normalized_delta = self._cima_normalized_achievement_score_delta()
             if normalized_delta is not None:
+                update_score_message.message += (
+                    f" [Qmax-normalized: {raw_magnitude:.1f} raw pts of Qmax "
+                    f"{self._cima_achievement_qmax_cache:.15g} -> {normalized_delta:+.1f} pts]"
+                )
                 score = normalized_delta
         # ANR_CATALOGUE only (see cima_task_type_definitions.CIMA_FIXED_SCALE_FACTORS): unlike
         # the component-specific normalizations above, this applies uniformly to every score_type
@@ -874,7 +890,9 @@ class ContestantProcessor:
         # gate/achievement-Qmax-eligible) component normalizations above.
         scale_factor = get_cima_fixed_scale_factor(self.contestant.navigation_task.effective_task_subtype)
         if scale_factor is not None:
-            score *= scale_factor
+            scaled_score = score * scale_factor
+            update_score_message.message += f" [x{scale_factor:g} scale: {score:+.1f} -> {scaled_score:+.1f} pts]"
+            score = scaled_score
         if update_score_message.planned is not None and update_score_message.actual is not None:
             offset = (update_score_message.actual - update_score_message.planned).total_seconds()
             # Must use round, this is the same as used in the score calculation

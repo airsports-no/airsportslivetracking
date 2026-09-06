@@ -269,6 +269,47 @@ class TestCimaGateQmaxNormalization(TestCase):
         processor.update_score_from_thread(self._gate_penalty_message("TP2", 150))
         self.assertEqual(processor.score, 500)
 
+    def test_gate_normalization_annotates_the_message_with_raw_and_normalized_values(self, *args):
+        # The /gates/ page and the live map's ScoreLogTable both just render
+        # ScoreLogEntry.message - without this, a viewer sees only the already-normalized
+        # delta with no way to tell it apart from a raw penalty or verify the arithmetic.
+        task = self._make_two_turnpoint_task()
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+
+        message = self._gate_penalty_message("TP1", 50)
+        processor.update_score_from_thread(message)
+        self.assertIn("Qmax-normalized", message.message)
+        self.assertIn("50.0 raw pts of Qmax 400", message.message)
+        self.assertIn("-125.0 pts", message.message)  # 875 - 1000 = -125
+
+    def test_gate_normalization_message_preserves_fractional_qmax(self, *args):
+        # Regression test (CodeRabbit finding on #757): the message used to format Qmax with
+        # `:.0f`, truncating a fractional value (e.g. 200.5 -> "200") while the normalized delta
+        # correctly used the full precision - misrepresenting the denominator actually used.
+        route = Route.objects.create(
+            name="qmax-fractional-route", waypoints=[self._turnpoint("TP1"), self._turnpoint("TP2")]
+        )
+        task = NavigationTask.create(
+            name="qmax-fractional-task",
+            contest=self.contest,
+            route=route,
+            original_scorecard=self.precision_original,
+            start_time=datetime.datetime(2026, 1, 1, 6, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 1, 1, 16, tzinfo=datetime.timezone.utc),
+            task_subtype=PRECISION_NAVIGATION,
+        )
+        # worst-case = max(200.25, 150) = 200.25 per gate, so qmax = 2 * 200.25 = 400.5 - a
+        # genuinely fractional total that `:.0f` would have truncated to "400".
+        task.scorecard.config.setdefault("gates", {})[TURNPOINT] = {"missed_penalty": 200.25, "maximum_penalty": 150}
+        task.scorecard.save(update_fields=["config"])
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+
+        message = self._gate_penalty_message("TP1", 50)
+        processor.update_score_from_thread(message)
+        self.assertIn("Qmax 400.5", message.message)
+
     def test_non_cima_subtype_falls_back_to_flat_subtraction_for_gate_events_too(self, *args):
         # Same route/scorecard shape, but a legacy (non-normalized) subtype: get_cima_gate_qmax
         # returns None, so GATE_SCORE_TYPE events must fall back to the original flat behavior.
@@ -579,6 +620,16 @@ class TestAnrFixedScaleFactor(TestCase):
         processor.update_score_from_thread(self._message("gate_score", 40))
         self.assertEqual(processor.score, 980)  # 1000 - 40/2, NOT 1000 - 40
 
+    def test_scaling_annotates_the_message_with_raw_and_scaled_values(self, *args):
+        task = self._make_task()
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+
+        message = self._message("gate_score", 40)
+        processor.update_score_from_thread(message)
+        self.assertIn("x0.5 scale", message.message)
+        self.assertIn("-40.0 -> -20.0 pts", message.message)
+
     def test_backtracking_penalty_is_also_halved(self, *args):
         # Unlike 2.A1-2.A5 (where backtracking is a separate flat deduction, excluded from
         # Qmax), 2.A8's own Q formula sums Pbc together with every other term - so it must get
@@ -717,6 +768,16 @@ class TestTurnpointHuntAchievementQmaxNormalization(TestCase):
         # Achieved 100 of 100 -> full 1000.
         processor.update_score_from_thread(self._message("turnpoint_hunt_target_value", 40, "B"))
         self.assertEqual(processor.score, 1000)
+
+    def test_achievement_normalization_annotates_the_message_with_raw_and_normalized_values(self, *args):
+        contestant = self._make_task_and_contestant_with_targets({"A": 60, "B": 40})
+        processor = self._bare_processor(contestant)
+
+        message = self._message("turnpoint_hunt_target_value", 60, "A")
+        processor.update_score_from_thread(message)
+        self.assertIn("Qmax-normalized", message.message)
+        self.assertIn("60.0 raw pts of Qmax 100", message.message)
+        self.assertIn("+600.0 pts", message.message)
 
     def test_sequence_bonus_included_in_achievement_qmax_and_component(self, *args):
         # One target worth 80, plus a 20-point sequence bonus -> qmax = 100.
