@@ -41,17 +41,20 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
         return new Date(takeoff.getTime() + minutes * 60000).toISOString();
     };
 
-    let lastDate = '';
-
     const formatDate = (dateStr: string) => {
         return new Date(dateStr).toLocaleDateString([], {
             timeZone,
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
             day: 'numeric'
         });
     };
+
+    // Precomputed rather than tracked with a variable mutated while mapping over
+    // sortedContestants below (React's newer render-purity checks flag reassigning a
+    // render-scope variable from inside a callback as unsafe).
+    const contestantDates = sortedContestants.map((c) => formatDate(c.takeoff_time));
 
     return (
         <div className="card bg-base-100 shadow-xl mt-8">
@@ -92,9 +95,8 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
                                 const planningMinutes = navigationTask.planning_time ?? 45;
                                 const planningTime = new Date(new Date(c.takeoff_time).getTime() - planningMinutes * 60000).toISOString();
 
-                                const currentDate = formatDate(c.takeoff_time);
-                                const showDateHeader = currentDate !== lastDate;
-                                lastDate = currentDate;
+                                const currentDate = contestantDates[index];
+                                const showDateHeader = index === 0 || currentDate !== contestantDates[index - 1];
 
                                 return (
                                     <React.Fragment key={c.id}>
