@@ -109,12 +109,33 @@ describe('getRenderedRoute', () => {
   });
 
   it('substitutes actual_route.waypoints when present, even if effective_waypoints also exist', () => {
-    const actualWaypoints = [makeWaypoint({ name: 'SP', type: 'sp' }), makeWaypoint({ name: 'TP1', type: 'tp' }), makeWaypoint({ name: 'FP', type: 'fp' })];
+    // Real backend shape (task_compiler.py's _build_unknown_legs_compiled_payload): raw
+    // {name, type, coordinates} entries in [lng, lat] order, not full Waypoint objects -
+    // getRenderedRoute must convert coordinates into latitude/longitude rather than casting
+    // them through unchanged (a prior version did exactly that, feeding Leaflet a polyline of
+    // undefined points and crashing _projectLatlngs the moment a contestant was selected).
+    const actualRouteWaypoints = [
+      { name: 'SP', type: 'sp', coordinates: [11, 60] as [number, number] },
+      { name: 'TRG1', type: 'ul', coordinates: [11.2, 60.2] as [number, number] },
+      { name: 'FP', type: 'fp', coordinates: [11.5, 60.5] as [number, number] },
+    ];
     const effectiveWaypoints = [makeWaypoint({ name: 'SP', type: 'sp' })];
-    const contestant = makeContestant(1, { actual_route: { waypoints: actualWaypoints }, effective_waypoints: effectiveWaypoints });
+    const contestant = makeContestant(1, { actual_route: { waypoints: actualRouteWaypoints }, effective_waypoints: effectiveWaypoints });
     const result = getRenderedRoute(baseRoute, [], { 1: contestant }, 1, false, false);
-    expect(result.waypoints).toBe(actualWaypoints);
-    expect(result.waypoints.map((w) => w.name)).toEqual(['SP', 'TP1', 'FP']);
+    expect(result.waypoints.map((w) => ({ name: w.name, type: w.type, latitude: w.latitude, longitude: w.longitude }))).toEqual([
+      { name: 'SP', type: 'sp', latitude: 60, longitude: 11 },
+      { name: 'TRG1', type: 'ul', latitude: 60.2, longitude: 11.2 },
+      { name: 'FP', type: 'fp', latitude: 60.5, longitude: 11.5 },
+    ]);
+    // Every field RouteRenderer's polyline/gate-line code reads must be a defined, safe
+    // default - not undefined - or the same Leaflet crash resurfaces.
+    result.waypoints.forEach((waypoint) => {
+      expect(Number.isFinite(waypoint.latitude)).toBe(true);
+      expect(Number.isFinite(waypoint.longitude)).toBe(true);
+      expect(waypoint.gate_line).toEqual([]);
+      expect(waypoint.gate_check).toBe(false);
+      expect(waypoint.time_check).toBe(false);
+    });
   });
 
   it('substitutes effective_waypoints when actual_route is absent', () => {

@@ -151,10 +151,11 @@ function renderPrecisionRoute(
         .map((target) => target.name)
     );
     if (canSeeSecrets) {
-      // Secrets-shown must match the route-editor truth: the real backbone
-      // (including hidden points), without the dummy branches added purely
-      // to obfuscate the contestant-facing view. Dummy-branch legs are drawn
-      // only in the secrets-hidden branch below.
+      // Secrets-shown draws the real backbone (including hidden points) as the solid
+      // true route. The dummy misdirection branch(es) are NOT part of this line - they're
+      // drawn separately, dashed/gray, by renderUnknownLegDummyBranches below, so an
+      // organizer can see both the true route and what the contestant was shown without
+      // confusing the two (matching the route editor's own trigger + dashed-branch styling).
       const actualTrack: L.LatLngExpression[] = route.waypoints
         .filter((waypoint: Waypoint) => waypoint.type !== 'dummy')
         .map((waypoint: Waypoint) => [waypoint.latitude, waypoint.longitude] as L.LatLngExpression);
@@ -294,7 +295,8 @@ function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarg
       .filter((target) => (target.kind || 'catalogue_turnpoint') === 'hidden_gate')
       .map((target) => target.name)
   );
-  const markerStyleByKind: Record<string, { radius: number; color: string; fillColor: string; fillOpacity: number; shape?: 'circle' | 'square' | 'diamond'; html?: string; className?: string }> = {
+  type MarkerStyle = { radius: number; color: string; fillColor: string; fillOpacity: number; shape?: 'circle' | 'square' | 'diamond'; html?: string; className?: string };
+  const markerStyleByKind: Record<string, MarkerStyle> = {
     catalogue_turnpoint: { radius: 8, color: 'blue', fillColor: 'white', fillOpacity: 0 },
     circle_center_marker: { radius: 7, color: '#7c3aed', fillColor: '#7c3aed', fillOpacity: 0.2 },
     circle_start_marker: { radius: 8, color: '#16a34a', fillColor: 'white', fillOpacity: 0 },
@@ -304,6 +306,10 @@ function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarg
     unknown_leg_connector_end: { radius: 7, color: '#9ca3af', fillColor: '#9ca3af', fillOpacity: 0.15 },
     hidden_gate: { radius: 7, color: '#7c3aed', fillColor: '#7c3aed', fillOpacity: 0.18, shape: 'square' },
   };
+  // Matches the route editor's dummy_branch_waypoint styling (renderers.ts's
+  // getRoutePointMarkerStyle/'#9ca3af') so a dummy-branch waypoint reads the same way in
+  // both places once secrets are shown.
+  const DUMMY_BRANCH_STYLE: MarkerStyle = { radius: 7, color: '#9ca3af', fillColor: '#9ca3af', fillOpacity: 0.25 };
 
   targets.forEach((target) => {
     const kind = target.kind || 'catalogue_turnpoint';
@@ -316,15 +322,17 @@ function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarg
     if (kind === 'catalogue_turnpoint' && (((target as any).is_unknown_leg_trigger) || hiddenGateNames.has(target.name))) {
       return;
     }
-    // Dummy-branch waypoints (identified by trigger_point_id) exist only to
-    // obfuscate the contestant-facing "secrets hidden" view. When secrets are
-    // shown, the map should match the route-editor truth, so hide them here.
-    if (kind === 'catalogue_turnpoint' && showUnknownLegOverlays && target.trigger_point_id) {
-      return;
-    }
+    // Dummy-branch waypoints (identified by trigger_point_id) exist to obfuscate the
+    // contestant-facing "secrets hidden" view, where they render with the plain
+    // catalogue_turnpoint style so they're indistinguishable from the real route - that's
+    // the point of the misdirection. Once secrets are shown, style them distinctly instead
+    // of hiding them, so an organizer can see exactly what the contestant was shown.
+    const isDummyBranchWaypoint = kind === 'catalogue_turnpoint' && Boolean(target.trigger_point_id);
 
     const [lng, lat] = target.coordinates;
-    const style = markerStyleByKind[kind] || markerStyleByKind.catalogue_turnpoint;
+    const style = (isDummyBranchWaypoint && showUnknownLegOverlays)
+      ? DUMMY_BRANCH_STYLE
+      : (markerStyleByKind[kind] || markerStyleByKind.catalogue_turnpoint);
     let layer: L.Layer;
 
     if (style.html) {
@@ -387,6 +395,48 @@ function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarg
       });
     }
     layers.push(layer);
+  });
+
+  return layers;
+}
+
+// Draws each unknown-leg trigger's dummy misdirection branch as a dashed line from the
+// trigger point through its (possibly multi-point) dummy branch waypoints, in the same
+// dashed-gray style the route editor uses for these (renderers.ts's branchLineGroups). Only
+// called when secrets are shown - this is the "here's what the contestant was actually shown"
+// overlay alongside the true-route backbone drawn elsewhere.
+function renderUnknownLegDummyBranches(map: L.Map, targets: NavigationTaskCatalogueTarget[]): L.Layer[] {
+  const layers: L.Layer[] = [];
+  const triggerByPointId = new Map<string, NavigationTaskCatalogueTarget>();
+  targets
+    .filter((target) => target.kind === 'unknown_leg_trigger' && target.trigger_point_id)
+    .forEach((target) => triggerByPointId.set(target.trigger_point_id as string, target));
+
+  const branchesByPointId = new Map<string, NavigationTaskCatalogueTarget[]>();
+  targets
+    .filter((target) => target.kind === 'catalogue_turnpoint' && target.trigger_point_id)
+    .forEach((target) => {
+      const key = target.trigger_point_id as string;
+      const existing = branchesByPointId.get(key) || [];
+      existing.push(target);
+      branchesByPointId.set(key, existing);
+    });
+
+  branchesByPointId.forEach((branchTargets, triggerPointId) => {
+    const trigger = triggerByPointId.get(triggerPointId);
+    if (!trigger) return;
+    const orderedBranch = [...branchTargets].sort((a, b) => (a.branch_sequence ?? 0) - (b.branch_sequence ?? 0));
+    const [triggerLng, triggerLat] = trigger.coordinates;
+    const points: L.LatLngExpression[] = [
+      [triggerLat, triggerLng],
+      ...orderedBranch.map((target) => {
+        const [lng, lat] = target.coordinates;
+        return [lat, lng] as L.LatLngExpression;
+      }),
+    ];
+    if (points.length >= 2) {
+      layers.push(L.polyline(points, { color: '#9ca3af', weight: 3, dashArray: '8 6' }).addTo(map));
+    }
   });
 
   return layers;
@@ -499,6 +549,9 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, scorec
       layers = layers.concat(renderCatalogueTargets(map, renderedCatalogueTargets, showUnknownLegOverlays, {
         labelCatalogueTurnpoints: isUnknownLegsTask,
       }));
+      if (showUnknownLegOverlays && isUnknownLegsTask) {
+        layers = layers.concat(renderUnknownLegDummyBranches(map, renderedCatalogueTargets));
+      }
       const circleTargets = renderedCatalogueTargets.filter((target) => target.kind?.startsWith('circle_'));
       if (circleTargets.length > 0) {
         layers = layers.concat(renderCircleTaskGeometry(map, circleTargets, scorecard));

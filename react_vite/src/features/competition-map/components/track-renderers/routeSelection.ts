@@ -98,6 +98,33 @@ export function buildUnknownLegRouteDataFromTargets(targets: NavigationTaskCatal
   };
 }
 
+// contestanttaskconfiguration.compiled_effective_route_payload's actual_route.waypoints
+// (task_compiler.py's _build_unknown_legs_compiled_payload) are raw {name, type, coordinates}
+// entries - coordinates in [lng, lat] order, like every other catalogue-target geometry in this
+// payload - not full Waypoint objects. Casting them straight through left every waypoint.latitude/
+// longitude undefined, which fed Leaflet a polyline of undefined points and crashed
+// _projectLatlngs on first render (see routeSelection.test.ts for the regression case).
+function waypointFromActualRouteEntry(entry: { name: string; type: string; coordinates: [number, number] }): Waypoint {
+  const [longitude, latitude] = entry.coordinates;
+  return {
+    name: entry.name,
+    type: entry.type,
+    latitude,
+    longitude,
+    elevation: 0,
+    width: 0,
+    gate_line: [],
+    time_check: false,
+    gate_check: false,
+    end_curved: false,
+    distance_next: 0,
+    distance_previous: 0,
+    bearing_next: 0,
+    bearing_from_previous: 0,
+    is_procedure_turn: false,
+  };
+}
+
 export function getRenderedRoute(
   route: RouteData,
   taskCatalogueTargets: NavigationTaskCatalogueTarget[],
@@ -128,7 +155,7 @@ export function getRenderedRoute(
   if (actualWaypoints.length > 0) {
     return {
       ...route,
-      waypoints: actualWaypoints as Waypoint[],
+      waypoints: actualWaypoints.map(waypointFromActualRouteEntry),
     };
   }
 
