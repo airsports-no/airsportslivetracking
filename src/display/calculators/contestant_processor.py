@@ -122,6 +122,12 @@ class ContestantProcessor:
         self.traccar = get_traccar_instance()
         self.previous_position = None
         self.track_terminated = False
+        # Guards every read-then-write of track_terminated: run(), enqueue_positions_thread(),
+        # and score_updater_thread() (via update_score_from_thread) can all reach a termination
+        # check concurrently (see GH #760), and a plain check-then-act on a bool is not atomic
+        # across threads. Reentrant because check_termination_is_commanded() holds it across its
+        # own call into notify_termination(), which acquires it again internally.
+        self._termination_lock = threading.RLock()
         self.contestant_track: ContestantTrack = contestant.contestanttrack
 
         # Idempotent restart logic: Only reset if there is no existing data or recalculate is requested.
@@ -330,7 +336,7 @@ class ContestantProcessor:
             self.score = self.contestant_track.score
         except ObjectDoesNotExist:
             logger.info(f"{self.contestant}: Object deleted during refresh, terminating")
-            self.track_terminated = True
+            self._finalize_track_termination()
             return
 
         self.websocket_facade.transmit_score_log_entry(self.contestant)
@@ -348,7 +354,7 @@ class ContestantProcessor:
             ContestantReceivedPosition.objects.bulk_create(positions)
         except IntegrityError:
             logger.info(f"{self.contestant}: Contestant deleted during position save, terminating")
-            self.track_terminated = True
+            self._finalize_track_termination()
 
     def run(self):
         """
@@ -412,7 +418,7 @@ class ContestantProcessor:
                 except ObjectDoesNotExist:
                     # Contestants has been deleted, terminate the calculator
                     logger.info(f"{self.contestant} has been deleted, terminating")
-                    self.track_terminated = True
+                    self._finalize_track_termination()
                     break
                 self.last_contestant_refresh = now
             try:
@@ -522,7 +528,11 @@ class ContestantProcessor:
         if number_of_positions > 0:
             self.orchestrator.finished_processing()
 
-        self.contestant_track.set_calculator_finished()
+        # Fallback finalization: every path that can exit this loop already goes through
+        # _finalize_track_termination() (notify_termination() or one of the direct
+        # track_terminated-setting sites above), so this is normally a no-op - it only does
+        # real work if some future loop-exit path forgets to finalize first.
+        self._finalize_track_termination()
         # Refresh the "running" heartbeat before the (normally fast, but unbounded) drain/join
         # below. Without this, a slow queue drain or thread join can outlast the heartbeat's
         # normal <=5s-refresh/30s-TTL cadence (its last refresh was up to LOOP_TIME ago, from
@@ -569,34 +579,61 @@ class ContestantProcessor:
                 else:
                     logger.debug(f"{self.contestant}: Time exceeded, but waiting for {self.timed_queue.qsize()} queued positions and {self.position_queue.size} Redis positions to be processed")
 
+    def _finalize_track_termination(self) -> bool:
+        """
+        Atomically transitions track_terminated False -> True at most once, and - only for the
+        caller that performs that transition - closes the timed queue and marks the
+        ContestantTrack finished. Returns True if this call performed the transition, False if
+        track_terminated was already set by an earlier call (a racing thread, one of the direct
+        `self.track_terminated = True` sites elsewhere in this class, or a previous call here).
+
+        This is the single place that owns set_calculator_finished()/timed_queue.close() (GH
+        #760): every direct-set site, notify_termination(), and run()'s post-loop finalization
+        all go through here, so those idempotent-but-not-free side effects (a DB write plus a
+        websocket push) run exactly once regardless of which of run()/enqueue_positions_thread()/
+        score_updater_thread() got there first.
+        """
+        with self._termination_lock:
+            if self.track_terminated:
+                return False
+            self.track_terminated = True
+        self.contestant_track.set_calculator_finished()
+        self.timed_queue.close()
+        return True
+
     def notify_termination(self, reason: str = ""):
         """
         Trigger termination of the run function.
         """
-        if self.track_terminated:
+        if not self._finalize_track_termination():
             logger.debug("%s: termination already requested; skipping duplicate notify_termination call", self.contestant)
             return
 
         logger.info("%s: Setting termination flag. Reason: %s", self.contestant, reason or "unspecified")
-        self.track_terminated = True
-        self.contestant_track.set_calculator_finished()
-        self.timed_queue.close()
 
     def check_termination_is_commanded(self, position: Optional[ContestantReceivedPosition]):
         """
         Checks if termination has been manually triggered. If it has been triggered, create a score log entry to
         reflect this and notify termination.
         """
-        if not self.track_terminated:
+        # Held for the whole check-build-enqueue-notify sequence, not just the initial
+        # track_terminated peek: run() and enqueue_positions_thread() both call this
+        # concurrently, and without the lock both could observe "not yet terminated", both
+        # build and enqueue a "manually terminated" score-log entry, and only then race into
+        # notify_termination() - which _finalize_track_termination() alone would have made
+        # safe, but the duplicate score-log entry would already be queued (GH #760).
+        with self._termination_lock:
+            if self.track_terminated:
+                return
             termination_time = self.is_termination_commanded()
             if termination_time:
                 last_gate = self.orchestrator.get_last_gate()
-                
+
                 # Fallbacks for when no gates have been passed yet
                 lat = 0.0
                 lon = 0.0
                 planned = self.contestant.takeoff_time
-                
+
                 if position:
                     lat, lon = position.latitude, position.longitude
                 elif last_gate:
@@ -946,7 +983,7 @@ class ContestantProcessor:
                 # this get_or_create - and hitting the same FK violation - on every subsequent gate crossing
                 # until the next refresh notices the deletion.
                 logger.info(f"{self.contestant}: Contestant deleted during score update, terminating")
-                self.track_terminated = True
+                self._finalize_track_termination()
                 return
 
         gate_score = self.gate_scores[gate_name]
