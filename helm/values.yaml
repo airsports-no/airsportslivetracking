@@ -42,7 +42,14 @@ mediaLocation: media
 traccarUsername: frankose@ifi.uio.no
 
 secretKey: secret
- 
+
+# Sentry DSNs (backend Python project, frontend JS project - normally two separate Sentry
+# projects, see live_tracking_map.settings.py). Not secret (Sentry DSNs are meant to be public
+# client-side keys), but left empty here by default so Sentry stays disabled until real values
+# are added via the private-values override (see cloudbuild-deploy.yaml).
+sentryDsn: ""
+sentryDsnFrontend: ""
+
 serviceAccountSecretName: calculator-scheduler-token-j9nmc # Not in use?
 k8sApi: https://airsports2-dns-3bdbed7d.hcp.northeurope.azmk8s.io:443 #https://airsports-dns-b66fdeca.hcp.northeurope.azmk8s.io:443
 

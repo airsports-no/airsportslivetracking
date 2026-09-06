@@ -19,7 +19,9 @@
     <script>
         document.configuration = {
             STATIC_FILE_LOCATION:  "{% get_static_prefix %}",
-            currentUserEmail: "{{ user.email }}"
+            currentUserEmail: "{{ user.email }}",
+            sentryDsn: "{{ SENTRY_DSN_FRONTEND|escapejs }}",
+            release: "{{ BUILD_ID|escapejs }}"
 
         }
         document.configuration.getCookie = (name) => {
