@@ -125,9 +125,15 @@ class TestAdaptiveStartGateTimesSync(TestCase):
 
         # predefined_gate_times was already correct before this fix - the bug was entirely in
         # compiled_gate_times_payload (and therefore the gate_times property) never catching up.
-        self.assertEqual(refreshed_contestant.predefined_gate_times["SP"], absolute_gate_times["SP"])
+        # Compare the complete mappings (SP and FP), not just one gate - an implementation that
+        # only refreshed the starting-point entry would pass a single-key assertion while later
+        # gate times stayed stale.
+        self.assertEqual(refreshed_contestant.predefined_gate_times, absolute_gate_times)
         self.assertEqual(
-            datetime.datetime.fromisoformat(refreshed_config.compiled_gate_times_payload["SP"]),
-            absolute_gate_times["SP"],
+            {
+                key: datetime.datetime.fromisoformat(value)
+                for key, value in refreshed_config.compiled_gate_times_payload.items()
+            },
+            absolute_gate_times,
         )
-        self.assertEqual(refreshed_contestant.gate_times["SP"], absolute_gate_times["SP"])
+        self.assertEqual(refreshed_contestant.gate_times, absolute_gate_times)
