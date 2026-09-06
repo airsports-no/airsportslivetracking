@@ -283,6 +283,33 @@ class TestCimaGateQmaxNormalization(TestCase):
         self.assertIn("50.0 raw pts of Qmax 400", message.message)
         self.assertIn("-125.0 pts", message.message)  # 875 - 1000 = -125
 
+    def test_gate_normalization_message_preserves_fractional_qmax(self, *args):
+        # Regression test (CodeRabbit finding on #757): the message used to format Qmax with
+        # `:.0f`, truncating a fractional value (e.g. 200.5 -> "200") while the normalized delta
+        # correctly used the full precision - misrepresenting the denominator actually used.
+        route = Route.objects.create(
+            name="qmax-fractional-route", waypoints=[self._turnpoint("TP1"), self._turnpoint("TP2")]
+        )
+        task = NavigationTask.create(
+            name="qmax-fractional-task",
+            contest=self.contest,
+            route=route,
+            original_scorecard=self.precision_original,
+            start_time=datetime.datetime(2026, 1, 1, 6, tzinfo=datetime.timezone.utc),
+            finish_time=datetime.datetime(2026, 1, 1, 16, tzinfo=datetime.timezone.utc),
+            task_subtype=PRECISION_NAVIGATION,
+        )
+        # worst-case = max(200.25, 150) = 200.25 per gate, so qmax = 2 * 200.25 = 400.5 - a
+        # genuinely fractional total that `:.0f` would have truncated to "400".
+        task.scorecard.config.setdefault("gates", {})[TURNPOINT] = {"missed_penalty": 200.25, "maximum_penalty": 150}
+        task.scorecard.save(update_fields=["config"])
+        contestant = self._make_contestant(task)
+        processor = self._bare_processor(contestant)
+
+        message = self._gate_penalty_message("TP1", 50)
+        processor.update_score_from_thread(message)
+        self.assertIn("Qmax 400.5", message.message)
+
     def test_non_cima_subtype_falls_back_to_flat_subtraction_for_gate_events_too(self, *args):
         # Same route/scorecard shape, but a legacy (non-normalized) subtype: get_cima_gate_qmax
         # returns None, so GATE_SCORE_TYPE events must fall back to the original flat behavior.

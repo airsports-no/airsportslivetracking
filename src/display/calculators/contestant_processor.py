@@ -872,7 +872,7 @@ class ContestantProcessor:
             if normalized_delta is not None:
                 update_score_message.message += (
                     f" [Qmax-normalized: {raw_magnitude:.1f} raw pts of Qmax "
-                    f"{self._cima_gate_qmax_cache:.0f} -> {normalized_delta:+.1f} pts]"
+                    f"{self._cima_gate_qmax_cache:.15g} -> {normalized_delta:+.1f} pts]"
                 )
                 score = normalized_delta
         elif update_score_message.score_type in ACHIEVEMENT_SCORE_TYPES:
@@ -880,7 +880,7 @@ class ContestantProcessor:
             if normalized_delta is not None:
                 update_score_message.message += (
                     f" [Qmax-normalized: {raw_magnitude:.1f} raw pts of Qmax "
-                    f"{self._cima_achievement_qmax_cache:.0f} -> {normalized_delta:+.1f} pts]"
+                    f"{self._cima_achievement_qmax_cache:.15g} -> {normalized_delta:+.1f} pts]"
                 )
                 score = normalized_delta
         # ANR_CATALOGUE only (see cima_task_type_definitions.CIMA_FIXED_SCALE_FACTORS): unlike
