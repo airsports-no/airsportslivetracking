@@ -20,7 +20,7 @@ An ASLT Digital Poker Run eliminates the logistical headache of stationing volun
 #### 1. Pre-Flight Setup (Do this at home)
 * **Download the App:** Ensure you have the **Air Sports Live Tracking (ASLT)** app installed on your iOS or Android device.
 * **Log In:** Open the app and log into your user profile.
-* **Verify Subscription:** Confirm your pilot tracking subscription is current (€3.69/month or €8.99/year). 
+* **Verify Subscription:** Confirm your pilot tracking subscription is current. 
   > *Note: ASLT is a true non-profit, open-source platform backed by national flying federations. 100% of app subscriptions directly fund ongoing mobile software engineering, security updates, and high-precision telemetry infrastructure.*
 
 #### 2. Before Engine Start (At the Hangar Wall)
