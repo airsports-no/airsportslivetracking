@@ -615,7 +615,16 @@ def bump_gate_scorecard_cache_version(sender, instance: Scorecard, **kwargs):
     # Scorecard save, including ones only touching gate config through `config` (Phase 2e
     # made every writer, seed data included, write config directly instead of going through
     # a GateScore row + mirror signal, so this is now the only trigger).
-    cache.set(f"gate_scorecard_version_{instance.pk}", uuid.uuid4().hex, timeout=None)
+    #
+    # Published via on_commit rather than synchronously here (#742): post_save fires before
+    # the enclosing transaction commits, so a synchronous write let another connection see the
+    # new token - and cache a fresh GateScoreValue under it - before it could see the committed
+    # Scorecard.config the token is supposed to describe. That GateScoreValue then stayed
+    # wrongly cached until the token changed again. transaction.on_commit defers the write
+    # until Scorecard.config is actually visible to other connections (and no-ops if the
+    # transaction rolls back); outside a transaction it still runs immediately.
+    pk = instance.pk
+    transaction.on_commit(lambda: cache.set(f"gate_scorecard_version_{pk}", uuid.uuid4().hex, timeout=None))
 
 
 @receiver(post_save, sender=EditableRoute)
