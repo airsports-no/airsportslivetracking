@@ -98,7 +98,7 @@ The free tier is configured through Django settings / environment, not through a
 
 Relevant settings:
 - `ACCESS_ENFORCEMENT_MODE`
-  - `warn`: include capacity information in the UI/API but do not block actions
+  - `audit`: include capacity information in the UI/API but do not block actions
   - `enforce`: block task creation / registration once limits are reached
 - `DEFAULT_FREE_CONTESTANT_LIMIT`
   - default contestant cap for contests that do not have a club pass, access grant, or token
@@ -109,7 +109,7 @@ Semantics:
 - contest creation and task/contestant registration consult the resolved access tier before allowing the action when enforcement mode is `enforce`
 
 Operational recommendation:
-- use `warn` while tuning limits or onboarding clubs
+- use `audit` while tuning limits or onboarding clubs
 - switch to `enforce` once the desired pricing/capacity model is stable
 
 Admin models involved:
