@@ -6,6 +6,8 @@ from collections import deque
 from queue import Queue
 from typing import Callable, List, Optional
 
+from django.db import transaction
+
 from display.calculators.calculator import (
     AdaptiveStartEvent,
     EstimationUpdatedEvent,
@@ -24,7 +26,7 @@ from display.calculators.calculator import (
 )
 from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
-from display.models import Contestant
+from display.models import Contestant, ContestantTaskConfiguration
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import Projector
 from display.utilities.gate_definitions import CIRCLE_START
@@ -207,10 +209,40 @@ class Orchestrator:
             # Update the contestant model with the recalculated gate times so they are persisted and used for future lookups
             self.contestant.predefined_gate_times = event.gate_times
 
-            # Use update() to bypass signals that might reset gate times and bypass clean() checks
-            Contestant.objects.filter(pk=self.contestant.pk).update(
-                predefined_gate_times=self.contestant.predefined_gate_times,
-            )
+            # Contestant.gate_times (read by the Django gates/penalties page, the live map, and
+            # API serializers) prefers contestanttaskconfiguration.compiled_gate_times_payload
+            # over predefined_gate_times whenever a valid config exists - which is now the case
+            # for essentially every contestant (ContestantTaskCompiler.compile() runs for every
+            # task subtype via contestant_persistence.create_contestant_with_related_state).
+            # That payload was computed once, at declaration/creation time, from
+            # calculate_missing_gate_times() with no start-time override - for an adaptive-start
+            # contestant that's the midnight-anchored relative placeholder, not real times.
+            # Without also refreshing it here, those consumers kept showing that placeholder
+            # forever, even though scoring itself (via each calculator's own gate.expected_time,
+            # set in on_adaptive_start below) already used the recalculated absolute times.
+            #
+            # Both updates run in one transaction: a failure partway through (e.g. a dropped DB
+            # connection between the two statements) must not leave predefined_gate_times and
+            # compiled_gate_times_payload disagreeing - that would reproduce a variant of the
+            # exact staleness bug this fix closes, just via a partial write instead of always.
+            with transaction.atomic():
+                # Use update() to bypass signals that might reset gate times and bypass clean() checks
+                Contestant.objects.filter(pk=self.contestant.pk).update(
+                    predefined_gate_times=self.contestant.predefined_gate_times,
+                )
+
+                if (
+                    event.gate_times
+                    and hasattr(self.contestant, "contestanttaskconfiguration")
+                    and self.contestant.contestanttaskconfiguration.is_valid
+                ):
+                    config = self.contestant.contestanttaskconfiguration
+                    config.compiled_gate_times_payload = {
+                        gate_name: gate_time.isoformat() for gate_name, gate_time in event.gate_times.items()
+                    }
+                    ContestantTaskConfiguration.objects.filter(pk=config.pk).update(
+                        compiled_gate_times_payload=config.compiled_gate_times_payload,
+                    )
 
             self.websocket_facade.transmit_contestant(self.contestant)
             for calculator in self.calculators:
