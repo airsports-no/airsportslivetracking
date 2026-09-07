@@ -1,3 +1,7 @@
+// @vitest-environment jsdom
+// renderers.ts imports leaflet, which touches `window` at module load time -
+// Vitest 5's stricter ESM handling evaluates that eagerly even though this
+// file's own tests never touch the DOM directly.
 import type { RoutePoint } from '../../../../types';
 import { getRoutePointMarkerStyle } from './renderers';
 
