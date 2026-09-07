@@ -21,6 +21,9 @@ data:
   AUTHEMAIL_DEFAULT_EMAIL_BCC: support@airsports.no
   FIREBASE_WEB_API_KEY: "AIzaSyD_LDULS2RvLvhTtnLyEzARtbs-WgtFOAo"
 
+  SENTRY_DSN: {{ .Values.sentryDsn | quote }}
+  SENTRY_DSN_FRONTEND: {{ .Values.sentryDsnFrontend | quote }}
+
   LOG_HANDLER: stackdriver
 
   MEDIA_LOCATION: {{ .Values.mediaLocation }}

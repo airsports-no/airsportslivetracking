@@ -68,6 +68,7 @@ whitenoise==6.11.0
 django-location-field==2.7.3
 cartopy==0.25.0
 google-cloud-logging==3.13.0
+sentry-sdk==2.68.1
 python-dateutil~=2.8.2
 gunicorn
 eval7==0.1.10

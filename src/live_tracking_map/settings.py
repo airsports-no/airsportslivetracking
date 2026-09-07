@@ -176,6 +176,29 @@ PRODUCTION = os.environ.get("MODE") != "dev"
 # DEBUG, GCS media storage, and everything else PRODUCTION/MODE gates.
 CALCULATOR_DISPATCH_VIA_CELERY = os.environ.get("CALCULATOR_DISPATCH_VIA_CELERY", "1" if PRODUCTION else "0") == "1"
 
+# Error tracking (Sentry). SENTRY_DSN is the backend (Python) project's DSN; SENTRY_DSN_FRONTEND
+# (read by display.context_processors.sentry_settings, and from there injected into
+# document.configuration for FrontendApp.tsx's own sentry_sdk.init() equivalent) is a separate
+# DSN for the JS project - Sentry groups issues per-platform, so these are normally two
+# different projects even though both env vars can point at the same DSN if only one exists.
+# Both default to "" (disabled) - unset in docker-compose/local dev, and in production until the
+# real DSNs are added to the private-values Helm secret (see configmap_other.yaml).
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+SENTRY_DSN_FRONTEND = os.environ.get("SENTRY_DSN_FRONTEND", "")
+if SENTRY_DSN and not IS_UNIT_TESTING:
+    import sentry_sdk
+
+    # Initialized at module scope (not an AppConfig.ready() hook) so it is active for every
+    # entry point that imports these settings - the ASGI app (config/asgi.sh), Celery workers
+    # (celery.py), and standalone scripts like position_processor.py that call django.setup() -
+    # not just plain HTTP request handling.
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment="production" if PRODUCTION else "development",
+        release=BUILD_ID,
+        send_default_pii=False,
+    )
+
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = ("tailwind", "daisyui")
@@ -233,6 +256,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "display.context_processors.firebase_settings",
+                "display.context_processors.sentry_settings",
             ],
         },
     },
