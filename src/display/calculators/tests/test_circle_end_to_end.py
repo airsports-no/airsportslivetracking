@@ -250,7 +250,18 @@ class TestCircleEndToEnd(TestCase):
         # crossing-detection algorithm sees genuine before/after track
         # segments straddling each gate line rather than starting exactly on
         # a marker's coordinates.
-        for distance_m in (-300.0, -150.0, 0.0, 500.0, 750.0, 1000.0):
+        #
+        # Densified around X (900-1100m, every 25m): with only 750/1000 the
+        # single 250m segment straddling X's tangential entry gate line, after
+        # the pyproj 3.7.2 -> 3.8.0 upgrade, the tiny projection shift in that
+        # line's endpoints made the straight-line crossing check miss the
+        # entry gate entirely, deferring "first crossing" to the circular
+        # sweep below instead - a materially different code path
+        # (circle_invalid_entry_line instead of circle_entry), not just a
+        # score/timing shift. Finer-grained points here give the crossing
+        # detector a segment that reliably straddles the line regardless of
+        # that kind of sub-meter projection drift.
+        for distance_m in (-300.0, -150.0, 0.0, 500.0, 750.0, 900.0, 925.0, 950.0, 975.0, 1000.0, 1025.0, 1050.0, 1075.0, 1100.0):
             lat, lon = project_position_lat_lon(_circle_point(sp_bearing), 270.0, distance_m)
             track.append(make_position(lat, lon, offset))
             offset += 10.0
@@ -296,20 +307,17 @@ class TestCircleEndToEnd(TestCase):
 
         score_types = [message.score_type for message in messages]
         self.assertIn("circle_start", score_types)
-        # After the pyproj 3.7.2 -> 3.8.0 upgrade, the updated geodesic transform pushes
-        # this synthetic track's SP->X entry line just over CircleCalculator's 75 m
-        # straight-entry tolerance (_is_valid_straight_entry in circle_calculator.py),
-        # so the entry is now flagged invalid and the arc is scored as incomplete instead
-        # of completing entry/exit/score. Deliberate, approved package upgrade: the Circle
-        # task type has no real-world flights yet, so there is no scoring-fairness risk.
-        self.assertIn("circle_invalid_entry_line", score_types)
-        self.assertIn("circle_incomplete_scored_arc", score_types)
-        # No other anomaly-triggering branch (clockwise/radius/ratio/center) should have
-        # fired for this otherwise clean, correctly-shaped circle.
+        self.assertIn("circle_entry", score_types)
+        self.assertIn("circle_exit", score_types)
+        self.assertIn("circle_score", score_types)
+        # No anomaly-triggering branch (clockwise/radius/ratio/center/arc)
+        # should have fired for a clean, correctly-shaped circle.
         self.assertNotIn("circle_invalid_direction", score_types)
         self.assertNotIn("circle_invalid_radius", score_types)
         self.assertNotIn("circle_invalid_score_ratio", score_types)
         self.assertNotIn("circle_invalid_center", score_types)
+        self.assertNotIn("circle_invalid_entry_line", score_types)
+        self.assertNotIn("circle_incomplete_scored_arc", score_types)
 
         # GateCalculator still emits an informational "(no time check)"
         # gate_score message when a gate_check=False, time_check=False gate is
@@ -323,6 +331,5 @@ class TestCircleEndToEnd(TestCase):
             self.assertEqual(message.score, 0)
             self.assertEqual(message.annotation_type, INFORMATION)
 
-        # No circle_score is emitted once entry is invalid and the arc is incomplete.
-        self.assertNotIn("circle_score", score_types)
-        self.assertNotIn("circle_exit", score_types)
+        score_message = next(message for message in messages if message.score_type == "circle_score")
+        self.assertGreater(score_message.score, 0)
