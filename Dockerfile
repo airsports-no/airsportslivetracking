@@ -30,7 +30,7 @@ RUN chmod 755 src/static/css/tailwindcss
 RUN src/static/css/tailwindcss -i src/static/css/input.css -o src/static/css/output.css --minify
 
 # Stage 2: Build python dependencies
-FROM python:3.12-slim-bookworm AS python_builder
+FROM python:3.13-slim-bookworm AS python_builder
 ENV PYTHONUNBUFFERED=1 \
     MPLCONFIGDIR=/tmp/matplotlib
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -50,7 +50,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip wheel --wheel-dir /wheels cython shapely -r /requirements.txt
 
 # Stage 3: Setup runtime environment
-FROM python:3.12-slim-bookworm AS tracker_base
+FROM python:3.13-slim-bookworm AS tracker_base
 ENV PYTHONUNBUFFERED=1 \
     MPLCONFIGDIR=/tmp/matplotlib \
     LC_ALL=C.UTF-8 \
@@ -76,7 +76,7 @@ RUN --mount=type=bind,from=python_builder,source=/wheels,target=/wheels \
     # utilities (never googleapiclient.discovery), so the ~99MB of bundled
     # Google API discovery documents under discovery_cache/documents are
     # dead weight - nothing in this codebase calls discovery.build().
-    && rm -rf /usr/local/lib/python3.12/site-packages/googleapiclient/discovery_cache/documents
+    && rm -rf /usr/local/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents
         
 ###### SETUP APPLICATION INFRASTRUCTURE ######
 # Only importnavigationtask.json is needed, by
