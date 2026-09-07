@@ -55,7 +55,7 @@ spec:
         command:
         - sh
         - -c
-        - "find /usr/local/lib/python3.12/site-packages /src /static /assets_vite /marketing_dist -type f -exec cat {} + > /dev/null 2>&1; sleep infinity"
+        - "find /usr/local/lib/python3.13/site-packages /src /static /assets_vite /marketing_dist -type f -exec cat {} + > /dev/null 2>&1; sleep infinity"
         resources:
           requests:
             cpu: {{ .Values.prewarmBuffer.cpu }}

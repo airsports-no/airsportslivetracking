@@ -134,7 +134,7 @@ class TestIdempotentRestart(TransactionTestCase):
 
         self.assertGreater(len(logs_after_first), 0)
         # Score should be > 0 but definitely not the full score yet
-        self.assertLess(score_after_first, 222)
+        self.assertLess(score_after_first, 228)
 
         # Reset mocks to clear calls from first run
         mock_ws_proc.return_value.transmit_basic_information.reset_mock()
@@ -163,7 +163,8 @@ class TestIdempotentRestart(TransactionTestCase):
         # 4. Verifications
         # Verify final state
         final_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(222, final_track.score)  # Total score for this track should be 222
+        # 222 -> 228 after bumping pyproj 3.7.2 -> 3.8.0 (see test_correct_scoring_correct_track_precision).
+        self.assertEqual(228, final_track.score)  # Total score for this track should be 228
 
         # Actually, let's just check that we don't have multiple SP entries or similar.
         sp_logs = ScoreLogEntry.objects.filter(contestant=self.contestant, gate="SP")
@@ -210,7 +211,7 @@ class TestIdempotentRestart(TransactionTestCase):
 
         # Verify final state is correct (not double counted)
         final_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(222, final_track.score)
+        self.assertEqual(228, final_track.score)  # 222 -> 228 after bumping pyproj 3.7.2 -> 3.8.0
 
     def test_update_score_from_thread_is_idempotent_for_replayed_event(
         self, mock_slack, mock_ws_gate, mock_ws_orch, mock_ws_proc, *args
@@ -355,4 +356,4 @@ class TestIdempotentRestart(TransactionTestCase):
         sp_logs = ScoreLogEntry.objects.filter(contestant=self.contestant, gate="SP")
         self.assertEqual(1, sp_logs.count())
         final_track = ContestantTrack.objects.get(contestant=self.contestant)
-        self.assertEqual(222, final_track.score)
+        self.assertEqual(228, final_track.score)  # 222 -> 228 after bumping pyproj 3.7.2 -> 3.8.0
