@@ -194,6 +194,13 @@ class Contest(models.Model):
 
     class Meta:
         ordering = ("-start_time", "-finish_time")
+        indexes = [
+            # Supports the public/featured dashboard-polling filter (ContestantViewSet.get_queryset
+            # and similar): is_public and is_featured are plain BooleanFields with no automatic
+            # index, and this exact combination is queried at high frequency (Query Insights:
+            # ~475k calls, ~3100 rows scanned per row returned).
+            models.Index(fields=["is_public", "is_featured"]),
+        ]
 
     @property
     def country_codes(self) -> set[str]:
