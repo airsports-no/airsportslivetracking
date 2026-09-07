@@ -207,3 +207,17 @@ class ContestResultsConsumer(ParallelDispatchMixin, WebsocketConsumer):
 
     def contestresults(self, event):
         self.send(text_data=json.dumps(event["content"], cls=DateTimeEncoder))
+
+
+class UnroutedWebsocketConsumer(WebsocketConsumer):
+    """
+    Catch-all for any websocket path that doesn't match one of the routes above (health-check
+    probes, bots/scanners, stray clients hitting "/" with a websocket Upgrade header). Without
+    this, URLRouter.__call__ raises ValueError("No route found for path %r") straight out of
+    channels/routing.py, which Sentry logs as an unhandled-looking exception for a request that
+    was never going to be valid - see PYTHON-DJANGO-4. Rejecting the handshake here closes the
+    connection cleanly instead.
+    """
+
+    def connect(self):
+        self.close()
