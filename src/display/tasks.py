@@ -268,6 +268,17 @@ def notify_flight_order(contestant_pk: int, email: str, first_name: str):
             return
         try:
             mail_link = EmailMapLink.objects.filter(contestant=contestant).first()
+            if mail_link is None:
+                # notify_flight_order is dispatched independently of generate_flight_order
+                # (see broadcast_navigation_task_orders in views_api.py, which resends orders
+                # to already-selected contestants) - if the flight order was never generated
+                # for this contestant, or its EmailMapLink was deleted by a later regeneration
+                # racing with this call, there is nothing to send. Fail with a clear message
+                # instead of the opaque AttributeError previously raised by calling
+                # send_email on None.
+                raise ValueError(
+                    f"No flight order has been generated yet for contestant {contestant_pk}"
+                )
             mail_link.send_email(email, first_name)
         except Exception as e:
             append_cache_dict(
