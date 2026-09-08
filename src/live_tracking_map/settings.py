@@ -523,13 +523,25 @@ CELERY_ENABLE_UTC = True
 CELERY_BEAT_SCHEDULE = {}
 
 ASGI_APPLICATION = "live_tracking_map.asgi.application"
+# Exposed under its own name (rather than only inline below) so tests can import the real
+# connection config directly - CHANNEL_LAYERS itself gets swapped to the in-memory backend
+# below under IS_UNIT_TESTING, which would otherwise shadow it.
+#
+# socket_timeout=None restores redis-py's pre-8.0 default (previously unset, i.e. wait
+# indefinitely). redis-py 8.0 changed the default socket_timeout to 5s, which races
+# channels_redis's own brpop_timeout=5 blocking-pop timeout: if Redis is quiet for 5s,
+# redis-py's client-side socket read can time out at essentially the same moment the server
+# would have returned its normal empty BZPOPMIN response, raising
+# redis.exceptions.TimeoutError instead - see redis/redis-py#4091. Without this, every idle
+# websocket connection hits that race roughly every 5 seconds.
+REDIS_CHANNEL_LAYER_HOSTS = [{"address": CELERY_BROKER_URL, "socket_timeout": None}]
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         # "BACKEND": "channels_redis.pubsub.RedisPubSubChannelLayer",
         "CONFIG": {
             # "hosts": ["unix:/tmp/docker/redis.sock" if PRODUCTION else ("redis", 6379)],
-            "hosts": [CELERY_BROKER_URL],
+            "hosts": REDIS_CHANNEL_LAYER_HOSTS,
             "capacity": 100,  # default 100
             "expiry": 30,  # default 60
         },
