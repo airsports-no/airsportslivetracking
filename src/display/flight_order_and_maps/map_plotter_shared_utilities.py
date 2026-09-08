@@ -206,11 +206,22 @@ def get_builtin_map_source_definitions() -> list[dict]:
     for key, source in BUILTIN_NON_MBTILES_SOURCES.items():
         definitions.append({"key": key, "provider": key, **source, "allow_multiple": key == "openaip", "is_always_on_top": key == "openaip"})
 
+    from django.db.utils import DatabaseError
+
     from display.models.user_uploaded_map import UserUploadedMap
+
+    try:
+        uploaded_maps = list(UserUploadedMap.objects.exclude(published_relative_path=""))
+    except DatabaseError:
+        # get_map_choices (below) is used as a model field's `choices` callable, which Django's
+        # system checks evaluate eagerly - including before migrations have run on a genuinely
+        # fresh database (no display_useruploadedmap table yet). Treat "no table yet" the same
+        # as "no uploaded maps yet" rather than crashing manage.py migrate/check itself.
+        uploaded_maps = []
 
     uploaded_service_keys = {
         service_key_from_uploaded_relative_path(uploaded_map.published_relative_path)
-        for uploaded_map in UserUploadedMap.objects.exclude(published_relative_path="")
+        for uploaded_map in uploaded_maps
         if uploaded_map.published_relative_path
     }
 
