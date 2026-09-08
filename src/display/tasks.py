@@ -105,6 +105,13 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
         cache.set(cache_key, {"status": "complete", "url": file_url}, timeout=3600)
         logger.info(f"Async map generation complete. URL: {file_url}")
 
+    except ObjectDoesNotExist as e:
+        # Expected race, not a bug: the task/contestant/user can be deleted between this task
+        # being queued and running. Logged at warning (not exception) so it doesn't raise a
+        # Sentry error for every occurrence - the caller still sees the "error" cache status.
+        logger.warning(f"Async map generation skipped - object not found: {e}")
+        cache_key = f"map_gen_result_{task_id}_{contestant_id}_{user_id}"
+        cache.set(cache_key, {"status": "error", "message": str(e)}, timeout=3600)
     except Exception as e:
         logger.exception("Failed async map generation")
         cache_key = f"map_gen_result_{task_id}_{contestant_id}_{user_id}"
@@ -232,7 +239,10 @@ def generate_and_maybe_notify_flight_order(
         try:
             contestant = Contestant.objects.get(pk=contestant_pk)
         except ObjectDoesNotExist:
-            logger.exception("Could not find contestant for contestant key {}".format(contestant_pk))
+            # Expected race, not a bug: the contestant can be deleted/renumbered between this
+            # task being queued and running. Already handled by returning below - logged at
+            # warning (not exception) so it doesn't raise a Sentry error for every occurrence.
+            logger.warning("Could not find contestant for contestant key {}".format(contestant_pk))
             return
         logger.info(f"Generating flight order for {contestant}")
         append_cache_dict(f"completed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, False)

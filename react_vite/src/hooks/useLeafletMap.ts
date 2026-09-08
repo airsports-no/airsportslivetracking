@@ -68,6 +68,14 @@ export default function useLeafletMap(
         // Cleanup function for when the component unmounts
         return () => {
             if (map) {
+                // Leaflet workaround (Sentry JAVASCRIPT-REACT-5): map.remove() stops pan/fly
+                // animations and removes the map's DOM pane, but never resets _animatingZoom nor
+                // cancels the raw setTimeout(_onZoomTransitionEnd, 250) that _animateZoom
+                // schedules. If we unmount mid zoom-animation, that timeout later fires
+                // _onZoomTransitionEnd against an already-removed map and crashes.
+                // _onZoomTransitionEnd's own first line is `if (!this._animatingZoom) return;`,
+                // so forcing the flag off here makes the stale timeout a no-op.
+                (map as unknown as { _animatingZoom?: boolean })._animatingZoom = false;
                 map.remove();
             }
         };
