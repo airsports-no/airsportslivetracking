@@ -51,7 +51,7 @@ pyproj==3.8.0
 python-redis-lock==4.0.1
 pytz==2026.3.post1
 qrcode==8.2
-redis[hiredis]==7.1.0
+redis[hiredis]==8.1.0
 requests==2.34.2
 scipy==1.18.1
 #segno==1.6.0
