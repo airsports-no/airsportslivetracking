@@ -7,6 +7,7 @@ from queue import Full, Queue
 from typing import List, Optional, Tuple, Dict
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.db.utils import IntegrityError
 
 from display.calculators.calculator_factory import calculator_factory
@@ -1008,8 +1009,37 @@ class ContestantProcessor:
         if not created:
             return
 
+        from display.models import GateCumulativeScore
+
         gate_score.points += score
-        gate_score.save(update_fields=["points"])
+        try:
+            # save(update_fields=...) raises NotUpdated from inside its own
+            # atomic(savepoint=False) block, which - with no savepoint of its own to unwind
+            # to - marks the *enclosing* transaction for rollback (connection.needs_rollback).
+            # Without our own savepoint here, the recovery queries in the except block below
+            # would immediately fail with TransactionManagementError instead of running.
+            # Wrapping the save in its own atomic() creates a real savepoint, so a NotUpdated
+            # here only unwinds to that savepoint and leaves the rest of the transaction usable.
+            with transaction.atomic():
+                gate_score.save(update_fields=["points"])
+        except GateCumulativeScore.NotUpdated:
+            # The row was deleted concurrently - e.g. an organizer used delete_score_item
+            # (views.py) to remove the only ScoreLogEntry for this gate, which deletes the
+            # GateCumulativeScore row too. self.gate_scores is a per-process cache that's
+            # never invalidated when a *different* request/process deletes the row out from
+            # under it, so the cached object here no longer corresponds to a real row.
+            # Recreate it seeded with just this increment, not the stale cached total.
+            gate_score, recreated = GateCumulativeScore.objects.get_or_create(
+                gate=gate_name, contestant=self.contestant, defaults={"points": score}
+            )
+            if not recreated:
+                # Another thread/process already recreated it between our failed save and
+                # this get_or_create - same safe increment-then-save as the normal path, and
+                # the same savepoint reasoning applies if it races again.
+                gate_score.points += score
+                with transaction.atomic():
+                    gate_score.save(update_fields=["points"])
+            self.gate_scores[gate_name] = gate_score
 
         self.score += score
 
