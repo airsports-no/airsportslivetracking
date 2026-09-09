@@ -14,6 +14,7 @@
         <span id="loading-spinner" class="loading loading-spinner loading-lg text-primary mb-4"></span>
         <div id="result-message" class="hidden text-center">
             <p id="success-message" class="text-success mb-4 font-bold">Map generation complete!</p>
+            <p id="warning-message" class="hidden text-warning text-sm mb-4"></p>
             <p id="error-message" class="text-error mb-4"></p>
             <a id="download-link" href="#" class="btn btn-primary">Download Map</a>
         </div>
@@ -30,6 +31,7 @@
     const loadingSpinner = document.getElementById('loading-spinner');
     const resultMessage = document.getElementById('result-message');
     const successMessage = document.getElementById('success-message');
+    const warningMessage = document.getElementById('warning-message');
     const errorMessage = document.getElementById('error-message');
     const downloadLink = document.getElementById('download-link');
 
@@ -41,6 +43,12 @@
                     loadingSpinner.classList.add('hidden');
                     resultMessage.classList.remove('hidden');
                     successMessage.classList.remove('hidden');
+                    if (data.warning) {
+                        warningMessage.innerText = data.warning;
+                        warningMessage.classList.remove('hidden');
+                    } else {
+                        warningMessage.classList.add('hidden');
+                    }
                     errorMessage.classList.add('hidden');
                     downloadLink.href = data.url;
                     downloadLink.classList.remove('hidden');
