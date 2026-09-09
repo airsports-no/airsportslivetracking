@@ -138,6 +138,23 @@ def show_landing_path(wizard) -> bool:
 
 
 class SessionWizardOverrideView(SessionWizardView):
+    def post(self, *args, **kwargs):
+        # django-formtools >=2.6 added a per-request cache (_resolved_form_list/
+        # _cache_signature) that get_form_list() populates on first call, and its own
+        # post() unconditionally deletes both after a valid form - see get_form_list()'s
+        # docstring. get_form() below (and several step-specific branches in subclasses,
+        # e.g. NewNavigationTaskWizard/RouteToTaskWizard's "task_content"/"contest_selection"
+        # steps) build forms directly without ever calling get_form_list(), so on any
+        # request that only goes through those paths, formtools' del raised AttributeError
+        # (Sentry PYTHON-DJANGO-N). Call get_form_list() once here, unconditionally, before
+        # any of those bypasses run, so the cache is always primed regardless of which
+        # get_form() branch this request's step actually uses. Safe against recursion: a
+        # condition_dict callable that calls back into get_form_list() (e.g. via
+        # get_cleaned_data_for_step -> get_form() -> get_form_list()) is caught by
+        # formtools' own _check_cond_started guard.
+        self.get_form_list()
+        return super().post(*args, **kwargs)
+
     # Hack to avoid get_form_list() which leads to recursion error with conditional steps.
     def get_form(self, step=None, data=None, files=None):
         """
