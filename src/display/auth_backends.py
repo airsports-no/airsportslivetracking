@@ -68,6 +68,13 @@ class FirebaseMigrationBackend(ModelBackend):
                     try:
                         firebase_admin.initialize_app(cred)
                         logger.info("Firebase Admin initialized successfully in FirebaseMigrationBackend")
+                    except ValueError:
+                        # Benign race: get_app() above and this initialize_app() aren't atomic,
+                        # so a concurrent request (e.g. multiple requests racing to authenticate
+                        # right after a worker cold-starts post-deploy) can already have
+                        # initialized the default app in between - it exists either way, so
+                        # there's nothing to do.
+                        logger.info("Firebase Admin app was already initialized by a concurrent request")
                     except Exception as e:
                         logger.error(f"Failed to initialize Firebase Admin app: {e}")
                 else:
