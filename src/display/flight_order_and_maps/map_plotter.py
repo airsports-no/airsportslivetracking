@@ -409,7 +409,13 @@ class MyGoogleWTS(GoogleWTS):
                     img = Image.open(im_data)
 
             except requests.RequestException as err:
-                logger.exception("Failed fetching tile for url %s", url)
+                # A single tile failing is expected and recoverable - it's covered by
+                # check_tile_fetch_health's blank-tile budget and, since generate_map_async now
+                # retries the whole render with a fallback provider on
+                # MapTileRenderingDegradedError, a sustained outage no longer needs every failed
+                # tile to raise its own Sentry error (a single outage previously produced dozens
+                # of near-identical ERROR events, one per tile).
+                logger.warning("Failed fetching tile for url %s: %s", url, err)
                 if getattr(getattr(err, "response", None), "status_code", None) == 429:
                     self._record_rate_limit_and_should_abort()
                 img = _blank_tile()

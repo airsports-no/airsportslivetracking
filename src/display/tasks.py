@@ -44,7 +44,7 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
         from display.models import NavigationTask, Contestant
         from django.contrib.auth import get_user_model
         from display.flight_order_and_maps.generate_flight_orders import embed_map_in_pdf
-        from display.flight_order_and_maps.map_plotter import plot_route
+        from display.flight_order_and_maps.map_plotter import plot_route, MapTileRenderingDegradedError
 
         task = NavigationTask.objects.get(pk=task_id)
         contestant = Contestant.objects.get(pk=contestant_id) if contestant_id else None
@@ -53,11 +53,7 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
         logger.info(f"Async map generation started for task {task_id}, contestant {contestant_id}")
 
         map_source = map_params["map_source"]
-
-        # Use existing plot_route logic
-        map_image = plot_route(
-            task,
-            map_params["size"],
+        plot_route_kwargs = dict(
             zoom_level=int(map_params["zoom_level"]),
             landscape=map_params["landscape"],
             contestant=contestant,
@@ -65,7 +61,6 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
             waypoints_only=map_params["waypoints_only"],
             dpi=map_params["dpi"],
             scale=int(map_params["scale"]),
-            map_source=map_source,
             line_width=float(map_params["line_width"]),
             minute_mark_line_width=float(map_params.get("minute_mark_line_width", 0.5)),
             colour=map_params["colour"],
@@ -73,6 +68,25 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
             include_openaip_overlay=map_params.get("include_openaip_overlay", False),
             margins_mm=map_params.get("margin", 10),
         )
+
+        fallback_warning = None
+        try:
+            map_image = plot_route(task, map_params["size"], map_source=map_source, **plot_route_kwargs)
+        except MapTileRenderingDegradedError:
+            # "osm" is itself the fallback provider - if it's the one that's degraded, there's
+            # nothing left to fall back to, so let this propagate to the outer except below.
+            if map_source == "osm":
+                raise
+            logger.warning(
+                f"Map source {map_source!r} degraded (tile fetch failures/rate limiting) for "
+                f"task {task_id}, contestant {contestant_id} - retrying with the 'osm' fallback "
+                f"provider."
+            )
+            map_image = plot_route(task, map_params["size"], map_source="osm", **plot_route_kwargs)
+            fallback_warning = (
+                "The selected map style was temporarily unavailable due to a map tile provider "
+                "issue, so a fallback map style (OpenStreetMap) was used instead."
+            )
 
         # Convert to PDF using existing logic
         from display.flight_order_and_maps.map_constants import A4
@@ -102,7 +116,10 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
 
         # Store in cache for the status page
         cache_key = f"map_gen_result_{task_id}_{contestant_id}_{user_id}"
-        cache.set(cache_key, {"status": "complete", "url": file_url}, timeout=3600)
+        result = {"status": "complete", "url": file_url}
+        if fallback_warning:
+            result["warning"] = fallback_warning
+        cache.set(cache_key, result, timeout=3600)
         logger.info(f"Async map generation complete. URL: {file_url}")
 
     except ObjectDoesNotExist as e:
