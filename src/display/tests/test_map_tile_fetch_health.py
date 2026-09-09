@@ -90,8 +90,10 @@ class TestPlotRouteRejectsDegradedMap(TestCase):
     @patch("display.flight_order_and_maps.map_plotter.AirsportsOSM")
     @patch("display.flight_order_and_maps.map_plotter.plt")
     @patch("display.flight_order_and_maps.map_plotter.ccrs")
+    @patch("display.flight_order_and_maps.map_plotter.PSEUDO_MERCATOR_SPHERE")
     def test_plot_route_raises_instead_of_returning_a_mostly_blank_map(
         self,
+        mock_pseudo_mercator_sphere,
         mock_ccrs,
         mock_plt,
         mock_airsports_osm,
@@ -118,7 +120,7 @@ class TestPlotRouteRejectsDegradedMap(TestCase):
         mock_plt.figure.return_value = mock_fig
         mock_fig.add_axes.return_value = mock_ax
         mock_ccrs.PlateCarree.return_value = MagicMock()
-        mock_ccrs.PlateCarree.return_value.transform_point.return_value = (11.0, 60.0)
+        mock_pseudo_mercator_sphere.transform_point.return_value = (11.0, 60.0)
         mock_ax.get_extent.return_value = (10.0, 11.0, 60.0, 61.0)
         mock_utm_instance = MagicMock()
         mock_utm_instance.transform_point.side_effect = [(0, 0), (1000, 1000), (10.0, 60.0), (11.0, 61.0)]
