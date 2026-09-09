@@ -106,9 +106,17 @@ const ContestDashboard = () => {
         
         const interval = setInterval(() => {
             if (contestId) {
-                fetchContest(Number(contestId), true);
-                fetchContestResults(Number(contestId), true);
-                fetchOngoingNavigation(true);
+                // Swallow errors here (unlike refreshData's Promise.all above, which surfaces
+                // them via setError): a background poll tick failing - e.g. a transient mobile
+                // network blip (Sentry JAVASCRIPT-REACT-2/3/4, all WebKit's generic "Load
+                // failed" fetch-abort error) - shouldn't show an error banner over data that's
+                // already on screen, and the next tick two minutes later will just retry.
+                // Without a .catch() here these were uncaught promise rejections.
+                Promise.all([
+                    fetchContest(Number(contestId), true),
+                    fetchContestResults(Number(contestId), true),
+                    fetchOngoingNavigation(true),
+                ]).catch(() => {});
             }
         }, 2 * 60 * 1000); // Refresh every 2 minutes
 
