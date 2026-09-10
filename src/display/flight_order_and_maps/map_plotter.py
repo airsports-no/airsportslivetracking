@@ -591,89 +591,9 @@ class LocalMapServer(MyGoogleWTS):
         return f"{MBTILES_SERVER_URL}/services/{self.map_key}/tiles/{z}/{x}/{y}.{self.format}"
 
 
-def scale_bar(
-    ax,
-    proj,
-    length,
-    location=(0.5, 0.05),
-    linewidth=3,
-    units="km",
-    m_per_unit=1000,
-    scale=0,
-):
-    """
-    http://stackoverflow.com/a/35705477/1072212
-    ax is the axes to draw the scalebar on.
-    proj is the projection the axes are in
-    location is center of the scalebar in axis coordinates ie. 0.5 is the middle of the plot
-    length is the length of the scalebar in km.
-    linewidth is the thickness of the scalebar.
-    units is the name of the unit
-    m_per_unit is the number of meters in a unit
-    """
-    # find lat/lon center to find best UTM zone
-    x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
-    # Projection in metres
-    utm = utm_from_lat_lon((y0 + y1) / 2, (x0 + x1) / 2)
-    # Get the extent of the plotted area in coordinates in metres
-    x0, x1, y0, y1 = ax.get_extent(utm)
-    # Turn the specified scalebar location into coordinates in metres
-    sbcx, sbcy = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
-    # Generate the x coordinate for the ends of the scalebar
-    ruler_scale = 100 * 1852 * length / (scale * 1000)  # cm
-    bar_length = 10 * scale * 1000 / (100 * 1852)  # NM (10 is cm)
-    x_offset = bar_length * m_per_unit
-    bar_xs = [sbcx - x_offset / 2, sbcx + x_offset / 2]
-    # buffer for scalebar
-    buffer = [patheffects.withStroke(linewidth=5, foreground="w")]
-    # Plot the scalebar with buffer
-    x0, y = proj.transform_point(bar_xs[0], sbcy, utm)
-    x1, _ = proj.transform_point(bar_xs[1], sbcy, utm)
-    xc, yc = proj.transform_point(sbcx, sbcy + 200, utm)
-    ax.plot(
-        [x0, x1],
-        [y, y],
-        transform=proj,
-        color="k",
-        linewidth=linewidth,
-        path_effects=buffer,
-        solid_capstyle="butt",
-    )
-    # buffer for text
-    buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
-    # Plot the scalebar label
-    t0 = ax.text(
-        xc,
-        yc,
-        "1:{:,d} {:.2f} {} = {:.0f} cm".format(int(scale * 1000), bar_length, units, 10),
-        transform=proj,
-        horizontalalignment="center",
-        verticalalignment="bottom",
-        path_effects=buffer,
-        zorder=2,
-    )
-    # left = x0 + (x1 - x0) * 0.05
-    # Plot the N arrow
-    # t1 = ax.text(left, sbcy, u'\u25B2\nN', transform=utm,
-    #              horizontalalignment='center', verticalalignment='bottom',
-    #              path_effects=buffer, zorder=2)
-
-    # Plot the scalebar without buffer, in case covered by text buffer
-    ax.plot(
-        [x0, x1],
-        [y, y],
-        transform=proj,
-        color="k",
-        linewidth=linewidth,
-        zorder=3,
-        solid_capstyle="butt",
-    )
-
-
 def scale_bar_y(
     ax,
     proj,
-    length,
     location=(0.05, 0.5),
     linewidth=3,
     units="km",
@@ -685,11 +605,14 @@ def scale_bar_y(
     ax is the axes to draw the scalebar on.
     proj is the projection the axes are in
     location is center of the scalebar in axis coordinates ie. 0.5 is the middle of the plot
-    length is the length of the scalebar in km.
     linewidth is the thickness of the scalebar.
     units is the name of the unit
     m_per_unit is the number of meters in a unit
 
+    The bar is always drawn at a fixed 10cm on paper, labeled with the real-world distance
+    that represents at the given scale - not scaled to `length`, so there is no length
+    parameter here (a fixed physical length is what makes a printed scale bar useful for
+    someone measuring the map with a ruler).
     """
     # find lat/lon center to find best UTM zone
     x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
@@ -700,7 +623,6 @@ def scale_bar_y(
     # Turn the specified scalebar location into coordinates in metres
     sbcx, sbcy = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
     # Generate the x coordinate for the ends of the scalebar
-    ruler_scale = 100 * 1852 * length / (scale * 1000)  # cm
     bar_length = 10 * scale * 1000 / (100 * 1852)  # NM (10 is cm)
     y_offset = bar_length * m_per_unit
     bar_ys = [sbcy - y_offset / 2, sbcy + y_offset / 2]
@@ -709,7 +631,13 @@ def scale_bar_y(
     # Plot the scalebar with buffer
     x, y0 = proj.transform_point(sbcx, bar_ys[0], utm)
     _, y1 = proj.transform_point(sbcx, bar_ys[1], utm)
-    xc, yc = proj.transform_point(sbcx + 400, sbcy, utm)
+    # Label offset is a fraction of the bar's own real-world length, not a fixed distance:
+    # the bar's length in metres varies by orders of magnitude with scale, so a fixed offset
+    # (e.g. a constant 400m) looks fine at one scale but overlaps the bar at zoomed-out scales
+    # or leaves it floating far away at zoomed-in ones. A fixed fraction keeps the label a
+    # visually consistent distance from the bar at any scale.
+    label_offset = y_offset * 0.08
+    xc, yc = proj.transform_point(sbcx + label_offset, sbcy, utm)
     ax.plot(
         [x, x],
         [y0, y1],
@@ -722,7 +650,7 @@ def scale_bar_y(
     # buffer for text
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     # Plot the scalebar label
-    t0 = ax.text(
+    ax.text(
         xc,
         yc,
         "1:{:,d} {:.2f} {} = {:.0f} cm".format(int(scale * 1000), bar_length, units, 10),
@@ -735,11 +663,6 @@ def scale_bar_y(
         ha="center",
         va="center",
     )
-    # left = x0 + (x1 - x0) * 0.05
-    # Plot the N arrow
-    # t1 = ax.text(left, sbcy, u'\u25B2\nN', transform=utm,
-    #              horizontalalignment='center', verticalalignment='bottom',
-    #              path_effects=buffer, zorder=2)
 
     # Plot the scalebar without buffer, in case covered by text buffer
     ax.plot(
@@ -753,18 +676,6 @@ def scale_bar_y(
     )
 
 
-# if __name__ == '__main__':
-#     ax = plt.axes(projection=ccrs.Mercator())
-#     plt.title('Cyprus')
-#     ax.set_extent([31, 35.5, 34, 36], ccrs.Geodetic())
-#     ax.stock_img()
-#     ax.coastlines(resolution='10m')
-#     scale_bar(ax, ccrs.Mercator(), 100)  # 100 km scale bar
-#     # or to use m instead of km
-#     # scale_bar(ax, ccrs.Mercator(), 100000, m_per_unit=1, units='m')
-#     # or to use miles instead of km
-#     # scale_bar(ax, ccrs.Mercator(), 60, m_per_unit=1609.34, units='miles')
-#     plt.show()
 def inch2cm(inch: float) -> float:
     return inch * 2.54
 
@@ -1632,10 +1543,7 @@ def plot_route(
 
     fig = plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)))
     ax = fig.add_axes([0, 0, 1, 1], projection=imagery.crs)
-    # ax.background_patch.set_fill(False)
-    # ax.background_patch.set_facecolor((250 / 255, 250 / 255, 250 / 255))
-    # print(f"Figure projection: {imagery.crs}")
-    ax.add_image(imagery, zoom_level)  # , interpolation='spline36', zorder=10)
+    ax.add_image(imagery, zoom_level)
     if include_openaip_overlay and provider != "openaip":
         ax.add_image(OpenAIP(desired_tile_form="RGBA"), zoom_level)
     ax.set_aspect("auto")
@@ -1895,14 +1803,10 @@ def plot_route(
         )
 
     ax.set_extent(extent, crs=utm)
-    # scale_bar(ax, PSEUDO_MERCATOR_SPHERE, 5, units="NM", m_per_unit=1852, scale=scale)
-    scale_bar_y(ax, PSEUDO_MERCATOR_SPHERE, 5, units="NM", m_per_unit=1852, scale=scale)
-    # ax.autoscale(False)
+    scale_bar_y(ax, PSEUDO_MERCATOR_SPHERE, units="NM", m_per_unit=1852, scale=scale)
     fig.patch.set_visible(False)
-    # lat lon lines
     extent = ax.get_extent(proj_pc)
     if include_meridians_and_parallels_lines:
-        # ax.set_xticks(np.arange(np.floor(extent[0]), np.ceil(extent[1]), 0.1), crs=PSEUDO_MERCATOR_SPHERE)
         gl = ax.gridlines(
             draw_labels=True,
             xpadding=-10,
@@ -1915,56 +1819,12 @@ def plot_route(
             linewidth=1,
             clip_on=True,
         )
+        # 1/6 degree (10 arcminutes) matches the aeronautical-chart grid convention pilots
+        # expect, independent of the map's own zoom/scale.
         gl.xlocator = mticker.FixedLocator(np.arange(np.floor(extent[0]), np.ceil(extent[1]), 1 / 6))
-        # gl.right_labels=True
-        # gl.left_labels=True
-        # gl.xformatter = LONGITUDE_FORMATTER
-        # gl.xlabel_style = {"size": 15, "color": "grey"}
-        # gl.xpadding = 10
         gl.ylocator = mticker.FixedLocator(np.arange(np.floor(extent[2]), np.ceil(extent[3]), 1 / 6))
-        # gl.bottom_labels=True
-        # gl.top_labels=True
-        # gl.yformatter = LATITUDE_FORMATTER
-        # gl.ylabel_style = {"size": 15, "color": "grey"}
-        # gl.ypadding = 10
-        # for artist in gl.bottom_label_artists:
-        #     artist.set_visible(True)
-        # longitude = np.ceil(extent[0])
-        # while longitude < extent[1]:
-        #     plt.plot(
-        #         (longitude, longitude),
-        #         (extent[2], extent[3]),
-        #         transform=PSEUDO_MERCATOR_SPHERE,
-        #         color="black",
-        #         linewidth=0.5,
-        #     )
-        #     longitude += 1
-        # latitude = np.ceil(extent[2])
-        # while latitude < extent[3]:
-        #     plt.plot(
-        #         (extent[0], extent[1]),
-        #         (latitude, latitude),
-        #         transform=PSEUDO_MERCATOR_SPHERE,
-        #         color="black",
-        #         linewidth=0.5,
-        #     )
-        #     latitude += 1
     plt.text(0, 0, " " + attribution, ha="left", va="bottom", transform=ax.transAxes)
-    # fig.subplots_adjust(bottom=0)
-    # fig.subplots_adjust(top=1)
-    # fig.subplots_adjust(right=1)
-    # fig.subplots_adjust(left=0)
     fig.tight_layout(pad=0)
-    # plt.savefig("map.png", dpi=dpi)
-
-    # plot_margin = 1
-    # plot_margin = plot_margin / 2.54
-    #
-    # x0, x1, y0, y1 = plt.axis()
-    # plt.axis((x0 - plot_margin,
-    #           x1 + plot_margin,
-    #           y0 - plot_margin,
-    #           y1 + plot_margin))
 
     figdata = BytesIO()
     plt.savefig(
@@ -1972,7 +1832,7 @@ def plot_route(
         format="png",
         dpi=dpi,
         transparent=True,
-    )  # , bbox_inches="tight", pad_inches=margin_inches/2)
+    )
     plt.clf()
     plt.close()
     check_tile_fetch_health(imagery)
