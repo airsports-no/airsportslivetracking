@@ -123,6 +123,21 @@ from display.waypoint import Waypoint
 
 LINEWIDTH = 0.5
 
+# Every tile provider in this file (MyGoogleWTS/GoogleWTS subclasses) sets self.crs =
+# ccrs.Mercator.GOOGLE, and tile positions are computed by GoogleWTS.tile_bbox() as pure
+# fractional interpolation over that CRS's native extent - never through a PlateCarree
+# transform. That fractional math implicitly assumes the "Web/Pseudo-Mercator" convention
+# every real XYZ tile provider (OSM, CyclOSM, and any MBTiles chart ever produced) actually
+# uses: WGS84 lon/lat treated as if on a perfect sphere, not the true WGS84 ellipsoid. But
+# PSEUDO_MERCATOR_SPHERE defaults to the real WGS84 ellipsoid, so any vector data (waypoints,
+# corridor polygons, gate lines, gridlines, the UTM scale-fit extent math) plotted with
+# transform=PSEUDO_MERCATOR_SPHERE gets projected through a genuine ellipsoid-to-sphere
+# conversion that the tiles never go through - a latitude-dependent north/south offset (zero
+# at the equator, ~9 NM at 42N) between the vector overlay and the tiles it's drawn on top
+# of. Use this sphere-based equivalent everywhere in this file instead, so vector data lines
+# up with the tiles the same way every other web map does.
+PSEUDO_MERCATOR_SPHERE = ccrs.PlateCarree(globe=ccrs.Globe(ellipse="sphere", semimajor_axis=6378137.0, semiminor_axis=6378137.0))
+
 logger = logging.getLogger(__name__)
 
 TILE_RATE_LIMIT_ABORT_THRESHOLD = 10
@@ -801,7 +816,7 @@ def plot_leg_bearing(
         verticalalignment="center",
         color=colour,
         horizontalalignment="center",
-        transform=ccrs.PlateCarree(),
+        transform=PSEUDO_MERCATOR_SPHERE,
         fontsize=fontsize,
         rotation=-bearing,
         linespacing=1,
@@ -835,7 +850,7 @@ def plot_prohibited_polygon(
         return
     line = []
     for element in polygon_path:
-        line.append(target_projection.transform_point(*list(element), ccrs.PlateCarree()))
+        line.append(target_projection.transform_point(*list(element), PSEUDO_MERCATOR_SPHERE))
     polygon = Polygon(line)
     centre = polygon.centroid
     ax.add_geometries(
@@ -920,7 +935,7 @@ def plot_waypoint_name(
             verticalalignment="center",
             color=colour,
             horizontalalignment="center",
-            transform=ccrs.PlateCarree(),
+            transform=PSEUDO_MERCATOR_SPHERE,
             fontsize=12,
             rotation=rotation,
             # linespacing=2,
@@ -935,7 +950,7 @@ def plot_waypoint_name(
         verticalalignment="center",
         color=colour,
         horizontalalignment="center",
-        transform=ccrs.PlateCarree(),
+        transform=PSEUDO_MERCATOR_SPHERE,
         fontsize=10,
         rotation=rotation,
         # linespacing=2,
@@ -975,7 +990,7 @@ def plot_anr_corridor_track(
         polygon_track.append(polygon_track[0])
     path = np.array(polygon_track)
     ys, xs = path.T
-    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
+    plt.plot(xs, ys, transform=PSEUDO_MERCATOR_SPHERE, color=colour, linewidth=line_width)
 
     center_track = []
     for index, waypoint in enumerate(route.waypoints):
@@ -1004,7 +1019,7 @@ def plot_anr_corridor_track(
             plt.plot(
                 xs,
                 ys,
-                transform=ccrs.PlateCarree(),
+                transform=PSEUDO_MERCATOR_SPHERE,
                 color=gate_colour if is_sp_fp else colour,
                 linewidth=line_width * 2 if is_sp_fp else line_width,
             )
@@ -1024,7 +1039,7 @@ def plot_anr_corridor_track(
     if plot_center_line:
         path = np.array(center_track)
         ys, xs = path.T
-        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width / 2)
+        plt.plot(xs, ys, transform=PSEUDO_MERCATOR_SPHERE, color=colour, linewidth=line_width / 2)
     return [path]
 
 
@@ -1130,7 +1145,7 @@ def plot_minute_marks(
     track_points = first_segments[len(first_segments) // 2 :] + last_segments[: (len(last_segments) // 2) + 1]
     # print(f"track_points: {track_points}")
     ys, xs = np.array(track_points).T
-    # plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=LINEWIDTH)
+    # plt.plot(xs, ys, transform=PSEUDO_MERCATOR_SPHERE, color="green", linewidth=LINEWIDTH)
     minute_lines = create_minute_lines_track(
         track_points,
         contestant.air_speed,
@@ -1145,7 +1160,7 @@ def plot_minute_marks(
     )
     for mark_line, text_position, timestamp in minute_lines:
         xs, ys = np.array(mark_line).T  # Already comes in the format lon, lat
-        plt.plot(xs, ys, transform=ccrs.PlateCarree(), color=colour, linewidth=line_width)
+        plt.plot(xs, ys, transform=PSEUDO_MERCATOR_SPHERE, color=colour, linewidth=line_width)
         time_format = "%M"
         if timestamp.second != 0:
             time_format = "%M:%S"
@@ -1158,7 +1173,7 @@ def plot_minute_marks(
             verticalalignment="center",
             color=colour,
             horizontalalignment="center",
-            transform=ccrs.PlateCarree(),
+            transform=PSEUDO_MERCATOR_SPHERE,
             fontsize=8,
             rotation=-waypoint.bearing_next,
             linespacing=2,
@@ -1253,7 +1268,7 @@ def plot_precision_track(
                     plt.plot(
                         circle_poly[:, 1],
                         circle_poly[:, 0],
-                        transform=ccrs.PlateCarree(),
+                        transform=PSEUDO_MERCATOR_SPHERE,
                         color=colour,
                         linewidth=line_width,
                         alpha=0.6
@@ -1261,7 +1276,7 @@ def plot_precision_track(
                     plt.fill(
                         circle_poly[:, 1],
                         circle_poly[:, 0],
-                        transform=ccrs.PlateCarree(),
+                        transform=PSEUDO_MERCATOR_SPHERE,
                         color=colour,
                         alpha=0.1
                     )
@@ -1272,7 +1287,7 @@ def plot_precision_track(
                     plt.scatter(
                         waypoint.longitude,
                         waypoint.latitude,
-                        transform=ccrs.PlateCarree(),
+                        transform=PSEUDO_MERCATOR_SPHERE,
                         color=colour,
                         s=0.5,
                         edgecolor="none",
@@ -1280,7 +1295,7 @@ def plot_precision_track(
                     plt.plot(
                         waypoint.longitude,
                         waypoint.latitude,
-                        transform=ccrs.PlateCarree(),
+                        transform=PSEUDO_MERCATOR_SPHERE,
                         color=colour,
                         marker="o",
                         markersize=20,
@@ -1294,7 +1309,7 @@ def plot_precision_track(
                         plt.plot(
                             xs,
                             ys,
-                            transform=ccrs.PlateCarree(),
+                            transform=PSEUDO_MERCATOR_SPHERE,
                             color=colour,
                             linewidth=line_width,
                         )
@@ -1302,7 +1317,7 @@ def plot_precision_track(
                         plt.scatter(
                             waypoint.longitude,
                             waypoint.latitude,
-                            transform=ccrs.PlateCarree(),
+                            transform=PSEUDO_MERCATOR_SPHERE,
                             color=colour,
                             s=0.5,
                             edgecolor="none",
@@ -1310,7 +1325,7 @@ def plot_precision_track(
                         plt.plot(
                             waypoint.longitude,
                             waypoint.latitude,
-                            transform=ccrs.PlateCarree(),
+                            transform=PSEUDO_MERCATOR_SPHERE,
                             color=colour,
                             marker="o",
                             markersize=20,
@@ -1354,7 +1369,7 @@ def plot_precision_track(
                 plt.plot(
                     xs,
                     ys,
-                    transform=ccrs.PlateCarree(),
+                    transform=PSEUDO_MERCATOR_SPHERE,
                     color=colour,
                     linewidth=line_width,
                 )
@@ -1395,7 +1410,7 @@ def plot_catalogue_targets(targets: list[dict], colour: str, scorecard: Optional
         plt.plot(
             lon,
             lat,
-            transform=ccrs.PlateCarree(),
+            transform=PSEUDO_MERCATOR_SPHERE,
             color=colour,
             marker=marker_style["marker"],
             markersize=marker_style["markersize"],
@@ -1408,7 +1423,7 @@ def plot_catalogue_targets(targets: list[dict], colour: str, scorecard: Optional
             verticalalignment="center",
             color=colour,
             horizontalalignment="left",
-            transform=ccrs.PlateCarree(),
+            transform=PSEUDO_MERCATOR_SPHERE,
             fontsize=8,
             family="monospace",
             clip_on=True,
@@ -1433,7 +1448,7 @@ def plot_catalogue_targets(targets: list[dict], colour: str, scorecard: Optional
         plt.plot(
             tuple(point[0] for point in outline),
             tuple(point[1] for point in outline),
-            transform=ccrs.PlateCarree(),
+            transform=PSEUDO_MERCATOR_SPHERE,
             color=edge_colour,
             linewidth=line_width,
             linestyle=dash_pattern,
@@ -1452,7 +1467,7 @@ def plot_catalogue_targets(targets: list[dict], colour: str, scorecard: Optional
         plt.plot(
             (start[0], finish[0]),
             (start[1], finish[1]),
-            transform=ccrs.PlateCarree(),
+            transform=PSEUDO_MERCATOR_SPHERE,
             **style,
         )
 
@@ -1486,7 +1501,7 @@ def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
                     verticalalignment="center",
                     color="red",
                     horizontalalignment="left",
-                    transform=ccrs.PlateCarree(),
+                    transform=PSEUDO_MERCATOR_SPHERE,
                     fontsize=8,
                     family="monospace",
                     clip_on=True,
@@ -1495,21 +1510,21 @@ def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
                 path = np.array(track)
                 if path.size > 0:
                     ys, xs = path.T
-                    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=1)
+                    plt.plot(xs, ys, transform=PSEUDO_MERCATOR_SPHERE, color="blue", linewidth=1)
         takeoff_gates = editable_route.get_features_type("to")
         for takeoff_gate in takeoff_gates:
             takeoff_gate_line = editable_route.get_feature_coordinates(takeoff_gate)
             path = np.array(takeoff_gate_line)
             if path.size > 0:
                 ys, xs = path.T
-                plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="green", linewidth=1)
+                plt.plot(xs, ys, transform=PSEUDO_MERCATOR_SPHERE, color="green", linewidth=1)
         landing_gates = editable_route.get_features_type("ldg")
         for landing_gate in landing_gates:
             landing_gate_line = editable_route.get_feature_coordinates(landing_gate)
             path = np.array(landing_gate_line)
             if path.size > 0:
                 ys, xs = path.T
-                plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="red", linewidth=1)
+                plt.plot(xs, ys, transform=PSEUDO_MERCATOR_SPHERE, color="red", linewidth=1)
         # for zone_type in ("info", "penalty", "prohibited", "gate"):
         for feature in editable_route.route["features"]:
             f_type = feature.get("properties", {}).get("featureType")
@@ -1691,7 +1706,7 @@ def plot_route(
                     if not waypoints_only:
                         ys, xs = path.T
                         plot_kwargs = {
-                            "transform": ccrs.PlateCarree(),
+                            "transform": PSEUDO_MERCATOR_SPHERE,
                             "color": colour,
                             "linewidth": line_width,
                         }
@@ -1709,7 +1724,7 @@ def plot_route(
                             plt.plot(
                                 lon,
                                 lat,
-                                transform=ccrs.PlateCarree(),
+                                transform=PSEUDO_MERCATOR_SPHERE,
                                 color=colour,
                                 marker="o",
                                 markersize=20,
@@ -1783,7 +1798,7 @@ def plot_route(
     )
     # print(f"minimum: {minimum_latitude}, {minimum_longitude}")
     # print(f"maximum: {maximum_latitude}, {maximum_longitude}")
-    proj_pc = ccrs.PlateCarree()
+    proj_pc = PSEUDO_MERCATOR_SPHERE
     x0_lon, x1_lon, y0_lat, y1_lat = ax.get_extent(proj_pc)
 
     # Projection in metres
@@ -1850,7 +1865,7 @@ def plot_route(
     final_image_mb = estimate_memory_usage(figure_width, figure_height, dpi)
 
     # 2. Map tiles memory
-    proj_pc = ccrs.PlateCarree()
+    proj_pc = PSEUDO_MERCATOR_SPHERE
     x0, x1, y0, y1 = extent
     lon_min, lat_min = proj_pc.transform_point(x0, y0, utm)
     lon_max, lat_max = proj_pc.transform_point(x1, y1, utm)
@@ -1880,14 +1895,14 @@ def plot_route(
         )
 
     ax.set_extent(extent, crs=utm)
-    # scale_bar(ax, ccrs.PlateCarree(), 5, units="NM", m_per_unit=1852, scale=scale)
-    scale_bar_y(ax, ccrs.PlateCarree(), 5, units="NM", m_per_unit=1852, scale=scale)
+    # scale_bar(ax, PSEUDO_MERCATOR_SPHERE, 5, units="NM", m_per_unit=1852, scale=scale)
+    scale_bar_y(ax, PSEUDO_MERCATOR_SPHERE, 5, units="NM", m_per_unit=1852, scale=scale)
     # ax.autoscale(False)
     fig.patch.set_visible(False)
     # lat lon lines
     extent = ax.get_extent(proj_pc)
     if include_meridians_and_parallels_lines:
-        # ax.set_xticks(np.arange(np.floor(extent[0]), np.ceil(extent[1]), 0.1), crs=ccrs.PlateCarree())
+        # ax.set_xticks(np.arange(np.floor(extent[0]), np.ceil(extent[1]), 0.1), crs=PSEUDO_MERCATOR_SPHERE)
         gl = ax.gridlines(
             draw_labels=True,
             xpadding=-10,
@@ -1895,7 +1910,7 @@ def plot_route(
             x_inline=False,
             y_inline=False,
             dms=True,
-            crs=ccrs.PlateCarree(),
+            crs=PSEUDO_MERCATOR_SPHERE,
             color="grey",
             linewidth=1,
             clip_on=True,
@@ -1919,7 +1934,7 @@ def plot_route(
         #     plt.plot(
         #         (longitude, longitude),
         #         (extent[2], extent[3]),
-        #         transform=ccrs.PlateCarree(),
+        #         transform=PSEUDO_MERCATOR_SPHERE,
         #         color="black",
         #         linewidth=0.5,
         #     )
@@ -1929,7 +1944,7 @@ def plot_route(
         #     plt.plot(
         #         (extent[0], extent[1]),
         #         (latitude, latitude),
-        #         transform=ccrs.PlateCarree(),
+        #         transform=PSEUDO_MERCATOR_SPHERE,
         #         color="black",
         #         linewidth=0.5,
         #     )
@@ -1983,7 +1998,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
     ax.add_image(imagery, 7)
     ax.set_aspect("auto")
     ys, xs = np.array(positions).T
-    plt.plot(xs, ys, transform=ccrs.PlateCarree(), color="blue", linewidth=LINEWIDTH * 2)
+    plt.plot(xs, ys, transform=PSEUDO_MERCATOR_SPHERE, color="blue", linewidth=LINEWIDTH * 2)
     index = 1
     for latitude, longitude in positions[1:-1]:
         plt.text(
@@ -1993,7 +2008,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
             verticalalignment="center",
             color="blue",
             horizontalalignment="center",
-            transform=ccrs.PlateCarree(),
+            transform=PSEUDO_MERCATOR_SPHERE,
             fontsize=6,
         )
         index += 1
@@ -2004,7 +2019,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
         verticalalignment="center",
         color="blue",
         horizontalalignment="center",
-        transform=ccrs.PlateCarree(),
+        transform=PSEUDO_MERCATOR_SPHERE,
         fontsize=6,
     )
     plt.text(
@@ -2014,7 +2029,7 @@ def get_basic_track(positions: List[Tuple[float, float]]):
         verticalalignment="center",
         color="blue",
         horizontalalignment="center",
-        transform=ccrs.PlateCarree(),
+        transform=PSEUDO_MERCATOR_SPHERE,
         fontsize=6,
     )
     figdata = BytesIO()
