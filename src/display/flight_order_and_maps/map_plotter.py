@@ -19,6 +19,24 @@ def estimate_memory_usage(figure_width_cm, figure_height_cm, dpi):
     return total_bytes / (1024 * 1024)  # Convert to MB
 
 
+# Each tile is 256x256 RGBA -> 0.25 MB on the wire, but that drastically underestimates real peak
+# memory: cartopy's GoogleWTS.image_for_domain() fetches every tile intersecting the domain at the
+# exact requested zoom via a thread pool - holding every decoded tile array in memory simultaneously
+# - then _merge_tiles() builds a SINGLE mosaic array spanning the union of all their
+# native-resolution coordinates, which matplotlib then resamples/composites onto the figure canvas.
+# Empirically measured against a real production task (A3/300dpi/zoom14/scale=0 "zoom to fit", 792
+# tiles) that was OOM-crashing tracker-celery pods: the naive per-tile estimate was 198MB but actual
+# peak RSS attributable to the tile pipeline was ~3254MB - a ~16.4x underestimate. This multiplier
+# is calibrated to that measurement (rounded slightly above it) so the safety check below actually
+# catches configurations like that instead of letting them OOM-kill a shared pod.
+TILE_MEMORY_OVERHEAD_MULTIPLIER = 16
+
+
+def estimate_tile_memory_mb(total_tiles: int) -> float:
+    """Estimates peak memory usage in MB for cartopy fetching/compositing `total_tiles` tiles."""
+    return total_tiles * 0.25 * TILE_MEMORY_OVERHEAD_MULTIPLIER
+
+
 import math
 
 
@@ -1787,8 +1805,7 @@ def plot_route(
     num_tiles_y = abs(bottom_right_ytile - top_left_ytile) + 1
     total_tiles = num_tiles_x * num_tiles_y
 
-    # Each tile is 256x256 RGBA -> 0.25 MB
-    tiles_mb = total_tiles * 0.25
+    tiles_mb = estimate_tile_memory_mb(total_tiles)
 
     estimated_mb = final_image_mb + tiles_mb
     MEMORY_THRESHOLD_MB = 750
