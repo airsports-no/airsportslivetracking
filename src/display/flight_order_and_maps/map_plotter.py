@@ -24,12 +24,20 @@ def estimate_memory_usage(figure_width_cm, figure_height_cm, dpi):
 # exact requested zoom via a thread pool - holding every decoded tile array in memory simultaneously
 # - then _merge_tiles() builds a SINGLE mosaic array spanning the union of all their
 # native-resolution coordinates, which matplotlib then resamples/composites onto the figure canvas.
-# Empirically measured against a real production task (A3/300dpi/zoom14/scale=0 "zoom to fit", 792
-# tiles) that was OOM-crashing tracker-celery pods: the naive per-tile estimate was 198MB but actual
-# peak RSS attributable to the tile pipeline was ~3254MB - a ~16.4x underestimate. This multiplier
-# is calibrated to that measurement (rounded slightly above it) so the safety check below actually
-# catches configurations like that instead of letting them OOM-kill a shared pod.
-TILE_MEMORY_OVERHEAD_MULTIPLIER = 16
+#
+# Two fixes already address most of the real underlying cost: TileDownsamplingMixin (below) shrinks
+# the mosaic to the output page's own resolution before matplotlib sees it, and requirements.txt
+# pins matplotlib below 3.10 to avoid an upstream Figure.savefig() memory regression for large
+# imshow() images (~4.2x memory - see https://github.com/matplotlib/matplotlib/issues/29434) that
+# turned out to be the dominant cost, not our own code. Even with both fixes, profiling a real
+# production task (A3/300dpi/zoom14/scale=0 "zoom to fit", 792 tiles) that was OOM-crashing
+# tracker-celery pods found the naive per-tile estimate (198MB) still ~4.7x under the actual
+# measured peak RSS attributable to the tile pipeline (~1026MB) - fetching/merging/downsampling 792
+# tiles concurrently and the subsequent PNG encoding at that resolution still carry real overhead
+# per tile. This multiplier is calibrated to that measurement (rounded slightly above it) so the
+# safety check below still catches configurations like that instead of letting them OOM-kill a
+# shared pod.
+TILE_MEMORY_OVERHEAD_MULTIPLIER = 5.5
 
 
 def estimate_tile_memory_mb(total_tiles: int) -> float:
@@ -381,7 +389,52 @@ def get_plot_extent(
 first = True
 
 
-class MyGoogleWTS(GoogleWTS):
+class TileDownsamplingMixin:
+    """
+    Downsamples the merged tile mosaic to roughly the final output's pixel size before handing
+    it to matplotlib, instead of letting matplotlib's own resample/composite step in savefig()
+    process the full fetched-at-zoom-level resolution.
+
+    Empirically measured (real production task that was OOM-crashing tracker-celery pods, A3/
+    300dpi/zoom14/scale=0 "zoom to fit"): the fetched mosaic (8416x6121px) was ~1.7x finer per
+    axis than the ~4960x3507px the output page can even display, and matplotlib's own resample
+    of that oversized array during savefig() accounted for ~1.8GB of a ~3.3GB peak - entirely
+    wasted, since the extra tile resolution isn't visible on the final page. Downsampling here
+    first (target_pixel_size includes a 10% linear headroom margin, to stay just above native
+    output resolution rather than risk a hair under it) cut peak memory for that task by ~1GB
+    with no measurable quality loss.
+
+    target_pixel_size is set by plot_route() on the imagery instance before add_image(); it's
+    None outside of a plot_route() render, so a bare imagery instance is unaffected.
+    """
+
+    target_pixel_size: Optional[Tuple[int, int]] = None
+
+    def image_for_domain(self, target_domain, target_z):
+        img, extent, origin = super().image_for_domain(target_domain, target_z)
+        target = self.target_pixel_size
+        if target is not None:
+            target_width, target_height = target
+            source_height, source_width = img.shape[0], img.shape[1]
+            if source_width > target_width and source_height > target_height:
+                img = np.array(Image.fromarray(img).resize((target_width, target_height), Image.BILINEAR))
+        return img, extent, origin
+
+
+def compute_tile_target_pixel_size(
+    figure_width_cm: float, figure_height_cm: float, dpi: int, headroom: float = 1.1
+) -> Tuple[int, int]:
+    """
+    The pixel size TileDownsamplingMixin should downsample fetched tile mosaics to: the output
+    page's own pixel dimensions, with a linear headroom margin so a modest amount of panning/
+    resampling slack doesn't visibly soften the map.
+    """
+    width_px = int(figure_width_cm / 2.54 * dpi * headroom)
+    height_px = int(figure_height_cm / 2.54 * dpi * headroom)
+    return width_px, height_px
+
+
+class MyGoogleWTS(TileDownsamplingMixin, GoogleWTS):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._tile_fetch_lock = threading.Lock()
@@ -496,7 +549,7 @@ class AirsportsOSM(MyGoogleWTS):
         return f"https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
 
 
-class UserUploadedMBTiles(GoogleWTS):
+class UserUploadedMBTiles(TileDownsamplingMixin, GoogleWTS):
     def __init__(self, user_uploaded_map: UserUploadedMap, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mbtiles_file = user_uploaded_map.get_local_file_path()
@@ -1559,11 +1612,16 @@ def plot_route(
     figure_width -= 0.2 * margins_mm
     figure_height -= 0.2 * margins_mm
 
+    tile_target_pixel_size = compute_tile_target_pixel_size(figure_width, figure_height, dpi)
+    imagery.target_pixel_size = tile_target_pixel_size
+
     fig = plt.figure(figsize=(cm2inch(figure_width), cm2inch(figure_height)))
     ax = fig.add_axes([0, 0, 1, 1], projection=imagery.crs)
     ax.add_image(imagery, zoom_level)
     if include_openaip_overlay and provider != "openaip":
-        ax.add_image(OpenAIP(desired_tile_form="RGBA"), zoom_level)
+        openaip_overlay = OpenAIP(desired_tile_form="RGBA")
+        openaip_overlay.target_pixel_size = tile_target_pixel_size
+        ax.add_image(openaip_overlay, zoom_level)
     ax.set_aspect("auto")
     render_waypoints = get_effective_route_waypoints(
         task,
