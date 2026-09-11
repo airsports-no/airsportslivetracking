@@ -23,6 +23,7 @@ plot_route() now actually does.
 from display.flight_order_and_maps.map_plotter import (
     estimate_memory_usage,
     estimate_tile_memory_mb,
+    total_tile_count,
 )
 
 # Mirrors plot_route()'s local MEMORY_THRESHOLD_MB safety threshold.
@@ -74,3 +75,18 @@ class TestTileMemoryEstimation:
         final_image_mb = estimate_memory_usage(29.7, 21, 150)
         tiles_mb = estimate_tile_memory_mb(20)
         assert final_image_mb + tiles_mb < MEMORY_THRESHOLD_MB
+
+
+class TestTotalTileCount:
+    def test_doubles_for_an_openaip_overlay_on_a_non_openaip_base(self):
+        # The overlay is a second GoogleWTS mosaic fetched for the same domain/zoom - the
+        # estimate must account for its cost too, not just the base imagery's.
+        assert total_tile_count(792, include_openaip_overlay=True, provider="osm") == 1584
+
+    def test_no_overlay_leaves_the_count_unchanged(self):
+        assert total_tile_count(792, include_openaip_overlay=False, provider="osm") == 792
+
+    def test_openaip_base_is_not_doubled(self):
+        # provider="openaip" means the base imagery already IS the OpenAIP layer - plot_route
+        # skips adding a separate overlay image in that case, so there's no second fetch.
+        assert total_tile_count(792, include_openaip_overlay=True, provider="openaip") == 792

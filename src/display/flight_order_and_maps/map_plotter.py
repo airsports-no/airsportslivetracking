@@ -45,6 +45,17 @@ def estimate_tile_memory_mb(total_tiles: int) -> float:
     return total_tiles * 0.25 * TILE_MEMORY_OVERHEAD_MULTIPLIER
 
 
+def total_tile_count(base_tile_count: int, include_openaip_overlay: bool, provider: str) -> int:
+    """
+    The OpenAIP overlay (see plot_route's ax.add_image(openaip_overlay, zoom_level)) fetches a
+    second GoogleWTS mosaic for the same domain/zoom when enabled - account for its tile cost too,
+    unless the base provider already IS openaip (no separate overlay fetch happens in that case).
+    """
+    if include_openaip_overlay and provider != "openaip":
+        return base_tile_count * 2
+    return base_tile_count
+
+
 import math
 
 
@@ -416,8 +427,14 @@ class TileDownsamplingMixin:
         if target is not None:
             target_width, target_height = target
             source_height, source_width = img.shape[0], img.shape[1]
-            if source_width > target_width and source_height > target_height:
-                img = np.array(Image.fromarray(img).resize((target_width, target_height), Image.BILINEAR))
+            # Clamp each axis independently rather than requiring both to be oversized - a
+            # narrow-but-tall (or wide-but-short) mosaic is just as wasteful in whichever single
+            # axis exceeds the target, and imshow() maps the array onto `extent` regardless of the
+            # array's own pixel aspect ratio, so shrinking one axis without the other is safe.
+            new_width = min(source_width, target_width)
+            new_height = min(source_height, target_height)
+            if new_width < source_width or new_height < source_height:
+                img = np.array(Image.fromarray(img).resize((new_width, new_height), Image.BILINEAR))
         return img, extent, origin
 
 
@@ -1861,7 +1878,7 @@ def plot_route(
 
     num_tiles_x = abs(bottom_right_xtile - top_left_xtile) + 1
     num_tiles_y = abs(bottom_right_ytile - top_left_ytile) + 1
-    total_tiles = num_tiles_x * num_tiles_y
+    total_tiles = total_tile_count(num_tiles_x * num_tiles_y, include_openaip_overlay, provider)
 
     tiles_mb = estimate_tile_memory_mb(total_tiles)
 

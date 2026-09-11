@@ -67,6 +67,20 @@ class TestTileDownsamplingMixin(SimpleTestCase):
 
         self.assertEqual(img.shape, (200, 300, 3))
 
+    def test_downsamples_a_mosaic_oversized_in_only_one_axis(self):
+        # A narrow-but-tall (or wide-but-short) mosaic - e.g. a long, thin ANR corridor route -
+        # is just as wasteful in whichever single axis exceeds the target. Requiring BOTH axes
+        # to be oversized before downsampling would miss this case entirely.
+        mosaic = np.random.randint(0, 255, size=(9000, 2000, 3), dtype=np.uint8)
+        imagery = _DownsamplingImagery(mosaic)
+        imagery.target_pixel_size = (5952, 4209)
+
+        img, _, _ = imagery.image_for_domain(target_domain=None, target_z=14)
+
+        # Height (oversized axis) is clamped to the target; width (already under target) is
+        # left untouched rather than upsampled.
+        self.assertEqual(img.shape, (4209, 2000, 3))
+
     def test_is_a_no_op_when_target_pixel_size_is_not_set(self):
         # e.g. plot_editable_route()'s add_image() call sites, which don't wire up
         # target_pixel_size - existing behaviour there must be unaffected.
