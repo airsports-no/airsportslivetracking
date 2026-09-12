@@ -12,7 +12,7 @@ from display.utilities.cima_task_type_definitions import ANR_CATALOGUE, CIRCLE, 
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
 
 
-class TestNavigationTaskWizardCimaUi(TestCase):
+class TestNavigationTaskFormCimaUi(TestCase):
     """
     CIMA task-subtype visibility/entitlement coverage for NavigationTaskForm (still used by the
     non-wizard navigation-task edit view, views.py's NavigationTaskUpdateView) and for

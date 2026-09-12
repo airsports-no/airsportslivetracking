@@ -1,7 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
-from display.forms_wizards import _no_compatible_task_types_message, _task_template_choices
 from display.models import EditableRoute
 from display.services.route_compatibility import (
     LEGACY_COMPILER_PRIMITIVE_KEYS,
@@ -12,6 +11,8 @@ from display.services.route_compatibility import (
 from display.services.route_compatibility import (
     no_compatible_routes_message as _no_compatible_routes_message,
 )
+from display.services.task_templates import no_compatible_task_types_message as _no_compatible_task_types_message
+from display.services.task_templates import task_template_choices as _task_template_choices
 from display.utilities.cima_task_type_definitions import (
     ANR_CATALOGUE,
     CIRCLE,

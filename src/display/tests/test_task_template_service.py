@@ -1,10 +1,10 @@
 """
 Regression coverage for the task-template/route-compatibility helpers after their move out of
 display.forms_wizards/display.views_wizards into display.services.task_templates and
-display.services.route_compatibility (see the wizard-to-SPA migration plan). The wizards'
-underscore-prefixed names (display.forms_wizards._task_template_choices etc.) are now thin
-aliases re-exported for backwards compatibility - the tests here import the service module
-directly, since it's the surface a future REST endpoint will be built against.
+display.services.route_compatibility (see the wizard-to-SPA migration plan). Both wizard modules,
+and their underscore-prefixed re-export aliases, are gone now that the last wizard
+(RegisterTeamWizard) was replaced - these service functions back the task_templates/
+task_compatibility REST endpoints instead.
 """
 
 from django.core.exceptions import ValidationError
