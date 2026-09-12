@@ -223,6 +223,22 @@ class TestAdminTeamRegistrationApi(TestCase):
             )
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
 
+    def test_editing_a_registration_to_a_different_pilot_is_still_capacity_checked(self):
+        # Unlike the same-pilot edit above, swapping in a pilot who wasn't already on this
+        # registration is capacity-wise equivalent to a fresh registration for that pilot, so it
+        # must still be rejected at a contest whose usage is at its limit.
+        create_response = self.client.post(self.url, self._payload(), format="json")
+        contest_team_id = create_response.json()["id"]
+        new_pilot = Person.objects.create(first_name="Swapped", last_name="In", email="swapped-in@example.com")
+
+        with self.settings(ACCESS_ENFORCEMENT_MODE="enforce", DEFAULT_FREE_CONTESTANT_LIMIT=0):
+            response = self.client.post(
+                self.url,
+                self._payload(contest_team=contest_team_id, pilot={"mode": "existing", "person": new_pilot.pk}),
+                format="json",
+            )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+
 
 class TestImportTeamsApi(TestCase):
     def setUp(self):

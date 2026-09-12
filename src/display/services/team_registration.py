@@ -89,12 +89,17 @@ def commit_team_registration(
         crew, _ = Crew.objects.get_or_create(member1=pilot, member2=copilot)
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club)
 
-        # assert_can_register_team's capacity check is about total pilots who have *started* in
-        # this contest (ContestUsageLedger), not the number of ContestTeam registrations - editing
-        # an existing registration (original_team given) never changes that count, so it must not
-        # be rejected just because the contest's guest-pilot usage is already at its limit for
-        # reasons unrelated to this specific edit.
-        if original_team is None:
+        # assert_can_register_team's capacity check is a coarse freeze: once the contest's
+        # guest-pilot usage (ContestUsageLedger, not registration count) is at its limit, no new
+        # non-owner pilot may be registered. An edit that keeps the same pilot doesn't register
+        # anyone new, so it must not be rejected just because the contest happens to be at that
+        # freeze for reasons unrelated to this edit - but an edit that *replaces* the pilot with
+        # someone not previously on this registration is, capacity-wise, indistinguishable from a
+        # fresh registration for that pilot, and must still be checked (CodeRabbit review finding
+        # on PR #785: the unconditional skip let an edit swap in a brand-new pilot at a contest
+        # that's otherwise frozen for new registrations).
+        same_pilot_edit = original_team is not None and original_team.crew.member1_id == pilot.id
+        if not same_pilot_edit:
             assert_can_register_team(contest, team)
         exclude_contest_team = None
         if original_team is not None:
