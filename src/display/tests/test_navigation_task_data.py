@@ -289,24 +289,40 @@ class TestNavigationTaskCreationFlow(TestCase):
         )
 
     def test_post_navigation_task_with_turnpoint_hunt_task_config(self, *args):
-        # limited_fuel_turnpoint_hunt has no route backbone - it requires the editable route to
-        # carry standalone catalogue_turnpoint/known_time_gate features instead (see
-        # TASK_SUBTYPE_DEFINITIONS), which the plain self.ROUTE_DATA fixture doesn't have.
-        route_data = deepcopy(self.ROUTE_DATA)
-        route_data["route"]["features"].extend(
-            [
-                {
-                    "type": "Feature",
-                    "properties": {"id": "ctp-1", "name": "CTP1", "featureType": "catalogue_turnpoint"},
-                    "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
-                },
-                {
-                    "type": "Feature",
-                    "properties": {"id": "ktg-1", "name": "KTG1", "featureType": "known_time_gate"},
-                    "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
-                },
-            ]
-        )
+        # limited_fuel_turnpoint_hunt has no route backbone - 2.A6/2.B2 are standalone timed
+        # turnpoints only (see TASK_SUBTYPE_DEFINITIONS and
+        # route_compatibility.turnpoint_hunt_structural_errors, which also requires exactly three
+        # known_time_gate markers), so this can't extend self.ROUTE_DATA (a route_path + SP/FP
+        # backbone) the way the other subtype tests in this file do.
+        route_data = {
+            "name": "Turnpoint hunt route",
+            "settings": {},
+            "route": {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ctp-1", "name": "CTP1", "featureType": "catalogue_turnpoint"},
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ktg-1", "name": "KTG1", "featureType": "known_time_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ktg-2", "name": "KTG2", "featureType": "known_time_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ktg-3", "name": "KTG3", "featureType": "known_time_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
+                    },
+                ],
+            },
+        }
         serialiser = EditableRouteSerialiser(data=route_data, context={"request": self.request})
         serialiser.is_valid()
         editable_route = serialiser.save()
@@ -338,6 +354,59 @@ class TestNavigationTaskCreationFlow(TestCase):
                 "compulsory_timing_tolerance_seconds": 8,
             },
         )
+
+    def test_post_navigation_task_rejects_turnpoint_hunt_route_with_a_backbone(self, *args):
+        # get_blocking_reasons alone only checks primitive presence (catalogue_turnpoint/
+        # known_time_gate exist somewhere), not the CodeRabbit-reviewed structural rules
+        # (turnpoint_hunt_structural_errors) - a route with an authored route_path backbone must
+        # still be rejected even though it has the required primitives.
+        route_data = deepcopy(self.ROUTE_DATA)
+        route_data["route"]["features"].extend(
+            [
+                {
+                    "type": "Feature",
+                    "properties": {"id": "ctp-1", "name": "CTP1", "featureType": "catalogue_turnpoint"},
+                    "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"id": "ktg-1", "name": "KTG1", "featureType": "known_time_gate"},
+                    "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"id": "ktg-2", "name": "KTG2", "featureType": "known_time_gate"},
+                    "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"id": "ktg-3", "name": "KTG3", "featureType": "known_time_gate"},
+                    "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
+                },
+            ]
+        )
+        serialiser = EditableRouteSerialiser(data=route_data, context={"request": self.request})
+        serialiser.is_valid()
+        editable_route = serialiser.save()
+        data = deepcopy(self.NAVIGATION_TASK_DATA(editable_route.pk))
+        data["original_scorecard"] = "FAI Precision"
+        data.pop("corridor_width", None)
+        data.pop("rounded_corners", None)
+        data["task_subtype"] = "limited_fuel_turnpoint_hunt"
+        data["task_config"] = {
+            "maximum_task_duration_minutes": 45,
+            "maximum_task_duration_penalty": 123,
+            "fuel_deadline_penalty": 77,
+            "compulsory_timing_tolerance_seconds": 8,
+        }
+        response = self.client.post(
+            f"/api/v1/contests/{self.contest.pk}/navigationtasks/",
+            data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        errors = response.json()["editable_route"][0]
+        self.assertIn("no route backbone", errors)
 
     def test_post_navigation_task_with_duration_task_config(self, *args):
         serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})

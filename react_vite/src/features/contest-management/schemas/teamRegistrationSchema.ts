@@ -59,15 +59,15 @@ export const teamRegistrationDefaults: TeamRegistrationFormValues = {
     tracker_device_id: '',
 };
 
-// Mirrors display.utilities.tracking_definitions.TRACKING_DEVICES. The fourth wizard option,
-// "pilot's or copilot's app", is omitted here: its backend constant
-// (TRACKING_PILOT_AND_COPILOT = "pilot_app_or_copilot_a[[") is corrupted (not a plausible slug),
-// so no value the API would actually accept for it is known - flagged separately rather than
-// guessed at here.
+// Mirrors display.utilities.tracking_definitions.TRACKING_DEVICES. The fourth option's backend
+// constant (TRACKING_PILOT_AND_COPILOT) used to be a corrupted, unusable value
+// ("pilot_app_or_copilot_a[[") - fixed (with a data migration for any existing rows) to
+// "pilot_app_or_copilot_app", so it's included here now.
 export const TRACKING_DEVICE_CHOICES: { value: string; label: string }[] = [
     { value: 'device', label: 'Hardware GPS tracker' },
     { value: 'pilot_app', label: "Pilot's Air Sports Live Tracking app" },
     { value: 'copilot_app', label: "Copilot's Air Sports Live Tracking app" },
+    { value: 'pilot_app_or_copilot_app', label: "Pilot's or copilot's Air Sports Live Tracking app" },
 ];
 
 // Mirrors display.utilities.tracking_definitions.TrackingService.

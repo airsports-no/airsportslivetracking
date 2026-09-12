@@ -52,9 +52,10 @@ class TestTaskLimitWiring(TestCase):
         self.assertEqual(navigation_task.name, "Limited Task")
 
     def test_navigation_task_serializer_accepts_turnpoint_hunt_task_config(self):
-        # limited_fuel_turnpoint_hunt has no route backbone - it requires the editable route to
-        # carry standalone catalogue_turnpoint/known_time_gate features instead (see
-        # TASK_SUBTYPE_DEFINITIONS), which self.route (a plain precision CSV import) doesn't have.
+        # limited_fuel_turnpoint_hunt has no route backbone and requires exactly three
+        # known_time_gate markers plus at least one catalogue_turnpoint (see
+        # TASK_SUBTYPE_DEFINITIONS and route_compatibility.turnpoint_hunt_structural_errors) -
+        # self.route (a plain precision CSV import) has neither.
         turnpoint_hunt_route = EditableRoute.objects.create(
             name="Turnpoint Hunt Route",
             route={
@@ -69,6 +70,16 @@ class TestTaskLimitWiring(TestCase):
                         "type": "Feature",
                         "properties": {"id": "ktg-1", "name": "KTG1", "featureType": "known_time_gate"},
                         "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ktg-2", "name": "KTG2", "featureType": "known_time_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ktg-3", "name": "KTG3", "featureType": "known_time_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
                     },
                 ],
             },

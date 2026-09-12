@@ -108,6 +108,16 @@ class MangledEmailField(serializers.Field):
 
 
 class AeroplaneSerialiser(serializers.ModelSerializer):
+    # registration has a DB-level unique constraint (see the 0178 migration), and every write
+    # path already implements its own lookup-or-reuse semantics on top of that (nested_update
+    # below, get_or_create_aeroplane, Team.get_or_create_from_signup). DRF's auto-added
+    # UniqueValidator has no instance context when this serializer is used as a *nested* field
+    # (see TeamNestedSerialiser.aeroplane - nested fields are validated before the outer
+    # serializer's own instance-aware create()/update() ever runs), so left in place it would
+    # reject reusing an existing aeroplane on every team update or repeat registration instead of
+    # only on a genuine new-row conflict - which the DB constraint alone already guards against.
+    registration = serializers.CharField(validators=[])
+
     class Meta:
         model = Aeroplane
         fields = "__all__"
@@ -228,6 +238,11 @@ class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
     manager_memberships = SerializerMethodField()
+    # Same reasoning as AeroplaneSerialiser.registration - name has a DB-level unique constraint
+    # (0178 migration) and every write path already reuses an existing Club by name rather than
+    # erroring; DRF's auto-added UniqueValidator has no instance context as a nested field (see
+    # TeamNestedSerialiser.club) and would otherwise reject that reuse.
+    name = serializers.CharField(validators=[])
 
     class Meta:
         model = Club

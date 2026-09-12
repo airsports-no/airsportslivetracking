@@ -21,7 +21,9 @@ from django.core.exceptions import ValidationError
 
 from display.utilities.cima_task_type_definitions import (
     LEGACY_DEFAULT_SUBTYPE_BY_FAMILY,
+    LIMITED_FUEL_TURNPOINT_HUNT,
     TASK_SUBTYPE_DEFINITIONS,
+    TURNPOINT_HUNT,
     get_task_subtype_definition,
 )
 
@@ -158,6 +160,36 @@ def no_compatible_routes_message(subtype_key: str) -> str:
     )
 
 
+def turnpoint_hunt_structural_errors(editable_route, primitives: dict) -> list[str]:
+    """
+    Structural rules for TURNPOINT_HUNT/LIMITED_FUEL_TURNPOINT_HUNT beyond mere primitive
+    presence: no route backbone (2.A6/2.B2 are standalone markers only, no authored route_path),
+    and exactly three timed compulsory points.
+
+    Shared by TaskCompiler._validate_primitives (which validates a compiled, already-persisted
+    NavigationTask) and assert_route_compatible_with_task_type (which validates before a
+    NavigationTask exists) so the two validation layers can't drift apart - before this, the API
+    creation path only checked get_blocking_reasons' required/forbidden primitive presence, so it
+    could accept and persist (201) a route with a route backbone, or with the wrong number of
+    known_time_gate markers, that TaskCompiler's stricter check would then reject anyway once the
+    task actually tried to compile.
+    """
+    if editable_route is None:
+        return []
+    errors = []
+    if editable_route.get_track() is not None:
+        errors.append(
+            "Turnpoint hunt requires no route backbone. Place the compulsory points as standalone timed turnpoints instead."
+        )
+    compiled_known_time_gates = [name for name in primitives.get("known_time_gate", []) if name]
+    if len(compiled_known_time_gates) != 3:
+        errors.append("Turnpoint hunt requires exactly three compulsory (timed) points.")
+    free_targets = [name for name in primitives.get("catalogue_turnpoint", []) if name]
+    if len(free_targets) < 1:
+        errors.append("Turnpoint hunt requires at least one free catalogue target.")
+    return errors
+
+
 def assert_route_compatible_with_task_type(editable_route, task_type: str, task_subtype: str | None):
     """
     Defense in depth: re-check compatibility server-side before building a Route, so a
@@ -165,7 +197,10 @@ def assert_route_compatible_with_task_type(editable_route, task_type: str, task_
     by any UI (Django wizard forms or the API-driven React flows alike).
     """
     subtype_key = effective_subtype_key(task_type, task_subtype)
-    reasons = get_blocking_reasons(extract_route_primitives(editable_route), subtype_key)
+    primitives = extract_route_primitives(editable_route)
+    reasons = get_blocking_reasons(primitives, subtype_key)
+    if subtype_key in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
+        reasons = reasons + turnpoint_hunt_structural_errors(editable_route, primitives)
     if reasons:
         raise ValidationError(
             f"Route '{editable_route.name}' is not compatible with the selected task type: " + "; ".join(reasons)
