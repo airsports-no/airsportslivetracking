@@ -1,3 +1,5 @@
+import { Team } from '../mission-dashboard/types';
+
 export interface TaskTemplateChoice {
     value: string;
     label: string;
@@ -53,4 +55,27 @@ export interface NavigationTaskCreatePayload {
 export interface NavigationTaskCreateResponse {
     id: number;
     warnings: string[];
+}
+
+// Mirrors the write side of AdminTeamRegistrationSerialiser.
+export interface AdminTeamRegistrationPayload {
+    contest_team?: number;
+    pilot: Record<string, unknown>;
+    copilot: Record<string, unknown>;
+    aeroplane: { registration: string; type?: string; colour?: string };
+    club: { name: string; country?: string };
+    air_speed: number;
+    tracking_service: string;
+    tracking_device: string;
+    tracker_device_id?: string;
+}
+
+export interface ContestTeamListItem {
+    id: number;
+    contest: number;
+    team: Team;
+    air_speed: number;
+    tracking_service: string;
+    tracking_device: string;
+    tracker_device_id: string | null;
 }

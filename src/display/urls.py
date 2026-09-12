@@ -3,7 +3,6 @@ from django.urls import path
 from display.views import (
     fly_master_data_post,
     generate_hangar_flyer_pdf,
-    import_contest_team_from_contest,
     quick_register,
     renew_token,
     NavigationTaskDetailView,
@@ -19,12 +18,9 @@ from display.views import (
     ContestTokenManagementView,
     ContestDeleteView,
     NavigationTaskDeleteView,
-    ContestTeamList,
-    remove_team_from_contest,
     PersonUpdateView,
     PersonList,
     NavigationTaskUpdateView,
-    ContestTeamTrackingUpdate,
     manifest,
     tracking_qr_code_view,
     get_contestant_map,
@@ -55,8 +51,6 @@ from display.views import (
     revert_uploaded_gpx_track_for_contestant,
     copy_editable_route,
     download_gpx_track_contestant,
-    clear_profile_image_background,
-    upload_profile_picture,
     get_contestant_processing_statistics,
     get_contest_creators_emails,
     navigation_task_view_detailed_score,
@@ -88,7 +82,6 @@ from display.views import (
     user_start_request_profile_deletion,
     user_request_profile_deletion,
 )
-from display.views_wizards import RegisterTeamWizard
 
 urlpatterns = [
     path("flymaster/", fly_master_data_post, name="flymaster_post"),
@@ -126,16 +119,6 @@ urlpatterns = [
     path("users/contestexample/", ContestCreationEmailExample.as_view(), name="contestcreation_example"),
     path("contest/create/", ContestCreateView.as_view(), name="contest_create"),
     path("contest/<int:pk>/", ContestDetailView.as_view(), name="contest_details"),
-    path(
-        "contest/<int:contest_pk>/remove_image_background/<int:pk>/",
-        clear_profile_image_background,
-        name="clear_profile_image_background",
-    ),
-    path(
-        "contest/<int:contest_pk>/upload_profile_picture/<int:pk>/",
-        upload_profile_picture,
-        name="upload_profile_picture",
-    ),
     path("contest/<int:pk>/permissions/", list_contest_permissions, name="contest_permissions_list"),
     path("contest/<int:pk>/permissions/add/", add_user_contest_permissions, name="contest_permissions_add"),
     path(
@@ -249,16 +232,6 @@ urlpatterns = [
     path("contestant/remove_score_item/<int:pk>/", delete_score_item, name="contestant_remove_score_item"),
     path("contestant/<int:pk>/apply_quarantine_penalty/", apply_contestant_quarantine_penalty, name="contestant_apply_quarantine_penalty"),
     path("contestant/<int:pk>/gates/", ContestantGateTimesView.as_view(), name="contestant_gate_times"),
-    path("contest/<int:contest_pk>/team/<int:team_pk>/wizardupdate/", RegisterTeamWizard.as_view(), name="team_wizard"),
-    path("contest/<int:contest_pk>/team/<int:team_pk>/remove/", remove_team_from_contest, name="remove_team"),
-    path("contest/<int:contest_pk>/team/create/", RegisterTeamWizard.as_view(), name="create_team"),
-    path(
-        "contest/<int:contest_pk>/contestteamtracking/<int:pk>/update",
-        ContestTeamTrackingUpdate.as_view(),
-        name="contestteamtracking_update",
-    ),
-    path("contest/<int:contest_pk>/team/import/", import_contest_team_from_contest, name="import_teams"),
-    path("contest/<int:contest_pk>/teams/", ContestTeamList.as_view(), name="contest_team_list"),
     path("person/<int:pk>/update/", PersonUpdateView.as_view(), name="person_update"),
     path("person/request_deletion/", user_start_request_profile_deletion, name="user_start_request_profile_deletion"),
     path("person/request_deletion_confirm/", user_request_profile_deletion, name="user_request_profile_deletion"),

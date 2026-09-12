@@ -88,6 +88,7 @@ from display.permissions import (
     TeamPermissions,
 )
 from display.serialisers import (
+    AdminTeamRegistrationSerialiser,
     AeroplaneSerialiser,
     ClubManagerMembershipCreateSerializer,
     ClubManagerMembershipSerializer,
@@ -1174,6 +1175,61 @@ class ContestViewSet(ModelViewSet):
             )
         teams.delete()
         return Response({}, status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=True,
+        methods=["POST"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def register_team(self, request, *args, **kwargs):
+        """
+        Admin team registration/edit - replaces RegisterTeamWizard. Pass "contest_team" in the
+        payload to edit an existing registration (replaces that team rather than creating a new
+        ContestTeam); omit it to register a new team.
+        """
+        contest = self.get_object()
+        serialiser = AdminTeamRegistrationSerialiser(data=request.data, context={"contest": contest})
+        serialiser.is_valid(raise_exception=True)
+        contest_team = serialiser.save()
+        return Response(
+            ContestTeamSerialiser(contest_team, context={"request": request}).data, status=status.HTTP_200_OK
+        )
+
+    @action(
+        detail=True,
+        methods=["POST"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def import_teams(self, request, *args, **kwargs):
+        """
+        Copy every ContestTeam registered in `source_contest` (or only `team_ids`, if given) into
+        this contest. Port of the legacy import_contest_team_from_contest view (views.py), which
+        this replaces - same semantics: a raw ContestTeam row copy, no dedup against teams already
+        registered here (matches the legacy view's behavior exactly; re-running an import
+        duplicates rows, same as before).
+        """
+        target_contest = self.get_object()
+        source_contest_id = request.data.get("source_contest")
+        if not source_contest_id:
+            raise drf_exceptions.ValidationError("'source_contest' is required")
+        visible_contests = get_objects_for_user(
+            request.user, "display.view_contest", klass=Contest, accept_global_perms=False
+        ) | Contest.objects.filter(is_public=True, is_featured=True)
+        source_contest = get_object_or_404(visible_contests, pk=source_contest_id)
+
+        contest_teams = ContestTeam.objects.filter(contest=source_contest)
+        team_ids = request.data.get("team_ids")
+        if team_ids:
+            contest_teams = contest_teams.filter(team_id__in=team_ids)
+
+        imported = []
+        for contest_team in contest_teams:
+            contest_team.pk = None
+            contest_team.id = None
+            contest_team.contest = target_contest
+            contest_team.save()
+            imported.append(contest_team)
+        return Response(ContestTeamNestedSerialiser(imported, many=True).data, status=status.HTTP_201_CREATED)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

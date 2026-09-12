@@ -5,6 +5,11 @@ import { useMissionDashboardStore } from '../mission-dashboard/store';
 import { canManageContest } from '../mission-dashboard/permissions';
 import { reverse, generatePath } from '../../urls';
 import NavigationTaskCreationFlow from './components/NavigationTaskCreationFlow';
+import TeamRegistrationFlow from './components/TeamRegistrationFlow';
+import ImportTeamsPanel from './components/ImportTeamsPanel';
+import TeamList from './components/TeamList';
+import * as contestManagementApi from './api';
+import { ContestTeamListItem } from './types';
 
 const ContestManagementPage = () => {
     const { contestId } = useParams<{ contestId: string }>();
@@ -15,6 +20,10 @@ const ContestManagementPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showCreateTask, setShowCreateTask] = useState(false);
+    const [teams, setTeams] = useState<ContestTeamListItem[]>([]);
+    const [teamsLoading, setTeamsLoading] = useState(true);
+    const [editingContestTeam, setEditingContestTeam] = useState<ContestTeamListItem | 'new' | null>(null);
+    const [showImportTeams, setShowImportTeams] = useState(false);
 
     useEffect(() => {
         if (!contestId) return;
@@ -22,6 +31,20 @@ const ContestManagementPage = () => {
         fetchContest(Number(contestId))
             .catch(err => setError((err as Error).message))
             .finally(() => setLoading(false));
+    }, [contestId]);
+
+    const refreshTeams = () => {
+        if (!contestId) return;
+        setTeamsLoading(true);
+        contestManagementApi
+            .fetchContestTeams(Number(contestId))
+            .then(setTeams)
+            .catch(err => setError((err as Error).message))
+            .finally(() => setTeamsLoading(false));
+    };
+
+    useEffect(() => {
+        refreshTeams();
     }, [contestId]);
 
     if (loading) return <div className="w-screen h-screen flex items-center justify-center"><Loading /></div>;
@@ -51,6 +74,31 @@ const ContestManagementPage = () => {
                             setShowCreateTask(false);
                             fetchContest(createdContestId, true);
                             navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId: createdContestId, navigationTaskId }));
+                        }}
+                    />
+                </div>
+            )}
+            {editingContestTeam && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+                    <TeamRegistrationFlow
+                        contestId={contest.id}
+                        editingContestTeam={editingContestTeam === 'new' ? undefined : editingContestTeam}
+                        onCancel={() => setEditingContestTeam(null)}
+                        onSaved={() => {
+                            setEditingContestTeam(null);
+                            refreshTeams();
+                        }}
+                    />
+                </div>
+            )}
+            {showImportTeams && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+                    <ImportTeamsPanel
+                        contestId={contest.id}
+                        onCancel={() => setShowImportTeams(false)}
+                        onImported={() => {
+                            setShowImportTeams(false);
+                            refreshTeams();
                         }}
                     />
                 </div>
@@ -94,11 +142,25 @@ const ContestManagementPage = () => {
                     <div className="card-body">
                         <div className="flex items-center justify-between">
                             <h2 className="card-title">Registered teams</h2>
-                            <button className="btn btn-primary btn-sm" disabled title="Coming soon">
-                                Register team
-                            </button>
+                            <div className="flex gap-2">
+                                <button className="btn btn-sm" onClick={() => setShowImportTeams(true)}>
+                                    Import teams
+                                </button>
+                                <button className="btn btn-primary btn-sm" onClick={() => setEditingContestTeam('new')}>
+                                    Register team
+                                </button>
+                            </div>
                         </div>
-                        <p className="text-sm text-gray-500">Team management is coming soon.</p>
+                        {teamsLoading ? (
+                            <Loading />
+                        ) : (
+                            <TeamList
+                                contestId={contest.id}
+                                teams={teams}
+                                onEdit={contestTeam => setEditingContestTeam(contestTeam)}
+                                onRemoved={contestTeamId => setTeams(prev => prev.filter(item => item.id !== contestTeamId))}
+                            />
+                        )}
                     </div>
                 </div>
             </div>

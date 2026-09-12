@@ -78,6 +78,7 @@ from display.services.task_compiler import TaskCompiler
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import CountryNotFoundException, get_country_code_from_location
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
+from display.utilities.tracking_definitions import TRACKING_DEVICES, TrackingService
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
@@ -1012,6 +1013,142 @@ class SignupSerialiser(serializers.Serializer):
         if my_person == value:
             raise ValidationError("You cannot choose yourself as co-pilot")
         return value
+
+
+class TeamMemberSelectionSerialiser(serializers.Serializer):
+    """
+    One "pilot" or "copilot" entry in AdminTeamRegistrationSerialiser: a discriminated union of an
+    existing Person id ("existing"), fields to create a new one ("create"), or - copilot only -
+    no one at all ("skip"). Replaces RegisterTeamWizard's condition_dict-driven step branching
+    (create_new_pilot/create_new_copilot) and its member1search/member1create form pair.
+    """
+
+    mode = serializers.ChoiceField(choices=("existing", "create", "skip"))
+    person = serializers.PrimaryKeyRelatedField(queryset=Person.objects.all(), required=False)
+    first_name = serializers.CharField(required=False, allow_blank=True)
+    last_name = serializers.CharField(required=False, allow_blank=True)
+    email = serializers.CharField(required=False, allow_blank=True)
+    phone = PhoneNumberField(required=False, allow_null=True, allow_blank=True)
+    country = CountryField(required=False, allow_blank=True)
+
+
+def _resolve_team_member(data: dict, *, allow_skip: bool) -> Optional[Person]:
+    """
+    Resolve one already-validated TeamMemberSelectionSerialiser dict (as it appears nested inside
+    AdminTeamRegistrationSerialiser.validated_data) into a Person, or None for a skipped copilot.
+    """
+    mode = data["mode"]
+    if mode == "skip":
+        if not allow_skip:
+            raise ValidationError("A pilot is required")
+        return None
+    if mode == "existing":
+        person = data.get("person")
+        if person is None:
+            raise ValidationError("'person' is required when mode is 'existing'")
+        return person
+    if not data.get("first_name") or not data.get("last_name"):
+        raise ValidationError("'first_name' and 'last_name' are required when mode is 'create'")
+    # RegisterTeamWizard's done() set validated=True on newly created persons (unlike the
+    # default False used for persons auto-created during app API login) - carried over so an
+    # admin-registered new pilot isn't mistaken for an unconfirmed app signup.
+    return Person.objects.create(
+        first_name=data["first_name"],
+        last_name=data["last_name"],
+        email=data.get("email", ""),
+        phone=data.get("phone") or None,
+        country=data.get("country") or "",
+        validated=True,
+    )
+
+
+class AeroplaneSelectionSerialiser(serializers.Serializer):
+    registration = serializers.CharField()
+    type = serializers.CharField(required=False, allow_blank=True)
+    colour = serializers.CharField(required=False, allow_blank=True)
+
+
+class ClubSelectionSerialiser(serializers.Serializer):
+    name = serializers.CharField()
+    country = CountryField(required=False, allow_blank=True)
+
+
+class AdminTeamRegistrationSerialiser(serializers.Serializer):
+    """
+    Admin team registration/edit - replaces RegisterTeamWizard. See
+    display.services.team_registration.commit_team_registration for the atomicity/capacity/
+    duplicate-registration enforcement this delegates to (all of which the wizard lacked), and the
+    non-mutating-on-reuse fix for aeroplane/club fields.
+    """
+
+    contest_team = serializers.PrimaryKeyRelatedField(queryset=ContestTeam.objects.all(), required=False)
+    pilot = TeamMemberSelectionSerialiser()
+    copilot = TeamMemberSelectionSerialiser(required=False)
+    aeroplane = AeroplaneSelectionSerialiser()
+    club = ClubSelectionSerialiser()
+    air_speed = serializers.FloatField()
+    # RegisterTeamWizard's TrackingDataForm was a ModelForm, so Django's ModelChoiceField
+    # rejected an invalid tracking_service/tracking_device value before it ever reached
+    # ContestTeam.objects.create(); ChoiceField here (rather than a plain CharField) preserves
+    # that validation for the API path.
+    tracking_service = serializers.ChoiceField(choices=TrackingService.choices)
+    tracking_device = serializers.ChoiceField(choices=TRACKING_DEVICES)
+    tracker_device_id = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_contest_team(self, value):
+        contest = self.context["contest"]
+        if value.contest_id != contest.pk:
+            raise ValidationError("This registration does not belong to the selected contest")
+        return value
+
+    def create(self, validated_data):
+        from display.services.team_registration import (
+            commit_team_registration,
+            get_or_create_aeroplane,
+            get_or_create_club,
+        )
+
+        contest = self.context["contest"]
+        contest_team = validated_data.get("contest_team")
+        original_team = contest_team.team if contest_team else None
+
+        tracking_data = {
+            "air_speed": validated_data["air_speed"],
+            "tracking_service": validated_data["tracking_service"],
+            "tracking_device": validated_data["tracking_device"],
+            "tracker_device_id": validated_data.get("tracker_device_id", ""),
+        }
+
+        try:
+            # A "create" mode pilot/copilot materializes a new Person row before
+            # commit_team_registration's own atomic block even starts - wrap this whole method in
+            # one transaction so a capacity/duplicate rejection there rolls that Person back too,
+            # instead of leaving an orphaned, team-less Person behind (same atomicity bug as
+            # RegisterTeamWizard.done(), just one step earlier).
+            with transaction.atomic():
+                pilot = _resolve_team_member(validated_data["pilot"], allow_skip=False)
+                copilot_data = validated_data.get("copilot")
+                copilot = _resolve_team_member(copilot_data, allow_skip=True) if copilot_data else None
+
+                aeroplane_data = validated_data["aeroplane"]
+                aeroplane = get_or_create_aeroplane(
+                    aeroplane_data["registration"],
+                    defaults={"type": aeroplane_data.get("type", ""), "colour": aeroplane_data.get("colour", "")},
+                )
+                club_data = validated_data["club"]
+                club = get_or_create_club(club_data["name"], defaults={"country": club_data.get("country", "")})
+
+                return commit_team_registration(
+                    contest,
+                    pilot=pilot,
+                    copilot=copilot,
+                    aeroplane=aeroplane,
+                    club=club,
+                    tracking_data=tracking_data,
+                    original_team=original_team,
+                )
+        except CoreValidationError as exc:
+            raise ValidationError(exc.messages if hasattr(exc, "messages") else str(exc))
 
 
 class ContestTeamManagementSerialiser(serializers.ModelSerializer):
