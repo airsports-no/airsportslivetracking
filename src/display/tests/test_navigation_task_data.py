@@ -140,6 +140,44 @@ class TestNavigationTaskCreationFlow(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
 
+    def test_post_navigation_task_rejects_route_incompatible_with_task_subtype(self, *args):
+        # The dropdown filtering React/the wizards apply (compatible_task_types) is only a UX
+        # affordance - this is the actual, non-bypassable server-side check. A plain waypoint
+        # route (self.ROUTE_DATA) has none of the circle_*_marker features "circle" requires.
+        serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})
+        serialiser.is_valid()
+        editable_route = serialiser.save()
+        data = deepcopy(self.NAVIGATION_TASK_DATA(editable_route.pk))
+        data["original_scorecard"] = "FAI Precision"
+        data.pop("corridor_width", None)
+        data.pop("rounded_corners", None)
+        data["task_subtype"] = "circle"
+        response = self.client.post(
+            f"/api/v1/contests/{self.contest.pk}/navigationtasks/",
+            data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        errors = response.json()["editable_route"][0]
+        self.assertIn("not compatible with the selected task type", errors)
+        self.assertIn("circle_center_marker", errors)
+
+    def test_post_navigation_task_response_includes_warnings_field(self, *args):
+        # Advisory route-validation warnings (corridor geometry etc.) used to be surfaced only
+        # as Django messages.warning() by the wizards and silently discarded by this API path.
+        serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})
+        serialiser.is_valid()
+        editable_route = serialiser.save()
+        data = deepcopy(self.NAVIGATION_TASK_DATA(editable_route.pk))
+        response = self.client.post(
+            f"/api/v1/contests/{self.contest.pk}/navigationtasks/",
+            data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        self.assertIn("warnings", response.json())
+        self.assertIsInstance(response.json()["warnings"], list)
+
     def test_get_navigation_task_exposes_effective_legacy_precision_subtype_definition(self, *args):
         serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})
         serialiser.is_valid()
@@ -251,7 +289,25 @@ class TestNavigationTaskCreationFlow(TestCase):
         )
 
     def test_post_navigation_task_with_turnpoint_hunt_task_config(self, *args):
-        serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})
+        # limited_fuel_turnpoint_hunt has no route backbone - it requires the editable route to
+        # carry standalone catalogue_turnpoint/known_time_gate features instead (see
+        # TASK_SUBTYPE_DEFINITIONS), which the plain self.ROUTE_DATA fixture doesn't have.
+        route_data = deepcopy(self.ROUTE_DATA)
+        route_data["route"]["features"].extend(
+            [
+                {
+                    "type": "Feature",
+                    "properties": {"id": "ctp-1", "name": "CTP1", "featureType": "catalogue_turnpoint"},
+                    "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"id": "ktg-1", "name": "KTG1", "featureType": "known_time_gate"},
+                    "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                },
+            ]
+        )
+        serialiser = EditableRouteSerialiser(data=route_data, context={"request": self.request})
         serialiser.is_valid()
         editable_route = serialiser.save()
         data = deepcopy(self.NAVIGATION_TASK_DATA(editable_route.pk))
@@ -353,7 +409,35 @@ class TestNavigationTaskCreationFlow(TestCase):
         self.assertEqual(payload["task_config"], {"duration_residual_fuel_required": True})
 
     def test_post_navigation_task_with_circle_radius_config(self, *args):
-        serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})
+        # circle has no route backbone - it requires the editable route to carry all four
+        # standalone circle_*_marker features instead (see TASK_SUBTYPE_DEFINITIONS), which the
+        # plain self.ROUTE_DATA fixture doesn't have.
+        route_data = deepcopy(self.ROUTE_DATA)
+        route_data["route"]["features"].extend(
+            [
+                {
+                    "type": "Feature",
+                    "properties": {"id": "cm-1", "name": "CM", "featureType": "circle_center_marker"},
+                    "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"id": "cs-1", "name": "CS", "featureType": "circle_start_marker"},
+                    "geometry": {"type": "Point", "coordinates": [11.01, 60.0]},
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"id": "ce-1", "name": "CE", "featureType": "circle_entry_marker"},
+                    "geometry": {"type": "Point", "coordinates": [11.02, 60.0]},
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"id": "cx-1", "name": "CX", "featureType": "circle_exit_marker"},
+                    "geometry": {"type": "Point", "coordinates": [11.03, 60.0]},
+                },
+            ]
+        )
+        serialiser = EditableRouteSerialiser(data=route_data, context={"request": self.request})
         serialiser.is_valid()
         editable_route = serialiser.save()
         data = deepcopy(self.NAVIGATION_TASK_DATA(editable_route.pk))

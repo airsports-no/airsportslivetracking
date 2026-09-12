@@ -73,6 +73,7 @@ from display.services.contestant_persistence import (
     update_contestant_with_related_state,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.route_compatibility import assert_route_compatible_with_task_type
 from display.services.task_compiler import TaskCompiler
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import CountryNotFoundException, get_country_code_from_location
@@ -1759,10 +1760,17 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
         write_only=True,
         required=False,
     )
+    warnings = serializers.SerializerMethodField(
+        read_only=True,
+        help_text="Non-fatal advisory warnings about the created route (e.g. corridor geometry issues).",
+    )
 
     class Meta:
         model = NavigationTask
         exclude = ("route", "contest", "scorecard")
+
+    def get_warnings(self, obj):
+        return getattr(obj, "_creation_warnings", [])
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -1775,6 +1783,15 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
                 validate_subtype_family_compatibility(subtype, original_scorecard.calculator)
             except ValueError as e:
                 raise ValidationError({"task_subtype": str(e)})
+            editable_route = attrs.get("editable_route")
+            if editable_route is not None:
+                # Defense in depth: the dropdown filtering (task_templates/task_compatibility
+                # endpoints) is only a UX affordance - this is the actual, non-bypassable check
+                # that a hand-crafted request cannot pair an incompatible route/task-type.
+                try:
+                    assert_route_compatible_with_task_type(editable_route, original_scorecard.calculator, subtype)
+                except CoreValidationError as e:
+                    raise ValidationError({"editable_route": str(e)})
         return attrs
 
     def create(self, validated_data):
@@ -1791,6 +1808,7 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
 
             editable_route: EditableRoute = validated_data["editable_route"]
             original_scorecard: Scorecard = validated_data["original_scorecard"]
+            corridor_width = validated_data.get("corridor_width")
             try:
                 route = editable_route.create_route(
                     original_scorecard.calculator,
@@ -1801,6 +1819,7 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
                 )
             except CoreValidationError as e:
                 raise ValidationError(e)
+            warnings = editable_route.get_validation_errors(corridor_width=corridor_width)
 
             validated_data["contest"] = contest
             validated_data["route"] = route
@@ -1808,6 +1827,7 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
             assign_perm("display.delete_route", user, route)
             assign_perm("display.change_route", user, route)
             navigation_task = NavigationTask.create(**validated_data)
+            navigation_task._creation_warnings = warnings
         return navigation_task
 
 

@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Loading } from '../route-editor/components/basicComponents';
 import { useMissionDashboardStore } from '../mission-dashboard/store';
 import { canManageContest } from '../mission-dashboard/permissions';
 import { reverse, generatePath } from '../../urls';
+import NavigationTaskCreationFlow from './components/NavigationTaskCreationFlow';
 
 const ContestManagementPage = () => {
     const { contestId } = useParams<{ contestId: string }>();
+    const navigate = useNavigate();
     const { contestsById, fetchContest } = useMissionDashboardStore();
     const contest = contestsById[Number(contestId)];
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showCreateTask, setShowCreateTask] = useState(false);
 
     useEffect(() => {
         if (!contestId) return;
@@ -38,6 +41,19 @@ const ContestManagementPage = () => {
 
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
+            {showCreateTask && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+                    <NavigationTaskCreationFlow
+                        contest={contest}
+                        onCancel={() => setShowCreateTask(false)}
+                        onCreated={navigationTaskId => {
+                            setShowCreateTask(false);
+                            fetchContest(contest.id, true);
+                            navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId: contest.id, navigationTaskId }));
+                        }}
+                    />
+                </div>
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
                 <div>
                     <h1 className="text-3xl font-bold">{contest.name}</h1>
@@ -53,7 +69,7 @@ const ContestManagementPage = () => {
                     <div className="card-body">
                         <div className="flex items-center justify-between">
                             <h2 className="card-title">Navigation tasks</h2>
-                            <button className="btn btn-primary btn-sm" disabled title="Coming soon">
+                            <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>
                                 Add navigation task
                             </button>
                         </div>

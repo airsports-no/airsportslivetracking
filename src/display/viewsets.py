@@ -146,9 +146,14 @@ from display.services.capacity_enforcement import (
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
-from display.services.route_compatibility import extract_route_primitives, get_blocking_reasons
+from display.services.route_compatibility import effective_subtype_key, extract_route_primitives, get_blocking_reasons
 from display.services.scorecard_gate_applicability import get_applicable_gate_types, get_applicable_scalar_groups
 from display.services.task_compiler import TaskCompiler
+from display.services.task_templates import (
+    no_compatible_task_types_message,
+    normalize_task_template_selection,
+    task_template_choices,
+)
 from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
 from display.tasks import (
     generate_and_maybe_notify_flight_order,
@@ -514,6 +519,43 @@ class EditableRouteViewSet(ModelViewSet):
                 }
             )
         return Response({"compatible_task_types": compatible_task_types, "subtypes": subtypes})
+
+    @action(detail=False, methods=["get"], url_path="task_templates")
+    def task_templates(self, request, *args, **kwargs):
+        """
+        Grouped (Legacy/CIMA) task-template choices for the task-type picker, filtered by the
+        requesting user's own CIMA visibility and, when ?editable_route=<id> is given, further
+        hard-filtered to task subtypes that route's authored content actually satisfies (the same
+        canonical ruleset task_compatibility above reports on, and the one create() re-checks
+        server-side regardless of what this endpoint returns).
+        """
+        editable_route = None
+        editable_route_id = request.query_params.get("editable_route")
+        if editable_route_id:
+            editable_route = get_object_or_404(EditableRoute.get_for_user(request.user), pk=editable_route_id)
+
+        def _describe_template(value):
+            task_type, task_subtype = normalize_task_template_selection(value)
+            return {
+                "value": value,
+                "task_type": task_type,
+                "task_subtype": task_subtype,
+                # Precomputed so the frontend never needs to duplicate effective_subtype_key()'s
+                # legacy-shim mapping just to client-side-filter the route picker by compatibility.
+                "subtype_key": effective_subtype_key(task_type, task_subtype),
+            }
+
+        groups = [
+            {
+                "group": group,
+                "templates": [{"label": label, **_describe_template(value)} for value, label in choices],
+            }
+            for group, choices in task_template_choices(request.user, editable_route=editable_route)
+        ]
+        message = None
+        if not groups and editable_route is not None:
+            message = no_compatible_task_types_message(request.user, editable_route)
+        return Response({"groups": groups, "no_compatible_task_types_message": message})
 
     @action(detail=False, methods=["get"], url_path="global-map-sources")
     def global_map_sources(self, request, *args, **kwargs):
@@ -1224,6 +1266,26 @@ class ContestTeamViewSet(ModelViewSet):
 class GetScorecardsViewSet(ReadOnlyModelViewSet):
     queryset = Scorecard.get_originals()
     serializer_class = ScorecardNestedSerialiser
+
+    @action(detail=False, methods=["get"], url_path="choices")
+    def choices(self, request, *args, **kwargs):
+        """
+        Lightweight scorecard picker for the task-details step of navigation-task creation -
+        {shortcut_name, name, task_type} only, not the full gate-score configuration payload.
+        Optional ?task_type=<family> filters to scorecards that support it (Scorecard.task_type
+        is a plain Python list, not a queryable JSON field, so this is filtered in Python - the
+        same check the Django wizards make in get_context_data()).
+        """
+        task_type = request.query_params.get("task_type")
+        scorecards = Scorecard.get_originals()
+        if task_type:
+            scorecards = [scorecard for scorecard in scorecards if task_type in scorecard.task_type]
+        return Response(
+            [
+                {"shortcut_name": scorecard.shortcut_name, "name": scorecard.name, "task_type": scorecard.task_type}
+                for scorecard in scorecards
+            ]
+        )
 
 
 class NavigationTaskViewSet(ModelViewSet):
