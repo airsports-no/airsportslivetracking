@@ -1,13 +1,16 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
-from display.forms_wizards import ContestSelectForm, _no_compatible_task_types_message, _task_template_choices
+from display.forms_wizards import _no_compatible_task_types_message, _task_template_choices
 from display.models import EditableRoute
 from display.services.route_compatibility import (
     LEGACY_COMPILER_PRIMITIVE_KEYS,
     extract_route_primitives,
     get_blocking_reasons,
     get_compatible_task_subtypes,
+)
+from display.services.route_compatibility import (
+    no_compatible_routes_message as _no_compatible_routes_message,
 )
 from display.utilities.cima_task_type_definitions import (
     ANR_CATALOGUE,
@@ -21,7 +24,6 @@ from display.utilities.cima_task_type_definitions import (
     PRECISION_NAVIGATION,
 )
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
-from display.views_wizards import _no_compatible_routes_message
 
 TRACK_FEATURE = {
     "type": "Feature",
@@ -221,20 +223,21 @@ class TestNoCompatibleTaskTypesMessage(TestCase):
         self.assertIsNone(_no_compatible_task_types_message(self.user, route))
 
     @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
-    def test_contest_select_form_exposes_message_when_choices_are_empty(self):
+    def test_message_is_present_when_no_templates_are_compatible(self):
+        # Mirrors what the task_templates API endpoint (editableroutes-task-templates) does when
+        # its choices list comes back empty - previously exercised via the now-removed
+        # ContestSelectForm, which just wired these same two functions together.
         route = EditableRoute.objects.create(name="Empty", route={"type": "FeatureCollection", "features": []})
-        form = ContestSelectForm(user=self.user, editable_route=route)
-        self.assertEqual(form.fields["task_template"].choices, [])
-        self.assertIsNotNone(form.no_compatible_task_types_message)
+        self.assertEqual(_task_template_choices(self.user, editable_route=route), [])
+        self.assertIsNotNone(_no_compatible_task_types_message(self.user, route))
 
-    def test_contest_select_form_has_no_message_when_choices_exist(self):
+    def test_no_message_when_templates_are_compatible(self):
         route = EditableRoute.objects.create(
             name="Plain precision route",
             route={"type": "FeatureCollection", "features": [TRACK_FEATURE, waypoint_feature("tp")]},
         )
-        form = ContestSelectForm(user=self.user, editable_route=route)
-        self.assertTrue(form.fields["task_template"].choices)
-        self.assertIsNone(form.no_compatible_task_types_message)
+        self.assertTrue(_task_template_choices(self.user, editable_route=route))
+        self.assertIsNone(_no_compatible_task_types_message(self.user, route))
 
 
 class TestNoCompatibleRoutesMessage(TestCase):

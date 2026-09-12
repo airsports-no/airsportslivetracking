@@ -44,12 +44,13 @@ const ContestManagementPage = () => {
             {showCreateTask && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <NavigationTaskCreationFlow
-                        contest={contest}
+                        entry={{ kind: 'contest', contestId: contest.id }}
+                        initialContest={contest}
                         onCancel={() => setShowCreateTask(false)}
-                        onCreated={navigationTaskId => {
+                        onCreated={(createdContestId, navigationTaskId) => {
                             setShowCreateTask(false);
-                            fetchContest(contest.id, true);
-                            navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId: contest.id, navigationTaskId }));
+                            fetchContest(createdContestId, true);
+                            navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId: createdContestId, navigationTaskId }));
                         }}
                     />
                 </div>

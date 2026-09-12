@@ -6,7 +6,7 @@ export const AIRSPORT_CHALLENGE = 'airsportchallenge';
 export const POKER = 'poker';
 export const LANDING = 'landing';
 
-export type NavigationTaskCreationStep = 'template' | 'route' | 'parameters' | 'details';
+export type NavigationTaskCreationStep = 'template' | 'contest' | 'route' | 'parameters' | 'details';
 
 export type NavigationTaskCreationEntry =
     | { kind: 'contest'; contestId: number }
@@ -65,10 +65,12 @@ export function nextStep(
 ): NavigationTaskCreationStep | 'submit' {
     switch (step) {
         case 'template':
-            if (entry.kind === 'route') {
-                return requiredParameters(taskType ?? '').length > 0 ? 'parameters' : 'details';
-            }
-            return 'route';
+            // entry.kind === 'route': the route is already fixed by the entry context, but which
+            // contest the task belongs to still needs picking/creating (RouteToTaskWizard's
+            // contest_selection/contest_creation steps). entry.kind === 'contest': the reverse -
+            // the contest is already fixed, but which route to use still needs picking.
+            return entry.kind === 'route' ? 'contest' : 'route';
+        case 'contest':
         case 'route':
             return requiredParameters(taskType ?? '').length > 0 ? 'parameters' : 'details';
         case 'parameters':

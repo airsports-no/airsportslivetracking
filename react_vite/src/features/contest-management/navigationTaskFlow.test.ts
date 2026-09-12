@@ -46,9 +46,10 @@ describe('nextStep', () => {
         expect(nextStep('parameters', entry, ANR_CORRIDOR)).toBe('details');
     });
 
-    it('route entry: skips the route-selection step entirely', () => {
+    it('route entry: goes to the contest step instead of route-selection', () => {
         const entry = { kind: 'route' as const, editableRouteId: 42 };
-        expect(nextStep('template', entry, PRECISION)).toBe('details');
-        expect(nextStep('template', entry, ANR_CORRIDOR)).toBe('parameters');
+        expect(nextStep('template', entry, PRECISION)).toBe('contest');
+        expect(nextStep('contest', entry, PRECISION)).toBe('details');
+        expect(nextStep('contest', entry, ANR_CORRIDOR)).toBe('parameters');
     });
 });

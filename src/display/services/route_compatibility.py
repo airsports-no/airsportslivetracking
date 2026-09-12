@@ -4,10 +4,12 @@ navigation task subtype (legacy family or CIMA subtype).
 
 This is the single source of truth consulted by:
 - The route editor UI (compatibility badges / task-type selector).
-- The route-to-task wizard (``RouteToTaskWizard`` / ``ContestSelectForm``), which offers only
-  compatible task types for a given route.
-- The contest-first task wizard (``NewNavigationTaskWizard``), which offers only compatible
-  routes for a given task type.
+- The React nav-task-creation flow (``NavigationTaskCreationFlow``, via the
+  ``editableroutes-task-templates``/``editableroutes-task-compatibility`` API endpoints), which
+  offers only compatible task types for a given route and vice versa.
+- ``NavigationTaskEditableRoutReferenceSerialiser.validate()``, which re-checks compatibility
+  server-side as the non-bypassable security boundary - the API filtering above is only a UX
+  affordance.
 
 ``extract_route_primitives`` is also the implementation backing
 ``TaskCompiler._build_compiled_primitives`` (see ``display.services.task_compiler``) so the two

@@ -278,9 +278,9 @@ const ContestDashboard = () => {
                     </div>
                      <div className="flex flex-col items-stretch gap-2 w-full md:w-auto">
                         {canManageThisContest && (
-                            <a href={reverse('contest_details', contest.id)} className="btn btn-primary btn-sm">
+                            <Link to={generatePath('CONTEST_MANAGEMENT', { contestId: contest.id })} className="btn btn-primary btn-sm">
                                 Manage Contest
-                            </a>
+                            </Link>
                         )}
                         {(() => {
                             if (userContestTeam?.is_user_pilot) {

@@ -88,7 +88,7 @@ from display.views import (
     user_start_request_profile_deletion,
     user_request_profile_deletion,
 )
-from display.views_wizards import NewNavigationTaskWizard, RouteToTaskWizard, RegisterTeamWizard
+from display.views_wizards import RegisterTeamWizard
 
 urlpatterns = [
     path("flymaster/", fly_master_data_post, name="flymaster_post"),
@@ -259,7 +259,6 @@ urlpatterns = [
     ),
     path("contest/<int:contest_pk>/team/import/", import_contest_team_from_contest, name="import_teams"),
     path("contest/<int:contest_pk>/teams/", ContestTeamList.as_view(), name="contest_team_list"),
-    path("navigationtaskwizard/<int:contest_pk>/", NewNavigationTaskWizard.as_view(), name="navigationtaskwizard"),
     path("person/<int:pk>/update/", PersonUpdateView.as_view(), name="person_update"),
     path("person/request_deletion/", user_start_request_profile_deletion, name="user_start_request_profile_deletion"),
     path("person/request_deletion_confirm/", user_request_profile_deletion, name="user_request_profile_deletion"),
@@ -269,11 +268,6 @@ urlpatterns = [
     path("editableroute/import/", import_route, name="editableroute_import"),
     path("editableroute/<int:pk>/delete/", EditableRouteDeleteView.as_view(), name="editableroute_delete"),
     path("editableroute/<int:pk>/copy/", copy_editable_route, name="editableroute_copy"),
-    path(
-        "editableroute/<int:pk>/createnavigationtask/",
-        RouteToTaskWizard.as_view(),
-        name="editableroute_createnavigationtask",
-    ),
     path("editableroute/<int:pk>/permissions/", list_editableroute_permissions, name="editableroute_permissions_list"),
     path(
         "editableroute/<int:pk>/permissions/add/",
