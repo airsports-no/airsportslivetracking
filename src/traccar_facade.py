@@ -75,6 +75,22 @@ class Traccar:
         self.last_session_time = time.time()
         return session
 
+    def _request(self, method: str, url: str, **kwargs) -> requests.Response:
+        """
+        Issues a request through self.session, re-authenticating and retrying once if Traccar
+        rejects the cached session with 401. self.session's own cache is time-based
+        (SESSION_LIFETIME) and has no way to know the session was invalidated server-side
+        earlier than that - e.g. Traccar restarting mid-flight, which invalidates every
+        in-memory session immediately, not after an hour. Without this, every call using the
+        stale session fails with 401 until SESSION_LIFETIME naturally elapses.
+        """
+        response = getattr(self.session, method)(url, **kwargs)
+        if response.status_code == 401:
+            logger.warning(f"Traccar session rejected as unauthorized for {url} - re-authenticating and retrying once")
+            self._session = None
+            response = getattr(self.session, method)(url, **kwargs)
+        return response
+
     def get_positions_for_device_id(
         self,
         device_id: int,
@@ -109,7 +125,8 @@ class Traccar:
         "network": null
         }
         """
-        response = self.session.get(
+        response = self._request(
+            "get",
             self.base + "/api/positions",
             params={
                 "deviceId": device_id,
@@ -139,7 +156,7 @@ class Traccar:
         return devices
 
     def update_and_get_devices(self) -> Optional[List]:
-        response = self.session.get(self.base + "/api/devices", timeout=REQUEST_TIMEOUT_SECONDS)
+        response = self._request("get", self.base + "/api/devices", timeout=REQUEST_TIMEOUT_SECONDS)
         try:
             return response.json()
         except:
@@ -147,19 +164,21 @@ class Traccar:
             return None
 
     def delete_device(self, device_id):
-        response = self.session.delete(self.base + "/api/devices/{}".format(device_id), timeout=REQUEST_TIMEOUT_SECONDS)
+        response = self._request(
+            "delete", self.base + "/api/devices/{}".format(device_id), timeout=REQUEST_TIMEOUT_SECONDS
+        )
         # print(response)
         # print(response.text)
         return response.status_code == 204
 
     def get_groups(self) -> List[Dict]:
-        response = self.session.get(self.base + "/api/groups", timeout=REQUEST_TIMEOUT_SECONDS)
+        response = self._request("get", self.base + "/api/groups", timeout=REQUEST_TIMEOUT_SECONDS)
         if response.status_code == 200:
             return response.json()
 
     def create_group(self, group_name) -> Dict:
-        response = self.session.post(
-            self.base + "/api/groups", json={"name": group_name}, timeout=REQUEST_TIMEOUT_SECONDS
+        response = self._request(
+            "post", self.base + "/api/groups", json={"name": group_name}, timeout=REQUEST_TIMEOUT_SECONDS
         )
         if response.status_code == 200:
             return response.json()
@@ -172,7 +191,8 @@ class Traccar:
         return self.create_group("GlobalDevices")["id"]
 
     def create_device(self, device_name, identifier):
-        response = self.session.post(
+        response = self._request(
+            "post",
             self.base + "/api/devices",
             json={
                 "uniqueId": identifier,
@@ -187,7 +207,8 @@ class Traccar:
             return response.json()
 
     def add_device_to_shared_group(self, deviceId):
-        response = self.session.put(
+        response = self._request(
+            "put",
             self.base + f"/api/devices/{deviceId}/",
             json={"groupId": self.get_shared_group_id(), "id": deviceId},
             timeout=REQUEST_TIMEOUT_SECONDS,
@@ -196,8 +217,8 @@ class Traccar:
             return True
 
     def get_device(self, identifier) -> Optional[Dict]:
-        response = self.session.get(
-            self.base + "/api/devices/?uniqueId={}".format(identifier), timeout=REQUEST_TIMEOUT_SECONDS
+        response = self._request(
+            "get", self.base + "/api/devices/?uniqueId={}".format(identifier), timeout=REQUEST_TIMEOUT_SECONDS
         )
         if response.status_code == 200:
             devices = response.json()
@@ -214,7 +235,8 @@ class Traccar:
             logger.warning("Failed fetching assumed to be existing device {}".format(identifier))
             return False
         key = existing_device["id"]
-        response = self.session.put(
+        response = self._request(
+            "put",
             self.base + f"/api/devices/{key}/",
             json={"name": device_name, "id": key, "uniqueId": identifier},
             timeout=REQUEST_TIMEOUT_SECONDS,
