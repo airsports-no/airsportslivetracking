@@ -15,7 +15,13 @@ never drift apart - the compiler's persisted, task-scoped payload is a strict su
 primitives computed here.
 """
 
-from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
+from django.core.exceptions import ValidationError
+
+from display.utilities.cima_task_type_definitions import (
+    LEGACY_DEFAULT_SUBTYPE_BY_FAMILY,
+    TASK_SUBTYPE_DEFINITIONS,
+    get_task_subtype_definition,
+)
 
 # Bump whenever the ruleset (required/forbidden primitives, or the primitive extraction itself)
 # changes in a way that could change the outcome for an already-saved route, so callers can tell a
@@ -124,3 +130,41 @@ def infer_intended_task_subtypes(editable_route, active_template_subtype: str | 
     if active_template_subtype and active_template_subtype in compatible:
         return [active_template_subtype]
     return compatible
+
+
+def effective_subtype_key(task_type: str, task_subtype: str | None) -> str:
+    """The task subtype key the compatibility ruleset should be checked against: the explicit
+    CIMA subtype if one was chosen, otherwise the legacy shim for the coarse task_type family."""
+    return task_subtype or LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(task_type, task_type)
+
+
+def no_compatible_routes_message(subtype_key: str) -> str:
+    """
+    Explain why the internal_route/editable_route picker is empty for the already-chosen task
+    type, instead of just rendering an empty dropdown with no explanation.
+    """
+    definition = get_task_subtype_definition(subtype_key)
+    parts = []
+    if definition.required_primitives:
+        parts.append("requires: " + ", ".join(definition.required_primitives))
+    if definition.forbidden_primitives:
+        parts.append("must not have: " + ", ".join(definition.forbidden_primitives))
+    requirement_text = "; ".join(parts) if parts else "no specific route features"
+    return (
+        "None of the routes you can edit currently support this task type "
+        f"(it {requirement_text}). Edit an existing route to add what's missing, or create a new one."
+    )
+
+
+def assert_route_compatible_with_task_type(editable_route, task_type: str, task_subtype: str | None):
+    """
+    Defense in depth: re-check compatibility server-side before building a Route, so a
+    hand-crafted request cannot bypass the filtered task_template/editable_route choices offered
+    by any UI (Django wizard forms or the API-driven React flows alike).
+    """
+    subtype_key = effective_subtype_key(task_type, task_subtype)
+    reasons = get_blocking_reasons(extract_route_primitives(editable_route), subtype_key)
+    if reasons:
+        raise ValidationError(
+            f"Route '{editable_route.name}' is not compatible with the selected task type: " + "; ".join(reasons)
+        )

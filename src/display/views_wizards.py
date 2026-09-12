@@ -46,15 +46,19 @@ from display.models import (
     UserTokenGrant,
 )
 from display.services.capacity_enforcement import assert_can_add_navigation_task
-from display.services.route_compatibility import extract_route_primitives, get_blocking_reasons
+from display.services.route_compatibility import (
+    assert_route_compatible_with_task_type as _assert_route_compatible_with_task_type,
+)
+from display.services.route_compatibility import (
+    effective_subtype_key as _effective_subtype_key,
+)
+from display.services.route_compatibility import (
+    no_compatible_routes_message as _no_compatible_routes_message,
+)
 from display.services.task_type_visibility import can_user_see_cima_task_types
 from display.services.token_assignment import assign_token_to_contest
 from display.templatetags.frontend_urls import fe_url
-from display.utilities.cima_task_type_definitions import (
-    LEGACY_DEFAULT_SUBTYPE_BY_FAMILY,
-    NO_BACKBONE_TASK_SUBTYPES,
-    get_task_subtype_definition,
-)
+from display.utilities.cima_task_type_definitions import NO_BACKBONE_TASK_SUBTYPES
 from display.utilities.navigation_task_type_definitions import (
     AIRSPORT_CHALLENGE,
     AIRSPORTS,
@@ -64,43 +68,6 @@ from display.utilities.navigation_task_type_definitions import (
     PRECISION,
 )
 from live_tracking_map import settings
-
-
-def _effective_subtype_key(task_type: str, task_subtype: str | None) -> str:
-    """The task subtype key the compatibility ruleset should be checked against: the explicit
-    CIMA subtype if one was chosen, otherwise the legacy shim for the coarse task_type family."""
-    return task_subtype or LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(task_type, task_type)
-
-
-def _no_compatible_routes_message(subtype_key: str) -> str:
-    """
-    Explain why the internal_route picker is empty for the already-chosen task type, instead of
-    just rendering an empty dropdown with no explanation.
-    """
-    definition = get_task_subtype_definition(subtype_key)
-    parts = []
-    if definition.required_primitives:
-        parts.append("requires: " + ", ".join(definition.required_primitives))
-    if definition.forbidden_primitives:
-        parts.append("must not have: " + ", ".join(definition.forbidden_primitives))
-    requirement_text = "; ".join(parts) if parts else "no specific route features"
-    return (
-        "None of the routes you can edit currently support this task type "
-        f"(it {requirement_text}). Edit an existing route to add what's missing, or create a new one."
-    )
-
-
-def _assert_route_compatible_with_task_type(editable_route: EditableRoute, task_type: str, task_subtype: str | None):
-    """
-    Defense in depth: re-check compatibility server-side before building a Route, so a
-    hand-crafted POST cannot bypass the filtered task_template/internal_route choices.
-    """
-    subtype_key = _effective_subtype_key(task_type, task_subtype)
-    reasons = get_blocking_reasons(extract_route_primitives(editable_route), subtype_key)
-    if reasons:
-        raise ValidationError(
-            f"Route '{editable_route.name}' is not compatible with the selected task type: " + "; ".join(reasons)
-        )
 
 
 def show_precision_path(wizard) -> bool:
