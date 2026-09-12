@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Loading } from '../route-editor/components/basicComponents';
 import { useMissionDashboardStore } from '../mission-dashboard/store';
@@ -22,8 +22,16 @@ const ContestManagementPage = () => {
     const [showCreateTask, setShowCreateTask] = useState(false);
     const [teams, setTeams] = useState<ContestTeamListItem[]>([]);
     const [teamsLoading, setTeamsLoading] = useState(true);
+    // Separate from `error`: a team-list failure shouldn't hide the whole page (including
+    // navigation-task management, which doesn't depend on it) behind a full-page error state.
+    const [teamsError, setTeamsError] = useState<string | null>(null);
     const [editingContestTeam, setEditingContestTeam] = useState<ContestTeamListItem | 'new' | null>(null);
     const [showImportTeams, setShowImportTeams] = useState(false);
+    // Tracks the latest contestId so an in-flight team-list request can tell, once it resolves,
+    // whether it's still current - a plain closure variable can't do this since it's fixed at the
+    // time the request was made, not updated as the route param changes underneath it. Synced in
+    // an effect (not during render) alongside the fetch itself.
+    const latestContestId = useRef(contestId);
 
     useEffect(() => {
         if (!contestId) return;
@@ -35,16 +43,29 @@ const ContestManagementPage = () => {
 
     const refreshTeams = () => {
         if (!contestId) return;
+        const requestedContestId = contestId;
         setTeamsLoading(true);
+        setTeamsError(null);
         contestManagementApi
-            .fetchContestTeams(Number(contestId))
-            .then(setTeams)
-            .catch(err => setError((err as Error).message))
-            .finally(() => setTeamsLoading(false));
+            .fetchContestTeams(Number(requestedContestId))
+            .then(result => {
+                // Guard against a slower, stale request for a previous contestId (React Router
+                // can keep this component mounted across a route-param change) landing after a
+                // newer one and overwriting its teams.
+                if (requestedContestId === latestContestId.current) setTeams(result);
+            })
+            .catch(err => {
+                if (requestedContestId === latestContestId.current) setTeamsError((err as Error).message);
+            })
+            .finally(() => {
+                if (requestedContestId === latestContestId.current) setTeamsLoading(false);
+            });
     };
 
     useEffect(() => {
+        latestContestId.current = contestId;
         refreshTeams();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [contestId]);
 
     if (loading) return <div className="w-screen h-screen flex items-center justify-center"><Loading /></div>;
@@ -65,7 +86,7 @@ const ContestManagementPage = () => {
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
             {showCreateTask && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <NavigationTaskCreationFlow
                         entry={{ kind: 'contest', contestId: contest.id }}
                         initialContest={contest}
@@ -79,7 +100,7 @@ const ContestManagementPage = () => {
                 </div>
             )}
             {editingContestTeam && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <TeamRegistrationFlow
                         contestId={contest.id}
                         editingContestTeam={editingContestTeam === 'new' ? undefined : editingContestTeam}
@@ -92,7 +113,7 @@ const ContestManagementPage = () => {
                 </div>
             )}
             {showImportTeams && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <ImportTeamsPanel
                         contestId={contest.id}
                         onCancel={() => setShowImportTeams(false)}
@@ -153,6 +174,13 @@ const ContestManagementPage = () => {
                         </div>
                         {teamsLoading ? (
                             <Loading />
+                        ) : teamsError ? (
+                            <div className="alert alert-error">
+                                <span>Failed to load teams: {teamsError}</span>
+                                <button type="button" className="btn btn-sm" onClick={refreshTeams}>
+                                    Retry
+                                </button>
+                            </div>
                         ) : (
                             <TeamList
                                 contestId={contest.id}

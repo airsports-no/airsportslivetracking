@@ -17,10 +17,11 @@ const TIME_ZONES: string[] =
     typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [contestCreationDefaults.time_zone];
 
 // Replaces RouteToTaskWizard's contest_selection/contest_creation steps: pick an existing contest
-// you can edit, or fill in the minimum needed to create a new one inline. Unlike that wizard,
-// assigning an event token to the new contest is not offered here - there's no existing API to
-// list a user's available token grants before a contest exists (the wizard populated that
-// dropdown directly from the ORM); assign one afterwards via the classic contest page instead.
+// you can edit, or fill in the minimum needed to create a new one inline. Optional token
+// assignment (matching the legacy wizard's initial_token_grant) happens in the parent
+// (NavigationTaskCreationFlow) right after creation succeeds, using the create response's own
+// available_token_grants - ContestSerialiser computes that field per-user, not per-contest, so
+// it's available immediately without a dedicated pre-creation listing endpoint.
 const ContestCreationStep: React.FC<ContestCreationStepProps> = ({ onExistingContestChosen, onNewContestSubmit, submitting }) => {
     const [mode, setMode] = useState<'existing' | 'new'>('existing');
     const { myEditorContests, managedClubs, fetchMyEditorContests, fetchManagedClubs } = useMissionDashboardStore();

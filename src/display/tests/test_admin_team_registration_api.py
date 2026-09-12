@@ -88,6 +88,25 @@ class TestAdminTeamRegistrationApi(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
 
+    def test_duplicate_email_for_a_new_pilot_returns_400_not_500(self):
+        Person.objects.create(first_name="Existing", last_name="Person", email="duplicate@example.com")
+        response = self.client.post(
+            self.url,
+            self._payload(
+                pilot={"mode": "create", "first_name": "New", "last_name": "Person", "email": "duplicate@example.com"}
+            ),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+
+    def test_invalid_email_format_for_a_new_pilot_is_rejected(self):
+        response = self.client.post(
+            self.url,
+            self._payload(pilot={"mode": "create", "first_name": "New", "last_name": "Pilot", "email": "not-an-email"}),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+
     def test_pilot_and_copilot_cannot_be_the_same_person(self):
         person = Person.objects.create(first_name="Same", last_name="Person", email="same@example.com")
         response = self.client.post(
@@ -183,6 +202,27 @@ class TestAdminTeamRegistrationApi(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
 
+    def test_editing_a_registration_is_not_blocked_by_capacity(self):
+        # Register while unconstrained, then edit under a contest whose usage-based capacity
+        # check would reject any *new* registration - the edit must still succeed, since it
+        # doesn't change how many pilots have started in this contest.
+        create_response = self.client.post(self.url, self._payload(), format="json")
+        contest_team_id = create_response.json()["id"]
+        original_team_id = create_response.json()["team"]
+        pilot_id = Team.objects.get(pk=original_team_id).crew.member1_id
+
+        with self.settings(ACCESS_ENFORCEMENT_MODE="enforce", DEFAULT_FREE_CONTESTANT_LIMIT=0):
+            response = self.client.post(
+                self.url,
+                self._payload(
+                    contest_team=contest_team_id,
+                    pilot={"mode": "existing", "person": pilot_id},
+                    aeroplane={"registration": "LN-EDITED", "type": "Piper", "colour": "Blue"},
+                ),
+                format="json",
+            )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+
 
 class TestImportTeamsApi(TestCase):
     def setUp(self):
@@ -222,3 +262,31 @@ class TestImportTeamsApi(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+
+    def test_importing_twice_rejects_the_second_run_as_duplicate(self):
+        url = f"/api/v1/contests/{self.target_contest.pk}/import_teams/"
+        first = self.client.post(url, {"source_contest": self.source_contest.pk}, format="json")
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED, first.content)
+
+        second = self.client.post(url, {"source_contest": self.source_contest.pk}, format="json")
+        self.assertEqual(second.status_code, status.HTTP_400_BAD_REQUEST, second.content)
+        self.assertEqual(ContestTeam.objects.filter(contest=self.target_contest, team=self.team).count(), 1)
+
+    @override_settings(ACCESS_ENFORCEMENT_MODE="enforce", DEFAULT_FREE_CONTESTANT_LIMIT=0)
+    def test_import_respects_capacity_and_is_all_or_nothing(self):
+        pilot2 = Person.objects.create(first_name="Import2", last_name="Pilot", email="import-pilot2@example.com")
+        from display.models import Crew
+
+        crew2 = Crew.objects.create(member1=pilot2)
+        aeroplane2 = Aeroplane.objects.create(registration="LN-IMPORT2")
+        team2 = Team.objects.create(crew=crew2, aeroplane=aeroplane2, club=self.team.club)
+        ContestTeam.objects.create(contest=self.source_contest, team=team2, air_speed=80)
+
+        response = self.client.post(
+            f"/api/v1/contests/{self.target_contest.pk}/import_teams/",
+            {"source_contest": self.source_contest.pk},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        # Neither team was imported - the failed second row rolled back the first too.
+        self.assertEqual(ContestTeam.objects.filter(contest=self.target_contest).count(), 0)

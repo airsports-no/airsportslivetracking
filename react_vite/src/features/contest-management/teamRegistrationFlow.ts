@@ -34,6 +34,8 @@ export function buildRegisterPayload(values: TeamRegistrationFormValues, contest
         air_speed: values.air_speed,
         tracking_service: values.tracking_service,
         tracking_device: values.tracking_device,
-        tracker_device_id: values.tracker_device_id || undefined,
+        // Defense in depth alongside TrackingDataStep's own clear-on-change effect: never send a
+        // stale hardware tracker ID for a tracking method that isn't "device".
+        tracker_device_id: values.tracking_device === 'device' ? values.tracker_device_id || undefined : undefined,
     };
 }

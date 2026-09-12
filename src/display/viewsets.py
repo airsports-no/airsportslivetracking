@@ -1203,11 +1203,15 @@ class ContestViewSet(ModelViewSet):
     def import_teams(self, request, *args, **kwargs):
         """
         Copy every ContestTeam registered in `source_contest` (or only `team_ids`, if given) into
-        this contest. Port of the legacy import_contest_team_from_contest view (views.py), which
-        this replaces - same semantics: a raw ContestTeam row copy, no dedup against teams already
-        registered here (matches the legacy view's behavior exactly; re-running an import
-        duplicates rows, same as before).
+        this contest. Port of the legacy import_contest_team_from_contest view (views.py), but
+        unlike that view (and this action's own first version - a raw row copy with no dedup, no
+        capacity check, and no atomicity across rows), every imported team goes through
+        commit_team_registration - the same capacity/duplicate/cross-team invariants and contest
+        row lock display.register_team enforces - and the whole import is one transaction, so a
+        rejection partway through leaves none of it committed rather than a partial import.
         """
+        from display.services.team_registration import commit_team_registration
+
         target_contest = self.get_object()
         source_contest_id = request.data.get("source_contest")
         if not source_contest_id:
@@ -1217,18 +1221,33 @@ class ContestViewSet(ModelViewSet):
         ) | Contest.objects.filter(is_public=True, is_featured=True)
         source_contest = get_object_or_404(visible_contests, pk=source_contest_id)
 
-        contest_teams = ContestTeam.objects.filter(contest=source_contest)
+        contest_teams = ContestTeam.objects.filter(contest=source_contest).select_related(
+            "team__crew__member1", "team__crew__member2", "team__aeroplane", "team__club"
+        )
         team_ids = request.data.get("team_ids")
         if team_ids:
             contest_teams = contest_teams.filter(team_id__in=team_ids)
 
-        imported = []
-        for contest_team in contest_teams:
-            contest_team.pk = None
-            contest_team.id = None
-            contest_team.contest = target_contest
-            contest_team.save()
-            imported.append(contest_team)
+        try:
+            with transaction.atomic():
+                imported = [
+                    commit_team_registration(
+                        target_contest,
+                        pilot=contest_team.team.crew.member1,
+                        copilot=contest_team.team.crew.member2,
+                        aeroplane=contest_team.team.aeroplane,
+                        club=contest_team.team.club,
+                        tracking_data={
+                            "air_speed": contest_team.air_speed,
+                            "tracking_service": contest_team.tracking_service,
+                            "tracking_device": contest_team.tracking_device,
+                            "tracker_device_id": contest_team.tracker_device_id,
+                        },
+                    )
+                    for contest_team in contest_teams
+                ]
+        except DjangoValidationError as exc:
+            raise drf_exceptions.ValidationError(exc.messages if hasattr(exc, "messages") else str(exc))
         return Response(ContestTeamNestedSerialiser(imported, many=True).data, status=status.HTTP_201_CREATED)
 
     def get_serializer_context(self):

@@ -39,4 +39,22 @@ describe('buildRegisterPayload', () => {
         const payload = buildRegisterPayload({ ...teamRegistrationDefaults, tracker_device_id: '' });
         expect(payload.tracker_device_id).toBeUndefined();
     });
+
+    it('never sends a tracker_device_id for a non-"device" tracking method, even if one lingers in form state', () => {
+        const payload = buildRegisterPayload({
+            ...teamRegistrationDefaults,
+            tracking_device: 'pilot_app',
+            tracker_device_id: 'stale-hardware-id',
+        });
+        expect(payload.tracker_device_id).toBeUndefined();
+    });
+
+    it('keeps tracker_device_id when the tracking method is "device"', () => {
+        const payload = buildRegisterPayload({
+            ...teamRegistrationDefaults,
+            tracking_device: 'device',
+            tracker_device_id: 'real-hardware-id',
+        });
+        expect(payload.tracker_device_id).toBe('real-hardware-id');
+    });
 });

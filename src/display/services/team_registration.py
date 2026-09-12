@@ -89,7 +89,13 @@ def commit_team_registration(
         crew, _ = Crew.objects.get_or_create(member1=pilot, member2=copilot)
         team, _ = Team.objects.get_or_create(crew=crew, aeroplane=aeroplane, club=club)
 
-        assert_can_register_team(contest, team)
+        # assert_can_register_team's capacity check is about total pilots who have *started* in
+        # this contest (ContestUsageLedger), not the number of ContestTeam registrations - editing
+        # an existing registration (original_team given) never changes that count, so it must not
+        # be rejected just because the contest's guest-pilot usage is already at its limit for
+        # reasons unrelated to this specific edit.
+        if original_team is None:
+            assert_can_register_team(contest, team)
         exclude_contest_team = None
         if original_team is not None:
             exclude_contest_team = ContestTeam.objects.filter(contest=contest, team=original_team).first()

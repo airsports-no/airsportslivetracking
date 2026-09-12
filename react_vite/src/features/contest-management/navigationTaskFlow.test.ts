@@ -14,6 +14,27 @@ describe('contestLocalTimeToIso', () => {
         // America/New_York is UTC-4 in August (EDT).
         expect(contestLocalTimeToIso('2026-08-01T09:00', 'America/New_York')).toBe('2026-08-01T09:00:00-04:00');
     });
+
+    it('resolves a local time shortly before the spring-forward transition to the pre-transition offset', () => {
+        // Europe/Oslo's 2026 spring-forward is at 2026-03-29 01:00 UTC (02:00->03:00 local).
+        // 01:30 local is a valid, unambiguous time *before* the gap - naively treating it as UTC
+        // lands after the transition instant and would wrongly resolve to +02:00.
+        expect(contestLocalTimeToIso('2026-03-29T01:30', 'Europe/Oslo')).toBe('2026-03-29T01:30:00+01:00');
+    });
+
+    it('resolves a local time shortly after the autumn fall-back transition to the post-transition offset', () => {
+        // Europe/Oslo's 2026 fall-back is at 2026-10-25 01:00 UTC (03:00 CEST -> 02:00 CET local);
+        // local 02:00-02:59 is the ambiguous, repeated hour. 03:30 local is unambiguously after
+        // it, at +01:00 (CET) - naively treating it as UTC would still land after the transition
+        // instant here, so this mainly guards against a future regression rather than the bug
+        // itself (which only bites the transition's immediate vicinity).
+        expect(contestLocalTimeToIso('2026-10-25T03:30', 'Europe/Oslo')).toBe('2026-10-25T03:30:00+01:00');
+    });
+
+    it('still resolves an ordinary time on the same day as a DST transition correctly', () => {
+        // Well after the spring-forward gap, on the same day.
+        expect(contestLocalTimeToIso('2026-03-29T12:00', 'Europe/Oslo')).toBe('2026-03-29T12:00:00+02:00');
+    });
 });
 
 describe('requiredParameters', () => {

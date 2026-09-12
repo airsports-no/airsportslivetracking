@@ -1027,7 +1027,7 @@ class TeamMemberSelectionSerialiser(serializers.Serializer):
     person = serializers.PrimaryKeyRelatedField(queryset=Person.objects.all(), required=False)
     first_name = serializers.CharField(required=False, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_blank=True)
-    email = serializers.CharField(required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
     phone = PhoneNumberField(required=False, allow_null=True, allow_blank=True)
     country = CountryField(required=False, allow_blank=True)
 
@@ -1049,6 +1049,13 @@ def _resolve_team_member(data: dict, *, allow_skip: bool) -> Optional[Person]:
         return person
     if not data.get("first_name") or not data.get("last_name"):
         raise ValidationError("'first_name' and 'last_name' are required when mode is 'create'")
+    email = data.get("email") or ""
+    if email and Person.objects.filter(email__iexact=email).exists():
+        # Person.save()'s pre_save signal (register_personal_tracker) already rejects this via
+        # Person.validate(), but it raises django.core.exceptions.ValidationError, which DRF's
+        # default exception handler doesn't translate to a 400 - it would otherwise surface as an
+        # unhandled 500. Catching it here first gives a clean, expected 400 instead.
+        raise ValidationError(f"A person with email {email} already exists")
     # RegisterTeamWizard's done() set validated=True on newly created persons (unlike the
     # default False used for persons auto-created during app API login) - carried over so an
     # admin-registered new pilot isn't mistaken for an unconfirmed app signup.

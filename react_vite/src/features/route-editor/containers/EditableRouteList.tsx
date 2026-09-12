@@ -206,7 +206,7 @@ export const EditableRouteList = () => {
     return (
         <div className="w-full flex flex-col items-center mt-10 px-4">
             {creatingTaskForRouteId !== null && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <NavigationTaskCreationFlow
                         entry={{ kind: 'route', editableRouteId: creatingTaskForRouteId }}
                         onCancel={() => setCreatingTaskForRouteId(null)}

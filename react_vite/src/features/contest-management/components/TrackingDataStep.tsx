@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { TeamRegistrationFormValues, TRACKING_DEVICE_CHOICES, TRACKING_SERVICE_CHOICES } from '../schemas/teamRegistrationSchema';
 
@@ -9,9 +9,20 @@ const TrackingDataStep: React.FC = () => {
     const {
         register,
         watch,
+        setValue,
         formState: { errors },
     } = useFormContext<TeamRegistrationFormValues>();
     const trackingDevice = watch('tracking_device');
+    const trackerDeviceId = watch('tracker_device_id');
+
+    useEffect(() => {
+        // react-hook-form retains a hidden input's value (shouldUnregister defaults to false) -
+        // without this, switching away from "device" and submitting still sends a stale
+        // tracker_device_id for an app-based tracking method.
+        if (trackingDevice !== 'device' && trackerDeviceId) {
+            setValue('tracker_device_id', '');
+        }
+    }, [trackingDevice, trackerDeviceId, setValue]);
 
     return (
         <div className="border border-base-300 rounded-lg p-4">

@@ -118,14 +118,18 @@ class TestTaskTemplatesApi(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         self.assertNotIn(CIRCLE, self._flatten(response.json()["groups"]))
 
+    @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
     def test_returns_explanatory_message_when_no_templates_are_compatible(self):
+        # An empty route is actually compatible with CIMA's DURATION subtype (its
+        # required_primitives is empty) - without gating CIMA visibility off for this user, groups
+        # would come back non-empty and the assertion below would never really run.
         empty_route = EditableRoute.objects.create(name="Empty route", route={"features": []})
         assign_perm("change_editableroute", self.user, empty_route)
         response = self.client.get(f"/api/v1/editableroutes/task_templates/?editable_route={empty_route.pk}")
         self.assertEqual(response.status_code, 200, response.content)
         payload = response.json()
-        if not payload["groups"]:
-            self.assertIsNotNone(payload["no_compatible_task_types_message"])
+        self.assertEqual(payload["groups"], [])
+        self.assertIsNotNone(payload["no_compatible_task_types_message"])
 
     def test_editable_route_the_user_cannot_see_is_a_404(self):
         other_user = get_user_model().objects.create(email="someone-else@example.com")

@@ -31,18 +31,35 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, s
     });
 
     const [scorecardOptions, setScorecardOptions] = useState<{ value: string; label: string }[]>([]);
+    const [scorecardsLoading, setScorecardsLoading] = useState(true);
+    const [scorecardsError, setScorecardsError] = useState<string | null>(null);
+    const [retryCount, setRetryCount] = useState(0);
     const originalScorecard = watch('original_scorecard');
 
     useEffect(() => {
-        fetchScorecardChoices(taskType).then(scorecards => {
-            const options = scorecards.map(scorecard => ({ value: scorecard.shortcut_name, label: scorecard.name }));
-            setScorecardOptions(options);
-            if (!originalScorecard && options.length > 0) {
-                setValue('original_scorecard', options[0].value);
-            }
-        });
+        let cancelled = false;
+        setScorecardsLoading(true);
+        setScorecardsError(null);
+        fetchScorecardChoices(taskType)
+            .then(scorecards => {
+                if (cancelled) return;
+                const options = scorecards.map(scorecard => ({ value: scorecard.shortcut_name, label: scorecard.name }));
+                setScorecardOptions(options);
+                if (!originalScorecard && options.length > 0) {
+                    setValue('original_scorecard', options[0].value);
+                }
+            })
+            .catch(err => {
+                if (!cancelled) setScorecardsError((err as Error).message);
+            })
+            .finally(() => {
+                if (!cancelled) setScorecardsLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [taskType]);
+    }, [taskType, retryCount]);
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -67,14 +84,24 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, s
 
             <label className="form-control w-full">
                 <div className="label"><span className="label-text">Scorecard</span></div>
-                <Select
-                    options={scorecardOptions}
-                    value={scorecardOptions.find(option => option.value === originalScorecard) ?? null}
-                    onChange={selected => selected && setValue('original_scorecard', selected.value)}
-                    placeholder="Choose a scorecard"
-                    classNamePrefix="my-react-select"
-                    styles={selectStyles}
-                />
+                {scorecardsError ? (
+                    <div className="alert alert-error">
+                        <span>Failed to load scorecards: {scorecardsError}</span>
+                        <button type="button" className="btn btn-sm" onClick={() => setRetryCount(count => count + 1)}>
+                            Retry
+                        </button>
+                    </div>
+                ) : (
+                    <Select
+                        isLoading={scorecardsLoading}
+                        options={scorecardOptions}
+                        value={scorecardOptions.find(option => option.value === originalScorecard) ?? null}
+                        onChange={selected => selected && setValue('original_scorecard', selected.value)}
+                        placeholder="Choose a scorecard"
+                        classNamePrefix="my-react-select"
+                        styles={selectStyles}
+                    />
+                )}
                 {errors.original_scorecard && <span className="text-error text-sm">{errors.original_scorecard.message}</span>}
             </label>
 

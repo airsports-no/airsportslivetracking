@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Select from 'react-select';
 import { selectStyles } from '../../../utils/selectStyles';
-import { useMissionDashboardStore } from '../../mission-dashboard/store';
+import { fetchContests } from '../../mission-dashboard/api';
+import { Contest } from '../../mission-dashboard/types';
 import * as api from '../api';
 import { ContestTeamListItem } from '../types';
 
@@ -12,21 +13,23 @@ interface ImportTeamsPanelProps {
 }
 
 // Port of import_contest_team_from_contest (views.py) - copies every ContestTeam registered in a
-// chosen source contest into this one. Source-contest choices are limited to contests the current
-// user can edit (a narrower set than the legacy view's view_contest-or-public check, since that's
-// the contest list already available in this store without a new fetch).
+// chosen source contest into this one. Source-contest choices must match import_teams' own
+// visibility check (view_contest or public+featured) - omitting the isEditor filter here gets the
+// same "view_contest OR public+featured" base queryset ContestViewSet.get_queryset() applies,
+// rather than the narrower editor-only set (a mismatch CodeRabbit correctly flagged in review).
 const ImportTeamsPanel: React.FC<ImportTeamsPanelProps> = ({ contestId, onImported, onCancel }) => {
-    const { myEditorContests, fetchMyEditorContests } = useMissionDashboardStore();
+    const [candidates, setCandidates] = useState<Contest[]>([]);
     const [sourceContestId, setSourceContestId] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        fetchMyEditorContests()
+        fetchContests({ excludeTasks: true })
+            .then(contests => setCandidates(contests.filter(contest => contest.id !== contestId)))
             .catch(err => setError((err as Error).message))
             .finally(() => setLoading(false));
-    }, []);
+    }, [contestId]);
 
     const handleImport = async () => {
         if (!sourceContestId) return;
@@ -41,8 +44,6 @@ const ImportTeamsPanel: React.FC<ImportTeamsPanelProps> = ({ contestId, onImport
             setSubmitting(false);
         }
     };
-
-    const candidates = myEditorContests.filter(contest => contest.id !== contestId);
 
     if (loading) return <span className="loading loading-spinner"></span>;
 
