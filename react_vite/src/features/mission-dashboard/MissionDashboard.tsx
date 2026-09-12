@@ -16,6 +16,7 @@ import { Loading } from '../route-editor/components/basicComponents';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { reverse } from '../../urls';
 import { Map as MapIcon } from 'lucide-react';
+import { canManageContest } from './permissions';
 
 // Define NavigationTask interface based on likely API response structure
 interface NavigationTask {
@@ -580,7 +581,7 @@ const MissionDashboard = () => {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {paginatedContests.map(contest => {
-                            const canManageThisContest = contest.is_editor || document.configuration.is_superuser;
+                            const canManageThisContest = canManageContest(contest);
                             const viewLink = `/mission-dashboard/${contest.id}`;
                             const manageLink = canManageThisContest ? reverse('contest_details', contest.id) : undefined;
 

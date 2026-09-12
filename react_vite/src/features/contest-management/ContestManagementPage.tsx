@@ -1,0 +1,100 @@
+import React, { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { Loading } from '../route-editor/components/basicComponents';
+import { useMissionDashboardStore } from '../mission-dashboard/store';
+import { canManageContest } from '../mission-dashboard/permissions';
+import { reverse, generatePath } from '../../urls';
+
+const ContestManagementPage = () => {
+    const { contestId } = useParams<{ contestId: string }>();
+    const { contestsById, fetchContest } = useMissionDashboardStore();
+    const contest = contestsById[Number(contestId)];
+
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!contestId) return;
+        setLoading(true);
+        fetchContest(Number(contestId))
+            .catch(err => setError((err as Error).message))
+            .finally(() => setLoading(false));
+    }, [contestId]);
+
+    if (loading) return <div className="w-screen h-screen flex items-center justify-center"><Loading /></div>;
+    if (error) return <div className="alert alert-error">{error}</div>;
+    if (!contest) return <div className="alert alert-warning">Contest not found.</div>;
+
+    if (!canManageContest(contest)) {
+        return (
+            <div className="container mx-auto p-4" data-theme="aviation">
+                <div className="alert alert-warning">You do not have permission to manage this contest.</div>
+                <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contest.id })} className="btn btn-sm mt-4">
+                    Back to contest
+                </Link>
+            </div>
+        );
+    }
+
+    return (
+        <div className="container mx-auto p-4" data-theme="aviation">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold">{contest.name}</h1>
+                    <p className="text-sm text-gray-500">Manage navigation tasks and registered teams</p>
+                </div>
+                <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contest.id })} className="btn btn-sm">
+                    View contest
+                </Link>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="card bg-base-100 shadow">
+                    <div className="card-body">
+                        <div className="flex items-center justify-between">
+                            <h2 className="card-title">Navigation tasks</h2>
+                            <button className="btn btn-primary btn-sm" disabled title="Coming soon">
+                                Add navigation task
+                            </button>
+                        </div>
+                        {contest.navigationtask_set.length === 0 ? (
+                            <p className="text-sm text-gray-500">No navigation tasks yet.</p>
+                        ) : (
+                            <ul className="menu bg-base-100 rounded-box">
+                                {contest.navigationtask_set.map(task => (
+                                    <li key={task.pk}>
+                                        <Link to={generatePath('COMPETITION_MAP_DETAIL', { contestId: contest.id, navigationTaskId: task.pk })}>
+                                            {task.name}
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </div>
+
+                <div className="card bg-base-100 shadow">
+                    <div className="card-body">
+                        <div className="flex items-center justify-between">
+                            <h2 className="card-title">Registered teams</h2>
+                            <button className="btn btn-primary btn-sm" disabled title="Coming soon">
+                                Register team
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-500">Team management is coming soon.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-6 text-sm text-gray-500">
+                Looking for permissions, tokens, publicity, or deleting the contest?{' '}
+                <a href={reverse('contest_details', contest.id)} className="link link-primary">
+                    Use the classic contest page
+                </a>
+                .
+            </div>
+        </div>
+    );
+};
+
+export default ContestManagementPage;
