@@ -1598,7 +1598,13 @@ def plot_route(
             elif provider == "cyclosm":
                 imagery = CyclOSM(desired_tile_form="RGBA", user_agent="airsports.no, support@airsports.no")
             elif provider == "openaip":
-                imagery = OpenAIP(desired_tile_form="RGBA")
+                # OpenAIP is overlay-only (sparse aviation symbols on a mostly-transparent
+                # background, min_zoom=4/max_zoom=14) - it's meant to be layered on top of a real
+                # base map via include_openaip_overlay below, not used as the sole imagery. Using
+                # it as the base silently produced a near-blank page with no exception raised.
+                # Raising here routes through the existing "unavailable/invalid provider -> fall
+                # back to OSM" handling below, same as any other unusable map_source.
+                raise ValueError(f"OpenAIP is an overlay-only map source, not a valid map background: {map_source}")
             elif provider == "mbtiles":
                 imagery = LocalMapServer(map_source, desired_tile_form="RGBA")
                 attribution = source["attribution"] or MAP_ATTRIBUTIONS.get(map_source, "Missing")
