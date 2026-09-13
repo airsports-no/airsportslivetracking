@@ -23,6 +23,7 @@ plot_route() now actually does.
 from display.flight_order_and_maps.map_plotter import (
     estimate_memory_usage,
     estimate_tile_memory_mb,
+    memory_estimation_exceeded_message,
     total_tile_count,
 )
 
@@ -75,6 +76,23 @@ class TestTileMemoryEstimation:
         final_image_mb = estimate_memory_usage(29.7, 21, 150)
         tiles_mb = estimate_tile_memory_mb(20)
         assert final_image_mb + tiles_mb < MEMORY_THRESHOLD_MB
+
+
+class TestMemoryEstimationExceededMessage:
+    def test_message_names_the_actual_zoom_level(self):
+        # Regression test: the pre-fix message said only "reduce the map size, choose a smaller
+        # scale, or lower the DPI" - it never mentioned zoom, even though tiles_mb (usually the
+        # dominant term) depends only on zoom level and the route's geographic extent, not DPI or
+        # page size. Confirmed against real production Sentry data: the same user hit this 38
+        # times in 26h, always at zoom_level=14, with DPI/page size varying every time - changing
+        # those never would have helped.
+        message = memory_estimation_exceeded_message(
+            estimated_mb=1084, final_image_mb=28, tiles_mb=1056, threshold_mb=750, zoom_level=14
+        )
+
+        assert "zoom level (currently 14)" in message
+        assert "1084MB" in message
+        assert "750MB" in message
 
 
 class TestTotalTileCount:

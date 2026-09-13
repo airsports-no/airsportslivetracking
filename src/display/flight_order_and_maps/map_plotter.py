@@ -8,6 +8,20 @@ class MemoryEstimationExceededError(ValueError):
     pass
 
 
+def memory_estimation_exceeded_message(estimated_mb, final_image_mb, tiles_mb, threshold_mb, zoom_level) -> str:
+    # tiles_mb depends only on zoom level and the route's geographic extent, not DPI or page size
+    # - for anything but a small-area task, tile memory (not the final image) is almost always
+    # what pushes this over the limit (confirmed against real production Sentry data: the same
+    # user hit this 38 times in 26h, always at zoom_level=14, varying DPI/page size). Name zoom
+    # level explicitly instead of leaving it implicit in "map size", so the user knows which
+    # setting to actually change.
+    return (
+        f"Estimated memory usage of {estimated_mb:.0f}MB ({final_image_mb:.0f}MB for map + {tiles_mb:.0f}MB for tiles) exceeds the limit of {threshold_mb}MB. "
+        f"Please lower the map zoom level (currently {zoom_level}) - this is usually the biggest "
+        "lever for tile memory - or reduce the map size, choose a smaller scale, or lower the DPI."
+    )
+
+
 def estimate_memory_usage(figure_width_cm, figure_height_cm, dpi):
     """Estimates memory usage in MB for an RGBA image based on output dimensions and DPI."""
     figure_width_inches = figure_width_cm / 2.54
@@ -1896,8 +1910,7 @@ def plot_route(
 
     if estimated_mb > MEMORY_THRESHOLD_MB:
         raise MemoryEstimationExceededError(
-            f"Estimated memory usage of {estimated_mb:.0f}MB ({final_image_mb:.0f}MB for map + {tiles_mb:.0f}MB for tiles) exceeds the limit of {MEMORY_THRESHOLD_MB}MB. "
-            "Please reduce the map size, choose a smaller scale, or lower the DPI."
+            memory_estimation_exceeded_message(estimated_mb, final_image_mb, tiles_mb, MEMORY_THRESHOLD_MB, zoom_level)
         )
 
     ax.set_extent(extent, crs=utm)
