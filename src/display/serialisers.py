@@ -68,6 +68,7 @@ from display.services.capacity_enforcement import (
     assert_can_add_navigation_task,
     assert_can_register_team,
 )
+from display.services.contest_permissions import CONTEST_PERMISSION_LEVELS, resolve_permission_target_user
 from display.services.contestant_persistence import (
     create_contestant_with_related_state,
     update_contestant_with_related_state,
@@ -231,6 +232,22 @@ class ClubManagerMembershipCreateSerializer(serializers.Serializer):
         if user is None:
             raise serializers.ValidationError("User not found")
         self.context["managed_user"] = user
+        return value
+
+
+class ContestPermissionGrantSerialiser(serializers.Serializer):
+    user_id = serializers.IntegerField()
+    email = serializers.EmailField()
+    level = serializers.ChoiceField(choices=CONTEST_PERMISSION_LEVELS)
+
+
+class ContestPermissionGrantCreateSerialiser(serializers.Serializer):
+    identifier = serializers.CharField()
+    level = serializers.ChoiceField(choices=CONTEST_PERMISSION_LEVELS)
+
+    def validate_identifier(self, value):
+        user = resolve_permission_target_user(value)
+        self.context["target_user"] = user
         return value
 
 
@@ -791,6 +808,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     has_flown_contestants = serializers.SerializerMethodField()
     access_status = serializers.SerializerMethodField()
     available_token_grants = serializers.SerializerMethodField()
+    current_token_assignment = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -833,6 +851,18 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             "allowed_task_type_groups": resolution.allowed_task_type_groups,
             "package_task_type_groups": resolution.package_task_type_groups,
             "free_task_type_groups": resolution.free_task_type_groups,
+        }
+
+    def get_current_token_assignment(self, contest) -> dict | None:
+        assignment = getattr(contest, "contesttokenassignment", None)
+        if assignment is None:
+            return None
+        return {
+            "token_type_name": assignment.token_type.name,
+            "assigned_at": assignment.assigned_at,
+            "activated_at": assignment.activated_at,
+            "expires_at": assignment.expires_at,
+            "is_active_now": assignment.is_active_now,
         }
 
     @extend_schema_field(AvailableTokenGrantSerializer(many=True))

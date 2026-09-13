@@ -99,6 +99,7 @@ from display.serialisers import (
     ContestantTickerSerialiser,
     ContestantTrackSerialiser,
     ContestantTrackWithTrackPointsSerialiser,
+    ContestPermissionGrantCreateSerialiser,
     ContestResultsDetailsSerialiser,
     ContestSerialiser,
     ContestSummaryWithoutReferenceSerialiser,
@@ -144,6 +145,11 @@ from display.services.capacity_enforcement import (
     assert_can_register_team,
     assert_can_self_register_contestant,
     scheduling_capacity_preview,
+)
+from display.services.contest_permissions import (
+    list_contest_permission_grants,
+    remove_contest_permission_grant,
+    set_contest_permission_level,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
@@ -934,6 +940,45 @@ class ContestViewSet(ModelViewSet):
                 "token_grant": assignment.token_grant_id,
                 "token_type": assignment.token_type_id,
             },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["get", "post"],
+        url_path="permissions",
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def permission_grants(self, request, *args, **kwargs):
+        contest = self.get_object()
+        if request.method == "GET":
+            return Response(list_contest_permission_grants(contest))
+        serialiser = ContestPermissionGrantCreateSerialiser(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        target_user = serialiser.context["target_user"]
+        set_contest_permission_level(contest, target_user, serialiser.validated_data["level"])
+        return Response(
+            {"user_id": target_user.pk, "email": target_user.email, "level": serialiser.validated_data["level"]},
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(
+        detail=True,
+        methods=["put", "delete"],
+        url_path=r"permissions/(?P<user_pk>\d+)",
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def permission_detail(self, request, user_pk=None, *args, **kwargs):
+        contest = self.get_object()
+        target_user = get_object_or_404(MyUser, pk=user_pk)
+        if request.method == "DELETE":
+            remove_contest_permission_grant(contest, target_user, request.user)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        serialiser = ContestPermissionGrantCreateSerialiser(data={**request.data, "identifier": str(user_pk)})
+        serialiser.is_valid(raise_exception=True)
+        set_contest_permission_level(contest, target_user, serialiser.validated_data["level"])
+        return Response(
+            {"user_id": target_user.pk, "email": target_user.email, "level": serialiser.validated_data["level"]},
             status=status.HTTP_200_OK,
         )
 
