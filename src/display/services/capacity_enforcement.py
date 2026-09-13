@@ -1,9 +1,9 @@
-from django.core.exceptions import ObjectDoesNotExist
-from rest_framework.exceptions import ValidationError
 from django.conf import settings
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 
-from display.models import ContestUsageLedger, Contestant, ContestTeam
+from display.models import Contestant, ContestTeam, ContestUsageLedger
 from display.services.access_resolver import resolve_contest_access
 from display.services.token_assignment import ensure_token_assignment_active_for_guest_start
 from display.utilities.task_type_group_definitions import get_fine_task_type_group, get_task_type_group
@@ -14,7 +14,13 @@ def _get_owner_person_id(contest):
         return None
     try:
         return contest.created_by.person.id
-    except ObjectDoesNotExist:
+    except (ObjectDoesNotExist, MultipleObjectsReturned):
+        # Person.email has no DB-level uniqueness constraint (unlike Aeroplane.registration/
+        # Club.name), so MyUser.person's Person.objects.get(email=...) can raise
+        # MultipleObjectsReturned as well as DoesNotExist if duplicate rows exist for this
+        # email (e.g. from repeated auto-created-on-app-login Person rows) - either way, we
+        # can't cleanly identify "the" owner's person record, so fall back to "no owner
+        # bypass" rather than letting this crash the whole page/request.
         return None
 
 
