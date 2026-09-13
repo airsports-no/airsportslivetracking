@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Contest, NavigationTask, ContestResults, MyContestTeam } from './types';
 import { Contestant } from '../competition-map/types';
 import { Loading } from '../route-editor/components/basicComponents';
@@ -24,12 +24,23 @@ import ImportTeamsPanel from '../contest-management/components/ImportTeamsPanel'
 import TeamList from '../contest-management/components/TeamList';
 import ContestSettingsForm from '../contest-management/components/ContestSettingsForm';
 import ContestTokenPanel from './components/ContestTokenPanel';
+import ContestPermissionsPanel from '../contest-management/components/ContestPermissionsPanel';
 import * as contestManagementApi from '../contest-management/api';
-import { assignContestToken, replaceContestToken } from './api';
+import {
+    assignContestToken,
+    replaceContestToken,
+    deleteContest,
+    fetchContestPermissions,
+    addContestPermission,
+    changeContestPermission,
+    removeContestPermission,
+    ContestPermissionGrant,
+} from './api';
 import { ContestTeamListItem } from '../contest-management/types';
 
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
+    const navigate = useNavigate();
     const {
         contestsById,
         myFutureFlights,
@@ -75,6 +86,10 @@ const ContestDashboard = () => {
     const [teamsError, setTeamsError] = useState<string | null>(null);
     const [editingContestTeam, setEditingContestTeam] = useState<ContestTeamListItem | 'new' | null>(null);
     const [showImportTeams, setShowImportTeams] = useState(false);
+    const [permissionGrants, setPermissionGrants] = useState<ContestPermissionGrant[]>([]);
+    const [permissionsError, setPermissionsError] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const latestTeamsContestId = useRef(contestId);
 
     const canManageThisContest = canManageContest(contest);
@@ -97,11 +112,40 @@ const ContestDashboard = () => {
             });
     };
 
+    const refreshPermissions = () => {
+        if (!contestId) return;
+        const requestedContestId = contestId;
+        setPermissionsError(null);
+        fetchContestPermissions(Number(requestedContestId))
+            .then(result => {
+                if (requestedContestId === latestTeamsContestId.current) setPermissionGrants(result);
+            })
+            .catch(err => {
+                if (requestedContestId === latestTeamsContestId.current) setPermissionsError((err as Error).message);
+            });
+    };
+
     useEffect(() => {
         latestTeamsContestId.current = contestId;
-        if (canManageThisContest) refreshTeams();
+        if (canManageThisContest) {
+            refreshTeams();
+            refreshPermissions();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [contestId, canManageThisContest]);
+
+    const handleDeleteContest = async () => {
+        if (!window.confirm(`Delete contest "${contest.name}"? This cannot be undone.`)) return;
+        setDeleting(true);
+        setDeleteError(null);
+        try {
+            await deleteContest(contest.id);
+            navigate('/');
+        } catch (err) {
+            setDeleteError((err as Error).message);
+            setDeleting(false);
+        }
+    };
 
 
     const hasFutureFlightsScheduled = useMemo(() => {
@@ -552,6 +596,43 @@ const ContestDashboard = () => {
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                        <div>
+                            {permissionsError && <div className="alert alert-error mb-2">{permissionsError}</div>}
+                            <ContestPermissionsPanel
+                                grants={permissionGrants}
+                                onAdd={async (identifier, level) => {
+                                    await addContestPermission(contest.id, identifier, level);
+                                    refreshPermissions();
+                                }}
+                                onChange={async (userId, level) => {
+                                    await changeContestPermission(contest.id, userId, level);
+                                    refreshPermissions();
+                                }}
+                                onRemove={async userId => {
+                                    await removeContestPermission(contest.id, userId);
+                                    refreshPermissions();
+                                }}
+                            />
+                        </div>
+
+                        <div className="card bg-error/10 border border-error/30 shadow-sm">
+                            <div className="card-body p-5">
+                                <h3 className="card-title text-lg text-error">Danger zone</h3>
+                                <p className="text-sm opacity-80">
+                                    Deleting a contest permanently removes it, its navigation tasks, and all results.
+                                </p>
+                                {deleteError && <div className="alert alert-error text-sm py-2">{deleteError}</div>}
+                                <div className="card-actions justify-end">
+                                    <button className="btn btn-error btn-sm" disabled={deleting} onClick={handleDeleteContest}>
+                                        {deleting && <span className="loading loading-spinner"></span>}
+                                        Delete contest
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
