@@ -1,8 +1,6 @@
-from string import Template
-
 import datetime
 import json
-from typing import Iterable, Optional
+from typing import Optional
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, ButtonHolder, Submit, Fieldset, Field, HTML
@@ -526,12 +524,6 @@ class ContestForm(forms.ModelForm):
         return cleaned_data
 
 
-class PictureWidget(forms.widgets.Widget):
-    def render(self, name, value, attrs=None, renderer=None):
-        html = Template("""<img id="{}" src="$link" class="wizardImage"/>""".format(name))
-        return mark_safe(html.substitute(link=value))
-
-
 class ImagePreviewWidget(forms.widgets.FileInput):
     def render(self, name, value, attrs=None, **kwargs):
         if attrs is None:
@@ -544,47 +536,6 @@ class ImagePreviewWidget(forms.widgets.FileInput):
             )
             return mark_safe(f"<div>{input_html}{image_html}</div>")
         return input_html
-
-
-class PersonPictureForm(forms.ModelForm):
-    picture = forms.ImageField(widget=ImagePreviewWidget)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.form_class = "form mt-4"
-        self.helper.attrs = {"enctype": "multipart/form-data"}
-        self.helper.layout = Layout(
-            Fieldset(
-                "Upload picture",
-                "picture",
-            ),
-            ButtonHolder(Submit("submit", "Upload")),
-        )
-
-    class Meta:
-        model = Person
-        fields = ("picture",)
-
-
-class TrackingDataForm(forms.ModelForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.form_class = "form mt-4"
-        self.helper.attrs = {"enctype": "multipart/form-data"}
-        self.helper.layout = Layout(
-            Fieldset("Team contest information", "air_speed", "tracking_service", "tracking_device"),
-            Fieldset(
-                "Optional tracking information if not using the official Air Sports Live Tracking app",
-                "tracker_device_id",
-            ),
-            ButtonHolder(Submit("submit", "Submit")),
-        )
-
-    class Meta:
-        model = ContestTeam
-        fields = ("air_speed", "tracking_service", "tracker_device_id", "tracking_device")
 
 
 class PersonForm(forms.ModelForm):
@@ -1268,17 +1219,3 @@ class SignUpForm(forms.Form):
             self.add_error("password_confirm", "Passwords do not match.")
 
         return cleaned_data
-
-
-class ImportContestTeamForm(forms.Form):
-    contest = forms.ModelChoiceField(queryset=Contest.objects.all())
-
-    def __init__(self, available_contests: Iterable[Contest], *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["contest"].queryset = available_contests
-        self.helper = FormHelper()
-        self.helper.form_class = "form"
-        self.helper.layout = Layout(
-            Fieldset("Import Teams", "contest"),
-            ButtonHolder(Submit("submit", "Import")),
-        )

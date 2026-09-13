@@ -83,7 +83,6 @@ from display.utilities.calculate_gate_times import calculate_and_get_relative_ga
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.forms import (
     BatchContestantUpdateForm,
-    ImportContestTeamForm,
     NavigationTaskForm,
     ContestantForm,
     ContestantQuickAddForm,
@@ -92,13 +91,11 @@ from display.forms import (
     ContestantMapForm,
     LANDSCAPE,
     MapForm,
-    TrackingDataForm,
     AssignPokerCardForm,
     ChangePermissionsForm,
     AddPermissionsForm,
     ShareForm,
     GPXTrackImportForm,
-    PersonPictureForm,
     ScorecardForm,
     GateScoreForm,
     FlightOrderConfigurationForm,
@@ -533,48 +530,6 @@ def refresh_editable_route_navigation_task(request, pk):
     except ValidationError as e:
         messages.error(request, str(e))
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
-
-
-@require_POST
-@guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
-def clear_profile_image_background(request, contest_pk, pk):
-    """
-    Calls the external remove.bg service to remove the background for the profile image for the person. Redirects to
-    the contest team image page.
-    """
-    contest = get_object_or_404(Contest, pk=contest_pk)  # Required for permission check, I think
-    person = get_object_or_404(Person, pk=pk)
-    result = person.remove_profile_picture_background()
-    if result is not None:
-        messages.error(request, f"Background removal failed for {person}: {result}")
-    else:
-        messages.success(request, f"Background removal successful for {person}")
-    # "contest_team_images" is not a real URL name - this redirect has always 500'd on
-    # success (NoReverseMatch), only noticed now via this finding's own regression test.
-    return redirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
-
-
-@guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
-def upload_profile_picture(request, contest_pk, pk):
-    """
-    Renders form and handles POST request to upload profile image
-    """
-    contest = get_object_or_404(Contest, pk=contest_pk)  # Required for permission check, I think
-    person = get_object_or_404(Person, pk=pk)
-    if request.method == "POST":
-        form = PersonPictureForm(request.POST, request.FILES, instance=person)
-        if form.is_valid():
-            form.save()
-            # "contest_team_images" is not a real URL name - this redirect has always
-            # 500'd on success (NoReverseMatch), only noticed now via an adjacent fix's
-            # regression test.
-            return redirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
-    form = PersonPictureForm(instance=person)
-    return render(
-        request,
-        "display/person_upload_picture_form.html",
-        {"form": form, "object": person},
-    )
 
 
 @permission_required("display.change_contest")
@@ -1503,30 +1458,6 @@ class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return self.get_object()
 
 
-@guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
-def import_contest_team_from_contest(request, contest_pk):
-    target_contest = get_object_or_404(Contest, pk=contest_pk)
-    # All contests that are public or where the user has view permissions
-    contests_to_copy_from = get_objects_for_user(
-        request.user,
-        "display.view_contest",
-        klass=Contest,
-        accept_global_perms=False,
-    ) | Contest.objects.filter(is_public=True, is_featured=True)
-    if request.method == "POST":
-        form = ImportContestTeamForm(contests_to_copy_from, request.POST)
-        if form.is_valid():
-            source_contest = form.cleaned_data["contest"]
-            for contest_team in source_contest.contestteam_set.all():
-                contest_team.id = None
-                contest_team.pk = None
-                contest_team.contest = target_contest
-                contest_team.save()
-            return redirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
-    form = ImportContestTeamForm(contests_to_copy_from)
-    return render(request, "display/contest_import_contest_team_form.html", {"form": form, "contest": target_contest})
-
-
 class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
     model = NavigationTask
     permission_required = ("display.view_contest",)
@@ -2307,24 +2238,6 @@ def navigation_task_view_detailed_score(request, pk):
 # Everything below he is related to management and requires authentication
 
 
-class ContestTeamTrackingUpdate(GuardianPermissionRequiredMixin, UpdateView):
-    """
-    Update the tracking method for a team registered in a contest
-    """
-
-    permission_required = ("display.change_contest",)
-
-    def get_permission_object(self):
-        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
-        return contest
-
-    model = ContestTeam
-    form_class = TrackingDataForm
-
-    def get_success_url(self):
-        return reverse_lazy("contest_team_list", kwargs={"contest_pk": self.kwargs["contest_pk"]})
-
-
 class PersonList(SuperuserRequiredMixin, ListView):
     model = Person
 
@@ -2352,30 +2265,6 @@ class StatisticsView(SuperuserRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         stats = get_system_statistics()
         context.update(stats)
-        return context
-
-
-class ContestTeamList(GuardianPermissionRequiredMixin, ListView):
-    """
-    Display the list of teams that are registered to the contest.
-    """
-
-    model = ContestTeam
-    permission_required = ("display.view_contest",)
-
-    def get_permission_object(self):
-        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
-        return contest
-
-    def get_queryset(self):
-        contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
-        return ContestTeam.objects.filter(contest=contest).order_by(
-            "team__crew__member1__last_name", "team__crew__member1__first_name"
-        )
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["contest"] = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
         return context
 
 
@@ -2464,15 +2353,6 @@ def copy_editable_route(request, pk):
     assign_perm("display.delete_editableroute", request.user, editable_route)
     assign_perm("display.view_editableroute", request.user, editable_route)
     return HttpResponseRedirect(fe_url("ROUTE_EDITOR_EDIT", routeId=editable_route.pk))
-
-
-@require_POST
-@guardian_permission_required("display.change_contest", (Contest, "pk", "contest_pk"))
-def remove_team_from_contest(request, contest_pk, team_pk):
-    contest = get_object_or_404(Contest, pk=contest_pk)
-    team = get_object_or_404(Team, pk=team_pk)
-    ContestTeam.objects.filter(contest=contest, team=team).delete()
-    return HttpResponseRedirect(reverse("contest_team_list", kwargs={"contest_pk": contest_pk}))
 
 
 @require_POST

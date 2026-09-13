@@ -9,7 +9,7 @@ class TrackingService(models.TextChoices):
 TRACKING_DEVICE = "device"
 TRACKING_PILOT = "pilot_app"
 TRACKING_COPILOT = "copilot_app"
-TRACKING_PILOT_AND_COPILOT = "pilot_app_or_copilot_a[["
+TRACKING_PILOT_AND_COPILOT = "pilot_app_or_copilot_app"
 TRACKING_DEVICES = (
     (TRACKING_DEVICE, "Hardware GPS tracker"),
     (TRACKING_PILOT, "Pilot's Air Sports Live Tracking app"),

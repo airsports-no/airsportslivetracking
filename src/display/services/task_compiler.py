@@ -2,7 +2,11 @@ import hashlib
 import json
 
 from display.models import CompiledNavigationTask
-from display.services.route_compatibility import LEGACY_COMPILER_PRIMITIVE_KEYS, extract_route_primitives
+from display.services.route_compatibility import (
+    LEGACY_COMPILER_PRIMITIVE_KEYS,
+    extract_route_primitives,
+    turnpoint_hunt_structural_errors,
+)
 from display.utilities.cima_task_type_definitions import (
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     LIMITED_FUEL_TURNPOINT_HUNT,
@@ -164,30 +168,9 @@ class TaskCompiler:
         return errors
 
     def _validate_turnpoint_hunt_structure(self, primitives: dict) -> list[str]:
-        editable_route = self.navigation_task.editable_route
-        if editable_route is None:
-            return []
-
-        errors = []
-        # 2.A6/2.B2 have no route backbone: the route consists entirely of
-        # standalone markers (exactly three timed turnpoints, plus any
-        # number of untimed catalogue turnpoints). Note get_ordered_track_waypoints()
-        # is not a suitable check here - it also matches standalone
-        # known_time_gate/hidden_gate markers by design, so we check for an
-        # actual authored route_path line instead.
-        if editable_route.get_track() is not None:
-            errors.append(
-                "Turnpoint hunt requires no route backbone. Place the compulsory points as standalone timed turnpoints instead."
-            )
-
-        compiled_known_time_gates = [name for name in primitives.get("known_time_gate", []) if name]
-        if len(compiled_known_time_gates) != 3:
-            errors.append("Turnpoint hunt requires exactly three compulsory (timed) points.")
-        free_targets = [name for name in primitives.get("catalogue_turnpoint", []) if name]
-        if len(free_targets) < 1:
-            errors.append("Turnpoint hunt requires at least one free catalogue target.")
-
-        return errors
+        # Shared with assert_route_compatible_with_task_type (route_compatibility.py) so the
+        # pre-creation API check and this post-creation compile-time check can't drift apart.
+        return turnpoint_hunt_structural_errors(self.navigation_task.editable_route, primitives)
 
     def _validate_unknown_legs_structure(self, primitives: dict) -> list[str]:
         editable_route = self.navigation_task.editable_route

@@ -14,6 +14,7 @@ import PublicityIcon from './components/PublicityIcon';
 import { HelpCircle } from 'lucide-react'; // Import HelpCircle
 import { reverse, generatePath } from '../../urls';
 import { useMissionDashboardStore } from './store';
+import { canManageContest } from './permissions';
 import { fetchNavigationTask } from '../competition-map/api';
 import { formatDateInterval } from '../../utils';
 
@@ -56,7 +57,7 @@ const ContestDashboard = () => {
     const [viewingScoresForTask, setViewingScoresForTask] = useState<NavigationTask | null>(null);
     const [loadingTaskScores, setLoadingTaskScores] = useState(false);
 
-    const canManageThisContest = contest?.is_editor || document.configuration.is_superuser;
+    const canManageThisContest = canManageContest(contest);
 
 
     const hasFutureFlightsScheduled = useMemo(() => {
@@ -277,9 +278,9 @@ const ContestDashboard = () => {
                     </div>
                      <div className="flex flex-col items-stretch gap-2 w-full md:w-auto">
                         {canManageThisContest && (
-                            <a href={reverse('contest_details', contest.id)} className="btn btn-primary btn-sm">
+                            <Link to={generatePath('CONTEST_MANAGEMENT', { contestId: contest.id })} className="btn btn-primary btn-sm">
                                 Manage Contest
-                            </a>
+                            </Link>
                         )}
                         {(() => {
                             if (userContestTeam?.is_user_pilot) {
@@ -345,7 +346,7 @@ const ContestDashboard = () => {
                     <div className="space-y-4">
                         {contest.navigationtask_set
                             .filter(task => {
-                                if (contest.is_editor || document.configuration.is_superuser) {
+                                if (canManageContest(contest)) {
                                     return true; // Editor OR Superuser sees all tasks
                                 } else {
                                     return task.is_featured && task.is_public; // Non-editor/non-superuser sees only public and featured tasks

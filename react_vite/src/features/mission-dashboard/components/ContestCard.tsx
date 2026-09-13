@@ -50,7 +50,7 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                     <div className="flex gap-2 shrink-0">
                         <Link to={viewLink} className="btn btn-primary btn-sm">View</Link>
                         {isEditorContest && manageLink && (
-                            <a href={manageLink} className="btn btn-secondary btn-sm">Manage</a>
+                            <Link to={manageLink} className="btn btn-secondary btn-sm">Manage</Link>
                         )}
                     </div>
                 </div>

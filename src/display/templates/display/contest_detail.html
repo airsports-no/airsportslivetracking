@@ -40,10 +40,12 @@
                         <span class="hidden sm:inline">Results</span>
                     </a>
                     
-                    <a href="{% url 'contest_team_list' object.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Team List">
+                    {% if "change_contest" in contest_permissions %}
+                    <a href="{% fe_url 'CONTEST_MANAGEMENT' contestId=object.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Team List">
                         {% lucide "users" size=16 class="lucide lucide-users" %}
                         <span class="hidden sm:inline">Teams</span>
                     </a>
+                    {% endif %}
 
                     <a href="{% url 'contest_share' object.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Share Contest">
                         {% lucide "share-2" size=16 class="lucide lucide-share-2" %}
@@ -56,7 +58,7 @@
                             {% lucide "settings" size=16 class="lucide lucide-settings" %}
                         </label>
                         <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-                            <li><a href="{% url 'navigationtaskwizard' object.pk %}">New navigation task</a></li>
+                            <li><a href="{% fe_url 'CONTEST_MANAGEMENT' contestId=object.pk %}">New navigation task</a></li>
                             <li><a href="{% url 'contest_permissions_list' object.pk %}">Permissions</a></li>
                             <li><a href="{% url 'contest_update' object.pk %}">Update</a></li>
                             {% if "delete_contest" in contest_permissions %}
@@ -177,7 +179,7 @@
                 </div>
                 {% if "change_contest" in contest_permissions %}
                 <div class="flex justify-end mt-6">
-                    <a href="{% url 'navigationtaskwizard' object.pk %}" class="btn btn-primary">
+                    <a href="{% fe_url 'CONTEST_MANAGEMENT' contestId=object.pk %}" class="btn btn-primary">
                         {% lucide "plus" size=18 %}
                         Add New Navigation Task
                     </a>
