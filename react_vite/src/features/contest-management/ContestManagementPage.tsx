@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Loading } from '../route-editor/components/basicComponents';
 import { useMissionDashboardStore } from '../mission-dashboard/store';
@@ -85,8 +86,8 @@ const ContestManagementPage = () => {
 
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
-            {showCreateTask && (
-                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+            {showCreateTask && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
                     <NavigationTaskCreationFlow
                         entry={{ kind: 'contest', contestId: contest.id }}
                         initialContest={contest}
@@ -97,10 +98,11 @@ const ContestManagementPage = () => {
                             navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId: createdContestId, navigationTaskId }));
                         }}
                     />
-                </div>
+                </div>,
+                document.body
             )}
-            {editingContestTeam && (
-                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+            {editingContestTeam && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
                     <TeamRegistrationFlow
                         contestId={contest.id}
                         editingContestTeam={editingContestTeam === 'new' ? undefined : editingContestTeam}
@@ -110,10 +112,11 @@ const ContestManagementPage = () => {
                             refreshTeams();
                         }}
                     />
-                </div>
+                </div>,
+                document.body
             )}
-            {showImportTeams && (
-                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+            {showImportTeams && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
                     <ImportTeamsPanel
                         contestId={contest.id}
                         onCancel={() => setShowImportTeams(false)}
@@ -122,7 +125,8 @@ const ContestManagementPage = () => {
                             refreshTeams();
                         }}
                     />
-                </div>
+                </div>,
+                document.body
             )}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
                 <div>
@@ -149,9 +153,17 @@ const ContestManagementPage = () => {
                             <ul className="menu bg-base-100 rounded-box">
                                 {contest.navigationtask_set.map(task => (
                                     <li key={task.pk}>
-                                        <Link to={generatePath('COMPETITION_MAP_DETAIL', { contestId: contest.id, navigationTaskId: task.pk })}>
-                                            {task.name}
-                                        </Link>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <a href={reverse('navigationtask_detail', task.pk)} className="link link-hover flex-1">
+                                                {task.name}
+                                            </a>
+                                            <Link
+                                                to={generatePath('COMPETITION_MAP_DETAIL', { contestId: contest.id, navigationTaskId: task.pk })}
+                                                className="btn btn-xs btn-outline btn-info gap-1 whitespace-nowrap"
+                                            >
+                                                Live map
+                                            </Link>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
