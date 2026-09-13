@@ -1231,7 +1231,14 @@ class SignUpForm(forms.Form):
     last_name = forms.CharField(max_length=255)
     email = forms.EmailField(max_length=255)
     country = forms.ChoiceField(choices=[])
-    password = forms.CharField(widget=forms.PasswordInput)
+    # min_length matches Firebase Auth's own password requirement (auth.create_user rejects
+    # anything shorter) - without this, a too-short password passed Django's validation here and
+    # then crashed signup() with an unhandled Firebase ValueError instead of a clean form error.
+    password = forms.CharField(
+        widget=forms.PasswordInput,
+        min_length=6,
+        error_messages={"min_length": "Password must be at least 6 characters long."},
+    )
     password_confirm = forms.CharField(widget=forms.PasswordInput)
 
     def __init__(self, *args, **kwargs):
