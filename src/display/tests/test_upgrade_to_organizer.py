@@ -4,6 +4,12 @@ Regression coverage for the "Become an Organizer" self-service flow
 but until migration 0178 that group had zero permissions attached anywhere in the codebase - the
 request "succeeded" (redirected to the success page) without ever actually granting
 display.add_contest. See the migration's docstring for the full diagnosis.
+
+Migration 0179 attaches a second permission, display.add_editableroute, to the same group for the
+same reason: EditableRoutePermission.has_permission (display/permissions.py) unconditionally
+requires it for every request to EditableRouteViewSet (list, create, the global-map-sources and
+task_compatibility actions), so a freshly-upgraded organizer with only add_contest still got a
+blanket 403 the moment they opened the route editor.
 """
 
 from django.contrib.auth import get_user_model
@@ -19,6 +25,10 @@ class TestContestCreatorGroupHasAddContestPermission(TestCase):
         # button.
         group = Group.objects.get(name="ContestCreator")
         self.assertTrue(group.permissions.filter(codename="add_contest").exists())
+
+    def test_group_created_by_migration_has_add_editableroute_permission(self):
+        group = Group.objects.get(name="ContestCreator")
+        self.assertTrue(group.permissions.filter(codename="add_editableroute").exists())
 
 
 class TestUpgradeToOrganizerView(TestCase):
@@ -45,3 +55,17 @@ class TestUpgradeToOrganizerView(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse("upgrade_to_organizer"))
         self.assertEqual(response.status_code, 405)
+
+    def test_upgrading_also_unblocks_the_route_editor(self):
+        # Reproduces the live bug report: a user who had only "Become an Organizer"-d (no direct
+        # per-user add_editableroute grant) got a 403 from the route editor's global map sources
+        # endpoint, because that permission was never attached to the ContestCreator group either.
+        self.client.force_login(self.user)
+        before = self.client.get(reverse("editableroutes-global-map-sources"))
+        self.assertEqual(before.status_code, 403)
+
+        response = self.client.post(reverse("upgrade_to_organizer"))
+        self.assertEqual(response.status_code, 200)
+
+        after = self.client.get(reverse("editableroutes-global-map-sources"))
+        self.assertEqual(after.status_code, 200)
