@@ -73,6 +73,23 @@ class MapSourceDefinitionTests(TestCase):
         )
         mock_get_map_details.assert_called_once_with("Norway250k")
 
+    @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_map_details")
+    @patch("display.flight_order_and_maps.map_plotter_shared_utilities.get_available_maps")
+    def test_get_map_choices_excludes_openaip(self, mock_get_available_maps, mock_get_map_details):
+        # OpenAIP is overlay-only (sparse aviation symbols on a mostly-transparent background) -
+        # get_map_choices feeds the flight-order PDF map form's single map_source choice, which has
+        # no separate overlay concept, so offering it there produced a near-blank page with no
+        # error. get_available_map_source_definitions_for_navigation_task already excludes it for
+        # the same reason (see NavigationTaskMapSourceAvailabilityTests below).
+        mock_get_available_maps.return_value = []
+        mock_get_map_details.return_value = {}
+
+        keys = {key for key, _label in sources.get_map_choices()}
+
+        self.assertNotIn("openaip", keys)
+        self.assertIn("osm", keys)
+        self.assertIn("cyclosm", keys)
+
     def test_map_source_payload_groups_uploaded_and_system_overlays(self):
         system_payload = sources.map_source_definition_to_payload(
             {
