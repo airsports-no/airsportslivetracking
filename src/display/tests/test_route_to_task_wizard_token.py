@@ -74,6 +74,52 @@ class TestRouteToTaskWizardTokenCreation(TestCase):
         self.assertTrue(ContestTokenAssignment.objects.filter(contest=created_contest, token_grant=self.token_grant).exists())
         self.assertEqual(1, self.token_grant.quantity_consumed)
 
+    @patch.object(Contest, "initialise")
+    @patch("display.views_wizards.NavigationTask.create")
+    @patch.object(RouteToTaskWizard, "create_route")
+    @patch("display.views_wizards.Scorecard.get_originals")
+    def test_done_applies_country_code_instead_of_crashing_on_unexpected_kwarg(
+        self, mock_get_originals, mock_create_route, mock_navigation_task_create, mock_initialise
+    ):
+        # Regression test (Sentry PYTHON-DJANGO-15): ContestForm.clean() derives country_code from
+        # location and adds it to cleaned_data for ContestCreateView/ContestUpdateView to consume
+        # (Contest.country, not a constructor kwarg - Contest itself has no country_code field) -
+        # done() passed contest_creation's cleaned_data straight into Contest.objects.create(**...),
+        # crashing with "Contest() got unexpected keyword arguments: 'country_code'" the moment a
+        # real ContestForm (which always sets this key) reached this path.
+        mock_get_originals.return_value = [SimpleNamespace(task_type=[AIRSPORTS])]
+        mock_create_route.return_value = Route.objects.create()
+        mock_navigation_task_create.return_value = SimpleNamespace(pk=124)
+
+        request = RequestFactory().get("/")
+        request.user = self.user
+        request.session = {}
+        request._messages = MagicMock()
+        wizard = RouteToTaskWizard()
+        wizard.request = request
+        wizard.editable_route = self.editable_route
+        wizard.get_cleaned_data_for_step = lambda step: {
+            "contest_selection": {"task_type": AIRSPORTS, "navigation_task_name": "Generated Task", "contest": None},
+            "contest_creation": {
+                "name": "WizardContestWithCountry",
+                "time_zone": "Europe/Oslo",
+                "start_time": "2026-10-01T09:00:00+00:00",
+                "finish_time": "2026-10-01T17:00:00+00:00",
+                "location": "60,11",
+                "country_code": "NO",
+                "summary_score_sorting_direction": Contest.ASCENDING,
+                "autosum_scores": True,
+            },
+            "task_content": {"original_scorecard": MagicMock(), "task_subtype": ""},
+            "airsports_parameters": {"rounded_corners": False},
+        }.get(step)
+
+        response = wizard.done([])
+
+        created_contest = Contest.objects.get(name="WizardContestWithCountry")
+        self.assertIsInstance(response, HttpResponseRedirect)
+        self.assertEqual(str(created_contest.country), "NO")
+
     @patch("display.views_wizards.assert_can_add_navigation_task")
     @patch("display.views_wizards.NavigationTask.create")
     @patch.object(RouteToTaskWizard, "create_route")
