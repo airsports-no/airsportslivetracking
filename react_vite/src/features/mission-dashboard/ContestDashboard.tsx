@@ -22,7 +22,10 @@ import NavigationTaskCreationFlow from '../contest-management/components/Navigat
 import TeamRegistrationFlow from '../contest-management/components/TeamRegistrationFlow';
 import ImportTeamsPanel from '../contest-management/components/ImportTeamsPanel';
 import TeamList from '../contest-management/components/TeamList';
+import ContestSettingsForm from '../contest-management/components/ContestSettingsForm';
+import ContestTokenPanel from './components/ContestTokenPanel';
 import * as contestManagementApi from '../contest-management/api';
+import { assignContestToken, replaceContestToken } from './api';
 import { ContestTeamListItem } from '../contest-management/types';
 
 const ContestDashboard = () => {
@@ -459,6 +462,96 @@ const ContestDashboard = () => {
                                     />
                                 )}
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                        <div className="card bg-base-100 shadow">
+                            <div className="card-body">
+                                <h3 className="card-title">Contest settings</h3>
+                                <ContestSettingsForm contest={contest} onSaved={() => fetchContest(contest.id, true)} />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            {contest.current_token_assignment && !contest.current_token_assignment.is_active_now && (
+                                <div className="alert alert-warning shadow-sm">
+                                    <div>
+                                        <div className="font-bold">Archive Mode</div>
+                                        <div className="text-sm">
+                                            This contest token ({contest.current_token_assignment.token_type_name}) expired on{' '}
+                                            {contest.current_token_assignment.expires_at &&
+                                                new Date(contest.current_token_assignment.expires_at).toLocaleString()}
+                                            . Historical results remain readable, but creating new tasks or launching new
+                                            live sessions requires a new token or annual pass.
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="card bg-base-200 shadow-sm border border-base-300">
+                                <div className="card-body p-5">
+                                    <h3 className="card-title text-lg">Access &amp; limits</h3>
+                                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                        <span className="badge badge-info">{contest.access_status?.tier_label}</span>
+                                        <span className="text-xs opacity-70">Source: {contest.access_status?.source_type}</span>
+                                    </div>
+                                    <div className="bg-base-100 rounded-lg p-3 text-sm">
+                                        <div className="opacity-70">Competing pilots</div>
+                                        <div className="font-semibold">
+                                            {contest.access_status?.contestants_used} /{' '}
+                                            {contest.access_status?.contestant_limit == null ? 'Unlimited' : contest.access_status.contestant_limit}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {!!contest.club_access_grants?.length && (
+                                <div className="card bg-base-200 shadow-sm border border-base-300">
+                                    <div className="card-body p-5">
+                                        <h3 className="card-title text-lg">Club access</h3>
+                                        <div className="space-y-2">
+                                            {contest.club_access_grants.map((grant, index) => (
+                                                <div key={index} className="rounded-lg bg-base-100 p-3 text-sm">
+                                                    <div className="font-semibold">{grant.tier_label}</div>
+                                                    <div className="opacity-70">
+                                                        Competing pilots: {grant.contestant_limit == null ? 'Unlimited' : grant.contestant_limit}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <ContestTokenPanel
+                                grants={contest.available_token_grants}
+                                currentTokenGrantId={contest.access_status?.token_grant_id}
+                                onAssign={async tokenGrantId => {
+                                    await assignContestToken(contest.id, tokenGrantId);
+                                    fetchContest(contest.id, true);
+                                }}
+                                onReplace={async tokenGrantId => {
+                                    await replaceContestToken(contest.id, tokenGrantId);
+                                    fetchContest(contest.id, true);
+                                }}
+                            />
+
+                            {!!contest.club_manager_memberships?.length && (
+                                <div className="card bg-base-200 shadow-sm border border-base-300">
+                                    <div className="card-body p-5">
+                                        <h3 className="card-title text-lg">Club managers</h3>
+                                        <div className="space-y-2">
+                                            {contest.club_manager_memberships.map(membership => (
+                                                <div key={membership.email} className="rounded-lg bg-base-100 p-3 text-sm flex justify-between gap-2">
+                                                    <span>{membership.email}</span>
+                                                    <span className="badge badge-ghost badge-sm">{membership.role}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

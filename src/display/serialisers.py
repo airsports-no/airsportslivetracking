@@ -30,6 +30,7 @@ from display.models import (
     FINISHPOINT,
     GATE_TYPES,
     STARTINGPOINT,
+    AccessGrant,
     AdministrativePenalty,
     Aeroplane,
     Club,
@@ -809,6 +810,8 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     access_status = serializers.SerializerMethodField()
     available_token_grants = serializers.SerializerMethodField()
     current_token_assignment = serializers.SerializerMethodField()
+    club_access_grants = serializers.SerializerMethodField()
+    club_manager_memberships = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -864,6 +867,35 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             "expires_at": assignment.expires_at,
             "is_active_now": assignment.is_active_now,
         }
+
+    def get_club_access_grants(self, contest) -> list[dict]:
+        if not contest.organizing_club_id:
+            return []
+        grants = AccessGrant.objects.filter(club=contest.organizing_club, status=AccessGrant.ACTIVE).order_by(
+            "-created_at"
+        )
+        return [
+            {
+                "tier_label": grant.get_tier_display(),
+                "contestant_limit": grant.contestant_limit,
+                "task_type_groups": grant.task_type_groups,
+            }
+            for grant in grants
+        ]
+
+    def get_club_manager_memberships(self, contest) -> list[dict]:
+        # Same visibility rule as the classic view: only shown to someone who can manage the
+        # contest, not every viewer with view_contest.
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not contest.organizing_club_id or not user or not user.has_perm("display.change_contest", contest):
+            return []
+        memberships = (
+            ClubManagerMembership.objects.filter(club=contest.organizing_club, is_active=True)
+            .select_related("user")
+            .order_by("user__email")
+        )
+        return [{"email": membership.user.email, "role": membership.get_role_display()} for membership in memberships]
 
     @extend_schema_field(AvailableTokenGrantSerializer(many=True))
     def get_available_token_grants(self, contest):
