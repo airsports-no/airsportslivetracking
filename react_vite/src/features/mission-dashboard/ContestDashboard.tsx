@@ -451,27 +451,11 @@ const ContestDashboard = () => {
                                         Add navigation task
                                     </button>
                                 </div>
-                                {contest.navigationtask_set.length === 0 ? (
-                                    <p className="text-sm text-gray-500">No navigation tasks yet.</p>
-                                ) : (
-                                    <ul className="menu bg-base-100 rounded-box">
-                                        {contest.navigationtask_set.map(task => (
-                                            <li key={task.pk}>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <a href={reverse('navigationtask_detail', task.pk)} className="link link-hover flex-1">
-                                                        {task.name}
-                                                    </a>
-                                                    <Link
-                                                        to={generatePath('COMPETITION_MAP_DETAIL', { contestId: contest.id, navigationTaskId: task.pk })}
-                                                        className="btn btn-xs btn-outline btn-info gap-1 whitespace-nowrap"
-                                                    >
-                                                        Live map
-                                                    </Link>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
+                                <p className="text-sm text-gray-500">
+                                    {contest.navigationtask_set.length === 0
+                                        ? 'No navigation tasks yet.'
+                                        : 'Manage each task (contestants, flight orders, scorecard) from its card in the Task Suite below.'}
+                                </p>
                             </div>
                         </div>
 
@@ -699,6 +683,7 @@ const ContestDashboard = () => {
                                         timeZone={contest.time_zone}
                                         route={task.route}
                                         flown_contestants_count={task.flown_contestants_count}
+                                        canManage={canManageThisContest}
                                     />
                                 );
                             })}

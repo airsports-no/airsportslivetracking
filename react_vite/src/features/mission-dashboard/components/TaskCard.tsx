@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { MapPin, FileText } from 'lucide-react';
 import { Contestant } from '../../competition-map/types';
 import PublicityIcon from './PublicityIcon';
 import { Route } from '../types';
 import TaskStatistics from './TaskStatistics';
 import { formatDateInterval } from '../../../utils';
+import { reverse } from '../../../urls';
 
 interface TaskCardProps {
     name: string;
@@ -26,9 +27,10 @@ interface TaskCardProps {
     flown_contestants_count: number;
     isRegisteredButNotPilot?: boolean;
     allow_self_management?: boolean;
+    canManage?: boolean;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count, isRegisteredButNotPilot, allow_self_management }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count, isRegisteredButNotPilot, allow_self_management, canManage }) => {
     const getStatusBadge = () => {
         switch (status) {
             case 'Open':
@@ -48,13 +50,23 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
                 <h3 className="card-title flex flex-wrap items-center gap-2">
-                    <span className="flex-1">{name}</span>
+                    {canManage ? (
+                        <a href={reverse('navigationtask_detail', taskId)} className="flex-1 link link-hover">{name}</a>
+                    ) : (
+                        <span className="flex-1">{name}</span>
+                    )}
                     {getStatusBadge()}
                     <PublicityIcon isPublic={is_public} isFeatured={is_featured} />
                     <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="btn btn-xs btn-outline btn-info gap-1">
                         <MapPin size={14} />
                         Live Map
                     </a>
+                    {canManage && allow_self_management && (
+                        <a href={reverse('hangar_flyer', taskId)} className="btn btn-xs btn-outline gap-1">
+                            <FileText size={14} />
+                            Hangar Flyer
+                        </a>
+                    )}
                 </h3>
                 
                 <TaskStatistics route={route} flown_contestants_count={flown_contestants_count} />
