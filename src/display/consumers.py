@@ -49,6 +49,22 @@ class ParallelDispatchMixin(SyncConsumer):
     # "MySQL server has gone away".
     dispatch = database_sync_to_async(SyncConsumer.__dict__["dispatch"].func, thread_sensitive=False)
 
+    def send(self, *args, **kwargs):
+        """
+        A group-handler message (tracking_data/contestresults/etc.) can still be queued on the
+        thread pool above after its client has already disconnected - by the time the handler
+        actually runs and calls send(), the underlying ASGI connection is gone. uvicorn's
+        asgi_send then raises RuntimeError ("Unexpected ASGI message 'websocket.send', after
+        sending 'websocket.close' or response already completed.") - an ordinary disconnect
+        race (Sentry PYTHON-DJANGO-13), not a bug, so log it instead of letting every
+        reconnect/tab-close that happens to race a pending message surface as an unhandled
+        exception.
+        """
+        try:
+            super().send(*args, **kwargs)
+        except RuntimeError as e:
+            logger.debug(f"Dropped websocket send after client disconnect: {e}")
+
 
 class DateTimeEncoder(json.JSONEncoder):
     """

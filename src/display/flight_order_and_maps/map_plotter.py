@@ -1505,8 +1505,15 @@ def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
             coordinates = editable_route.get_feature_coordinates(editable_track)
             track_points = editable_route.get_ordered_track_waypoints()
             for index, (latitude, longitude) in enumerate(coordinates):
-                item = track_points[index]
                 tracks[-1].append((latitude, longitude))
+                # coordinates is every vertex of the route_path LineString geometry; track_points
+                # is only the named waypoint features - a curved/multi-point path routinely has
+                # more vertices than waypoints, so these two lists are not the same length and
+                # don't align index-for-index. Only label a vertex when there's actually a
+                # corresponding waypoint at that position, instead of assuming there always is.
+                if index >= len(track_points):
+                    continue
+                item = track_points[index]
                 plt.text(
                     longitude,
                     latitude,
