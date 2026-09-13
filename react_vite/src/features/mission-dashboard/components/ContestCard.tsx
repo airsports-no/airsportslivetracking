@@ -9,13 +9,11 @@ interface ContestCardProps {
     status: 'live' | 'upcoming' | 'past';
     isRegistered?: boolean;
     hasScheduledFlight?: boolean;
-    isEditorContest?: boolean;
     hasOpenTasksForScheduling?: boolean; // New prop
     viewLink: string;
-    manageLink?: string;
 }
 
-const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight, isEditorContest, hasOpenTasksForScheduling, viewLink, manageLink }) => {
+const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight, hasOpenTasksForScheduling, viewLink }) => {
     return (
         <div className={`card bg-base-300 shadow-xl ${contest.header_image ? 'image-full' : ''} h-[260px] overflow-hidden`}>
             {contest.header_image && (
@@ -49,9 +47,6 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                     </div>
                     <div className="flex gap-2 shrink-0">
                         <Link to={viewLink} className="btn btn-primary btn-sm">View</Link>
-                        {isEditorContest && manageLink && (
-                            <Link to={manageLink} className="btn btn-secondary btn-sm">Manage</Link>
-                        )}
                     </div>
                 </div>
             </div>

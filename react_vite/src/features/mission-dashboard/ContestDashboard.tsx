@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useMemo, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import { Contest, NavigationTask, ContestResults, MyContestTeam } from './types';
 import { Contestant } from '../competition-map/types';
@@ -17,6 +18,12 @@ import { useMissionDashboardStore } from './store';
 import { canManageContest } from './permissions';
 import { fetchNavigationTask } from '../competition-map/api';
 import { formatDateInterval } from '../../utils';
+import NavigationTaskCreationFlow from '../contest-management/components/NavigationTaskCreationFlow';
+import TeamRegistrationFlow from '../contest-management/components/TeamRegistrationFlow';
+import ImportTeamsPanel from '../contest-management/components/ImportTeamsPanel';
+import TeamList from '../contest-management/components/TeamList';
+import * as contestManagementApi from '../contest-management/api';
+import { ContestTeamListItem } from '../contest-management/types';
 
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
@@ -57,7 +64,41 @@ const ContestDashboard = () => {
     const [viewingScoresForTask, setViewingScoresForTask] = useState<NavigationTask | null>(null);
     const [loadingTaskScores, setLoadingTaskScores] = useState(false);
 
+    // Owner-only management tools (task creation, team management) - rendered inline below
+    // instead of on a separate page, so there's a single contest view for every visitor.
+    const [showCreateTask, setShowCreateTask] = useState(false);
+    const [teams, setTeams] = useState<ContestTeamListItem[]>([]);
+    const [teamsLoading, setTeamsLoading] = useState(true);
+    const [teamsError, setTeamsError] = useState<string | null>(null);
+    const [editingContestTeam, setEditingContestTeam] = useState<ContestTeamListItem | 'new' | null>(null);
+    const [showImportTeams, setShowImportTeams] = useState(false);
+    const latestTeamsContestId = useRef(contestId);
+
     const canManageThisContest = canManageContest(contest);
+
+    const refreshTeams = () => {
+        if (!contestId) return;
+        const requestedContestId = contestId;
+        setTeamsLoading(true);
+        setTeamsError(null);
+        contestManagementApi
+            .fetchContestTeams(Number(requestedContestId))
+            .then(result => {
+                if (requestedContestId === latestTeamsContestId.current) setTeams(result);
+            })
+            .catch(err => {
+                if (requestedContestId === latestTeamsContestId.current) setTeamsError((err as Error).message);
+            })
+            .finally(() => {
+                if (requestedContestId === latestTeamsContestId.current) setTeamsLoading(false);
+            });
+    };
+
+    useEffect(() => {
+        latestTeamsContestId.current = contestId;
+        if (canManageThisContest) refreshTeams();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [contestId, canManageThisContest]);
 
 
     const hasFutureFlightsScheduled = useMemo(() => {
@@ -194,6 +235,47 @@ const ContestDashboard = () => {
                 </div>
             )}
             {/* Modals for forms */}
+            {showCreateTask && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                    <NavigationTaskCreationFlow
+                        entry={{ kind: 'contest', contestId: contest.id }}
+                        initialContest={contest}
+                        onCancel={() => setShowCreateTask(false)}
+                        onCreated={createdContestId => {
+                            setShowCreateTask(false);
+                            fetchContest(createdContestId, true);
+                        }}
+                    />
+                </div>,
+                document.body
+            )}
+            {editingContestTeam && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                    <TeamRegistrationFlow
+                        contestId={contest.id}
+                        editingContestTeam={editingContestTeam === 'new' ? undefined : editingContestTeam}
+                        onCancel={() => setEditingContestTeam(null)}
+                        onSaved={() => {
+                            setEditingContestTeam(null);
+                            refreshTeams();
+                        }}
+                    />
+                </div>,
+                document.body
+            )}
+            {showImportTeams && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                    <ImportTeamsPanel
+                        contestId={contest.id}
+                        onCancel={() => setShowImportTeams(false)}
+                        onImported={() => {
+                            setShowImportTeams(false);
+                            refreshTeams();
+                        }}
+                    />
+                </div>,
+                document.body
+            )}
             {showRegistrationForm && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <ContestRegistrationForm
@@ -277,11 +359,6 @@ const ContestDashboard = () => {
                         </div>
                     </div>
                      <div className="flex flex-col items-stretch gap-2 w-full md:w-auto">
-                        {canManageThisContest && (
-                            <Link to={generatePath('CONTEST_MANAGEMENT', { contestId: contest.id })} className="btn btn-primary btn-sm">
-                                Manage Contest
-                            </Link>
-                        )}
                         {(() => {
                             if (userContestTeam?.is_user_pilot) {
                                 return (
@@ -314,6 +391,78 @@ const ContestDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {canManageThisContest && (
+                <div className="mb-8">
+                    <h2 className="text-2xl font-bold mb-4">Manage this contest</h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="card bg-base-100 shadow">
+                            <div className="card-body">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="card-title">Navigation tasks</h3>
+                                    <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>
+                                        Add navigation task
+                                    </button>
+                                </div>
+                                {contest.navigationtask_set.length === 0 ? (
+                                    <p className="text-sm text-gray-500">No navigation tasks yet.</p>
+                                ) : (
+                                    <ul className="menu bg-base-100 rounded-box">
+                                        {contest.navigationtask_set.map(task => (
+                                            <li key={task.pk}>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <a href={reverse('navigationtask_detail', task.pk)} className="link link-hover flex-1">
+                                                        {task.name}
+                                                    </a>
+                                                    <Link
+                                                        to={generatePath('COMPETITION_MAP_DETAIL', { contestId: contest.id, navigationTaskId: task.pk })}
+                                                        className="btn btn-xs btn-outline btn-info gap-1 whitespace-nowrap"
+                                                    >
+                                                        Live map
+                                                    </Link>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="card bg-base-100 shadow">
+                            <div className="card-body">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="card-title">Registered teams</h3>
+                                    <div className="flex gap-2">
+                                        <button className="btn btn-sm" onClick={() => setShowImportTeams(true)}>
+                                            Import teams
+                                        </button>
+                                        <button className="btn btn-primary btn-sm" onClick={() => setEditingContestTeam('new')}>
+                                            Register team
+                                        </button>
+                                    </div>
+                                </div>
+                                {teamsLoading ? (
+                                    <Loading />
+                                ) : teamsError ? (
+                                    <div className="alert alert-error">
+                                        <span>Failed to load teams: {teamsError}</span>
+                                        <button type="button" className="btn btn-sm" onClick={refreshTeams}>
+                                            Retry
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <TeamList
+                                        contestId={contest.id}
+                                        teams={teams}
+                                        onEdit={contestTeam => setEditingContestTeam(contestTeam)}
+                                        onRemoved={contestTeamId => setTeams(prev => prev.filter(item => item.id !== contestTeamId))}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Task Suite */}

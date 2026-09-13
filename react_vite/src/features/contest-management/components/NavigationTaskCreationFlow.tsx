@@ -24,7 +24,7 @@ import TaskDetailsStep from './TaskDetailsStep';
 interface NavigationTaskCreationFlowProps {
     entry: NavigationTaskCreationEntry;
     // Pre-known contest, when entry.kind === 'contest' (avoids an extra fetch for data the
-    // caller already has - e.g. ContestManagementPage already loaded it).
+    // caller already has - e.g. ContestDashboard already loaded it).
     initialContest?: Contest;
     onCreated: (contestId: number, navigationTaskId: number) => void;
     onCancel: () => void;
