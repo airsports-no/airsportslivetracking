@@ -92,6 +92,41 @@ class TestCapacityEnforcement(TestCase):
             assert_can_register_team(contest_without_owner_person, self.team)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
+    def test_owner_team_check_does_not_crash_when_contest_creator_has_duplicate_person_rows(self, mock_resolve):
+        """Regression test for the live MultipleObjectsReturned crash at
+        /display/contest/<id>/: Person.email has no DB-level uniqueness
+        constraint, so a contest creator can end up with more than one Person
+        row sharing their email (e.g. from repeated auto-created-on-app-login
+        rows). _get_owner_person_id must fall back to "no owner" instead of
+        letting MyUser.person's Person.objects.get(email=...) raise
+        MultipleObjectsReturned and crash the whole request."""
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
+        duplicate_owner_creator = MyUser.objects.create(email="duplicate-person-creator@example.com")
+        # Person.email has no DB-level uniqueness constraint, and the model-level check in
+        # Person.validate() (wired up via the register_personal_tracker pre_save signal) is itself
+        # racy under concurrent requests - that TOCTOU gap is how duplicate rows arise for real (as
+        # happened in production). bulk_create bypasses pre_save/that check entirely, which is the
+        # simplest way to reproduce the resulting "already duplicated" data state in a test without
+        # fighting the signal.
+        Person.objects.bulk_create(
+            [
+                Person(first_name="Dup", last_name="One", email=duplicate_owner_creator.email),
+                Person(first_name="Dup", last_name="Two", email=duplicate_owner_creator.email),
+            ]
+        )
+        contest_with_ambiguous_owner_person = Contest.objects.create(
+            name="Ambiguous Owner Capacity Contest",
+            time_zone="Europe/Oslo",
+            start_time="2026-03-01T09:00:00+00:00",
+            finish_time="2026-03-01T17:00:00+00:00",
+            location="60.0,11.0",
+            created_by=duplicate_owner_creator,
+        )
+
+        with self.assertRaises(ValidationError):
+            assert_can_register_team(contest_with_ambiguous_owner_person, self.team)
+
+    @patch("display.services.capacity_enforcement.resolve_contest_access")
     def test_self_registration_blocks_guest_pilot_when_limit_is_zero(self, mock_resolve):
         navigation_task = NavigationTask.objects.create(
             name="Task",

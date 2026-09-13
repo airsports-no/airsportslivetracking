@@ -1,14 +1,15 @@
 import datetime
 
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
+
 from display.models import (
     AccessGrant,
     AccessResolution,
     Contest,
+    Contestant,
     ContestTokenAssignment,
     ContestUsageLedger,
-    Contestant,
 )
 from display.services.task_type_visibility import get_user_granted_task_type_groups
 from display.utilities.task_type_group_definitions import LEGACY_TASK_TYPE_GROUP
@@ -109,7 +110,10 @@ def _backfill_missing_historical_usage(contest: Contest) -> int:
     if contest.created_by_id:
         try:
             owner_person_id = contest.created_by.person.id
-        except ObjectDoesNotExist:
+        except (ObjectDoesNotExist, MultipleObjectsReturned):
+            # See the matching comment in capacity_enforcement._get_owner_person_id - Person.email
+            # has no DB-level uniqueness constraint, so this lookup can be ambiguous as well as
+            # missing.
             owner_person_id = None
     for contestant in started_contestants:
         if owner_person_id is not None and contestant.team.crew.member1_id == owner_person_id:
