@@ -102,3 +102,14 @@ class TestContestPermissionsApi(TestCase):
         response = self.client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_on_permission_detail_is_rejected(self):
+        # Ported from the classic delete_user_contest_permissions view's CSRF regression test
+        # (a plain GET view with no CSRF protection was a one-click permission-revocation vector)
+        # - DRF only registers put/delete for this action, so GET is method-not-allowed by
+        # construction rather than needing an explicit guard.
+        self.client.post(self.list_url, {"identifier": self.other_user.email, "level": "view"}, format="json")
+
+        response = self.client.get(self._detail_url(self.other_user.pk))
+
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)

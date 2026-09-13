@@ -857,6 +857,13 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         }
 
     def get_current_token_assignment(self, contest) -> dict | None:
+        # Matches the classic ContestDetailView's gating: only shown to someone who can manage
+        # the contest, not every viewer with view_contest (its expiry date is a business detail
+        # about the organizer's subscription, not something a public contest listing should leak).
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.has_perm("display.change_contest", contest):
+            return None
         assignment = getattr(contest, "contesttokenassignment", None)
         if assignment is None:
             return None

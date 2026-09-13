@@ -47,17 +47,22 @@ class TestArchiveReadOnlyViews(TestCase):
         self.assignment.save(update_fields=["activated_at", "expires_at"])
         self.expired_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
 
-    def test_contest_detail_remains_readable_after_token_expiry(self):
+    def test_contest_detail_api_remains_readable_after_token_expiry(self):
+        # contest_details (the classic ContestDetailView/contest_detail.html) was retired when
+        # contest management moved into the SPA contest dashboard - this is now the REST
+        # equivalent of "the contest page still loads in archive mode", which
+        # ContestDashboard.tsx's own archive-mode banner is driven by.
         self.assignment.expires_at = self.expired_at
         self.assignment.save(update_fields=["expires_at"])
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse("contest_details", kwargs={"pk": self.contest.id}))
+        response = self.client.get(f"/api/v1/contests/{self.contest.id}/")
 
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Archive Contest")
-        self.assertContains(response, "Archive Mode")
-        self.assertContains(response, "This contest token expired on")
+        self.assertEqual(response.json()["name"], "Archive Contest")
+        assignment = response.json()["current_token_assignment"]
+        self.assertFalse(assignment["is_active_now"])
+        self.assertEqual(assignment["token_type_name"], "Archive token")
 
     def test_navigationtask_detail_remains_readable_after_token_expiry(self):
         self.assignment.expires_at = self.expired_at

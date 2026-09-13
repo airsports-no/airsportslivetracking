@@ -26,8 +26,8 @@ from django.contrib.auth.mixins import (
 
 from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculator_running_utilities import is_calculator_running
-from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
-from display.models import UserTokenGrant, ClubManagerMembership, AccessGrant
+from display.services.token_assignment import assign_token_to_contest
+from display.models import UserTokenGrant
 from playback_tools.playback import validate_gpx_file
 import rest_framework.exceptions as drf_exceptions
 from live_tracking_map import settings
@@ -249,16 +249,6 @@ class NavigationTaskTimeZoneMixin:
         timezone.activate(self.get_object().contest.time_zone)
 
 
-class ContestTimeZoneMixin:
-    """
-    Mixin to ensure that the session time zone is always set to the correct one for the contest
-    """
-
-    def setup(self, request, *args, **kwargs):
-        super().setup(request, *args, **kwargs)
-        timezone.activate(self.get_object().time_zone)
-
-
 class SuperuserRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     """
     Mixin to ensure that the view is only available to superusers.
@@ -458,32 +448,6 @@ def contestant_cards_list(request, pk):
             "current_hand": hand_description,
         },
     )
-
-
-@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
-def share_contest(request, pk):
-    """
-    Render a form and handle POST to change the sharing settings for the contest.
-    """
-    contest = get_object_or_404(Contest, pk=pk)
-    if request.method == "POST":
-        form = ShareForm(request.POST)
-        if form.is_valid():
-            if form.cleaned_data["publicity"] == ShareForm.PUBLIC:
-                contest.make_public()
-            elif form.cleaned_data["publicity"] == ShareForm.UNLISTED:
-                contest.make_unlisted()
-            elif form.cleaned_data["publicity"] == ShareForm.PRIVATE:
-                contest.make_private()
-            return HttpResponseRedirect(reverse("contest_details", kwargs={"pk": contest.pk}))
-    if contest.is_public and contest.is_featured:
-        initial = ShareForm.PUBLIC
-    elif contest.is_public and not contest.is_featured:
-        initial = ShareForm.UNLISTED
-    else:
-        initial = ShareForm.PRIVATE
-    form = ShareForm(initial={"publicity": initial})
-    return render(request, "display/share_contest_form.html", {"form": form, "contest": contest})
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
@@ -1140,117 +1104,6 @@ def add_user_editableroute_permissions(request, pk):
 ###### Editable route permission management ends
 
 
-#### Contest permission management
-def map_contest_permissions_to_permission_name(permissions: list[str]) -> str:
-    if "delete_contest" in permissions:
-        return "delete"
-    elif "change_contest" in permissions:
-        return "change"
-    elif "view_contest" in permissions:
-        return "view"
-    else:
-        return "nothing"
-
-
-@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
-def list_contest_permissions(request, pk):
-    """
-    View to display all users and their permissions related to a specific Contest
-    """
-    contest = get_object_or_404(Contest, pk=pk)
-    users_and_permissions = get_users_with_perms(contest, attach_perms=True)
-    users = []
-    for user in users_and_permissions.keys():
-        data = {}
-        data["permission"] = map_contest_permissions_to_permission_name(users_and_permissions[user]).capitalize()
-        data["email"] = user.email
-        data["pk"] = user.pk
-        users.append(data)
-    return render(
-        request,
-        "display/contest_permissions.html",
-        {"users": users, "contest": contest},
-    )
-
-
-CONTEST_PERMISSION_MAP = {
-    "nothing": [],
-    "view": ["view_contest"],
-    "change": ["view_contest", "change_contest", "add_contest"],
-    "delete": ["view_contest", "change_contest", "add_contest", "delete_contest"],
-}
-
-
-@require_POST
-@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
-def delete_user_contest_permissions(request, pk, user_pk):
-    """
-    Delete all permissions a user has for a Contest
-    """
-    contest = get_object_or_404(Contest, pk=pk)
-    user = get_object_or_404(MyUser, pk=user_pk)
-    # Previously a bare GET with no CSRF protection (GET isn't covered by CSRF middleware) and
-    # no server-side check - "don't remove your own access" was enforced only by hiding the
-    # button client-side, so any user holding just change_contest could revoke ANY other user's
-    # permissions, including the actual owner's, via a one-click <img src="..."> on any page a
-    # logged-in editor visited. @require_POST closes the CSRF vector; this check closes
-    # accidental/malicious self-lockout via a legitimate POST too.
-    if user.pk == request.user.pk:
-        messages.error(request, "You cannot remove your own permissions for this contest.")
-        return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
-    for permission in CONTEST_PERMISSION_MAP["delete"]:
-        remove_perm(f"display.{permission}", user, contest)
-    return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
-
-
-@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
-def change_user_contest_permissions(request, pk, user_pk):
-    """
-    Change permissions a user has for a Contest
-    """
-    contest = get_object_or_404(Contest, pk=pk)
-    user = get_object_or_404(MyUser, pk=user_pk)
-    if request.method == "POST":
-        form = ChangePermissionsForm(request.POST)
-        if form.is_valid():
-            for permission in CONTEST_PERMISSION_MAP["delete"]:
-                remove_perm(f"display.{permission}", user, contest)
-            for permission in CONTEST_PERMISSION_MAP[form.cleaned_data["permission"]]:
-                assign_perm(f"display.{permission}", user, contest)
-            return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
-    existing_permissions = get_user_perms(user, contest)
-    initial = {"permission": map_contest_permissions_to_permission_name(existing_permissions)}
-    form = ChangePermissionsForm(initial=initial)
-    return render(request, "display/contest_permissions_form.html", {"form": form})
-
-
-@guardian_permission_required("display.change_contest", (Contest, "pk", "pk"))
-def add_user_contest_permissions(request, pk):
-    """
-    Add permissions for a Contest to a user
-    """
-    contest = get_object_or_404(Contest, pk=pk)
-    if request.method == "POST":
-        form = AddPermissionsForm(request.POST)
-        if form.is_valid():
-            email = form.cleaned_data["email"]
-            try:
-                user = MyUser.objects.get(email=email)
-            except ObjectDoesNotExist:
-                messages.error(request, f"User '{email}' does not exist")
-                return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
-            for permission in CONTEST_PERMISSION_MAP["delete"]:
-                remove_perm(f"display.{permission}", user, contest)
-            for permission in CONTEST_PERMISSION_MAP[form.cleaned_data["permission"]]:
-                assign_perm(f"display.{permission}", user, contest)
-            return redirect(reverse("contest_permissions_list", kwargs={"pk": pk}))
-    form = AddPermissionsForm()
-    return render(request, "display/contest_permissions_form.html", {"form": form})
-
-
-###### Contest permission management ends
-
-
 @require_POST
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def terminate_contestant_calculator(request, pk):
@@ -1330,132 +1183,7 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
         return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
-        return reverse("contest_details", kwargs={"pk": self.object.pk})
-
-
-class ContestDetailView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
-    model = Contest
-    permission_required = ("display.view_contest",)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        contest = self.get_object()
-        if self.request.user.is_authenticated:
-            context["user_has_routes"] = (
-                get_objects_for_user(self.request.user, "display.view_editableroute").exists()
-            )
-        else:
-            context["user_has_routes"] = False
-
-        resolution = resolve_contest_access(contest, user=self.request.user)
-        context["access_status"] = {
-            "tier_code": resolution.tier_code,
-            "tier_label": resolution.tier_label,
-            "source_type": resolution.source_type,
-            "contestant_limit": resolution.contestant_limit,
-            "contestants_used": resolution.contestants_used,
-            "token_grant_id": resolution.token_grant_id,
-            "package_contestant_limit": resolution.package_contestant_limit,
-            "free_contestant_limit": resolution.free_contestant_limit,
-            "contestant_limit_uses_free_default": resolution.contestant_limit_uses_free_default,
-            "uses_more_advantageous_free_limits": resolution.uses_more_advantageous_free_limits,
-            "allowed_task_type_groups": resolution.allowed_task_type_groups,
-            "package_task_type_groups": resolution.package_task_type_groups,
-            "free_task_type_groups": resolution.free_task_type_groups,
-        }
-        token_assignment = getattr(contest, "contesttokenassignment", None)
-        context["archive_mode_info"] = None
-        if token_assignment is not None and token_assignment.expires_at is not None and token_assignment.expires_at <= timezone.now():
-            context["archive_mode_info"] = {
-                "expired_at": token_assignment.expires_at,
-                "token_type_name": token_assignment.token_type.name,
-            }
-
-        if contest.organizing_club_id:
-            context["club_access_grants"] = AccessGrant.objects.filter(
-                club=contest.organizing_club,
-                status=AccessGrant.ACTIVE,
-            ).order_by("-created_at")
-
-        contest_permissions = get_user_perms(self.request.user, contest)
-        if "change_contest" in contest_permissions:
-            context["available_token_grants"] = UserTokenGrant.objects.filter(
-                user=self.request.user,
-                token_type__is_active=True,
-                quantity_consumed__lt=F("quantity_total"),
-            ).select_related("token_type").order_by("-created_at")
-            context["current_token_assignment"] = getattr(contest, "contesttokenassignment", None)
-            if contest.organizing_club_id:
-                context["club_manager_memberships"] = ClubManagerMembership.objects.filter(
-                    club=contest.organizing_club,
-                    is_active=True,
-                ).select_related("user").order_by("user__email")
-        return context
-
-
-class ContestUpdateView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
-    model = Contest
-    permission_required = ("display.change_contest",)
-    form_class = ContestForm
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs["managed_club_queryset"] = Club.objects.filter(
-            clubmanagermembership__user=self.request.user,
-            clubmanagermembership__is_active=True,
-        ).distinct().order_by("name")
-        kwargs["token_grant_queryset"] = UserTokenGrant.objects.filter(
-            user=self.request.user,
-            token_type__is_active=True,
-            quantity_consumed__lt=F("quantity_total"),
-        ).select_related("token_type")
-        return kwargs
-
-    def form_valid(self, form):
-        instance = form.save(commit=False)  # type: Contest
-        instance.country = form.cleaned_data["country_code"]
-        instance.save()
-        return HttpResponseRedirect(self.get_success_url())
-
-    def get_permission_object(self):
-        return self.get_object()
-
-    def get_success_url(self):
-        return reverse("contest_details", kwargs={"pk": self.get_object().pk})
-
-
-class ContestTokenManagementView(ContestTimeZoneMixin, GuardianPermissionRequiredMixin, View):
-    permission_required = ("display.change_contest",)
-
-    def get_permission_object(self):
-        return get_object_or_404(Contest, pk=self.kwargs["pk"])
-
-    def post(self, request, *args, **kwargs):
-        contest = self.get_permission_object()
-        token_grant_id = request.POST.get("token_grant_id")
-        action = self.kwargs["action"]
-        try:
-            if action == "assign":
-                assign_token_to_contest(contest, request.user, int(token_grant_id))
-                messages.success(request, "Token assigned to contest.")
-            elif action == "replace":
-                replace_token_for_contest(contest, request.user, int(token_grant_id))
-                messages.success(request, "Contest token replaced.")
-            else:
-                raise Http404()
-        except (ValidationError, ValueError) as exc:
-            messages.error(request, str(exc))
-        return HttpResponseRedirect(reverse("contest_details", kwargs={"pk": contest.pk}))
-
-
-class ContestDeleteView(GuardianPermissionRequiredMixin, DeleteView):
-    model = Contest
-    permission_required = ("display.delete_contest",)
-    template_name = "model_delete.html"
-    success_url = f"{fe_url('MISSION_DASHBOARD')}?tab=editorContests"
-
-    def get_permission_object(self):
-        return self.get_object()
+        return fe_url("MISSION_DASHBOARD_DETAIL", contestId=self.object.pk)
 
 
 class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
@@ -1521,7 +1249,7 @@ class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
         return self.get_object().contest
 
     def get_success_url(self):
-        return reverse("contest_details", kwargs={"pk": self.get_object().contest.pk})
+        return fe_url("MISSION_DASHBOARD_DETAIL", contestId=self.get_object().contest.pk)
 
 
 @require_POST

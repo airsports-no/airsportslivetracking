@@ -70,6 +70,20 @@ class TestContestTokenAssignmentApi(APITestCase):
         self.assertTrue(assignment["is_active_now"])
         self.assertIsNone(assignment["expires_at"])
 
+    def test_current_token_assignment_hidden_from_a_viewer_who_cannot_manage_the_contest(self, *_args):
+        assign_url = reverse("contests-assign-token", kwargs={"pk": self.contest.id})
+        self.client.post(assign_url, {"token_grant_id": self.token_grant.id}, format="json")
+
+        viewer = get_user_model().objects.create(email="viewer-only@example.com")
+        assign_perm("view_contest", viewer, self.contest)
+        self.client.force_login(viewer)
+
+        detail_url = reverse("contests-detail", kwargs={"pk": self.contest.id})
+        response = self.client.get(detail_url)
+
+        self.assertEqual(status.HTTP_200_OK, response.status_code)
+        self.assertIsNone(response.data["current_token_assignment"])
+
     def test_current_token_assignment_is_null_before_any_assignment(self, *_args):
         detail_url = reverse("contests-detail", kwargs={"pk": self.contest.id})
         response = self.client.get(detail_url)

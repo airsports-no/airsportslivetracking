@@ -40,7 +40,6 @@ print_view_url("tasktests-detail", [1, 2])
 print_view_url("editableroutes-detail", [1])
 print_view_url("userprofile-my-participating-contests", [])
 print_view_url("contestants-initial-track-data", [1, 2, 3])
-print_view_url("contest_details", [1])
 
 print_view_url("aircraft-list", [])
 print_view_url("clubs-list", [])
