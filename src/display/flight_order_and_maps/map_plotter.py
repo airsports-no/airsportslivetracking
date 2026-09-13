@@ -1897,7 +1897,14 @@ def plot_route(
     tiles_mb = estimate_tile_memory_mb(total_tiles)
 
     estimated_mb = final_image_mb + tiles_mb
-    MEMORY_THRESHOLD_MB = 750
+    # Raised from 750 after a production investigation (Sentry: one user hit the old threshold 38
+    # times in 26h, always at zoom_level=14 - the form's max - across routes whose tiles_mb alone
+    # ranged ~770-1134MB, regardless of DPI/page size). 1500 comfortably covers that range plus the
+    # 792-tile/A3/300dpi config this module's calibration was originally profiled against (~1092MB
+    # measured post-fix peak, see test_map_memory_estimation.py) while leaving ~1.5GB of headroom
+    # under tracker-celery's 3Gi pod memory limit (--concurrency 1, so no concurrent task shares
+    # that headroom while a map renders).
+    MEMORY_THRESHOLD_MB = 1500
     logger.info(
         f"Estimated memory usage: {estimated_mb:.0f}MB ({final_image_mb:.0f}MB for map + {tiles_mb:.0f}MB for tiles)"
     )
