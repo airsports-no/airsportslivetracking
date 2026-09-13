@@ -39,12 +39,21 @@ const TeamList: React.FC<TeamListProps> = ({ contestId, teams, onEdit, onRemoved
             <ul className="menu bg-base-100 rounded-box">
                 {teams.map(contestTeam => (
                     <li key={contestTeam.id}>
-                        <div className="flex items-center justify-between">
-                            <span>
-                                {contestTeam.team.crew.member1.first_name} {contestTeam.team.crew.member1.last_name}
-                                {contestTeam.team.crew.member2 && ` / ${contestTeam.team.crew.member2.first_name} ${contestTeam.team.crew.member2.last_name}`}
-                                {' - '}
-                                {contestTeam.team.aeroplane.registration}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="flex items-center gap-2 min-w-0">
+                                {contestTeam.team.crew.member1.picture && (
+                                    <img
+                                        src={contestTeam.team.crew.member1.picture}
+                                        alt=""
+                                        className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                                    />
+                                )}
+                                <span className="truncate">
+                                    {contestTeam.team.crew.member1.first_name} {contestTeam.team.crew.member1.last_name}
+                                    {contestTeam.team.crew.member2 && ` / ${contestTeam.team.crew.member2.first_name} ${contestTeam.team.crew.member2.last_name}`}
+                                    {' - '}
+                                    {contestTeam.team.aeroplane.registration}
+                                </span>
                             </span>
                             <div className="flex gap-2">
                                 <button className="btn btn-xs" onClick={() => onEdit(contestTeam)}>

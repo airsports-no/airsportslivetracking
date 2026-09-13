@@ -57,13 +57,16 @@ export interface NavigationTaskCreateResponse {
     warnings: string[];
 }
 
-// Mirrors the write side of AdminTeamRegistrationSerialiser.
+// Mirrors the write side of AdminTeamRegistrationSerialiser. pilot/copilot's optional `picture`,
+// and aeroplane.picture/club.logo, are only meaningful for a "create" selection - see
+// PersonSearchOrCreate/AeroplaneSearchOrCreate/ClubSearchOrCreate - and are peeled off into
+// separate multipart fields by api.registerTeam rather than sent inline (see there for why).
 export interface AdminTeamRegistrationPayload {
     contest_team?: number;
     pilot: Record<string, unknown>;
     copilot: Record<string, unknown>;
-    aeroplane: { registration: string; type?: string; colour?: string };
-    club: { name: string; country?: string };
+    aeroplane: { registration: string; type?: string; colour?: string; picture?: File };
+    club: { name: string; country?: string; logo?: File };
     air_speed: number;
     tracking_service: string;
     tracking_device: string;

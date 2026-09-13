@@ -130,7 +130,7 @@ class PersonSignUpSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = Person
-        fields = ("id", "first_name", "last_name", "email")
+        fields = ("id", "first_name", "last_name", "email", "picture")
 
 
 class PersonLtdSerialiser(serializers.ModelSerializer):
@@ -1114,6 +1114,9 @@ class TeamMemberSelectionSerialiser(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     phone = PhoneNumberField(required=False, allow_null=True, allow_blank=True)
     country = CountryField(required=False, allow_blank=True)
+    # Only meaningful for mode="create" - an "existing" selection never mutates the matched
+    # Person's picture, same non-mutation-on-reuse principle as aeroplane/club below.
+    picture = serializers.ImageField(required=False, allow_null=True)
 
 
 def _resolve_team_member(data: dict, *, allow_skip: bool) -> Optional[Person]:
@@ -1149,6 +1152,7 @@ def _resolve_team_member(data: dict, *, allow_skip: bool) -> Optional[Person]:
         email=data.get("email", ""),
         phone=data.get("phone") or None,
         country=data.get("country") or "",
+        picture=data.get("picture") or None,
         validated=True,
     )
 
@@ -1157,11 +1161,17 @@ class AeroplaneSelectionSerialiser(serializers.Serializer):
     registration = serializers.CharField()
     type = serializers.CharField(required=False, allow_blank=True)
     colour = serializers.CharField(required=False, allow_blank=True)
+    # Only applied when this registration doesn't match an existing Aeroplane - see
+    # get_or_create_aeroplane's non-mutation-on-reuse contract.
+    picture = serializers.ImageField(required=False, allow_null=True)
 
 
 class ClubSelectionSerialiser(serializers.Serializer):
     name = serializers.CharField()
     country = CountryField(required=False, allow_blank=True)
+    # Only applied when this name doesn't match an existing Club - see get_or_create_club's
+    # non-mutation-on-reuse contract.
+    logo = serializers.ImageField(required=False, allow_null=True)
 
 
 class AdminTeamRegistrationSerialiser(serializers.Serializer):
@@ -1224,10 +1234,17 @@ class AdminTeamRegistrationSerialiser(serializers.Serializer):
                 aeroplane_data = validated_data["aeroplane"]
                 aeroplane = get_or_create_aeroplane(
                     aeroplane_data["registration"],
-                    defaults={"type": aeroplane_data.get("type", ""), "colour": aeroplane_data.get("colour", "")},
+                    defaults={
+                        "type": aeroplane_data.get("type", ""),
+                        "colour": aeroplane_data.get("colour", ""),
+                        "picture": aeroplane_data.get("picture") or None,
+                    },
                 )
                 club_data = validated_data["club"]
-                club = get_or_create_club(club_data["name"], defaults={"country": club_data.get("country", "")})
+                club = get_or_create_club(
+                    club_data["name"],
+                    defaults={"country": club_data.get("country", ""), "logo": club_data.get("logo") or None},
+                )
 
                 return commit_team_registration(
                     contest,

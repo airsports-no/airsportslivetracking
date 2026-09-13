@@ -5,6 +5,7 @@ import { selectStyles } from '../../../utils/selectStyles';
 import { Copilot } from '../../mission-dashboard/types';
 import { copilotForMode, pilotForMode } from '../teamRegistrationFlow';
 import { TeamRegistrationFormValues } from '../schemas/teamRegistrationSchema';
+import ImageUploadField from './ImageUploadField';
 
 interface PersonSearchOrCreateProps {
     field: 'pilot' | 'copilot';
@@ -25,9 +26,10 @@ const PersonSearchOrCreate: React.FC<PersonSearchOrCreateProps> = ({ field, labe
         watch,
         formState: { errors },
     } = useFormContext<TeamRegistrationFormValues>();
-    const selection = watch(field) as { mode: string; person?: number };
+    const selection = watch(field) as { mode: string; person?: number; picture?: File };
     const mode = selection.mode;
     const fieldErrors = (errors[field] as any) || {};
+    const selectedExistingPerson = mode === 'existing' ? persons.find(p => p.id === selection.person) : undefined;
 
     const setMode = (nextMode: 'existing' | 'create' | 'skip') => {
         const next = field === 'pilot' ? pilotForMode(nextMode as 'existing' | 'create') : copilotForMode(nextMode as any);
@@ -54,28 +56,37 @@ const PersonSearchOrCreate: React.FC<PersonSearchOrCreateProps> = ({ field, labe
             </div>
 
             {mode === 'existing' && (
-                <label className="form-control w-full">
-                    <Select
-                        options={persons.map(p => ({ value: p.id, label: `${p.first_name} ${p.last_name} (${p.email})` }))}
-                        value={
-                            selection.person
-                                ? {
-                                      value: selection.person,
-                                      label: (() => {
-                                          const p = persons.find(item => item.id === selection.person);
-                                          return p ? `${p.first_name} ${p.last_name} (${p.email})` : String(selection.person);
-                                      })(),
-                                  }
-                                : null
-                        }
-                        onChange={selected => setValue(`${field}.person` as any, selected ? selected.value : undefined)}
-                        placeholder={`Search for ${label.toLowerCase()}`}
-                        classNamePrefix="my-react-select"
-                        styles={selectStyles}
-                    />
-                    {fieldErrors.person && <span className="text-error text-sm">{fieldErrors.person.message}</span>}
-                    <span className="text-xs text-gray-500 mt-1">Details for an existing person will not be changed.</span>
-                </label>
+                <div className="flex items-start gap-2">
+                    {selectedExistingPerson?.picture && (
+                        <img
+                            src={selectedExistingPerson.picture}
+                            alt=""
+                            className="w-8 h-8 rounded-full object-cover border border-base-300 flex-shrink-0 mt-1"
+                        />
+                    )}
+                    <label className="form-control w-full min-w-0">
+                        <Select
+                            options={persons.map(p => ({ value: p.id, label: `${p.first_name} ${p.last_name} (${p.email})` }))}
+                            value={
+                                selection.person
+                                    ? {
+                                          value: selection.person,
+                                          label: (() => {
+                                              const p = persons.find(item => item.id === selection.person);
+                                              return p ? `${p.first_name} ${p.last_name} (${p.email})` : String(selection.person);
+                                          })(),
+                                      }
+                                    : null
+                            }
+                            onChange={selected => setValue(`${field}.person` as any, selected ? selected.value : undefined)}
+                            placeholder={`Search for ${label.toLowerCase()}`}
+                            classNamePrefix="my-react-select"
+                            styles={selectStyles}
+                        />
+                        {fieldErrors.person && <span className="text-error text-sm">{fieldErrors.person.message}</span>}
+                        <span className="text-xs text-gray-500 mt-1">Details for an existing person will not be changed.</span>
+                    </label>
+                </div>
             )}
 
             {mode === 'create' && (
@@ -95,6 +106,13 @@ const PersonSearchOrCreate: React.FC<PersonSearchOrCreateProps> = ({ field, labe
                     <label className="form-control w-full">
                         <input className="input input-bordered input-sm w-full" placeholder="Phone" {...register(`${field}.phone` as any)} />
                     </label>
+                    <div className="sm:col-span-2">
+                        <ImageUploadField
+                            label="Photo"
+                            value={selection.picture}
+                            onChange={file => setValue(`${field}.picture` as any, file ?? undefined)}
+                        />
+                    </div>
                 </div>
             )}
 

@@ -8,7 +8,7 @@ export function pilotForMode(mode: PilotSelection['mode']): PilotSelection {
     if (mode === 'existing') {
         return { mode: 'existing', person: undefined as unknown as number };
     }
-    return { mode: 'create', first_name: '', last_name: '', email: '', phone: '', country: '' };
+    return { mode: 'create', first_name: '', last_name: '', email: '', phone: '', country: '', picture: undefined };
 }
 
 export function copilotForMode(mode: CopilotSelection['mode']): CopilotSelection {
@@ -18,7 +18,7 @@ export function copilotForMode(mode: CopilotSelection['mode']): CopilotSelection
     if (mode === 'existing') {
         return { mode: 'existing', person: undefined as unknown as number };
     }
-    return { mode: 'create', first_name: '', last_name: '', email: '', phone: '', country: '' };
+    return { mode: 'create', first_name: '', last_name: '', email: '', phone: '', country: '', picture: undefined };
 }
 
 // Builds AdminTeamRegistrationSerialiser's request payload from validated form values.

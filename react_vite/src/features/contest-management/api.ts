@@ -78,16 +78,50 @@ export const fetchContestTeams = async (contestId: number): Promise<ContestTeamL
     return response.json();
 };
 
+// Pulls a File out of a nested payload object (if one was attached) and removes it from that
+// object - it can't travel inside the JSON-stringified "payload" field alongside the rest of the
+// form data, so it goes into its own multipart field instead. See ContestViewSet.register_team
+// for the matching server-side reassembly.
+export function extractPictureFile<K extends string>(entity: Record<string, unknown> | undefined, key: K): File | undefined {
+    const value = entity?.[key];
+    if (value instanceof File) {
+        delete entity![key];
+        return value;
+    }
+    return undefined;
+}
+
 export const registerTeam = async (
     contestId: number,
     payload: AdminTeamRegistrationPayload
 ): Promise<ContestTeamListItem> => {
     const url = reverse('contests-register-team', contestId);
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(payload),
-    });
+    const pilotPicture = extractPictureFile(payload.pilot, 'picture');
+    const copilotPicture = extractPictureFile(payload.copilot, 'picture');
+    const aeroplanePicture = extractPictureFile(payload.aeroplane, 'picture');
+    const clubLogo = extractPictureFile(payload.club, 'logo');
+
+    let response: Response;
+    if (pilotPicture || copilotPicture || aeroplanePicture || clubLogo) {
+        const formData = new FormData();
+        formData.append('payload', JSON.stringify(payload));
+        if (pilotPicture) formData.append('pilot_picture', pilotPicture);
+        if (copilotPicture) formData.append('copilot_picture', copilotPicture);
+        if (aeroplanePicture) formData.append('aeroplane_picture', aeroplanePicture);
+        if (clubLogo) formData.append('club_logo', clubLogo);
+        response = await fetch(url, {
+            method: 'POST',
+            // No Content-Type here - the browser sets multipart/form-data with the right boundary.
+            headers: { 'X-CSRFToken': getCookie('csrftoken')! },
+            body: formData,
+        });
+    } else {
+        response = await fetch(url, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload),
+        });
+    }
     if (!response.ok) {
         throw new Error(`Failed to register team: ${await getErrorMessages(response)}`);
     }

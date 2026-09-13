@@ -1231,9 +1231,28 @@ class ContestViewSet(ModelViewSet):
         Admin team registration/edit - replaces RegisterTeamWizard. Pass "contest_team" in the
         payload to edit an existing registration (replaces that team rather than creating a new
         ContestTeam); omit it to register a new team.
+
+        A plain JSON body is the common case. When the SPA form has an optional pilot/copilot/
+        aeroplane/club picture to attach, it instead sends multipart/form-data: the non-file
+        fields as a single JSON-encoded "payload" field, plus the files under fixed keys
+        (pilot_picture/copilot_picture/aeroplane_picture/club_logo) - DRF's multipart parser has
+        no way to nest bracket-style keys into the pilot/aeroplane/club sub-dicts on its own, so
+        this stitches the files back into the right nested dict before validation.
         """
         contest = self.get_object()
-        serialiser = AdminTeamRegistrationSerialiser(data=request.data, context={"contest": contest})
+        if "payload" in request.data:
+            payload = json.loads(request.data["payload"])
+            for nested_key, file_key, image_field in (
+                ("pilot", "pilot_picture", "picture"),
+                ("copilot", "copilot_picture", "picture"),
+                ("aeroplane", "aeroplane_picture", "picture"),
+                ("club", "club_logo", "logo"),
+            ):
+                if file_key in request.FILES:
+                    payload.setdefault(nested_key, {})[image_field] = request.FILES[file_key]
+        else:
+            payload = request.data
+        serialiser = AdminTeamRegistrationSerialiser(data=payload, context={"contest": contest})
         serialiser.is_valid(raise_exception=True)
         contest_team = serialiser.save()
         return Response(

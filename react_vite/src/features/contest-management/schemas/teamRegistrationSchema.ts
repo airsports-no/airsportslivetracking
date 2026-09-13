@@ -8,6 +8,8 @@ const personCreateFields = {
     email: z.string().email('Invalid email').or(z.literal('')).optional(),
     phone: z.string().optional(),
     country: z.string().optional(),
+    // Only ever set for a newly-created person - an "existing" match is never mutated.
+    picture: z.instanceof(File).optional(),
 };
 
 export const pilotSelectionSchema = z.discriminatedUnion('mode', [
@@ -29,10 +31,14 @@ export const teamRegistrationSchema = z.object({
         registration: z.string().min(1, 'Registration is required'),
         type: z.string().optional(),
         colour: z.string().optional(),
+        // Only applied when this registration doesn't match an existing aeroplane.
+        picture: z.instanceof(File).optional(),
     }),
     club: z.object({
         name: z.string().min(1, 'Club name is required'),
         country: z.string().optional(),
+        // Only applied when this name doesn't match an existing club.
+        logo: z.instanceof(File).optional(),
     }),
     air_speed: z.coerce.number().positive('Airspeed must be positive'),
     tracking_service: z.string().min(1),
@@ -49,10 +55,10 @@ export type TeamRegistrationFormInput = z.input<typeof teamRegistrationSchema>;
 export type TeamRegistrationFormValues = z.output<typeof teamRegistrationSchema>;
 
 export const teamRegistrationDefaults: TeamRegistrationFormValues = {
-    pilot: { mode: 'create', first_name: '', last_name: '', email: '', phone: '', country: '' },
+    pilot: { mode: 'create', first_name: '', last_name: '', email: '', phone: '', country: '', picture: undefined },
     copilot: { mode: 'skip' },
-    aeroplane: { registration: '', type: '', colour: '' },
-    club: { name: '', country: '' },
+    aeroplane: { registration: '', type: '', colour: '', picture: undefined },
+    club: { name: '', country: '', logo: undefined },
     air_speed: 70,
     tracking_service: 'traccar',
     tracking_device: 'pilot_app',

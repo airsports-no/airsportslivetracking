@@ -10,14 +10,25 @@ wizard->SPA migration plan). Pins down the "real bugs fixed by this migration" l
 """
 
 import datetime
+import json
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from display.models import Aeroplane, Club, Contest, ContestTeam, Person, Team
+
+# A minimal valid 1x1 GIF - small enough to inline, and real enough for ImageField's Pillow-backed
+# validation (a plain b"fake image bytes" string, as used elsewhere in this file for non-image
+# FileFields, fails ImageField's content validation).
+_TINY_GIF = bytes.fromhex("47494638396101000100800000000000ffffff21f90401000000002c00000000010001000002024401003b")
+
+
+def _tiny_image(name: str) -> SimpleUploadedFile:
+    return SimpleUploadedFile(name, _TINY_GIF, content_type="image/gif")
 
 
 def _make_contest(owner, name="Admin registration contest"):
@@ -238,6 +249,89 @@ class TestAdminTeamRegistrationApi(TestCase):
                 format="json",
             )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+
+
+class TestAdminTeamRegistrationPictureUpload(TestCase):
+    """
+    Optional pilot/copilot/aeroplane/club picture upload - the follow-up slice restoring what
+    RegisterTeamWizard's picture-upload templates (deleted, since orphaned, in commit a97d5a0e)
+    used to offer. A plain JSON body (as in TestAdminTeamRegistrationApi above) never carries a
+    picture; this exercises the multipart "payload" + separate file fields path
+    ContestViewSet.register_team stitches back together instead - see there and
+    api.registerTeam (react_vite) for why it's shaped this way.
+    """
+
+    def setUp(self):
+        self.owner = get_user_model().objects.create_user(email="picture-owner@example.com", password="secret")
+        self.owner.user_permissions.add(Permission.objects.get(codename="add_contest"))
+        self.contest = _make_contest(self.owner, name="Picture upload contest")
+        self.client = APIClient()
+        self.client.force_authenticate(self.owner)
+        self.url = f"/api/v1/contests/{self.contest.pk}/register_team/"
+
+    def _payload(self, **overrides):
+        payload = {
+            "pilot": {"mode": "create", "first_name": "New", "last_name": "Pilot", "email": "pic-pilot@example.com"},
+            "copilot": {"mode": "skip"},
+            "aeroplane": {"registration": "LN-PIC", "type": "Cessna 172", "colour": "White"},
+            "club": {"name": "Picture Flying Club", "country": "NO"},
+            "air_speed": 90,
+            "tracking_service": "traccar",
+            "tracking_device": "pilot_app",
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_new_pilot_picture_is_saved(self):
+        response = self.client.post(
+            self.url,
+            {"payload": json.dumps(self._payload()), "pilot_picture": _tiny_image("pilot.gif")},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        pilot = Person.objects.get(email="pic-pilot@example.com")
+        self.assertTrue(pilot.picture)
+
+    def test_new_aeroplane_picture_is_saved(self):
+        response = self.client.post(
+            self.url,
+            {"payload": json.dumps(self._payload()), "aeroplane_picture": _tiny_image("plane.gif")},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        aeroplane = Aeroplane.objects.get(registration="LN-PIC")
+        self.assertTrue(aeroplane.picture)
+
+    def test_new_club_logo_is_saved(self):
+        response = self.client.post(
+            self.url,
+            {"payload": json.dumps(self._payload()), "club_logo": _tiny_image("logo.gif")},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        club = Club.objects.get(name="Picture Flying Club")
+        self.assertTrue(club.logo)
+
+    def test_reusing_an_existing_aeroplane_does_not_attach_a_new_picture(self):
+        # Same non-mutation-on-reuse contract as the plain-JSON test above - a picture attached
+        # alongside a registration/name that matches an existing row must be silently ignored,
+        # not overwrite that (possibly shared) row's existing picture.
+        existing = Aeroplane.objects.create(registration="LN-PIC")
+        self.assertFalse(existing.picture)
+
+        response = self.client.post(
+            self.url,
+            {"payload": json.dumps(self._payload()), "aeroplane_picture": _tiny_image("plane.gif")},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        existing.refresh_from_db()
+        self.assertFalse(existing.picture)
+
+    def test_a_plain_json_request_with_no_files_still_works(self):
+        # The common case (no picture attached at all) must keep working unchanged.
+        response = self.client.post(self.url, self._payload(), format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
 
 
 class TestImportTeamsApi(TestCase):
