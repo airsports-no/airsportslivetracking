@@ -87,6 +87,7 @@ const ContestDashboard = () => {
     const [editingContestTeam, setEditingContestTeam] = useState<ContestTeamListItem | 'new' | null>(null);
     const [showImportTeams, setShowImportTeams] = useState(false);
     const [permissionGrants, setPermissionGrants] = useState<ContestPermissionGrant[]>([]);
+    const [permissionsLoading, setPermissionsLoading] = useState(false);
     const [permissionsError, setPermissionsError] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -115,6 +116,10 @@ const ContestDashboard = () => {
     const refreshPermissions = () => {
         if (!contestId) return;
         const requestedContestId = contestId;
+        // Clear the previous contest's rows immediately - otherwise they stay rendered (and
+        // actionable) under the new contest's heading until this fetch resolves.
+        setPermissionGrants([]);
+        setPermissionsLoading(true);
         setPermissionsError(null);
         fetchContestPermissions(Number(requestedContestId))
             .then(result => {
@@ -122,6 +127,9 @@ const ContestDashboard = () => {
             })
             .catch(err => {
                 if (requestedContestId === latestTeamsContestId.current) setPermissionsError((err as Error).message);
+            })
+            .finally(() => {
+                if (requestedContestId === latestTeamsContestId.current) setPermissionsLoading(false);
             });
     };
 
@@ -324,7 +332,7 @@ const ContestDashboard = () => {
                 document.body
             )}
             {showRegistrationForm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <ContestRegistrationForm
                         contest={contest}
                         myContestTeams={myContestTeams}
@@ -337,7 +345,7 @@ const ContestDashboard = () => {
                 </div>
             )}
             {showScheduleForm && (
-                 <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+                 <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <ScheduleFlightForm
                         contest={contest}
                         navigationTaskId={showScheduleForm.pk}
@@ -355,7 +363,7 @@ const ContestDashboard = () => {
                 </div>
             )}
             {viewingScoresForTask && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <div className="card bg-base-100 shadow-xl max-w-4xl w-full">
                         <div className="card-body">
                             {loadingTaskScores ? (
@@ -588,6 +596,8 @@ const ContestDashboard = () => {
                             {permissionsError && <div className="alert alert-error mb-2">{permissionsError}</div>}
                             <ContestPermissionsPanel
                                 grants={permissionGrants}
+                                currentUserId={document.configuration.userId ?? -1}
+                                loading={permissionsLoading}
                                 onAdd={async (identifier, level) => {
                                     await addContestPermission(contest.id, identifier, level);
                                     refreshPermissions();

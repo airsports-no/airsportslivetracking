@@ -271,6 +271,17 @@ class TestImportTeamsApi(TestCase):
             ContestTeam.objects.filter(pk=self.source_contest_team.pk, contest=self.source_contest).exists()
         )
 
+    def test_explicit_empty_team_ids_imports_nothing(self):
+        # team_ids=[] means "select none of them" - it must not be treated the same as omitting
+        # team_ids entirely (which means "import everything").
+        response = self.client.post(
+            f"/api/v1/contests/{self.target_contest.pk}/import_teams/",
+            {"source_contest": self.source_contest.pk, "team_ids": []},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        self.assertFalse(ContestTeam.objects.filter(contest=self.target_contest).exists())
+
     def test_import_teams_requires_source_contest(self):
         response = self.client.post(
             f"/api/v1/contests/{self.target_contest.pk}/import_teams/",

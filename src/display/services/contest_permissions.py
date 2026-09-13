@@ -54,7 +54,12 @@ def resolve_permission_target_user(identifier: str) -> MyUser:
     return user
 
 
-def set_contest_permission_level(contest: Contest, user: MyUser, level: str) -> None:
+def set_contest_permission_level(contest: Contest, user: MyUser, level: str, acting_user: MyUser) -> None:
+    # Same self-lockout protection as remove_contest_permission_grant, but for the PUT path:
+    # dropping your own level to something without change_contest is equivalent to removing
+    # yourself, just one step at a time.
+    if user.pk == acting_user.pk and "change_contest" not in CONTEST_PERMISSION_MAP[level]:
+        raise ValidationError("You cannot remove your own management permissions for this contest.")
     for permission in CONTEST_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, contest)
     for permission in CONTEST_PERMISSION_MAP[level]:

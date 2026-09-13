@@ -4,6 +4,7 @@ declare global {
       is_superuser: boolean;
       isAuthenticated: boolean;
       isOrganizer: boolean;
+      userId: number | null;
       showCimaTaskTypes?: boolean;
       visibleTaskTypeGroups?: string[];
       gateCimaTaskVisibility?: boolean;

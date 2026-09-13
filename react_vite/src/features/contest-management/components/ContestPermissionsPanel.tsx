@@ -3,7 +3,8 @@ import { ContestPermissionGrant } from '../../mission-dashboard/api';
 
 interface Props {
     grants: ContestPermissionGrant[];
-    currentUserId?: number;
+    currentUserId: number;
+    loading?: boolean;
     onAdd: (identifier: string, level: string) => Promise<void>;
     onChange: (userId: number, level: string) => Promise<void>;
     onRemove: (userId: number) => Promise<void>;
@@ -12,7 +13,7 @@ interface Props {
 const LEVELS = ['nothing', 'view', 'change', 'delete'] as const;
 
 // Modeled on ManagedClubPanel.tsx - the closest existing analogue for "who can manage this thing".
-const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, onAdd, onChange, onRemove }) => {
+const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, loading, onAdd, onChange, onRemove }) => {
     const [identifier, setIdentifier] = React.useState('');
     const [level, setLevel] = React.useState<string>('view');
     const [busy, setBusy] = React.useState(false);
@@ -61,6 +62,10 @@ const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, onAdd
             <div className="card-body p-5">
                 <h3 className="card-title text-lg">Permissions</h3>
                 {error && <div className="alert alert-error text-sm py-2">{error}</div>}
+                {loading ? (
+                    <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                <>
                 <div className="space-y-2">
                     {grants.map(grant => {
                         const isSelf = grant.user_id === currentUserId;
@@ -107,6 +112,8 @@ const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, onAdd
                         Add
                     </button>
                 </div>
+                </>
+                )}
             </div>
         </div>
     );

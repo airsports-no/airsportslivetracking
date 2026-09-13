@@ -20,21 +20,17 @@ def fix_existing_rows(apps, schema_editor):
         )
 
 
-def revert_existing_rows(apps, schema_editor):
-    ContestTeam = apps.get_model("display", "ContestTeam")
-    Contestant = apps.get_model("display", "Contestant")
-
-    ContestTeam.objects.filter(tracking_device=_NEW_VALUE).update(tracking_device=_OLD_VALUE)
-    Contestant.objects.filter(tracking_device=_NEW_VALUE).update(tracking_device=_OLD_VALUE)
-
-
 class Migration(migrations.Migration):
     dependencies = [
         ("display", "0178_aeroplane_registration_club_name_unique"),
     ]
 
     operations = [
-        migrations.RunPython(fix_existing_rows, revert_existing_rows),
+        # No-op reverse: once forward has run, _NEW_VALUE is the correct/canonical value going
+        # forward, so any row holding it (fixed by this migration, or created/edited afterwards)
+        # is indistinguishable from a legitimately-correct row - a reverse rewrite would corrupt
+        # the latter.
+        migrations.RunPython(fix_existing_rows, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="contestteam",
             name="tracking_device",

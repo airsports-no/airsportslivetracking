@@ -105,17 +105,25 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
             <div>
                 <div className="label"><span className="label-text">Publicity</span></div>
                 <div className="join">
-                    {(['public', 'unlisted', 'private'] as const).map(visibility => (
-                        <button
-                            key={visibility}
-                            type="button"
-                            disabled={sharing}
-                            className={`btn btn-sm join-item ${contest.is_public && visibility === 'public' ? 'btn-active' : ''}`}
-                            onClick={() => handlePublicityChange(visibility)}
-                        >
-                            {visibility}
-                        </button>
-                    ))}
+                    {/* Mirrors Contest.share_string: public+featured = public, public+unfeatured = unlisted, else private. */}
+                    {(() => {
+                        const currentVisibility = contest.is_public
+                            ? contest.is_featured
+                                ? 'public'
+                                : 'unlisted'
+                            : 'private';
+                        return (['public', 'unlisted', 'private'] as const).map(visibility => (
+                            <button
+                                key={visibility}
+                                type="button"
+                                disabled={sharing}
+                                className={`btn btn-sm join-item ${visibility === currentVisibility ? 'btn-active' : ''}`}
+                                onClick={() => handlePublicityChange(visibility)}
+                            >
+                                {visibility}
+                            </button>
+                        ));
+                    })()}
                 </div>
             </div>
 

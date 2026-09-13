@@ -956,7 +956,7 @@ class ContestViewSet(ModelViewSet):
         serialiser = ContestPermissionGrantCreateSerialiser(data=request.data)
         serialiser.is_valid(raise_exception=True)
         target_user = serialiser.context["target_user"]
-        set_contest_permission_level(contest, target_user, serialiser.validated_data["level"])
+        set_contest_permission_level(contest, target_user, serialiser.validated_data["level"], request.user)
         return Response(
             {"user_id": target_user.pk, "email": target_user.email, "level": serialiser.validated_data["level"]},
             status=status.HTTP_201_CREATED,
@@ -976,7 +976,7 @@ class ContestViewSet(ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
         serialiser = ContestPermissionGrantCreateSerialiser(data={**request.data, "identifier": str(user_pk)})
         serialiser.is_valid(raise_exception=True)
-        set_contest_permission_level(contest, target_user, serialiser.validated_data["level"])
+        set_contest_permission_level(contest, target_user, serialiser.validated_data["level"], request.user)
         return Response(
             {"user_id": target_user.pk, "email": target_user.email, "level": serialiser.validated_data["level"]},
             status=status.HTTP_200_OK,
@@ -1270,7 +1270,7 @@ class ContestViewSet(ModelViewSet):
             "team__crew__member1", "team__crew__member2", "team__aeroplane", "team__club"
         )
         team_ids = request.data.get("team_ids")
-        if team_ids:
+        if team_ids is not None:
             contest_teams = contest_teams.filter(team_id__in=team_ids)
 
         try:

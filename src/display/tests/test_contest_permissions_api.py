@@ -94,6 +94,24 @@ class TestContestPermissionsApi(TestCase):
         emails = {row["email"] for row in self.client.get(self.list_url).data}
         self.assertIn(self.owner.email, emails)
 
+    def test_self_downgrade_via_put_is_rejected(self):
+        # PUT can drop your own level to "view"/"nothing" one step at a time - same lockout risk
+        # as DELETE, just slower, so it needs the same guard.
+        response = self.client.put(self._detail_url(self.owner.pk), {"level": "view"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        emails_and_levels = {(row["email"], row["level"]) for row in self.client.get(self.list_url).data}
+        self.assertIn((self.owner.email, "delete"), emails_and_levels)
+
+    def test_self_change_to_another_managing_level_via_put_is_allowed(self):
+        # "change" still carries change_contest, so it's not a lockout - only levels below that
+        # (view/nothing) are blocked for the acting user.
+        response = self.client.put(self._detail_url(self.owner.pk), {"level": "change"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        emails_and_levels = {(row["email"], row["level"]) for row in self.client.get(self.list_url).data}
+        self.assertIn((self.owner.email, "change"), emails_and_levels)
+
     def test_non_editor_gets_404_not_403(self):
         # Same get_queryset scoping behavior already established for every other ContestViewSet
         # action: a user with no view_contest on a non-public contest never learns it exists.
