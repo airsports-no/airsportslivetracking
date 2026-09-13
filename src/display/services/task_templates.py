@@ -58,13 +58,13 @@ def no_compatible_task_types_message(user, editable_route) -> str | None:
         legacy_key = LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(key)
         if legacy_key is None:
             continue
-        candidates.append((label, get_blocking_reasons(primitives, legacy_key)))
+        candidates.append((label, get_blocking_reasons(primitives, legacy_key, editable_route)))
     for definition in TASK_SUBTYPE_DEFINITIONS.values():
         if definition.key.startswith("legacy_"):
             continue
         if not can_user_see_task_subtype(user, task_subtype=definition.key):
             continue
-        candidates.append((definition.display_name, get_blocking_reasons(primitives, definition.key)))
+        candidates.append((definition.display_name, get_blocking_reasons(primitives, definition.key, editable_route)))
     if not candidates:
         return None
     label, reasons = min(candidates, key=lambda item: len(item[1]))

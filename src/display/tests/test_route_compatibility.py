@@ -22,6 +22,7 @@ from display.utilities.cima_task_type_definitions import (
     LEGACY_ANR_CORRIDOR,
     LEGACY_LANDING,
     LEGACY_PRECISION,
+    LIMITED_FUEL_TURNPOINT_HUNT,
     PRECISION_NAVIGATION,
 )
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
@@ -160,6 +161,45 @@ class TestRouteCompatibilityRuleset(TestCase):
         self.assertIn("Missing required route feature: circle_entry_marker", reasons)
         self.assertIn("Missing required route feature: circle_exit_marker", reasons)
         self.assertNotIn(CIRCLE, get_compatible_task_subtypes(route))
+
+    def test_turnpoint_hunt_structural_rules_apply_to_the_canonical_compatibility_set(self):
+        # get_blocking_reasons alone only checks primitive presence - turnpoint_hunt_structural_
+        # errors (no route backbone, exactly three known_time_gate markers) must also be reflected
+        # in get_compatible_task_subtypes itself (the route editor compatibility API, persisted
+        # EditableRoute.compatible_task_types, and the task-template picker all consult this), not
+        # just the separate pre-creation API check.
+        def turnpoint_hunt_route(*, with_backbone: bool, known_time_gate_count: int) -> EditableRoute:
+            features = []
+            if with_backbone:
+                features.append(TRACK_FEATURE)
+            features.append(
+                {
+                    "type": "Feature",
+                    "properties": {"id": "ctp-1", "name": "CTP1", "featureType": "catalogue_turnpoint"},
+                    "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                }
+            )
+            for index in range(known_time_gate_count):
+                features.append(
+                    {
+                        "type": "Feature",
+                        "properties": {"id": f"ktg-{index}", "name": f"KTG{index}", "featureType": "known_time_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.1 + index * 0.1, 60.1 + index * 0.1]},
+                    }
+                )
+            return EditableRoute.objects.create(
+                name=f"Turnpoint hunt backbone={with_backbone} gates={known_time_gate_count}",
+                route={"type": "FeatureCollection", "features": features},
+            )
+
+        route_with_backbone = turnpoint_hunt_route(with_backbone=True, known_time_gate_count=3)
+        self.assertNotIn(LIMITED_FUEL_TURNPOINT_HUNT, get_compatible_task_subtypes(route_with_backbone))
+
+        route_with_wrong_gate_count = turnpoint_hunt_route(with_backbone=False, known_time_gate_count=1)
+        self.assertNotIn(LIMITED_FUEL_TURNPOINT_HUNT, get_compatible_task_subtypes(route_with_wrong_gate_count))
+
+        valid_route = turnpoint_hunt_route(with_backbone=False, known_time_gate_count=3)
+        self.assertIn(LIMITED_FUEL_TURNPOINT_HUNT, get_compatible_task_subtypes(valid_route))
 
     def test_unsaved_route_with_no_features_key_returns_no_primitives(self):
         # Model default for `route` is an empty list, not {"features": []} - must not crash.

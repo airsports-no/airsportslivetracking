@@ -92,11 +92,21 @@ def extract_route_primitives(editable_route) -> dict[str, list]:
     }
 
 
-def get_blocking_reasons(primitives: dict[str, list], subtype_key: str) -> list[str]:
+def get_blocking_reasons(primitives: dict[str, list], subtype_key: str, editable_route=None) -> list[str]:
     """
     Return a list of human-readable reasons ``subtype_key`` is incompatible with a route whose
     primitives are ``primitives`` (as returned by extract_route_primitives). Empty list means
     compatible.
+
+    ``editable_route``, when given, additionally applies subtype-specific structural rules beyond
+    mere primitive presence (currently just turnpoint_hunt_structural_errors, for
+    TURNPOINT_HUNT/LIMITED_FUEL_TURNPOINT_HUNT) - this is the single canonical compatibility
+    calculation, consulted by get_compatible_task_subtypes (route editor compatibility API,
+    persisted EditableRoute.compatible_task_types, task-template picker) and
+    assert_route_compatible_with_task_type (the API creation path) alike, so they can't drift
+    apart. Optional (defaulting to None, skipping the structural checks) only so existing callers
+    that only have primitives on hand keep working; every caller that has the route available
+    should pass it.
     """
     definition = TASK_SUBTYPE_DEFINITIONS.get(subtype_key)
     if definition is None:
@@ -108,6 +118,8 @@ def get_blocking_reasons(primitives: dict[str, list], subtype_key: str) -> list[
     for primitive in definition.forbidden_primitives:
         if primitives.get(primitive):
             reasons.append(f"Route feature not allowed for this task type: {primitive}")
+    if subtype_key in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
+        reasons = reasons + turnpoint_hunt_structural_errors(editable_route, primitives)
     return reasons
 
 
@@ -118,7 +130,7 @@ def get_compatible_task_subtypes(editable_route) -> list[str]:
     filter task type / route choices against.
     """
     primitives = extract_route_primitives(editable_route)
-    return [key for key in TASK_SUBTYPE_DEFINITIONS if not get_blocking_reasons(primitives, key)]
+    return [key for key in TASK_SUBTYPE_DEFINITIONS if not get_blocking_reasons(primitives, key, editable_route)]
 
 
 def infer_intended_task_subtypes(editable_route, active_template_subtype: str | None = None) -> list[str]:
@@ -174,7 +186,10 @@ def turnpoint_hunt_structural_errors(editable_route, primitives: dict) -> list[s
     known_time_gate markers, that TaskCompiler's stricter check would then reject anyway once the
     task actually tried to compile.
     """
-    if editable_route is None:
+    # Mirrors the guard in extract_route_primitives/EditableRoute.save(): a brand new/unsaved
+    # route (model default is an empty list, not {"features": []}) crashes get_track() otherwise
+    # (EditableRoute.get_features_type indexes self.route["features"] unconditionally).
+    if editable_route is None or not isinstance(editable_route.route, dict) or "features" not in editable_route.route:
         return []
     errors = []
     if editable_route.get_track() is not None:
@@ -198,9 +213,7 @@ def assert_route_compatible_with_task_type(editable_route, task_type: str, task_
     """
     subtype_key = effective_subtype_key(task_type, task_subtype)
     primitives = extract_route_primitives(editable_route)
-    reasons = get_blocking_reasons(primitives, subtype_key)
-    if subtype_key in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
-        reasons = reasons + turnpoint_hunt_structural_errors(editable_route, primitives)
+    reasons = get_blocking_reasons(primitives, subtype_key, editable_route)
     if reasons:
         raise ValidationError(
             f"Route '{editable_route.name}' is not compatible with the selected task type: " + "; ".join(reasons)

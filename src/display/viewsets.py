@@ -506,7 +506,7 @@ class EditableRouteViewSet(ModelViewSet):
         subtypes = []
         compatible_task_types = []
         for definition in TASK_SUBTYPE_DEFINITIONS.values():
-            missing_reasons = get_blocking_reasons(primitives, definition.key)
+            missing_reasons = get_blocking_reasons(primitives, definition.key, unsaved_route)
             if not missing_reasons:
                 compatible_task_types.append(definition.key)
             subtypes.append(
