@@ -483,7 +483,16 @@ class RouteToTaskWizard(GuardianPermissionRequiredMixin, SessionWizardOverrideVi
         if selected_task["contest"] is None:
             contest_data = dict(self.get_cleaned_data_for_step("contest_creation"))
             initial_token_grant = contest_data.pop("initial_token_grant", None)
+            # ContestForm.clean() derives country_code from location and adds it to cleaned_data
+            # for ContestCreateView/ContestUpdateView (form.py's country field) to consume - it is
+            # not itself a Contest model field (that one's called country), so it can't be passed
+            # into the constructor. Mirror how those two views apply it: pop it here and assign it
+            # to the instance after creation, instead of crashing with an unexpected-kwarg TypeError.
+            country_code = contest_data.pop("country_code", None)
             contest = Contest.objects.create(**contest_data)
+            if country_code:
+                contest.country = country_code
+                contest.save(update_fields=["country"])
             contest.initialise(self.request.user)
             if initial_token_grant is not None:
                 assign_token_to_contest(contest, self.request.user, initial_token_grant.id)
