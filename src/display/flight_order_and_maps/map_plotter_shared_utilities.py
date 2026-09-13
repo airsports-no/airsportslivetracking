@@ -292,7 +292,18 @@ def map_source_definition_to_payload(definition: dict, origin: str = "builtin") 
 
 
 def get_map_choices() -> list[tuple[str, str]]:
-    return [(definition["key"], definition["label"]) for definition in get_builtin_map_source_definitions()]
+    # OpenAIP is overlay-only (is_overlay=True, min_zoom=4/max_zoom=14) - sparse aviation symbols
+    # on a mostly-transparent background, meant to be drawn on top of a real base map via the
+    # separate include_openaip_overlay checkbox (plot_route adds it as a second ax.add_image call).
+    # Picking it as the sole map_source produces a near-blank PDF page with no real base imagery
+    # and no exception - get_available_map_source_definitions_for_navigation_task already excludes
+    # it from the interactive map/route editor's base-layer choices for the same reason; mirror
+    # that here for the flight-order PDF map form.
+    return [
+        (definition["key"], definition["label"])
+        for definition in get_builtin_map_source_definitions()
+        if definition["key"] != "openaip"
+    ]
 
 
 def country_code_to_map_source(country_code: str) -> str:

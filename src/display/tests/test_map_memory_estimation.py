@@ -18,16 +18,25 @@ Two fixes since address most of the real underlying cost (see map_plotter.py for
 For this same task, that took the actual measured peak from ~3320MB down to ~1092MB.
 TILE_MEMORY_OVERHEAD_MULTIPLIER is calibrated against that post-fix number, since it's what
 plot_route() now actually does.
+
+MEMORY_THRESHOLD_MB was later raised from 750 to 1500 after a separate production investigation:
+one user was hitting the 750MB threshold 38 times in 26h, always at zoom_level=14 (the form's
+max), across routes whose tiles_mb alone ranged ~770-1134MB regardless of DPI or page size - i.e.
+the threshold was blocking routine zoom-14 use for any but a small-area task, not just the
+originally-profiled worst case. 1500 covers that range (and the original 792-tile/~1092MB
+calibration case below, which is now allowed) while keeping ~1.5GB of headroom under
+tracker-celery's 3Gi pod memory limit.
 """
 
 from display.flight_order_and_maps.map_plotter import (
     estimate_memory_usage,
     estimate_tile_memory_mb,
+    memory_estimation_exceeded_message,
     total_tile_count,
 )
 
 # Mirrors plot_route()'s local MEMORY_THRESHOLD_MB safety threshold.
-MEMORY_THRESHOLD_MB = 750
+MEMORY_THRESHOLD_MB = 1500
 
 # The real production configuration that OOM-crashed a tracker-celery pod.
 REAL_WORLD_TOTAL_TILES = 792
@@ -52,15 +61,15 @@ class TestTileMemoryEstimation:
         assert round(naive_estimated_mb) == 264
 
     def test_calibrated_estimate_is_close_to_the_real_post_fix_measurement(self):
-        # With both fixes applied, this configuration's actual peak (~1092MB) has dropped below
-        # the old measured peak but is still well above the 750MB safety threshold - i.e. this
-        # specific "zoom to fit" A3/300dpi configuration should still be refused, just by a
-        # narrower and more honest margin than before either fix existed.
+        # With both fixes applied, this configuration's actual peak (~1092MB) is now comfortably
+        # under the (later-raised) 1500MB threshold - this specific "zoom to fit" A3/300dpi
+        # configuration is allowed today, since it's been measured safe with real headroom to
+        # spare under tracker-celery's 3Gi pod limit.
         final_image_mb = estimate_memory_usage(REAL_WORLD_FIGURE_WIDTH_CM, REAL_WORLD_FIGURE_HEIGHT_CM, REAL_WORLD_DPI)
         tiles_mb = estimate_tile_memory_mb(REAL_WORLD_TOTAL_TILES)
         estimated_mb = final_image_mb + tiles_mb
 
-        assert estimated_mb > MEMORY_THRESHOLD_MB
+        assert estimated_mb < MEMORY_THRESHOLD_MB
         # Within 10% of the real post-fix measured peak - calibrated, not wildly over- or
         # under-shooting.
         assert abs(estimated_mb - REAL_WORLD_MEASURED_PEAK_MB) / REAL_WORLD_MEASURED_PEAK_MB < 0.10
@@ -75,6 +84,31 @@ class TestTileMemoryEstimation:
         final_image_mb = estimate_memory_usage(29.7, 21, 150)
         tiles_mb = estimate_tile_memory_mb(20)
         assert final_image_mb + tiles_mb < MEMORY_THRESHOLD_MB
+
+    def test_zoom_14_at_200_dpi_fits_under_the_raised_threshold_for_the_worst_observed_route(self):
+        # Direct regression test for the production complaint that prompted raising the
+        # threshold: zoom_level=14 at a normal page size/DPI, for the largest route extent
+        # actually observed (1134MB tiles - the worst of the 38 real failures) must now pass.
+        final_image_mb = estimate_memory_usage(REAL_WORLD_FIGURE_WIDTH_CM, REAL_WORLD_FIGURE_HEIGHT_CM, dpi=200)
+        worst_observed_tiles_mb = 1134
+        assert final_image_mb + worst_observed_tiles_mb < MEMORY_THRESHOLD_MB
+
+
+class TestMemoryEstimationExceededMessage:
+    def test_message_names_the_actual_zoom_level(self):
+        # Regression test: the pre-fix message said only "reduce the map size, choose a smaller
+        # scale, or lower the DPI" - it never mentioned zoom, even though tiles_mb (usually the
+        # dominant term) depends only on zoom level and the route's geographic extent, not DPI or
+        # page size. Confirmed against real production Sentry data: the same user hit this 38
+        # times in 26h, always at zoom_level=14, with DPI/page size varying every time - changing
+        # those never would have helped.
+        message = memory_estimation_exceeded_message(
+            estimated_mb=1084, final_image_mb=28, tiles_mb=1056, threshold_mb=750, zoom_level=14
+        )
+
+        assert "zoom level (currently 14)" in message
+        assert "1084MB" in message
+        assert "750MB" in message
 
 
 class TestTotalTileCount:

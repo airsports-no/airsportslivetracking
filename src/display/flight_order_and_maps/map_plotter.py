@@ -8,6 +8,20 @@ class MemoryEstimationExceededError(ValueError):
     pass
 
 
+def memory_estimation_exceeded_message(estimated_mb, final_image_mb, tiles_mb, threshold_mb, zoom_level) -> str:
+    # tiles_mb depends only on zoom level and the route's geographic extent, not DPI or page size
+    # - for anything but a small-area task, tile memory (not the final image) is almost always
+    # what pushes this over the limit (confirmed against real production Sentry data: the same
+    # user hit this 38 times in 26h, always at zoom_level=14, varying DPI/page size). Name zoom
+    # level explicitly instead of leaving it implicit in "map size", so the user knows which
+    # setting to actually change.
+    return (
+        f"Estimated memory usage of {estimated_mb:.0f}MB ({final_image_mb:.0f}MB for map + {tiles_mb:.0f}MB for tiles) exceeds the limit of {threshold_mb}MB. "
+        f"Please lower the map zoom level (currently {zoom_level}) - this is usually the biggest "
+        "lever for tile memory - or reduce the map size, choose a smaller scale, or lower the DPI."
+    )
+
+
 def estimate_memory_usage(figure_width_cm, figure_height_cm, dpi):
     """Estimates memory usage in MB for an RGBA image based on output dimensions and DPI."""
     figure_width_inches = figure_width_cm / 2.54
@@ -1598,7 +1612,13 @@ def plot_route(
             elif provider == "cyclosm":
                 imagery = CyclOSM(desired_tile_form="RGBA", user_agent="airsports.no, support@airsports.no")
             elif provider == "openaip":
-                imagery = OpenAIP(desired_tile_form="RGBA")
+                # OpenAIP is overlay-only (sparse aviation symbols on a mostly-transparent
+                # background, min_zoom=4/max_zoom=14) - it's meant to be layered on top of a real
+                # base map via include_openaip_overlay below, not used as the sole imagery. Using
+                # it as the base silently produced a near-blank page with no exception raised.
+                # Raising here routes through the existing "unavailable/invalid provider -> fall
+                # back to OSM" handling below, same as any other unusable map_source.
+                raise ValueError(f"OpenAIP is an overlay-only map source, not a valid map background: {map_source}")
             elif provider == "mbtiles":
                 imagery = LocalMapServer(map_source, desired_tile_form="RGBA")
                 attribution = source["attribution"] or MAP_ATTRIBUTIONS.get(map_source, "Missing")
@@ -1883,15 +1903,21 @@ def plot_route(
     tiles_mb = estimate_tile_memory_mb(total_tiles)
 
     estimated_mb = final_image_mb + tiles_mb
-    MEMORY_THRESHOLD_MB = 750
+    # Raised from 750 after a production investigation (Sentry: one user hit the old threshold 38
+    # times in 26h, always at zoom_level=14 - the form's max - across routes whose tiles_mb alone
+    # ranged ~770-1134MB, regardless of DPI/page size). 1500 comfortably covers that range plus the
+    # 792-tile/A3/300dpi config this module's calibration was originally profiled against (~1092MB
+    # measured post-fix peak, see test_map_memory_estimation.py) while leaving ~1.5GB of headroom
+    # under tracker-celery's 3Gi pod memory limit (--concurrency 1, so no concurrent task shares
+    # that headroom while a map renders).
+    MEMORY_THRESHOLD_MB = 1500
     logger.info(
         f"Estimated memory usage: {estimated_mb:.0f}MB ({final_image_mb:.0f}MB for map + {tiles_mb:.0f}MB for tiles)"
     )
 
     if estimated_mb > MEMORY_THRESHOLD_MB:
         raise MemoryEstimationExceededError(
-            f"Estimated memory usage of {estimated_mb:.0f}MB ({final_image_mb:.0f}MB for map + {tiles_mb:.0f}MB for tiles) exceeds the limit of {MEMORY_THRESHOLD_MB}MB. "
-            "Please reduce the map size, choose a smaller scale, or lower the DPI."
+            memory_estimation_exceeded_message(estimated_mb, final_image_mb, tiles_mb, MEMORY_THRESHOLD_MB, zoom_level)
         )
 
     ax.set_extent(extent, crs=utm)

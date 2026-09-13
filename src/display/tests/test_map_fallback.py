@@ -129,6 +129,28 @@ class MapFallbackTests(TestCase):
 
         mock_airsports_osm.assert_called()
 
+    @patch('display.flight_order_and_maps.map_plotter.OpenAIP')
+    def test_plot_route_refuses_openaip_as_base_map_and_falls_back_to_osm(self, mock_openaip):
+        # Regression test: OpenAIP is overlay-only (sparse aviation symbols on a mostly-transparent
+        # background) - it must never be instantiated as the primary imagery, even if map_source
+        # ends up set to "openaip" (e.g. a config saved before this fix, or a direct API call
+        # bypassing the form's now-filtered choices). Mirrors test_plot_route_falls_back_to_osm's
+        # mocking style.
+        from display.flight_order_and_maps.map_constants import A4
+        with patch('display.flight_order_and_maps.map_plotter.AirsportsOSM') as mock_airsports_osm, \
+             patch('display.flight_order_and_maps.map_plotter.plt.figure'), \
+             patch('display.flight_order_and_maps.map_plotter.ccrs.PlateCarree'), \
+             patch('display.utilities.coordinate_utilities.calculate_bounding_box', return_value=(0, 1, 0, 1)):
+
+            mock_airsports_osm.return_value = MagicMock()
+            try:
+                plot_route(self.task, A4, map_source="openaip")
+            except Exception:
+                pass
+
+        mock_openaip.assert_not_called()
+        mock_airsports_osm.assert_called()
+
     def test_airsports_osm_abandons_background_after_repeated_429s(self):
         imagery = AirsportsOSM(user_agent="airsports.no, support@airsports.no")
 
