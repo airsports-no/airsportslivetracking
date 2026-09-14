@@ -256,6 +256,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "display.context_processors.firebase_settings",
                 "display.context_processors.sentry_settings",
+                "display.context_processors.user_profile",
             ],
         },
     },
