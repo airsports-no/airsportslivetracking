@@ -15,7 +15,7 @@ import PublicityIcon from './components/PublicityIcon';
 import { HelpCircle } from 'lucide-react'; // Import HelpCircle
 import { reverse, generatePath } from '../../urls';
 import { useMissionDashboardStore } from './store';
-import { canManageContest } from './permissions';
+import { canManageContest, hasCapacityHeadroomForCurrentUsage } from './permissions';
 import { fetchNavigationTask } from '../competition-map/api';
 import { formatDateInterval } from '../../utils';
 import NavigationTaskCreationFlow from '../contest-management/components/NavigationTaskCreationFlow';
@@ -96,6 +96,7 @@ const ContestDashboard = () => {
     const latestTeamsContestId = useRef(contestId);
 
     const canManageThisContest = canManageContest(contest);
+    const hasTokenCapacityHeadroom = hasCapacityHeadroomForCurrentUsage(contest?.access_status);
 
     const refreshTeams = () => {
         if (!contestId) return;
@@ -553,18 +554,20 @@ const ContestDashboard = () => {
                                     </div>
                                 </div>
 
-                                <ContestTokenPanel
-                                    grants={contest.available_token_grants}
-                                    currentTokenGrantId={contest.access_status?.token_grant_id}
-                                    onAssign={async tokenGrantId => {
-                                        await assignContestToken(contest.id, tokenGrantId);
-                                        fetchContest(contest.id, true);
-                                    }}
-                                    onReplace={async tokenGrantId => {
-                                        await replaceContestToken(contest.id, tokenGrantId);
-                                        fetchContest(contest.id, true);
-                                    }}
-                                />
+                                {!hasTokenCapacityHeadroom && (
+                                    <ContestTokenPanel
+                                        grants={contest.available_token_grants}
+                                        currentTokenGrantId={contest.access_status?.token_grant_id}
+                                        onAssign={async tokenGrantId => {
+                                            await assignContestToken(contest.id, tokenGrantId);
+                                            fetchContest(contest.id, true);
+                                        }}
+                                        onReplace={async tokenGrantId => {
+                                            await replaceContestToken(contest.id, tokenGrantId);
+                                            fetchContest(contest.id, true);
+                                        }}
+                                    />
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
