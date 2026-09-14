@@ -535,21 +535,36 @@ const ContestDashboard = () => {
                     {canManageThisContest && (
                         <div className="mb-8">
                             <h2 className="text-xl font-bold mb-4">Manage this contest</h2>
-                            <div className="card bg-base-100 shadow">
-                                <div className="card-body">
-                                    <h3 className="card-title">Contest tools</h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>
-                                            Add navigation task
-                                        </button>
-                                        <button className="btn btn-sm" onClick={() => setShowSettingsModal(true)}>
-                                            Contest settings
-                                        </button>
-                                        <button className="btn btn-sm" onClick={() => setShowPermissionsModal(true)}>
-                                            Permissions{permissionGrants.length > 0 ? ` (${permissionGrants.length})` : ''}
-                                        </button>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="card bg-base-100 shadow">
+                                    <div className="card-body">
+                                        <h3 className="card-title">Contest tools</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>
+                                                Add navigation task
+                                            </button>
+                                            <button className="btn btn-sm" onClick={() => setShowSettingsModal(true)}>
+                                                Contest settings
+                                            </button>
+                                            <button className="btn btn-sm" onClick={() => setShowPermissionsModal(true)}>
+                                                Permissions{permissionGrants.length > 0 ? ` (${permissionGrants.length})` : ''}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
+
+                                <ContestTokenPanel
+                                    grants={contest.available_token_grants}
+                                    currentTokenGrantId={contest.access_status?.token_grant_id}
+                                    onAssign={async tokenGrantId => {
+                                        await assignContestToken(contest.id, tokenGrantId);
+                                        fetchContest(contest.id, true);
+                                    }}
+                                    onReplace={async tokenGrantId => {
+                                        await replaceContestToken(contest.id, tokenGrantId);
+                                        fetchContest(contest.id, true);
+                                    }}
+                                />
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
@@ -585,19 +600,6 @@ const ContestDashboard = () => {
                                         </div>
                                     </div>
                                 )}
-
-                                <ContestTokenPanel
-                                    grants={contest.available_token_grants}
-                                    currentTokenGrantId={contest.access_status?.token_grant_id}
-                                    onAssign={async tokenGrantId => {
-                                        await assignContestToken(contest.id, tokenGrantId);
-                                        fetchContest(contest.id, true);
-                                    }}
-                                    onReplace={async tokenGrantId => {
-                                        await replaceContestToken(contest.id, tokenGrantId);
-                                        fetchContest(contest.id, true);
-                                    }}
-                                />
 
                                 {!!contest.club_manager_memberships?.length && (
                                     <div className="card bg-base-200 shadow-sm border border-base-300">
