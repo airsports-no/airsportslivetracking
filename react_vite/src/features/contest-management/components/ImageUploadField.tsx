@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface ImageUploadFieldProps {
     label: string;
@@ -12,15 +12,31 @@ interface ImageUploadFieldProps {
 // during registration, not a required step, and it must not push the rest of the form (which
 // needs to work on a phone during a briefing) off screen.
 const ImageUploadField: React.FC<ImageUploadFieldProps> = ({ label, value, onChange }) => {
-    // useMemo (not state) for the URL itself - the effect below only ever revokes it, it never
-    // needs to set React state, which is what the "no setState in an effect body" lint rule cares
-    // about; an object URL is a stable derivation of `value`, not something to synchronize in.
-    const previewUrl = useMemo(() => (value ? URL.createObjectURL(value) : null), [value]);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Synchronizing with an external system (the browser's object-URL store), not deriving
+    // render state from a prop - creating the URL here (rather than during render, e.g. via
+    // useMemo) means a discarded/re-run render (React StrictMode's double-invoke, a render that
+    // throws) never leaks a URL that this effect's own cleanup wouldn't know to revoke.
     useEffect(() => {
-        return () => {
-            if (previewUrl) URL.revokeObjectURL(previewUrl);
-        };
-    }, [previewUrl]);
+        if (!value) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setPreviewUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(value);
+        setPreviewUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [value]);
+
+    const clear = () => {
+        onChange(null);
+        // Reset the native input too, not just our own value - otherwise re-selecting the exact
+        // same file after clearing fires no change event (the input's own value didn't change
+        // from the browser's point of view), so the clear would silently do nothing.
+        if (inputRef.current) inputRef.current.value = '';
+    };
 
     return (
         <label className="form-control w-full">
@@ -28,13 +44,14 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({ label, value, onCha
             <div className="flex items-center gap-2">
                 {previewUrl && <img src={previewUrl} alt="" className="w-8 h-8 rounded object-cover border border-base-300 flex-shrink-0" />}
                 <input
+                    ref={inputRef}
                     type="file"
                     accept="image/*"
                     className="file-input file-input-bordered file-input-xs w-full"
                     onChange={e => onChange(e.target.files?.[0] ?? null)}
                 />
                 {previewUrl && (
-                    <button type="button" className="btn btn-ghost btn-xs flex-shrink-0" onClick={() => onChange(null)}>
+                    <button type="button" className="btn btn-ghost btn-xs flex-shrink-0" onClick={clear}>
                         Clear
                     </button>
                 )}

@@ -333,6 +333,23 @@ class TestAdminTeamRegistrationPictureUpload(TestCase):
         response = self.client.post(self.url, self._payload(), format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
 
+    def test_malformed_payload_json_returns_400_not_500(self):
+        response = self.client.post(
+            self.url,
+            {"payload": "{not valid json", "pilot_picture": _tiny_image("pilot.gif")},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+
+    def test_non_object_payload_json_returns_400_not_500(self):
+        # Valid JSON, but not the object register_team's setdefault()-based file-stitching needs.
+        response = self.client.post(
+            self.url,
+            {"payload": json.dumps(["not", "an", "object"]), "pilot_picture": _tiny_image("pilot.gif")},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+
 
 class TestImportTeamsApi(TestCase):
     def setUp(self):

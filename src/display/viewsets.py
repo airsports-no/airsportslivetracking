@@ -1241,7 +1241,12 @@ class ContestViewSet(ModelViewSet):
         """
         contest = self.get_object()
         if "payload" in request.data:
-            payload = json.loads(request.data["payload"])
+            try:
+                payload = json.loads(request.data["payload"])
+            except (TypeError, json.JSONDecodeError):
+                raise drf_exceptions.ValidationError({"payload": "Must be a JSON object"})
+            if not isinstance(payload, dict):
+                raise drf_exceptions.ValidationError({"payload": "Must be a JSON object"})
             for nested_key, file_key, image_field in (
                 ("pilot", "pilot_picture", "picture"),
                 ("copilot", "copilot_picture", "picture"),
