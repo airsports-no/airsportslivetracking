@@ -389,8 +389,8 @@ const ContestDashboard = () => {
                 </div>,
                 document.body
             )}
-            {showRegistrationForm && (
-                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+            {showRegistrationForm && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
                     <ContestRegistrationForm
                         contest={contest}
                         myContestTeams={myContestTeams}
@@ -400,10 +400,11 @@ const ContestDashboard = () => {
                             await fetchContest(contest.id, true);
                         }}
                     />
-                </div>
+                </div>,
+                document.body
             )}
-            {showScheduleForm && (
-                 <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+            {showScheduleForm && createPortal(
+                 <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
                     <ScheduleFlightForm
                         contest={contest}
                         navigationTaskId={showScheduleForm.pk}
@@ -418,10 +419,11 @@ const ContestDashboard = () => {
                             await fetchContest(contest.id, true);
                         }}
                     />
-                </div>
+                </div>,
+                document.body
             )}
-            {viewingScoresForTask && (
-                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+            {viewingScoresForTask && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
                     <div className="card bg-base-100 shadow-xl max-w-4xl w-full">
                         <div className="card-body">
                             {loadingTaskScores ? (
@@ -434,7 +436,8 @@ const ContestDashboard = () => {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Contest Header */}
