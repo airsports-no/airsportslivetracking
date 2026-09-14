@@ -48,7 +48,11 @@ const TeamRegistrationFlow: React.FC<TeamRegistrationFlowProps> = ({ contestId, 
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        Promise.all([fetchClubs(), fetchAircrafts(), fetchPilots()])
+        // excludeSelf: false - unlike self-registration's copilot search, the organizer running
+        // this admin flow must be selectable as a pilot/copilot too, including when re-editing a
+        // registration where they're already the pilot (otherwise their name can't be resolved
+        // and the form falls back to showing their raw Person id).
+        Promise.all([fetchClubs(), fetchAircrafts(), fetchPilots({ excludeSelf: false })])
             .catch(err => setError((err as Error).message))
             .finally(() => setLoading(false));
     }, []);

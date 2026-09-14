@@ -220,8 +220,14 @@ export const fetchAircrafts = async (): Promise<Aircraft[]> => {
     return response.json();
 };
 
-export const fetchPilots = async (): Promise<Copilot[]> => {
-    const url = reverse('get_persons_for_signup');
+export const fetchPilots = async (options?: { excludeSelf?: boolean }): Promise<Copilot[]> => {
+    // excludeSelf defaults true (the backend's own default) for self-registration's copilot
+    // search - pass false for the admin team-registration flow, where the organizer themselves
+    // must be selectable as a pilot/copilot too. See get_persons_for_signup's docstring.
+    let url = reverse('get_persons_for_signup');
+    if (options?.excludeSelf === false) {
+        url += '?exclude_self=false';
+    }
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
         const errorMessages = await getErrorMessages(response);

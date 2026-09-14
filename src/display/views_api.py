@@ -188,7 +188,14 @@ def auto_complete_person_email(request):
 @permission_classes([IsAuthenticated])
 def get_persons_for_signup(request):
     # Filter for persons with valid-ish emails to prevent empty results or crashes
-    persons = Person.objects.exclude(email=request.user.email).filter(email__contains="@")
+    persons = Person.objects.filter(email__contains="@")
+    # Self-registration's copilot search excludes the requester (you can't be your own copilot),
+    # but the admin team-registration flow (TeamRegistrationFlow.tsx) searches for a PILOT too,
+    # and an organizer who is also a competitor must be selectable there - both as themselves and,
+    # critically, when re-editing a registration where they're already the pilot (otherwise the
+    # form can't resolve their name and falls back to showing their raw Person id instead).
+    if request.query_params.get("exclude_self", "true").lower() != "false":
+        persons = persons.exclude(email=request.user.email)
     return Response(PersonSignUpSerialiser(persons, many=True).data)
 
 
