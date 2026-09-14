@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, FileText } from 'lucide-react';
+import { MapPin, FileText, Pencil } from 'lucide-react';
 import { Contestant } from '../../competition-map/types';
 import PublicityIcon from './PublicityIcon';
 import { Route } from '../types';
@@ -51,7 +51,15 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
             <div className="card-body">
                 <h3 className="card-title flex flex-wrap items-center gap-2">
                     {canManage ? (
-                        <a href={reverse('navigationtask_detail', taskId)} className="flex-1 link link-hover">{name}</a>
+                        // Manager-only edit affordance - the pencil + accent color mark this as a
+                        // management action, distinct from the contestant-facing controls below.
+                        <a
+                            href={reverse('navigationtask_detail', taskId)}
+                            className="flex-1 link link-hover text-accent inline-flex items-center gap-1"
+                        >
+                            <Pencil size={14} className="shrink-0" />
+                            {name}
+                        </a>
                     ) : (
                         <span className="flex-1">{name}</span>
                     )}
@@ -62,7 +70,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                         Live Map
                     </a>
                     {canManage && allow_self_management && (
-                        <a href={reverse('hangar_flyer', taskId)} className="btn btn-xs btn-outline gap-1">
+                        <a href={reverse('hangar_flyer', taskId)} className="btn btn-xs btn-outline btn-accent gap-1">
                             <FileText size={14} />
                             Hangar Flyer
                         </a>
