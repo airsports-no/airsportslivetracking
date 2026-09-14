@@ -14,7 +14,6 @@ from typing import List, Literal, Optional, Tuple
 import matplotlib
 
 matplotlib.use("Agg")
-import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import typst
 from cartopy import geodesic
@@ -26,7 +25,7 @@ from shapely.geometry import Polygon
 
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.flight_order_and_maps.map_constants import A3, LANDSCAPE
-from display.flight_order_and_maps.map_plotter import plot_route
+from display.flight_order_and_maps.map_plotter import PSEUDO_MERCATOR_SPHERE, plot_route
 from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_image
 from display.models import Contestant
 from display.models.flight_order_configuration import FlightOrderConfiguration
@@ -132,13 +131,13 @@ def generate_turning_point_image(
     ax = plt.axes(projection=imagery.crs)
     ax.add_image(imagery, zoom_level)
     ax.set_aspect("auto")
-    plt.plot(waypoint.longitude, waypoint.latitude, transform=ccrs.PlateCarree())
+    plt.plot(waypoint.longitude, waypoint.latitude, transform=PSEUDO_MERCATOR_SPHERE)
     if not is_unknown_leg:
         if index > 0:
             plt.plot(
                 [waypoints[index - 1].longitude, waypoints[index].longitude],
                 [waypoints[index - 1].latitude, waypoints[index].latitude],
-                transform=ccrs.PlateCarree(),
+                transform=PSEUDO_MERCATOR_SPHERE,
                 color="blue",
                 linewidth=2,
             )
@@ -146,18 +145,18 @@ def generate_turning_point_image(
             plt.plot(
                 [waypoints[index].longitude, waypoints[index + 1].longitude],
                 [waypoints[index].latitude, waypoints[index + 1].latitude],
-                transform=ccrs.PlateCarree(),
+                transform=PSEUDO_MERCATOR_SPHERE,
                 color="blue",
                 linewidth=2,
             )
-    proj = ccrs.PlateCarree()
+    proj = PSEUDO_MERCATOR_SPHERE
     utm = utm_from_lat_lon(waypoint.latitude, waypoint.longitude)
     centre_x, centre_y = utm.transform_point(waypoint.longitude, waypoint.latitude, proj)
     size = meters_across / 2
     x0, y0 = proj.transform_point(centre_x - size, centre_y - size, utm)
     x1, y1 = proj.transform_point(centre_x + size, centre_y + size, utm)
     extent = [x0, x1, y0, y1]
-    ax.set_extent(extent, crs=ccrs.PlateCarree())
+    ax.set_extent(extent, crs=PSEUDO_MERCATOR_SPHERE)
     circle_points = geodesic.Geodesic().circle(
         lon=waypoint.longitude,
         lat=waypoint.latitude,
@@ -166,7 +165,7 @@ def generate_turning_point_image(
         endpoint=False,
     )
     geom = Polygon(circle_points)
-    ax.add_geometries((geom,), crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red", linewidth=3)
+    ax.add_geometries((geom,), crs=PSEUDO_MERCATOR_SPHERE, facecolor="none", edgecolor="red", linewidth=3)
     figdata = BytesIO()
     plt.savefig(figdata, format="png", dpi=200, transparent=True)
     figdata.seek(0)
@@ -208,15 +207,15 @@ def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_
     ax = plt.axes(projection=imagery.crs)
     ax.add_image(imagery, zoom_level)
     ax.set_aspect("auto")
-    plt.plot(photo.longitude, photo.latitude, transform=ccrs.PlateCarree())
-    proj = ccrs.PlateCarree()
+    plt.plot(photo.longitude, photo.latitude, transform=PSEUDO_MERCATOR_SPHERE)
+    proj = PSEUDO_MERCATOR_SPHERE
     utm = utm_from_lat_lon(photo.latitude, photo.longitude)
     centre_x, centre_y = utm.transform_point(photo.longitude, photo.latitude, proj)
     range = meters_across / 2
     x0, y0 = proj.transform_point(centre_x - range, centre_y - range, utm)
     x1, y1 = proj.transform_point(centre_x + range, centre_y + range, utm)
     extent = [x0, x1, y0, y1]
-    ax.set_extent(extent, crs=ccrs.PlateCarree())
+    ax.set_extent(extent, crs=PSEUDO_MERCATOR_SPHERE)
     figdata = BytesIO()
     plt.savefig(figdata, format="png", dpi=200, transparent=True)
     figdata.seek(0)
