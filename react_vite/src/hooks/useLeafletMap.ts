@@ -34,7 +34,7 @@ interface UseLeafletMapOptions {
  * @returns {L.Map | null} The Leaflet map instance.
  */
 export default function useLeafletMap(
-    mapContainerRef: React.RefObject<HTMLDivElement>,
+    mapContainerRef: React.RefObject<HTMLDivElement | null>,
     options?: UseLeafletMapOptions
 ): L.Map | null {
     const [map, setMap] = useState<L.Map | null>(null);

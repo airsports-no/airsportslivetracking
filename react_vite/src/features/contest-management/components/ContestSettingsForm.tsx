@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Select from 'react-select';
+import { Check, Globe, Link as LinkIcon, Lock } from 'lucide-react';
 import { selectStyles } from '../../../utils/selectStyles';
 import { useMissionDashboardStore } from '../../mission-dashboard/store';
 import { Contest } from '../../mission-dashboard/types';
 import { contestSettingsSchema, ContestSettingsFormValues } from '../schemas/contestSettingsSchema';
 import { contestLocalTimeToIso } from '../navigationTaskFlow';
 import { updateContest, shareContest } from '../../mission-dashboard/api';
+import LocationMapField from './LocationMapField';
 
 interface Props {
     contest: Contest;
@@ -65,6 +67,7 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
         },
     });
     const timeZone = watch('time_zone');
+    const location = watch('location');
     const organizingClub = watch('organizing_club');
     const sortingDirection = watch('summary_score_sorting_direction');
 
@@ -104,27 +107,41 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
 
             <div>
                 <div className="label"><span className="label-text">Publicity</span></div>
-                <div className="join">
-                    {/* Mirrors Contest.share_string: public+featured = public, public+unfeatured = unlisted, else private. */}
-                    {(() => {
-                        const currentVisibility = contest.is_public
-                            ? contest.is_featured
-                                ? 'public'
-                                : 'unlisted'
-                            : 'private';
-                        return (['public', 'unlisted', 'private'] as const).map(visibility => (
-                            <button
-                                key={visibility}
-                                type="button"
-                                disabled={sharing}
-                                className={`btn btn-sm join-item ${visibility === currentVisibility ? 'btn-active' : ''}`}
-                                onClick={() => handlePublicityChange(visibility)}
-                            >
-                                {visibility}
-                            </button>
-                        ));
-                    })()}
-                </div>
+                {/* Mirrors Contest.share_string: public+featured = public, public+unfeatured = unlisted, else private. */}
+                {(() => {
+                    const currentVisibility = contest.is_public ? (contest.is_featured ? 'public' : 'unlisted') : 'private';
+                    const options = [
+                        { value: 'public' as const, icon: Globe, description: 'Visible on the global map and in contest listings.' },
+                        { value: 'unlisted' as const, icon: LinkIcon, description: 'Visible only to anyone with the direct link - not listed or shown on the map.' },
+                        { value: 'private' as const, icon: Lock, description: 'Visible only to users with explicit access to this contest.' },
+                    ];
+                    const current = options.find(option => option.value === currentVisibility)!;
+                    return (
+                        <>
+                            <div className="join">
+                                {options.map(({ value, icon: Icon }) => {
+                                    const isCurrent = value === currentVisibility;
+                                    return (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            disabled={sharing}
+                                            className={`btn btn-sm join-item gap-1.5 ${isCurrent ? 'btn-primary' : 'btn-outline'}`}
+                                            onClick={() => handlePublicityChange(value)}
+                                        >
+                                            <Icon size={14} />
+                                            {value}
+                                            {isCurrent && <Check size={14} />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-xs opacity-70 mt-1">
+                                Currently <span className="font-semibold capitalize">{currentVisibility}</span>: {current.description}
+                            </p>
+                        </>
+                    );
+                })()}
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -145,11 +162,16 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
                     />
                 </label>
 
-                <label className="form-control w-full">
-                    <div className="label"><span className="label-text">Location (latitude,longitude)</span></div>
-                    <input className="input input-bordered w-full" placeholder="60.0,11.0" {...register('location')} />
-                    {errors.location && <span className="text-error text-sm">{errors.location.message}</span>}
-                </label>
+                <div className="form-control w-full">
+                    <label className="form-control w-full">
+                        <div className="label"><span className="label-text">Location (latitude,longitude)</span></div>
+                        <input className="input input-bordered w-full" placeholder="60.0,11.0" {...register('location')} />
+                        {errors.location && <span className="text-error text-sm">{errors.location.message}</span>}
+                    </label>
+                    <div className="mt-2">
+                        <LocationMapField value={location} onChange={value => setValue('location', value, { shouldDirty: true, shouldValidate: true })} />
+                    </div>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <label className="form-control w-full">
