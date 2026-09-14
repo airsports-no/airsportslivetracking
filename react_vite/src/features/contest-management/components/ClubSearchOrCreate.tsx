@@ -1,7 +1,9 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
+import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import { selectStyles } from '../../../utils/selectStyles';
+import { COUNTRY_OPTIONS } from '../../../utils/countries';
 import { Club } from '../../mission-dashboard/types';
 import { TeamRegistrationFormValues } from '../schemas/teamRegistrationSchema';
 import ImageUploadField from './ImageUploadField';
@@ -13,14 +15,15 @@ interface ClubSearchOrCreateProps {
 // Same non-mutation-on-reuse notice as AeroplaneSearchOrCreate, for Club.country/logo.
 const ClubSearchOrCreate: React.FC<ClubSearchOrCreateProps> = ({ clubs }) => {
     const {
-        register,
         setValue,
         watch,
         formState: { errors },
     } = useFormContext<TeamRegistrationFormValues>();
     const name = watch('club.name');
     const logo = watch('club.logo');
+    const country = watch('club.country');
     const existing = clubs.find(c => c.name === name);
+    const selectedCountry = COUNTRY_OPTIONS.find(option => option.value === country) ?? null;
 
     return (
         <div className="border border-base-300 rounded-lg p-4">
@@ -48,7 +51,15 @@ const ClubSearchOrCreate: React.FC<ClubSearchOrCreateProps> = ({ clubs }) => {
                 </p>
             ) : (
                 <div className="space-y-2 mt-2">
-                    <input className="input input-bordered input-sm w-full" placeholder="Country code (e.g. NO)" {...register('club.country')} />
+                    <Select
+                        options={COUNTRY_OPTIONS}
+                        value={selectedCountry}
+                        onChange={selected => setValue('club.country', selected ? selected.value : '')}
+                        isClearable
+                        placeholder="Country"
+                        classNamePrefix="my-react-select"
+                        styles={selectStyles}
+                    />
                     <ImageUploadField label="Logo" value={logo} onChange={file => setValue('club.logo', file ?? undefined)} />
                 </div>
             )}
