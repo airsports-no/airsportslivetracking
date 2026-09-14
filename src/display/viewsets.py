@@ -1088,10 +1088,20 @@ class ContestViewSet(ModelViewSet):
         contest_teams = ContestTeam.objects.filter(contest=contest)
         response = Response(ContestTeamNestedSerialiser(contest_teams, many=True).data)
 
-        if contest.is_public and contest.is_featured:
+        if contest.is_public and contest.is_featured and not request.user.is_authenticated:
             # Team lists can change during signup/withdrawal.
             # s-maxage=60: CDN shields origin by caching for 1 minute.
-            # max-age=0: Browser always checks CDN (no disk cache).
+            # max-age=0: intended to always force the BROWSER to revalidate (no disk cache) - but
+            # stale-while-revalidate is honored by modern browsers' own HTTP cache, not just
+            # shared/CDN caches, so pairing it with max-age=0 does NOT actually prevent a disk-
+            # cache hit: the browser is explicitly permitted to serve the stale cached body
+            # immediately and revalidate in the background. That's fine for an anonymous
+            # spectator, but it broke read-your-writes for an authenticated organizer polling
+            # this same URL right after editing a team (TeamRegistrationFlow's onSaved) - they'd
+            # get served their own pre-edit response back from disk cache. Gating this on
+            # anonymity (same check retrieve() already uses for the same is_public/is_featured
+            # personalization concern) keeps the CDN-friendly caching for public spectators only;
+            # every authenticated request now always gets a real network round-trip.
             response["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=600"
         else:
             response["Cache-Control"] = "private, no-cache"
