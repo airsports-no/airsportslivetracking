@@ -86,6 +86,8 @@ const ContestDashboard = () => {
     const [teamsError, setTeamsError] = useState<string | null>(null);
     const [editingContestTeam, setEditingContestTeam] = useState<ContestTeamListItem | 'new' | null>(null);
     const [showImportTeams, setShowImportTeams] = useState(false);
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [showPermissionsModal, setShowPermissionsModal] = useState(false);
     const [permissionGrants, setPermissionGrants] = useState<ContestPermissionGrant[]>([]);
     const [permissionsLoading, setPermissionsLoading] = useState(false);
     const [permissionsError, setPermissionsError] = useState<string | null>(null);
@@ -331,6 +333,61 @@ const ContestDashboard = () => {
                 </div>,
                 document.body
             )}
+            {showSettingsModal && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                    <div className="card bg-base-100 shadow-xl max-w-2xl w-full mx-auto">
+                        <div className="card-body">
+                            <div className="flex items-center justify-between">
+                                <h2 className="card-title">Contest settings</h2>
+                                <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={() => setShowSettingsModal(false)}>
+                                    ✕
+                                </button>
+                            </div>
+                            <ContestSettingsForm
+                                contest={contest}
+                                onSaved={() => {
+                                    fetchContest(contest.id, true);
+                                    setShowSettingsModal(false);
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+            {showPermissionsModal && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                    <div className="card bg-base-100 shadow-xl max-w-2xl w-full mx-auto">
+                        <div className="card-body">
+                            <div className="flex items-center justify-between">
+                                <h2 className="card-title">Permissions</h2>
+                                <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={() => setShowPermissionsModal(false)}>
+                                    ✕
+                                </button>
+                            </div>
+                            {permissionsError && <div className="alert alert-error mb-2">{permissionsError}</div>}
+                            <ContestPermissionsPanel
+                                grants={permissionGrants}
+                                currentUserId={document.configuration.userId ?? -1}
+                                loading={permissionsLoading}
+                                onAdd={async (identifier, level) => {
+                                    await addContestPermission(contest.id, identifier, level);
+                                    refreshPermissions();
+                                }}
+                                onChange={async (userId, level) => {
+                                    await changeContestPermission(contest.id, userId, level);
+                                    refreshPermissions();
+                                }}
+                                onRemove={async userId => {
+                                    await removeContestPermission(contest.id, userId);
+                                    refreshPermissions();
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
             {showRegistrationForm && (
                 <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
                     <ContestRegistrationForm
@@ -454,22 +511,6 @@ const ContestDashboard = () => {
                         <div className="card bg-base-100 shadow">
                             <div className="card-body">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="card-title">Navigation tasks</h3>
-                                    <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>
-                                        Add navigation task
-                                    </button>
-                                </div>
-                                <p className="text-sm text-gray-500">
-                                    {contest.navigationtask_set.length === 0
-                                        ? 'No navigation tasks yet.'
-                                        : 'Manage each task (contestants, flight orders, scorecard) from its card in the Task Suite below.'}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="card bg-base-100 shadow">
-                            <div className="card-body">
-                                <div className="flex items-center justify-between">
                                     <h3 className="card-title">Registered teams</h3>
                                     <div className="flex gap-2">
                                         <button className="btn btn-sm" onClick={() => setShowImportTeams(true)}>
@@ -499,133 +540,115 @@ const ContestDashboard = () => {
                                 )}
                             </div>
                         </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                         <div className="card bg-base-100 shadow">
                             <div className="card-body">
-                                <h3 className="card-title">Contest settings</h3>
-                                <ContestSettingsForm contest={contest} onSaved={() => fetchContest(contest.id, true)} />
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            {contest.current_token_assignment && !contest.current_token_assignment.is_active_now && (
-                                <div className="alert alert-warning shadow-sm">
-                                    <div>
-                                        <div className="font-bold">Archive Mode</div>
-                                        <div className="text-sm">
-                                            This contest token ({contest.current_token_assignment.token_type_name}) expired on{' '}
-                                            {contest.current_token_assignment.expires_at &&
-                                                new Date(contest.current_token_assignment.expires_at).toLocaleString()}
-                                            . Historical results remain readable, but creating new tasks or launching new
-                                            live sessions requires a new token or annual pass.
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="card bg-base-200 shadow-sm border border-base-300">
-                                <div className="card-body p-5">
-                                    <h3 className="card-title text-lg">Access &amp; limits</h3>
-                                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                        <span className="badge badge-info">{contest.access_status?.tier_label}</span>
-                                        <span className="text-xs opacity-70">Source: {contest.access_status?.source_type}</span>
-                                    </div>
-                                    <div className="bg-base-100 rounded-lg p-3 text-sm">
-                                        <div className="opacity-70">Competing pilots</div>
-                                        <div className="font-semibold">
-                                            {contest.access_status?.contestants_used} /{' '}
-                                            {contest.access_status?.contestant_limit == null ? 'Unlimited' : contest.access_status.contestant_limit}
-                                        </div>
-                                    </div>
+                                <h3 className="card-title">Contest tools</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    <button className="btn btn-sm" onClick={() => setShowSettingsModal(true)}>
+                                        Contest settings
+                                    </button>
+                                    <button className="btn btn-sm" onClick={() => setShowPermissionsModal(true)}>
+                                        Permissions{permissionGrants.length > 0 ? ` (${permissionGrants.length})` : ''}
+                                    </button>
                                 </div>
                             </div>
-
-                            {!!contest.club_access_grants?.length && (
-                                <div className="card bg-base-200 shadow-sm border border-base-300">
-                                    <div className="card-body p-5">
-                                        <h3 className="card-title text-lg">Club access</h3>
-                                        <div className="space-y-2">
-                                            {contest.club_access_grants.map((grant, index) => (
-                                                <div key={index} className="rounded-lg bg-base-100 p-3 text-sm">
-                                                    <div className="font-semibold">{grant.tier_label}</div>
-                                                    <div className="opacity-70">
-                                                        Competing pilots: {grant.contestant_limit == null ? 'Unlimited' : grant.contestant_limit}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <ContestTokenPanel
-                                grants={contest.available_token_grants}
-                                currentTokenGrantId={contest.access_status?.token_grant_id}
-                                onAssign={async tokenGrantId => {
-                                    await assignContestToken(contest.id, tokenGrantId);
-                                    fetchContest(contest.id, true);
-                                }}
-                                onReplace={async tokenGrantId => {
-                                    await replaceContestToken(contest.id, tokenGrantId);
-                                    fetchContest(contest.id, true);
-                                }}
-                            />
-
-                            {!!contest.club_manager_memberships?.length && (
-                                <div className="card bg-base-200 shadow-sm border border-base-300">
-                                    <div className="card-body p-5">
-                                        <h3 className="card-title text-lg">Club managers</h3>
-                                        <div className="space-y-2">
-                                            {contest.club_manager_memberships.map(membership => (
-                                                <div key={membership.email} className="rounded-lg bg-base-100 p-3 text-sm flex justify-between gap-2">
-                                                    <span>{membership.email}</span>
-                                                    <span className="badge badge-ghost badge-sm">{membership.role}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                        <div>
-                            {permissionsError && <div className="alert alert-error mb-2">{permissionsError}</div>}
-                            <ContestPermissionsPanel
-                                grants={permissionGrants}
-                                currentUserId={document.configuration.userId ?? -1}
-                                loading={permissionsLoading}
-                                onAdd={async (identifier, level) => {
-                                    await addContestPermission(contest.id, identifier, level);
-                                    refreshPermissions();
-                                }}
-                                onChange={async (userId, level) => {
-                                    await changeContestPermission(contest.id, userId, level);
-                                    refreshPermissions();
-                                }}
-                                onRemove={async userId => {
-                                    await removeContestPermission(contest.id, userId);
-                                    refreshPermissions();
-                                }}
-                            />
+                        {contest.current_token_assignment && !contest.current_token_assignment.is_active_now && (
+                            <div className="alert alert-warning shadow-sm lg:col-span-2">
+                                <div>
+                                    <div className="font-bold">Archive Mode</div>
+                                    <div className="text-sm">
+                                        This contest token ({contest.current_token_assignment.token_type_name}) expired on{' '}
+                                        {contest.current_token_assignment.expires_at &&
+                                            new Date(contest.current_token_assignment.expires_at).toLocaleString()}
+                                        . Historical results remain readable, but creating new tasks or launching new
+                                        live sessions requires a new token or annual pass.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="card bg-base-200 shadow-sm border border-base-300">
+                            <div className="card-body p-5">
+                                <h3 className="card-title text-lg">Access &amp; limits</h3>
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                    <span className="badge badge-info">{contest.access_status?.tier_label}</span>
+                                    <span className="text-xs opacity-70">Source: {contest.access_status?.source_type}</span>
+                                </div>
+                                <div className="bg-base-100 rounded-lg p-3 text-sm">
+                                    <div className="opacity-70">Competing pilots</div>
+                                    <div className="font-semibold">
+                                        {contest.access_status?.contestants_used} /{' '}
+                                        {contest.access_status?.contestant_limit == null ? 'Unlimited' : contest.access_status.contestant_limit}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="card bg-error/10 border border-error/30 shadow-sm">
-                            <div className="card-body p-5">
-                                <h3 className="card-title text-lg text-error">Danger zone</h3>
-                                <p className="text-sm opacity-80">
-                                    Deleting a contest permanently removes it, its navigation tasks, and all results.
-                                </p>
-                                {deleteError && <div className="alert alert-error text-sm py-2">{deleteError}</div>}
-                                <div className="card-actions justify-end">
-                                    <button className="btn btn-error btn-sm" disabled={deleting} onClick={handleDeleteContest}>
-                                        {deleting && <span className="loading loading-spinner"></span>}
-                                        Delete contest
-                                    </button>
+                        {!!contest.club_access_grants?.length && (
+                            <div className="card bg-base-200 shadow-sm border border-base-300">
+                                <div className="card-body p-5">
+                                    <h3 className="card-title text-lg">Club access</h3>
+                                    <div className="space-y-2">
+                                        {contest.club_access_grants.map((grant, index) => (
+                                            <div key={index} className="rounded-lg bg-base-100 p-3 text-sm">
+                                                <div className="font-semibold">{grant.tier_label}</div>
+                                                <div className="opacity-70">
+                                                    Competing pilots: {grant.contestant_limit == null ? 'Unlimited' : grant.contestant_limit}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
+                            </div>
+                        )}
+
+                        <ContestTokenPanel
+                            grants={contest.available_token_grants}
+                            currentTokenGrantId={contest.access_status?.token_grant_id}
+                            onAssign={async tokenGrantId => {
+                                await assignContestToken(contest.id, tokenGrantId);
+                                fetchContest(contest.id, true);
+                            }}
+                            onReplace={async tokenGrantId => {
+                                await replaceContestToken(contest.id, tokenGrantId);
+                                fetchContest(contest.id, true);
+                            }}
+                        />
+
+                        {!!contest.club_manager_memberships?.length && (
+                            <div className="card bg-base-200 shadow-sm border border-base-300">
+                                <div className="card-body p-5">
+                                    <h3 className="card-title text-lg">Club managers</h3>
+                                    <div className="space-y-2">
+                                        {contest.club_manager_memberships.map(membership => (
+                                            <div key={membership.email} className="rounded-lg bg-base-100 p-3 text-sm flex justify-between gap-2">
+                                                <span>{membership.email}</span>
+                                                <span className="badge badge-ghost badge-sm">{membership.role}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="card bg-error/10 border border-error/30 shadow-sm mt-6">
+                        <div className="card-body p-5">
+                            <h3 className="card-title text-lg text-error">Danger zone</h3>
+                            <p className="text-sm opacity-80">
+                                Deleting a contest permanently removes it, its navigation tasks, and all results.
+                            </p>
+                            {deleteError && <div className="alert alert-error text-sm py-2">{deleteError}</div>}
+                            <div className="card-actions justify-end">
+                                <button className="btn btn-error btn-sm" disabled={deleting} onClick={handleDeleteContest}>
+                                    {deleting && <span className="loading loading-spinner"></span>}
+                                    Delete contest
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -660,6 +683,13 @@ const ContestDashboard = () => {
                         </h2>
                         <p className="text-sm text-gray-500">Times in {contest.time_zone}</p>
                     </div>
+                    {canManageThisContest && (
+                        <div className="flex justify-end mb-4">
+                            <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>
+                                Add navigation task
+                            </button>
+                        </div>
+                    )}
                     <div className="space-y-4">
                         {contest.navigationtask_set
                             .filter(task => {

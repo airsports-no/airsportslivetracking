@@ -54,8 +54,11 @@ export type CopilotSelection = z.infer<typeof copilotSelectionSchema>;
 export type TeamRegistrationFormInput = z.input<typeof teamRegistrationSchema>;
 export type TeamRegistrationFormValues = z.output<typeof teamRegistrationSchema>;
 
+// Pilot defaults to "existing" (search for an already-known person, the common case for a
+// returning contestant) rather than "create"; copilot defaults to "skip" - most teams fly single-
+// pilot and only need the co-pilot field when they actually have one.
 export const teamRegistrationDefaults: TeamRegistrationFormValues = {
-    pilot: { mode: 'create', first_name: '', last_name: '', email: '', phone: '', country: '', picture: undefined },
+    pilot: { mode: 'existing', person: undefined as unknown as number },
     copilot: { mode: 'skip' },
     aeroplane: { registration: '', type: '', colour: '', picture: undefined },
     club: { name: '', country: '', logo: undefined },
