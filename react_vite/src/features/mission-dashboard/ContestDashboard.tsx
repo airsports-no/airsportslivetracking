@@ -504,89 +504,6 @@ const ContestDashboard = () => {
                 </div>
             </div>
 
-            {canManageThisContest && (
-                <div className="mb-8">
-                    <h2 className="text-2xl font-bold mb-4">Manage this contest</h2>
-                    <div className="card bg-base-100 shadow">
-                        <div className="card-body">
-                            <h3 className="card-title">Contest tools</h3>
-                            <div className="flex flex-wrap gap-2">
-                                <button className="btn btn-sm" onClick={() => setShowSettingsModal(true)}>
-                                    Contest settings
-                                </button>
-                                <button className="btn btn-sm" onClick={() => setShowPermissionsModal(true)}>
-                                    Permissions{permissionGrants.length > 0 ? ` (${permissionGrants.length})` : ''}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                        {contest.current_token_assignment && !contest.current_token_assignment.is_active_now && (
-                            <div className="alert alert-warning shadow-sm lg:col-span-2">
-                                <div>
-                                    <div className="font-bold">Archive Mode</div>
-                                    <div className="text-sm">
-                                        This contest token ({contest.current_token_assignment.token_type_name}) expired on{' '}
-                                        {contest.current_token_assignment.expires_at &&
-                                            new Date(contest.current_token_assignment.expires_at).toLocaleString()}
-                                        . Historical results remain readable, but creating new tasks or launching new
-                                        live sessions requires a new token or annual pass.
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {!!contest.club_access_grants?.length && (
-                            <div className="card bg-base-200 shadow-sm border border-base-300">
-                                <div className="card-body p-5">
-                                    <h3 className="card-title text-lg">Club access</h3>
-                                    <div className="space-y-2">
-                                        {contest.club_access_grants.map((grant, index) => (
-                                            <div key={index} className="rounded-lg bg-base-100 p-3 text-sm">
-                                                <div className="font-semibold">{grant.tier_label}</div>
-                                                <div className="opacity-70">
-                                                    Competing pilots: {grant.contestant_limit == null ? 'Unlimited' : grant.contestant_limit}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        <ContestTokenPanel
-                            grants={contest.available_token_grants}
-                            currentTokenGrantId={contest.access_status?.token_grant_id}
-                            onAssign={async tokenGrantId => {
-                                await assignContestToken(contest.id, tokenGrantId);
-                                fetchContest(contest.id, true);
-                            }}
-                            onReplace={async tokenGrantId => {
-                                await replaceContestToken(contest.id, tokenGrantId);
-                                fetchContest(contest.id, true);
-                            }}
-                        />
-
-                        {!!contest.club_manager_memberships?.length && (
-                            <div className="card bg-base-200 shadow-sm border border-base-300">
-                                <div className="card-body p-5">
-                                    <h3 className="card-title text-lg">Club managers</h3>
-                                    <div className="space-y-2">
-                                        {contest.club_manager_memberships.map(membership => (
-                                            <div key={membership.email} className="rounded-lg bg-base-100 p-3 text-sm flex justify-between gap-2">
-                                                <span>{membership.email}</span>
-                                                <span className="badge badge-ghost badge-sm">{membership.role}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Task Suite */}
                 <div className="lg:col-span-2 order-1 lg:order-2">
@@ -616,10 +533,88 @@ const ContestDashboard = () => {
                         <p className="text-sm text-gray-500">Times in {contest.time_zone}</p>
                     </div>
                     {canManageThisContest && (
-                        <div className="flex justify-end mb-4">
-                            <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>
-                                Add navigation task
-                            </button>
+                        <div className="mb-8">
+                            <h2 className="text-xl font-bold mb-4">Manage this contest</h2>
+                            <div className="card bg-base-100 shadow">
+                                <div className="card-body">
+                                    <h3 className="card-title">Contest tools</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>
+                                            Add navigation task
+                                        </button>
+                                        <button className="btn btn-sm" onClick={() => setShowSettingsModal(true)}>
+                                            Contest settings
+                                        </button>
+                                        <button className="btn btn-sm" onClick={() => setShowPermissionsModal(true)}>
+                                            Permissions{permissionGrants.length > 0 ? ` (${permissionGrants.length})` : ''}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                                {contest.current_token_assignment && !contest.current_token_assignment.is_active_now && (
+                                    <div className="alert alert-warning shadow-sm lg:col-span-2">
+                                        <div>
+                                            <div className="font-bold">Archive Mode</div>
+                                            <div className="text-sm">
+                                                This contest token ({contest.current_token_assignment.token_type_name}) expired on{' '}
+                                                {contest.current_token_assignment.expires_at &&
+                                                    new Date(contest.current_token_assignment.expires_at).toLocaleString()}
+                                                . Historical results remain readable, but creating new tasks or launching new
+                                                live sessions requires a new token or annual pass.
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!!contest.club_access_grants?.length && (
+                                    <div className="card bg-base-200 shadow-sm border border-base-300">
+                                        <div className="card-body p-5">
+                                            <h3 className="card-title text-lg">Club access</h3>
+                                            <div className="space-y-2">
+                                                {contest.club_access_grants.map((grant, index) => (
+                                                    <div key={index} className="rounded-lg bg-base-100 p-3 text-sm">
+                                                        <div className="font-semibold">{grant.tier_label}</div>
+                                                        <div className="opacity-70">
+                                                            Competing pilots: {grant.contestant_limit == null ? 'Unlimited' : grant.contestant_limit}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <ContestTokenPanel
+                                    grants={contest.available_token_grants}
+                                    currentTokenGrantId={contest.access_status?.token_grant_id}
+                                    onAssign={async tokenGrantId => {
+                                        await assignContestToken(contest.id, tokenGrantId);
+                                        fetchContest(contest.id, true);
+                                    }}
+                                    onReplace={async tokenGrantId => {
+                                        await replaceContestToken(contest.id, tokenGrantId);
+                                        fetchContest(contest.id, true);
+                                    }}
+                                />
+
+                                {!!contest.club_manager_memberships?.length && (
+                                    <div className="card bg-base-200 shadow-sm border border-base-300">
+                                        <div className="card-body p-5">
+                                            <h3 className="card-title text-lg">Club managers</h3>
+                                            <div className="space-y-2">
+                                                {contest.club_manager_memberships.map(membership => (
+                                                    <div key={membership.email} className="rounded-lg bg-base-100 p-3 text-sm flex justify-between gap-2">
+                                                        <span>{membership.email}</span>
+                                                        <span className="badge badge-ghost badge-sm">{membership.role}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                     <div className="space-y-4">
