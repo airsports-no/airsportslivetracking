@@ -320,9 +320,14 @@ const ContestDashboard = () => {
                         contestId={contest.id}
                         editingContestTeam={editingContestTeam === 'new' ? undefined : editingContestTeam}
                         onCancel={() => setEditingContestTeam(null)}
-                        onSaved={() => {
+                        onSaved={async () => {
                             setEditingContestTeam(null);
                             refreshTeams();
+                            // The organizer may have just registered themselves (as pilot or
+                            // copilot) via this admin flow - without this, the visitor-facing
+                            // Register team button (driven by myContestTeams) would keep showing
+                            // as available until a full page reload.
+                            await fetchMyContestTeams(true);
                         }}
                     />
                 </div>,
