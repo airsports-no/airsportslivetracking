@@ -494,7 +494,7 @@ const ContestDashboard = () => {
                                 );
                             } else if (document.configuration.isAuthenticated) {
                                 return (
-                                    <button className="btn btn-success" onClick={() => setShowRegistrationForm(true)}>Register</button>
+                                    <button className="btn btn-primary" onClick={() => setShowRegistrationForm(true)}>Register</button>
                                 );
                             } else {
                                 return (
