@@ -19,7 +19,7 @@ import TrackingDataStep from './TrackingDataStep';
 interface TeamRegistrationFlowProps {
     contestId: number;
     editingContestTeam?: ContestTeamListItem;
-    onSaved: (contestTeam: ContestTeamListItem) => void;
+    onSaved: (contestTeam: ContestTeamListItem) => void | Promise<void>;
     onCancel: () => void;
 }
 
@@ -64,7 +64,10 @@ const TeamRegistrationFlow: React.FC<TeamRegistrationFlowProps> = ({ contestId, 
         try {
             const payload = buildRegisterPayload(values, editingContestTeam?.id);
             const contestTeam = await api.registerTeam(contestId, payload);
-            onSaved(contestTeam);
+            // Awaited so the button stays disabled until the caller's own post-save refresh
+            // (reloading the registered-teams list, which an edit can change more of than just
+            // this row - see ContestDashboard's onSaved) has actually finished, not just started.
+            await onSaved(contestTeam);
         } catch (err) {
             setError((err as Error).message);
         } finally {
@@ -80,8 +83,8 @@ const TeamRegistrationFlow: React.FC<TeamRegistrationFlowProps> = ({ contestId, 
                 <h2 className="card-title">{editingContestTeam ? 'Edit team registration' : 'Register a team'}</h2>
                 <FormProvider {...methods}>
                     <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-4">
-                        <PersonSearchOrCreate field="pilot" label="Pilot" allowSkip={false} persons={pilots} />
-                        <PersonSearchOrCreate field="copilot" label="Co-pilot" allowSkip persons={pilots} />
+                        <PersonSearchOrCreate field="pilot" label="Pilot" allowSkip={false} persons={pilots} contestId={contestId} />
+                        <PersonSearchOrCreate field="copilot" label="Co-pilot" allowSkip persons={pilots} contestId={contestId} />
                         <AeroplaneSearchOrCreate aircrafts={aircrafts} />
                         <ClubSearchOrCreate clubs={clubs} />
                         <TrackingDataStep />

@@ -98,22 +98,19 @@ const ContestDashboard = () => {
     const canManageThisContest = canManageContest(contest);
     const hasTokenCapacityHeadroom = hasCapacityHeadroomForCurrentUsage(contest?.access_status);
 
-    const refreshTeams = () => {
+    const refreshTeams = async () => {
         if (!contestId) return;
         const requestedContestId = contestId;
         setTeamsLoading(true);
         setTeamsError(null);
-        contestManagementApi
-            .fetchContestTeams(Number(requestedContestId))
-            .then(result => {
-                if (requestedContestId === latestTeamsContestId.current) setTeams(result);
-            })
-            .catch(err => {
-                if (requestedContestId === latestTeamsContestId.current) setTeamsError((err as Error).message);
-            })
-            .finally(() => {
-                if (requestedContestId === latestTeamsContestId.current) setTeamsLoading(false);
-            });
+        try {
+            const result = await contestManagementApi.fetchContestTeams(Number(requestedContestId));
+            if (requestedContestId === latestTeamsContestId.current) setTeams(result);
+        } catch (err) {
+            if (requestedContestId === latestTeamsContestId.current) setTeamsError((err as Error).message);
+        } finally {
+            if (requestedContestId === latestTeamsContestId.current) setTeamsLoading(false);
+        }
     };
 
     const refreshPermissions = () => {
@@ -321,8 +318,18 @@ const ContestDashboard = () => {
                         editingContestTeam={editingContestTeam === 'new' ? undefined : editingContestTeam}
                         onCancel={() => setEditingContestTeam(null)}
                         onSaved={async () => {
+                            // A full reload, not an optimistic local merge: an edit doesn't just
+                            // replace the edited row's own ContestTeam (new id, old one deleted -
+                            // see Contest.replace_team) - if the edited pilot/aeroplane/club
+                            // combination now matches a DIFFERENT team that already has its own
+                            // separate registration in this contest, replace_team deletes *that*
+                            // row too, merging the two. Reconstructing the resulting list locally
+                            // would have to duplicate that matching logic; refetching from the
+                            // server is simpler and always correct. Awaited (not fire-and-forget)
+                            // so the modal doesn't close, letting Edit be reopened, until the list
+                            // it reads from is actually fresh.
+                            await refreshTeams();
                             setEditingContestTeam(null);
-                            refreshTeams();
                             // The organizer may have just registered themselves (as pilot or
                             // copilot) via this admin flow - without this, the visitor-facing
                             // Register team button (driven by myContestTeams) would keep showing
@@ -486,7 +493,20 @@ const ContestDashboard = () => {
                             )}
                         </div>
                     </div>
-                     <div className="flex flex-col items-stretch gap-2 w-full md:w-auto">
+                     <div className="flex flex-wrap items-center justify-end gap-2 w-full md:w-auto">
+                        {canManageThisContest && (
+                            <>
+                                <button className="btn btn-accent btn-sm" onClick={() => setShowCreateTask(true)}>
+                                    Add navigation task
+                                </button>
+                                <button className="btn btn-accent btn-outline btn-sm" onClick={() => setShowSettingsModal(true)}>
+                                    Contest settings
+                                </button>
+                                <button className="btn btn-accent btn-outline btn-sm" onClick={() => setShowPermissionsModal(true)}>
+                                    Permissions{permissionGrants.length > 0 ? ` (${permissionGrants.length})` : ''}
+                                </button>
+                            </>
+                        )}
                         {(() => {
                             if (userContestTeam?.is_user_pilot) {
                                 return (
@@ -550,27 +570,7 @@ const ContestDashboard = () => {
                     </div>
                     {canManageThisContest && (
                         <div className="mb-8">
-                            <h2 className="text-xl font-bold mb-4">Manage this contest</h2>
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className="card bg-base-100 shadow">
-                                    <div className="card-body">
-                                        <h3 className="card-title">Contest tools</h3>
-                                        {/* Accent color marks these as manager actions, same convention as TaskCard's
-                                            canManage-only controls (edit link, Hangar Flyer). */}
-                                        <div className="flex flex-wrap gap-2">
-                                            <button className="btn btn-accent btn-sm" onClick={() => setShowCreateTask(true)}>
-                                                Add navigation task
-                                            </button>
-                                            <button className="btn btn-accent btn-outline btn-sm" onClick={() => setShowSettingsModal(true)}>
-                                                Contest settings
-                                            </button>
-                                            <button className="btn btn-accent btn-outline btn-sm" onClick={() => setShowPermissionsModal(true)}>
-                                                Permissions{permissionGrants.length > 0 ? ` (${permissionGrants.length})` : ''}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 {!hasTokenCapacityHeadroom && (
                                     <ContestTokenPanel
                                         grants={contest.available_token_grants}

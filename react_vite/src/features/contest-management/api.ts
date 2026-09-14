@@ -139,6 +139,19 @@ export const removeTeamFromContest = async (contestId: number, contestTeamId: nu
     }
 };
 
+export const removePersonPictureBackground = async (contestId: number, personId: number): Promise<string> => {
+    const url = reverse('contests-remove-person-picture-background', contestId, personId);
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to remove background: ${await getErrorMessages(response)}`);
+    }
+    const data = await response.json();
+    return data.picture as string;
+};
+
 export const importTeams = async (
     contestId: number,
     sourceContestId: number,
