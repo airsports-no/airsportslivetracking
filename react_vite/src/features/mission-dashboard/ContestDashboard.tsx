@@ -507,51 +507,16 @@ const ContestDashboard = () => {
             {canManageThisContest && (
                 <div className="mb-8">
                     <h2 className="text-2xl font-bold mb-4">Manage this contest</h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="card bg-base-100 shadow">
-                            <div className="card-body">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="card-title">Registered teams</h3>
-                                    <div className="flex gap-2">
-                                        <button className="btn btn-sm" onClick={() => setShowImportTeams(true)}>
-                                            Import teams
-                                        </button>
-                                        <button className="btn btn-primary btn-sm" onClick={() => setEditingContestTeam('new')}>
-                                            Register team
-                                        </button>
-                                    </div>
-                                </div>
-                                {teamsLoading ? (
-                                    <Loading />
-                                ) : teamsError ? (
-                                    <div className="alert alert-error">
-                                        <span>Failed to load teams: {teamsError}</span>
-                                        <button type="button" className="btn btn-sm" onClick={refreshTeams}>
-                                            Retry
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <TeamList
-                                        contestId={contest.id}
-                                        teams={teams}
-                                        onEdit={contestTeam => setEditingContestTeam(contestTeam)}
-                                        onRemoved={contestTeamId => setTeams(prev => prev.filter(item => item.id !== contestTeamId))}
-                                    />
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="card bg-base-100 shadow">
-                            <div className="card-body">
-                                <h3 className="card-title">Contest tools</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    <button className="btn btn-sm" onClick={() => setShowSettingsModal(true)}>
-                                        Contest settings
-                                    </button>
-                                    <button className="btn btn-sm" onClick={() => setShowPermissionsModal(true)}>
-                                        Permissions{permissionGrants.length > 0 ? ` (${permissionGrants.length})` : ''}
-                                    </button>
-                                </div>
+                    <div className="card bg-base-100 shadow">
+                        <div className="card-body">
+                            <h3 className="card-title">Contest tools</h3>
+                            <div className="flex flex-wrap gap-2">
+                                <button className="btn btn-sm" onClick={() => setShowSettingsModal(true)}>
+                                    Contest settings
+                                </button>
+                                <button className="btn btn-sm" onClick={() => setShowPermissionsModal(true)}>
+                                    Permissions{permissionGrants.length > 0 ? ` (${permissionGrants.length})` : ''}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -571,23 +536,6 @@ const ContestDashboard = () => {
                                 </div>
                             </div>
                         )}
-
-                        <div className="card bg-base-200 shadow-sm border border-base-300">
-                            <div className="card-body p-5">
-                                <h3 className="card-title text-lg">Access &amp; limits</h3>
-                                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                    <span className="badge badge-info">{contest.access_status?.tier_label}</span>
-                                    <span className="text-xs opacity-70">Source: {contest.access_status?.source_type}</span>
-                                </div>
-                                <div className="bg-base-100 rounded-lg p-3 text-sm">
-                                    <div className="opacity-70">Competing pilots</div>
-                                    <div className="font-semibold">
-                                        {contest.access_status?.contestants_used} /{' '}
-                                        {contest.access_status?.contestant_limit == null ? 'Unlimited' : contest.access_status.contestant_limit}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
                         {!!contest.club_access_grants?.length && (
                             <div className="card bg-base-200 shadow-sm border border-base-300">
@@ -635,22 +583,6 @@ const ContestDashboard = () => {
                                 </div>
                             </div>
                         )}
-                    </div>
-
-                    <div className="card bg-error/10 border border-error/30 shadow-sm mt-6">
-                        <div className="card-body p-5">
-                            <h3 className="card-title text-lg text-error">Danger zone</h3>
-                            <p className="text-sm opacity-80">
-                                Deleting a contest permanently removes it, its navigation tasks, and all results.
-                            </p>
-                            {deleteError && <div className="alert alert-error text-sm py-2">{deleteError}</div>}
-                            <div className="card-actions justify-end">
-                                <button className="btn btn-error btn-sm" disabled={deleting} onClick={handleDeleteContest}>
-                                    {deleting && <span className="loading loading-spinner"></span>}
-                                    Delete contest
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             )}
@@ -737,8 +669,81 @@ const ContestDashboard = () => {
                         <Link to={generatePath('CONTEST_RESULTS_TABLE', { contestId: contestId })} className="btn btn-primary">View Full Results</Link>
                     </div>
                     <Leaderboard results={contestResults || null} />
+
+                    {canManageThisContest && (
+                        <div className="card bg-base-100 shadow mt-8">
+                            <div className="card-body">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="card-title">Registered teams</h3>
+                                    <div className="flex gap-2">
+                                        <button className="btn btn-sm" onClick={() => setShowImportTeams(true)}>
+                                            Import teams
+                                        </button>
+                                        <button className="btn btn-primary btn-sm" onClick={() => setEditingContestTeam('new')}>
+                                            Register team
+                                        </button>
+                                    </div>
+                                </div>
+                                {teamsLoading ? (
+                                    <Loading />
+                                ) : teamsError ? (
+                                    <div className="alert alert-error">
+                                        <span>Failed to load teams: {teamsError}</span>
+                                        <button type="button" className="btn btn-sm" onClick={refreshTeams}>
+                                            Retry
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <TeamList
+                                        contestId={contest.id}
+                                        teams={teams}
+                                        onEdit={contestTeam => setEditingContestTeam(contestTeam)}
+                                        onRemoved={contestTeamId => setTeams(prev => prev.filter(item => item.id !== contestTeamId))}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {canManageThisContest && (
+                <div className="mt-8 space-y-6">
+                    <div className="card bg-base-200 shadow-sm border border-base-300">
+                        <div className="card-body p-5">
+                            <h3 className="card-title text-lg">Access &amp; limits</h3>
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <span className="badge badge-info">{contest.access_status?.tier_label}</span>
+                                <span className="text-xs opacity-70">Source: {contest.access_status?.source_type}</span>
+                            </div>
+                            <div className="bg-base-100 rounded-lg p-3 text-sm">
+                                <div className="opacity-70">Competing pilots</div>
+                                <div className="font-semibold">
+                                    {contest.access_status?.contestants_used} /{' '}
+                                    {contest.access_status?.contestant_limit == null ? 'Unlimited' : contest.access_status.contestant_limit}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card bg-error/10 border border-error/30 shadow-sm">
+                        <div className="card-body p-5">
+                            <h3 className="card-title text-lg text-error">Danger zone</h3>
+                            <p className="text-sm opacity-80">
+                                Deleting a contest permanently removes it, its navigation tasks, and all results.
+                            </p>
+                            {deleteError && <div className="alert alert-error text-sm py-2">{deleteError}</div>}
+                            <div className="card-actions justify-end">
+                                <button className="btn btn-error btn-sm" disabled={deleting} onClick={handleDeleteContest}>
+                                    {deleting && <span className="loading loading-spinner"></span>}
+                                    Delete contest
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <Link to="/" className="btn btn-secondary mt-4">Back to Dashboard</Link>
         </div>
     );
