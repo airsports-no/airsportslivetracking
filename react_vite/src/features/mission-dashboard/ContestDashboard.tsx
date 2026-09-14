@@ -138,6 +138,13 @@ const ContestDashboard = () => {
 
     useEffect(() => {
         latestTeamsContestId.current = contestId;
+        // Reset unconditionally, even when the new contest isn't manageable by this user -
+        // otherwise navigating from a manageable contest to one this user can't manage would
+        // leave the previous contest's permission rows (and an already-open permissions modal)
+        // showing against the new, wrong contest.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPermissionGrants([]);
+        setShowPermissionsModal(false);
         if (canManageThisContest) {
             refreshTeams();
             refreshPermissions();
@@ -356,7 +363,7 @@ const ContestDashboard = () => {
                 </div>,
                 document.body
             )}
-            {showPermissionsModal && createPortal(
+            {showPermissionsModal && canManageThisContest && createPortal(
                 <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
                     <div className="card bg-base-100 shadow-xl max-w-2xl w-full mx-auto">
                         <div className="card-body">
