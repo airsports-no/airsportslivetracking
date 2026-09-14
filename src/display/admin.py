@@ -103,6 +103,22 @@ class ContestAdmin(GuardedModelAdmin):
         return result
 
 
+class UserUploadedMapAdmin(GuardedModelAdmin):
+    def save_model(self, request, obj, form, change):
+        result = super().save_model(request, obj, form, change)
+        # A bare GuardedModelAdmin registration never assigns object permissions on save (that
+        # only happens in UserUploadedMapCreate.form_valid(), the app's own upload form) - a map
+        # added here directly (e.g. staff adding a file a user emailed in rather than
+        # self-uploading) was silently invisible to its own owner forever, with no error to
+        # signal it. Assign to obj.user (the map's actual owner), not request.user (the staff
+        # member using the admin), since those are usually different people here.
+        assign_perm("view_useruploadedmap", obj.user, obj)
+        assign_perm("change_useruploadedmap", obj.user, obj)
+        assign_perm("delete_useruploadedmap", obj.user, obj)
+        assign_perm("add_useruploadedmap", obj.user, obj)
+        return result
+
+
 class ClubManagerMembershipInline(admin.TabularInline):
     model = ClubManagerMembership
     extra = 0
@@ -343,7 +359,7 @@ admin.site.register(Person, PersonAdmin)
 admin.site.register(Club, ClubAdmin)
 admin.site.register(EditableRoute, GuardedModelAdmin)
 admin.site.register(EmailMapLink)
-admin.site.register(UserUploadedMap, GuardedModelAdmin)
+admin.site.register(UserUploadedMap, UserUploadedMapAdmin)
 admin.site.register(AccessGrant, AccessGrantAdmin)
 admin.site.register(ClubManagerMembership, ClubManagerMembershipAdmin)
 admin.site.register(TokenType, TokenTypeAdmin)
