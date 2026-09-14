@@ -253,6 +253,13 @@ class NavigationTask(models.Model):
 
         users = get_users_with_perms(self.contest, attach_perms=True)
         maps = set(UserUploadedMap.objects.filter(unprotected=True))
+        # Always include maps owned outright by someone with contest access, regardless of
+        # whether the view_useruploadedmap guardian grant below actually exists for them - a
+        # map created through a path that skipped assign_perm (e.g. Django admin's add form,
+        # which knows nothing about this app's permission-assignment convention) would
+        # otherwise be permanently invisible to its own owner, even within contests they
+        # manage.
+        maps.update(UserUploadedMap.objects.filter(user__in=users))
         for user in users:
             maps.update(
                 get_objects_for_user(

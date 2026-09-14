@@ -659,6 +659,57 @@ class UserUploadedMapCreateViewTests(TestCase):
         self.assertTrue(bool(created.map_file))
 
 
+class GetAvailableUserMapsTests(TestCase):
+    """
+    Regression test for a production bug: a map ("Olocau 2025") had zero guardian object
+    permissions for anyone, including its own owner - it was likely created through a path
+    that skipped UserUploadedMapCreate.form_valid()'s assign_perm calls (e.g. Django admin's
+    raw add form, which knows nothing about this app's permission-assignment convention).
+    Because get_available_user_maps() only included maps that were either unprotected or had
+    an explicit view_useruploadedmap grant, that map was permanently invisible in the flight
+    order configuration's map list for every navigation task, even to its owner, despite the
+    owner having full access to the contest.
+    """
+
+    def setUp(self):
+        create_scorecards()
+        self.owner = get_user_model().objects.create(email="map-owner@example.com")
+        self.contest = Contest.objects.create(
+            name="Contest",
+            start_time="2024-01-01T08:00:00Z",
+            finish_time="2024-01-01T18:00:00Z",
+        )
+        self.navigation_task = NavigationTask.create(
+            name="Task",
+            original_scorecard=Scorecard.objects.first(),
+            start_time="2024-01-01T10:00:00Z",
+            finish_time="2024-01-01T11:00:00Z",
+            route=Route.objects.create(name="Route"),
+            contest=self.contest,
+        )
+        assign_perm("display.view_contest", self.owner, self.contest)
+        assign_perm("display.change_contest", self.owner, self.contest)
+
+    def test_owner_map_without_object_permissions_is_still_available(self):
+        orphaned = _make_instance(self.owner)
+        orphaned.processing_status = UserUploadedMap.PROCESSING_READY
+        orphaned.save(update_fields=["processing_status"])
+
+        available = self.navigation_task.get_available_user_maps()
+
+        self.assertIn(orphaned, available)
+
+    def test_map_owned_by_unrelated_user_is_still_excluded(self):
+        stranger = get_user_model().objects.create(email="stranger@example.com")
+        unrelated = _make_instance(stranger)
+        unrelated.processing_status = UserUploadedMap.PROCESSING_READY
+        unrelated.save(update_fields=["processing_status"])
+
+        available = self.navigation_task.get_available_user_maps()
+
+        self.assertNotIn(unrelated, available)
+
+
 class UnifiedMapSelectionViewTests(TestCase):
     def setUp(self):
         create_scorecards()
