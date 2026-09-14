@@ -543,14 +543,16 @@ const ContestDashboard = () => {
                                 <div className="card bg-base-100 shadow">
                                     <div className="card-body">
                                         <h3 className="card-title">Contest tools</h3>
+                                        {/* Accent color marks these as manager actions, same convention as TaskCard's
+                                            canManage-only controls (edit link, Hangar Flyer). */}
                                         <div className="flex flex-wrap gap-2">
-                                            <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>
+                                            <button className="btn btn-accent btn-sm" onClick={() => setShowCreateTask(true)}>
                                                 Add navigation task
                                             </button>
-                                            <button className="btn btn-sm" onClick={() => setShowSettingsModal(true)}>
+                                            <button className="btn btn-accent btn-outline btn-sm" onClick={() => setShowSettingsModal(true)}>
                                                 Contest settings
                                             </button>
-                                            <button className="btn btn-sm" onClick={() => setShowPermissionsModal(true)}>
+                                            <button className="btn btn-accent btn-outline btn-sm" onClick={() => setShowPermissionsModal(true)}>
                                                 Permissions{permissionGrants.length > 0 ? ` (${permissionGrants.length})` : ''}
                                             </button>
                                         </div>
@@ -679,10 +681,10 @@ const ContestDashboard = () => {
                                 <div className="flex items-center justify-between">
                                     <h3 className="card-title">Registered teams</h3>
                                     <div className="flex gap-2">
-                                        <button className="btn btn-sm" onClick={() => setShowImportTeams(true)}>
+                                        <button className="btn btn-accent btn-outline btn-sm" onClick={() => setShowImportTeams(true)}>
                                             Import teams
                                         </button>
-                                        <button className="btn btn-primary btn-sm" onClick={() => setEditingContestTeam('new')}>
+                                        <button className="btn btn-accent btn-sm" onClick={() => setEditingContestTeam('new')}>
                                             Register team
                                         </button>
                                     </div>
