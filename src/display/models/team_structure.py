@@ -141,7 +141,7 @@ class Person(models.Model):
         if response.status_code == requests.codes.ok:
             self.picture.save("nobg_" + self.picture.name, ContentFile(response.content))
             return None
-        logger.error("Error:", response.status_code, response.text)
+        logger.error("Error: %s %s", response.status_code, response.text)
         return response.text
 
     def validate(self):

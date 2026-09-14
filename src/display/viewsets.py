@@ -1267,6 +1267,31 @@ class ContestViewSet(ModelViewSet):
     @action(
         detail=True,
         methods=["POST"],
+        url_path=r"remove-person-picture-background/(?P<person_pk>\d+)",
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def remove_person_picture_background(self, request, person_pk=None, *args, **kwargs):
+        """
+        Calls the external remove.bg service to strip the background from a person's profile
+        picture - ported from the classic clear_profile_image_background view (deleted as
+        seemingly-orphaned in the RegisterTeamWizard->SPA migration, before this admin team
+        registration flow grew its own picture upload and needed it back). Gated by
+        change_contest on *this* contest, same as the classic view, since Person has no
+        contest of its own to check permissions against - being able to manage a contest is what
+        lets you clean up any pilot's photo for use in that contest's flight documents.
+        """
+        self.get_object()  # Enforces ContestModificationPermissions on this contest.
+        person = get_object_or_404(Person, pk=person_pk)
+        if not person.picture:
+            raise drf_exceptions.ValidationError("This person has no profile picture to process")
+        error = person.remove_profile_picture_background()
+        if error is not None:
+            raise drf_exceptions.ValidationError(f"Background removal failed: {error}")
+        return Response({"picture": request.build_absolute_uri(person.picture.url)})
+
+    @action(
+        detail=True,
+        methods=["POST"],
         permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
     )
     def import_teams(self, request, *args, **kwargs):
