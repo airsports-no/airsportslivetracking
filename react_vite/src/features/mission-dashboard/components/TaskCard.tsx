@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { MapPin, FileText, Pencil } from 'lucide-react';
 import { Contestant } from '../../competition-map/types';
 import PublicityIcon from './PublicityIcon';
-import { Route } from '../types';
+import { NavigationTask, Route } from '../types';
 import TaskStatistics from './TaskStatistics';
 import { formatDateInterval } from '../../../utils';
 import { reverse } from '../../../urls';
@@ -28,9 +28,10 @@ interface TaskCardProps {
     isRegisteredButNotPilot?: boolean;
     allow_self_management?: boolean;
     canManage?: boolean;
+    taskSubtypeDefinition?: NavigationTask['task_subtype_definition'];
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count, isRegisteredButNotPilot, allow_self_management, canManage }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count, isRegisteredButNotPilot, allow_self_management, canManage, taskSubtypeDefinition }) => {
     const getStatusBadge = () => {
         switch (status) {
             case 'Open':
@@ -76,7 +77,14 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                         </a>
                     )}
                 </h3>
-                
+                {taskSubtypeDefinition && (
+                    <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold -mt-1">
+                        {taskSubtypeDefinition.coarse_family_label}
+                        <span className="mx-1 opacity-50">·</span>
+                        {taskSubtypeDefinition.display_name}
+                    </p>
+                )}
+
                 <TaskStatistics route={route} flown_contestants_count={flown_contestants_count} />
                 <p className="text-sm text-gray-500">{formatDateInterval(start_time, finish_time)}</p>
 

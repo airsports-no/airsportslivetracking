@@ -89,6 +89,7 @@ export interface NavigationTask {
         key: string;
         display_name: string;
         coarse_family: string;
+        coarse_family_label: string;
         requires_contestant_configuration: boolean;
     } | null;
     allow_self_management: boolean;

@@ -673,6 +673,7 @@ const ContestDashboard = () => {
                                         route={task.route}
                                         flown_contestants_count={task.flown_contestants_count}
                                         canManage={canManageThisContest}
+                                        taskSubtypeDefinition={task.task_subtype_definition}
                                     />
                                 );
                             })}

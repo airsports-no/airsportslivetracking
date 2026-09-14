@@ -79,11 +79,32 @@ from display.services.route_compatibility import assert_route_compatible_with_ta
 from display.services.task_compiler import TaskCompiler
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import CountryNotFoundException, get_country_code_from_location
+from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
 from display.utilities.tracking_definitions import TRACKING_DEVICES, TrackingService
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
+
+_TASK_TYPE_LABELS = dict(NAVIGATION_TASK_TYPES)
+
+
+def _serialize_task_subtype_definition(navigation_task) -> Optional[dict]:
+    """
+    Shared by NavigationTasksLightSerialiser and NavigationTaskNestedTeamRouteSerialiser - exposes
+    the task's coarse family (e.g. "precision"/"Precision") and its specific subtype (e.g.
+    "2.A1 Curve navigation with time estimation") for display, e.g. on TaskCard.tsx.
+    """
+    definition = navigation_task.subtype_definition
+    if definition is None:
+        return None
+    return {
+        "key": definition.key,
+        "display_name": definition.display_name,
+        "coarse_family": definition.coarse_family,
+        "coarse_family_label": _TASK_TYPE_LABELS.get(definition.coarse_family, definition.coarse_family),
+        "requires_contestant_configuration": definition.requires_contestant_configuration,
+    }
 
 
 class UserSerialiser(serializers.ModelSerializer):
@@ -674,6 +695,7 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
     flown_contestants_count = serializers.SerializerMethodField()
     active_contestants = serializers.SerializerMethodField("get_active_contestants")
     score_sorting_direction = serializers.ReadOnlyField()
+    task_subtype_definition = serializers.SerializerMethodField()
 
     class Meta:
         model = NavigationTask
@@ -692,7 +714,11 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
             "is_public",
             "is_featured",
             "planning_time",
+            "task_subtype_definition",
         )
+
+    def get_task_subtype_definition(self, obj) -> Optional[dict]:
+        return _serialize_task_subtype_definition(obj)
 
     @extend_schema_field(ContestantTickerSerialiser(many=True))
     def get_active_contestants(self, obj):
@@ -1928,15 +1954,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         return navigation_task.user_has_change_permissions(user) or user.is_superuser
 
     def get_task_subtype_definition(self, navigation_task) -> Optional[dict]:
-        definition = navigation_task.subtype_definition
-        if definition is None:
-            return None
-        return {
-            "key": definition.key,
-            "display_name": definition.display_name,
-            "coarse_family": definition.coarse_family,
-            "requires_contestant_configuration": definition.requires_contestant_configuration,
-        }
+        return _serialize_task_subtype_definition(navigation_task)
 
     def get_task_information(self, navigation_task) -> dict:
         return navigation_task.task_information
