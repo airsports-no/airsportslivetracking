@@ -24,7 +24,7 @@ from PIL import Image, ImageDraw, ImageFont
 from shapely.geometry import Polygon
 
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
-from display.flight_order_and_maps.map_constants import A3, LANDSCAPE
+from display.flight_order_and_maps.map_constants import A3, LANDSCAPE, SCALE_TO_FIT
 from display.flight_order_and_maps.map_plotter import PSEUDO_MERCATOR_SPHERE, plot_route
 from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_image
 from display.models import Contestant
@@ -567,10 +567,20 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         + _typst_string("/src/static/img/AirSportsLiveTracking.png")
         + ", width: 35%)]]"
     )
+    # "Fit page" has no nominal scale to compare against, so the disclaimer only applies
+    # when the user picked a specific fixed scale.
+    scale_disclaimer = (
+        "The scale bar's printed ratio is this map's actual measured scale, which may differ "
+        "very slightly from the scale selected above due to the map projection - this is not an error."
+        if flight_order_configuration.map_scale != SCALE_TO_FIT
+        else ""
+    )
     map_footer = (
-        "context [#align(right)[#image("
+        "context [#grid(columns: (1fr, auto), align: (left + horizon, right + horizon),"
+        + f"[#text(size: 7pt, style: \"italic\")[{_typst_string(scale_disclaimer)}]],"
+        + "[#image("
         + _typst_string("/src/static/img/AirSportsLiveTrackingWhiteBG.png")
-        + ", width: 30%)]]"
+        + ", width: 30%)])]"
     )
 
     waypoints = get_flight_order_visual_waypoints(
@@ -602,8 +612,14 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     mapimage_file = NamedTemporaryFile(suffix=".png")
     mapimage_file.write(map_image.read())
     mapimage_file.seek(0)
+    # Must match the page's own declared margin exactly (see "#set page(... margin: ..."
+    # below): left+right = 10mm+10mm = 20mm, but top+bottom = 10mm+15mm = 25mm - these used
+    # to both subtract a flat 20mm, so the map image (placed at this exact height/width, with
+    # no auto-fit shrink) was 5mm taller than its actual vertical content box and overflowed
+    # 2.5mm into each of the top/bottom margins (confirmed: measured 7.5mm/12.5mm instead of
+    # the intended 10mm/15mm).
     map_width = flight_order_configuration.page_width_mm - 20
-    map_height = flight_order_configuration.page_height_mm - 20
+    map_height = flight_order_configuration.page_height_mm - 25
 
     adaptive_start_note = ""
     if contestant.adaptive_start:

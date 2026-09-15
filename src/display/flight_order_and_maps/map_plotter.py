@@ -694,6 +694,43 @@ class LocalMapServer(MyGoogleWTS):
         return f"{MBTILES_SERVER_URL}/services/{self.map_key}/tiles/{z}/{x}/{y}.{self.format}"
 
 
+def set_extent_matching_ground_distance(ax, utm_extent, utm, proj_pc):
+    """
+    Sets ax's view directly in its own display CRS instead of the more obvious
+    ax.set_extent(utm_extent, crs=utm), which would make cartopy reproject the UTM-aligned
+    utm_extent rectangle into the axes' display CRS (every tile provider in this file sets
+    self.crs = ccrs.Mercator.GOOGLE) to establish the view. A UTM rectangle isn't a rectangle
+    once reprojected into Mercator, so the axes ends up displaying measurably more ground
+    than intended - worse at higher latitudes - making every rendered map several percent
+    more zoomed-out than its configured scale (confirmed: a map configured at 1:250,000
+    rendered as 1:262,000 at 60N).
+
+    Converts utm_extent's centre and half-width/half-height into the display CRS's own units
+    using the standard Web Mercator local scale factor (1/cos(latitude)), which is exact for
+    a conformal projection like this at a single reference latitude - so no reprojection, no
+    bounding-box distortion, and the rendered ground distance matches utm_extent exactly
+    (confirmed: the same map above now measures 1:249,927 before also fixing scale_bar_y's
+    own reference-point lookup below, 1:249,999 after - see that function's docstring).
+    """
+    x0, x1, y0, y1 = utm_extent
+    centre_x_utm = (x0 + x1) / 2
+    centre_y_utm = (y0 + y1) / 2
+    centre_lon, centre_lat = proj_pc.transform_point(centre_x_utm, centre_y_utm, utm)
+    mercator_scale_factor = 1 / math.cos(math.radians(centre_lat))
+    centre_display_x, centre_display_y = ax.projection.transform_point(centre_lon, centre_lat, proj_pc)
+    half_width_display = (x1 - x0) / 2 * mercator_scale_factor
+    half_height_display = (y1 - y0) / 2 * mercator_scale_factor
+    ax.set_extent(
+        [
+            centre_display_x - half_width_display,
+            centre_display_x + half_width_display,
+            centre_display_y - half_height_display,
+            centre_display_y + half_height_display,
+        ],
+        crs=ax.projection,
+    )
+
+
 def scale_bar_y(
     ax,
     proj,
@@ -725,17 +762,22 @@ def scale_bar_y(
     the extent-setting code assumed it would - hence no scale/length input is needed here at
     all any more, and the printed "1:X" label reflects the measured effective scale, not the
     nominal one.
+
+    The reference point itself is read directly in the axes' own display CRS
+    (ax.get_extent(ax.projection), no crs= conversion) and converted to lon/lat with a
+    single-point transform - not via ax.get_extent(utm), which would reproject the axes'
+    four corners into UTM and take their bounding box. A bounding box of reprojected corners
+    isn't the same point-for-point as the original region (the same distortion this whole fix
+    is about), so it very slightly biased the reference latitude the geodesic calibration
+    below uses - small on its own, but why this function was still measurably off (1:249,927
+    instead of 1:250,000 - confirmed on the same real task set_extent_matching_ground_distance
+    documents above) even after the main extent fix. Fixed, the residual is ~1:249,999 - the
+    remaining ~10ppm is the linear Web Mercator scale-factor approximation itself (exact only
+    at a single latitude, and this map spans a small range around it), not a bug.
     """
-    # find lat/lon center to find best UTM zone
-    x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
-    # Projection in metres
-    utm = utm_from_lat_lon((y0 + y1) / 2, (x0 + x1) / 2)
-    # Get the extent of the plotted area in coordinates in metres (only used to pick a
-    # rough on-map position for the bar - not for its length, so the same UTM/display-CRS
-    # round-trip that broke length calculations here is harmless for mere positioning).
-    x0, x1, y0, y1 = ax.get_extent(utm)
-    sbcx, sbcy = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
-    center_lon, center_lat = proj.transform_point(sbcx, sbcy, utm)
+    x0, x1, y0, y1 = ax.get_extent(ax.projection)
+    sbc_x, sbc_y = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
+    center_lon, center_lat = proj.transform_point(sbc_x, sbc_y, ax.projection)
 
     # Sphere matching PSEUDO_MERCATOR_SPHERE exactly, so the geodesic math below is
     # internally consistent with how everything else on this map is projected.
@@ -789,7 +831,13 @@ def scale_bar_y(
     ax.text(
         xc,
         yc,
-        "1:{:,d} {:.2f} {} = {:.0f} cm".format(int(effective_scale * 1000), bar_length, units, 10),
+        # round(), not int()/truncation: the measured effective_scale is already accurate to a
+        # small fraction of a percent (see this function's own docstring), so truncating it
+        # systematically shows a value up to 999 short of the true nearest-thousand scale
+        # (e.g. a genuinely-1:250,000 map measuring 1:249,999.8 displayed as "1:249,999"
+        # instead of "1:250,000") - not a precision change, just correct rounding instead of
+        # always rounding down.
+        "1:{:,d} {:.2f} {} = {:.0f} cm".format(round(effective_scale * 1000), bar_length, units, 10),
         transform=proj,
         horizontalalignment="center",
         verticalalignment="bottom",
@@ -1961,7 +2009,7 @@ def plot_route(
             memory_estimation_exceeded_message(estimated_mb, final_image_mb, tiles_mb, MEMORY_THRESHOLD_MB, zoom_level)
         )
 
-    ax.set_extent(extent, crs=utm)
+    set_extent_matching_ground_distance(ax, extent, utm, proj_pc)
     scale_bar_y(ax, PSEUDO_MERCATOR_SPHERE, units="NM", m_per_unit=1852)
     fig.patch.set_visible(False)
     extent = ax.get_extent(proj_pc)

@@ -122,6 +122,10 @@ class TestPlotRouteRejectsDegradedMap(TestCase):
         mock_ccrs.PlateCarree.return_value = MagicMock()
         mock_pseudo_mercator_sphere.transform_point.return_value = (11.0, 60.0)
         mock_ax.get_extent.return_value = (10.0, 11.0, 60.0, 61.0)
+        # plot_route now converts the UTM extent's centre into the axes' own display CRS
+        # directly (ax.projection.transform_point(...)) instead of only reprojecting via
+        # UTM - mock_ax is a bare MagicMock, so this needs an explicit tuple return value.
+        mock_ax.projection.transform_point.return_value = (1225000.0, 8500000.0)
         mock_utm_instance = MagicMock()
         mock_utm_instance.transform_point.side_effect = [(0, 0), (1000, 1000), (10.0, 60.0), (11.0, 61.0)]
         mock_utm.return_value = mock_utm_instance
