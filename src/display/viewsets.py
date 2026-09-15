@@ -2163,14 +2163,14 @@ class ContestantViewSet(ModelViewSet):
     )
     @action(detail=True, methods=["get"], url_path=r"score_data/(?P<version>[^/]+)")
     def score_data_versioned(self, request, pk=None, version=None, **kwargs):
-        return self.score_data(request, pk=pk, **kwargs)
+        return self.score_data(request, pk=pk, is_versioned=True, **kwargs)
 
     @extend_schema(
         responses={200: OpenApiTypes.OBJECT},
         description="Return consolidated score data, including compiled task payload and administrative penalties, for the contestant score view.",
     )
     @action(detail=True, methods=["get"])
-    def score_data(self, request, *args, **kwargs):
+    def score_data(self, request, *args, is_versioned: bool = False, **kwargs):
         """
         Used by the front end to load initial data
         """
@@ -2198,12 +2198,20 @@ class ContestantViewSet(ModelViewSet):
 
         if not is_public:
             response["Cache-Control"] = "private, no-cache"
-        elif is_finished:
+        elif is_finished and is_versioned:
             response["ETag"] = etag
-            # Finished scores are static.
-            # s-maxage=31536000: CDN caches for 1 year (explicit invalidation)
+            # Finished scores are static, and the URL embeds the version - a restart
+            # (which bumps track_version/score_version) produces a URL the CDN has never
+            # seen, so there's no stale entry to revalidate.
+            # s-maxage=31536000: CDN caches for 1 year.
             # max-age=0: Browser always checks CDN (no disk cache).
             response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+        elif is_finished:
+            response["ETag"] = etag
+            # Unversioned URL: its cache key can't change when track_version/score_version
+            # does, so it must never be marked immutable - short cache only, relying on the
+            # ETag above to correctly 304/refresh once the CDN revalidates with origin.
+            response["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=600"
         else:
             # Live scores change frequently.
             # No ETag sent to avoid stale 304s from CDN.
@@ -2231,10 +2239,36 @@ class ContestantViewSet(ModelViewSet):
             ),
         ],
         responses={200: OpenApiTypes.OBJECT},
+        description="Same payload as slice, with the contestant's track version embedded in the path. The "
+        "frontend already knows the current track_version from the navigation task's contestant list before "
+        "it ever calls this, so it can always request the current version directly - the CDN then sees a "
+        "distinct URL per version instead of long-caching one URL that silently goes stale when a "
+        "contestant's calculator is restarted.",
+    )
+    @action(detail=True, methods=["get"], url_path=r"slice/(?P<minute_index>\d+)/(?P<version>[^/]+)")
+    def slice_versioned(self, request, minute_index, version=None, **kwargs):
+        return self.slice(request, minute_index, is_versioned=True, **kwargs)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="minute_index",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="Minute index to inspect",
+            ),
+            OpenApiParameter(
+                name="count",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Number of contiguous one-minute slices to return. Must be between 1 and 60.",
+            ),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
         description="Return one or more cached minute-aligned telemetry slices for a contestant track.",
     )
     @action(detail=True, methods=["get"], url_path=r"slice/(?P<minute_index>\d+)")
-    def slice(self, request, minute_index, **kwargs):
+    def slice(self, request, minute_index, is_versioned: bool = False, **kwargs):
         contestant = self.get_object()
         minute_index = int(minute_index)
         try:
@@ -2295,10 +2329,17 @@ class ContestantViewSet(ModelViewSet):
         if not is_public:
             # Private telemetry must never reach the shared CDN cache.
             response["Cache-Control"] = "private, no-cache"
-        elif is_immutable and current_count > 0:
-            # ONLY cache for 1 year if it's immutable AND we actually have data.
+        elif is_immutable and current_count > 0 and is_versioned:
+            # ONLY cache for 1 year if it's immutable, we actually have data, AND the URL
+            # embeds track_version - a restart bumps that version, producing a URL the CDN
+            # has never seen, so there's no stale entry to revalidate.
             # If current_count is 0, someone might have requested a slice before the flight started.
             response["Cache-Control"] = "public, max-age=120, s-maxage=31536000, stale-while-revalidate=86400"
+        elif is_immutable and current_count > 0:
+            # Unversioned URL: its cache key can't change when track_version does, so it
+            # must never be marked immutable - short cache only, relying on the ETag above
+            # to correctly 304/refresh once the CDN revalidates with origin.
+            response["Cache-Control"] = "public, max-age=60, s-maxage=60, stale-while-revalidate=600"
         else:
             # If the flight is ongoing, or the slice is empty, use short-term caching.
             response["Cache-Control"] = "public, max-age=5, s-maxage=10, must-revalidate"
@@ -2417,8 +2458,20 @@ class ContestantViewSet(ModelViewSet):
         """
         return self.score_data(request, pk=pk, **kwargs)
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+        description="Same payload as track, with the contestant's track version embedded in the path. The "
+        "frontend already knows the current track_version from the navigation task's contestant list before "
+        "it ever calls this, so it can always request the current version directly - the CDN then sees a "
+        "distinct URL per version instead of long-caching one URL that silently goes stale when a "
+        "contestant's calculator is restarted.",
+    )
+    @action(detail=True, methods=["get"], url_path=r"track/(?P<version>[^/]+)")
+    def track_versioned(self, request, pk=None, version=None, **kwargs):
+        return self.track(request, pk=pk, is_versioned=True, **kwargs)
+
     @action(detail=True, methods=["get"])
-    def track(self, request, pk=None, **kwargs):
+    def track(self, request, pk=None, is_versioned: bool = False, **kwargs):
         """
         Returns the GPS track for the contestant
         """
@@ -2444,10 +2497,18 @@ class ContestantViewSet(ModelViewSet):
 
         if not is_public:
             response["Cache-Control"] = "private, no-cache"
+        elif is_finished and is_versioned:
+            response["ETag"] = etag
+            # Finished tracks are static, and the URL embeds the version - a restart (which
+            # bumps track_version) produces a URL the CDN has never seen, so there's no
+            # stale entry to revalidate.
+            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         elif is_finished:
             response["ETag"] = etag
-            # Finished tracks are static.
-            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+            # Unversioned URL: its cache key can't change when track_version does, so it
+            # must never be marked immutable - short cache only, relying on the ETag above
+            # to correctly 304/refresh once the CDN revalidates with origin.
+            response["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=600"
         else:
             # Live tracks change as the flight progresses.
             # No ETag sent to avoid stale 304s from CDN.

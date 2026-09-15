@@ -93,6 +93,15 @@ class CDNCacheHeadersTests(TransactionTestCase):
             url += f"?count={count}"
         return url
 
+    def _slice_versioned_url(self, minute_index: int, version) -> str:
+        return f"/api/v1/contestant/{self.contestant.pk}/slice/{minute_index}/{version}/"
+
+    def _track_url(self) -> str:
+        return f"/api/v1/contestant/{self.contestant.pk}/track/"
+
+    def _track_versioned_url(self, version) -> str:
+        return f"/api/v1/contestant/{self.contestant.pk}/track/{version}/"
+
     def _make_public(self):
         self.navigation_task.is_public = True
         self.navigation_task.save(update_fields=["is_public"])
@@ -181,6 +190,94 @@ class CDNCacheHeadersTests(TransactionTestCase):
             self._slice_url(_far_past_minute_index()), HTTP_IF_NONE_MATCH=etag
         )
         self.assertEqual(second.status_code, 304)
+
+    # --- 3b. Unversioned "finished" URLs must never get the 1-year cache, since their
+    # cache key can't change when track_version bumps on a restart. Versioned URLs can,
+    # since a restart changes the URL itself. ---
+    def test_unversioned_finished_slice_never_gets_the_one_year_cache(self):
+        self._make_public()
+        minute_index = _far_past_minute_index()
+        window_start = datetime.datetime.fromtimestamp(minute_index * 60, tz=datetime.timezone.utc)
+        ContestantReceivedPosition.objects.create(
+            contestant=self.contestant,
+            time=window_start + datetime.timedelta(seconds=10),
+            latitude=60.0,
+            longitude=11.0,
+        )
+        self.contestant.contestanttrack.calculator_finished = True
+        self.contestant.contestanttrack.save()
+
+        response = self.client.get(self._slice_url(minute_index))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("s-maxage=31536000", response["Cache-Control"])
+
+    def test_versioned_finished_slice_gets_the_one_year_cache(self):
+        self._make_public()
+        minute_index = _far_past_minute_index()
+        window_start = datetime.datetime.fromtimestamp(minute_index * 60, tz=datetime.timezone.utc)
+        ContestantReceivedPosition.objects.create(
+            contestant=self.contestant,
+            time=window_start + datetime.timedelta(seconds=10),
+            latitude=60.0,
+            longitude=11.0,
+        )
+        self.contestant.contestanttrack.calculator_finished = True
+        self.contestant.contestanttrack.save()
+
+        response = self.client.get(self._slice_versioned_url(minute_index, self.contestant.track_version))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("s-maxage=31536000", response["Cache-Control"])
+
+    def test_unversioned_finished_track_never_gets_the_one_year_cache(self):
+        self._make_public()
+        self.contestant.contestanttrack.calculator_finished = True
+        self.contestant.contestanttrack.save()
+
+        response = self.client.get(self._track_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("s-maxage=31536000", response["Cache-Control"])
+
+    def test_versioned_finished_track_gets_the_one_year_cache(self):
+        self._make_public()
+        self.contestant.contestanttrack.calculator_finished = True
+        self.contestant.contestanttrack.save()
+
+        response = self.client.get(self._track_versioned_url(self.contestant.track_version))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("s-maxage=31536000", response["Cache-Control"])
+
+    # --- 3c. Restarting a contestant's calculator must change the versioned URL, so a CDN
+    # entry cached before the restart is simply never requested again (regression test for
+    # the "stale track still visible after restart" bug report). ---
+    def test_slice_versioned_url_changes_after_restarting_the_calculator(self):
+        self._make_public()
+        minute_index = _far_past_minute_index()
+        window_start = datetime.datetime.fromtimestamp(minute_index * 60, tz=datetime.timezone.utc)
+        ContestantReceivedPosition.objects.create(
+            contestant=self.contestant,
+            time=window_start + datetime.timedelta(seconds=10),
+            latitude=60.0,
+            longitude=11.0,
+        )
+        old_version = self.contestant.track_version
+        old_url = self._slice_versioned_url(minute_index, old_version)
+        before_restart = self.client.get(old_url)
+        self.assertEqual(len(before_restart.json()), 1)
+
+        self.contestant.reset_track_and_score()
+        self.contestant.refresh_from_db()
+        new_version = self.contestant.track_version
+
+        self.assertNotEqual(old_version, new_version)
+        new_url = self._slice_versioned_url(minute_index, new_version)
+        self.assertNotEqual(old_url, new_url)
+
+        after_restart = self.client.get(new_url)
+        self.assertEqual(after_restart.json(), [])
 
     # --- 4. count parameter is bounded ---
     def test_count_above_60_is_rejected(self):
