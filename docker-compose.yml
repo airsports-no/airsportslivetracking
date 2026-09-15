@@ -43,7 +43,7 @@ services:
       - ./data:/data
       - ./weblog:/logs
     ports:
-      - "8002:8002"  # asgi.sh binds :8002, matching helm's tracker-app container port
+      - "8002:8000"  # asgi.sh binds :8000, matching helm's tracker-app container port
     depends_on:
       - mysql
       - redis
