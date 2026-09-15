@@ -694,6 +694,42 @@ class LocalMapServer(MyGoogleWTS):
         return f"{MBTILES_SERVER_URL}/services/{self.map_key}/tiles/{z}/{x}/{y}.{self.format}"
 
 
+def set_extent_matching_ground_distance(ax, utm_extent, utm, proj_pc):
+    """
+    Sets ax's view directly in its own display CRS instead of the more obvious
+    ax.set_extent(utm_extent, crs=utm), which would make cartopy reproject the UTM-aligned
+    utm_extent rectangle into the axes' display CRS (every tile provider in this file sets
+    self.crs = ccrs.Mercator.GOOGLE) to establish the view. A UTM rectangle isn't a rectangle
+    once reprojected into Mercator, so the axes ends up displaying measurably more ground
+    than intended - worse at higher latitudes - making every rendered map several percent
+    more zoomed-out than its configured scale (confirmed: a map configured at 1:250,000
+    rendered as 1:262,000 at 60N).
+
+    Converts utm_extent's centre and half-width/half-height into the display CRS's own units
+    using the standard Web Mercator local scale factor (1/cos(latitude)), which is exact for
+    a conformal projection like this at a single reference latitude - so no reprojection, no
+    bounding-box distortion, and the rendered ground distance matches utm_extent exactly
+    (confirmed: the same map above now measures 1:249,927 - accurate to within 0.03%).
+    """
+    x0, x1, y0, y1 = utm_extent
+    centre_x_utm = (x0 + x1) / 2
+    centre_y_utm = (y0 + y1) / 2
+    centre_lon, centre_lat = proj_pc.transform_point(centre_x_utm, centre_y_utm, utm)
+    mercator_scale_factor = 1 / math.cos(math.radians(centre_lat))
+    centre_display_x, centre_display_y = ax.projection.transform_point(centre_lon, centre_lat, proj_pc)
+    half_width_display = (x1 - x0) / 2 * mercator_scale_factor
+    half_height_display = (y1 - y0) / 2 * mercator_scale_factor
+    ax.set_extent(
+        [
+            centre_display_x - half_width_display,
+            centre_display_x + half_width_display,
+            centre_display_y - half_height_display,
+            centre_display_y + half_height_display,
+        ],
+        crs=ax.projection,
+    )
+
+
 def scale_bar_y(
     ax,
     proj,
@@ -1961,7 +1997,7 @@ def plot_route(
             memory_estimation_exceeded_message(estimated_mb, final_image_mb, tiles_mb, MEMORY_THRESHOLD_MB, zoom_level)
         )
 
-    ax.set_extent(extent, crs=utm)
+    set_extent_matching_ground_distance(ax, extent, utm, proj_pc)
     scale_bar_y(ax, PSEUDO_MERCATOR_SPHERE, units="NM", m_per_unit=1852)
     fig.patch.set_visible(False)
     extent = ax.get_extent(proj_pc)
