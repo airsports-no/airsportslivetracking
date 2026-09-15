@@ -41,3 +41,29 @@ spec:
     group: ""
     kind: Service
     name: traccar-service-gateway
+---
+# traccar-service-gateway previously had no GCPBackendPolicy, so it kept GCP's 30s default
+# backend timeout (see the comment on tracker-web-service's own lack of one, in
+# service_tracker_web.yaml). Position-reporting apps hold their HTTP connection open across
+# gaps between reports; once a gap exceeds the backend timeout, the load balancer tears down
+# the idle connection to Traccar, and the client's next reused request on it gets reset before
+# reaching the backend - Envoy reports this to the client as "503 upstream connect error /
+# reset reason: connection termination". Reported from production: confirmed failing for iOS
+# (whose URLSession reuses persistent connections across longer background-location gaps than
+# Android's client tends to), never for Android. Mirrors daphne-backend-policy's 3600s fix in
+# httproute_root.yaml for the same underlying "idle connection outlives the backend timeout"
+# problem on /ws.
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  name: traccar-backend-policy
+  namespace: default
+spec:
+  default:
+    timeoutSec: 300
+    connectionDraining:
+      drainingTimeoutSec: 60
+  targetRef:
+    group: ""
+    kind: Service
+    name: traccar-service-gateway

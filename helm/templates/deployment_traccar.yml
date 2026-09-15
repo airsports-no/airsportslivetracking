@@ -30,16 +30,13 @@ spec:
         deployVersion: "1"
     spec:
       terminationGracePeriodSeconds: 45
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: cloud.google.com/gke-spot
-                    operator: In
-                    values:
-                      - "true"
-
+      # Previously required scheduling on a GKE spot node (cost saving). Moved off spot: this is
+      # a single-replica, no-redundancy, Recreate-strategy deployment that live position uploads
+      # depend on directly - a spot reclaim causes a real outage (confirmed via Cloud Logging:
+      # the node hosting this pod was recreated multiple times over two weeks) until GKE
+      # reschedules it, and tracker-processor's own Sentry errors ("Failed connecting to
+      # traccar 10 consecutive times") show that gap has real, repeated downstream impact. No
+      # nodeAffinity at all now - just let Autopilot provision a normal on-demand node.
       volumes:
         - name: config-traccar
           configMap:
