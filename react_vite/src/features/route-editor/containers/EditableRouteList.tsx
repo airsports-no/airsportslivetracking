@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Loading } from "../components/basicComponents";
 import { Route } from "../../../types";
 import { MoreVertical, Plus, Copy, Shield, Trash2 } from "lucide-react";
 import { fetchEditableRoutes, fetchTaskSubtypeCatalog, TaskCompatibilitySubtype } from "../api";
 import { isTaskSubtypeVisible } from "../taskTemplates";
-import { reverse } from "../../../urls";
+import { reverse, generatePath } from "../../../urls";
 import routes from "../../../routes.json";
+import NavigationTaskCreationFlow from "../../contest-management/components/NavigationTaskCreationFlow";
 
 const formatRouteLength = (meters: number) => `${(meters / 1852).toFixed(2)} NM`;
 
@@ -22,7 +23,12 @@ const getEditorSummary = (route: Route) => {
 // so a route compatible with many legacy families doesn't dominate the card.
 const MAX_TASK_TYPE_BADGES = 3;
 
-const EditableRouteTile: React.FC<{ route: Route; subtypeLabels: Record<string, string>; visibleSubtypeKeys: Set<string> }> = ({ route, subtypeLabels, visibleSubtypeKeys }) => {
+const EditableRouteTile: React.FC<{
+    route: Route;
+    subtypeLabels: Record<string, string>;
+    visibleSubtypeKeys: Set<string>;
+    onCreateNavigationTask: (routeId: number) => void;
+}> = ({ route, subtypeLabels, visibleSubtypeKeys, onCreateNavigationTask }) => {
     const hasThumbnail = Boolean(route.thumbnail);
     const managePermissionsLabel = route.editors.length > 1 ? `${route.editors.length} editors` : route.is_editor ? "You can edit" : "Shared route";
     const titleClassName = "card-title text-base sm:text-lg leading-tight line-clamp-2 hover:underline break-words";
@@ -69,10 +75,10 @@ const EditableRouteTile: React.FC<{ route: Route; subtypeLabels: Record<string, 
                         </label>
                         <ul tabIndex={0} className="dropdown-content z-[100] menu p-2 shadow-2xl bg-base-100 rounded-box w-56 border border-base-300">
                             <li>
-                                <a href={reverse("editableroute_createnavigationtask", route.id)} className="flex items-center gap-3 py-3">
+                                <button type="button" onClick={() => onCreateNavigationTask(route.id)} className="flex items-center gap-3 py-3 w-full text-left">
                                     <Plus size={16} className="text-primary" />
                                     <span className="font-medium">Create Navigation Task</span>
-                                </a>
+                                </button>
                             </li>
                             <li>
                                 <a href={reverse("editableroute_copy", route.id)} className="flex items-center gap-3 py-3">
@@ -126,9 +132,9 @@ const EditableRouteTile: React.FC<{ route: Route; subtypeLabels: Record<string, 
                         <Link to={`edit/${route.id}`} className="btn btn-primary btn-sm flex-1">
                             Edit route
                         </Link>
-                        <a href={reverse("editableroute_createnavigationtask", route.id)} className="btn btn-secondary btn-sm">
+                        <button type="button" onClick={() => onCreateNavigationTask(route.id)} className="btn btn-secondary btn-sm">
                             Task
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -137,11 +143,13 @@ const EditableRouteTile: React.FC<{ route: Route; subtypeLabels: Record<string, 
 };
 
 export const EditableRouteList = () => {
+    const navigate = useNavigate();
     const [data, setData] = useState<Route[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAll, setShowAll] = useState(false);
     const [subtypeCatalog, setSubtypeCatalog] = useState<TaskCompatibilitySubtype[]>([]);
     const [taskTypeFilter, setTaskTypeFilter] = useState('');
+    const [creatingTaskForRouteId, setCreatingTaskForRouteId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchEditableRoutes()
@@ -197,6 +205,18 @@ export const EditableRouteList = () => {
 
     return (
         <div className="w-full flex flex-col items-center mt-10 px-4">
+            {creatingTaskForRouteId !== null && (
+                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+                    <NavigationTaskCreationFlow
+                        entry={{ kind: 'route', editableRouteId: creatingTaskForRouteId }}
+                        onCancel={() => setCreatingTaskForRouteId(null)}
+                        onCreated={(contestId, navigationTaskId) => {
+                            setCreatingTaskForRouteId(null);
+                            navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId, navigationTaskId }));
+                        }}
+                    />
+                </div>
+            )}
             <div className="w-full max-w-6xl flex flex-col gap-4 mb-6 md:flex-row md:justify-between md:items-center">
                 <div className="space-y-2">
                     <div>
@@ -254,7 +274,13 @@ export const EditableRouteList = () => {
                 {filteredData.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                         {filteredData.map((route) => (
-                            <EditableRouteTile key={route.id} route={route} subtypeLabels={subtypeLabels} visibleSubtypeKeys={visibleSubtypeKeys} />
+                            <EditableRouteTile
+                                key={route.id}
+                                route={route}
+                                subtypeLabels={subtypeLabels}
+                                visibleSubtypeKeys={visibleSubtypeKeys}
+                                onCreateNavigationTask={setCreatingTaskForRouteId}
+                            />
                         ))}
                     </div>
                 )}

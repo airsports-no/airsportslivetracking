@@ -30,6 +30,7 @@ from display.models import (
     FINISHPOINT,
     GATE_TYPES,
     STARTINGPOINT,
+    AccessGrant,
     AdministrativePenalty,
     Aeroplane,
     Club,
@@ -68,18 +69,42 @@ from display.services.capacity_enforcement import (
     assert_can_add_navigation_task,
     assert_can_register_team,
 )
+from display.services.contest_permissions import CONTEST_PERMISSION_LEVELS, resolve_permission_target_user
 from display.services.contestant_persistence import (
     create_contestant_with_related_state,
     update_contestant_with_related_state,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.route_compatibility import assert_route_compatible_with_task_type
 from display.services.task_compiler import TaskCompiler
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import CountryNotFoundException, get_country_code_from_location
+from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
+from display.utilities.tracking_definitions import TRACKING_DEVICES, TrackingService
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
+
+_TASK_TYPE_LABELS = dict(NAVIGATION_TASK_TYPES)
+
+
+def _serialize_task_subtype_definition(navigation_task) -> Optional[dict]:
+    """
+    Shared by NavigationTasksLightSerialiser and NavigationTaskNestedTeamRouteSerialiser - exposes
+    the task's coarse family (e.g. "precision"/"Precision") and its specific subtype (e.g.
+    "2.A1 Curve navigation with time estimation") for display, e.g. on TaskCard.tsx.
+    """
+    definition = navigation_task.subtype_definition
+    if definition is None:
+        return None
+    return {
+        "key": definition.key,
+        "display_name": definition.display_name,
+        "coarse_family": definition.coarse_family,
+        "coarse_family_label": _TASK_TYPE_LABELS.get(definition.coarse_family, definition.coarse_family),
+        "requires_contestant_configuration": definition.requires_contestant_configuration,
+    }
 
 
 class UserSerialiser(serializers.ModelSerializer):
@@ -106,6 +131,16 @@ class MangledEmailField(serializers.Field):
 
 
 class AeroplaneSerialiser(serializers.ModelSerializer):
+    # registration has a DB-level unique constraint (see the 0178 migration), and every write
+    # path already implements its own lookup-or-reuse semantics on top of that (nested_update
+    # below, get_or_create_aeroplane, Team.get_or_create_from_signup). DRF's auto-added
+    # UniqueValidator has no instance context when this serializer is used as a *nested* field
+    # (see TeamNestedSerialiser.aeroplane - nested fields are validated before the outer
+    # serializer's own instance-aware create()/update() ever runs), so left in place it would
+    # reject reusing an existing aeroplane on every team update or repeat registration instead of
+    # only on a genuine new-row conflict - which the DB constraint alone already guards against.
+    registration = serializers.CharField(validators=[])
+
     class Meta:
         model = Aeroplane
         fields = "__all__"
@@ -116,7 +151,7 @@ class PersonSignUpSerialiser(serializers.ModelSerializer):
 
     class Meta:
         model = Person
-        fields = ("id", "first_name", "last_name", "email")
+        fields = ("id", "first_name", "last_name", "email", "picture")
 
 
 class PersonLtdSerialiser(serializers.ModelSerializer):
@@ -222,10 +257,31 @@ class ClubManagerMembershipCreateSerializer(serializers.Serializer):
         return value
 
 
+class ContestPermissionGrantSerialiser(serializers.Serializer):
+    user_id = serializers.IntegerField()
+    email = serializers.EmailField()
+    level = serializers.ChoiceField(choices=CONTEST_PERMISSION_LEVELS)
+
+
+class ContestPermissionGrantCreateSerialiser(serializers.Serializer):
+    identifier = serializers.CharField()
+    level = serializers.ChoiceField(choices=CONTEST_PERMISSION_LEVELS)
+
+    def validate_identifier(self, value):
+        user = resolve_permission_target_user(value)
+        self.context["target_user"] = user
+        return value
+
+
 class ClubSerialiser(CountryFieldMixin, serializers.ModelSerializer):
     country_flag_url = serializers.CharField(max_length=200, required=False, read_only=True)
     country = CountryField(required=False)
     manager_memberships = SerializerMethodField()
+    # Same reasoning as AeroplaneSerialiser.registration - name has a DB-level unique constraint
+    # (0178 migration) and every write path already reuses an existing Club by name rather than
+    # erroring; DRF's auto-added UniqueValidator has no instance context as a nested field (see
+    # TeamNestedSerialiser.club) and would otherwise reject that reuse.
+    name = serializers.CharField(validators=[])
 
     class Meta:
         model = Club
@@ -639,6 +695,7 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
     flown_contestants_count = serializers.SerializerMethodField()
     active_contestants = serializers.SerializerMethodField("get_active_contestants")
     score_sorting_direction = serializers.ReadOnlyField()
+    task_subtype_definition = serializers.SerializerMethodField()
 
     class Meta:
         model = NavigationTask
@@ -657,7 +714,11 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
             "is_public",
             "is_featured",
             "planning_time",
+            "task_subtype_definition",
         )
+
+    def get_task_subtype_definition(self, obj) -> Optional[dict]:
+        return _serialize_task_subtype_definition(obj)
 
     @extend_schema_field(ContestantTickerSerialiser(many=True))
     def get_active_contestants(self, obj):
@@ -774,6 +835,9 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     has_flown_contestants = serializers.SerializerMethodField()
     access_status = serializers.SerializerMethodField()
     available_token_grants = serializers.SerializerMethodField()
+    current_token_assignment = serializers.SerializerMethodField()
+    club_access_grants = serializers.SerializerMethodField()
+    club_manager_memberships = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -817,6 +881,54 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             "package_task_type_groups": resolution.package_task_type_groups,
             "free_task_type_groups": resolution.free_task_type_groups,
         }
+
+    def get_current_token_assignment(self, contest) -> dict | None:
+        # Matches the classic ContestDetailView's gating: only shown to someone who can manage
+        # the contest, not every viewer with view_contest (its expiry date is a business detail
+        # about the organizer's subscription, not something a public contest listing should leak).
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.has_perm("display.change_contest", contest):
+            return None
+        assignment = getattr(contest, "contesttokenassignment", None)
+        if assignment is None:
+            return None
+        return {
+            "token_type_name": assignment.token_type.name,
+            "assigned_at": assignment.assigned_at,
+            "activated_at": assignment.activated_at,
+            "expires_at": assignment.expires_at,
+            "is_active_now": assignment.is_active_now,
+        }
+
+    def get_club_access_grants(self, contest) -> list[dict]:
+        if not contest.organizing_club_id:
+            return []
+        grants = AccessGrant.objects.filter(club=contest.organizing_club, status=AccessGrant.ACTIVE).order_by(
+            "-created_at"
+        )
+        return [
+            {
+                "tier_label": grant.get_tier_display(),
+                "contestant_limit": grant.contestant_limit,
+                "task_type_groups": grant.task_type_groups,
+            }
+            for grant in grants
+        ]
+
+    def get_club_manager_memberships(self, contest) -> list[dict]:
+        # Same visibility rule as the classic view: only shown to someone who can manage the
+        # contest, not every viewer with view_contest.
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not contest.organizing_club_id or not user or not user.has_perm("display.change_contest", contest):
+            return []
+        memberships = (
+            ClubManagerMembership.objects.filter(club=contest.organizing_club, is_active=True)
+            .select_related("user")
+            .order_by("user__email")
+        )
+        return [{"email": membership.user.email, "role": membership.get_role_display()} for membership in memberships]
 
     @extend_schema_field(AvailableTokenGrantSerializer(many=True))
     def get_available_token_grants(self, contest):
@@ -1011,6 +1123,166 @@ class SignupSerialiser(serializers.Serializer):
         if my_person == value:
             raise ValidationError("You cannot choose yourself as co-pilot")
         return value
+
+
+class TeamMemberSelectionSerialiser(serializers.Serializer):
+    """
+    One "pilot" or "copilot" entry in AdminTeamRegistrationSerialiser: a discriminated union of an
+    existing Person id ("existing"), fields to create a new one ("create"), or - copilot only -
+    no one at all ("skip"). Replaces RegisterTeamWizard's condition_dict-driven step branching
+    (create_new_pilot/create_new_copilot) and its member1search/member1create form pair.
+    """
+
+    mode = serializers.ChoiceField(choices=("existing", "create", "skip"))
+    person = serializers.PrimaryKeyRelatedField(queryset=Person.objects.all(), required=False)
+    first_name = serializers.CharField(required=False, allow_blank=True)
+    last_name = serializers.CharField(required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    phone = PhoneNumberField(required=False, allow_null=True, allow_blank=True)
+    country = CountryField(required=False, allow_blank=True)
+    # Only meaningful for mode="create" - an "existing" selection never mutates the matched
+    # Person's picture, same non-mutation-on-reuse principle as aeroplane/club below.
+    picture = serializers.ImageField(required=False, allow_null=True)
+
+
+def _resolve_team_member(data: dict, *, allow_skip: bool) -> Optional[Person]:
+    """
+    Resolve one already-validated TeamMemberSelectionSerialiser dict (as it appears nested inside
+    AdminTeamRegistrationSerialiser.validated_data) into a Person, or None for a skipped copilot.
+    """
+    mode = data["mode"]
+    if mode == "skip":
+        if not allow_skip:
+            raise ValidationError("A pilot is required")
+        return None
+    if mode == "existing":
+        person = data.get("person")
+        if person is None:
+            raise ValidationError("'person' is required when mode is 'existing'")
+        return person
+    if not data.get("first_name") or not data.get("last_name"):
+        raise ValidationError("'first_name' and 'last_name' are required when mode is 'create'")
+    email = data.get("email") or ""
+    if email and Person.objects.filter(email__iexact=email).exists():
+        # Person.save()'s pre_save signal (register_personal_tracker) already rejects this via
+        # Person.validate(), but it raises django.core.exceptions.ValidationError, which DRF's
+        # default exception handler doesn't translate to a 400 - it would otherwise surface as an
+        # unhandled 500. Catching it here first gives a clean, expected 400 instead.
+        raise ValidationError(f"A person with email {email} already exists")
+    # RegisterTeamWizard's done() set validated=True on newly created persons (unlike the
+    # default False used for persons auto-created during app API login) - carried over so an
+    # admin-registered new pilot isn't mistaken for an unconfirmed app signup.
+    return Person.objects.create(
+        first_name=data["first_name"],
+        last_name=data["last_name"],
+        email=data.get("email", ""),
+        phone=data.get("phone") or None,
+        country=data.get("country") or "",
+        picture=data.get("picture") or None,
+        validated=True,
+    )
+
+
+class AeroplaneSelectionSerialiser(serializers.Serializer):
+    registration = serializers.CharField()
+    type = serializers.CharField(required=False, allow_blank=True)
+    colour = serializers.CharField(required=False, allow_blank=True)
+    # Only applied when this registration doesn't match an existing Aeroplane - see
+    # get_or_create_aeroplane's non-mutation-on-reuse contract.
+    picture = serializers.ImageField(required=False, allow_null=True)
+
+
+class ClubSelectionSerialiser(serializers.Serializer):
+    name = serializers.CharField()
+    country = CountryField(required=False, allow_blank=True)
+    # Only applied when this name doesn't match an existing Club - see get_or_create_club's
+    # non-mutation-on-reuse contract.
+    logo = serializers.ImageField(required=False, allow_null=True)
+
+
+class AdminTeamRegistrationSerialiser(serializers.Serializer):
+    """
+    Admin team registration/edit - replaces RegisterTeamWizard. See
+    display.services.team_registration.commit_team_registration for the atomicity/capacity/
+    duplicate-registration enforcement this delegates to (all of which the wizard lacked), and the
+    non-mutating-on-reuse fix for aeroplane/club fields.
+    """
+
+    contest_team = serializers.PrimaryKeyRelatedField(queryset=ContestTeam.objects.all(), required=False)
+    pilot = TeamMemberSelectionSerialiser()
+    copilot = TeamMemberSelectionSerialiser(required=False)
+    aeroplane = AeroplaneSelectionSerialiser()
+    club = ClubSelectionSerialiser()
+    air_speed = serializers.FloatField()
+    # RegisterTeamWizard's TrackingDataForm was a ModelForm, so Django's ModelChoiceField
+    # rejected an invalid tracking_service/tracking_device value before it ever reached
+    # ContestTeam.objects.create(); ChoiceField here (rather than a plain CharField) preserves
+    # that validation for the API path.
+    tracking_service = serializers.ChoiceField(choices=TrackingService.choices)
+    tracking_device = serializers.ChoiceField(choices=TRACKING_DEVICES)
+    tracker_device_id = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_contest_team(self, value):
+        contest = self.context["contest"]
+        if value.contest_id != contest.pk:
+            raise ValidationError("This registration does not belong to the selected contest")
+        return value
+
+    def create(self, validated_data):
+        from display.services.team_registration import (
+            commit_team_registration,
+            get_or_create_aeroplane,
+            get_or_create_club,
+        )
+
+        contest = self.context["contest"]
+        contest_team = validated_data.get("contest_team")
+        original_team = contest_team.team if contest_team else None
+
+        tracking_data = {
+            "air_speed": validated_data["air_speed"],
+            "tracking_service": validated_data["tracking_service"],
+            "tracking_device": validated_data["tracking_device"],
+            "tracker_device_id": validated_data.get("tracker_device_id", ""),
+        }
+
+        try:
+            # A "create" mode pilot/copilot materializes a new Person row before
+            # commit_team_registration's own atomic block even starts - wrap this whole method in
+            # one transaction so a capacity/duplicate rejection there rolls that Person back too,
+            # instead of leaving an orphaned, team-less Person behind (same atomicity bug as
+            # RegisterTeamWizard.done(), just one step earlier).
+            with transaction.atomic():
+                pilot = _resolve_team_member(validated_data["pilot"], allow_skip=False)
+                copilot_data = validated_data.get("copilot")
+                copilot = _resolve_team_member(copilot_data, allow_skip=True) if copilot_data else None
+
+                aeroplane_data = validated_data["aeroplane"]
+                aeroplane = get_or_create_aeroplane(
+                    aeroplane_data["registration"],
+                    defaults={
+                        "type": aeroplane_data.get("type", ""),
+                        "colour": aeroplane_data.get("colour", ""),
+                        "picture": aeroplane_data.get("picture") or None,
+                    },
+                )
+                club_data = validated_data["club"]
+                club = get_or_create_club(
+                    club_data["name"],
+                    defaults={"country": club_data.get("country", ""), "logo": club_data.get("logo") or None},
+                )
+
+                return commit_team_registration(
+                    contest,
+                    pilot=pilot,
+                    copilot=copilot,
+                    aeroplane=aeroplane,
+                    club=club,
+                    tracking_data=tracking_data,
+                    original_team=original_team,
+                )
+        except CoreValidationError as exc:
+            raise ValidationError(exc.messages if hasattr(exc, "messages") else str(exc))
 
 
 class ContestTeamManagementSerialiser(serializers.ModelSerializer):
@@ -1682,15 +1954,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
         return navigation_task.user_has_change_permissions(user) or user.is_superuser
 
     def get_task_subtype_definition(self, navigation_task) -> Optional[dict]:
-        definition = navigation_task.subtype_definition
-        if definition is None:
-            return None
-        return {
-            "key": definition.key,
-            "display_name": definition.display_name,
-            "coarse_family": definition.coarse_family,
-            "requires_contestant_configuration": definition.requires_contestant_configuration,
-        }
+        return _serialize_task_subtype_definition(navigation_task)
 
     def get_task_information(self, navigation_task) -> dict:
         return navigation_task.task_information
@@ -1759,10 +2023,17 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
         write_only=True,
         required=False,
     )
+    warnings = serializers.SerializerMethodField(
+        read_only=True,
+        help_text="Non-fatal advisory warnings about the created route (e.g. corridor geometry issues).",
+    )
 
     class Meta:
         model = NavigationTask
         exclude = ("route", "contest", "scorecard")
+
+    def get_warnings(self, obj):
+        return getattr(obj, "_creation_warnings", [])
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -1775,6 +2046,15 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
                 validate_subtype_family_compatibility(subtype, original_scorecard.calculator)
             except ValueError as e:
                 raise ValidationError({"task_subtype": str(e)})
+            editable_route = attrs.get("editable_route")
+            if editable_route is not None:
+                # Defense in depth: the dropdown filtering (task_templates/task_compatibility
+                # endpoints) is only a UX affordance - this is the actual, non-bypassable check
+                # that a hand-crafted request cannot pair an incompatible route/task-type.
+                try:
+                    assert_route_compatible_with_task_type(editable_route, original_scorecard.calculator, subtype)
+                except CoreValidationError as e:
+                    raise ValidationError({"editable_route": str(e)})
         return attrs
 
     def create(self, validated_data):
@@ -1791,6 +2071,7 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
 
             editable_route: EditableRoute = validated_data["editable_route"]
             original_scorecard: Scorecard = validated_data["original_scorecard"]
+            corridor_width = validated_data.get("corridor_width")
             try:
                 route = editable_route.create_route(
                     original_scorecard.calculator,
@@ -1801,6 +2082,7 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
                 )
             except CoreValidationError as e:
                 raise ValidationError(e)
+            warnings = editable_route.get_validation_errors(corridor_width=corridor_width)
 
             validated_data["contest"] = contest
             validated_data["route"] = route
@@ -1808,6 +2090,7 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
             assign_perm("display.delete_route", user, route)
             assign_perm("display.change_route", user, route)
             navigation_task = NavigationTask.create(**validated_data)
+            navigation_task._creation_warnings = warnings
         return navigation_task
 
 

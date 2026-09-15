@@ -580,9 +580,7 @@ const MissionDashboard = () => {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {paginatedContests.map(contest => {
-                            const canManageThisContest = contest.is_editor || document.configuration.is_superuser;
                             const viewLink = `/mission-dashboard/${contest.id}`;
-                            const manageLink = canManageThisContest ? reverse('contest_details', contest.id) : undefined;
 
                             return (
                                 <ContestCard
@@ -591,10 +589,8 @@ const MissionDashboard = () => {
                                     status={getContestStatus(contest)}
                                     isRegistered={registeredContestIds.has(contest.id)}
                                     hasScheduledFlight={scheduledFlightContestIds.has(contest.id)}
-                                    isEditorContest={canManageThisContest}
                                     hasOpenTasksForScheduling={contest.has_open_tasks}
                                     viewLink={viewLink}
-                                    manageLink={manageLink}
                                 />
                             );
                         })}
@@ -684,7 +680,6 @@ const MissionDashboard = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {paginatedMyEditorContests.map(contest => {
                             const viewLink = `/mission-dashboard/${contest.id}`;
-                            const manageLink = reverse('contest_details', contest.id);
                             return (
                                 <ContestCard
                                     key={contest.id}
@@ -692,9 +687,7 @@ const MissionDashboard = () => {
                                     status={getContestStatus(contest)}
                                     isRegistered={registeredContestIds.has(contest.id)}
                                     hasScheduledFlight={scheduledFlightContestIds.has(contest.id)}
-                                    isEditorContest={true}
                                     viewLink={viewLink}
-                                    manageLink={manageLink}
                                 />
                             );
                         })}

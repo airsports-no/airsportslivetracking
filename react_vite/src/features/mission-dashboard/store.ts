@@ -27,7 +27,7 @@ interface MissionDashboardState {
     fetchClubs: () => Promise<void>;
     fetchManagedClubs: (force?: boolean) => Promise<void>;
     fetchAircrafts: () => Promise<void>;
-    fetchPilots: () => Promise<void>;
+    fetchPilots: (options?: { excludeSelf?: boolean }) => Promise<void>;
 
     // Actions that modify state locally or call API and then modify
     cancelFlight: (contestId: number, navigationTaskId: number, futureContestantId: number) => Promise<void>;
@@ -140,8 +140,8 @@ export const useMissionDashboardStore = create<MissionDashboardState>((set, get)
         const aircrafts = await api.fetchAircrafts();
         set({ aircrafts });
     },
-    fetchPilots: async () => {
-        const pilots = await api.fetchPilots();
+    fetchPilots: async (options) => {
+        const pilots = await api.fetchPilots(options);
         set({ pilots });
     },
     cancelFlight: async (contestId, navigationTaskId, futureContestantId) => {

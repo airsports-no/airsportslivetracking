@@ -24,6 +24,8 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
     
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const [aircraftError, setAircraftError] = useState<string | null>(null);
+    const [clubError, setClubError] = useState<string | null>(null);
 
     useEffect(() => {
         const promise = Promise.all([
@@ -36,8 +38,17 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
         setError(null);
+
+        const trimmedAircraft = aircraft.trim();
+        const trimmedClub = club.trim();
+        setAircraftError(trimmedAircraft ? null : 'Aircraft registration is required');
+        setClubError(trimmedClub ? null : 'Club is required');
+        if (!trimmedAircraft || !trimmedClub) {
+            return;
+        }
+
+        setLoading(true);
 
         try {
             const currentRegistrationDetails = {
@@ -107,16 +118,20 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
                         </label>
                         {/* Aircraft */}
                         <label className="form-control w-full">
-                            <div className="label"><span className="label-text">Aircraft Registration</span></div>
+                            <div className="label"><span className="label-text">Aircraft Registration *</span></div>
                             <CreatableSelect
                                 options={aircrafts.map(a => ({ value: a.registration, label: a.registration }))}
                                 value={aircraft ? { value: aircraft, label: aircraft } : null}
-                                onChange={selectedOption => setAircraft(selectedOption ? selectedOption.value : '')}
+                                onChange={selectedOption => {
+                                    setAircraft(selectedOption ? selectedOption.value : '');
+                                    setAircraftError(null);
+                                }}
                                 isClearable
                                 placeholder="Select or type aircraft registration"
                                 classNamePrefix="my-react-select"
                                 styles={selectStyles}
                             />
+                            {aircraftError && <span className="text-error text-sm mt-1">{aircraftError}</span>}
                         </label>
                         {/* Airspeed */}
                          <label className="form-control w-full">
@@ -125,19 +140,23 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
                         </label>
                         {/* Club */}
                         <label className="form-control w-full">
-                            <div className="label"><span className="label-text">Club</span></div>
+                            <div className="label"><span className="label-text">Club *</span></div>
                             <CreatableSelect
                                 options={clubs.map(c => ({ value: c.name, label: c.name }))}
                                 value={club ? { value: club, label: club } : null}
-                                onChange={selectedOption => setClub(selectedOption ? selectedOption.value : '')}
+                                onChange={selectedOption => {
+                                    setClub(selectedOption ? selectedOption.value : '');
+                                    setClubError(null);
+                                }}
                                 isClearable
                                 placeholder="Select or type club"
                                 classNamePrefix="my-react-select"
                                 styles={selectStyles}
                             />
+                            {clubError && <span className="text-error text-sm mt-1">{clubError}</span>}
                         </label>
                     </>
-                    
+
                     {error && <div className="alert alert-error mt-4">{error}</div>}
 
                     <div className="card-actions justify-end">

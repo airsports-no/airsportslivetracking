@@ -88,6 +88,7 @@ from display.permissions import (
     TeamPermissions,
 )
 from display.serialisers import (
+    AdminTeamRegistrationSerialiser,
     AeroplaneSerialiser,
     ClubManagerMembershipCreateSerializer,
     ClubManagerMembershipSerializer,
@@ -98,6 +99,7 @@ from display.serialisers import (
     ContestantTickerSerialiser,
     ContestantTrackSerialiser,
     ContestantTrackWithTrackPointsSerialiser,
+    ContestPermissionGrantCreateSerialiser,
     ContestResultsDetailsSerialiser,
     ContestSerialiser,
     ContestSummaryWithoutReferenceSerialiser,
@@ -144,11 +146,21 @@ from display.services.capacity_enforcement import (
     assert_can_self_register_contestant,
     scheduling_capacity_preview,
 )
+from display.services.contest_permissions import (
+    list_contest_permission_grants,
+    remove_contest_permission_grant,
+    set_contest_permission_level,
+)
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
-from display.services.route_compatibility import extract_route_primitives, get_blocking_reasons
+from display.services.route_compatibility import effective_subtype_key, extract_route_primitives, get_blocking_reasons
 from display.services.scorecard_gate_applicability import get_applicable_gate_types, get_applicable_scalar_groups
 from display.services.task_compiler import TaskCompiler
+from display.services.task_templates import (
+    no_compatible_task_types_message,
+    normalize_task_template_selection,
+    task_template_choices,
+)
 from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
 from display.tasks import (
     generate_and_maybe_notify_flight_order,
@@ -500,7 +512,7 @@ class EditableRouteViewSet(ModelViewSet):
         subtypes = []
         compatible_task_types = []
         for definition in TASK_SUBTYPE_DEFINITIONS.values():
-            missing_reasons = get_blocking_reasons(primitives, definition.key)
+            missing_reasons = get_blocking_reasons(primitives, definition.key, unsaved_route)
             if not missing_reasons:
                 compatible_task_types.append(definition.key)
             subtypes.append(
@@ -514,6 +526,43 @@ class EditableRouteViewSet(ModelViewSet):
                 }
             )
         return Response({"compatible_task_types": compatible_task_types, "subtypes": subtypes})
+
+    @action(detail=False, methods=["get"], url_path="task_templates")
+    def task_templates(self, request, *args, **kwargs):
+        """
+        Grouped (Legacy/CIMA) task-template choices for the task-type picker, filtered by the
+        requesting user's own CIMA visibility and, when ?editable_route=<id> is given, further
+        hard-filtered to task subtypes that route's authored content actually satisfies (the same
+        canonical ruleset task_compatibility above reports on, and the one create() re-checks
+        server-side regardless of what this endpoint returns).
+        """
+        editable_route = None
+        editable_route_id = request.query_params.get("editable_route")
+        if editable_route_id:
+            editable_route = get_object_or_404(EditableRoute.get_for_user(request.user), pk=editable_route_id)
+
+        def _describe_template(value):
+            task_type, task_subtype = normalize_task_template_selection(value)
+            return {
+                "value": value,
+                "task_type": task_type,
+                "task_subtype": task_subtype,
+                # Precomputed so the frontend never needs to duplicate effective_subtype_key()'s
+                # legacy-shim mapping just to client-side-filter the route picker by compatibility.
+                "subtype_key": effective_subtype_key(task_type, task_subtype),
+            }
+
+        groups = [
+            {
+                "group": group,
+                "templates": [{"label": label, **_describe_template(value)} for value, label in choices],
+            }
+            for group, choices in task_template_choices(request.user, editable_route=editable_route)
+        ]
+        message = None
+        if not groups and editable_route is not None:
+            message = no_compatible_task_types_message(request.user, editable_route)
+        return Response({"groups": groups, "no_compatible_task_types_message": message})
 
     @action(detail=False, methods=["get"], url_path="global-map-sources")
     def global_map_sources(self, request, *args, **kwargs):
@@ -894,6 +943,45 @@ class ContestViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @action(
+        detail=True,
+        methods=["get", "post"],
+        url_path="permissions",
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def permission_grants(self, request, *args, **kwargs):
+        contest = self.get_object()
+        if request.method == "GET":
+            return Response(list_contest_permission_grants(contest))
+        serialiser = ContestPermissionGrantCreateSerialiser(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        target_user = serialiser.context["target_user"]
+        set_contest_permission_level(contest, target_user, serialiser.validated_data["level"], request.user)
+        return Response(
+            {"user_id": target_user.pk, "email": target_user.email, "level": serialiser.validated_data["level"]},
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(
+        detail=True,
+        methods=["put", "delete"],
+        url_path=r"permissions/(?P<user_pk>\d+)",
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def permission_detail(self, request, user_pk=None, *args, **kwargs):
+        contest = self.get_object()
+        target_user = get_object_or_404(MyUser, pk=user_pk)
+        if request.method == "DELETE":
+            remove_contest_permission_grant(contest, target_user, request.user)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        serialiser = ContestPermissionGrantCreateSerialiser(data={**request.data, "identifier": str(user_pk)})
+        serialiser.is_valid(raise_exception=True)
+        set_contest_permission_level(contest, target_user, serialiser.validated_data["level"], request.user)
+        return Response(
+            {"user_id": target_user.pk, "email": target_user.email, "level": serialiser.validated_data["level"]},
+            status=status.HTTP_200_OK,
+        )
+
     @action(detail=True, methods=["get"])
     def results_details(self, request, *args, **kwargs):
         """
@@ -1000,10 +1088,20 @@ class ContestViewSet(ModelViewSet):
         contest_teams = ContestTeam.objects.filter(contest=contest)
         response = Response(ContestTeamNestedSerialiser(contest_teams, many=True).data)
 
-        if contest.is_public and contest.is_featured:
+        if contest.is_public and contest.is_featured and not request.user.is_authenticated:
             # Team lists can change during signup/withdrawal.
             # s-maxage=60: CDN shields origin by caching for 1 minute.
-            # max-age=0: Browser always checks CDN (no disk cache).
+            # max-age=0: intended to always force the BROWSER to revalidate (no disk cache) - but
+            # stale-while-revalidate is honored by modern browsers' own HTTP cache, not just
+            # shared/CDN caches, so pairing it with max-age=0 does NOT actually prevent a disk-
+            # cache hit: the browser is explicitly permitted to serve the stale cached body
+            # immediately and revalidate in the background. That's fine for an anonymous
+            # spectator, but it broke read-your-writes for an authenticated organizer polling
+            # this same URL right after editing a team (TeamRegistrationFlow's onSaved) - they'd
+            # get served their own pre-edit response back from disk cache. Gating this on
+            # anonymity (same check retrieve() already uses for the same is_public/is_featured
+            # personalization concern) keeps the CDN-friendly caching for public spectators only;
+            # every authenticated request now always gets a real network round-trip.
             response["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=600"
         else:
             response["Cache-Control"] = "private, no-cache"
@@ -1133,6 +1231,129 @@ class ContestViewSet(ModelViewSet):
         teams.delete()
         return Response({}, status=status.HTTP_204_NO_CONTENT)
 
+    @action(
+        detail=True,
+        methods=["POST"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def register_team(self, request, *args, **kwargs):
+        """
+        Admin team registration/edit - replaces RegisterTeamWizard. Pass "contest_team" in the
+        payload to edit an existing registration (replaces that team rather than creating a new
+        ContestTeam); omit it to register a new team.
+
+        A plain JSON body is the common case. When the SPA form has an optional pilot/copilot/
+        aeroplane/club picture to attach, it instead sends multipart/form-data: the non-file
+        fields as a single JSON-encoded "payload" field, plus the files under fixed keys
+        (pilot_picture/copilot_picture/aeroplane_picture/club_logo) - DRF's multipart parser has
+        no way to nest bracket-style keys into the pilot/aeroplane/club sub-dicts on its own, so
+        this stitches the files back into the right nested dict before validation.
+        """
+        contest = self.get_object()
+        if "payload" in request.data:
+            try:
+                payload = json.loads(request.data["payload"])
+            except (TypeError, json.JSONDecodeError):
+                raise drf_exceptions.ValidationError({"payload": "Must be a JSON object"})
+            if not isinstance(payload, dict):
+                raise drf_exceptions.ValidationError({"payload": "Must be a JSON object"})
+            for nested_key, file_key, image_field in (
+                ("pilot", "pilot_picture", "picture"),
+                ("copilot", "copilot_picture", "picture"),
+                ("aeroplane", "aeroplane_picture", "picture"),
+                ("club", "club_logo", "logo"),
+            ):
+                if file_key in request.FILES:
+                    payload.setdefault(nested_key, {})[image_field] = request.FILES[file_key]
+        else:
+            payload = request.data
+        serialiser = AdminTeamRegistrationSerialiser(data=payload, context={"contest": contest})
+        serialiser.is_valid(raise_exception=True)
+        contest_team = serialiser.save()
+        return Response(
+            ContestTeamSerialiser(contest_team, context={"request": request}).data, status=status.HTTP_200_OK
+        )
+
+    @action(
+        detail=True,
+        methods=["POST"],
+        url_path=r"remove-person-picture-background/(?P<person_pk>\d+)",
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def remove_person_picture_background(self, request, person_pk=None, *args, **kwargs):
+        """
+        Calls the external remove.bg service to strip the background from a person's profile
+        picture - ported from the classic clear_profile_image_background view (deleted as
+        seemingly-orphaned in the RegisterTeamWizard->SPA migration, before this admin team
+        registration flow grew its own picture upload and needed it back). Gated by
+        change_contest on *this* contest, same as the classic view, since Person has no
+        contest of its own to check permissions against - being able to manage a contest is what
+        lets you clean up any pilot's photo for use in that contest's flight documents.
+        """
+        self.get_object()  # Enforces ContestModificationPermissions on this contest.
+        person = get_object_or_404(Person, pk=person_pk)
+        if not person.picture:
+            raise drf_exceptions.ValidationError("This person has no profile picture to process")
+        error = person.remove_profile_picture_background()
+        if error is not None:
+            raise drf_exceptions.ValidationError(f"Background removal failed: {error}")
+        return Response({"picture": request.build_absolute_uri(person.picture.url)})
+
+    @action(
+        detail=True,
+        methods=["POST"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def import_teams(self, request, *args, **kwargs):
+        """
+        Copy every ContestTeam registered in `source_contest` (or only `team_ids`, if given) into
+        this contest. Port of the legacy import_contest_team_from_contest view (views.py), but
+        unlike that view (and this action's own first version - a raw row copy with no dedup, no
+        capacity check, and no atomicity across rows), every imported team goes through
+        commit_team_registration - the same capacity/duplicate/cross-team invariants and contest
+        row lock display.register_team enforces - and the whole import is one transaction, so a
+        rejection partway through leaves none of it committed rather than a partial import.
+        """
+        from display.services.team_registration import commit_team_registration
+
+        target_contest = self.get_object()
+        source_contest_id = request.data.get("source_contest")
+        if not source_contest_id:
+            raise drf_exceptions.ValidationError("'source_contest' is required")
+        visible_contests = get_objects_for_user(
+            request.user, "display.view_contest", klass=Contest, accept_global_perms=False
+        ) | Contest.objects.filter(is_public=True, is_featured=True)
+        source_contest = get_object_or_404(visible_contests, pk=source_contest_id)
+
+        contest_teams = ContestTeam.objects.filter(contest=source_contest).select_related(
+            "team__crew__member1", "team__crew__member2", "team__aeroplane", "team__club"
+        )
+        team_ids = request.data.get("team_ids")
+        if team_ids is not None:
+            contest_teams = contest_teams.filter(team_id__in=team_ids)
+
+        try:
+            with transaction.atomic():
+                imported = [
+                    commit_team_registration(
+                        target_contest,
+                        pilot=contest_team.team.crew.member1,
+                        copilot=contest_team.team.crew.member2,
+                        aeroplane=contest_team.team.aeroplane,
+                        club=contest_team.team.club,
+                        tracking_data={
+                            "air_speed": contest_team.air_speed,
+                            "tracking_service": contest_team.tracking_service,
+                            "tracking_device": contest_team.tracking_device,
+                            "tracker_device_id": contest_team.tracker_device_id,
+                        },
+                    )
+                    for contest_team in contest_teams
+                ]
+        except DjangoValidationError as exc:
+            raise drf_exceptions.ValidationError(exc.messages if hasattr(exc, "messages") else str(exc))
+        return Response(ContestTeamNestedSerialiser(imported, many=True).data, status=status.HTTP_201_CREATED)
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
         try:
@@ -1224,6 +1445,26 @@ class ContestTeamViewSet(ModelViewSet):
 class GetScorecardsViewSet(ReadOnlyModelViewSet):
     queryset = Scorecard.get_originals()
     serializer_class = ScorecardNestedSerialiser
+
+    @action(detail=False, methods=["get"], url_path="choices")
+    def choices(self, request, *args, **kwargs):
+        """
+        Lightweight scorecard picker for the task-details step of navigation-task creation -
+        {shortcut_name, name, task_type} only, not the full gate-score configuration payload.
+        Optional ?task_type=<family> filters to scorecards that support it (Scorecard.task_type
+        is a plain Python list, not a queryable JSON field, so this is filtered in Python - the
+        same check the Django wizards make in get_context_data()).
+        """
+        task_type = request.query_params.get("task_type")
+        scorecards = Scorecard.get_originals()
+        if task_type:
+            scorecards = [scorecard for scorecard in scorecards if task_type in scorecard.task_type]
+        return Response(
+            [
+                {"shortcut_name": scorecard.shortcut_name, "name": scorecard.name, "task_type": scorecard.task_type}
+                for scorecard in scorecards
+            ]
+        )
 
 
 class NavigationTaskViewSet(ModelViewSet):
