@@ -24,7 +24,7 @@ from PIL import Image, ImageDraw, ImageFont
 from shapely.geometry import Polygon
 
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
-from display.flight_order_and_maps.map_constants import A3, LANDSCAPE
+from display.flight_order_and_maps.map_constants import A3, LANDSCAPE, SCALE_TO_FIT
 from display.flight_order_and_maps.map_plotter import PSEUDO_MERCATOR_SPHERE, plot_route
 from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_image
 from display.models import Contestant
@@ -567,10 +567,20 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         + _typst_string("/src/static/img/AirSportsLiveTracking.png")
         + ", width: 35%)]]"
     )
+    # "Fit page" has no nominal scale to compare against, so the disclaimer only applies
+    # when the user picked a specific fixed scale.
+    scale_disclaimer = (
+        "The scale bar's printed ratio is this map's actual measured scale, which may differ "
+        "very slightly from the scale selected above due to the map projection - this is not an error."
+        if flight_order_configuration.map_scale != SCALE_TO_FIT
+        else ""
+    )
     map_footer = (
-        "context [#align(right)[#image("
+        "context [#grid(columns: (1fr, auto), align: (left + horizon, right + horizon),"
+        + f"[#text(size: 7pt, style: \"italic\")[{_typst_string(scale_disclaimer)}]],"
+        + "[#image("
         + _typst_string("/src/static/img/AirSportsLiveTrackingWhiteBG.png")
-        + ", width: 30%)]]"
+        + ", width: 30%)])]"
     )
 
     waypoints = get_flight_order_visual_waypoints(

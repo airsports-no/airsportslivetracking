@@ -27,7 +27,13 @@ class FlightOrderConfiguration(models.Model):
     map_dpi = models.IntegerField(default=150, validators=[MinValueValidator(100), MaxValueValidator(300)])
     map_zoom_level = models.IntegerField(default=12, choices=[(x, x) for x in range(1, 20)])
     map_orientation = models.CharField(choices=ORIENTATIONS, default=PORTRAIT, max_length=30)
-    map_scale = models.IntegerField(choices=SCALES, default=SCALE_TO_FIT)
+    map_scale = models.IntegerField(
+        choices=SCALES,
+        default=SCALE_TO_FIT,
+        help_text="The printed map's scale bar shows the map's actual measured scale, which can "
+        "differ from this selected value by a small fraction of a percent - an inherent property "
+        "of the underlying map projection, not an error.",
+    )
     # Callable choices are resolved lazily, only when something actually needs the choice
     # list. Resolving them eagerly meant every instantiation of this model - including every
     # row hydrated from a queryset - fanned out into one HTTP request per available map.

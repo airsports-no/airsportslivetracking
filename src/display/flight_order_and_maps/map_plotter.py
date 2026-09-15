@@ -831,7 +831,13 @@ def scale_bar_y(
     ax.text(
         xc,
         yc,
-        "1:{:,d} {:.2f} {} = {:.0f} cm".format(int(effective_scale * 1000), bar_length, units, 10),
+        # round(), not int()/truncation: the measured effective_scale is already accurate to a
+        # small fraction of a percent (see this function's own docstring), so truncating it
+        # systematically shows a value up to 999 short of the true nearest-thousand scale
+        # (e.g. a genuinely-1:250,000 map measuring 1:249,999.8 displayed as "1:249,999"
+        # instead of "1:250,000") - not a precision change, just correct rounding instead of
+        # always rounding down.
+        "1:{:,d} {:.2f} {} = {:.0f} cm".format(round(effective_scale * 1000), bar_length, units, 10),
         transform=proj,
         horizontalalignment="center",
         verticalalignment="bottom",
