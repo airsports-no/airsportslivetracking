@@ -29,13 +29,7 @@ data:
         <entry key='database.password'>{{ .Values.externalMysql.traccarPassword }}</entry>
         <entry key="web.origin">*</entry>
         <entry key='logger.enable'>true</entry>
-        <!-- TEMPORARY diagnostic logging for the iOS position-upload 503/JsonParsingException
-        investigation - logs raw protocol traffic (all 100+ ports, not just OsmAnd) as text so
-        we can see the actual bytes iOS posts right before OsmAndProtocolDecoder's
-        JsonParsingException. Revert both entries back to 'warning' / remove decodeTextData
-        once enough failing samples are captured - this is noisy and logs raw device data. -->
-        <entry key='logger.level'>all</entry>
-        <entry key='logger.decodeTextData'>true</entry>
+        <entry key='logger.level'>warning</entry>
         <entry key='logger.file'>/dev/stdout</entry>
         <entry key='logger.rotate'>false</entry>
     </properties>
