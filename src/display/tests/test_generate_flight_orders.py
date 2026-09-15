@@ -1,5 +1,7 @@
 import datetime
 import os
+import re
+import zlib
 from io import BytesIO
 from unittest.mock import Mock, patch
 
@@ -8,10 +10,37 @@ from PIL import Image
 
 from display.default_scorecards import default_scorecard_fai_precision_2020
 from display.flight_order_and_maps.generate_flight_orders import embed_map_in_pdf, generate_flight_orders
-from display.flight_order_and_maps.map_constants import A3, LANDSCAPE
+from display.flight_order_and_maps.map_constants import A3, A4, LANDSCAPE
 from display.models import Aeroplane, Contest, Contestant, Crew, NavigationTask, Person, Team
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
 from utilities.mock_utilities import TraccarMock
+
+PT_TO_MM = 25.4 / 72
+
+
+def _pdf_media_box_mm(pdf_bytes: bytes) -> tuple[float, float]:
+    match = re.search(rb"/MediaBox\s*\[\s*[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)\s*\]", pdf_bytes)
+    width_pt, height_pt = (float(value) for value in match.groups())
+    return width_pt * PT_TO_MM, height_pt * PT_TO_MM
+
+
+def _largest_image_placement_mm(pdf_bytes: bytes) -> tuple[float, float, float, float]:
+    """
+    Finds the largest image XObject placement across all of the PDF's (FlateDecode-compressed)
+    content streams, using only the standard library - avoids adding a PDF-parsing dependency
+    just for this. Returns (width_mm, height_mm, x_mm, y_mm) of its bottom-left-anchored
+    placement rectangle.
+    """
+    placements = []
+    for stream_match in re.finditer(rb"stream\r?\n(.*?)endstream", pdf_bytes, re.DOTALL):
+        try:
+            content = zlib.decompress(stream_match.group(1))
+        except zlib.error:
+            continue
+        for m in re.finditer(rb"([\-\d.]+) 0 0 ([\-\d.]+) ([\-\d.]+) ([\-\d.]+) cm\s*/\w+ Do", content):
+            a, d, e, f = (float(value) for value in m.groups())
+            placements.append((abs(a) * PT_TO_MM, abs(d) * PT_TO_MM, e * PT_TO_MM, f * PT_TO_MM))
+    return max(placements, key=lambda p: p[0] * p[1])
 
 
 def _fake_tile_response(*args, **kwargs):
@@ -97,6 +126,29 @@ class GenerateFlightOrdersTests(TransactionTestCase):
         configuration.save()
         pdf_bytes = generate_flight_orders(self.contestant)
         self.assertTrue(pdf_bytes.startswith(b"%PDF"))
+
+    def test_landscape_map_image_fits_the_declared_page_margin_exactly(self, *args):
+        # Regression test: map_width/map_height used to both subtract a flat 20mm, but the
+        # page's own declared margin is asymmetric (left/right 10mm, top/bottom 10mm/15mm -
+        # 20mm horizontal, 25mm vertical). For landscape orientation, the map image's HEIGHT
+        # is the constrained dimension (placed with no auto-fit shrink), so with the old flat
+        # -20mm it was 5mm taller than its actual vertical content box and overflowed 2.5mm
+        # into each of the top/bottom margins (confirmed via direct PDF measurement: rendered
+        # top=7.5mm/bottom=12.5mm instead of the intended top=10mm/bottom=15mm).
+        configuration = self.navigation_task.flightorderconfiguration
+        configuration.document_size = A4
+        configuration.map_orientation = LANDSCAPE
+        configuration.save()
+
+        pdf_bytes = generate_flight_orders(self.contestant)
+
+        page_width_mm, page_height_mm = _pdf_media_box_mm(pdf_bytes)
+        width_mm, height_mm, x_mm, y_mm = _largest_image_placement_mm(pdf_bytes)
+        top_margin = page_height_mm - (y_mm + height_mm)
+        bottom_margin = y_mm
+
+        self.assertAlmostEqual(top_margin, 10.0, delta=0.1)
+        self.assertAlmostEqual(bottom_margin, 15.0, delta=0.1)
 
     def test_generate_flight_order_escapes_special_characters(self, *args):
         # Team names/rules text come from user data and must never be interpreted

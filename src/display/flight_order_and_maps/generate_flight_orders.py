@@ -602,8 +602,14 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     mapimage_file = NamedTemporaryFile(suffix=".png")
     mapimage_file.write(map_image.read())
     mapimage_file.seek(0)
+    # Must match the page's own declared margin exactly (see "#set page(... margin: ..."
+    # below): left+right = 10mm+10mm = 20mm, but top+bottom = 10mm+15mm = 25mm - these used
+    # to both subtract a flat 20mm, so the map image (placed at this exact height/width, with
+    # no auto-fit shrink) was 5mm taller than its actual vertical content box and overflowed
+    # 2.5mm into each of the top/bottom margins (confirmed: measured 7.5mm/12.5mm instead of
+    # the intended 10mm/15mm).
     map_width = flight_order_configuration.page_width_mm - 20
-    map_height = flight_order_configuration.page_height_mm - 20
+    map_height = flight_order_configuration.page_height_mm - 25
 
     adaptive_start_note = ""
     if contestant.adaptive_start:
