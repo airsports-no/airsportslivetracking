@@ -65,33 +65,29 @@ spec:
             preStop:
               exec:
                 command: ["/bin/sh", "-c", "sleep 20"]
-          # Sized up from the VPA-recommended 250m/1.5Gi: that recommendation only reflects
-          # usage during this deployment's actual lifetime so far, which has never included a
-          # real competition day - at most 3-4 simultaneous flights, nowhere near what a busy
-          # event could put through 100+ protocol ports plus the OsmAnd endpoint. Now that this
-          # pod has its own on-demand node (no longer sharing a spot node with mbtiles/
-          # live-calculator/tracker-celery/tracker-processor), there's no cost pressure to keep
-          # requests tight for their sake either. No HPA on this deployment (single replica,
-          # stateful-ish Traccar sessions), so unlike tracker-app/tracker-celery there's no
-          # scale-out safety net - headroom has to come from this one pod. Re-tighten only after
-          # a real contest day's cfs_throttled_periods_count/memory usage says it's safe to.
+          # CPU request lowered from 800m: the recommendation-only VPA (traccar-recommender)
+          # shows actual usage around 9m over the last two idle weeks, and 90 days of real
+          # cluster-wide usage never exceeded ~1.2 vCPU even in the busier June-August period.
+          # 250m sits just above Autopilot's 1:6.5 vCPU:GiB requests ratio floor for 1.5Gi
+          # memory (~231m) - going lower would just get silently bumped back up by Autopilot.
+          # No HPA on this deployment (single replica, stateful-ish Traccar sessions), so unlike
+          # tracker-app/tracker-celery there's no scale-out safety net - hence the generous CPU
+          # limit for bursting rather than trusting the request alone. Re-check after a real
+          # contest day; tighten further only if cfs_throttled_periods_count stays flat.
           resources:
             requests:
-              cpu: 500m
-              memory: 2Gi
+              cpu: 250m
+              memory: 1.5Gi  # Uses 773Mi
             limits:
-              cpu: 2000m
-              memory: 2Gi
+              cpu: 1500m
+              memory: 1.5Gi
           # Full path, not just "java": the 6.x image line (unlike 5.10-alpine) bundles its
           # own JRE at /opt/traccar/jre and does not put it on PATH - its own default
           # ENTRYPOINT already invokes the full path (see `docker inspect`), but this
           # command override replaces that entrypoint outright, so it has to spell out the
           # same path itself. Confirmed by execing into the 6.15-alpine image directly:
           # `which java` finds nothing, `ls /opt/traccar/jre/bin/java` does.
-          # Heap raised alongside the container memory limit (1.5Gi -> 2Gi) so the extra
-          # headroom is actually usable under real load, while still leaving ~500Mi for
-          # non-heap JVM memory (metaspace, thread stacks, direct buffers, GC) within the limit.
-          command: ["/opt/traccar/jre/bin/java", "-Xms1536m", "-Xmx1536m", "-Djava.net.preferIPv4Stack=true"]
+          command: ["/opt/traccar/jre/bin/java", "-Xms1024m", "-Xmx1024m", "-Djava.net.preferIPv4Stack=true"]
           args: ["-jar", "tracker-server.jar", "conf/traccar.xml"]
           ports:
             - name: http
