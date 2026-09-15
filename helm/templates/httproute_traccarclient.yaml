@@ -15,6 +15,18 @@ spec:
         group: networking.gke.io
         kind: GCPHTTPFilter
         name: cdn-use-origin-headers
+    # The iOS app sends Content-Type: application/json on this endpoint even though it never
+    # sends a body (Content-Length: 0) - Traccar's OsmAndProtocolDecoder branches strictly on
+    # Content-Type (JSON body XOR query string, never both), so that header alone forces it
+    # into decodeJson(), which throws JsonParsingException on the empty body and drops the
+    # position, every time. The working Android request sends no Content-Type header at all
+    # and lands in decodeQuery(), which already reads every field (id/lat/lon/etc.) this exact
+    # endpoint needs from the URL query string. Stripping Content-Type here makes iOS's traffic
+    # take that same already-working path - no client is known to rely on the JSON-body schema.
+    - type: RequestHeaderModifier
+      requestHeaderModifier:
+        remove:
+        - Content-Type
     backendRefs:
     - name: traccar-service-gateway
       port: 5055
