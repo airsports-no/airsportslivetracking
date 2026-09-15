@@ -92,6 +92,7 @@ from typing import Optional, Tuple, List, cast
 from django.db import models
 from PIL import Image
 from cartopy.io.img_tiles import OSM, GoogleWTS
+from cartopy import geodesic
 import matplotlib.pyplot as plt
 import numpy as np
 import cartopy.crs as ccrs
@@ -700,7 +701,6 @@ def scale_bar_y(
     linewidth=3,
     units="km",
     m_per_unit=1000,
-    scale=0,
 ):
     """
     http://stackoverflow.com/a/35705477/1072212
@@ -711,35 +711,69 @@ def scale_bar_y(
     units is the name of the unit
     m_per_unit is the number of meters in a unit
 
-    The bar is always drawn at a fixed 10cm on paper, labeled with the real-world distance
-    that represents at the given scale - not scaled to `length`, so there is no length
-    parameter here (a fixed physical length is what makes a printed scale bar useful for
-    someone measuring the map with a ruler).
+    The bar is always drawn at a fixed 10cm on paper - measured directly from the axes'
+    actual rendering transform (ax.transData), not derived from the nominal scale the
+    caller requested (formerly a `scale` parameter here, now removed - see below).
+    ax.set_extent()'s CRS round-trip (reprojecting a UTM-aligned rectangle into the axes'
+    own display CRS, e.g. Mercator) can silently make the axes display several percent more
+    ground than the requested scale implies - worse at higher latitudes - so trusting that
+    requested scale alone to size a physically-exact bar produced one that measured
+    consistently short when printed (confirmed empirically: ~4-6% short on a real
+    Nordic-latitude task, in both "fit to page" and fixed-scale modes). Calibrating against
+    a known real geodesic distance's actual rendered pixel size sidesteps that distortion
+    regardless of its cause, since it reflects what the axes truly renders rather than what
+    the extent-setting code assumed it would - hence no scale/length input is needed here at
+    all any more, and the printed "1:X" label reflects the measured effective scale, not the
+    nominal one.
     """
     # find lat/lon center to find best UTM zone
     x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
     # Projection in metres
     utm = utm_from_lat_lon((y0 + y1) / 2, (x0 + x1) / 2)
-    # Get the extent of the plotted area in coordinates in metres
+    # Get the extent of the plotted area in coordinates in metres (only used to pick a
+    # rough on-map position for the bar - not for its length, so the same UTM/display-CRS
+    # round-trip that broke length calculations here is harmless for mere positioning).
     x0, x1, y0, y1 = ax.get_extent(utm)
-    # Turn the specified scalebar location into coordinates in metres
     sbcx, sbcy = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
-    # Generate the x coordinate for the ends of the scalebar
-    bar_length = 10 * scale * 1000 / (100 * 1852)  # NM (10 is cm)
-    y_offset = bar_length * m_per_unit
-    bar_ys = [sbcy - y_offset / 2, sbcy + y_offset / 2]
+    center_lon, center_lat = proj.transform_point(sbcx, sbcy, utm)
+
+    # Sphere matching PSEUDO_MERCATOR_SPHERE exactly, so the geodesic math below is
+    # internally consistent with how everything else on this map is projected.
+    sphere_geodesic = geodesic.Geodesic(radius=6378137.0, flattening=0.0)
+
+    def _point_at_bearing(distance_metres, bearing_degrees):
+        (lon, lat, _) = sphere_geodesic.direct([(center_lon, center_lat)], [bearing_degrees], [distance_metres])[0]
+        return lon, lat
+
+    calibration_metres = 10000.0
+    north_lon, north_lat = _point_at_bearing(calibration_metres / 2, 0)
+    south_lon, south_lat = _point_at_bearing(calibration_metres / 2, 180)
+    north_pixels = ax.transData.transform(ax.projection.transform_point(north_lon, north_lat, proj))
+    south_pixels = ax.transData.transform(ax.projection.transform_point(south_lon, south_lat, proj))
+    calibration_pixels = math.hypot(north_pixels[0] - south_pixels[0], north_pixels[1] - south_pixels[1])
+    calibration_cm = (calibration_pixels / ax.figure.dpi) * 2.54
+    measured_metres_per_cm = calibration_metres / calibration_cm
+
+    # Size the bar to genuinely measure 10cm on paper, and label it with the scale that
+    # measurement actually represents - not the nominal `scale`, which the calibration
+    # above may have shown to be inaccurate for this particular map.
+    bar_length_metres = measured_metres_per_cm * 10
+    effective_scale = measured_metres_per_cm / 10  # same convention as `scale`: 1:effective_scale*1000
+    bar_length = bar_length_metres / m_per_unit
+    bar_north_lon, bar_north_lat = _point_at_bearing(bar_length_metres / 2, 0)
+    bar_south_lon, bar_south_lat = _point_at_bearing(bar_length_metres / 2, 180)
     # buffer for scalebar
     buffer = [patheffects.withStroke(linewidth=5, foreground="w")]
     # Plot the scalebar with buffer
-    x, y0 = proj.transform_point(sbcx, bar_ys[0], utm)
-    _, y1 = proj.transform_point(sbcx, bar_ys[1], utm)
+    x, y0 = bar_north_lon, bar_south_lat
+    y1 = bar_north_lat
     # Label offset is a fraction of the bar's own real-world length, not a fixed distance:
     # the bar's length in metres varies by orders of magnitude with scale, so a fixed offset
     # (e.g. a constant 400m) looks fine at one scale but overlaps the bar at zoomed-out scales
     # or leaves it floating far away at zoomed-in ones. A fixed fraction keeps the label a
     # visually consistent distance from the bar at any scale.
-    label_offset = y_offset * 0.08
-    xc, yc = proj.transform_point(sbcx + label_offset, sbcy, utm)
+    label_offset = bar_length_metres * 0.08
+    xc, yc = _point_at_bearing(label_offset, 90)
     ax.plot(
         [x, x],
         [y0, y1],
@@ -755,7 +789,7 @@ def scale_bar_y(
     ax.text(
         xc,
         yc,
-        "1:{:,d} {:.2f} {} = {:.0f} cm".format(int(scale * 1000), bar_length, units, 10),
+        "1:{:,d} {:.2f} {} = {:.0f} cm".format(int(effective_scale * 1000), bar_length, units, 10),
         transform=proj,
         horizontalalignment="center",
         verticalalignment="bottom",
@@ -1928,7 +1962,7 @@ def plot_route(
         )
 
     ax.set_extent(extent, crs=utm)
-    scale_bar_y(ax, PSEUDO_MERCATOR_SPHERE, units="NM", m_per_unit=1852, scale=scale)
+    scale_bar_y(ax, PSEUDO_MERCATOR_SPHERE, units="NM", m_per_unit=1852)
     fig.patch.set_visible(False)
     extent = ax.get_extent(proj_pc)
     if include_meridians_and_parallels_lines:
