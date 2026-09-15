@@ -80,7 +80,13 @@ def build_flight_order_map_plot_kwargs(
         "minute_mark_line_width": flight_order_configuration.map_minute_mark_line_width,
         "colour": flight_order_configuration.map_line_colour,
         "include_meridians_and_parallels_lines": flight_order_configuration.map_include_meridians_and_parallels_lines,
-        "margins_mm": 10,
+        # Must match this module's own page margin exactly (see "#set page(... margin: ..."
+        # below: left/right 10mm+10mm=20mm, top/bottom 10mm+15mm=25mm) - scale_bar_y's "exactly
+        # 10cm" calibration is relative to this figure's own physical cm size, so if that size
+        # doesn't match what map_width/map_height (below) actually print at, the whole map -
+        # scale bar included - comes out uniformly smaller than intended.
+        "horizontal_margin_mm": 20,
+        "vertical_margin_mm": 25,
     }
 
 
@@ -576,11 +582,15 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         else ""
     )
     map_footer = (
-        "context [#grid(columns: (1fr, auto), align: (left + horizon, right + horizon),"
+        # Fixed percentage columns, not (1fr, auto): the image's own "width: 30%" is relative
+        # to its grid cell, and an auto-sized cell has no width to be 30% of, which shrank the
+        # logo to near-nothing. A 70%/30% split gives the image cell a real width matching
+        # what the old bare #align(right)[#image(..., width: 30%)] resolved against (the page).
+        "context [#grid(columns: (70%, 30%), align: (left + horizon, right + horizon),"
         + f"[#text(size: 7pt, style: \"italic\")[{_typst_string(scale_disclaimer)}]],"
-        + "[#image("
+        + "[#align(right)[#image("
         + _typst_string("/src/static/img/AirSportsLiveTrackingWhiteBG.png")
-        + ", width: 30%)])]"
+        + ", width: 100%)]])]"
     )
 
     waypoints = get_flight_order_visual_waypoints(

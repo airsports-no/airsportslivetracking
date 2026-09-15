@@ -36,7 +36,6 @@ services:
     volumes:
       - ./secret:/secret
       - ./static:/static
-      - ./assets:/assets
       - ./assets_vite:/assets_vite
       - ./src:/src
       - ./airsports_static:/airsports_static
@@ -78,7 +77,6 @@ services:
     volumes:
       - ./secret:/secret
       - ./static:/static
-      - ./assets:/assets
       - ./src:/src
       - ./airsports_static:/airsports_static
       - ./data:/data
@@ -124,7 +122,6 @@ services:
     volumes:
       - ./secret:/secret
       - ./static:/static
-      - ./assets:/assets
       - ./src:/src
       - ./airsports_static:/airsports_static
       - ./data:/data

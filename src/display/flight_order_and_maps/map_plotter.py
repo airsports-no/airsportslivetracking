@@ -1673,6 +1673,13 @@ def plot_route(
     include_meridians_and_parallels_lines: bool = True,
     include_openaip_overlay: bool = False,
     margins_mm: float = 0,
+    # Total (both-sides) left+right / top+bottom margin, in mm, of the page the final
+    # (post-rotation, see the landscape handling below) image will be printed on. Defaults to
+    # margins_mm's old symmetric behaviour (same total on every side); pass these explicitly
+    # when the caller embeds the result at a known, asymmetric physical page margin and needs
+    # the figure's own physical size to exactly match what will actually be printed.
+    horizontal_margin_mm: Optional[float] = None,
+    vertical_margin_mm: Optional[float] = None,
 ):
     route = task.route
     attribution = ""
@@ -1735,8 +1742,24 @@ def plot_route(
         else:
             figure_width = A4_WIDTH
             figure_height = A4_HEIGHT
-    figure_width -= 0.2 * margins_mm
-    figure_height -= 0.2 * margins_mm
+    if horizontal_margin_mm is None:
+        horizontal_margin_mm = 2 * margins_mm
+    if vertical_margin_mm is None:
+        vertical_margin_mm = 2 * margins_mm
+    # landscape=True rotates the finished image 90 degrees before it's saved (see the
+    # `if landscape:` rotate() call below) - so it's figure_width here, pre-rotation, that
+    # ends up as the final image's HEIGHT (and vice versa). A caller embedding the result at
+    # an exact physical size (generate_flight_orders.py, where scale_bar_y's "exactly 10cm"
+    # calibration - based on this figure's own cm dimensions - must match the size it's
+    # actually printed at) needs to shrink whichever pre-rotation axis that is by the real
+    # final vertical margin, not the horizontal one, or the print comes out uniformly a few
+    # percent smaller than the figure was calibrated for.
+    if landscape:
+        figure_width -= vertical_margin_mm / 10
+        figure_height -= horizontal_margin_mm / 10
+    else:
+        figure_width -= horizontal_margin_mm / 10
+        figure_height -= vertical_margin_mm / 10
 
     tile_target_pixel_size = compute_tile_target_pixel_size(figure_width, figure_height, dpi)
     imagery.target_pixel_size = tile_target_pixel_size

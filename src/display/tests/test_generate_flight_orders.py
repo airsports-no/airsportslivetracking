@@ -149,6 +149,16 @@ class GenerateFlightOrdersTests(TransactionTestCase):
 
         self.assertAlmostEqual(top_margin, 10.0, delta=0.1)
         self.assertAlmostEqual(bottom_margin, 15.0, delta=0.1)
+        # Regression test: plot_route used to subtract a flat, symmetric 20mm from BOTH
+        # figure_width and figure_height (map_plotter.py's old `0.2 * margins_mm`), so the
+        # matplotlib figure's own physical size (what scale_bar_y's "exactly 10cm" calibration
+        # is relative to) didn't match this asymmetric page's real available print box. For
+        # landscape (whose pre-rotation figure_width becomes the final image's height - see
+        # plot_route's rotate() call), that mismatch (277mm calibrated vs 272mm actually
+        # printed) uniformly shrank the whole map - scale bar included - by ~1.8% (a 10cm bar
+        # measuring ~98.3mm). Checking the unconstrained width lands on its own undistorted
+        # value (190mm, not 186.66mm) confirms no shrink is happening.
+        self.assertAlmostEqual(width_mm, 190.0, delta=0.5)
 
     def test_generate_flight_order_escapes_special_characters(self, *args):
         # Team names/rules text come from user data and must never be interpreted
