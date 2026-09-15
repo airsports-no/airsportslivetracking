@@ -709,7 +709,8 @@ def set_extent_matching_ground_distance(ax, utm_extent, utm, proj_pc):
     using the standard Web Mercator local scale factor (1/cos(latitude)), which is exact for
     a conformal projection like this at a single reference latitude - so no reprojection, no
     bounding-box distortion, and the rendered ground distance matches utm_extent exactly
-    (confirmed: the same map above now measures 1:249,927 - accurate to within 0.03%).
+    (confirmed: the same map above now measures 1:249,927 before also fixing scale_bar_y's
+    own reference-point lookup below, 1:249,999 after - see that function's docstring).
     """
     x0, x1, y0, y1 = utm_extent
     centre_x_utm = (x0 + x1) / 2
@@ -761,17 +762,22 @@ def scale_bar_y(
     the extent-setting code assumed it would - hence no scale/length input is needed here at
     all any more, and the printed "1:X" label reflects the measured effective scale, not the
     nominal one.
+
+    The reference point itself is read directly in the axes' own display CRS
+    (ax.get_extent(ax.projection), no crs= conversion) and converted to lon/lat with a
+    single-point transform - not via ax.get_extent(utm), which would reproject the axes'
+    four corners into UTM and take their bounding box. A bounding box of reprojected corners
+    isn't the same point-for-point as the original region (the same distortion this whole fix
+    is about), so it very slightly biased the reference latitude the geodesic calibration
+    below uses - small on its own, but why this function was still measurably off (1:249,927
+    instead of 1:250,000 - confirmed on the same real task set_extent_matching_ground_distance
+    documents above) even after the main extent fix. Fixed, the residual is ~1:249,999 - the
+    remaining ~10ppm is the linear Web Mercator scale-factor approximation itself (exact only
+    at a single latitude, and this map spans a small range around it), not a bug.
     """
-    # find lat/lon center to find best UTM zone
-    x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
-    # Projection in metres
-    utm = utm_from_lat_lon((y0 + y1) / 2, (x0 + x1) / 2)
-    # Get the extent of the plotted area in coordinates in metres (only used to pick a
-    # rough on-map position for the bar - not for its length, so the same UTM/display-CRS
-    # round-trip that broke length calculations here is harmless for mere positioning).
-    x0, x1, y0, y1 = ax.get_extent(utm)
-    sbcx, sbcy = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
-    center_lon, center_lat = proj.transform_point(sbcx, sbcy, utm)
+    x0, x1, y0, y1 = ax.get_extent(ax.projection)
+    sbc_x, sbc_y = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
+    center_lon, center_lat = proj.transform_point(sbc_x, sbc_y, ax.projection)
 
     # Sphere matching PSEUDO_MERCATOR_SPHERE exactly, so the geodesic math below is
     # internally consistent with how everything else on this map is projected.
