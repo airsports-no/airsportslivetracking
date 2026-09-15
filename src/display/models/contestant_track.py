@@ -40,12 +40,18 @@ class ContestantTrack(models.Model):
         self.calculator_started = False
         self.save()
 
-        # Also reset the task test score if it exists to avoid double-counting on restarts
+        # Also reset the task test score if it exists to avoid double-counting on restarts.
+        # Must be update_or_create() (which calls .save()), not a bulk .filter().update() -
+        # the latter bypasses TeamTestScore's post_save signal, so the results service
+        # (TaskSummary/ContestSummary - see signals.py's auto_summarise_tests/
+        # auto_summarise_tasks) would never learn the score changed and would keep showing
+        # the pre-reset total on the contest leaderboard indefinitely.
         if hasattr(self.contestant.navigation_task, "tasktest"):
-            TeamTestScore.objects.filter(
+            TeamTestScore.objects.update_or_create(
                 team=self.contestant.team,
                 task_test=self.contestant.navigation_task.tasktest,
-            ).update(points=self.score)
+                defaults={"points": self.score},
+            )
 
         self.__push_change()
 

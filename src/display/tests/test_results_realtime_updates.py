@@ -13,6 +13,7 @@ from display.default_scorecards.default_scorecard_fai_precision_2020 import get_
 from display.models import (
     Aeroplane,
     Contest,
+    Contestant,
     ContestTeam,
     ContestSummary,
     Crew,
@@ -384,6 +385,39 @@ class NavigationTaskResultsServiceTests(APITransactionTestCase):
         self.assertEqual(task_test.task.contest_id, self.contest.id)
         self.assertEqual(task_test.task.heading, self.navigation_task.name)
         self.assertEqual(task_test.task.summary_score_sorting_direction, self.navigation_task.score_sorting_direction)
+
+    def test_restarting_contestant_calculator_updates_results_service_score(self, *_args):
+        # Regression test: ContestantTrack.reset() used to reset TeamTestScore via a bulk
+        # .filter().update(), which bypasses Django's post_save signal - so TaskSummary/
+        # ContestSummary (the "results service" backing the contest Leaderboard) kept
+        # showing the pre-restart score forever, even though the contestant's own live
+        # score genuinely went back to the scorecard's initial value.
+        team = Team.objects.create(
+            crew=Crew.objects.create(
+                member1=_create_person(first_name="Pilot", last_name="Restart", email="restart@example.com")
+            ),
+            aeroplane=Aeroplane.objects.create(registration="LN-RST"),
+        )
+        now = datetime.datetime.now(datetime.timezone.utc)
+        contestant = Contestant.objects.create(
+            navigation_task=self.navigation_task,
+            team=team,
+            takeoff_time=now,
+            finished_by_time=now + datetime.timedelta(hours=1),
+            tracker_start_time=now,
+            tracker_device_id="restart-test-device",
+            contestant_number=1,
+        )
+        contestant.contestanttrack.update_score(42)
+
+        task_test = self.navigation_task.tasktest
+        self.assertEqual(TaskSummary.objects.get(task=task_test.task, team=team).points, 42)
+        self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=team).points, 42)
+
+        contestant.contestanttrack.reset()
+
+        self.assertEqual(TaskSummary.objects.get(task=task_test.task, team=team).points, 0)
+        self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=team).points, 0)
 
     def test_results_details_includes_navigation_task_results_service_entries(self, *_args):
         response = self.client.get(reverse("contests-results-details", kwargs={"pk": self.contest.pk}))
