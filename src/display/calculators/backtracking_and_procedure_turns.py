@@ -40,6 +40,18 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
     PROCEDURE_TURN_SCORE_TYPE = "procedure_turn"
     BACKTRACKING_SCORE_TYPE = "backtracking"
 
+    # A fixed, non-scorecard-configurable floor on top of scorecard.backtracking_grace_time_seconds.
+    # The two serve different purposes: grace_time_seconds is a competition-rule tolerance window
+    # (organizer/ruleset-configurable, and can legitimately be 0 - e.g. FAI ANR 2022 intends an
+    # immediate penalty for a real backtrack), while this floor exists purely to denounce GPS/track
+    # noise - a single momentary bad-bearing position fix (e.g. during a turn) that reverts on the
+    # very next report. With grace_time_seconds=0, that single glitch alone satisfied "elapsed >= 0"
+    # and scored a full penalty (confirmed against production logs: contestant 3489/Yago, two
+    # backtracking penalties, each lasting exactly 0.0 seconds - one real position tick). Always
+    # requiring the anomaly to persist for at least this long - regardless of what the scorecard
+    # sets grace to - filters that out without touching the rule-based tolerance itself.
+    BACKTRACKING_DENOUNCE_SECONDS = 2
+
     BEFORE_START = 0
     STARTED = 1
     FINISHED = 2
@@ -155,6 +167,16 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
         # backtracking
         self.backtracking_limit = self.scorecard.backtracking_bearing_difference
         self.tracking_state = self.BEFORE_START
+
+    @property
+    def effective_backtracking_grace_seconds(self) -> float:
+        """
+        The actual minimum duration a bearing anomaly must persist before it scores a
+        backtracking penalty: the scorecard's own rule-based grace period, floored at
+        BACKTRACKING_DENOUNCE_SECONDS so a single momentary GPS/bearing glitch can never score
+        one on its own, no matter how small (including 0) the scorecard sets grace to.
+        """
+        return max(self.scorecard.backtracking_grace_time_seconds, self.BACKTRACKING_DENOUNCE_SECONDS)
 
     def update_tracking_state(self, tracking_state: int):
         if tracking_state == self.tracking_state:
@@ -438,7 +460,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                     ):
                         logger.info(
                             "{} {}: Started backtracking, let's see if this goes on for more than {} seconds".format(
-                                self.contestant, last_position.time, self.scorecard.backtracking_grace_time_seconds
+                                self.contestant, last_position.time, self.effective_backtracking_grace_seconds
                             )
                         )
                         self.backtracking_start_time = last_position.time
@@ -476,7 +498,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                 if self.tracking_state == self.BACKTRACKING_TEMPORARY and self.backtracking_start_time is not None:
                     if (
                         last_position.time - self.backtracking_start_time
-                    ).total_seconds() >= self.scorecard.backtracking_grace_time_seconds:
+                    ).total_seconds() >= self.effective_backtracking_grace_seconds:
                         self.update_tracking_state(self.BACKTRACKING)
                         if not self.backtracked_on_current_leg and self.tracking_state != self.PROCEDURE_TURN:
                             logger.info(
@@ -519,7 +541,7 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
                     if self.tracking_state == self.BACKTRACKING_TEMPORARY and self.backtracking_start_time is not None:
                         if (
                             last_position.time - self.backtracking_start_time
-                        ).total_seconds() >= self.scorecard.backtracking_grace_time_seconds:
+                        ).total_seconds() >= self.effective_backtracking_grace_seconds:
                             self.update_tracking_state(self.BACKTRACKING)
                             if not self.backtracked_on_current_leg and self.tracking_state != self.PROCEDURE_TURN:
                                 self.backtracked_on_current_leg = True
