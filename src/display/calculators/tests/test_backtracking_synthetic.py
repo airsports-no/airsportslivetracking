@@ -177,6 +177,79 @@ class TestBacktrackingSynthetic(SyntheticCalculatorTestBase):
         self.assertEqual(self.calculator.update_score.call_count, 1)
         self.assertEqual(self.calculator.tracking_state, self.calculator.TRACKING)
 
+    def test_effective_grace_seconds_floors_at_denounce_but_never_lowers_a_larger_grace(self):
+        """effective_backtracking_grace_seconds is the scorecard's own grace time, floored at
+        BACKTRACKING_DENOUNCE_SECONDS - never lower, and never raised when the scorecard's
+        value already exceeds the floor."""
+        self.scorecard.backtracking_grace_time_seconds = 0
+        self.assertEqual(
+            self.calculator.effective_backtracking_grace_seconds,
+            self.calculator.BACKTRACKING_DENOUNCE_SECONDS,
+        )
+        self.scorecard.backtracking_grace_time_seconds = 30
+        self.assertEqual(self.calculator.effective_backtracking_grace_seconds, 30)
+
+    def test_momentary_glitch_with_zero_grace_time_does_not_score(self):
+        """Regression test for a production incident (contestant 3489/task, pilot callsign
+        Yago): with scorecard.backtracking_grace_time_seconds=0 (FAI ANR 2022's configured
+        value), a single momentary bad-bearing position fix that reverts on the very next
+        report - e.g. GPS noise or a normal turn near a waypoint - satisfied "elapsed >= 0"
+        on its own and scored a full penalty for something lasting 0.0 seconds, twice, in the
+        same flight. The fixed BACKTRACKING_DENOUNCE_SECONDS floor must prevent this
+        regardless of how low the scorecard sets grace."""
+        self.scorecard.backtracking_grace_time_seconds = 0
+        gate = self._gate("TP1")
+        self.calculator.tracking_state = self.calculator.TRACKING
+        self.calculator.last_gate_previous_round = gate
+        t0 = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+        track = [self._pos(*self.point_a, t0), self._pos(*self.point_b, t0 + datetime.timedelta(seconds=10))]
+        self.calculator.calculate_track_score(track, gate, gate, gate)
+
+        # One momentary reversed-bearing fix ...
+        t_glitch = t0 + datetime.timedelta(seconds=20)
+        track.append(self._pos(*self.point_a, t_glitch))
+        self.calculator.calculate_track_score(track, gate, gate, gate)
+        self.assertEqual(self.calculator.tracking_state, self.calculator.BACKTRACKING_TEMPORARY)
+        self.calculator.update_score.assert_not_called()
+
+        # ... that reverts to the correct heading 1 second later (< the 2s denounce floor,
+        # even though it's already >= the scorecard's own 0s grace time).
+        t_recover = t_glitch + datetime.timedelta(seconds=1)
+        track.append(self._pos(*self.point_b, t_recover))
+        self.calculator.calculate_track_score(track, gate, gate, gate)
+        self.calculator.update_score.assert_not_called()
+        self.assertEqual(self.calculator.tracking_state, self.calculator.TRACKING)
+
+    def test_backtrack_past_denounce_floor_still_scores_with_zero_grace_time(self):
+        """A genuinely sustained backtrack (past the denounce floor) must still score
+        immediately once past BACKTRACKING_DENOUNCE_SECONDS when the scorecard's own grace
+        time is 0 - the floor denounces noise, it does not disable a real rule that says
+        'penalize immediately'."""
+        self.scorecard.backtracking_grace_time_seconds = 0
+        gate = self._gate("TP1")
+        self.calculator.tracking_state = self.calculator.TRACKING
+        self.calculator.last_gate_previous_round = gate
+        t0 = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+        track = [self._pos(*self.point_a, t0), self._pos(*self.point_b, t0 + datetime.timedelta(seconds=10))]
+        self.calculator.calculate_track_score(track, gate, gate, gate)
+
+        t_reverse_start = t0 + datetime.timedelta(seconds=20)
+        track.append(self._pos(*self.point_a, t_reverse_start))
+        self.calculator.calculate_track_score(track, gate, gate, gate)
+        self.calculator.update_score.assert_not_called()
+
+        # Still reversing exactly at the 2s denounce floor -> scores now.
+        t_at_floor = t_reverse_start + datetime.timedelta(seconds=self.calculator.BACKTRACKING_DENOUNCE_SECONDS)
+        track.append(self._pos(*self.point_west_1, t_at_floor))
+        self.calculator.calculate_track_score(track, gate, gate, gate)
+        self.assertEqual(self.calculator.tracking_state, self.calculator.BACKTRACKING)
+        self.assertEqual(self.calculator.update_score.call_count, 1)
+        penalty_msg = self.calculator.update_score.call_args_list[0][0][0]
+        self.assertEqual(penalty_msg.score, 200)
+        self.assertEqual(penalty_msg.score_type, "backtracking")
+
     def test_backtracking_recovers_within_grace_time_no_penalty(self):
         """Reversing briefly and recovering before the grace period elapses
         never scores a penalty."""
