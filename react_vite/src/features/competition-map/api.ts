@@ -97,9 +97,16 @@ export async function fetchContestantScoreData(contestId: number, navigationTask
   return res.json();
 }
 
-export async function fetchContestantSlice(contestantId: number, minuteIndex: number, count: number = 1): Promise<any[]> {
-  // Use the new top-level contestant slice API
-  const url = new URL(`/api/v1/contestant/${contestantId}/slice/${minuteIndex}/`, window.location.origin);
+export async function fetchContestantSlice(contestantId: number, minuteIndex: number, count: number = 1, trackVersion?: number): Promise<any[]> {
+  // When the caller already knows the contestant's current track_version (it's part of every
+  // contestant returned by the navigation task fetch), request the versioned URL so the CDN
+  // treats each version as a distinct cacheable object instead of long-caching one URL that
+  // goes stale the moment a contestant's calculator is restarted. Falls back to the
+  // unversioned route when the version isn't known yet.
+  const basePath = trackVersion !== undefined
+    ? `/api/v1/contestant/${contestantId}/slice/${minuteIndex}/${trackVersion}/`
+    : `/api/v1/contestant/${contestantId}/slice/${minuteIndex}/`;
+  const url = new URL(basePath, window.location.origin);
   if (count > 1) {
     url.searchParams.set('count', count.toString());
   }

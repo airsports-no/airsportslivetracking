@@ -1341,6 +1341,34 @@ def restart_contestant_calculator(request, pk):
     return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
 
 
+@require_POST
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
+def reset_contestant_calculator(request, pk):
+    """
+    Same cleanup as restart_contestant_calculator (terminates the calculator, clears the
+    track/score/results-service state) but deliberately leaves termination in effect
+    afterwards, so no new calculation starts on the next received position. Use this when a
+    contestant's flight/data needs clearing without immediately reopening it for tracking -
+    restart it explicitly (separate action) when ready to try again. Redirects to the
+    navigation task detail page.
+    """
+    contestant = get_object_or_404(Contestant, pk=pk)
+    try:
+        contestant.blocking_request_calculator_termination()
+    except TimeoutError:
+        messages.warning(
+            request,
+            "Calculator termination requested, but it did not stop in time. Please try resetting again shortly.",
+        )
+        return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
+    contestant.reset_track_and_score()
+    messages.success(
+        request,
+        "Contestant reset. No new calculation will start until the calculator is explicitly restarted.",
+    )
+    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
+
+
 class ContestCreateView(PermissionRequiredMixin, CreateView):
     """
     View to create a new contest
