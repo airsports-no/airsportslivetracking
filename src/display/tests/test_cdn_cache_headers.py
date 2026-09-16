@@ -102,6 +102,9 @@ class CDNCacheHeadersTests(TransactionTestCase):
     def _track_versioned_url(self, version) -> str:
         return f"/api/v1/contestant/{self.contestant.pk}/track/{version}/"
 
+    def _score_data_versioned_url(self, version) -> str:
+        return f"/api/v1/contestant/{self.contestant.pk}/score_data/{version}/"
+
     def _make_public(self):
         self.navigation_task.is_public = True
         self.navigation_task.save(update_fields=["is_public"])
@@ -226,6 +229,62 @@ class CDNCacheHeadersTests(TransactionTestCase):
         self.contestant.contestanttrack.save()
 
         response = self.client.get(self._slice_versioned_url(minute_index, self.contestant.track_version))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("s-maxage=31536000", response["Cache-Control"])
+
+    # --- 3b-ii. A caller cannot forge a future/mismatched version to poison the CDN: the
+    # versioned route must validate the path's version against the contestant's actual
+    # current one before granting the 1-year cache, or the current (soon-to-be-stale) data
+    # would be cached under a URL that a genuine future restart later reaches for real. ---
+    def test_slice_with_mismatched_version_does_not_get_the_one_year_cache(self):
+        self._make_public()
+        minute_index = _far_past_minute_index()
+        window_start = datetime.datetime.fromtimestamp(minute_index * 60, tz=datetime.timezone.utc)
+        ContestantReceivedPosition.objects.create(
+            contestant=self.contestant,
+            time=window_start + datetime.timedelta(seconds=10),
+            latitude=60.0,
+            longitude=11.0,
+        )
+        self.contestant.contestanttrack.calculator_finished = True
+        self.contestant.contestanttrack.save()
+
+        forged_version = self.contestant.track_version + 1000
+        response = self.client.get(self._slice_versioned_url(minute_index, forged_version))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("s-maxage=31536000", response["Cache-Control"])
+
+    def test_track_with_mismatched_version_does_not_get_the_one_year_cache(self):
+        self._make_public()
+        self.contestant.contestanttrack.calculator_finished = True
+        self.contestant.contestanttrack.save()
+
+        forged_version = self.contestant.track_version + 1000
+        response = self.client.get(self._track_versioned_url(forged_version))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("s-maxage=31536000", response["Cache-Control"])
+
+    def test_score_data_with_mismatched_version_does_not_get_the_one_year_cache(self):
+        self._make_public()
+        self.contestant.contestanttrack.calculator_finished = True
+        self.contestant.contestanttrack.save()
+
+        forged_version = f"{self.contestant.track_version + 1000}-{self.contestant.score_version + 1000}"
+        response = self.client.get(self._score_data_versioned_url(forged_version))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("s-maxage=31536000", response["Cache-Control"])
+
+    def test_score_data_with_matching_version_gets_the_one_year_cache(self):
+        self._make_public()
+        self.contestant.contestanttrack.calculator_finished = True
+        self.contestant.contestanttrack.save()
+
+        version = f"{self.contestant.track_version}-{self.contestant.score_version}"
+        response = self.client.get(self._score_data_versioned_url(version))
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("s-maxage=31536000", response["Cache-Control"])

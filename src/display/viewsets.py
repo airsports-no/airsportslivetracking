@@ -2163,19 +2163,24 @@ class ContestantViewSet(ModelViewSet):
     )
     @action(detail=True, methods=["get"], url_path=r"score_data/(?P<version>[^/]+)")
     def score_data_versioned(self, request, pk=None, version=None, **kwargs):
-        return self.score_data(request, pk=pk, is_versioned=True, **kwargs)
+        return self.score_data(request, pk=pk, requested_version=version, **kwargs)
 
     @extend_schema(
         responses={200: OpenApiTypes.OBJECT},
         description="Return consolidated score data, including compiled task payload and administrative penalties, for the contestant score view.",
     )
     @action(detail=True, methods=["get"])
-    def score_data(self, request, *args, is_versioned: bool = False, **kwargs):
+    def score_data(self, request, *args, requested_version: str = None, **kwargs):
         """
         Used by the front end to load initial data
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
         is_finished = hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished
+        # A caller could otherwise request an arbitrary/future version, have today's data
+        # cached under that URL for a year, and get served that stale response once the
+        # contestant's real version genuinely reaches it later - so the long-cache branch
+        # below is only reachable when the path actually matches the canonical version.
+        is_versioned = requested_version == f"{contestant.track_version}-{contestant.score_version}"
         if not hasattr(contestant, "contestanttaskconfiguration"):
             from display.services.contestant_task_compiler import ContestantTaskCompiler
 
@@ -2247,7 +2252,7 @@ class ContestantViewSet(ModelViewSet):
     )
     @action(detail=True, methods=["get"], url_path=r"slice/(?P<minute_index>\d+)/(?P<version>[^/]+)")
     def slice_versioned(self, request, minute_index, version=None, **kwargs):
-        return self.slice(request, minute_index, is_versioned=True, **kwargs)
+        return self.slice(request, minute_index, requested_version=version, **kwargs)
 
     @extend_schema(
         parameters=[
@@ -2268,8 +2273,13 @@ class ContestantViewSet(ModelViewSet):
         description="Return one or more cached minute-aligned telemetry slices for a contestant track.",
     )
     @action(detail=True, methods=["get"], url_path=r"slice/(?P<minute_index>\d+)")
-    def slice(self, request, minute_index, is_versioned: bool = False, **kwargs):
+    def slice(self, request, minute_index, requested_version: str = None, **kwargs):
         contestant = self.get_object()
+        # A caller could otherwise request an arbitrary/future version, have today's data
+        # cached under that URL for a year, and get served that stale response once the
+        # contestant's real version genuinely reaches it later - so the long-cache branch
+        # below is only reachable when the path actually matches the canonical version.
+        is_versioned = requested_version == str(contestant.track_version)
         minute_index = int(minute_index)
         try:
             count = int(request.query_params.get("count", 1))
@@ -2468,14 +2478,19 @@ class ContestantViewSet(ModelViewSet):
     )
     @action(detail=True, methods=["get"], url_path=r"track/(?P<version>[^/]+)")
     def track_versioned(self, request, pk=None, version=None, **kwargs):
-        return self.track(request, pk=pk, is_versioned=True, **kwargs)
+        return self.track(request, pk=pk, requested_version=version, **kwargs)
 
     @action(detail=True, methods=["get"])
-    def track(self, request, pk=None, is_versioned: bool = False, **kwargs):
+    def track(self, request, pk=None, requested_version: str = None, **kwargs):
         """
         Returns the GPS track for the contestant
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        # A caller could otherwise request an arbitrary/future version, have today's data
+        # cached under that URL for a year, and get served that stale response once the
+        # contestant's real version genuinely reaches it later - so the long-cache branch
+        # below is only reachable when the path actually matches the canonical version.
+        is_versioned = requested_version == str(contestant.track_version)
         ct = contestant.contestanttrack
 
         position_data = contestant.get_track()
