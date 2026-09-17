@@ -172,6 +172,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                       navigationTaskId={navigationTaskId}
                       taskSubtype={taskSubtype}
                       canManage={canManage}
+                      onRefresh={onRefresh}
                       iconTrigger
                     />
                   </div>
@@ -311,6 +312,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                         navigationTaskId={navigationTaskId}
                         taskSubtype={taskSubtype}
                         canManage={canManage}
+                        onRefresh={onRefresh}
                       />
                     </td>
                   </tr>

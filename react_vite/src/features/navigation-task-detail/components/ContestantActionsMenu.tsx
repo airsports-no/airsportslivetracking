@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EllipsisVertical } from 'lucide-react';
 import { reverse, generatePath } from '../../../urls';
+import { recalculateTrack } from '../api';
 import { ContestantRow, supportsDeclarationEditing } from '../types';
 
 interface ContestantActionsMenuProps {
@@ -10,21 +11,38 @@ interface ContestantActionsMenuProps {
   navigationTaskId: number;
   taskSubtype?: string | null;
   canManage: boolean;
+  onRefresh: () => void;
   /** Renders the trigger as a vertical-ellipsis icon button (mobile) instead of the text "Actions" button (desktop). */
   iconTrigger?: boolean;
 }
 
-// Read-only/navigation items only for now - the calculator lifecycle, GPX/recalculate, penalty/
-// card, and delete actions still link out to the classic Django pages; they get wired to the
-// Slice 0 REST actions incrementally in follow-up commits (see project memory).
+// GPX upload/download, penalty/card, and delete actions still link out to the classic Django
+// pages - they get wired to the Slice 0 REST actions incrementally in follow-up commits (see
+// project memory).
 const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
   contestant,
   contestId,
   navigationTaskId,
   taskSubtype,
   canManage,
+  onRefresh,
   iconTrigger,
 }) => {
+  const [recalculating, setRecalculating] = useState(false);
+
+  const handleRecalculateTrack = async () => {
+    if (recalculating || !window.confirm('Reset the track/score and reload it from the tracker?')) return;
+    setRecalculating(true);
+    try {
+      await recalculateTrack(contestId, navigationTaskId, contestant.pk);
+      onRefresh();
+    } catch (err: any) {
+      window.alert(err.message || 'Failed to recalculate the live track');
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   return (
     <div className="dropdown dropdown-end dropdown-left">
       <label tabIndex={0} className={iconTrigger ? 'btn btn-square btn-ghost btn-sm' : 'btn btn-ghost btn-xs px-1'}>
@@ -67,7 +85,9 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
               <a href={reverse('contestant_downloadgpxtrack', contestant.pk)}>Download GPX</a>
             </li>
             <li>
-              <a href={reverse('contestant_recalculatelivetrack', contestant.pk)}>Recalculate live track</a>
+              <button type="button" disabled={recalculating} onClick={handleRecalculateTrack} className="w-full text-left">
+                Recalculate live track
+              </button>
             </li>
             <li>
               <a href={reverse('contestant_recalculate_start_time', contestant.pk)}>Recalculate with new start time</a>
