@@ -8,6 +8,7 @@ from guardian.shortcuts import assign_perm
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import (
+    ActualGateTime,
     AdministrativePenalty,
     Aeroplane,
     Contest,
@@ -22,7 +23,9 @@ from display.models import (
     Team,
     TrackAnnotation,
 )
+from display.models.scoring_models import ANOMALY
 from display.services.administrative_penalties import AdministrativePenaltyService
+from display.utilities.gate_definitions import FINISHPOINT
 from display.waypoint import Waypoint
 from utilities.mock_utilities import TraccarMock
 
@@ -512,3 +515,151 @@ class TestAdministrativePenalties(TestCase):
         self.assertContains(response, "Residual fuel required")
         self.assertContains(response, "Apply fuel-check penalty")
         self.assertContains(response, 'value="fuel"', html=False)
+
+    def _create_gate_score_log_entry(self, *, gate: str, points: float, gate_type: str, time=None) -> ScoreLogEntry:
+        if time is None:
+            time = datetime.datetime.now(datetime.timezone.utc)
+        entry = ScoreLogEntry.objects.create(
+            contestant=self.contestant,
+            time=time,
+            gate=gate,
+            type=ANOMALY,
+            message="test penalty",
+            points=points,
+            planned=None,
+            actual=None,
+            offset_string="",
+            string=f"{gate}: {points} points",
+            times_string="",
+        )
+        TrackAnnotation.objects.create(
+            contestant=self.contestant,
+            latitude=60.0,
+            longitude=11.0,
+            message=entry.string,
+            type=ANOMALY,
+            gate=gate,
+            gate_type=gate_type,
+            time=time,
+            score_log_entry=entry,
+        )
+        return entry
+
+    def test_remove_score_log_entry_reverses_last_gate_and_finish_flags(self):
+        # SP was passed earlier (unaffected by removing the FP entry below).
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="SP", points=10.0)
+        sp_entry = self._create_gate_score_log_entry(
+            gate="SP",
+            points=10.0,
+            gate_type="sp",
+            time=datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc),
+        )
+        ActualGateTime.objects.create(
+            contestant=self.contestant, gate="SP", time=datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc)
+        )
+
+        # FP is the contestant's last recorded gate.
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="FP", points=50.0)
+        fp_entry = self._create_gate_score_log_entry(
+            gate="FP",
+            points=50.0,
+            gate_type=FINISHPOINT,
+            time=datetime.datetime(2020, 8, 1, 9, 10, tzinfo=datetime.timezone.utc),
+        )
+        ActualGateTime.objects.create(
+            contestant=self.contestant, gate="FP", time=datetime.datetime(2020, 8, 1, 9, 10, tzinfo=datetime.timezone.utc)
+        )
+
+        ct = self.contestant.contestanttrack
+        ct.update_score(60.0)
+        ct.last_gate = "FP"
+        ct.passed_finish_gate = True
+        ct.current_state = "Finished"
+        ct.save()
+
+        version_before = self.contestant.score_version
+        fp_entry_pk = fp_entry.pk
+
+        AdministrativePenaltyService.remove_score_log_entry(fp_entry)
+
+        self.contestant.refresh_from_db()
+        ct.refresh_from_db()
+
+        self.assertFalse(ScoreLogEntry.objects.filter(pk=fp_entry_pk).exists())
+        self.assertFalse(TrackAnnotation.objects.filter(score_log_entry_id=fp_entry_pk).exists())
+        self.assertFalse(ActualGateTime.objects.filter(contestant=self.contestant, gate="FP").exists())
+        self.assertFalse(GateCumulativeScore.objects.filter(contestant=self.contestant, gate="FP").exists())
+
+        # Reverts to the previous recorded gate (SP), and clears the finish flags/state.
+        self.assertEqual(ct.last_gate, "SP")
+        self.assertFalse(ct.passed_finish_gate)
+        self.assertEqual(ct.current_state, "Flying")
+
+        # SP's own records are untouched.
+        self.assertTrue(ActualGateTime.objects.filter(contestant=self.contestant, gate="SP").exists())
+        self.assertEqual(GateCumulativeScore.objects.get(contestant=self.contestant, gate="SP").points, 10.0)
+        self.assertTrue(ScoreLogEntry.objects.filter(pk=sp_entry.pk).exists())
+
+        self.assertEqual(ct.score, 10.0)
+        self.assertEqual(self.contestant.score_version, version_before + 1)
+
+    def test_remove_score_log_entry_decrements_shared_gate_cumulative_score_without_deleting_it(self):
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="TP1", points=30.0)
+        ActualGateTime.objects.create(
+            contestant=self.contestant, gate="TP1", time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc)
+        )
+        first_entry = self._create_gate_score_log_entry(
+            gate="TP1",
+            points=20.0,
+            gate_type="tp",
+            time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc),
+        )
+        second_entry = self._create_gate_score_log_entry(
+            gate="TP1",
+            points=10.0,
+            gate_type="tp",
+            time=datetime.datetime(2020, 8, 1, 8, 31, tzinfo=datetime.timezone.utc),
+        )
+        ct = self.contestant.contestanttrack
+        ct.update_score(30.0)
+        second_entry_pk = second_entry.pk
+
+        AdministrativePenaltyService.remove_score_log_entry(second_entry)
+
+        self.contestant.refresh_from_db()
+        ct.refresh_from_db()
+
+        self.assertFalse(ScoreLogEntry.objects.filter(pk=second_entry_pk).exists())
+        self.assertTrue(ScoreLogEntry.objects.filter(pk=first_entry.pk).exists())
+        # Only one entry remains for the gate, so the actual gate time is preserved...
+        self.assertTrue(ActualGateTime.objects.filter(contestant=self.contestant, gate="TP1").exists())
+        # ...but the cumulative score is decremented rather than deleted outright.
+        self.assertEqual(GateCumulativeScore.objects.get(contestant=self.contestant, gate="TP1").points, 20.0)
+        self.assertEqual(ct.score, 20.0)
+
+    def test_remove_score_log_entry_adjusts_subsequent_gate_cumulative_scores(self):
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="TP1", points=15.0)
+        tp1_entry = self._create_gate_score_log_entry(
+            gate="TP1",
+            points=15.0,
+            gate_type="tp",
+            time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc),
+        )
+        ActualGateTime.objects.create(
+            contestant=self.contestant, gate="TP1", time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc)
+        )
+
+        # Downstream gates carry TP1's points forward cumulatively.
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="TP2", points=15.0 + 5.0)
+        self._create_gate_score_log_entry(
+            gate="TP2",
+            points=5.0,
+            gate_type="tp",
+            time=datetime.datetime(2020, 8, 1, 8, 45, tzinfo=datetime.timezone.utc),
+        )
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="FP", points=15.0 + 5.0)
+
+        AdministrativePenaltyService.remove_score_log_entry(tp1_entry)
+
+        self.assertEqual(GateCumulativeScore.objects.get(contestant=self.contestant, gate="TP2").points, 5.0)
+        self.assertEqual(GateCumulativeScore.objects.get(contestant=self.contestant, gate="FP").points, 5.0)
