@@ -17,6 +17,39 @@ from display.utilities.gate_definitions import (
     STARTINGPOINT,
 )
 
+ADMINISTRATIVE_PENALTY_CATEGORIES = {
+    "quarantine": {
+        "gate": "ADMIN-QUAR",
+        "default_reason": "quarantine breach",
+        "category": "quarantine",
+        "label": "Quarantine",
+    },
+    "fuel": {
+        "gate": "ADMIN-FUEL",
+        "default_reason": "fuel-check breach",
+        "category": "fuel",
+        "label": "Fuel check",
+    },
+    "instructions": {
+        "gate": "ADMIN-INSTR",
+        "default_reason": "intention not to follow task instructions",
+        "category": "instructions",
+        "label": "Task instructions",
+    },
+    "observation": {
+        "gate": "ADMIN-OBS",
+        "default_reason": "observation evidence issue",
+        "category": "observation",
+        "label": "Observation evidence",
+    },
+    "map": {
+        "gate": "ADMIN-MAP",
+        "default_reason": "map-placement evidence issue",
+        "category": "map",
+        "label": "Map placement",
+    },
+}
+
 
 class AdministrativePenaltyService:
     @classmethod
@@ -115,7 +148,10 @@ class AdministrativePenaltyService:
                 ct = contestant.contestanttrack
                 if ct.last_gate == entry.gate:
                     previous_entry = (
-                        ScoreLogEntry.objects.filter(contestant=contestant).exclude(pk=entry.pk).order_by("-time").first()
+                        ScoreLogEntry.objects.filter(contestant=contestant)
+                        .exclude(pk=entry.pk)
+                        .order_by("-time")
+                        .first()
                     )
                     if previous_entry:
                         ct.last_gate = previous_entry.gate

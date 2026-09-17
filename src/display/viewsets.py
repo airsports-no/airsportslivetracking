@@ -25,7 +25,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view, inline_serializer
 from guardian.models import UserObjectPermission
-from guardian.shortcuts import get_objects_for_user
+from guardian.shortcuts import get_objects_for_user, get_user_perms
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -36,6 +36,8 @@ from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelV
 
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.filters import ContestFilter, NavigationTaskFilter
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
+from display.flight_order_and_maps.map_plotter import build_effective_route_distance
 from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_builtin_map_source_definitions,
     map_source_definition_to_payload,
@@ -57,8 +59,10 @@ from display.models import (
     NewsletterSubscriber,
     Person,
     Photo,
+    PlayingCard,
     Route,
     Scorecard,
+    ScoreLogEntry,
     Task,
     TaskSummary,
     TaskTest,
@@ -92,6 +96,8 @@ from display.permissions import (
 from display.serialisers import (
     AdminTeamRegistrationSerialiser,
     AeroplaneSerialiser,
+    ApplyQuarantinePenaltySerialiser,
+    AssignPlayingCardSerialiser,
     ClubManagerMembershipCreateSerializer,
     ClubManagerMembershipSerializer,
     ClubSerialiser,
@@ -143,6 +149,10 @@ from display.serialisers import (
     TrackAnnotationSerialiser,
 )
 from display.services.access_resolver import resolve_contest_access
+from display.services.administrative_penalties import (
+    ADMINISTRATIVE_PENALTY_CATEGORIES,
+    AdministrativePenaltyService,
+)
 from display.services.capacity_enforcement import (
     _assert_can_reserve_task_slot,
     assert_can_register_team,
@@ -698,7 +708,9 @@ class ContestViewSet(ModelViewSet):
         # Cache-Control, even with public_only=true - otherwise one user's personalized response
         # (including their own token inventory) gets cached and served to every other caller.
         is_anonymous_public_request = public_only and not request.user.is_authenticated
-        user_id = "global" if is_anonymous_public_request else (request.user.id if request.user.is_authenticated else "anon")
+        user_id = (
+            "global" if is_anonymous_public_request else (request.user.id if request.user.is_authenticated else "anon")
+        )
         params = request.query_params.dict()
         sorted_params = json.dumps(params, sort_keys=True)
         params_hash = hashlib.md5(sorted_params.encode("utf-8")).hexdigest()
@@ -1943,9 +1955,7 @@ class PhotoViewSet(ModelViewSet):
                 Q(route__navigationtask__is_public=True, route__navigationtask__contest__is_public=True)
                 | Q(route__navigationtask__contest__in=visible_contests)
             ).distinct()
-        return queryset.filter(
-            route__navigationtask__is_public=True, route__navigationtask__contest__is_public=True
-        )
+        return queryset.filter(route__navigationtask__is_public=True, route__navigationtask__contest__is_public=True)
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated & PhotoPermissions])
     def revert(self, request, pk=None):
@@ -2276,6 +2286,8 @@ class ContestantViewSet(ModelViewSet):
         "create_with_team": ContestantNestedTeamSerialiser,
         "update_with_team": ContestantNestedTeamSerialiser,
         "recalculate_with_start_time": RecalculateWithStartTimeSerialiser,
+        "apply_quarantine_penalty": ApplyQuarantinePenaltySerialiser,
+        "assign_playing_card": AssignPlayingCardSerialiser,
     }
     default_serialiser_class = ContestantNestedTeamSerialiserWithContestantTrack
 
@@ -2821,9 +2833,7 @@ class ContestantViewSet(ModelViewSet):
         contestant.reset_track_and_score()
         cancel_termination_request(contestant.pk)
         return Response(
-            {
-                "detail": "Calculator should have been restarted. It may take a few minutes for it to come back to life."
-            }
+            {"detail": "Calculator should have been restarted. It may take a few minutes for it to come back to life."}
         )
 
     @action(detail=True, methods=["post"])
@@ -2891,8 +2901,7 @@ class ContestantViewSet(ModelViewSet):
             original_number = contestant.contestant_number
             # Use a temporary contestant number to avoid unique constraint violation
             temp_number = (
-                navigation_task.contestant_set.aggregate(Max("contestant_number"))["contestant_number__max"]
-                or 0
+                navigation_task.contestant_set.aggregate(Max("contestant_number"))["contestant_number__max"] or 0
             ) + 100
 
             new_contestant = Contestant.objects.create(
@@ -2937,6 +2946,147 @@ class ContestantViewSet(ModelViewSet):
 
         response_serialiser = ContestantNestedTeamSerialiserWithContestantTrack(new_contestant)
         return Response(response_serialiser.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def apply_quarantine_penalty(self, request, pk=None, **kwargs):
+        """
+        Applies an administrative penalty (quarantine breach, fuel-check breach, ignored task
+        instructions, or observation/map evidence issue) to the contestant.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        category = serialiser.validated_data["category"]
+        category_config = ADMINISTRATIVE_PENALTY_CATEGORIES[category]
+        reason = serialiser.validated_data["reason"].strip() or category_config["default_reason"]
+
+        entry = AdministrativePenaltyService.apply_contestant_penalty(
+            contestant=contestant,
+            points=serialiser.validated_data["points"],
+            reason=reason,
+            gate=category_config["gate"],
+            category=category_config["category"],
+            actor=request.user,
+        )
+        return Response(ScoreLogEntrySerialiser(entry).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path=r"score_log_entries/(?P<entry_pk>\d+)/remove")
+    def remove_score_log_entry(self, request, pk=None, entry_pk=None, **kwargs):
+        """
+        Deletes a specific score log entry (e.g. an administrative penalty or gate score) and
+        reverses its effect on the contestant's score and gate bookkeeping.
+
+        POST rather than DELETE: ContestantNavigationTaskContestPermissions.has_object_permission
+        maps DELETE requests to the "delete_contest" guardian permission (reserved for deleting
+        the whole contest), whereas this action - like terminate/restart/reset/recalculate_track
+        above - is authorized the same way the classic delete_score_item view was, via
+        "change_contest".
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        entry = get_object_or_404(ScoreLogEntry, pk=entry_pk, contestant=contestant)
+        AdministrativePenaltyService.remove_score_log_entry(entry)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get"])
+    def gate_times(self, request, pk=None, **kwargs):
+        """
+        Returns the planned/actual gate times, score log entries, and administrative-penalty
+        metadata needed to render the contestant's gate-times management page.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        rendered_waypoints = get_effective_route_waypoints(
+            contestant.navigation_task,
+            contestant=contestant,
+            include_contestant_declarations=True,
+        )
+        distances = {waypoint.name: waypoint.distance_previous for waypoint in rendered_waypoints}
+        log: dict[str, list] = {}
+        for item in contestant.scorelogentry_set.all().order_by("time"):
+            log.setdefault(item.gate, []).append(
+                {
+                    "pk": item.pk,
+                    "text": f"{item.points} points {item.message}",
+                }
+            )
+        actual_times = {item.gate: item.time for item in contestant.actualgatetime_set.all()}
+        can_apply_quarantine_penalty = "change_contest" in get_user_perms(
+            request.user, contestant.navigation_task.contest
+        )
+        compiled_fuel_review = None
+        if hasattr(contestant, "contestanttaskconfiguration"):
+            payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+            fuel_metadata = payload.get("fuel_metadata") or {}
+            duration_review = payload.get("duration_review") or {}
+            declared_endurance_minutes = fuel_metadata.get("declared_endurance_minutes")
+            if declared_endurance_minutes is not None:
+                compiled_fuel_review = {
+                    "declared_endurance_minutes": declared_endurance_minutes,
+                    "fuel_deadline": contestant.takeoff_time
+                    + datetime.timedelta(minutes=int(declared_endurance_minutes)),
+                }
+            elif duration_review.get("duration_residual_fuel_required"):
+                compiled_fuel_review = {"duration_residual_fuel_required": True}
+
+        return Response(
+            {
+                "rendered_waypoints": [waypoint.name for waypoint in rendered_waypoints],
+                "distances": distances,
+                "total_distance": build_effective_route_distance(rendered_waypoints),
+                "log": log,
+                "actual_times": actual_times,
+                "can_apply_quarantine_penalty": can_apply_quarantine_penalty,
+                "administrative_penalty_categories": ADMINISTRATIVE_PENALTY_CATEGORIES,
+                "compiled_fuel_review": compiled_fuel_review,
+            }
+        )
+
+    @action(detail=True, methods=["get"])
+    def playing_cards(self, request, pk=None, **kwargs):
+        """
+        Returns the poker cards currently assigned to the contestant, plus the contestant's
+        current best hand and relative score.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        cards = sorted(contestant.playingcard_set.all(), key=lambda c: c.waypoint_index)
+        relative_score, hand_description = PlayingCard.get_relative_score(contestant)
+        return Response(
+            {
+                "cards": PlayingCardSerialiser(cards, many=True).data,
+                "current_relative_score": f"{relative_score:.2f}",
+                "current_hand": hand_description,
+            }
+        )
+
+    @action(detail=True, methods=["post"])
+    def assign_playing_card(self, request, pk=None, **kwargs):
+        """
+        Assigns a poker card (or, if `card` is "random", a random unused card) to the contestant
+        at the given waypoint index.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        waypoint_index = serialiser.validated_data["waypoint_index"]
+        waypoints = contestant.navigation_task.route.waypoints
+        if not 0 <= waypoint_index < len(waypoints):
+            raise drf_exceptions.ValidationError({"waypoint_index": "Out of range for this route."})
+        waypoint_name = waypoints[waypoint_index].name
+        card = serialiser.validated_data["card"]
+        if card == "random":
+            card = PlayingCard.get_random_unique_card(contestant)
+        PlayingCard.add_contestant_card(contestant, card, waypoint_name, waypoint_index)
+        return Response(status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path=r"playing_cards/(?P<card_pk>\d+)/remove")
+    def remove_playing_card(self, request, pk=None, card_pk=None, **kwargs):
+        """
+        Removes a single poker card previously assigned to the contestant.
+
+        POST rather than DELETE - see the docstring on remove_score_log_entry above for why.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        PlayingCard.remove_contestant_card(contestant, card_pk)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ImportFCNavigationTask(ModelViewSet):

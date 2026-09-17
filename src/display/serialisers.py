@@ -1587,6 +1587,38 @@ class RecalculateWithStartTimeSerialiser(serializers.Serializer):
     )
 
 
+class ApplyQuarantinePenaltySerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    points = serializers.FloatField(write_only=True, required=False, default=100.0)
+    reason = serializers.CharField(write_only=True, required=False, allow_blank=True, default="")
+    category = serializers.ChoiceField(
+        write_only=True,
+        required=False,
+        default="quarantine",
+        choices=["quarantine", "fuel", "instructions", "observation", "map"],
+    )
+
+
+class AssignPlayingCardSerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    waypoint_index = serializers.IntegerField(write_only=True, required=True)
+    card = serializers.CharField(
+        write_only=True,
+        required=True,
+        help_text="A two-character playing card code (e.g. 'AS'), or 'random' to draw a random unused card.",
+    )
+
+
 class ContestantTrackWithTrackPointsSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend

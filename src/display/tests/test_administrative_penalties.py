@@ -18,8 +18,8 @@ from display.models import (
     GateCumulativeScore,
     NavigationTask,
     Person,
-    ScoreLogEntry,
     Scorecard,
+    ScoreLogEntry,
     Team,
     TrackAnnotation,
 )
@@ -76,7 +76,9 @@ class TestAdministrativePenalties(TestCase):
 
     @patch.object(ScoreLogEntry, "push")
     @patch.object(TrackAnnotation, "push")
-    def test_apply_contestant_penalty_creates_score_log_annotation_and_updates_score(self, mock_annotation_push, mock_score_push):
+    def test_apply_contestant_penalty_creates_score_log_annotation_and_updates_score(
+        self, mock_annotation_push, mock_score_push
+    ):
         score_before = self.contestant.contestanttrack.score
         version_before = self.contestant.score_version
 
@@ -253,9 +255,29 @@ class TestAdministrativePenalties(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "secret", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
                 ],
             },
         )
@@ -288,7 +310,9 @@ class TestAdministrativePenalties(TestCase):
 
     @patch.object(ScoreLogEntry, "push")
     @patch.object(TrackAnnotation, "push")
-    def test_apply_contestant_penalty_uses_route_location_for_annotation_coordinates(self, mock_annotation_push, mock_score_push):
+    def test_apply_contestant_penalty_uses_route_location_for_annotation_coordinates(
+        self, mock_annotation_push, mock_score_push
+    ):
         waypoint = Waypoint("SP")
         waypoint.latitude = 61.1
         waypoint.longitude = 12.2
@@ -316,9 +340,29 @@ class TestAdministrativePenalties(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "secret", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
                 ],
             },
         )
@@ -355,9 +399,31 @@ class TestAdministrativePenalties(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "ul-1", "name": "UL1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0, "segmentType": "straight"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "ul-1",
+                            "name": "UL1",
+                            "pointType": "ul",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                            "segmentType": "straight",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
                 ],
             },
         )
@@ -392,9 +458,21 @@ class TestAdministrativePenalties(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"}, "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]}},
-                    {"type": "Feature", "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"}, "geometry": {"type": "LineString", "coordinates": [[11.1, 60.1], [11.2, 60.0]]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.1, 60.1], [11.2, 60.0]]},
+                    },
                 ],
             },
         )
@@ -427,12 +505,73 @@ class TestAdministrativePenalties(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.0, 60.8]]}},
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.0, 60.4]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.0, 60.8]}},
-                    {"type": "Feature", "properties": {"id": "cat-a", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.0, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "cat-b", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.0, 60.6]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.0, 60.8]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-sp",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-mp",
+                            "name": "MP",
+                            "pointType": "tp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.4]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-fp",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 2,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.8]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-a",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-b",
+                            "name": "B",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.6]},
+                    },
                 ],
             },
         )
@@ -462,10 +601,36 @@ class TestAdministrativePenalties(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "kt-1", "name": "TG1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-1",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "kt-1",
+                            "name": "TG1",
+                            "pointType": "tp",
+                            "featureType": "known_time_gate",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
                 ],
             },
         )
@@ -555,7 +720,9 @@ class TestAdministrativePenalties(TestCase):
             time=datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc),
         )
         ActualGateTime.objects.create(
-            contestant=self.contestant, gate="SP", time=datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc)
+            contestant=self.contestant,
+            gate="SP",
+            time=datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc),
         )
 
         # FP is the contestant's last recorded gate.
@@ -567,7 +734,9 @@ class TestAdministrativePenalties(TestCase):
             time=datetime.datetime(2020, 8, 1, 9, 10, tzinfo=datetime.timezone.utc),
         )
         ActualGateTime.objects.create(
-            contestant=self.contestant, gate="FP", time=datetime.datetime(2020, 8, 1, 9, 10, tzinfo=datetime.timezone.utc)
+            contestant=self.contestant,
+            gate="FP",
+            time=datetime.datetime(2020, 8, 1, 9, 10, tzinfo=datetime.timezone.utc),
         )
 
         ct = self.contestant.contestanttrack
@@ -606,7 +775,9 @@ class TestAdministrativePenalties(TestCase):
     def test_remove_score_log_entry_decrements_shared_gate_cumulative_score_without_deleting_it(self):
         GateCumulativeScore.objects.create(contestant=self.contestant, gate="TP1", points=30.0)
         ActualGateTime.objects.create(
-            contestant=self.contestant, gate="TP1", time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc)
+            contestant=self.contestant,
+            gate="TP1",
+            time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc),
         )
         first_entry = self._create_gate_score_log_entry(
             gate="TP1",
@@ -646,7 +817,9 @@ class TestAdministrativePenalties(TestCase):
             time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc),
         )
         ActualGateTime.objects.create(
-            contestant=self.contestant, gate="TP1", time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc)
+            contestant=self.contestant,
+            gate="TP1",
+            time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc),
         )
 
         # Downstream gates carry TP1's points forward cumulatively.

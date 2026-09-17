@@ -109,40 +109,10 @@ from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import assert_can_self_register_contestant, _assert_can_reserve_task_slot
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.task_type_visibility import can_user_see_cima_task_types, get_visible_task_type_groups_for_user
-from display.services.administrative_penalties import AdministrativePenaltyService
-
-ADMINISTRATIVE_PENALTY_CATEGORIES = {
-    "quarantine": {
-        "gate": "ADMIN-QUAR",
-        "default_reason": "quarantine breach",
-        "category": "quarantine",
-        "label": "Quarantine",
-    },
-    "fuel": {
-        "gate": "ADMIN-FUEL",
-        "default_reason": "fuel-check breach",
-        "category": "fuel",
-        "label": "Fuel check",
-    },
-    "instructions": {
-        "gate": "ADMIN-INSTR",
-        "default_reason": "intention not to follow task instructions",
-        "category": "instructions",
-        "label": "Task instructions",
-    },
-    "observation": {
-        "gate": "ADMIN-OBS",
-        "default_reason": "observation evidence issue",
-        "category": "observation",
-        "label": "Observation evidence",
-    },
-    "map": {
-        "gate": "ADMIN-MAP",
-        "default_reason": "map-placement evidence issue",
-        "category": "map",
-        "label": "Map placement",
-    },
-}
+from display.services.administrative_penalties import (
+    ADMINISTRATIVE_PENALTY_CATEGORIES,
+    AdministrativePenaltyService,
+)
 from display.flight_order_and_maps.generate_flight_orders import (
     embed_map_in_pdf,
 )
