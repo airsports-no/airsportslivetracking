@@ -325,3 +325,40 @@ class TestNavigationTaskAndContestantManagementRestActions(APITestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertTrue(NavigationTask.objects.filter(pk=self.navigation_task.pk).exists())
+
+    def test_flight_order_configuration_returns_current_config(self, *args):
+        response = self.client.get(self._url("flight-order-configuration"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertIn("map_source", response.data)
+        self.assertIn("map_dpi", response.data)
+
+    def test_flight_order_configuration_requires_change_contest_permission(self, *args):
+        viewer = get_user_model().objects.create(email="task-mgmt-flightorder-viewer@example.com")
+        assign_perm("view_contest", viewer, self.contest)
+        self.client.force_login(user=viewer)
+
+        response = self.client.get(self._url("flight-order-configuration"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_update_flight_order_configuration_applies_partial_changes(self, *args):
+        response = self.client.post(
+            self._url("update-flight-order-configuration"),
+            {"map_dpi": 200, "map_include_openaip_overlay": True},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.navigation_task.flightorderconfiguration.refresh_from_db()
+        self.assertEqual(self.navigation_task.flightorderconfiguration.map_dpi, 200)
+        self.assertTrue(self.navigation_task.flightorderconfiguration.map_include_openaip_overlay)
+
+    def test_update_flight_order_configuration_requires_change_contest_permission(self, *args):
+        viewer = get_user_model().objects.create(email="task-mgmt-flightorder-update-viewer@example.com")
+        assign_perm("view_contest", viewer, self.contest)
+        self.client.force_login(user=viewer)
+
+        response = self.client.post(self._url("update-flight-order-configuration"), {"map_dpi": 200}, format="json")
+
+        self.assertEqual(response.status_code, 403)

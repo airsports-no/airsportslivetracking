@@ -120,6 +120,7 @@ from display.serialisers import (
     EditableRouteSerialiser,
     ExternalNavigationTaskNestedTeamSerialiser,
     ExternalNavigationTaskTeamIdSerialiser,
+    FlightOrderConfigurationSerialiser,
     FutureContestantNestedTeamSerialiser,
     GateCumulativeScoreSerialiser,
     GpxTrackSerialiser,
@@ -1504,6 +1505,8 @@ class NavigationTaskViewSet(ModelViewSet):
         "batch_update_contestants": BatchUpdateContestantsSerialiser,
         "quick_add_contestant": QuickAddContestantSerialiser,
         "update_details": NavigationTaskDetailsUpdateSerialiser,
+        "flight_order_configuration": FlightOrderConfigurationSerialiser,
+        "update_flight_order_configuration": FlightOrderConfigurationSerialiser,
     }
     default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
     lookup_url_kwarg = "pk"
@@ -2085,6 +2088,32 @@ class NavigationTaskViewSet(ModelViewSet):
         serialiser.save()
         response_serialiser = self.default_serialiser_class(navigation_task, context=self.get_serializer_context())
         return Response(response_serialiser.data)
+
+    @action(detail=True, methods=["get"])
+    def flight_order_configuration(self, request, *args, **kwargs):
+        """
+        Returns the navigation task's flight order configuration (auto-created on task creation).
+        Requires change_contest, matching the classic update_flight_order_configurations view -
+        this is organizer-only settings, not something every contest viewer should see, so the
+        viewset's default GET->view_contest mapping isn't strict enough here.
+        """
+        navigation_task = self.get_object()
+        if not request.user.has_perm("change_contest", navigation_task.contest):
+            raise drf_exceptions.PermissionDenied()
+        serialiser = self.get_serializer(navigation_task.flightorderconfiguration)
+        return Response(serialiser.data)
+
+    @action(detail=True, methods=["post"])
+    def update_flight_order_configuration(self, request, *args, **kwargs):
+        """
+        Updates the navigation task's flight order configuration - mirrors the classic
+        update_flight_order_configurations view/FlightOrderConfigurationForm's field set.
+        """
+        navigation_task = self.get_object()
+        serialiser = self.get_serializer(navigation_task.flightorderconfiguration, data=request.data, partial=True)
+        serialiser.is_valid(raise_exception=True)
+        serialiser.save()
+        return Response(serialiser.data)
 
 
 class PhotoViewSet(ModelViewSet):

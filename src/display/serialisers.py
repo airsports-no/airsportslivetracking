@@ -42,6 +42,7 @@ from display.models import (
     ContestTeam,
     Crew,
     EditableRoute,
+    FlightOrderConfiguration,
     GateCumulativeScore,
     HighlightedContest,
     MyUser,
@@ -1658,6 +1659,26 @@ class NavigationTaskDetailsUpdateSerialiser(serializers.ModelSerializer):
             "calculation_delay_minutes",
         )
         extra_kwargs = {field: {"required": False} for field in fields}
+
+
+class FlightOrderConfigurationSerialiser(serializers.ModelSerializer):
+    """
+    Mirrors FlightOrderConfigurationForm's field set (views.py's
+    update_flight_order_configurations). map_source choices come from the model field's own
+    get_map_choices default (builtin sources + every UserUploadedMap) rather than the classic
+    form's per-navigation-task-scoped list (get_available_map_source_definitions_for_navigation_task)
+    - a reasonable simplification for now; the same source keys are already exposed to the
+    frontend via EditableRouteViewSet.global_map_sources.
+    """
+
+    class Meta:
+        model = FlightOrderConfiguration
+        exclude = ("navigation_task",)
+        extra_kwargs = {
+            field.name: {"required": False}
+            for field in FlightOrderConfiguration._meta.get_fields()
+            if field.name != "navigation_task" and not field.is_relation
+        }
 
 
 class BatchUpdateContestantsSerialiser(serializers.Serializer):
