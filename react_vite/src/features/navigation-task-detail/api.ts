@@ -24,6 +24,16 @@ const getAuthHeaders = () => ({
 
 export type NavigationTaskVisibility = 'public' | 'private' | 'unlisted';
 
+export async function fetchRunningCalculators(navigationTaskId: number): Promise<[number, boolean][]> {
+  const url = reverse('navigationtask_getrunningcalculators', navigationTaskId);
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to fetch calculator running status: ${errorMessages}`);
+  }
+  return response.json();
+}
+
 export async function shareNavigationTask(
   contestId: number,
   navigationTaskId: number,

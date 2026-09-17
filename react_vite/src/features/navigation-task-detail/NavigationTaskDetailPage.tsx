@@ -3,24 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import { Loading } from '../route-editor/components/basicComponents';
 import { fetchNavigationTask } from '../competition-map/api';
-import { shareNavigationTask, NavigationTaskVisibility } from './api';
+import { fetchRunningCalculators, shareNavigationTask, NavigationTaskVisibility } from './api';
+import { NavigationTaskDetail } from './types';
+import ContestantList from './components/ContestantList';
 import { generatePath } from '../../urls';
 import { formatDateInterval } from '../../utils';
-
-// The competition-map and mission-dashboard features each keep their own (incomplete, mutually
-// inconsistent) NavigationTask type - see the "Deferred lint & verification backlog" note in
-// project memory. Rather than fight that pre-existing duplication, this page declares the
-// narrow slice of the real REST payload (navigationtasks-detail) it actually reads.
-interface NavigationTaskDetail {
-  name: string;
-  start_time: string;
-  finish_time: string;
-  tracking_link: string;
-  is_public: boolean;
-  is_featured: boolean;
-  user_has_change_permission: boolean;
-  contestant_set: unknown[];
-}
 
 const visibilityOf = (task: NavigationTaskDetail): NavigationTaskVisibility => {
   if (task.is_public && task.is_featured) return 'public';
@@ -40,6 +27,7 @@ const NavigationTaskDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sharingBusy, setSharingBusy] = useState(false);
+  const [runningStatus, setRunningStatus] = useState<Record<number, boolean>>({});
 
   const load = useCallback(async () => {
     if (!contestId || !navigationTaskId) return;
@@ -58,6 +46,27 @@ const NavigationTaskDetailPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!navigationTaskId) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const statuses = await fetchRunningCalculators(Number(navigationTaskId));
+        if (!cancelled) {
+          setRunningStatus(Object.fromEntries(statuses));
+        }
+      } catch {
+        // Transient polling failures aren't worth surfacing as a page-level error.
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [navigationTaskId]);
 
   const handleShare = async (visibility: NavigationTaskVisibility) => {
     if (!contestId || !navigationTaskId) return;
@@ -140,8 +149,16 @@ const NavigationTaskDetailPage: React.FC = () => {
 
       <div className="divider" />
 
-      <h2 className="text-xl font-bold mb-2">Contestants ({task.contestant_set.length})</h2>
-      <p className="text-sm text-gray-500">Contestant management is coming in the next slice.</p>
+      <h2 className="text-xl font-bold mb-4">Contestants ({task.contestant_set.length})</h2>
+      <ContestantList
+        contestants={task.contestant_set}
+        contestId={Number(contestId)}
+        navigationTaskId={Number(navigationTaskId)}
+        taskSubtype={task.task_subtype}
+        canManage={canManage}
+        timeZone={task.time_zone}
+        runningStatus={runningStatus}
+      />
 
       <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestId! })} className="btn btn-secondary mt-6">
         Back to contest

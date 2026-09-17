@@ -1,0 +1,57 @@
+// The competition-map and mission-dashboard features each keep their own (incomplete, mutually
+// inconsistent) Contestant/NavigationTask types - see the "Deferred lint & verification backlog"
+// project memory. Rather than fight that pre-existing duplication, this feature declares the
+// narrow slice of the real REST payloads (navigationtasks-detail) it actually reads.
+
+export interface TrackerIdDisplay {
+  tracker: string;
+  is_active: boolean;
+  has_user: boolean;
+}
+
+export interface PersonName {
+  first_name: string;
+  last_name: string;
+}
+
+export interface TeamDisplay {
+  crew: { member1: PersonName; member2: PersonName | null };
+  aeroplane: { registration: string };
+}
+
+export interface ContestantRow {
+  pk: number;
+  contestant_number: number;
+  team: TeamDisplay;
+  contestanttrack: { current_state: string; calculator_finished: boolean };
+  tracker_id_display: TrackerIdDisplay[];
+  tracker_start_time: string;
+  takeoff_time: string;
+  finished_by_time: string;
+  adaptive_start: boolean;
+  has_crossed_starting_line: boolean;
+  air_speed: number;
+  wind_speed: number;
+  wind_direction: number;
+  overlap_warnings: string[];
+  overlapping_tasks: { task_id: number; task_name: string; contest_id: number; reason: string }[];
+}
+
+export interface NavigationTaskDetail {
+  pk: number;
+  name: string;
+  start_time: string;
+  finish_time: string;
+  tracking_link: string;
+  time_zone: string;
+  task_subtype?: string | null;
+  is_public: boolean;
+  is_featured: boolean;
+  user_has_change_permission: boolean;
+  contestant_set: ContestantRow[];
+}
+
+const DECLARATION_EDITABLE_SUBTYPES = ['turnpoint_hunt', 'limited_fuel_turnpoint_hunt', 'contract_navigation_time_controls'];
+
+export const supportsDeclarationEditing = (taskSubtype?: string | null): boolean =>
+  !!taskSubtype && DECLARATION_EDITABLE_SUBTYPES.includes(taskSubtype);
