@@ -96,6 +96,11 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
               <hr className="my-1 border-base-200" />
             </li>
             <li>
+              {/* TODO: still the classic Django form (team/aircraft/tracker/wind fields) - no
+                  React equivalent has been built yet. See project memory. */}
+              <a href={reverse('contestant_update', contestant.pk)}>Edit team assignment</a>
+            </li>
+            <li>
               <a href={`${reverse('navigationtask_flightordersprogress', navigationTaskId)}?contestant_pk=${contestant.pk}`}>
                 Generate flight order
               </a>
