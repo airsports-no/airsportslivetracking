@@ -1619,6 +1619,47 @@ class AssignPlayingCardSerialiser(serializers.Serializer):
     )
 
 
+class QuickAddContestantSerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    contest_team = serializers.IntegerField(write_only=True, required=True)
+    starting_point_time = serializers.DateTimeField(
+        write_only=True, required=True, help_text="The time the contestant is expected to cross the starting point"
+    )
+    adaptive_start = serializers.BooleanField(write_only=True, required=False, default=False)
+
+
+class NavigationTaskDetailsUpdateSerialiser(serializers.ModelSerializer):
+    """
+    Mirrors NavigationTaskForm's editable field set (views.py's NavigationTaskUpdateView),
+    excluding original_scorecard (disabled once the task exists, same as the classic form) and
+    task_subtype (the form gates its choices by the user's visible task-type families - not worth
+    replicating here until this action needs to support changing it).
+    """
+
+    class Meta:
+        model = NavigationTask
+        fields = (
+            "name",
+            "start_time",
+            "finish_time",
+            "display_background_map",
+            "display_secrets",
+            "minutes_to_starting_point",
+            "planning_time",
+            "minutes_to_landing",
+            "wind_speed",
+            "wind_direction",
+            "allow_self_management",
+            "calculation_delay_minutes",
+        )
+        extra_kwargs = {field: {"required": False} for field in fields}
+
+
 class BatchUpdateContestantsSerialiser(serializers.Serializer):
     def update(self, instance, validated_data):
         pass

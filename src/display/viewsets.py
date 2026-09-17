@@ -124,6 +124,7 @@ from display.serialisers import (
     GateCumulativeScoreSerialiser,
     GpxTrackSerialiser,
     HighlightedContestSerialiser,
+    NavigationTaskDetailsUpdateSerialiser,
     NavigationTaskEditableRoutReferenceSerialiser,
     NavigationTaskNestedTeamRouteSerialiser,
     NavigationTaskNestedTeamRouteSerialiserNestedContest,
@@ -135,6 +136,7 @@ from display.serialisers import (
     PhotoSerialiser,
     PlayingCardSerialiser,
     PositionSerialiser,
+    QuickAddContestantSerialiser,
     RecalculateWithStartTimeSerialiser,
     RouteSerialiser,
     ScorecardNestedSerialiser,
@@ -1500,6 +1502,8 @@ class NavigationTaskViewSet(ModelViewSet):
         "scorecard": ScorecardNestedSerialiser,
         "create": NavigationTaskEditableRoutReferenceSerialiser,
         "batch_update_contestants": BatchUpdateContestantsSerialiser,
+        "quick_add_contestant": QuickAddContestantSerialiser,
+        "update_details": NavigationTaskDetailsUpdateSerialiser,
     }
     default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
     lookup_url_kwarg = "pk"
@@ -1992,6 +1996,95 @@ class NavigationTaskViewSet(ModelViewSet):
             contestant.save()
             updated += 1
         return Response({"updated": updated})
+
+    @action(detail=True, methods=["post"])
+    def quick_add_contestant(self, request, *args, **kwargs):
+        """
+        Creates a contestant from an existing ContestTeam and a single starting-point time,
+        deriving the rest of the schedule (takeoff/tracker-start/finished-by times) the same way
+        the classic ContestantQuickAddView did.
+        """
+        navigation_task = self.get_object()
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        data = serialiser.validated_data
+
+        contest_team = get_object_or_404(ContestTeam, pk=data["contest_team"], contest=navigation_task.contest)
+        resolution = resolve_contest_access(navigation_task.contest)
+        _assert_can_reserve_task_slot(navigation_task, contest_team.team, resolution)
+
+        starting_point_time = data["starting_point_time"]
+        adaptive_start = data["adaptive_start"]
+        existing_contestants = navigation_task.contestant_set.all()
+        contestant_number = (
+            max(c.contestant_number for c in existing_contestants) + 1 if existing_contestants.exists() else 1
+        )
+
+        takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
+        if adaptive_start:
+            tracker_start_time = starting_point_time - datetime.timedelta(hours=1)
+            takeoff_time = tracker_start_time
+        else:
+            tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
+
+        contestant = Contestant(
+            team=contest_team.team,
+            navigation_task=navigation_task,
+            contestant_number=contestant_number,
+            adaptive_start=adaptive_start,
+            takeoff_time=takeoff_time,
+            tracker_start_time=tracker_start_time,
+            finished_by_time=tracker_start_time + datetime.timedelta(hours=5),
+            minutes_to_starting_point=navigation_task.minutes_to_starting_point,
+            air_speed=contest_team.air_speed,
+            wind_speed=navigation_task.wind_speed,
+            wind_direction=navigation_task.wind_direction,
+            tracking_service=contest_team.tracking_service,
+            tracking_device=contest_team.tracking_device,
+            tracker_device_id=contest_team.tracker_device_id,
+        )
+
+        if adaptive_start:
+            final_gate_time = contestant.get_final_gate_time()
+            if final_gate_time:
+                duration_delta = datetime.timedelta(
+                    hours=final_gate_time.hour,
+                    minutes=final_gate_time.minute,
+                    seconds=final_gate_time.second,
+                )
+                final_time_abs = starting_point_time + datetime.timedelta(hours=1) + duration_delta
+            else:
+                final_time_abs = starting_point_time + datetime.timedelta(hours=1)
+            contestant.finished_by_time = final_time_abs + datetime.timedelta(
+                minutes=navigation_task.minutes_to_landing + 2
+            )
+        else:
+            contestant.finished_by_time = contestant.landing_time + datetime.timedelta(minutes=5)
+
+        max_finished_by_time = contestant.tracker_start_time + datetime.timedelta(hours=24)
+        if contestant.finished_by_time > max_finished_by_time:
+            contestant.finished_by_time = max_finished_by_time
+
+        contestant.save()
+        ContestantTaskCompiler(contestant).compile(force=True)
+
+        response_serialiser = ContestantNestedTeamSerialiserWithContestantTrack(contestant)
+        return Response(response_serialiser.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def update_details(self, request, *args, **kwargs):
+        """
+        Updates the navigation task's own editable fields (name, times, wind, self-management,
+        etc.) - mirrors the classic NavigationTaskUpdateView/NavigationTaskForm's field set.
+        Deliberately separate from update() (PUT), which stays blocked for whole-object
+        replacement.
+        """
+        navigation_task = self.get_object()
+        serialiser = self.get_serializer(navigation_task, data=request.data, partial=True)
+        serialiser.is_valid(raise_exception=True)
+        serialiser.save()
+        response_serialiser = self.default_serialiser_class(navigation_task, context=self.get_serializer_context())
+        return Response(response_serialiser.data)
 
 
 class PhotoViewSet(ModelViewSet):

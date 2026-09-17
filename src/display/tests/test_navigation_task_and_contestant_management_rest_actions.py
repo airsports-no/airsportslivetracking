@@ -13,7 +13,18 @@ from guardian.shortcuts import assign_perm
 from rest_framework.test import APITestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Aeroplane, Contest, Contestant, Crew, EditableRoute, NavigationTask, Person, Route, Team
+from display.models import (
+    Aeroplane,
+    Contest,
+    ContestTeam,
+    Contestant,
+    Crew,
+    EditableRoute,
+    NavigationTask,
+    Person,
+    Route,
+    Team,
+)
 from utilities.mock_utilities import TraccarMock
 
 
@@ -181,3 +192,136 @@ class TestNavigationTaskAndContestantManagementRestActions(APITestCase):
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 403)
         self.assertTrue(Contestant.objects.filter(pk=contestant.pk).exists())
+
+    def _make_contest_team(self, number=1, **overrides):
+        crew = Crew.objects.create(
+            member1=Person.objects.create(
+                first_name=f"QA{number}", last_name="Team", email=f"qa{number}-team@example.com"
+            )
+        )
+        team = Team.objects.create(crew=crew, aeroplane=Aeroplane.objects.create(registration=f"LN-QA{number}"))
+        defaults = dict(contest=self.contest, team=team, air_speed=80)
+        defaults.update(overrides)
+        return ContestTeam.objects.create(**defaults)
+
+    def test_quick_add_contestant_derives_schedule_from_starting_point_time(self, *args):
+        contest_team = self._make_contest_team()
+        starting_point_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=2)
+
+        response = self.client.post(
+            self._url("quick-add-contestant"),
+            {"contest_team": contest_team.pk, "starting_point_time": starting_point_time.isoformat()},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        contestant = Contestant.objects.get(pk=response.data["id"])
+        self.assertEqual(contestant.contestant_number, 1)
+        self.assertEqual(contestant.team, contest_team.team)
+        self.assertEqual(contestant.air_speed, 80)
+        self.assertEqual(
+            contestant.takeoff_time,
+            starting_point_time - datetime.timedelta(minutes=self.navigation_task.minutes_to_starting_point),
+        )
+
+    def test_quick_add_contestant_numbers_are_sequential(self, *args):
+        self._make_contestant(1)
+        self._make_contestant(2)
+        contest_team = self._make_contest_team()
+        starting_point_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=2)
+
+        response = self.client.post(
+            self._url("quick-add-contestant"),
+            {"contest_team": contest_team.pk, "starting_point_time": starting_point_time.isoformat()},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.data["contestant_number"], 3)
+
+    def test_quick_add_contestant_rejects_contest_team_from_other_contest(self, *args):
+        other_contest = Contest.objects.create(
+            name="Other Contest",
+            start_time=datetime.datetime.now(datetime.timezone.utc),
+            finish_time=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1),
+            location="60, 11",
+        )
+        other_contest_team = self._make_contest_team(contest=other_contest)
+        starting_point_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=2)
+
+        response = self.client.post(
+            self._url("quick-add-contestant"),
+            {"contest_team": other_contest_team.pk, "starting_point_time": starting_point_time.isoformat()},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_quick_add_contestant_requires_change_contest_permission(self, *args):
+        contest_team = self._make_contest_team()
+        viewer = get_user_model().objects.create(email="task-mgmt-quickadd-viewer@example.com")
+        assign_perm("view_contest", viewer, self.contest)
+        self.client.force_login(user=viewer)
+        starting_point_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=2)
+
+        response = self.client.post(
+            self._url("quick-add-contestant"),
+            {"contest_team": contest_team.pk, "starting_point_time": starting_point_time.isoformat()},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_update_details_applies_partial_changes(self, *args):
+        response = self.client.post(
+            self._url("update-details"),
+            {"name": "Renamed task", "wind_speed": 12, "allow_self_management": True},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.navigation_task.refresh_from_db()
+        self.assertEqual(self.navigation_task.name, "Renamed task")
+        self.assertEqual(self.navigation_task.wind_speed, 12)
+        self.assertTrue(self.navigation_task.allow_self_management)
+
+    def test_update_details_leaves_unspecified_fields_untouched(self, *args):
+        original_finish_time = self.navigation_task.finish_time
+
+        response = self.client.post(self._url("update-details"), {"name": "Only the name changes"}, format="json")
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.navigation_task.refresh_from_db()
+        self.assertEqual(self.navigation_task.name, "Only the name changes")
+        self.assertEqual(self.navigation_task.finish_time, original_finish_time)
+
+    def test_update_details_requires_change_contest_permission(self, *args):
+        viewer = get_user_model().objects.create(email="task-mgmt-update-viewer@example.com")
+        assign_perm("view_contest", viewer, self.contest)
+        self.client.force_login(user=viewer)
+
+        response = self.client.post(self._url("update-details"), {"name": "Should not apply"}, format="json")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_destroy_navigation_task_succeeds_for_delete_contest_manager(self, *args):
+        # Unlike ContestantViewSet.destroy, NavigationTaskViewSet doesn't need a permission fix -
+        # the classic NavigationTaskDeleteView already required delete_contest, matching the base
+        # NavigationTaskContestPermissions' own DELETE branch.
+        assign_perm("delete_contest", self.manager, self.contest)
+        url = reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
+
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, 204, response.content)
+        self.assertFalse(NavigationTask.objects.filter(pk=self.navigation_task.pk).exists())
+
+    def test_destroy_navigation_task_requires_delete_contest_permission(self, *args):
+        # self.manager only has change_contest (assigned in setUp) - matches most real
+        # organizers, who don't have delete_contest.
+        url = reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
+
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(NavigationTask.objects.filter(pk=self.navigation_task.pk).exists())
