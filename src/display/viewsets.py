@@ -12,11 +12,12 @@ import redis
 import rest_framework.exceptions as drf_exceptions
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Max, Prefetch, Q
 from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.utils import timezone
 from django.utils.cache import add_never_cache_headers, patch_response_headers
@@ -65,6 +66,7 @@ from display.models import (
     TeamTestScore,
     UserUploadedMap,
 )
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.permissions import (
     ContestantNavigationTaskContestPermissions,
     ContestantPublicPermissions,
@@ -125,6 +127,7 @@ from display.serialisers import (
     PhotoSerialiser,
     PlayingCardSerialiser,
     PositionSerialiser,
+    RecalculateWithStartTimeSerialiser,
     RouteSerialiser,
     ScorecardNestedSerialiser,
     ScoreLogEntrySerialiser,
@@ -166,7 +169,10 @@ from display.tasks import (
     generate_and_maybe_notify_flight_order,
     generate_editable_route_thumbnail,
     import_gpx_track,
+    recalculate_existing_positions,
+    recalculate_live_data_for_contestant,
 )
+from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
 from display.utilities.show_slug_choices import ShowChoicesMetadata
@@ -2269,6 +2275,7 @@ class ContestantViewSet(ModelViewSet):
         "update": ContestantSerialiser,
         "create_with_team": ContestantNestedTeamSerialiser,
         "update_with_team": ContestantNestedTeamSerialiser,
+        "recalculate_with_start_time": RecalculateWithStartTimeSerialiser,
     }
     default_serialiser_class = ContestantNestedTeamSerialiserWithContestantTrack
 
@@ -2843,6 +2850,93 @@ class ContestantViewSet(ModelViewSet):
         return Response(
             {"detail": "Contestant reset. No new calculation will start until the calculator is explicitly restarted."}
         )
+
+    @action(detail=True, methods=["post"])
+    def recalculate_track(self, request, pk=None, **kwargs):
+        """
+        Resets the track and score, then re-requests the contestant's track from Traccar and
+        recalculates from it - discarding any manually uploaded GPX track in the process.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        if is_calculator_running(contestant.pk):
+            return Response(
+                {"detail": "Calculator is running, terminate it or wait until it is terminated."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        contestant.reset_track_and_score()
+        recalculate_live_data_for_contestant.apply_async((contestant.pk,))
+        return Response({"detail": "Started loading track."})
+
+    @action(detail=True, methods=["post"])
+    def recalculate_with_start_time(self, request, pk=None, **kwargs):
+        """
+        Replaces the contestant with a new one sharing the same team/positions/uploaded track,
+        but a new starting-point time (and therefore new takeoff/tracker-start/finished-by
+        times derived from it) - the contestant_number unique-per-task constraint means this
+        can't be done as a simple in-place update. All current scores are discarded and
+        recalculation is triggered against the moved positions. Returns the new contestant
+        (its pk differs from the one this action was called on).
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        starting_point_time = serialiser.validated_data["starting_point_time"]
+        navigation_task = contestant.navigation_task
+
+        takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
+        tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
+        finished_by_time = starting_point_time + contestant.flight_duration
+
+        with transaction.atomic():
+            original_number = contestant.contestant_number
+            # Use a temporary contestant number to avoid unique constraint violation
+            temp_number = (
+                navigation_task.contestant_set.aggregate(Max("contestant_number"))["contestant_number__max"]
+                or 0
+            ) + 100
+
+            new_contestant = Contestant.objects.create(
+                team=contestant.team,
+                navigation_task=navigation_task,
+                contestant_number=temp_number,
+                adaptive_start=contestant.adaptive_start,
+                takeoff_time=takeoff_time,
+                tracker_start_time=tracker_start_time,
+                finished_by_time=finished_by_time,
+                minutes_to_starting_point=navigation_task.minutes_to_starting_point,
+                air_speed=contestant.air_speed,
+                wind_speed=contestant.wind_speed,
+                wind_direction=contestant.wind_direction,
+                tracking_service=contestant.tracking_service,
+                tracking_device=contestant.tracking_device,
+                tracker_device_id=contestant.tracker_device_id,
+                competition_class_longform=contestant.competition_class_longform,
+                competition_class_shortform=contestant.competition_class_shortform,
+                schedule_locked=contestant.schedule_locked,
+            )
+            ContestantReceivedPosition.objects.filter(contestant=contestant).update(contestant=new_contestant)
+            try:
+                uploaded_track = contestant.contestantuploadedtrack
+                uploaded_track.contestant = new_contestant
+                uploaded_track.save()
+            except ObjectDoesNotExist:
+                pass
+            new_contestant.track_version = contestant.track_version
+            new_contestant.save(update_fields=["track_version"])
+
+            ws = WebsocketFacade()
+            ws.transmit_delete_contestant(contestant)
+
+            contestant.delete()
+
+            new_contestant.contestant_number = original_number
+            new_contestant.save(update_fields=["contestant_number"])
+
+            transaction.on_commit(lambda: ws.transmit_contestant(new_contestant))
+            transaction.on_commit(lambda: recalculate_existing_positions.delay(new_contestant.pk))
+
+        response_serialiser = ContestantNestedTeamSerialiserWithContestantTrack(new_contestant)
+        return Response(response_serialiser.data, status=status.HTTP_201_CREATED)
 
 
 class ImportFCNavigationTask(ModelViewSet):

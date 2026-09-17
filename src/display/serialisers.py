@@ -1575,6 +1575,18 @@ class GpxTrackSerialiser(serializers.Serializer):
         return value
 
 
+class RecalculateWithStartTimeSerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    starting_point_time = serializers.DateTimeField(
+        write_only=True, required=True, help_text="The new time the contestant is expected to cross the starting point"
+    )
+
+
 class ContestantTrackWithTrackPointsSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
