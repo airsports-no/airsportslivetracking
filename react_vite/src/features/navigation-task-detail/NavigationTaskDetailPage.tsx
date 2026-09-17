@@ -1,11 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { MapPin, Plus, Users } from 'lucide-react';
 import { Loading } from '../route-editor/components/basicComponents';
 import { fetchNavigationTask } from '../competition-map/api';
 import { fetchRunningCalculators, shareNavigationTask, NavigationTaskVisibility } from './api';
 import { NavigationTaskDetail } from './types';
+import BatchUpdateContestantsModal from './components/BatchUpdateContestantsModal';
 import ContestantList from './components/ContestantList';
+import QuickAddContestantModal, { QuickAddContestantModalHandle } from './components/QuickAddContestantModal';
+import TaskManagementMenu from './components/TaskManagementMenu';
 import { generatePath } from '../../urls';
 import { formatDateInterval } from '../../utils';
 
@@ -28,6 +31,8 @@ const NavigationTaskDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [sharingBusy, setSharingBusy] = useState(false);
   const [runningStatus, setRunningStatus] = useState<Record<number, boolean>>({});
+  const quickAddModalRef = useRef<QuickAddContestantModalHandle>(null);
+  const batchUpdateModalRef = useRef<HTMLDialogElement>(null);
 
   const load = useCallback(async () => {
     if (!contestId || !navigationTaskId) return;
@@ -127,6 +132,19 @@ const NavigationTaskDetailPage: React.FC = () => {
             Scheduling
           </Link>
         )}
+        {canManage && (
+          <button type="button" className="btn btn-sm gap-1" onClick={() => quickAddModalRef.current?.open()}>
+            <Plus size={14} />
+            Quick Add
+          </button>
+        )}
+        {canManage && (
+          <button type="button" className="btn btn-sm gap-1" onClick={() => batchUpdateModalRef.current?.showModal()}>
+            <Users size={14} />
+            Batch Update
+          </button>
+        )}
+        {canManage && <TaskManagementMenu contestId={Number(contestId)} navigationTaskId={Number(navigationTaskId)} task={task} onRefresh={load} />}
       </div>
 
       {canManage && (
@@ -164,6 +182,24 @@ const NavigationTaskDetailPage: React.FC = () => {
       <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestId! })} className="btn btn-secondary mt-6">
         Back to contest
       </Link>
+
+      {canManage && (
+        <>
+          <QuickAddContestantModal
+            ref={quickAddModalRef}
+            contestId={Number(contestId)}
+            navigationTaskId={Number(navigationTaskId)}
+            onAdded={load}
+          />
+          <BatchUpdateContestantsModal
+            ref={batchUpdateModalRef}
+            contestId={Number(contestId)}
+            navigationTaskId={Number(navigationTaskId)}
+            contestants={task.contestant_set}
+            onUpdated={load}
+          />
+        </>
+      )}
     </div>
   );
 };

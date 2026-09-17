@@ -185,3 +185,182 @@ export async function shareNavigationTask(
   }
   return response.json();
 }
+
+async function postNavigationTaskAction(
+  actionUrlName: string,
+  contestId: number,
+  navigationTaskId: number,
+  failureVerb: string
+): Promise<void> {
+  const url = reverse(actionUrlName, contestId, navigationTaskId);
+  const response = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to ${failureVerb}: ${errorMessages}`);
+  }
+}
+
+export const removeAllContestants = (contestId: number, navigationTaskId: number) =>
+  postNavigationTaskAction('navigationtasks-remove-contestants', contestId, navigationTaskId, 'remove all contestants');
+
+export const refreshEditableRoute = (contestId: number, navigationTaskId: number) =>
+  postNavigationTaskAction('navigationtasks-refresh-editable-route', contestId, navigationTaskId, 'reload the route');
+
+export async function deleteNavigationTask(contestId: number, navigationTaskId: number): Promise<void> {
+  const url = reverse('navigationtasks-detail', contestId, navigationTaskId);
+  const response = await fetch(url, { method: 'DELETE', headers: getAuthHeaders() });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to delete navigation task: ${errorMessages}`);
+  }
+}
+
+export interface NavigationTaskDetailsUpdate {
+  name?: string;
+  start_time?: string;
+  finish_time?: string;
+  display_background_map?: boolean;
+  display_secrets?: boolean;
+  minutes_to_starting_point?: number;
+  planning_time?: number;
+  minutes_to_landing?: number;
+  wind_speed?: number;
+  wind_direction?: number;
+  allow_self_management?: boolean;
+  calculation_delay_minutes?: number;
+}
+
+export async function updateNavigationTaskDetails(
+  contestId: number,
+  navigationTaskId: number,
+  payload: NavigationTaskDetailsUpdate
+): Promise<void> {
+  const url = reverse('navigationtasks-update-details', contestId, navigationTaskId);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to update navigation task details: ${errorMessages}`);
+  }
+}
+
+export interface FlightOrderConfiguration {
+  id: number;
+  document_size: string;
+  include_turning_point_images: boolean;
+  map_include_meridians_and_parallels_lines: boolean;
+  map_include_openaip_overlay: boolean;
+  map_dpi: number;
+  map_zoom_level: number;
+  map_orientation: string;
+  map_scale: number;
+  map_source: string;
+  map_include_annotations: boolean;
+  map_include_contestant_declarations: boolean;
+  map_plot_track_between_waypoints: boolean;
+  map_line_width: number;
+  map_minute_mark_line_width: number;
+  map_line_colour: string;
+}
+
+export async function fetchFlightOrderConfiguration(
+  contestId: number,
+  navigationTaskId: number
+): Promise<FlightOrderConfiguration> {
+  const url = reverse('navigationtasks-flight-order-configuration', contestId, navigationTaskId);
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to fetch flight order configuration: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+export async function updateFlightOrderConfiguration(
+  contestId: number,
+  navigationTaskId: number,
+  payload: Partial<FlightOrderConfiguration>
+): Promise<FlightOrderConfiguration> {
+  const url = reverse('navigationtasks-update-flight-order-configuration', contestId, navigationTaskId);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to update flight order configuration: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+export async function quickAddContestant(
+  contestId: number,
+  navigationTaskId: number,
+  payload: { contest_team: number; starting_point_time: string; adaptive_start: boolean }
+): Promise<{ id: number }> {
+  const url = reverse('navigationtasks-quick-add-contestant', contestId, navigationTaskId);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to add contestant: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+export interface ContestTeamOption {
+  id: number;
+  team: { crew: { member1: PersonNameLike; member2: PersonNameLike | null }; aeroplane: { registration: string } };
+}
+
+interface PersonNameLike {
+  first_name: string;
+  last_name: string;
+}
+
+// Reuses the same contests-teams action the (already-built) contest-management feature's team
+// list uses - it nests full crew/aeroplane data, unlike ContestTeamViewSet's plain contestteams
+// list action (ContestTeamSerialiser leaves `team` as a bare id).
+export async function fetchContestTeams(contestId: number): Promise<ContestTeamOption[]> {
+  const url = reverse('contests-teams', contestId);
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to fetch contest teams: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+export interface BatchUpdateContestantsPayload {
+  contestant_ids: number[];
+  update_wind?: boolean;
+  wind_speed?: number;
+  wind_direction?: number;
+  shift_times?: boolean;
+  time_shift_minutes?: number;
+}
+
+export async function batchUpdateContestants(
+  contestId: number,
+  navigationTaskId: number,
+  payload: BatchUpdateContestantsPayload
+): Promise<{ updated: number }> {
+  const url = reverse('navigationtasks-batch-update-contestants', contestId, navigationTaskId);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to batch-update contestants: ${errorMessages}`);
+  }
+  return response.json();
+}

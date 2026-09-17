@@ -49,6 +49,14 @@ export interface NavigationTaskDetail {
   is_featured: boolean;
   user_has_change_permission: boolean;
   contestant_set: ContestantRow[];
+  editable_route: number | null;
+  minutes_to_starting_point: number;
+  planning_time: number;
+  minutes_to_landing: number;
+  wind_speed: number;
+  wind_direction: number;
+  allow_self_management: boolean;
+  calculation_delay_minutes: number;
 }
 
 const DECLARATION_EDITABLE_SUBTYPES = ['turnpoint_hunt', 'limited_fuel_turnpoint_hunt', 'contract_navigation_time_controls'];
