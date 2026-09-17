@@ -12,7 +12,7 @@ from display.calculators.calculator import (
     OrchestratorState,
     StartingLinePassedEvent,
 )
-from display.calculators.calculator_utilities import bearing_between
+from display.calculators.calculator_utilities import bearing_between, travel_bearing_from_track
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.models import ANOMALY, INFORMATION, Contestant, Route, Scorecard
@@ -269,14 +269,6 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             self.update_tracking_state(self.STARTED)
 
         last_position = track[-1]  # type: ContestantReceivedPosition
-        # One sample back (or the same sample if track has only one position
-        # yet). Written as negative indexing rather than a front-relative
-        # index computed from len(track): both are equivalent since track
-        # became a bounded deque (deque supports arbitrary integer indexing,
-        # and the old finish_index/start_index pair was always recomputed
-        # from the current len(track) within this same call, so it was never
-        # actually stale) - this form is just less error-prone to read.
-        first_position = track[-2] if len(track) >= 2 else last_position
 
         # Determine if we just transitioned to a new leg
         just_passed_gate = last_visible_gate != self.last_gate_previous_round
@@ -291,8 +283,16 @@ class BacktrackingAndProcedureTurnsCalculator(Calculator):
             self.last_gate_previous_round = last_visible_gate
 
         self.update_current_leg(last_visible_gate)
-        bearing = bearing_between(first_position, last_position)
-        
+        # Walks back for a position pair separated by a real baseline (see issue #801) rather
+        # than trusting whatever bearing the last two consecutive positions happen to produce -
+        # falls back to the last reliably-computed bearing (or, on the very first ever tick, the
+        # naive two-point calculation) if the whole recent track is too tightly bunched.
+        bearing = travel_bearing_from_track(track)
+        if bearing is None:
+            first_position = track[-2] if len(track) >= 2 else last_position
+            bearing = (
+                self.last_bearing if self.last_bearing is not None else bearing_between(first_position, last_position)
+            )
         # Use local reference bearing for backtracking check
         # This handles curved legs correctly by finding the closest segment of the route
         reference_bearing = self._get_local_reference_bearing(last_position, last_visible_gate, next_gate)

@@ -3,11 +3,11 @@ import math
 from datetime import datetime, timedelta
 from typing import List, Optional, Sequence, Tuple
 
+from display.calculators.calculator_utilities import travel_bearing_from_track
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import (
     Projector,
     bearing_difference,
-    calculate_bearing,
     euclidean_point_to_line_distance,
     fraction_of_leg,
     point_to_line_distance,
@@ -112,11 +112,14 @@ class Gate:
         return abs(bearing_difference(track_bearing, self.gate_heading)) < 90
 
     def is_passed_in_correct_direction_track(self, track) -> bool:
-        if len(track) > 1:
-            return self.is_passed_in_correct_direction_bearing_to_next(
-                calculate_bearing((track[-2].latitude, track[-2].longitude), (track[-1].latitude, track[-1].longitude))
-            )
-        return False
+        # Walks back for a position pair separated by a real baseline (see issue #801) rather
+        # than trusting whatever bearing the last two consecutive positions happen to produce -
+        # a near-duplicate pair (e.g. a retried/duplicate position report) gives an essentially
+        # random bearing, which could wrongly accept or reject a genuine gate crossing.
+        bearing = travel_bearing_from_track(track)
+        if bearing is None:
+            return False
+        return self.is_passed_in_correct_direction_bearing_to_next(bearing)
 
     def get_gate_intersection_time(
         self, projector: Projector, track: Sequence[ContestantReceivedPosition]
