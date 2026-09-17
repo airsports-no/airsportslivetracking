@@ -89,14 +89,22 @@ class TestNavigationTaskDetailWarnings(TestCase):
             kind=ContestUsageLedger.TASK_PILOT_STARTED,
         )
 
-    def test_navigation_task_detail_shows_capacity_status_below_limit(self):
+    def test_navigation_task_rest_payload_shows_capacity_status_below_limit(self):
+        # NavigationTaskDetailPage.tsx (React) renders the "Pilot capacity status" banner from
+        # this REST payload's guest_capacity_status field - the classic navigationtask_detail.html
+        # page this test used to check (via its rendered warning banner) was removed in Slice 4 of
+        # the navigation-task-detail-spa-migration.
         self.client.force_login(self.user)
-        response = self.client.get(reverse("navigationtask_detail", kwargs={"pk": self.navigation_task.pk}))
+        response = self.client.get(
+            reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
+        )
 
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Pilot capacity status")
-        self.assertContains(response, "2 / 3 guest pilot slots are reserved on this task")
-        self.assertContains(response, "The contest owner is exempt.")
+        status = response.json()["guest_capacity_status"]
+        self.assertEqual(status["guest_created_contestants"], 2)
+        self.assertEqual(status["guest_capacity_limit"], 3)
+        self.assertFalse(status["guest_capacity_full"])
+        self.assertTrue(status["show_guest_capacity_warning"])
 
 
 class TestNavigationTaskDetailTurnpointDeclarationLink(TestCase):
@@ -165,12 +173,14 @@ class TestNavigationTaskDetailTurnpointDeclarationLink(TestCase):
             gate_times={},
         )
 
-    def test_navigation_task_detail_shows_turnpoint_hunt_declaration_link(self):
+    def test_navigation_task_rest_payload_carries_task_subtype_for_turnpoint_hunt(self):
+        # See test_navigation_task_rest_payload_carries_task_subtype_for_contract_navigation in
+        # test_contract_navigation_declaration_ui.py for why this only checks the REST payload
+        # now, not a rendered "Edit declaration" link.
         self.client.force_login(self.user)
-        response = self.client.get(reverse("navigationtask_detail", kwargs={"pk": self.navigation_task.pk}))
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Edit declaration")
-        self.assertContains(
-            response,
-            f"/contestant-declaration/{self.contest.pk}/{self.navigation_task.pk}/{self.contestant.pk}",
+        response = self.client.get(
+            reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
         )
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.json()["task_subtype"], "turnpoint_hunt")
+        self.assertTrue(any(c["id"] == self.contestant.pk for c in response.json()["contestant_set"]))

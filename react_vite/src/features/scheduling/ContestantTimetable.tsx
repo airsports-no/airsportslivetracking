@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle, HelpCircle } from 'lucide-react';
-import { reverse } from '../../urls';
+import { generatePath } from '../../urls';
 
 interface ContestantTimetableProps {
     navigationTask: any;
@@ -137,7 +137,7 @@ const ContestantTimetable: React.FC<ContestantTimetableProps> = ({ navigationTas
                                                                             <ul className="list-disc list-inside mt-2 text-sm">
                                                                                 {c.overlapping_tasks.map((task: any, idx: number) => (
                                                                                     <li key={idx}>
-                                                                                        <a href={reverse('navigationtask_detail', task.task_id)} className="link link-primary" target="_blank" rel="noopener noreferrer">
+                                                                                        <a href={generatePath('NAVIGATION_TASK_DETAIL', { contestId: task.contest_id, navigationTaskId: task.task_id })} className="link link-primary" target="_blank" rel="noopener noreferrer">
                                                                                             {task.task_name}
                                                                                         </a>
                                                                                     </li>

@@ -11,7 +11,7 @@
             <h1 class="card-title text-2xl font-bold">Rules for {{ contestant }} in {{ contestant.navigation_task.name }}</h1>
             <div class="mt-4">
                 <a href="{% fe_url 'MISSION_DASHBOARD_DETAIL' contestId=contestant.navigation_task.contest.pk %}" class="link">Back to contest</a> |
-                <a href="{% url 'navigationtask_detail' contestant.navigation_task.pk %}" class="link">Back to navigation task</a>
+                <a href="{% fe_url 'NAVIGATION_TASK_DETAIL' contestId=contestant.navigation_task.contest.pk navigationTaskId=contestant.navigation_task.pk %}" class="link">Back to navigation task</a>
             </div>
 
             <h2 class="text-xl font-semibold mt-6">Track rules</h2>

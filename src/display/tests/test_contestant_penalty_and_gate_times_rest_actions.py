@@ -115,6 +115,39 @@ class TestContestantPenaltyAndGateTimesRestActions(APITestCase):
         response = self.client.post(self._url("apply-quarantine-penalty"), {"category": "bogus"}, format="json")
         self.assertEqual(response.status_code, 400)
 
+    @patch("display.models.scoring_models.ScoreLogEntry.push")
+    @patch("display.models.scoring_models.TrackAnnotation.push")
+    def test_apply_quarantine_penalty_supports_instructions_category(self, *args):
+        response = self.client.post(
+            self._url("apply-quarantine-penalty"),
+            {"points": 50, "reason": "ignored task instructions", "category": "instructions"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        entry = ScoreLogEntry.objects.get(contestant=self.contestant, gate="ADMIN-INSTR")
+        self.assertEqual(entry.points, 50.0)
+        self.assertEqual(entry.message, "ignored task instructions")
+
+    @patch("display.models.scoring_models.ScoreLogEntry.push")
+    @patch("display.models.scoring_models.TrackAnnotation.push")
+    def test_apply_quarantine_penalty_supports_observation_and_map_categories(self, *args):
+        observation_response = self.client.post(
+            self._url("apply-quarantine-penalty"),
+            {"points": 20, "reason": "photo evidence mismatch", "category": "observation"},
+            format="json",
+        )
+        map_response = self.client.post(
+            self._url("apply-quarantine-penalty"),
+            {"points": 30, "reason": "map placement mismatch", "category": "map"},
+            format="json",
+        )
+        self.assertEqual(observation_response.status_code, 201, observation_response.content)
+        self.assertEqual(map_response.status_code, 201, map_response.content)
+        observation_entry = ScoreLogEntry.objects.get(contestant=self.contestant, gate="ADMIN-OBS")
+        map_entry = ScoreLogEntry.objects.get(contestant=self.contestant, gate="ADMIN-MAP")
+        self.assertEqual(observation_entry.message, "photo evidence mismatch")
+        self.assertEqual(map_entry.message, "map placement mismatch")
+
     def test_apply_quarantine_penalty_requires_change_contest_permission(self, *args):
         viewer = get_user_model().objects.create(email="penalty-rest-viewer@example.com")
         assign_perm("view_contest", viewer, self.contest)

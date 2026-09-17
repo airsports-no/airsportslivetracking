@@ -11,7 +11,6 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, IntegrityError
 from django.db.models import F, Q, QuerySet
-from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 from display.calculators.calculator_utilities import round_time_second
@@ -19,6 +18,7 @@ from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.flymaster_position_builder import build_positions_from_flymaster
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.models.flymaster_data import FlymasterData
+from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
@@ -565,7 +565,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             links = []
             for item in pilot_overlaps:
                 links.append(
-                    f'<a href="{reverse("navigationtask_detail", kwargs={"pk": item["task"].pk})}">{item["task"]}</a>'
+                    f'<a href="{fe_url("NAVIGATION_TASK_DETAIL", contestId=item["task"].contest_id, navigationTaskId=item["task"].pk)}">{item["task"]}</a>'
                 )
 
             start_time = min(item["start_time"] for item in pilot_overlaps)
@@ -585,7 +585,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             links = []
             for item in copilot_overlaps:
                 links.append(
-                    f'<a href="{reverse("navigationtask_detail", kwargs={"pk": item["task"].pk})}">{item["task"]}</a>'
+                    f'<a href="{fe_url("NAVIGATION_TASK_DETAIL", contestId=item["task"].contest_id, navigationTaskId=item["task"].pk)}">{item["task"]}</a>'
                 )
 
             start_time = min(item["start_time"] for item in copilot_overlaps)

@@ -5,7 +5,7 @@ import PublicityIcon from './PublicityIcon';
 import { Route, Contest, NavigationTask } from '../types';
 import TaskStatistics from './TaskStatistics';
 import { formatDateInterval } from '../../../utils';
-import { reverse } from '../../../urls';
+import { generatePath } from '../../../urls';
 
 interface UpcomingFlightCardProps {
     flight: Contestant;
@@ -49,7 +49,7 @@ const UpcomingFlightCard: React.FC<UpcomingFlightCardProps> = ({ flight, contest
                                                     <ul className="list-disc list-inside">
                                                         {flight.overlapping_tasks.map((task, idx) => (
                                                             <li key={idx}>
-                                                                <a href={reverse('navigationtask_detail', task.task_id)} className="link" target="_blank" rel="noopener noreferrer">
+                                                                <a href={generatePath('NAVIGATION_TASK_DETAIL', { contestId: task.contest_id, navigationTaskId: task.task_id })} className="link" target="_blank" rel="noopener noreferrer">
                                                                     {task.task_name} ({task.reason})
                                                                 </a>
                                                             </li>

@@ -25,10 +25,8 @@ from django.contrib.auth.mixins import (
 )
 
 from display.templatetags.frontend_urls import fe_url
-from display.utilities.calculator_running_utilities import is_calculator_running
 from display.services.token_assignment import assign_token_to_contest
 from display.models import UserTokenGrant
-from playback_tools.playback import validate_gpx_file
 import rest_framework.exceptions as drf_exceptions
 from live_tracking_map import settings
 
@@ -38,7 +36,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
-from django.db import connection, transaction, models
+from django.db import connection, transaction
 from django.db.models import F, Q, ProtectedError
 from django.forms import ModelForm
 
@@ -49,7 +47,6 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import (
     ListView,
-    DetailView,
     UpdateView,
     CreateView,
     DeleteView,
@@ -77,16 +74,10 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_map_zoom_levels_for_definitions,
     get_available_map_source_definitions_for_navigation_task,
 )
-from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
-from display.flight_order_and_maps.map_plotter import build_effective_route_distance
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
-from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.forms import (
-    BatchContestantUpdateForm,
-    NavigationTaskForm,
     ContestantForm,
     ContestantQuickAddForm,
-    ContestantRecalculateWithStartTimeForm,
     ContestForm,
     ContestantMapForm,
     LANDSCAPE,
@@ -94,8 +85,6 @@ from display.forms import (
     AssignPokerCardForm,
     ChangePermissionsForm,
     AddPermissionsForm,
-    ShareForm,
-    GPXTrackImportForm,
     ScorecardForm,
     GateScoreForm,
     FlightOrderConfigurationForm,
@@ -109,10 +98,6 @@ from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import assert_can_self_register_contestant, _assert_can_reserve_task_slot
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.task_type_visibility import can_user_see_cima_task_types, get_visible_task_type_groups_for_user
-from display.services.administrative_penalties import (
-    ADMINISTRATIVE_PENALTY_CATEGORIES,
-    AdministrativePenaltyService,
-)
 from display.flight_order_and_maps.generate_flight_orders import (
     embed_map_in_pdf,
 )
@@ -128,7 +113,6 @@ from display.flight_order_and_maps.map_plotter import (
 from display.models import (
     NavigationTask,
     Contestant,
-    ContestantReceivedPosition,
     Contest,
     Team,
     Aeroplane,
@@ -137,7 +121,6 @@ from display.models import (
     ContestTeam,
     MyUser,
     PlayingCard,
-    ScoreLogEntry,
     EmailMapLink,
     EditableRoute,
     FlightOrderConfiguration,
@@ -147,15 +130,11 @@ from display.models import (
     GateCumulativeScore,
     UserTokenGrant,
     Club,
-    ContestUsageLedger,
 )
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.tasks import (
-    import_gpx_track,
     process_flymaster_file,
     process_user_uploaded_map,
-    recalculate_existing_positions,
-    recalculate_live_data_for_contestant,
 )
 from display.flight_order_and_maps.user_uploaded_mbtiles_publish import (
     unpublish_user_uploaded_map,
@@ -173,9 +152,6 @@ from display.utilities.gate_definitions import (
 )
 from live_tracking_map.settings import SUPPORT_EMAIL
 from slack_facade import post_slack_competition_message
-from websocket_channels import (
-    WebsocketFacade,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -420,52 +396,6 @@ def contestant_cards_list(request, pk):
     )
 
 
-@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
-def share_navigation_task(request, pk):
-    """
-    Render a form and handle POST to change the sharing settings for the navigation task.
-    """
-    navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    if request.method == "POST":
-        form = ShareForm(request.POST)
-        if form.is_valid():
-            if form.cleaned_data["publicity"] == ShareForm.PUBLIC:
-                navigation_task.make_public()
-            elif form.cleaned_data["publicity"] == ShareForm.UNLISTED:
-                navigation_task.make_unlisted()
-            elif form.cleaned_data["publicity"] == ShareForm.PRIVATE:
-                navigation_task.make_private()
-            return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
-    if navigation_task.is_public and navigation_task.is_featured:
-        initial = ShareForm.PUBLIC
-    elif navigation_task.is_public and not navigation_task.is_featured:
-        initial = ShareForm.UNLISTED
-    else:
-        initial = ShareForm.PRIVATE
-    form = ShareForm(initial={"publicity": initial})
-    return render(
-        request,
-        "display/share_navigationtask_form.html",
-        {"form": form, "navigation_task": navigation_task},
-    )
-
-
-@require_POST
-@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
-def refresh_editable_route_navigation_task(request, pk):
-    """
-    Update the navigation task Route with any changes made to the linked editable route. Return the navigation task
-    details page
-    """
-    navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    try:
-        navigation_task.refresh_editable_route()
-        messages.success(request, "Route refreshed")
-    except ValidationError as e:
-        messages.error(request, str(e))
-    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
-
-
 @permission_required("display.change_contest")
 def import_route(request):
     """
@@ -510,7 +440,11 @@ def get_contestant_map(request, pk):
     Triggers async generation of the navigation map for specific contestants.
     """
     contestant = get_object_or_404(Contestant, pk=pk)
-    redirect_url = reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk})
+    redirect_url = fe_url(
+        "NAVIGATION_TASK_DETAIL",
+        contestId=contestant.navigation_task.contest_id,
+        navigationTaskId=contestant.navigation_task.pk,
+    )
     map_source_definitions = get_available_map_source_definitions_for_navigation_task(
         contestant.navigation_task,
         request.user,
@@ -606,7 +540,7 @@ def update_flight_order_configurations(request, pk):
         form = FlightOrderConfigurationForm(request.POST, instance=configuration, map_source_choices=map_source_choices)
         if form.is_valid():
             form.save()
-            return redirect(reverse("navigationtask_detail", kwargs={"pk": pk}))
+            return redirect(fe_url("NAVIGATION_TASK_DETAIL", contestId=navigation_task.contest_id, navigationTaskId=pk))
     else:
         form = FlightOrderConfigurationForm(instance=configuration, map_source_choices=map_source_choices)
     return render(
@@ -784,7 +718,7 @@ def get_navigation_task_map(request, pk):
     Triggers async generation of the navigation task map pdf.
     """
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    redirect_url = reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk})
+    redirect_url = fe_url("NAVIGATION_TASK_DETAIL", contestId=navigation_task.contest_id, navigationTaskId=navigation_task.pk)
     map_source_definitions = get_available_map_source_definitions_for_navigation_task(
         navigation_task,
         request.user,
@@ -856,59 +790,6 @@ def get_navigation_task_map(request, pk):
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
-def upload_gpx_track_for_contesant(request, pk):
-    """
-    Consumes a GPX file that contains the GPS track of a contestant.
-    """
-    contestant = get_object_or_404(Contestant, pk=pk)
-    try:
-        if not contestant.contestanttrack.calculator_finished and contestant.contestanttrack.calculator_started:
-            messages.error(
-                request,
-                "Calculator is running, terminate it or wait until it is terminated",
-            )
-            return HttpResponseRedirect(
-                reverse(
-                    "navigationtask_detail",
-                    kwargs={"pk": contestant.navigation_task.pk},
-                )
-            )
-    except:
-        pass
-
-    if request.method == "POST":
-        form = GPXTrackImportForm(request.POST, request.FILES)
-        if form.is_valid():
-            track_file = request.FILES["track_file"]
-            data = track_file.read().decode("utf-8")
-            try:
-                validate_gpx_file(data)
-            except Exception as e:
-                form.add_error(None, str(e))
-            else:
-                # Only wipe the existing track once the upload has actually validated -
-                # reset_track_and_score() used to run unconditionally before this point,
-                # so an invalid file destroyed the contestant's positions/score log and
-                # left the form error as the only feedback, with nothing to fall back to.
-                contestant.reset_track_and_score()
-                import_gpx_track.apply_async((contestant.pk, data))
-                messages.success(request, "Started loading track")
-                return HttpResponseRedirect(
-                    reverse(
-                        "navigationtask_detail",
-                        kwargs={"pk": contestant.navigation_task.pk},
-                    )
-                )
-    else:
-        form = GPXTrackImportForm()
-    return render(
-        request,
-        "display/upload_gpx_form.html",
-        {"form": form, "contestant": contestant},
-    )
-
-
-@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def download_gpx_track_contestant(request, pk):
     """
     Produces a GPX file from whatever is recorded and offers for download.
@@ -933,33 +814,6 @@ def download_gpx_track_contestant(request, pk):
     response = HttpResponse(gpx.to_xml(), content_type="application/gpx+xml")
     response["Content-Disposition"] = "attachment; filename=track.gpx"
     return response
-
-
-@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
-def revert_uploaded_gpx_track_for_contestant(request, pk):
-    """
-    Revert to traccar track. Resets track and score and triggers recalculation based of any track that is available
-    in traccar.
-    """
-    contestant = get_object_or_404(Contestant, pk=pk)
-    try:
-        if is_calculator_running(pk):
-            messages.error(
-                request,
-                "Calculator is running, terminate it or wait until it is terminated",
-            )
-            return HttpResponseRedirect(
-                reverse(
-                    "navigationtask_detail",
-                    kwargs={"pk": contestant.navigation_task.pk},
-                )
-            )
-    except:
-        pass
-    contestant.reset_track_and_score()
-    recalculate_live_data_for_contestant.apply_async((contestant.pk,))
-    messages.success(request, "Started loading track")
-    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
 
 
 #### Editable route permission management
@@ -1074,51 +928,6 @@ def add_user_editableroute_permissions(request, pk):
 ###### Editable route permission management ends
 
 
-@require_POST
-@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
-def terminate_contestant_calculator(request, pk):
-    """
-    Request termination of contestant calculator. The request blocks until termination has completed. Redirects to the
-    navigation task detail page.
-    """
-    contestant = get_object_or_404(Contestant, pk=pk)
-
-    try:
-        contestant.blocking_request_calculator_termination()
-        messages.success(request, "Calculator terminated successfully")
-    except TimeoutError:
-        messages.info(request, "Calculator termination requested, but not stopped in time")
-    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
-
-
-@require_POST
-@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
-def restart_contestant_calculator(request, pk):
-    """
-    Terminates contesting calculator, resets the score, and cancels termination. This should trigger the calculator to
-    restart on the next received position. Redirects to the navigation task detail page.
-    """
-    contestant = get_object_or_404(Contestant, pk=pk)
-    try:
-        contestant.blocking_request_calculator_termination()
-    except TimeoutError:
-        # Do not reset/restart while the old calculator may still be running - that would race
-        # a second ContestantProcessor against it (see GH #29). Let the user retry once it has
-        # actually stopped.
-        messages.warning(
-            request,
-            "Calculator termination requested, but it did not stop in time. Please try restarting again shortly.",
-        )
-        return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
-    messages.success(
-        request,
-        "Calculator should have been restarted. It may take a few minutes for it to come back to life.",
-    )
-    contestant.reset_track_and_score()
-    cancel_termination_request(pk)
-    return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": contestant.navigation_task.pk}))
-
-
 class ContestCreateView(PermissionRequiredMixin, CreateView):
     """
     View to create a new contest
@@ -1156,387 +965,6 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
         return fe_url("MISSION_DASHBOARD_DETAIL", contestId=self.object.pk)
 
 
-class NavigationTaskDetailView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
-    model = NavigationTask
-    permission_required = ("display.view_contest",)
-
-    def get_permission_object(self):
-        return self.get_object().contest
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        navigation_task = self.get_object()
-        contest = navigation_task.contest
-        owner_person_id = None
-        if contest.created_by_id:
-            try:
-                owner_person_id = contest.created_by.person.id
-            except Exception:
-                owner_person_id = None
-        guest_created_contestants = navigation_task.contestant_set.exclude(team__crew__member1_id=owner_person_id).count()
-        guest_started_slots = ContestUsageLedger.objects.filter(
-            contest=contest,
-            navigation_task=navigation_task,
-            kind=ContestUsageLedger.TASK_PILOT_STARTED,
-        ).count()
-        guest_capacity_limit = resolve_contest_access(contest).contestant_limit
-        token_assignment = getattr(contest, "contesttokenassignment", None)
-        context["archive_mode_info"] = None
-        if token_assignment is not None and token_assignment.expires_at is not None and token_assignment.expires_at <= timezone.now():
-            context["archive_mode_info"] = {
-                "expired_at": token_assignment.expires_at,
-                "token_type_name": token_assignment.token_type.name,
-            }
-        context["guest_created_contestants"] = guest_created_contestants
-        context["guest_started_slots"] = guest_started_slots
-        context["guest_capacity_limit"] = guest_capacity_limit
-        context["guest_capacity_full"] = (
-            guest_capacity_limit is not None and guest_created_contestants >= guest_capacity_limit
-        )
-        context["show_guest_capacity_warning"] = guest_capacity_limit is not None
-        return context
-
-
-class NavigationTaskUpdateView(NavigationTaskTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
-    model = NavigationTask
-    permission_required = ("display.change_contest",)
-    form_class = NavigationTaskForm
-
-    def get_permission_object(self):
-        return self.get_object().contest
-
-    def get_success_url(self):
-        return reverse("navigationtask_detail", kwargs={"pk": self.get_object().pk})
-
-
-class NavigationTaskDeleteView(GuardianPermissionRequiredMixin, DeleteView):
-    model = NavigationTask
-    permission_required = ("display.delete_contest",)
-    template_name = "model_delete.html"
-    success_url = f"{fe_url('MISSION_DASHBOARD')}?tab=editorContests"
-
-    def get_permission_object(self):
-        return self.get_object().contest
-
-    def get_success_url(self):
-        return fe_url("MISSION_DASHBOARD_DETAIL", contestId=self.get_object().contest.pk)
-
-
-@require_POST
-@transaction.atomic
-@guardian_permission_required(
-    "display.change_contest",
-    (Contest, "navigationtask__contestant__scorelogentry__pk", "pk"),
-)
-def delete_score_item(request, pk):
-    """
-    Delete a specific score log entry. Pushes updates to the front end
-    """
-    entry = get_object_or_404(ScoreLogEntry, pk=pk)
-    contestant = entry.contestant
-    AdministrativePenaltyService.remove_score_log_entry(entry)
-    return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
-
-
-@transaction.atomic
-@guardian_permission_required(
-    "display.change_contest",
-    (Contest, "navigationtask__contestant__pk", "pk"),
-)
-def apply_contestant_quarantine_penalty(request, pk):
-    contestant = get_object_or_404(Contestant, pk=pk)
-    if request.method != "POST":
-        return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
-
-    reason = request.POST.get("reason", "").strip() or "quarantine breach"
-    points_raw = request.POST.get("points", "100")
-    category = request.POST.get("category", "quarantine")
-    category_config = ADMINISTRATIVE_PENALTY_CATEGORIES.get(category)
-    if category_config is None:
-        messages.error(request, "Unknown penalty category.")
-        return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
-    if not reason:
-        reason = category_config["default_reason"]
-    try:
-        points = float(points_raw)
-    except ValueError:
-        messages.error(request, "Penalty points must be numeric.")
-        return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
-
-    AdministrativePenaltyService.apply_contestant_penalty(
-        contestant=contestant,
-        points=points,
-        reason=reason,
-        gate=category_config["gate"],
-        category=category_config["category"],
-        actor=request.user,
-    )
-    messages.success(request, "Administrative penalty applied.")
-    return HttpResponseRedirect(reverse("contestant_gate_times", kwargs={"pk": contestant.pk}))
-
-
-class ContestantGateTimesView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, DetailView):
-    """
-    View that displays the planned (and actual if available) gate times for a user. It also includes any score logs that have been generated, with
-    a link to delete that item.
-    """
-
-    model = Contestant
-    permission_required = ("display.view_contest",)
-    template_name = "display/contestant_gate_times.html"
-
-    def get_permission_object(self):
-        return self.get_object().navigation_task.contest
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        log = {}
-        distances = {}
-        rendered_waypoints = get_effective_route_waypoints(
-            self.object.navigation_task,
-            contestant=self.object,
-            include_contestant_declarations=True,
-        )
-        for waypoint in rendered_waypoints:  # type: Waypoint
-            distances[waypoint.name] = waypoint.distance_previous
-        total_distance = build_effective_route_distance(rendered_waypoints)
-        context["distances"] = distances
-        context["total_distance"] = total_distance
-        context["rendered_waypoints"] = rendered_waypoints
-        for item in self.object.scorelogentry_set.all():  # type: ScoreLogEntry
-            if item.gate not in log:
-                log[item.gate] = []
-            log[item.gate].append(
-                {
-                    "text": "{} points {}".format(item.points, item.message),
-                    "pk": item.pk,
-                }
-            )
-        context["log"] = log
-        actual_times = {}
-        for item in self.object.actualgatetime_set.all():
-            actual_times[item.gate] = item.time
-        context["actual_times"] = actual_times
-        context["can_apply_quarantine_penalty"] = "change_contest" in get_user_perms(self.request.user, self.object.navigation_task.contest)
-        context["administrative_penalty_categories"] = ADMINISTRATIVE_PENALTY_CATEGORIES
-        payload = {}
-        if hasattr(self.object, "contestanttaskconfiguration"):
-            payload = self.object.contestanttaskconfiguration.compiled_effective_route_payload or {}
-        if payload:
-            context["compiled_evidence"] = {
-                "compiled_auxiliary_paths": payload.get("compiled_auxiliary_paths", {}),
-                "observation_judging_mode": payload.get("observation_judging_mode"),
-                "manual_adjudication_categories": payload.get("manual_adjudication_categories", []),
-                "observation_photos": [
-                    {
-                        **item,
-                        "evidence_category": "observation",
-                    }
-                    for item in payload.get("observation_photos", [])
-                ],
-                "hidden_gate_names": payload.get("hidden_gate_names", []),
-                "unknown_leg_names": payload.get("unknown_leg_names", []),
-            }
-            fuel_metadata = payload.get("fuel_metadata") or {}
-            duration_review = payload.get("duration_review") or {}
-            declared_endurance_minutes = fuel_metadata.get("declared_endurance_minutes")
-            if declared_endurance_minutes is not None:
-                context["compiled_fuel_review"] = {
-                    "declared_endurance_minutes": declared_endurance_minutes,
-                    "fuel_deadline": self.object.takeoff_time + datetime.timedelta(minutes=int(declared_endurance_minutes)),
-                }
-            elif duration_review.get("duration_residual_fuel_required"):
-                context["compiled_fuel_review"] = {
-                    "duration_residual_fuel_required": True,
-                }
-            else:
-                context["compiled_fuel_review"] = None
-        else:
-            context["compiled_evidence"] = {
-                "compiled_auxiliary_paths": {},
-                "observation_judging_mode": None,
-                "manual_adjudication_categories": [],
-                "observation_photos": [],
-                "hidden_gate_names": [],
-                "unknown_leg_names": [],
-            }
-            context["compiled_fuel_review"] = None
-        return context
-
-
-class ContestantRecalculateWithStartTimeView(GuardianPermissionRequiredMixin, FormView):
-    form_class = ContestantRecalculateWithStartTimeForm
-    template_name = "display/contestant_recalculate_start_time.html"
-    permission_required = ("display.change_contest",)
-
-    def setup(self, request, *args, **kwargs):
-        super().setup(request, *args, **kwargs)
-        self.contestant = get_object_or_404(Contestant, pk=self.kwargs.get("pk"))
-        timezone.activate(self.contestant.navigation_task.contest.time_zone)
-
-    def get_permission_object(self):
-        return self.contestant.navigation_task.contest
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs["contestant"] = self.contestant
-        return kwargs
-
-    def get_initial(self):
-        initial = super().get_initial()
-        initial["starting_point_time"] = self.contestant.starting_point_time
-        return initial
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["contestant"] = self.contestant
-        context["actual_sp_time"] = self.contestant.actualgatetime_set.filter(gate="SP").first()
-        return context
-
-    def form_valid(self, form):
-        starting_point_time = form.cleaned_data["starting_point_time"]
-        nt = self.contestant.navigation_task
-
-        # Calculate new times
-        takeoff_time = starting_point_time - datetime.timedelta(minutes=nt.minutes_to_starting_point)
-        tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
-        finished_by_time = starting_point_time + self.contestant.flight_duration
-        logger.info(
-            f"Recalculating contestant {self.contestant.pk} with new starting point time {starting_point_time}, takeoff time {takeoff_time}, tracker start time {tracker_start_time} and finished by time {finished_by_time}"
-        )
-
-        with transaction.atomic():
-            original_number = self.contestant.contestant_number
-            # Use a temporary contestant number to avoid unique constraint violation
-            temp_number = (
-                nt.contestant_set.aggregate(models.Max("contestant_number"))["contestant_number__max"] or 0
-            ) + 100
-
-            # Create new contestant as a copy of the old one but with updated times
-            new_contestant = Contestant.objects.create(
-                team=self.contestant.team,
-                navigation_task=nt,
-                contestant_number=temp_number,
-                adaptive_start=self.contestant.adaptive_start,
-                takeoff_time=takeoff_time,
-                tracker_start_time=tracker_start_time,
-                finished_by_time=finished_by_time,
-                minutes_to_starting_point=nt.minutes_to_starting_point,
-                air_speed=self.contestant.air_speed,
-                wind_speed=self.contestant.wind_speed,
-                wind_direction=self.contestant.wind_direction,
-                tracking_service=self.contestant.tracking_service,
-                tracking_device=self.contestant.tracking_device,
-                tracker_device_id=self.contestant.tracker_device_id,
-                competition_class_longform=self.contestant.competition_class_longform,
-                competition_class_shortform=self.contestant.competition_class_shortform,
-                schedule_locked=self.contestant.schedule_locked,
-            )
-            # Move positions to new contestant
-            positions = ContestantReceivedPosition.objects.filter(contestant=self.contestant)
-            positions.update(contestant=new_contestant)
-
-            # Move uploaded track if exists
-            try:
-                uploaded_track = self.contestant.contestantuploadedtrack
-                uploaded_track.contestant = new_contestant
-                uploaded_track.save()
-            except ObjectDoesNotExist:
-                pass
-
-            # Transfer track version
-            new_contestant.track_version = self.contestant.track_version
-            new_contestant.save(update_fields=["track_version"])
-
-            # Send websocket delete message for the old contestant
-            wf = WebsocketFacade()
-            wf.transmit_delete_contestant(self.contestant)
-
-            # Delete old contestant
-            old_nt_pk = nt.pk
-            self.contestant.delete()
-
-            # Restore the original contestant number now that the old one is gone
-            new_contestant.contestant_number = original_number
-            new_contestant.save(update_fields=["contestant_number"])
-
-            # Trigger recalculation for the new contestant
-            logger.info(f"Scheduling recalculation task for new contestant {new_contestant.pk}")
-            transaction.on_commit(lambda: wf.transmit_contestant(new_contestant))
-            transaction.on_commit(lambda: recalculate_existing_positions.delay(new_contestant.pk))
-
-        messages.success(self.request, f"Contestant timing updated and recalculation started for {new_contestant}")
-        return HttpResponseRedirect(reverse("navigationtask_detail", kwargs={"pk": old_nt_pk}))
-
-    def get_success_url(self):
-        return reverse("navigationtask_detail", kwargs={"pk": self.contestant.navigation_task.pk})
-
-
-class BatchContestantUpdateView(LoginRequiredMixin, GuardianPermissionRequiredMixin, View):
-    template_name = "display/batch_contestant_update.html"
-    permission_required = ("display.change_contest",)
-
-    def get_permission_object(self):
-        return get_object_or_404(NavigationTask, pk=self.kwargs["navigationtask_pk"]).contest
-
-    def get(self, request, navigationtask_pk):
-        navigation_task = get_object_or_404(NavigationTask, pk=navigationtask_pk)
-        contestants = navigation_task.contestant_set.select_related(
-            "contestanttrack", "team__crew__member1", "team__crew__member2"
-        ).order_by("takeoff_time")
-        form = BatchContestantUpdateForm(navigation_task=navigation_task)
-        return render(
-            request,
-            self.template_name,
-            {
-                "navigation_task": navigation_task,
-                "contestants": contestants,
-                "form": form,
-            },
-        )
-
-    def post(self, request, navigationtask_pk):
-        navigation_task = get_object_or_404(NavigationTask, pk=navigationtask_pk)
-        contestants_qs = navigation_task.contestant_set.select_related(
-            "contestanttrack", "team__crew__member1", "team__crew__member2"
-        ).order_by("takeoff_time")
-        form = BatchContestantUpdateForm(request.POST, navigation_task=navigation_task)
-        if form.is_valid():
-            cd = form.cleaned_data
-            ids = [int(i) for i in cd["contestant_ids"]]
-            delta = (
-                datetime.timedelta(minutes=float(cd["time_shift_minutes"]))
-                if cd.get("shift_times") and cd.get("time_shift_minutes") is not None
-                else None
-            )
-            updated = 0
-            for c in navigation_task.contestant_set.select_related("contestanttrack").filter(pk__in=ids):
-                if hasattr(c, "contestanttrack") and c.contestanttrack.calculator_started:
-                    continue
-                if cd.get("update_wind"):
-                    c.wind_speed = cd["wind_speed"]
-                    c.wind_direction = cd["wind_direction"]
-                    c.predefined_gate_times = None
-                if delta is not None:
-                    c.tracker_start_time += delta
-                    c.takeoff_time += delta
-                    c.finished_by_time += delta
-                    c.predefined_gate_times = None
-                c.save()
-                updated += 1
-            messages.success(request, f"Updated {updated} contestant(s).")
-            return redirect("navigationtask_detail", pk=navigationtask_pk)
-        return render(
-            request,
-            self.template_name,
-            {
-                "navigation_task": navigation_task,
-                "contestants": contestants_qs,
-                "form": form,
-            },
-        )
-
-
 class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
     form_class = ContestantForm
     model = Contestant
@@ -1554,7 +982,8 @@ class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMi
         return arguments
 
     def get_success_url(self):
-        return reverse("navigationtask_detail", kwargs={"pk": self.get_object().navigation_task.pk})
+        navigation_task = self.get_object().navigation_task
+        return fe_url("NAVIGATION_TASK_DETAIL", contestId=navigation_task.contest_id, navigationTaskId=navigation_task.pk)
 
     def get_permission_object(self):
         return self.get_object().navigation_task.contest
@@ -1571,17 +1000,6 @@ class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMi
             messages.warning(self.request, warning)
         return HttpResponseRedirect(self.get_success_url())
 
-
-class ContestantDeleteView(GuardianPermissionRequiredMixin, DeleteView):
-    model = Contestant
-    permission_required = ("display.change_contest",)
-    template_name = "model_delete.html"
-
-    def get_success_url(self):
-        return reverse("navigationtask_detail", kwargs={"pk": self.get_object().navigation_task.pk})
-
-    def get_permission_object(self):
-        return self.get_object().navigation_task.contest
 
 
 class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
@@ -1677,7 +1095,9 @@ class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
         return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
-        return reverse("navigationtask_detail", kwargs={"pk": self.navigation_task.pk})
+        return fe_url(
+            "NAVIGATION_TASK_DETAIL", contestId=self.navigation_task.contest_id, navigationTaskId=self.navigation_task.pk
+        )
 
 
 class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
@@ -1702,7 +1122,9 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
         return arguments
 
     def get_success_url(self):
-        return reverse("navigationtask_detail", kwargs={"pk": self.kwargs.get("navigationtask_pk")})
+        return fe_url(
+            "NAVIGATION_TASK_DETAIL", contestId=self.navigation_task.contest_id, navigationTaskId=self.navigation_task.pk
+        )
 
     def get_permission_object(self):
         return self.navigation_task.contest
@@ -1721,20 +1143,6 @@ class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
         for warning in object.get_overlap_warnings():
             messages.warning(self.request, warning)
         return HttpResponseRedirect(self.get_success_url())
-
-
-@require_POST
-@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
-def clear_contestants(request, pk):
-    """
-    Deletes all contestants from the navigation task and redirects to the navigation task detail page.
-    """
-    navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    now = datetime.datetime.now(datetime.timezone.utc)
-    candidates = navigation_task.contestant_set.all()  # filter(takeoff_time__gte=now + datetime.timedelta(minutes=15))
-    messages.success(request, f"{candidates.count()} contestants have been deleted")
-    candidates.delete()
-    return redirect(reverse("navigationtask_detail", kwargs={"pk": navigation_task.pk}))
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))

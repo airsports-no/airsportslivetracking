@@ -19,7 +19,7 @@ import ClockDisplay from './components/ClockDisplay';
 import Disclaimer from './components/Disclaimer';
 import TaskInfoModal from './TaskInfoModal';
 import { ChevronUp, ChevronDown, Trophy, Info, Settings, Calendar, Sliders, Activity, PlayCircle, Route } from 'lucide-react';
-import { reverse, generatePath } from '../../urls';
+import { generatePath } from '../../urls';
 import './CompetitionMap.css';
 import { NavigationTask } from './types';
 
@@ -773,10 +773,10 @@ export default function CompetitionMapPage() {
                   <span className="hidden sm:inline">Contest</span>
                 </Link>
                 {(staticNavTaskData?.user_has_change_permission || document.configuration.is_superuser)&& (
-                  <a href={reverse("navigationtask_detail", navigationTaskId)} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Manage">
+                  <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestIdNum, navigationTaskId: navigationTaskIdNum })} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Manage">
                     <Settings size={12} />
                     <span className="hidden sm:inline">Manage</span>
-                  </a>
+                  </Link>
                 )}
                 {staticNavTaskData?.allow_self_management && (
                   <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Schedule">

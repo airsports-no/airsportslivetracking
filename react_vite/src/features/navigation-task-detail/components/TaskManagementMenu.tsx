@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
-import { generatePath } from '../../../urls';
+import { generatePath, reverse } from '../../../urls';
 import { deleteNavigationTask, refreshEditableRoute, removeAllContestants } from '../api';
 import { NavigationTaskDetail } from '../types';
 import FlightOrderConfigurationModal, { FlightOrderConfigurationModalHandle } from './FlightOrderConfigurationModal';
@@ -90,9 +90,34 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
           <hr className="my-1 border-base-200" />
         </li>
         <li>
+          <a href={reverse('navigationtask_flightordersprogress', navigationTaskId)}>Generate flight orders</a>
+        </li>
+        <li>
+          <a href={reverse('navigationtask_qr', navigationTaskId)}>QR Code</a>
+        </li>
+        {task.allow_self_management && (
+          <li>
+            <a href={reverse('hangar_flyer', navigationTaskId)}>Hangar flyer</a>
+          </li>
+        )}
+        <li>
+          <a href={reverse('navigationtask_map', navigationTaskId)}>Navigation Map</a>
+        </li>
+        <li>
+          <hr className="my-1 border-base-200" />
+        </li>
+        <li>
           <button type="button" onClick={() => flightOrderConfigModalRef.current?.open()} className="w-full text-left">
             Flight order configuration
           </button>
+        </li>
+        <li>
+          {/* TODO: still the classic Django form - it scopes map_source choices to this
+              specific navigation task's available maps (get_available_map_source_definitions_for_navigation_task),
+              which the REST action above doesn't replicate yet. See project memory. */}
+          <a href={reverse('navigationtask_flightorderconfiguration', navigationTaskId)}>
+            Flight order configuration (advanced)
+          </a>
         </li>
         <li>
           <hr className="my-1 border-base-200" />

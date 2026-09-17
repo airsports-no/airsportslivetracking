@@ -219,7 +219,14 @@ class TestContractNavigationDeclarationUI(TestCase):
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
 
-    def test_navigation_task_detail_shows_edit_declaration_link_for_contract_navigation(self):
+    def test_navigation_task_rest_payload_carries_task_subtype_for_contract_navigation(self):
+        # NavigationTaskDetailPage (React) shows an "Edit declaration" link/CONTESTANT_DECLARATION
+        # route for a contestant whenever task_subtype is one of the declaration-editable
+        # subtypes (see ContestantActionsMenu.tsx's supportsDeclarationEditing) - that decision is
+        # made client-side, so this test can only confirm the REST payload it depends on
+        # (task_subtype) is actually present and correct; the classic navigationtask_detail.html
+        # page this test used to check (via its rendered "Edit declaration" link) was removed in
+        # Slice 4 of the navigation-task-detail-spa-migration.
         self.client.force_login(self.user)
         create_response = self.client.post(
             self.create_url,
@@ -242,12 +249,14 @@ class TestContractNavigationDeclarationUI(TestCase):
         self.assertEqual(302, create_response.status_code)
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
 
-        detail_response = self.client.get(reverse("navigationtask_detail", kwargs={"pk": self.navigation_task.pk}))
+        detail_response = self.client.get(
+            reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
+        )
         self.assertEqual(200, detail_response.status_code)
-        self.assertContains(detail_response, "Edit declaration")
-        self.assertContains(
-            detail_response,
-            f"/contestant-declaration/{self.contest.pk}/{self.navigation_task.pk}/{contestant.pk}",
+        self.assertEqual(detail_response.json()["task_subtype"], CONTRACT_NAVIGATION_TIME_CONTROLS)
+        self.assertTrue(
+            any(c["id"] == contestant.pk for c in detail_response.json()["contestant_set"]),
+            "the created contestant should appear in the navigation task's contestant_set",
         )
 
     def test_contract_navigation_compiler_requires_declared_t_seconds(self):

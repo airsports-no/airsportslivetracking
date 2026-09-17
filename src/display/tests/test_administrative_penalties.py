@@ -137,81 +137,6 @@ class TestAdministrativePenalties(TestCase):
 
     @patch.object(ScoreLogEntry, "push")
     @patch.object(TrackAnnotation, "push")
-    def test_quarantine_penalty_view_applies_penalty_and_redirects(self, mock_annotation_push, mock_score_push):
-        self.client.force_login(self.user)
-        score_before = self.contestant.contestanttrack.score
-        version_before = self.contestant.score_version
-
-        response = self.client.post(
-            reverse("contestant_apply_quarantine_penalty", kwargs={"pk": self.contestant.pk}),
-            {"points": "35", "reason": "late exit from quarantine", "category": "quarantine"},
-        )
-
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
-
-        self.contestant.refresh_from_db()
-        self.contestant.contestanttrack.refresh_from_db()
-        entry = ScoreLogEntry.objects.filter(contestant=self.contestant, gate="ADMIN-QUAR").latest("pk")
-        admin_penalty = AdministrativePenalty.objects.get(score_log_entry=entry)
-        self.assertEqual(entry.points, 35.0)
-        self.assertEqual(entry.message, "late exit from quarantine")
-        self.assertEqual(admin_penalty.category, "quarantine")
-        self.assertEqual(admin_penalty.actor, self.user)
-        self.assertEqual(self.contestant.contestanttrack.score, score_before + 35.0)
-        self.assertEqual(self.contestant.score_version, version_before + 1)
-        self.assertEqual(mock_score_push.call_count, 1)
-        self.assertEqual(mock_annotation_push.call_count, 1)
-
-    @patch.object(ScoreLogEntry, "push")
-    @patch.object(TrackAnnotation, "push")
-    def test_penalty_view_supports_other_categories(self, mock_annotation_push, mock_score_push):
-        self.client.force_login(self.user)
-
-        response = self.client.post(
-            reverse("contestant_apply_quarantine_penalty", kwargs={"pk": self.contestant.pk}),
-            {"points": "50", "reason": "ignored task instructions", "category": "instructions"},
-        )
-
-        self.assertEqual(response.status_code, 302)
-        entry = ScoreLogEntry.objects.filter(contestant=self.contestant, gate="ADMIN-INSTR").latest("pk")
-        admin_penalty = AdministrativePenalty.objects.get(score_log_entry=entry)
-        self.assertEqual(entry.points, 50.0)
-        self.assertEqual(entry.message, "ignored task instructions")
-        self.assertEqual(admin_penalty.category, "instructions")
-        self.assertEqual(admin_penalty.actor, self.user)
-        self.assertEqual(mock_score_push.call_count, 1)
-        self.assertEqual(mock_annotation_push.call_count, 1)
-
-    @patch.object(ScoreLogEntry, "push")
-    @patch.object(TrackAnnotation, "push")
-    def test_penalty_view_supports_observation_and_map_categories(self, mock_annotation_push, mock_score_push):
-        self.client.force_login(self.user)
-
-        observation_response = self.client.post(
-            reverse("contestant_apply_quarantine_penalty", kwargs={"pk": self.contestant.pk}),
-            {"points": "20", "reason": "photo evidence mismatch", "category": "observation"},
-        )
-        map_response = self.client.post(
-            reverse("contestant_apply_quarantine_penalty", kwargs={"pk": self.contestant.pk}),
-            {"points": "30", "reason": "map placement mismatch", "category": "map"},
-        )
-
-        self.assertEqual(observation_response.status_code, 302)
-        self.assertEqual(map_response.status_code, 302)
-        observation_entry = ScoreLogEntry.objects.filter(contestant=self.contestant, gate="ADMIN-OBS").latest("pk")
-        map_entry = ScoreLogEntry.objects.filter(contestant=self.contestant, gate="ADMIN-MAP").latest("pk")
-        observation_penalty = AdministrativePenalty.objects.get(score_log_entry=observation_entry)
-        map_penalty = AdministrativePenalty.objects.get(score_log_entry=map_entry)
-        self.assertEqual(observation_entry.message, "photo evidence mismatch")
-        self.assertEqual(map_entry.message, "map placement mismatch")
-        self.assertEqual(observation_penalty.category, "observation")
-        self.assertEqual(map_penalty.category, "map")
-        self.assertEqual(mock_score_push.call_count, 2)
-        self.assertEqual(mock_annotation_push.call_count, 2)
-
-    @patch.object(ScoreLogEntry, "push")
-    @patch.object(TrackAnnotation, "push")
     def test_score_data_includes_structured_administrative_penalties(self, mock_annotation_push, mock_score_push):
         self.client.force_login(self.user)
         self.navigation_task.task_subtype = "known_circuit"
@@ -334,7 +259,7 @@ class TestAdministrativePenalties(TestCase):
         self.assertEqual(mock_score_push.call_count, 1)
         self.assertEqual(mock_annotation_push.call_count, 1)
 
-    def test_gate_times_view_exposes_compiled_evidence_context(self):
+    def test_compiled_evidence_action_exposes_evidence_context(self):
         editable_route = EditableRoute.objects.create(
             name="Gate times evidence primitives",
             route={
@@ -374,26 +299,23 @@ class TestAdministrativePenalties(TestCase):
         from display.services.contestant_task_compiler import ContestantTaskCompiler
 
         ContestantTaskCompiler(self.contestant).compile(force=True)
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-compiled-evidence",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
-        compiled_evidence = response.context["compiled_evidence"]
+        compiled_evidence = response.json()
         self.assertEqual(compiled_evidence["hidden_gate_names"], ["HG1"])
         self.assertEqual(compiled_evidence["observation_judging_mode"], "external_manual")
         self.assertEqual(compiled_evidence["manual_adjudication_categories"], ["observation", "map"])
         self.assertEqual(compiled_evidence["observation_photos"][0]["name"], "Photo 1")
         self.assertEqual(compiled_evidence["observation_photos"][0]["evidence_category"], "observation")
         self.assertEqual(compiled_evidence["unknown_leg_names"], [])
-        self.assertContains(response, "Compiled evidence review")
-        self.assertContains(response, "HG1")
-        self.assertContains(response, "Photo 1")
-        self.assertContains(response, "observation")
-        self.assertContains(response, "Apply observation penalty")
-        self.assertContains(response, "Apply map-placement penalty")
-        self.assertContains(response, 'value="observation"', html=False)
-        self.assertContains(response, 'value="map"', html=False)
 
-    def test_gate_times_view_exposes_unknown_leg_compiled_evidence_context(self):
+    def test_compiled_evidence_action_exposes_unknown_leg_context(self):
         editable_route = EditableRoute.objects.create(
             name="Gate times unknown leg primitives",
             route={
@@ -435,24 +357,23 @@ class TestAdministrativePenalties(TestCase):
         from display.services.contestant_task_compiler import ContestantTaskCompiler
 
         ContestantTaskCompiler(self.contestant).compile(force=True)
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-compiled-evidence",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
-        compiled_evidence = response.context["compiled_evidence"]
+        compiled_evidence = response.json()
         self.assertEqual(compiled_evidence["unknown_leg_names"], ["UL1"])
         self.assertEqual(compiled_evidence["observation_judging_mode"], "external_manual")
         self.assertEqual(compiled_evidence["manual_adjudication_categories"], ["observation", "map"])
         self.assertEqual(compiled_evidence["observation_photos"][0]["name"], "Photo 1")
         self.assertEqual(compiled_evidence["observation_photos"][0]["evidence_category"], "observation")
         self.assertEqual(compiled_evidence["hidden_gate_names"], [])
-        self.assertContains(response, "Compiled evidence review")
-        self.assertContains(response, "UL1")
-        self.assertContains(response, "Photo 1")
-        self.assertContains(response, "observation")
-        self.assertContains(response, "Apply observation penalty")
-        self.assertContains(response, "Apply map-placement penalty")
 
-    def test_gate_times_view_exposes_anr_auxiliary_path_review_context(self):
+    def test_compiled_evidence_action_exposes_anr_auxiliary_path_review_context(self):
         editable_route = EditableRoute.objects.create(
             name="Gate times ANR auxiliary primitives",
             route={
@@ -484,10 +405,15 @@ class TestAdministrativePenalties(TestCase):
         from display.services.contestant_task_compiler import ContestantTaskCompiler
 
         ContestantTaskCompiler(self.contestant).compile(force=True)
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-compiled-evidence",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
-        compiled_evidence = response.context["compiled_evidence"]
+        compiled_evidence = response.json()
         self.assertEqual(
             compiled_evidence["compiled_auxiliary_paths"]["route_to_sp_path"],
             [[[10.9, 59.9], [11.0, 60.0]]],
@@ -496,10 +422,8 @@ class TestAdministrativePenalties(TestCase):
             compiled_evidence["compiled_auxiliary_paths"]["route_from_fp_path"],
             [[[11.1, 60.1], [11.2, 60.0]]],
         )
-        self.assertContains(response, "Route to SP")
-        self.assertContains(response, "Route from FP")
 
-    def test_gate_times_view_uses_effective_waypoints_for_total_distance_and_cards(self):
+    def test_gate_times_action_uses_effective_waypoints_for_total_distance_and_cards(self):
         editable_route = EditableRoute.objects.create(
             name="Gate times contract distance primitives",
             route={
@@ -586,16 +510,19 @@ class TestAdministrativePenalties(TestCase):
             declaration_payload={"declared_sequence": ["A", "MP", "B", "FP"], "declared_t_seconds": 600},
             force=True,
         )
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-gate-times",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
-        rendered_names = [gate.name for gate in response.context["rendered_waypoints"]]
-        self.assertEqual(rendered_names, ["SP", "A", "MP", "B", "FP"])
-        self.assertContains(response, "A")
-        self.assertContains(response, "B")
-        self.assertGreater(response.context["total_distance"], 0)
+        data = response.json()
+        self.assertEqual(data["rendered_waypoints"], ["SP", "A", "MP", "B", "FP"])
+        self.assertGreater(data["total_distance"], 0)
 
-    def test_gate_times_view_exposes_fuel_review_for_limited_fuel_turnpoint_hunt(self):
+    def test_gate_times_action_exposes_fuel_review_for_limited_fuel_turnpoint_hunt(self):
         editable_route = EditableRoute.objects.create(
             name="Gate times fuel primitives",
             route={
@@ -649,18 +576,22 @@ class TestAdministrativePenalties(TestCase):
             },
             force=True,
         )
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-gate-times",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
-        fuel_review = response.context["compiled_fuel_review"]
+        fuel_review = response.json()["compiled_fuel_review"]
         self.assertEqual(fuel_review["declared_endurance_minutes"], 95)
-        self.assertEqual(fuel_review["fuel_deadline"], self.contestant.takeoff_time + datetime.timedelta(minutes=95))
-        self.assertContains(response, "Declared endurance")
-        self.assertContains(response, "95")
-        self.assertContains(response, "Apply fuel-check penalty")
-        self.assertContains(response, 'value="fuel"', html=False)
+        self.assertEqual(
+            datetime.datetime.fromisoformat(fuel_review["fuel_deadline"]),
+            self.contestant.takeoff_time + datetime.timedelta(minutes=95),
+        )
 
-    def test_gate_times_view_exposes_duration_residual_fuel_review(self):
+    def test_gate_times_action_exposes_duration_residual_fuel_review(self):
         self.navigation_task.task_subtype = "duration"
         self.navigation_task.task_config = {"duration_residual_fuel_required": True}
         self.navigation_task.save(update_fields=["task_subtype", "task_config"])
@@ -669,17 +600,18 @@ class TestAdministrativePenalties(TestCase):
         from display.services.contestant_task_compiler import ContestantTaskCompiler
 
         ContestantTaskCompiler(self.contestant).compile(force=True)
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-gate-times",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.context["compiled_fuel_review"],
+            response.json()["compiled_fuel_review"],
             {"duration_residual_fuel_required": True},
         )
-        self.assertContains(response, "Residual fuel review")
-        self.assertContains(response, "Residual fuel required")
-        self.assertContains(response, "Apply fuel-check penalty")
-        self.assertContains(response, 'value="fuel"', html=False)
 
     def _create_gate_score_log_entry(self, *, gate: str, points: float, gate_type: str, time=None) -> ScoreLogEntry:
         if time is None:

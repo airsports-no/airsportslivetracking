@@ -7,7 +7,7 @@ import ContestantTimetable from './ContestantTimetable';
 import { Loading } from '../route-editor/components/basicComponents';
 import { useToast } from '../competition-map/hooks/useToast';
 import './print.css';
-import { reverse } from '../../urls';
+import { generatePath } from '../../urls';
 
 const ContestantScheduling = () => {
     const { contestId, navigationTaskId } = useParams();
@@ -218,9 +218,9 @@ const ContestantScheduling = () => {
                         </svg>
                         Print Schedule
                     </button>
-                    <a href={reverse('navigationtask_detail', navigationTaskId )} className="btn btn-secondary btn-sm">
+                    <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-secondary btn-sm">
                         Back to navigation task
-                    </a>
+                    </Link>
                 </div>
             </div>
 

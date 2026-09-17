@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import { Loading } from '../route-editor/components/basicComponents';
 import { fetchContestant, fetchNavigationTask, updateContestantDeclaration } from './api';
-import { reverse } from '../../urls';
+import { generatePath } from '../../urls';
 import { useToast } from '../competition-map/hooks/useToast';
 import {
     FreeTarget,
@@ -948,9 +948,9 @@ const ContestantDeclarationPage: React.FC = () => {
                     <h1 className="text-3xl font-bold">Contestant declaration</h1>
                     <p className="text-sm opacity-70">{contestant?.team?.crew?.member1?.first_name} {contestant?.team?.crew?.member1?.last_name} · {navigationTask?.name}</p>
                 </div>
-                <a href={reverse('navigationtask_detail', Number(navigationTaskId))} className="btn btn-secondary btn-sm">
+                <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-secondary btn-sm">
                     Back to navigation task
-                </a>
+                </Link>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

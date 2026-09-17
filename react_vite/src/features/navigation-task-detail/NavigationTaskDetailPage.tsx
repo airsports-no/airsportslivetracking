@@ -4,12 +4,12 @@ import { MapPin, Plus, Users } from 'lucide-react';
 import { Loading } from '../route-editor/components/basicComponents';
 import { fetchNavigationTask } from '../competition-map/api';
 import { fetchRunningCalculators, shareNavigationTask, NavigationTaskVisibility } from './api';
-import { NavigationTaskDetail } from './types';
+import { NavigationTaskDetail, supportsDeclarationEditing } from './types';
 import BatchUpdateContestantsModal from './components/BatchUpdateContestantsModal';
 import ContestantList from './components/ContestantList';
 import QuickAddContestantModal, { QuickAddContestantModalHandle } from './components/QuickAddContestantModal';
 import TaskManagementMenu from './components/TaskManagementMenu';
-import { generatePath } from '../../urls';
+import { generatePath, reverse } from '../../urls';
 import { formatDateInterval } from '../../utils';
 
 const visibilityOf = (task: NavigationTaskDetail): NavigationTaskVisibility => {
@@ -138,6 +138,12 @@ const NavigationTaskDetailPage: React.FC = () => {
             Quick Add
           </button>
         )}
+        {canManage && supportsDeclarationEditing(task.task_subtype) && (
+          <a href={reverse('contestant_quick_create', Number(navigationTaskId))} className="btn btn-sm gap-1">
+            <Plus size={14} />
+            Quick add (with declaration)
+          </a>
+        )}
         {canManage && (
           <button type="button" className="btn btn-sm gap-1" onClick={() => batchUpdateModalRef.current?.showModal()}>
             <Users size={14} />
@@ -161,6 +167,29 @@ const NavigationTaskDetailPage: React.FC = () => {
                 {option.label}
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {canManage && task.guest_capacity_status.show_guest_capacity_warning && (
+        <div
+          className={`alert ${task.guest_capacity_status.guest_capacity_full ? 'alert-warning' : 'alert-info'} shadow-sm mb-6 text-sm`}
+        >
+          <div>
+            <div className="font-bold">Pilot capacity status</div>
+            {task.guest_capacity_status.guest_capacity_full ? (
+              <div>
+                {task.guest_capacity_status.guest_created_contestants} / {task.guest_capacity_status.guest_capacity_limit} guest
+                pilot slots are now reserved on this task. The contest owner is exempt. To enable more slots, remove an
+                unstarted contestant that is holding a reservation, reuse an already-counted pilot, or apply a larger token
+                or club pass.
+              </div>
+            ) : (
+              <div>
+                {task.guest_capacity_status.guest_created_contestants} / {task.guest_capacity_status.guest_capacity_limit} guest
+                pilot slots are reserved on this task. The contest owner is exempt.
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -127,6 +127,12 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
               <a href={reverse('processingstatistics', contestant.pk)}>Processing statistics</a>
             </li>
             <li>
+              {/* TODO: poker-run playing cards - still the classic Django page, no React
+                  equivalent yet. Shown unconditionally since the REST payload doesn't expose
+                  is_poker_run to gate it on. See project memory. */}
+              <a href={reverse('contestant_cards_list', contestant.pk)}>Playing cards</a>
+            </li>
+            <li>
               <hr className="my-1 border-base-200" />
             </li>
             <li>

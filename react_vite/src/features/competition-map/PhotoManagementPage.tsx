@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import L from 'leaflet';
 import useMapInit from '../route-editor/components/map/useMapInit';
 import RouteRenderer from './components/track-renderers/RouteRenderer';
@@ -8,7 +8,7 @@ import { fetchNavigationTask, uploadPhotoFile, revertPhotoToSatellite, fetchPhot
 import { NavigationTask, Photo } from './types';
 import { Loading } from '../route-editor/components/basicComponents';
 import { RotateCcw, Upload, ChevronLeft, MapPin, Plus, Trash2, X } from 'lucide-react';
-import { reverse } from '../../urls';
+import { generatePath } from '../../urls';
 
 export default function PhotoManagementPage() {
     const { contestId, navigationTaskId } = useParams();
@@ -186,10 +186,10 @@ export default function PhotoManagementPage() {
         <div className="flex flex-col h-full overflow-hidden">
             <div className="bg-base-100 border-b border-base-300 p-4 flex justify-between items-center shadow-sm z-10">
                 <div className="flex items-center gap-4">
-                    <a href={reverse('navigationtask_detail', navigationTaskId!)} className="btn btn-ghost btn-sm">
+                    <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-ghost btn-sm">
                         <ChevronLeft size={16} />
                         Back to Task
-                    </a>
+                    </Link>
                     <h1 className="text-xl font-bold">Photo Management: {navTask?.name || 'Loading...'}</h1>
                 </div>
                 <div className="flex gap-2 text-xs opacity-70">

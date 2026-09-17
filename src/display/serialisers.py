@@ -40,6 +40,7 @@ from display.models import (
     ContestantTrack,
     ContestSummary,
     ContestTeam,
+    ContestUsageLedger,
     Crew,
     EditableRoute,
     FlightOrderConfiguration,
@@ -2039,9 +2040,41 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     score_sorting_direction = serializers.ReadOnlyField()
     user_has_change_permission = SerializerMethodField("get_user_has_change_permission")
     flown_contestants_count = serializers.SerializerMethodField()
+    guest_capacity_status = serializers.SerializerMethodField()
 
     def get_flown_contestants_count(self, obj) -> int:
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
+
+    def get_guest_capacity_status(self, navigation_task) -> dict:
+        """
+        Mirrors the classic NavigationTaskDetailView's guest-pilot-capacity computation (shown as
+        a warning banner on navigationtask_detail.html, now NavigationTaskDetailPage.tsx) - how
+        many of this task's contestants are guest pilots (not the contest owner) relative to the
+        resolved access tier's contestant limit.
+        """
+        contest = navigation_task.contest
+        owner_person_id = None
+        if contest.created_by_id:
+            try:
+                owner_person_id = contest.created_by.person.id
+            except Exception:
+                owner_person_id = None
+        guest_created_contestants = navigation_task.contestant_set.exclude(
+            team__crew__member1_id=owner_person_id
+        ).count()
+        guest_started_slots = ContestUsageLedger.objects.filter(
+            contest=contest,
+            navigation_task=navigation_task,
+            kind=ContestUsageLedger.TASK_PILOT_STARTED,
+        ).count()
+        guest_capacity_limit = resolve_contest_access(contest).contestant_limit
+        return {
+            "guest_created_contestants": guest_created_contestants,
+            "guest_started_slots": guest_started_slots,
+            "guest_capacity_limit": guest_capacity_limit,
+            "guest_capacity_full": guest_capacity_limit is not None and guest_created_contestants >= guest_capacity_limit,
+            "show_guest_capacity_warning": guest_capacity_limit is not None,
+        }
 
     def get_task_catalogue_targets(self, obj) -> list[dict]:
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets

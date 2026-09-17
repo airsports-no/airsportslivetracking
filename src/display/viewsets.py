@@ -193,6 +193,7 @@ from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITION
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map import settings
+from playback_tools.playback import validate_gpx_file
 from websocket_channels import WebsocketFacade, generate_contestant_data_block
 
 logger = logging.getLogger(__name__)
@@ -2953,6 +2954,7 @@ class ContestantViewSet(ModelViewSet):
                     "manual_adjudication_categories": payload.get("manual_adjudication_categories", []),
                     "hidden_gate_names": payload.get("hidden_gate_names", []),
                     "unknown_leg_names": payload.get("unknown_leg_names", []),
+                    "compiled_auxiliary_paths": payload.get("compiled_auxiliary_paths", {}),
                 }
             )
         return Response(
@@ -2962,15 +2964,24 @@ class ContestantViewSet(ModelViewSet):
                 "manual_adjudication_categories": [],
                 "hidden_gate_names": [],
                 "unknown_leg_names": [],
+                "compiled_auxiliary_paths": {},
             }
         )
 
     @action(detail=True, methods=["post"])
     def gpx_track(self, request, pk=None, **kwargs):
         """
-        Consumes a FC GPX file that contains the GPS track of a contestant.
+        Consumes a FC GPX file that contains the GPS track of a contestant. Mirrors the classic
+        upload_gpx_track_for_contesant view's guards: refuses while the calculator is running,
+        and validates the GPX content itself (not just its base64 encoding) before wiping the
+        existing track.
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        if is_calculator_running(contestant.pk):
+            return Response(
+                {"detail": "Calculator is running, terminate it or wait until it is terminated."},
+                status=status.HTTP_409_CONFLICT,
+            )
         # Validate (via GpxTrackSerialiser - presence + valid base64) before wiping the
         # existing track: reset_track_and_score() used to run unconditionally first, so a
         # missing or malformed upload destroyed the contestant's positions/score log and
@@ -2978,13 +2989,13 @@ class ContestantViewSet(ModelViewSet):
         serialiser = self.get_serializer(data=request.data)
         serialiser.is_valid(raise_exception=True)
         track_file = serialiser.validated_data["track_file"]
+        decoded_track_file = base64.decodebytes(bytes(track_file, "utf-8")).decode("utf-8")
+        try:
+            validate_gpx_file(decoded_track_file)
+        except Exception as e:
+            raise drf_exceptions.ValidationError(str(e))
         contestant.reset_track_and_score()
-        import_gpx_track.apply_async(
-            (
-                contestant.pk,
-                base64.decodebytes(bytes(track_file, "utf-8")).decode("utf-8"),
-            )
-        )
+        import_gpx_track.apply_async((contestant.pk, decoded_track_file))
         return Response({}, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
