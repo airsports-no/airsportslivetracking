@@ -4,6 +4,7 @@ import { EllipsisVertical } from 'lucide-react';
 import { reverse, generatePath } from '../../../urls';
 import { deleteContestant, recalculateTrack } from '../api';
 import { ContestantRow, supportsDeclarationEditing } from '../types';
+import ContestantFormModal, { ContestantFormModalHandle } from './ContestantFormModal';
 import GateTimesModal, { GateTimesModalHandle } from './GateTimesModal';
 import RecalculateStartTimeModal from './RecalculateStartTimeModal';
 import UploadGpxModal from './UploadGpxModal';
@@ -37,6 +38,7 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
   const startTimeModalRef = useRef<HTMLDialogElement>(null);
   const gpxModalRef = useRef<HTMLDialogElement>(null);
   const gateTimesModalRef = useRef<GateTimesModalHandle>(null);
+  const editModalRef = useRef<ContestantFormModalHandle>(null);
 
   const handleRecalculateTrack = async () => {
     if (recalculating || !window.confirm('Reset the track/score and reload it from the tracker?')) return;
@@ -96,9 +98,9 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
               <hr className="my-1 border-base-200" />
             </li>
             <li>
-              {/* TODO: still the classic Django form (team/aircraft/tracker/wind fields) - no
-                  React equivalent has been built yet. See project memory. */}
-              <a href={reverse('contestant_update', contestant.pk)}>Edit team assignment</a>
+              <button type="button" onClick={() => editModalRef.current?.open()} className="w-full text-left">
+                Edit contestant
+              </button>
             </li>
             <li>
               <a href={`${reverse('navigationtask_flightordersprogress', navigationTaskId)}?contestant_pk=${contestant.pk}`}>
@@ -168,6 +170,13 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
             navigationTaskId={navigationTaskId}
             contestantId={contestant.pk}
             onRecalculated={onRefresh}
+          />
+          <ContestantFormModal
+            ref={editModalRef}
+            contestId={contestId}
+            navigationTaskId={navigationTaskId}
+            contestantId={contestant.pk}
+            onSaved={onRefresh}
           />
         </>
       )}

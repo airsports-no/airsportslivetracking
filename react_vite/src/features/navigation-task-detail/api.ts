@@ -317,7 +317,15 @@ export async function quickAddContestant(
 
 export interface ContestTeamOption {
   id: number;
-  team: { crew: { member1: PersonNameLike; member2: PersonNameLike | null }; aeroplane: { registration: string } };
+  air_speed: number;
+  tracking_service: string;
+  tracking_device: string;
+  tracker_device_id: string | null;
+  team: {
+    id: number;
+    crew: { member1: PersonNameLike; member2: PersonNameLike | null };
+    aeroplane: { registration: string };
+  };
 }
 
 interface PersonNameLike {
@@ -361,6 +369,104 @@ export async function batchUpdateContestants(
   if (!response.ok) {
     const errorMessages = await getErrorMessages(response);
     throw new Error(`Failed to batch-update contestants: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+export interface ContestantEditDetail {
+  contestant_number: number;
+  team: {
+    id: number;
+    crew: { member1: PersonNameLike; member2: PersonNameLike | null };
+    aeroplane: { registration: string };
+  };
+  tracking_service: string;
+  tracking_device: string;
+  tracker_device_id: string | null;
+  takeoff_time: string;
+  adaptive_start: boolean;
+  tracker_start_time: string;
+  finished_by_time: string;
+  minutes_to_starting_point: number;
+  air_speed: number;
+  wind_direction: number;
+  wind_speed: number;
+}
+
+// GET contestants-detail returns the nested-team serialiser (team.id is the underlying Team pk,
+// which is what the flat ContestantSerialiser's own `team` field expects on write) - this is the
+// same REST resource ContestantActionsMenu's other per-contestant actions already use.
+export async function fetchContestantDetail(
+  contestId: number,
+  navigationTaskId: number,
+  contestantId: number
+): Promise<ContestantEditDetail> {
+  const url = reverse('contestants-detail', contestId, navigationTaskId, contestantId);
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to fetch contestant: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+export interface ContestantFormPayload {
+  contestant_number: number;
+  team: number;
+  tracking_service: string;
+  tracking_device: string;
+  tracker_device_id: string;
+  takeoff_time: string;
+  adaptive_start: boolean;
+  tracker_start_time: string;
+  finished_by_time: string;
+  minutes_to_starting_point: number;
+  air_speed: number;
+  wind_direction: number;
+  wind_speed: number;
+}
+
+interface ContestantSaveResult {
+  overlap_warnings: string[];
+}
+
+export async function createContestant(
+  contestId: number,
+  navigationTaskId: number,
+  payload: ContestantFormPayload
+): Promise<ContestantSaveResult> {
+  const url = reverse('contestants-list', contestId, navigationTaskId);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to create contestant: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+// PUT (not PATCH): a full, non-partial update, matching the classic ContestantForm's
+// replace-the-whole-record semantics - see ContestantViewSet.update()/
+// update_contestant_with_related_state, which only re-derives tracking defaults from the
+// team's ContestTeam registration on a non-partial update.
+export async function updateContestant(
+  contestId: number,
+  navigationTaskId: number,
+  contestantId: number,
+  payload: ContestantFormPayload
+): Promise<ContestantSaveResult> {
+  const url = reverse('contestants-detail', contestId, navigationTaskId, contestantId);
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to update contestant: ${errorMessages}`);
   }
   return response.json();
 }
