@@ -72,6 +72,7 @@ from display.models import (
 )
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.permissions import (
+    ContestantDestroyPermissions,
     ContestantNavigationTaskContestPermissions,
     ContestantPublicPermissions,
     ContestModificationPermissions,
@@ -98,6 +99,7 @@ from display.serialisers import (
     AeroplaneSerialiser,
     ApplyQuarantinePenaltySerialiser,
     AssignPlayingCardSerialiser,
+    BatchUpdateContestantsSerialiser,
     ClubManagerMembershipCreateSerializer,
     ClubManagerMembershipSerializer,
     ClubSerialiser,
@@ -182,7 +184,7 @@ from display.tasks import (
     recalculate_existing_positions,
     recalculate_live_data_for_contestant,
 )
-from display.utilities.calculator_running_utilities import is_calculator_running
+from display.utilities.calculator_running_utilities import is_calculator_running, is_dispatch_pending
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
 from display.utilities.show_slug_choices import ShowChoicesMetadata
@@ -1497,6 +1499,7 @@ class NavigationTaskViewSet(ModelViewSet):
         "contestant_self_registration": SelfManagementSerialiser,
         "scorecard": ScorecardNestedSerialiser,
         "create": NavigationTaskEditableRoutReferenceSerialiser,
+        "batch_update_contestants": BatchUpdateContestantsSerialiser,
     }
     default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
     lookup_url_kwarg = "pk"
@@ -1927,6 +1930,69 @@ class NavigationTaskViewSet(ModelViewSet):
             navigation_task.make_unlisted()
         return Response(serialiser.data, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=["post"])
+    def refresh_editable_route(self, request, *args, **kwargs):
+        """
+        Updates the navigation task's Route with any changes made to the linked editable route.
+        Mirrors the classic refresh_editable_route_navigation_task view.
+        """
+        navigation_task = self.get_object()
+        try:
+            navigation_task.refresh_editable_route()
+        except DjangoValidationError as e:
+            raise drf_exceptions.ValidationError(str(e))
+        return Response(status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"])
+    def remove_contestants(self, request, *args, **kwargs):
+        """
+        Deletes every contestant from the navigation task. Mirrors the classic clear_contestants view.
+        """
+        navigation_task = self.get_object()
+        candidates = navigation_task.contestant_set.all()
+        deleted_count = candidates.count()
+        candidates.delete()
+        return Response({"deleted": deleted_count})
+
+    @action(detail=True, methods=["post"])
+    def batch_update_contestants(self, request, *args, **kwargs):
+        """
+        Applies a wind speed/direction update and/or a uniform time shift to a selection of the
+        navigation task's contestants. Mirrors the classic BatchContestantUpdateView, except that
+        (matching the underlying form's own choice-filtering logic, not the view's stricter and
+        inconsistent post() guard - see BatchContestantUpdateForm's comment referencing GH #29)
+        it only skips contestants whose calculator is *currently* running or about to be
+        dispatched, not merely ones that have ever started.
+        """
+        navigation_task = self.get_object()
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        data = serialiser.validated_data
+        delta = (
+            datetime.timedelta(minutes=data["time_shift_minutes"])
+            if data.get("shift_times") and data.get("time_shift_minutes") is not None
+            else None
+        )
+        contestants = navigation_task.contestant_set.select_related("contestanttrack").filter(
+            pk__in=data["contestant_ids"]
+        )
+        updated = 0
+        for contestant in contestants:
+            if is_calculator_running(contestant.pk) or is_dispatch_pending(contestant.pk):
+                continue
+            if data.get("update_wind"):
+                contestant.wind_speed = data.get("wind_speed")
+                contestant.wind_direction = data.get("wind_direction")
+                contestant.predefined_gate_times = None
+            if delta is not None:
+                contestant.tracker_start_time += delta
+                contestant.takeoff_time += delta
+                contestant.finished_by_time += delta
+                contestant.predefined_gate_times = None
+            contestant.save()
+            updated += 1
+        return Response({"updated": updated})
+
 
 class PhotoViewSet(ModelViewSet):
     queryset = Photo.objects.all()
@@ -2293,6 +2359,11 @@ class ContestantViewSet(ModelViewSet):
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
+
+    def get_permissions(self):
+        if self.action == "destroy":
+            return [permissions.IsAuthenticated(), ContestantDestroyPermissions()]
+        return super().get_permissions()
 
     def get_queryset(self):
         navigation_task_id = self.kwargs.get("navigationtask_pk")

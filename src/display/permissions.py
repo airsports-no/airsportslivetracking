@@ -287,6 +287,20 @@ class ContestantNavigationTaskContestPermissions(permissions.BasePermission):
         return False
 
 
+class ContestantDestroyPermissions(ContestantNavigationTaskContestPermissions):
+    """
+    ContestantViewSet.destroy() uses this instead of ContestantNavigationTaskContestPermissions -
+    deleting a single contestant is authorized the same way the classic ContestantDeleteView was,
+    via "change_contest", not the stricter "delete_contest" the base class's DELETE branch maps
+    to (that's reserved for deleting the whole Contest).
+    """
+
+    def has_object_permission(self, request, view, obj):
+        if request.method == "DELETE":
+            return request.user.has_perm("change_contest", obj.navigation_task.contest)
+        return super().has_object_permission(request, view, obj)
+
+
 class RoutePermissions(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in ["GET"]:
@@ -331,9 +345,12 @@ class PhotoPermissions(permissions.BasePermission):
             return False
 
         if request.method in SAFE_METHODS:
-            return nav_task.is_public or request.user.has_perm("display.view_contest", contest) or request.user.has_perm("view_contest", contest)
-        
-        return (
-            request.user.has_perm("display.change_contest", contest) or 
-            request.user.has_perm("change_contest", contest)
+            return (
+                nav_task.is_public
+                or request.user.has_perm("display.view_contest", contest)
+                or request.user.has_perm("view_contest", contest)
+            )
+
+        return request.user.has_perm("display.change_contest", contest) or request.user.has_perm(
+            "change_contest", contest
         )

@@ -1619,6 +1619,23 @@ class AssignPlayingCardSerialiser(serializers.Serializer):
     )
 
 
+class BatchUpdateContestantsSerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    contestant_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=True)
+    update_wind = serializers.BooleanField(write_only=True, required=False, default=False)
+    wind_speed = serializers.FloatField(write_only=True, required=False, min_value=0, max_value=40, allow_null=True)
+    wind_direction = serializers.FloatField(
+        write_only=True, required=False, min_value=0, max_value=360, allow_null=True
+    )
+    shift_times = serializers.BooleanField(write_only=True, required=False, default=False)
+    time_shift_minutes = serializers.FloatField(write_only=True, required=False, allow_null=True)
+
+
 class ContestantTrackWithTrackPointsSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
