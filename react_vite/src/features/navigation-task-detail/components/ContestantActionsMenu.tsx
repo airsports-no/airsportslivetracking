@@ -4,6 +4,7 @@ import { EllipsisVertical } from 'lucide-react';
 import { reverse, generatePath } from '../../../urls';
 import { deleteContestant, recalculateTrack } from '../api';
 import { ContestantRow, supportsDeclarationEditing } from '../types';
+import GateTimesModal, { GateTimesModalHandle } from './GateTimesModal';
 import RecalculateStartTimeModal from './RecalculateStartTimeModal';
 import UploadGpxModal from './UploadGpxModal';
 
@@ -13,20 +14,21 @@ interface ContestantActionsMenuProps {
   navigationTaskId: number;
   taskSubtype?: string | null;
   canManage: boolean;
+  timeZone: string;
   onRefresh: () => void;
   /** Renders the trigger as a vertical-ellipsis icon button (mobile) instead of the text "Actions" button (desktop). */
   iconTrigger?: boolean;
 }
 
-// GPX upload/download, penalty/card, and delete actions still link out to the classic Django
-// pages - they get wired to the Slice 0 REST actions incrementally in follow-up commits (see
-// project memory).
+// GPX download, "processing statistics", and playing-card actions still link out to the classic
+// Django pages - see project memory for what's still pending.
 const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
   contestant,
   contestId,
   navigationTaskId,
   taskSubtype,
   canManage,
+  timeZone,
   onRefresh,
   iconTrigger,
 }) => {
@@ -34,6 +36,7 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
   const [deleting, setDeleting] = useState(false);
   const startTimeModalRef = useRef<HTMLDialogElement>(null);
   const gpxModalRef = useRef<HTMLDialogElement>(null);
+  const gateTimesModalRef = useRef<GateTimesModalHandle>(null);
 
   const handleRecalculateTrack = async () => {
     if (recalculating || !window.confirm('Reset the track/score and reload it from the tracker?')) return;
@@ -67,7 +70,9 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
       </label>
       <ul tabIndex={0} className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-50">
         <li>
-          <a href={reverse('contestant_gate_times', contestant.pk)}>View / remove penalties</a>
+          <button type="button" onClick={() => gateTimesModalRef.current?.open()} className="w-full text-left">
+            View / remove penalties
+          </button>
         </li>
         <li>
           <a href={reverse('contestant_map', contestant.pk)}>Map</a>
@@ -127,6 +132,16 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
           </>
         )}
       </ul>
+      <GateTimesModal
+        ref={gateTimesModalRef}
+        contestId={contestId}
+        navigationTaskId={navigationTaskId}
+        contestantId={contestant.pk}
+        contestantNumber={contestant.contestant_number}
+        canManage={canManage}
+        timeZone={timeZone}
+        onChanged={onRefresh}
+      />
       {canManage && (
         <>
           <UploadGpxModal

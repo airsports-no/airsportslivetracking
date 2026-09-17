@@ -172,6 +172,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                       navigationTaskId={navigationTaskId}
                       taskSubtype={taskSubtype}
                       canManage={canManage}
+                      timeZone={timeZone}
                       onRefresh={onRefresh}
                       iconTrigger
                     />
@@ -312,6 +313,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                         navigationTaskId={navigationTaskId}
                         taskSubtype={taskSubtype}
                         canManage={canManage}
+                        timeZone={timeZone}
                         onRefresh={onRefresh}
                       />
                     </td>
