@@ -58,6 +58,52 @@ export const restartCalculator = (contestId: number, navigationTaskId: number, c
 export const recalculateTrack = (contestId: number, navigationTaskId: number, contestantId: number) =>
   postContestantAction('contestants-recalculate-track', contestId, navigationTaskId, contestantId, 'recalculate the live track');
 
+export async function deleteContestant(contestId: number, navigationTaskId: number, contestantId: number): Promise<void> {
+  const url = reverse('contestants-detail', contestId, navigationTaskId, contestantId);
+  const response = await fetch(url, { method: 'DELETE', headers: getAuthHeaders() });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to delete contestant: ${errorMessages}`);
+  }
+}
+
+export async function recalculateWithStartTime(
+  contestId: number,
+  navigationTaskId: number,
+  contestantId: number,
+  startingPointTime: string
+): Promise<{ id: number }> {
+  const url = reverse('contestants-recalculate-with-start-time', contestId, navigationTaskId, contestantId);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ starting_point_time: startingPointTime }),
+  });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to recalculate with a new start time: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+export async function uploadGpxTrack(
+  contestId: number,
+  navigationTaskId: number,
+  contestantId: number,
+  base64TrackFile: string
+): Promise<void> {
+  const url = reverse('contestants-gpx-track', contestId, navigationTaskId, contestantId);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ track_file: base64TrackFile }),
+  });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to upload GPX track: ${errorMessages}`);
+  }
+}
+
 export async function shareNavigationTask(
   contestId: number,
   navigationTaskId: number,

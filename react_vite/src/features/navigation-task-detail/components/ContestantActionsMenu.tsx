@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EllipsisVertical } from 'lucide-react';
 import { reverse, generatePath } from '../../../urls';
-import { recalculateTrack } from '../api';
+import { deleteContestant, recalculateTrack } from '../api';
 import { ContestantRow, supportsDeclarationEditing } from '../types';
+import RecalculateStartTimeModal from './RecalculateStartTimeModal';
+import UploadGpxModal from './UploadGpxModal';
 
 interface ContestantActionsMenuProps {
   contestant: ContestantRow;
@@ -29,6 +31,9 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
   iconTrigger,
 }) => {
   const [recalculating, setRecalculating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const startTimeModalRef = useRef<HTMLDialogElement>(null);
+  const gpxModalRef = useRef<HTMLDialogElement>(null);
 
   const handleRecalculateTrack = async () => {
     if (recalculating || !window.confirm('Reset the track/score and reload it from the tracker?')) return;
@@ -40,6 +45,18 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
       window.alert(err.message || 'Failed to recalculate the live track');
     } finally {
       setRecalculating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleting || !window.confirm(`Delete contestant #${contestant.contestant_number}? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await deleteContestant(contestId, navigationTaskId, contestant.pk);
+      onRefresh();
+    } catch (err: any) {
+      window.alert(err.message || 'Failed to delete contestant');
+      setDeleting(false);
     }
   };
 
@@ -79,7 +96,9 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
               </a>
             </li>
             <li>
-              <a href={reverse('contestant_uploadgpxtrack', contestant.pk)}>Upload GPX</a>
+              <button type="button" onClick={() => gpxModalRef.current?.showModal()} className="w-full text-left">
+                Upload GPX
+              </button>
             </li>
             <li>
               <a href={reverse('contestant_downloadgpxtrack', contestant.pk)}>Download GPX</a>
@@ -90,7 +109,9 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
               </button>
             </li>
             <li>
-              <a href={reverse('contestant_recalculate_start_time', contestant.pk)}>Recalculate with new start time</a>
+              <button type="button" onClick={() => startTimeModalRef.current?.showModal()} className="w-full text-left">
+                Recalculate with new start time
+              </button>
             </li>
             <li>
               <a href={reverse('processingstatistics', contestant.pk)}>Processing statistics</a>
@@ -99,13 +120,31 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
               <hr className="my-1 border-base-200" />
             </li>
             <li>
-              <a href={reverse('contestant_delete', contestant.pk)} className="text-error">
+              <button type="button" disabled={deleting} onClick={handleDelete} className="w-full text-left text-error">
                 Delete
-              </a>
+              </button>
             </li>
           </>
         )}
       </ul>
+      {canManage && (
+        <>
+          <UploadGpxModal
+            ref={gpxModalRef}
+            contestId={contestId}
+            navigationTaskId={navigationTaskId}
+            contestantId={contestant.pk}
+            onUploaded={onRefresh}
+          />
+          <RecalculateStartTimeModal
+            ref={startTimeModalRef}
+            contestId={contestId}
+            navigationTaskId={navigationTaskId}
+            contestantId={contestant.pk}
+            onRecalculated={onRefresh}
+          />
+        </>
+      )}
     </div>
   );
 };
