@@ -8,7 +8,7 @@ from guardian.shortcuts import assign_perm
 from unittest.mock import patch
 
 from display.default_scorecards.create_scorecards import create_scorecards
-from display.forms import ContestantForm, ContestantQuickAddForm
+from display.forms import ContestantQuickAddForm
 from display.models import (
     Aeroplane,
     Contest,
@@ -21,7 +21,7 @@ from display.models import (
     Team,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.cima_task_type_definitions import LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
+from display.utilities.cima_task_type_definitions import TURNPOINT_HUNT
 from utilities.mock_utilities import TraccarMock
 
 
@@ -80,7 +80,12 @@ class TestTurnpointHuntDeclarationUI(TestCase):
             aeroplane=Aeroplane.objects.create(registration="LN-TPHUNT"),
         )
         self.contest_team = ContestTeam.objects.create(contest=self.contest, team=team, air_speed=70)
-        self.create_url = reverse("contestant_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
+        # ContestantCreateView/contestant_create (classic) was retired in favour of the REST
+        # contestants-list create action (ContestantFormModal, React) - see the
+        # navigation_task_detail_spa_migration project memory.
+        self.create_url = reverse(
+            "contestants-list", kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk}
+        )
         self.quick_add_url = reverse("contestant_quick_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
 
     def _create_contestant(self):
@@ -103,34 +108,9 @@ class TestTurnpointHuntDeclarationUI(TestCase):
                 "wind_speed": 0,
             },
         )
-        self.assertEqual(302, response.status_code)
+        if response.status_code != 200:
+            self.fail(str(response.json()))
         return self.navigation_task.contestant_set.get(team=self.contest_team.team)
-
-    def test_turnpoint_hunt_form_does_not_expose_declaration_fields(self):
-        form = ContestantForm(navigation_task=self.navigation_task)
-        self.assertNotIn("predicted_sequence_1", form.fields)
-        self.assertNotIn("predicted_gate_time_CP1", form.fields)
-
-    def test_turnpoint_hunt_form_does_not_require_declaration_fields(self):
-        form = ContestantForm(
-            navigation_task=self.navigation_task,
-            data={
-                "contestant_number": 1,
-                "team": self.contest_team.team.pk,
-                "tracking_service": str(self.contest_team.tracking_service),
-                "tracking_device": self.contest_team.tracking_device or "",
-                "tracker_device_id": self.contest_team.tracker_device_id or "",
-                "takeoff_time": "2026-08-01T09:55",
-                "adaptive_start": False,
-                "tracker_start_time": "2026-08-01T09:45",
-                "finished_by_time": "2026-08-01T11:30",
-                "minutes_to_starting_point": 5,
-                "air_speed": 70,
-                "wind_direction": 0,
-                "wind_speed": 0,
-            },
-        )
-        self.assertTrue(form.is_valid(), form.errors)
 
     def test_turnpoint_hunt_create_view_persists_empty_declaration_until_editor_is_used(self):
         contestant = self._create_contestant()
@@ -154,18 +134,6 @@ class TestTurnpointHuntDeclarationUI(TestCase):
         self.assertEqual(302, response.status_code)
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
-
-    def test_limited_fuel_turnpoint_hunt_form_does_not_expose_fuel_metadata_field(self):
-        self.navigation_task.task_subtype = LIMITED_FUEL_TURNPOINT_HUNT
-        self.navigation_task.save(update_fields=["task_subtype"])
-        form = ContestantForm(navigation_task=self.navigation_task)
-        self.assertNotIn("fuel_declared_endurance_minutes", form.fields)
-
-    def test_turnpoint_hunt_create_view_does_not_render_task_specific_declaration_section(self):
-        self.client.force_login(self.user)
-        response = self.client.get(self.create_url)
-        self.assertEqual(200, response.status_code)
-        self.assertNotContains(response, "Task-specific declaration")
 
     def test_turnpoint_hunt_contestant_detail_exposes_compiled_payload_even_before_declaration_is_valid(self):
         contestant = self._create_contestant()

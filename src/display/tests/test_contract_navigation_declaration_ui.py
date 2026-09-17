@@ -7,7 +7,6 @@ from django.urls import reverse
 from guardian.shortcuts import assign_perm
 
 from display.default_scorecards.create_scorecards import create_scorecards
-from display.forms import ContestantForm
 from display.models import (
     Aeroplane,
     Contest,
@@ -19,7 +18,7 @@ from display.models import (
     Scorecard,
     Team,
 )
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS, CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION
+from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS, CURVE_NAVIGATION_TIME_ESTIMATION
 from utilities.mock_utilities import TraccarMock
 
 
@@ -80,43 +79,21 @@ class TestContractNavigationDeclarationUI(TestCase):
             aeroplane=Aeroplane.objects.create(registration="LN-DECL"),
         )
         self.contest_team = ContestTeam.objects.create(contest=self.contest, team=team, air_speed=70)
-        self.create_url = reverse("contestant_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
-        self.update_url = None
-
-    def test_contract_navigation_form_does_not_expose_declared_sequence_fields(self):
-        form = ContestantForm(navigation_task=self.navigation_task)
-        self.assertNotIn("declared_before_mp_1", form.fields)
-        self.assertNotIn("declared_before_mp_2", form.fields)
-        self.assertNotIn("declared_after_mp_1", form.fields)
-        self.assertNotIn("declared_after_mp_2", form.fields)
-
-    def test_curve_navigation_form_does_not_expose_prediction_fields(self):
-        curve_route = EditableRoute.objects.create(
-            name="Curve declaration primitives",
-            route={
-                "type": "FeatureCollection",
-                "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "kt-1", "name": "KT1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "secret", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.3, 60.3]}},
-                ],
-            },
+        # ContestantCreateView/contestant_create (classic) was retired in favour of the REST
+        # contestants-list create action (ContestantFormModal, React) - see the
+        # navigation_task_detail_spa_migration project memory.
+        self.create_url = reverse(
+            "contestants-list", kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk}
         )
-        self.navigation_task.task_subtype = CURVE_NAVIGATION_TIME_ESTIMATION
-        self.navigation_task.editable_route = curve_route
-        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
-        form = ContestantForm(navigation_task=self.navigation_task)
-        self.assertNotIn("known_time_gate_prediction_KT1", form.fields)
 
-    def test_precision_navigation_form_does_not_expose_per_waypoint_prediction_fields(self):
-        self.navigation_task.task_subtype = PRECISION_NAVIGATION
-        self.navigation_task.save(update_fields=["task_subtype"])
-        form = ContestantForm(navigation_task=self.navigation_task)
-        self.assertNotIn("known_time_gate_prediction_SP", form.fields)
-        self.assertNotIn("known_time_gate_prediction_TP1", form.fields)
-        self.assertNotIn("known_time_gate_prediction_FP", form.fields)
-
-    def test_create_view_persists_empty_contract_navigation_declaration_until_editor_is_used(self):
+    def test_create_rest_action_leaves_contract_navigation_declaration_incomplete_until_editor_is_used(self):
+        # Unlike the retired classic ContestantCreateView (which called
+        # ContestantTaskCompiler.compile() directly with no declaration_payload, leaving it {}),
+        # the REST create action always runs build_declaration_payload_from_input first (see
+        # contestant_persistence.py's _compile_contestant_configuration) - for contract
+        # navigation that unconditionally synthesizes a minimal declared_sequence of ["MP", "FP"]
+        # even with no input, but still without declared_t_seconds, so the configuration remains
+        # invalid/incomplete until the dedicated declaration editor supplies a real one.
         self.client.force_login(self.user)
         response = self.client.post(
             self.create_url,
@@ -136,49 +113,11 @@ class TestContractNavigationDeclarationUI(TestCase):
                 "wind_speed": 0,
             },
         )
-        if response.status_code != 302:
-            self.fail(str(response.context["form"].errors))
-        self.assertEqual(302, response.status_code)
+        if response.status_code != 200:
+            self.fail(str(response.json()))
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
-        self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
-
-    def test_create_view_does_not_render_progressive_slot_controls(self):
-        self.client.force_login(self.user)
-        response = self.client.get(self.create_url)
-        self.assertEqual(200, response.status_code)
-        self.assertNotContains(response, 'id="add-before-mp-slot"')
-        self.assertNotContains(response, 'id="remove-before-mp-slot"')
-        self.assertNotContains(response, 'id="add-after-mp-slot"')
-        self.assertNotContains(response, 'id="remove-after-mp-slot"')
-        self.assertNotContains(response, 'id="id_declared_before_mp_1"')
-        self.assertNotContains(response, 'id="id_declared_after_mp_1"')
-
-    def test_update_view_does_not_render_existing_slot_values(self):
-        self.client.force_login(self.user)
-        response = self.client.post(
-            self.create_url,
-            {
-                "contestant_number": 1,
-                "team": self.contest_team.team.pk,
-                "tracking_service": str(self.contest_team.tracking_service),
-                "tracking_device": self.contest_team.tracking_device or "",
-                "tracker_device_id": self.contest_team.tracker_device_id or "",
-                "takeoff_time": "2026-08-01T09:55",
-                "adaptive_start": False,
-                "tracker_start_time": "2026-08-01T09:45",
-                "finished_by_time": "2026-08-01T11:30",
-                "minutes_to_starting_point": 5,
-                "air_speed": 70,
-                "wind_direction": 0,
-                "wind_speed": 0,
-            },
-        )
-        self.assertEqual(302, response.status_code)
-        contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
-        update_url = reverse("contestant_update", kwargs={"pk": contestant.pk})
-        response = self.client.get(update_url)
-        self.assertNotContains(response, 'name="declared_before_mp_2"')
-        self.assertNotContains(response, 'name="declared_after_mp_2"')
+        self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {"declared_sequence": ["MP", "FP"]})
+        self.assertFalse(contestant.contestanttaskconfiguration.is_valid)
 
     def test_create_view_persists_empty_curve_navigation_predictions_until_editor_is_used(self):
         curve_route = EditableRoute.objects.create(
@@ -215,7 +154,7 @@ class TestContractNavigationDeclarationUI(TestCase):
                 "wind_speed": 0,
             },
         )
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(200, response.status_code, response.content)
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
 
@@ -246,7 +185,7 @@ class TestContractNavigationDeclarationUI(TestCase):
                 "wind_speed": 0,
             },
         )
-        self.assertEqual(302, create_response.status_code)
+        self.assertEqual(200, create_response.status_code, create_response.content)
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
 
         detail_response = self.client.get(

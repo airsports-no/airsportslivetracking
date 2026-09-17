@@ -76,7 +76,6 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import (
 )
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.forms import (
-    ContestantForm,
     ContestantQuickAddForm,
     ContestForm,
     ContestantMapForm,
@@ -173,16 +172,6 @@ def readyz(request):
         return HttpResponse(status=200)
     except Exception as ex:
         return HttpResponse(str(ex).encode("utf-8"), status=500)
-
-
-class ContestantTimeZoneMixin:
-    """
-    Mixin to ensure that the session time zone is always set to the correct one for the contest
-    """
-
-    def setup(self, request, *args, **kwargs):
-        super().setup(request, *args, **kwargs)
-        timezone.activate(self.get_object().navigation_task.contest.time_zone)
 
 
 class NavigationTaskTimeZoneMixin:
@@ -965,43 +954,6 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
         return fe_url("MISSION_DASHBOARD_DETAIL", contestId=self.object.pk)
 
 
-class ContestantUpdateView(ContestantTimeZoneMixin, GuardianPermissionRequiredMixin, UpdateView):
-    form_class = ContestantForm
-    model = Contestant
-    permission_required = ("display.change_contest",)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["redirect"] = self.get_success_url()
-        context["navigation_task"] = self.get_object().navigation_task
-        return context
-
-    def get_form_kwargs(self):
-        arguments = super().get_form_kwargs()
-        arguments["navigation_task"] = self.get_object().navigation_task
-        return arguments
-
-    def get_success_url(self):
-        navigation_task = self.get_object().navigation_task
-        return fe_url("NAVIGATION_TASK_DETAIL", contestId=navigation_task.contest_id, navigationTaskId=navigation_task.pk)
-
-    def get_permission_object(self):
-        return self.get_object().navigation_task.contest
-
-    def form_valid(self, form):
-        instance = form.save(commit=False)  # type: Contestant
-        instance.predefined_gate_times = None
-        resolution = resolve_contest_access(instance.navigation_task.contest)
-        _assert_can_reserve_task_slot(instance.navigation_task, instance.team, resolution, current_contestant=self.get_object())
-        instance.save()
-        ContestantTaskCompiler(instance).compile(force=True)
-        self.object = instance
-        for warning in self.object.get_overlap_warnings():
-            messages.warning(self.request, warning)
-        return HttpResponseRedirect(self.get_success_url())
-
-
-
 class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
     form_class = ContestantQuickAddForm
     template_name = "display/contestant_quick_create.html"
@@ -1098,51 +1050,6 @@ class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
         return fe_url(
             "NAVIGATION_TASK_DETAIL", contestId=self.navigation_task.contest_id, navigationTaskId=self.navigation_task.pk
         )
-
-
-class ContestantCreateView(GuardianPermissionRequiredMixin, CreateView):
-    form_class = ContestantForm
-    model = Contestant
-    permission_required = ("display.change_contest",)
-
-    def setup(self, request, *args, **kwargs):
-        super().setup(request, *args, **kwargs)
-        self.navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
-        timezone.activate(self.navigation_task.contest.time_zone)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["redirect"] = self.get_success_url()
-        context["navigation_task"] = self.navigation_task
-        return context
-
-    def get_form_kwargs(self):
-        arguments = super().get_form_kwargs()
-        arguments["navigation_task"] = self.navigation_task
-        return arguments
-
-    def get_success_url(self):
-        return fe_url(
-            "NAVIGATION_TASK_DETAIL", contestId=self.navigation_task.contest_id, navigationTaskId=self.navigation_task.pk
-        )
-
-    def get_permission_object(self):
-        return self.navigation_task.contest
-
-    def form_valid(self, form):
-        object = form.save(commit=False)  # type: Contestant
-        object.navigation_task = self.navigation_task
-        resolution = resolve_contest_access(self.navigation_task.contest)
-        try:
-            _assert_can_reserve_task_slot(self.navigation_task, object.team, resolution)
-        except (ValidationError, drf_exceptions.ValidationError) as exc:
-            form.add_error(None, exc)
-            return self.form_invalid(form)
-        object.save()
-        ContestantTaskCompiler(object).compile(force=True)
-        for warning in object.get_overlap_warnings():
-            messages.warning(self.request, warning)
-        return HttpResponseRedirect(self.get_success_url())
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))

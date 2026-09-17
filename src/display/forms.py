@@ -31,7 +31,6 @@ from display.flight_order_and_maps.mbtiles_facade import get_map_details
 
 from display.models import (
     NavigationTask,
-    Contestant,
     Contest,
     Person,
     Team,
@@ -60,7 +59,7 @@ from display.utilities.cima_task_type_definitions import (
     CIRCLE,
     get_task_subtypes_for_family,
 )
-from display.services.task_type_visibility import can_user_see_cima_task_types, can_user_see_task_subtype
+from display.services.task_type_visibility import can_user_see_task_subtype
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, NAVIGATION_TASK_TYPES, PRECISION
 
 FILE_TYPE_CSV = "csv"
@@ -604,80 +603,6 @@ def _known_time_gate_names(navigation_task):
     return result
 
 
-class ContestantForm(forms.ModelForm):
-    def __init__(self, *args, **kwargs):
-        self.navigation_task = kwargs.pop("navigation_task")
-        super().__init__(*args, **kwargs)
-        if not can_user_see_cima_task_types(getattr(self.navigation_task.contest, "created_by", None)):
-            pass
-        self.fields["team"].queryset = self.navigation_task.contest.contest_teams.all()
-        self.fields["contestant_number"].initial = (
-            max([item.contestant_number for item in self.navigation_task.contestant_set.all()]) + 1
-            if self.navigation_task.contestant_set.all().count() > 0
-            else 1
-        )
-        self.fields["wind_speed"].initial = self.navigation_task.wind_speed
-        self.fields["wind_direction"].initial = self.navigation_task.wind_direction
-        self.fields["wind_direction"].initial = self.navigation_task.wind_direction
-
-        datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
-        self.fields["takeoff_time"].widget = datetime_widget
-        self.fields["tracker_start_time"].widget = datetime_widget
-        self.fields["finished_by_time"].widget = datetime_widget
-
-        self.helper = FormHelper()
-        self.helper.attrs = {"enctype": "multipart/form-data"}
-        layout_items = [
-            Fieldset(
-                "Contestant",
-                "contestant_number",
-                "team",
-                "takeoff_time",
-                "adaptive_start",
-                "minutes_to_starting_point",
-                "air_speed",
-                "wind_direction",
-                "wind_speed",
-            ),
-            Fieldset(
-                "Tracking",
-                HTML(
-                    "The below fields can mostly be left alone. Tracker start time and finished by time are calculated automatically to ten minutes prior to the takeoff time with an assumed flight time of maximum two hours with fixed start and five hours with adaptive start. Overwrite this as necessary."
-                ),
-                "tracking_service",
-                "tracking_device",
-                "tracker_device_id",
-                "tracker_start_time",
-                "finished_by_time",
-            ),
-        ]
-        self.helper.layout = Layout(*layout_items, ButtonHolder(Submit("submit", "Submit")))
-
-    def clean(self):
-        return super().clean()
-
-    def get_declaration_payload(self):
-        return {}
-
-    class Meta:
-        model = Contestant
-        fields = (
-            "contestant_number",
-            "team",
-            "tracking_service",
-            "tracking_device",
-            "tracker_device_id",
-            "takeoff_time",
-            "adaptive_start",
-            "tracker_start_time",
-            "finished_by_time",
-            "minutes_to_starting_point",
-            "air_speed",
-            "wind_direction",
-            "wind_speed",
-        )
-
-
 class ContestantQuickAddForm(forms.Form):
     contest_team = forms.ModelChoiceField(queryset=ContestTeam.objects.none(), label="Team")
     starting_point_time = forms.DateTimeField(
@@ -725,7 +650,7 @@ from django.db.models import QuerySet
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Submit, HTML, ButtonHolder, Row, Column
 from django.utils.translation import gettext_lazy as _
-from .models import Contestant, ContestTeam, NavigationTask, ContestantTrack
+from .models import ContestTeam, NavigationTask, ContestantTrack
 
 
 class BatchContestantUpdateForm(forms.Form):

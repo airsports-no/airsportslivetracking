@@ -46,7 +46,12 @@ class TestContestantQuickAddCapacity(TestCase):
         )
         self.contest_team = ContestTeam.objects.create(contest=self.contest, team=guest_team, air_speed=70)
         self.url = reverse("contestant_quick_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
-        self.create_url = reverse("contestant_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
+        # ContestantCreateView/contestant_create (classic) was retired in favour of the REST
+        # contestants-list create action (ContestantFormModal, React) - see the
+        # navigation_task_detail_spa_migration project memory.
+        self.create_url = reverse(
+            "contestants-list", kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk}
+        )
         self.editable_route = EditableRoute.objects.create(
             name="Quick Add Capacity primitives",
             route={
@@ -139,7 +144,7 @@ class TestContestantQuickAddCapacity(TestCase):
         self.assertContains(response, "active pilot capacity")
         self.assertFalse(Contestant.objects.filter(navigation_task=self.navigation_task, team=self.contest_team.team).exists())
 
-    def test_full_create_form_is_blocked_when_contest_capacity_is_full_across_other_tasks(self):
+    def test_full_create_rest_action_is_blocked_when_contest_capacity_is_full_across_other_tasks(self):
         self.client.force_login(self.user)
         other_task = NavigationTask.objects.create(
             name="Other Task 2",
@@ -172,7 +177,7 @@ class TestContestantQuickAddCapacity(TestCase):
             gate_times={},
         )
 
-        with patch("display.views.resolve_contest_access") as mock_resolve:
+        with patch("display.viewsets.resolve_contest_access") as mock_resolve:
             mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
             response = self.client.post(
                 self.create_url,
@@ -193,8 +198,8 @@ class TestContestantQuickAddCapacity(TestCase):
                 },
             )
 
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "active pilot capacity")
+        self.assertEqual(400, response.status_code)
+        self.assertIn("active pilot capacity", str(response.json()))
         self.assertFalse(Contestant.objects.filter(navigation_task=self.navigation_task, team=self.contest_team.team).exists())
 
     def test_quick_add_keeps_contract_declaration_empty_until_dedicated_editor_is_used(self):
