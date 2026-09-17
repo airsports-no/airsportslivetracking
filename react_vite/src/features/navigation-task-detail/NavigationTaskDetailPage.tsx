@@ -158,6 +158,7 @@ const NavigationTaskDetailPage: React.FC = () => {
         canManage={canManage}
         timeZone={task.time_zone}
         runningStatus={runningStatus}
+        onRefresh={load}
       />
 
       <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestId! })} className="btn btn-secondary mt-6">

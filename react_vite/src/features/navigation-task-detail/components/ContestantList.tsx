@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { restartCalculator, terminateCalculator } from '../api';
 import { ContestantRow, TeamDisplay } from '../types';
 import { formatDateHeadingInZone, formatDateKeyInZone, formatTimeInZone, formatWholeNumber, formatWindDirection } from '../utils';
 import ContestantActionsMenu from './ContestantActionsMenu';
@@ -25,21 +26,76 @@ interface ContestantListProps {
   canManage: boolean;
   timeZone: string;
   runningStatus: Record<number, boolean>;
+  onRefresh: () => void;
 }
 
-const LiveDot: React.FC<{ contestant: ContestantRow; isRunning: boolean }> = ({ contestant, isRunning }) => {
+interface LiveDotProps {
+  contestant: ContestantRow;
+  isRunning: boolean;
+  contestId: number;
+  navigationTaskId: number;
+  canManage: boolean;
+  onRefresh: () => void;
+}
+
+const LiveDot: React.FC<LiveDotProps> = ({ contestant, isRunning, contestId, navigationTaskId, canManage, onRefresh }) => {
+  const [busy, setBusy] = useState(false);
+
+  const handleClick = async (action: 'terminate' | 'restart', confirmMessage: string) => {
+    if (busy || !window.confirm(confirmMessage)) return;
+    setBusy(true);
+    try {
+      if (action === 'terminate') {
+        await terminateCalculator(contestId, navigationTaskId, contestant.pk);
+      } else {
+        await restartCalculator(contestId, navigationTaskId, contestant.pk);
+      }
+      onRefresh();
+    } catch (err: any) {
+      window.alert(err.message || `Failed to ${action} the calculator`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (isRunning) {
+    if (!canManage) {
+      return (
+        <div className="tooltip tooltip-right" data-tip="Calculator is running.">
+          <div className="w-3 h-3 rounded-full bg-success animate-pulse" />
+        </div>
+      );
+    }
     return (
-      <div className="tooltip tooltip-right" data-tip="Calculator is running.">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => handleClick('terminate', 'Stop calculator?')}
+        className="tooltip tooltip-right p-0 border-0 bg-transparent"
+        data-tip="Calculator is running."
+      >
         <div className="w-3 h-3 rounded-full bg-success animate-pulse" />
-      </div>
+      </button>
     );
   }
   if (contestant.contestanttrack.calculator_finished) {
+    if (!canManage) {
+      return (
+        <div className="tooltip tooltip-right" data-tip="Finished.">
+          <div className="w-3 h-3 rounded-full bg-error/50" />
+        </div>
+      );
+    }
     return (
-      <div className="tooltip tooltip-right" data-tip="Finished.">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => handleClick('restart', 'Restart calculator?')}
+        className="tooltip tooltip-right p-0 border-0 bg-transparent"
+        data-tip="Restart calculator."
+      >
         <div className="w-3 h-3 rounded-full bg-error/50" />
-      </div>
+      </button>
     );
   }
   return (
@@ -72,6 +128,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
   canManage,
   timeZone,
   runningStatus,
+  onRefresh,
 }) => {
   const groups = groupByDay(contestants, timeZone);
 
@@ -98,7 +155,14 @@ const ContestantList: React.FC<ContestantListProps> = ({
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-2">
-                        <LiveDot contestant={contestant} isRunning={!!runningStatus[contestant.pk]} />
+                        <LiveDot
+                          contestant={contestant}
+                          isRunning={!!runningStatus[contestant.pk]}
+                          contestId={contestId}
+                          navigationTaskId={navigationTaskId}
+                          canManage={canManage}
+                          onRefresh={onRefresh}
+                        />
                         <span className="badge badge-outline badge-sm">{contestant.contestanttrack.current_state}</span>
                       </div>
                     </div>
@@ -188,7 +252,14 @@ const ContestantList: React.FC<ContestantListProps> = ({
                       <TeamDisplayLabel team={contestant.team} />
                     </td>
                     <td>
-                      <LiveDot contestant={contestant} isRunning={!!runningStatus[contestant.pk]} />
+                      <LiveDot
+                        contestant={contestant}
+                        isRunning={!!runningStatus[contestant.pk]}
+                        contestId={contestId}
+                        navigationTaskId={navigationTaskId}
+                        canManage={canManage}
+                        onRefresh={onRefresh}
+                      />
                     </td>
                     <td>
                       {contestant.tracker_id_display.map((tracker) => (

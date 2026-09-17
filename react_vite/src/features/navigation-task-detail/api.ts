@@ -34,6 +34,27 @@ export async function fetchRunningCalculators(navigationTaskId: number): Promise
   return response.json();
 }
 
+async function postContestantAction(
+  actionUrlName: string,
+  contestId: number,
+  navigationTaskId: number,
+  contestantId: number,
+  failureVerb: string
+): Promise<void> {
+  const url = reverse(actionUrlName, contestId, navigationTaskId, contestantId);
+  const response = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to ${failureVerb}: ${errorMessages}`);
+  }
+}
+
+export const terminateCalculator = (contestId: number, navigationTaskId: number, contestantId: number) =>
+  postContestantAction('contestants-terminate', contestId, navigationTaskId, contestantId, 'stop the calculator');
+
+export const restartCalculator = (contestId: number, navigationTaskId: number, contestantId: number) =>
+  postContestantAction('contestants-restart', contestId, navigationTaskId, contestantId, 'restart the calculator');
+
 export async function shareNavigationTask(
   contestId: number,
   navigationTaskId: number,
