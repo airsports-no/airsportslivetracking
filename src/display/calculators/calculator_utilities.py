@@ -23,6 +23,59 @@ def bearing_between(gate1, gate2):
     return calculate_bearing((gate1.latitude, gate1.longitude), (gate2.latitude, gate2.longitude))
 
 
+# Below this separation, two consecutive GPS fixes are indistinguishable from positional noise
+# (typical consumer GPS accuracy is a few metres) - the direction of that displacement vector is
+# essentially random, not the aircraft's real heading. See travel_bearing_from_track.
+MINIMUM_BEARING_BASELINE_METRES = 10.0
+# Bounds how far back travel_bearing_from_track will search for an adequately-separated pair, so
+# a long stationary/very-slow spell (parked, holding) can't make it scan the whole track history.
+MAXIMUM_BEARING_LOOKBACK_POSITIONS = 30
+
+
+def travel_bearing_from_track(
+    track: Sequence[ContestantReceivedPosition],
+    minimum_baseline_metres: float = MINIMUM_BEARING_BASELINE_METRES,
+    maximum_lookback: int = MAXIMUM_BEARING_LOOKBACK_POSITIONS,
+) -> Optional[float]:
+    """
+    The bearing of travel at the end of `track`, found by walking backward from the most recent
+    position until reaching one at least `minimum_baseline_metres` away from it (bounded to the
+    last `maximum_lookback` positions).
+
+    A naive bearing_between(track[-2], track[-1]) is unreliable whenever those two positions
+    happen to be near-duplicates - e.g. a ~1m displacement while the aircraft is doing 80-100kt
+    (should cover ~40-50m/s) falsely computed as a 90+ degree bearing change and triggered a
+    spurious backtracking penalty in production (issue #801). Walking back for a real baseline
+    fixes this without needing to identify *why* the close pair occurred (duplicate/retried
+    report, GPS multipath, or any other cause).
+
+    Returns None if no adequately-separated pair exists within the lookback window (e.g. the
+    aircraft is genuinely stationary or holding) - callers should fall back to their own last
+    known-good bearing, or otherwise treat direction as indeterminate.
+    """
+    from display.utilities.coordinate_utilities import calculate_distance_lat_lon
+
+    track_length = len(track)
+    if track_length < 2:
+        return None
+    last_position = track[-1]
+    # Indexed one at a time (track[-2], track[-3], ...) rather than sliced: the live orchestrator
+    # passes a bounded collections.deque here (see Orchestrator.track), which supports negative
+    # indexing but not slicing.
+    lookback = min(maximum_lookback, track_length - 1)
+    for i in range(2, lookback + 2):
+        candidate = track[-i]
+        distance = calculate_distance_lat_lon(
+            (candidate.latitude, candidate.longitude),
+            (last_position.latitude, last_position.longitude),
+        )
+        if distance >= minimum_baseline_metres:
+            return calculate_bearing(
+                (candidate.latitude, candidate.longitude), (last_position.latitude, last_position.longitude)
+            )
+    return None
+
+
 def load_track_points_traccar_csv(points: list[tuple[datetime.datetime, float, float]]):
     positions = []
     for point in points:

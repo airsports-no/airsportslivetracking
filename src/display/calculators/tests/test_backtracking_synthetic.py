@@ -177,6 +177,34 @@ class TestBacktrackingSynthetic(SyntheticCalculatorTestBase):
         self.assertEqual(self.calculator.update_score.call_count, 1)
         self.assertEqual(self.calculator.tracking_state, self.calculator.TRACKING)
 
+    def test_near_duplicate_position_does_not_trigger_false_backtracking(self):
+        """Regression test for issue #801 (contestant 3489/Yago production incident): a
+        position that's a near-duplicate of the one before it (~1m away, below GPS positional
+        noise floor) must not be treated as a backtrack, even with a zero grace time - a naive
+        point-to-point bearing between two such near-identical positions is essentially random,
+        not the aircraft's real heading. travel_bearing_from_track walks back to the real,
+        well-separated point_a -> point_b baseline instead, preserving the correct heading."""
+        self.scorecard.backtracking_grace_time_seconds = 0
+        gate = self._gate("TP1")
+        self.calculator.tracking_state = self.calculator.TRACKING
+        self.calculator.last_gate_previous_round = gate
+        t0 = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+        track = [self._pos(*self.point_a, t0), self._pos(*self.point_b, t0 + datetime.timedelta(seconds=10))]
+        self.calculator.calculate_track_score(track, gate, gate, gate)
+        self.calculator.update_score.assert_not_called()
+
+        # ~1cm west of point_b - far below the 10m baseline floor. A naive point-to-point
+        # bearing from point_b to this position points due west (~270 degrees, directly
+        # opposite the ~90 degree eastward reference heading) - a clear false "backtrack" if
+        # trusted, despite being a displacement smaller than GPS positional noise.
+        near_duplicate = (self.point_b[0], self.point_b[1] - 0.0000001)
+        track.append(self._pos(*near_duplicate, t0 + datetime.timedelta(seconds=11)))
+        self.calculator.calculate_track_score(track, gate, gate, gate)
+
+        self.calculator.update_score.assert_not_called()
+        self.assertEqual(self.calculator.tracking_state, self.calculator.TRACKING)
+
     def test_effective_grace_seconds_floors_at_denounce_but_never_lowers_a_larger_grace(self):
         """effective_backtracking_grace_seconds is the scorecard's own grace time, floored at
         BACKTRACKING_DENOUNCE_SECONDS - never lower, and never raised when the scorecard's
