@@ -167,6 +167,7 @@ from display.tasks import (
     generate_editable_route_thumbnail,
     import_gpx_track,
 )
+from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
@@ -2773,6 +2774,75 @@ class ContestantViewSet(ModelViewSet):
             )
         )
         return Response({}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def terminate(self, request, pk=None, **kwargs):
+        """
+        Request termination of the contestant's calculator. Blocks until termination is
+        confirmed or the request times out.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        try:
+            contestant.blocking_request_calculator_termination()
+        except TimeoutError:
+            return Response(
+                {"detail": "Calculator termination requested, but not stopped in time."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response({"detail": "Calculator terminated successfully."})
+
+    @action(detail=True, methods=["post"])
+    def restart(self, request, pk=None, **kwargs):
+        """
+        Terminates the contestant's calculator, resets the track/score, and re-arms it to start
+        again on the next received position.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        try:
+            contestant.blocking_request_calculator_termination()
+        except TimeoutError:
+            # Do not reset/restart while the old calculator may still be running - that would
+            # race a second ContestantProcessor against it (see GH #29). Let the caller retry
+            # once it has actually stopped.
+            return Response(
+                {
+                    "detail": "Calculator termination requested, but it did not stop in time. "
+                    "Please try restarting again shortly."
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        contestant.reset_track_and_score()
+        cancel_termination_request(contestant.pk)
+        return Response(
+            {
+                "detail": "Calculator should have been restarted. It may take a few minutes for it to come back to life."
+            }
+        )
+
+    @action(detail=True, methods=["post"])
+    def reset(self, request, pk=None, **kwargs):
+        """
+        Same cleanup as restart (terminates the calculator, clears the track/score/results-
+        service state) but deliberately leaves termination in effect afterwards, so no new
+        calculation starts on the next received position. Use this to clear a contestant's
+        flight/data without immediately reopening it for tracking - call restart separately
+        when ready to try again.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        try:
+            contestant.blocking_request_calculator_termination()
+        except TimeoutError:
+            return Response(
+                {
+                    "detail": "Calculator termination requested, but it did not stop in time. "
+                    "Please try resetting again shortly."
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        contestant.reset_track_and_score()
+        return Response(
+            {"detail": "Contestant reset. No new calculation will start until the calculator is explicitly restarted."}
+        )
 
 
 class ImportFCNavigationTask(ModelViewSet):
