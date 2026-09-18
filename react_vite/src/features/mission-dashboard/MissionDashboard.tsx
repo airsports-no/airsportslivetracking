@@ -271,12 +271,18 @@ const MissionDashboard = () => {
     }, [fetchContestsFromStore, fetchOngoingNavigationFromStore, fetchMyFutureFlightsFromStore, fetchMyContestTeamsFromStore, fetchMyEditorContestsFromStore, fetchMyPreviousFlightsFromStore]);
 
     const handleSliderChange = (newRange: [number, number]) => {
+        // Only local state here - this fires on every drag tick (once per touchmove pixel on a
+        // touchscreen), and updateURL()'s navigate({replace: true}) call hits the browser's
+        // history.replaceState rate limit (100/10s) well before a drag finishes, throwing a
+        // SecurityError (Sentry JAVASCRIPT-REACT-E). The page/URL reset only needs to happen once,
+        // when the drag actually commits - see handleSliderAfterChange below.
         setDateRange(newRange);
-        setCurrentPage(1);
-        updateURL({ page: 1 });
     };
 
     const handleSliderAfterChange = async (newRange: [number, number]) => {
+        setCurrentPage(1);
+        updateURL({ page: 1 });
+
         const newStartDate = new Date(newRange[0]);
         if (oldestContestDate && newStartDate < oldestContestDate) {
             setLoadingMore(true);
