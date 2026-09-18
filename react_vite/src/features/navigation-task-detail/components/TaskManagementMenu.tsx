@@ -134,9 +134,6 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
             <a href={reverse('hangar_flyer', navigationTaskId)}>Hangar flyer</a>
           </li>
         )}
-        <li>
-          <a href={reverse('navigationtask_map', navigationTaskId)}>Navigation Map</a>
-        </li>
         <li className="menu-title">
           <span>Task</span>
         </li>

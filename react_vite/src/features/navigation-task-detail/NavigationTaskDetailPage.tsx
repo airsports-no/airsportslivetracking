@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Calendar, Check, ClipboardList, MapPin, Plus, Trophy } from 'lucide-react';
+import { Calendar, Check, ClipboardList, Map, MapPin, Plus, Trophy } from 'lucide-react';
 import { Loading } from '../route-editor/components/basicComponents';
 import { fetchNavigationTask } from '../competition-map/api';
 import { fetchRunningCalculators, shareNavigationTask, NavigationTaskVisibility } from './api';
 import { NavigationTaskDetail } from './types';
 import ContestantList from './components/ContestantList';
+import GenerateNavigationMapModal, { GenerateNavigationMapModalHandle } from './components/GenerateNavigationMapModal';
 import QuickAddContestantModal, { QuickAddContestantModalHandle } from './components/QuickAddContestantModal';
 import TaskManagementMenu from './components/TaskManagementMenu';
 import { generatePath } from '../../urls';
@@ -31,6 +32,7 @@ const NavigationTaskDetailPage: React.FC = () => {
   const [sharingBusy, setSharingBusy] = useState(false);
   const [runningStatus, setRunningStatus] = useState<Record<number, boolean>>({});
   const quickAddModalRef = useRef<QuickAddContestantModalHandle>(null);
+  const generateMapModalRef = useRef<GenerateNavigationMapModalHandle>(null);
 
   const load = useCallback(async () => {
     if (!contestId || !navigationTaskId) return;
@@ -127,6 +129,14 @@ const NavigationTaskDetailPage: React.FC = () => {
               <Trophy size={14} />
               Results
             </Link>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost join-item gap-1"
+              onClick={() => generateMapModalRef.current?.open()}
+            >
+              <Map size={14} />
+              Map
+            </button>
             {canManage && (
               <Link
                 to={generatePath('CONTESTANT_SCHEDULING', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
@@ -224,6 +234,11 @@ const NavigationTaskDetailPage: React.FC = () => {
           onAdded={load}
         />
       )}
+      <GenerateNavigationMapModal
+        ref={generateMapModalRef}
+        contestId={Number(contestId)}
+        navigationTaskId={Number(navigationTaskId)}
+      />
     </div>
   );
 };

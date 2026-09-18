@@ -64,6 +64,7 @@ from display.models import (
     TrackAnnotation,
     UserTokenGrant,
 )
+from display.flight_order_and_maps.map_constants import LANDSCAPE, MAP_SIZES, ORIENTATIONS, SCALES, SCALE_TO_FIT
 from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_available_map_source_definitions_for_navigation_task,
     validate_map_zoom_level,
@@ -1710,6 +1711,52 @@ class FlightOrderConfigurationSerialiser(serializers.ModelSerializer):
                 validate_map_zoom_level(map_source, None, map_zoom_level)
             except CoreValidationError as exc:
                 raise ValidationError({"map_zoom_level": str(exc.message if hasattr(exc, "message") else exc)})
+        return attrs
+
+
+class GenerateNavigationTaskMapSerialiser(serializers.Serializer):
+    """
+    Mirrors MapForm's field set (forms.py) - the REST equivalent of the classic
+    get_navigation_task_map view's POST handling. Unlike FlightOrderConfigurationSerialiser,
+    this isn't backed by a model - it's a one-off action's input, not persisted state - so every
+    field is required with the same defaults MapForm itself used.
+    """
+
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+    size = serializers.ChoiceField(choices=MAP_SIZES, default=MAP_SIZES[0][0])
+    orientation = serializers.ChoiceField(choices=ORIENTATIONS, default=LANDSCAPE)
+    plot_track_between_waypoints = serializers.BooleanField(default=True)
+    include_meridians_and_parallels_lines = serializers.BooleanField(default=True)
+    scale = serializers.ChoiceField(choices=SCALES, default=SCALE_TO_FIT)
+    map_source = serializers.CharField()
+    include_openaip_overlay = serializers.BooleanField(default=False)
+    zoom_level = serializers.IntegerField(default=12)
+    dpi = serializers.IntegerField(min_value=100, max_value=300, default=150)
+    line_width = serializers.FloatField(min_value=0.1, max_value=10, default=0.5)
+    colour = serializers.CharField(max_length=7, default="#0000ff")
+
+    def validate(self, attrs):
+        navigation_task = self.context["navigation_task"]
+        request = self.context.get("request")
+        valid_keys = {
+            definition["key"]
+            for definition in get_available_map_source_definitions_for_navigation_task(
+                navigation_task,
+                getattr(request, "user", None),
+                uploaded_maps=navigation_task.get_available_user_maps(),
+            )
+        }
+        if attrs["map_source"] not in valid_keys:
+            raise ValidationError({"map_source": "Select a valid choice. That choice is not one of the available choices."})
+        try:
+            validate_map_zoom_level(attrs["map_source"], None, attrs["zoom_level"])
+        except CoreValidationError as exc:
+            raise ValidationError({"zoom_level": str(exc.message if hasattr(exc, "message") else exc)})
         return attrs
 
 

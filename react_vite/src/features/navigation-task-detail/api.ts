@@ -385,6 +385,95 @@ export async function fetchMapSourceOptions(contestId: number, navigationTaskId:
   return response.json();
 }
 
+export interface MapGenerationDefaults {
+  size: string;
+  orientation: string;
+  plot_track_between_waypoints: boolean;
+  include_meridians_and_parallels_lines: boolean;
+  scale: number;
+  map_source: string;
+  include_openaip_overlay: boolean;
+  zoom_level: number;
+  dpi: number;
+  line_width: number;
+  colour: string;
+}
+
+export interface MapGenerationOptions {
+  sources: MapSourceOption[];
+  defaults: MapGenerationDefaults;
+}
+
+// Scoped the same way as fetchMapSourceOptions above, but via map-generation-options - the
+// standalone "Navigation Map" generator is view_contest (any viewer), not change_contest
+// (organiser-only) like flight order configuration, so it needs its own, more permissive
+// backend action rather than reusing map-source-options. Also returns the seed defaults
+// (from the navigation task's flight order configuration) for the same reason - a plain
+// viewer can't call the change_contest-gated flight_order_configuration action to get them.
+export async function fetchMapGenerationOptions(contestId: number, navigationTaskId: number): Promise<MapGenerationOptions> {
+  const url = reverse('navigationtasks-map-generation-options', contestId, navigationTaskId);
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to fetch map source options: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+export interface GenerateMapPayload {
+  size: string;
+  orientation: string;
+  plot_track_between_waypoints: boolean;
+  include_meridians_and_parallels_lines: boolean;
+  scale: number;
+  map_source: string;
+  include_openaip_overlay: boolean;
+  zoom_level: number;
+  dpi: number;
+  line_width: number;
+  colour: string;
+}
+
+export interface GenerateMapResponse {
+  status_check_url: string;
+}
+
+export async function generateNavigationTaskMap(
+  contestId: number,
+  navigationTaskId: number,
+  payload: GenerateMapPayload
+): Promise<GenerateMapResponse> {
+  const url = reverse('navigationtasks-generate-map', contestId, navigationTaskId);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to start map generation: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+export interface MapGenerationStatus {
+  status: 'pending' | 'complete' | 'error';
+  url?: string;
+  warning?: string;
+  message?: string;
+}
+
+// The classic check_map_generation_status view (views.py) - a plain JSON endpoint, not part of
+// the DRF router, but reused as-is since its polling contract (pending/complete/error) needs no
+// changes for this REST-triggered generation to work.
+export async function fetchMapGenerationStatus(statusCheckUrl: string): Promise<MapGenerationStatus> {
+  const response = await fetch(statusCheckUrl, { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    throw new Error('Failed to check map generation status');
+  }
+  return response.json();
+}
+
 export async function quickAddContestant(
   contestId: number,
   navigationTaskId: number,

@@ -19,6 +19,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.db.models import Count, Max, Prefetch, Q
 from django.http import Http404, HttpResponse, StreamingHttpResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.cache import add_never_cache_headers, patch_response_headers
 from django_filters.rest_framework import DjangoFilterBackend
@@ -38,6 +39,7 @@ from display.contestant_scheduling.schedule_contestants import schedule_and_crea
 from display.filters import ContestFilter, NavigationTaskFilter
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.flight_order_and_maps.map_plotter import build_effective_route_distance
+from display.flight_order_and_maps.map_constants import LANDSCAPE
 from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_available_map_source_definitions_for_navigation_task,
     get_builtin_map_source_definitions,
@@ -124,6 +126,7 @@ from display.serialisers import (
     FlightOrderConfigurationSerialiser,
     FutureContestantNestedTeamSerialiser,
     GateCumulativeScoreSerialiser,
+    GenerateNavigationTaskMapSerialiser,
     GpxTrackSerialiser,
     HighlightedContestSerialiser,
     NavigationTaskDetailsUpdateSerialiser,
@@ -184,6 +187,7 @@ from display.services.token_assignment import assign_token_to_contest, replace_t
 from display.tasks import (
     generate_and_maybe_notify_flight_order,
     generate_editable_route_thumbnail,
+    generate_map_async,
     import_gpx_track,
     recalculate_existing_positions,
     recalculate_live_data_for_contestant,
@@ -1516,6 +1520,7 @@ class NavigationTaskViewSet(ModelViewSet):
         "update_details": NavigationTaskDetailsUpdateSerialiser,
         "flight_order_configuration": FlightOrderConfigurationSerialiser,
         "update_flight_order_configuration": FlightOrderConfigurationSerialiser,
+        "generate_map": GenerateNavigationTaskMapSerialiser,
     }
     default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
     lookup_url_kwarg = "pk"
@@ -2137,6 +2142,108 @@ class NavigationTaskViewSet(ModelViewSet):
                 )
                 for definition in definitions
             ]
+        )
+
+    @action(detail=True, methods=["get"], url_path="map-generation-options", permission_classes=[permissions.IsAuthenticated])
+    def map_generation_options(self, request, *args, **kwargs):
+        """
+        The public equivalent of map_source_options above, for the standalone "Navigation Map"
+        generator (generate_map action below) - view_contest, not change_contest, matching the
+        classic get_navigation_task_map view's permission (any viewer can generate this map, not
+        just an organiser - unlike flight order configuration, which really is organiser-only).
+
+        Also returns the seed defaults the classic view's GET branch pre-filled MapForm with
+        (navigation_task.flightorderconfiguration's own fields) - reading them directly here,
+        rather than having the frontend call flight_order_configuration, keeps this whole feature
+        on one view_contest-scoped endpoint instead of depending on a change_contest-gated one
+        that a plain viewer can't reach.
+
+        permission_classes is overridden for the same reason as generate_map below: the class
+        default's has_permission hard-requires change_contest whenever contest_pk is present in
+        the URL, regardless of HTTP method - it would reject a plain view_contest-only viewer's
+        GET here before the view_contest check below even runs.
+        """
+        navigation_task = self.get_object()
+        if not request.user.has_perm("view_contest", navigation_task.contest):
+            raise drf_exceptions.PermissionDenied()
+        definitions = get_available_map_source_definitions_for_navigation_task(
+            navigation_task,
+            request.user,
+            uploaded_maps=navigation_task.get_available_user_maps(),
+        )
+        configuration = navigation_task.flightorderconfiguration
+        return Response(
+            {
+                "sources": [
+                    map_source_definition_to_payload(
+                        definition, origin="user_upload" if definition.get("provider") == "user_uploaded_mbtiles" else "builtin"
+                    )
+                    for definition in definitions
+                ],
+                "defaults": {
+                    "size": configuration.document_size,
+                    "orientation": configuration.map_orientation,
+                    "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
+                    "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
+                    "scale": configuration.map_scale,
+                    "map_source": configuration.map_source,
+                    "include_openaip_overlay": configuration.map_include_openaip_overlay,
+                    "zoom_level": configuration.map_zoom_level,
+                    "dpi": configuration.map_dpi,
+                    "line_width": configuration.map_line_width,
+                    "colour": configuration.map_line_colour,
+                },
+            }
+        )
+
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
+    def generate_map(self, request, *args, **kwargs):
+        """
+        REST equivalent of the classic get_navigation_task_map view's POST handling (views.py) -
+        dispatches the same async Celery task and reuses its cache-key convention exactly, so the
+        existing check_map_generation_status URL/polling contract needs no changes: the frontend
+        polls that classic JSON endpoint directly instead of a new REST action.
+
+        permission_classes is overridden here because the class-level default
+        (NavigationTaskContestPermissions.has_object_permission) hard-requires change_contest for
+        any POST - too strict for this action specifically, which (like the classic view's
+        view_contest guardian check) only needs view_contest, matching map_generation_options
+        above rather than update_flight_order_configuration below.
+        """
+        navigation_task = self.get_object()
+        if not request.user.has_perm("view_contest", navigation_task.contest):
+            raise drf_exceptions.PermissionDenied()
+        serialiser = self.get_serializer(data=request.data, context={**self.get_serializer_context(), "navigation_task": navigation_task})
+        serialiser.is_valid(raise_exception=True)
+        data = serialiser.validated_data
+
+        map_params = {
+            "size": data["size"],
+            "zoom_level": data["zoom_level"],
+            "landscape": data["orientation"] == LANDSCAPE,
+            "annotations": False,
+            "waypoints_only": not data["plot_track_between_waypoints"],
+            "dpi": data["dpi"],
+            "scale": int(data["scale"]),
+            "map_source": data["map_source"],
+            "line_width": data["line_width"],
+            "colour": data["colour"],
+            "include_meridians_and_parallels_lines": data["include_meridians_and_parallels_lines"],
+            "include_openaip_overlay": data["include_openaip_overlay"],
+            "margin": 10,
+        }
+
+        cache_key = f"map_gen_result_{navigation_task.pk}_None_{request.user.id}"
+        cache.delete(cache_key)
+        generate_map_async.delay(navigation_task.pk, None, map_params, request.user.id)
+
+        return Response(
+            {
+                "status_check_url": reverse(
+                    "check_map_generation_status", kwargs={"task_id": navigation_task.pk, "contestant_id": 0}
+                )
+            },
+            status=status.HTTP_202_ACCEPTED,
         )
 
     @action(detail=True, methods=["post"])
