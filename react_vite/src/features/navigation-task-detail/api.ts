@@ -264,6 +264,12 @@ export interface FlightOrderConfiguration {
   map_line_width: number;
   map_minute_mark_line_width: number;
   map_line_colour: string;
+  turning_point_photos_meters_across: number;
+  turning_point_photos_zoom_level: number;
+  unknown_leg_photos_meters_across: number;
+  unknown_leg_photos_zoom_level: number;
+  photos_meters_across: number;
+  photos_zoom_level: number;
 }
 
 export async function fetchFlightOrderConfiguration(

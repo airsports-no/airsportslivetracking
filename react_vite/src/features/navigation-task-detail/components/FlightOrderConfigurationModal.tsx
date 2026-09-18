@@ -16,6 +16,19 @@ interface FlightOrderConfigurationModalProps {
   navigationTaskId: number;
 }
 
+// Mirrors display/flight_order_and_maps/map_constants.py's SCALES - SCALE_TO_FIT (0) means "fit
+// the route to the page" rather than a fixed printed scale.
+const MAP_SCALE_OPTIONS = [
+  { value: 0, label: 'Fit page' },
+  { value: 25, label: '1:25,000' },
+  { value: 50, label: '1:50,000' },
+  { value: 100, label: '1:100,000' },
+  { value: 150, label: '1:150,000' },
+  { value: 200, label: '1:200,000' },
+  { value: 250, label: '1:250,000' },
+  { value: 300, label: '1:300,000' },
+];
+
 const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHandle, FlightOrderConfigurationModalProps>(
   ({ contestId, navigationTaskId }, ref) => {
     const dialogRef = useRef<HTMLDialogElement>(null);
@@ -69,7 +82,7 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
 
     return (
       <dialog ref={dialogRef} className="modal">
-        <div className="modal-box max-w-lg">
+        <div className="modal-box max-w-2xl max-h-[85vh]">
           <form method="dialog">
             <button type="button" className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onClick={() => dialogRef.current?.close()}>
               ✕
@@ -159,15 +172,57 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
                   />
                 </label>
               </div>
-              <label className="form-control">
-                <span className="label-text text-xs">Line colour</span>
-                <input
-                  type="color"
-                  className="input input-bordered input-sm w-20 h-8 p-1"
-                  value={config.map_line_colour}
-                  onChange={(e) => set('map_line_colour', e.target.value)}
-                />
-              </label>
+              <div className="flex gap-2">
+                <label className="form-control flex-1">
+                  <span className="label-text text-xs">Scale</span>
+                  <select
+                    className="select select-bordered select-sm"
+                    value={config.map_scale}
+                    onChange={(e) => set('map_scale', Number(e.target.value))}
+                  >
+                    {MAP_SCALE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="form-control">
+                  <span className="label-text text-xs">Line colour</span>
+                  <input
+                    type="color"
+                    className="input input-bordered input-sm w-20 h-8 p-1"
+                    value={config.map_line_colour}
+                    onChange={(e) => set('map_line_colour', e.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="flex gap-2">
+                <label className="form-control flex-1">
+                  <span className="label-text text-xs">Line width</span>
+                  <input
+                    type="number"
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    className="input input-bordered input-sm w-full"
+                    value={config.map_line_width}
+                    onChange={(e) => set('map_line_width', Number(e.target.value))}
+                  />
+                </label>
+                <label className="form-control flex-1">
+                  <span className="label-text text-xs">Minute mark line width</span>
+                  <input
+                    type="number"
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    className="input input-bordered input-sm w-full"
+                    value={config.map_minute_mark_line_width}
+                    onChange={(e) => set('map_minute_mark_line_width', Number(e.target.value))}
+                  />
+                </label>
+              </div>
               <label className="label cursor-pointer justify-start gap-2">
                 <input
                   type="checkbox"
@@ -176,6 +231,15 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
                   onChange={(e) => set('map_include_annotations', e.target.checked)}
                 />
                 <span className="label-text">Include annotations</span>
+              </label>
+              <label className="label cursor-pointer justify-start gap-2">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-sm"
+                  checked={config.map_include_contestant_declarations}
+                  onChange={(e) => set('map_include_contestant_declarations', e.target.checked)}
+                />
+                <span className="label-text">Include contestant declarations</span>
               </label>
               <label className="label cursor-pointer justify-start gap-2">
                 <input
@@ -204,6 +268,91 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
                 />
                 <span className="label-text">Include OpenAIP overlay</span>
               </label>
+
+              <div className="divider my-0 text-xs">Turning point photos</div>
+              <label className="label cursor-pointer justify-start gap-2">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-sm"
+                  checked={config.include_turning_point_images}
+                  onChange={(e) => set('include_turning_point_images', e.target.checked)}
+                />
+                <span className="label-text">Include turning point photo pages</span>
+              </label>
+              <div className="flex gap-2">
+                <label className="form-control flex-1">
+                  <span className="label-text text-xs">Meters across</span>
+                  <input
+                    type="number"
+                    min={1}
+                    className="input input-bordered input-sm w-full"
+                    value={config.turning_point_photos_meters_across}
+                    onChange={(e) => set('turning_point_photos_meters_across', Number(e.target.value))}
+                  />
+                </label>
+                <label className="form-control flex-1">
+                  <span className="label-text text-xs">Zoom level</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    className="input input-bordered input-sm w-full"
+                    value={config.turning_point_photos_zoom_level}
+                    onChange={(e) => set('turning_point_photos_zoom_level', Number(e.target.value))}
+                  />
+                </label>
+              </div>
+
+              <div className="divider my-0 text-xs">Unknown leg photos</div>
+              <div className="flex gap-2">
+                <label className="form-control flex-1">
+                  <span className="label-text text-xs">Meters across</span>
+                  <input
+                    type="number"
+                    min={1}
+                    className="input input-bordered input-sm w-full"
+                    value={config.unknown_leg_photos_meters_across}
+                    onChange={(e) => set('unknown_leg_photos_meters_across', Number(e.target.value))}
+                  />
+                </label>
+                <label className="form-control flex-1">
+                  <span className="label-text text-xs">Zoom level</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    className="input input-bordered input-sm w-full"
+                    value={config.unknown_leg_photos_zoom_level}
+                    onChange={(e) => set('unknown_leg_photos_zoom_level', Number(e.target.value))}
+                  />
+                </label>
+              </div>
+
+              <div className="divider my-0 text-xs">Observation photos</div>
+              <div className="flex gap-2">
+                <label className="form-control flex-1">
+                  <span className="label-text text-xs">Meters across</span>
+                  <input
+                    type="number"
+                    min={1}
+                    className="input input-bordered input-sm w-full"
+                    value={config.photos_meters_across}
+                    onChange={(e) => set('photos_meters_across', Number(e.target.value))}
+                  />
+                </label>
+                <label className="form-control flex-1">
+                  <span className="label-text text-xs">Zoom level</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    className="input input-bordered input-sm w-full"
+                    value={config.photos_zoom_level}
+                    onChange={(e) => set('photos_zoom_level', Number(e.target.value))}
+                  />
+                </label>
+              </div>
+
               {error && <p className="text-error text-sm">{error}</p>}
               <div className="modal-action">
                 <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>

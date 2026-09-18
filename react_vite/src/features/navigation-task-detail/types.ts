@@ -70,7 +70,18 @@ export interface NavigationTaskDetail {
   is_poker_run: boolean;
 }
 
-const DECLARATION_EDITABLE_SUBTYPES = ['turnpoint_hunt', 'limited_fuel_turnpoint_hunt', 'contract_navigation_time_controls'];
+// known_circuit's editor (KnownCircuitForm, ContestantDeclarationPage.tsx) already existed
+// before curve/precision navigation's did, but was missing from this list too - the declaration
+// is optional there (every turnpoint override defaults to the uniform declared speed), but the
+// editor to set overrides still needs to be reachable.
+const DECLARATION_EDITABLE_SUBTYPES = [
+  'turnpoint_hunt',
+  'limited_fuel_turnpoint_hunt',
+  'contract_navigation_time_controls',
+  'curve_navigation_time_estimation',
+  'precision_navigation',
+  'known_circuit',
+];
 
 export const supportsDeclarationEditing = (taskSubtype?: string | null): boolean =>
   !!taskSubtype && DECLARATION_EDITABLE_SUBTYPES.includes(taskSubtype);

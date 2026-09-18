@@ -57,7 +57,21 @@ def _compile_contestant_configuration(contestant: Contestant, declaration_input)
     compiler = ContestantTaskCompiler(contestant)
     declaration_payload = compiler.build_declaration_payload_from_input(declaration_input)
     if declaration_payload or contestant.navigation_task.task_subtype:
-        compiler.compile(declaration_payload=declaration_payload, force=True)
+        config = compiler.compile(declaration_payload=declaration_payload, force=True)
+        # Contestant.save() (called just above, in both create_contestant_with_related_state
+        # and update_contestant_with_related_state) fires the post_save signal synchronously,
+        # and create_contestant_track_if_not_exists (display/signals.py) serializes this same
+        # `contestant` object for a websocket broadcast, which reads c.gate_times ->
+        # hasattr(self, "contestanttaskconfiguration") - caching the *pre-compile* config (or,
+        # for a brand new contestant, caching "does not exist") on this instance's reverse
+        # one-to-one descriptor. Without overwriting that cache here, every later read of
+        # contestant.contestanttaskconfiguration in this same request/response cycle (the
+        # declaration_payload/declaration_status/compiled_effective_route_payload serializer
+        # fields) sees that stale object - and ContestantNestedTeamSerialiserWithContestantTrack.
+        # get_compiled_effective_route_payload's own compile(force=False) call, comparing the
+        # DB's fresh config against that stale declaration_payload, then "wins" and overwrites
+        # the just-persisted declaration back to the stale value on disk.
+        contestant.contestanttaskconfiguration = config
 
 
 def create_contestant_with_related_state(navigation_task, validated_data: dict, gate_times: dict | None = None, declaration_input=None) -> Contestant:
