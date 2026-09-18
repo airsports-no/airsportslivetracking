@@ -314,6 +314,55 @@ class TestGateCalculator(CalculatorUnitTestBase):
 
         self.assertTrue(any(isinstance(e, InRangeUpdatedEvent) and e.gate == gate for e in events))
 
+    def test_estimate_crossing_time_of_next_timed_gate_accounts_for_intermediate_leg_distance(self):
+        # GitHub issue 788: a straight-line distance from the current position directly to a
+        # distant timed gate badly underestimates the actual remaining distance whenever there
+        # are untimed turnpoints (and therefore turns) in between - e.g. an ANR corridor that
+        # loops back near its own start. Build exactly that: next_gate and the timed gate sit at
+        # the same point, reachable only via a long leg out to an intermediate gate and back.
+        next_gate = MagicMock()
+        next_gate.time_check = False
+        next_gate.distance = 20000  # metres - leg from next_gate to mid_gate
+        proj_start = self.projector.project_point(60.0, 11.0)
+        next_gate.center_x = proj_start.projected_x
+        next_gate.center_y = proj_start.projected_y
+
+        mid_gate = MagicMock()
+        mid_gate.time_check = False
+        mid_gate.distance = 20000  # metres - leg from mid_gate back to the timed gate
+
+        timed_gate = MagicMock()
+        timed_gate.time_check = True
+        timed_gate.latitude = 60.0
+        timed_gate.longitude = 11.0  # Same point as next_gate - the corridor loops back
+        timed_gate.center_x = proj_start.projected_x
+        timed_gate.center_y = proj_start.projected_y
+
+        self.calculator.gates = [next_gate, mid_gate, timed_gate]
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=next_gate,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+
+        # Current position is right at next_gate, so a straight-line distance to the timed gate
+        # (which loops back to the same point) would be ~0 - the bug this guards against.
+        pos = self.create_position(60.0, 11.0, datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc))
+        track = [pos]
+
+        event = self.calculator.estimate_crossing_time_of_next_timed_gate(track, state)
+
+        self.assertIsNotNone(event)
+        self.assertIs(event.gate, timed_gate)
+        # 40000 total metres (two 20000m legs) at the fallback air_speed of 70 knots.
+        expected_seconds = (40000 / 1852 / 70) * 3600
+        actual_seconds = (event.estimated_time - pos.time).total_seconds()
+        self.assertAlmostEqual(actual_seconds, expected_seconds, delta=1)
+
     def test_on_gate_missed(self):
         gate = self.calculator.gates[0]
         gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)

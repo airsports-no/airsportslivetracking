@@ -235,15 +235,25 @@ class GateCalculator(Calculator):
         if state.next_gate is None:
             return None
 
-        # Find next TIMED gate starting from next_gate
+        # Find next TIMED gate starting from next_gate, and accumulate the route-following
+        # (leg-by-leg) distance from next_gate up to (but not including) that timed gate. A
+        # straight-line distance from the current position directly to a distant timed gate
+        # (e.g. FP) badly underestimates the actual remaining distance whenever there are
+        # untimed turnpoints - and therefore turns - in between, such as an ANR corridor: a
+        # contestant only halfway around a winding route can be much closer to FP as the crow
+        # flies than the distance they still have to actually fly. gate.distance (distance_next)
+        # is exactly the leg length from each gate to the next one in route order, in metres.
         next_timed_gate = None
+        remaining_leg_distance_m = 0.0
         started = False
         for gate in self.gates:
             if not started and gate == state.next_gate:
                 started = True
-            if started and gate.time_check:
-                next_timed_gate = gate
-                break
+            if started:
+                if gate.time_check:
+                    next_timed_gate = gate
+                    break
+                remaining_leg_distance_m += gate.distance or 0
 
         if next_timed_gate is None:
             return None
@@ -257,18 +267,18 @@ class GateCalculator(Calculator):
         p_x = getattr(last_pos, "projected_x", None)
         p_y = getattr(last_pos, "projected_y", None)
 
-        if p_x is not None and next_timed_gate.center_x is not None:
+        if p_x is not None and state.next_gate.center_x is not None:
             import math
 
-            distance_m = math.sqrt((p_x - next_timed_gate.center_x) ** 2 + (p_y - next_timed_gate.center_y) ** 2)
-            distance = distance_m / 1852  # nm
+            distance_to_next_gate_m = math.sqrt(
+                (p_x - state.next_gate.center_x) ** 2 + (p_y - state.next_gate.center_y) ** 2
+            )
         else:
-            distance = (
-                calculate_distance_lat_lon(
-                    (last_pos.latitude, last_pos.longitude), (next_timed_gate.latitude, next_timed_gate.longitude)
-                )
-                / 1852
-            )  # nm
+            distance_to_next_gate_m = calculate_distance_lat_lon(
+                (last_pos.latitude, last_pos.longitude), (state.next_gate.latitude, state.next_gate.longitude)
+            )
+
+        distance = (distance_to_next_gate_m + remaining_leg_distance_m) / 1852  # nm
 
         seconds_to_gate = (distance / speed) * 3600
         estimated_time = last_pos.time + datetime.timedelta(seconds=seconds_to_gate)
