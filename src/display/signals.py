@@ -373,6 +373,28 @@ def stop_any_calculators(sender, instance: Contestant, **kwargs):
     ScoreLogEntry.objects.filter(contestant=instance).delete()
 
 
+@receiver(pre_delete, sender=Contestant)
+def clear_team_test_score_on_contestant_delete(sender, instance: Contestant, **kwargs):
+    """
+    TeamTestScore/TaskSummary/ContestSummary are keyed on team, not Contestant, so deleting a
+    contestant used to leave the team's score for this navigation task's auto-generated TaskTest
+    (and therefore its penalties) permanently stuck on the leaderboard - same class of staleness
+    as ContestantTrack.reset() already guards against for restarts, and
+    clear_navigation_task_results_service_test already guards against for deleting the whole
+    navigation task. This is the missing third case: deleting one contestant while the task
+    itself (and other contestants' scores on it) stay untouched.
+    """
+    if not hasattr(instance.navigation_task, "tasktest"):
+        return
+    for team_test_score in TeamTestScore.objects.filter(
+        task_test=instance.navigation_task.tasktest, team=instance.team
+    ):
+        # Must be an explicit per-row .delete() (not a bulk .filter().delete()) so the
+        # post_delete signal fires and TaskSummary/ContestSummary get recalculated - same
+        # requirement noted in clear_navigation_task_results_service_test above.
+        team_test_score.delete()
+
+
 @receiver(pre_save, sender=ContestTeam)
 def validate_contest_team(sender, instance: ContestTeam, **kwargs):
     instance.clean()
