@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { MapPin, Plus, Users } from 'lucide-react';
+import { MapPin, Plus } from 'lucide-react';
 import { Loading } from '../route-editor/components/basicComponents';
 import { fetchNavigationTask } from '../competition-map/api';
 import { fetchRunningCalculators, shareNavigationTask, NavigationTaskVisibility } from './api';
 import { NavigationTaskDetail } from './types';
-import BatchUpdateContestantsModal from './components/BatchUpdateContestantsModal';
 import ContestantList from './components/ContestantList';
 import QuickAddContestantModal, { QuickAddContestantModalHandle } from './components/QuickAddContestantModal';
 import TaskManagementMenu from './components/TaskManagementMenu';
@@ -32,7 +31,6 @@ const NavigationTaskDetailPage: React.FC = () => {
   const [sharingBusy, setSharingBusy] = useState(false);
   const [runningStatus, setRunningStatus] = useState<Record<number, boolean>>({});
   const quickAddModalRef = useRef<QuickAddContestantModalHandle>(null);
-  const batchUpdateModalRef = useRef<HTMLDialogElement>(null);
 
   const load = useCallback(async () => {
     if (!contestId || !navigationTaskId) return;
@@ -111,52 +109,58 @@ const NavigationTaskDetailPage: React.FC = () => {
       </div>
       <p className="text-sm text-gray-500 mb-4">{formatDateInterval(task.start_time, task.finish_time)}</p>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        <Link to={generatePath('SCORECARD_EDITOR', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-sm">
-          Scorecard
-        </Link>
-        <Link to={generatePath('CONTEST_RESULTS_TABLE', { contestId: contestId! })} className="btn btn-sm">
-          Results
-        </Link>
-        <Link
-          to={generatePath('MISSION_DASHBOARD_PHOTOS', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
-          className="btn btn-sm"
-        >
-          Photos
-        </Link>
-        {canManage && (
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        {/* Navigation: destinations that just show data about this task. */}
+        <div className="join">
           <Link
-            to={generatePath('CONTESTANT_SCHEDULING', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
-            className="btn btn-sm"
+            to={generatePath('SCORECARD_EDITOR', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
+            className="btn btn-sm btn-outline join-item"
           >
-            Scheduling
+            Scorecard
           </Link>
-        )}
+          <Link to={generatePath('CONTEST_RESULTS_TABLE', { contestId: contestId! })} className="btn btn-sm btn-outline join-item">
+            Results
+          </Link>
+          <Link
+            to={generatePath('MISSION_DASHBOARD_PHOTOS', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
+            className="btn btn-sm btn-outline join-item"
+          >
+            Photos
+          </Link>
+          {canManage && (
+            <Link
+              to={generatePath('CONTESTANT_SCHEDULING', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
+              className="btn btn-sm btn-outline join-item"
+            >
+              Scheduling
+            </Link>
+          )}
+        </div>
+
         {canManage && (
-          <button type="button" className="btn btn-sm gap-1" onClick={() => quickAddModalRef.current?.open()}>
-            <Plus size={14} />
-            Quick Add
-          </button>
+          <>
+            <div className="divider divider-horizontal mx-0 hidden sm:flex" />
+            {/* Actions: the primary "do something" affordance stays a plain button; anything
+                less frequent lives behind the management dropdown instead of crowding the bar. */}
+            <button type="button" className="btn btn-sm btn-primary gap-1" onClick={() => quickAddModalRef.current?.open()}>
+              <Plus size={14} />
+              Quick Add
+            </button>
+            <TaskManagementMenu contestId={Number(contestId)} navigationTaskId={Number(navigationTaskId)} task={task} onRefresh={load} />
+          </>
         )}
-        {canManage && (
-          <button type="button" className="btn btn-sm gap-1" onClick={() => batchUpdateModalRef.current?.showModal()}>
-            <Users size={14} />
-            Batch Update
-          </button>
-        )}
-        {canManage && <TaskManagementMenu contestId={Number(contestId)} navigationTaskId={Number(navigationTaskId)} task={task} onRefresh={load} />}
       </div>
 
       {canManage && (
-        <div className="mb-6">
-          <span className="font-semibold mr-2">Visibility:</span>
+        <div className="mb-6 flex items-center gap-2">
+          <span className="font-semibold text-sm">Visibility:</span>
           <div className="join">
             {VISIBILITY_OPTIONS.map((option) => (
               <button
                 key={option.value}
                 disabled={sharingBusy}
                 onClick={() => handleShare(option.value)}
-                className={`btn btn-sm join-item ${visibility === option.value ? 'btn-active' : ''}`}
+                className={`btn btn-sm join-item ${visibility === option.value ? 'btn-primary' : 'btn-outline'}`}
               >
                 {option.label}
               </button>
@@ -208,21 +212,12 @@ const NavigationTaskDetailPage: React.FC = () => {
       </Link>
 
       {canManage && (
-        <>
-          <QuickAddContestantModal
-            ref={quickAddModalRef}
-            contestId={Number(contestId)}
-            navigationTaskId={Number(navigationTaskId)}
-            onAdded={load}
-          />
-          <BatchUpdateContestantsModal
-            ref={batchUpdateModalRef}
-            contestId={Number(contestId)}
-            navigationTaskId={Number(navigationTaskId)}
-            contestants={task.contestant_set}
-            onUpdated={load}
-          />
-        </>
+        <QuickAddContestantModal
+          ref={quickAddModalRef}
+          contestId={Number(contestId)}
+          navigationTaskId={Number(navigationTaskId)}
+          onAdded={load}
+        />
       )}
     </div>
   );

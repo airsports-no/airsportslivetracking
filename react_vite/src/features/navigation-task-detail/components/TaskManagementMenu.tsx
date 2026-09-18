@@ -4,6 +4,7 @@ import { Settings } from 'lucide-react';
 import { generatePath, reverse } from '../../../urls';
 import { deleteNavigationTask, refreshEditableRoute, removeAllContestants } from '../api';
 import { NavigationTaskDetail } from '../types';
+import BatchUpdateContestantsModal from './BatchUpdateContestantsModal';
 import ContestantFormModal, { ContestantFormModalHandle } from './ContestantFormModal';
 import FlightOrderConfigurationModal, { FlightOrderConfigurationModalHandle } from './FlightOrderConfigurationModal';
 import UpdateTaskDetailsModal from './UpdateTaskDetailsModal';
@@ -23,6 +24,7 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
   const updateDetailsModalRef = useRef<HTMLDialogElement>(null);
   const flightOrderConfigModalRef = useRef<FlightOrderConfigurationModalHandle>(null);
   const addContestantModalRef = useRef<ContestantFormModalHandle>(null);
+  const batchUpdateModalRef = useRef<HTMLDialogElement>(null);
 
   const nextContestantNumber =
     task.contestant_set.length > 0 ? Math.max(...task.contestant_set.map((c) => c.contestant_number)) + 1 : 1;
@@ -77,6 +79,11 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
               wind/air-speed overrides, etc). */}
           <button type="button" onClick={() => addContestantModalRef.current?.open()} className="w-full text-left">
             Add contestant (advanced)
+          </button>
+        </li>
+        <li>
+          <button type="button" onClick={() => batchUpdateModalRef.current?.showModal()} className="w-full text-left">
+            Batch update contestants
           </button>
         </li>
         <li>
@@ -152,6 +159,13 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
         taskWindDirection={task.wind_direction}
         taskMinutesToStartingPoint={task.minutes_to_starting_point}
         onSaved={onRefresh}
+      />
+      <BatchUpdateContestantsModal
+        ref={batchUpdateModalRef}
+        contestId={contestId}
+        navigationTaskId={navigationTaskId}
+        contestants={task.contestant_set}
+        onUpdated={onRefresh}
       />
     </div>
   );

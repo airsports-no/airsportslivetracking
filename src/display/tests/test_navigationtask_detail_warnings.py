@@ -123,6 +123,23 @@ class TestNavigationTaskDetailWarnings(TestCase):
         self.assertIn("competition-map", data["tracking_link"])
         self.assertFalse(data["is_poker_run"])
 
+    def test_navigation_task_rest_payload_contestants_carry_pk_not_just_id(self):
+        # ModelSerializer only auto-exposes the model field name ("id"), not the .pk alias that
+        # every frontend consumer of this payload (ContestantRow and friends in the
+        # navigation-task-detail feature) actually reads - contestant.pk being silently undefined
+        # broke the "Generate flight order" link, clicking a contestant's team name to edit it
+        # (it opened the create form instead, with empty time fields), and several other
+        # contestant.pk-keyed URLs in ContestantActionsMenu.
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
+        )
+
+        self.assertEqual(200, response.status_code)
+        contestant_payload = response.json()["contestant_set"][0]
+        self.assertEqual(contestant_payload["pk"], contestant_payload["id"])
+        self.assertIsNotNone(contestant_payload["pk"])
+
 
 class TestNavigationTaskDetailTurnpointDeclarationLink(TestCase):
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)

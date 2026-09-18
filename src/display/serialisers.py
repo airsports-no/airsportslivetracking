@@ -1796,6 +1796,13 @@ class ContestantSerialiser(serializers.ModelSerializer):
             self.fields.pop("overlap_warnings", None)
             self.fields.pop("overlapping_tasks", None)
 
+    # ModelSerializer only auto-exposes the model field name ("id"), not the .pk alias every
+    # frontend consumer of this payload (navigation-task-detail's ContestantRow and friends)
+    # actually reads - without this, contestant.pk is silently undefined everywhere in React,
+    # producing URLs like ".../flightordersprogress/?contestant_pk=undefined" and an edit-modal
+    # open(undefined) call that opens create mode instead.
+    pk = serializers.ReadOnlyField()
+
     class Meta:
         model = Contestant
         exclude = ("predefined_gate_times",)
