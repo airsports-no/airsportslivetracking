@@ -280,7 +280,20 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
               <div className="grid grid-cols-2 gap-2">
                 <label className="form-control">
                   <span className="label-text text-xs">Tracking service</span>
-                  <select className="select select-bordered select-sm" value={trackingService} onChange={(e) => setTrackingService(e.target.value)}>
+                  <select
+                    className="select select-bordered select-sm"
+                    value={trackingService}
+                    onChange={(e) => {
+                      const nextService = e.target.value;
+                      setTrackingService(nextService);
+                      // Matches the classic contestant_form.html's changedTrackingService(): a
+                      // Flymaster hardware unit is always tracked as "device" - the app-tracking
+                      // options only make sense for the Air Sports tracking service, so this
+                      // resets to a sensible default whenever the service is actually changed
+                      // (not on initial load/edit, only on this onChange).
+                      setTrackingDevice(nextService === 'flymaster' ? 'device' : 'pilot_app_or_copilot_app');
+                    }}
+                  >
                     {TRACKING_SERVICE_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -292,14 +305,18 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
                   <span className="label-text text-xs">Tracking device</span>
                   <select className="select select-bordered select-sm" value={trackingDevice} onChange={(e) => setTrackingDevice(e.target.value)}>
                     {TRACKING_DEVICE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
+                      <option
+                        key={option.value}
+                        value={option.value}
+                        disabled={trackingService === 'flymaster' && option.value !== 'device'}
+                      >
                         {option.label}
                       </option>
                     ))}
                   </select>
                 </label>
               </div>
-              {trackingDevice === 'device' && (
+              {(trackingDevice === 'device' || trackingService === 'flymaster') && (
                 <label className="form-control">
                   <span className="label-text text-xs">Tracker device ID</span>
                   <input
