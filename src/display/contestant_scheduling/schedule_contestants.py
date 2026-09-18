@@ -25,7 +25,7 @@ def _build_default_declaration_payload(navigation_task: NavigationTask) -> dict:
     if not navigation_task.requires_contestant_task_configuration():
         return {}
     compiled_task = TaskCompiler(navigation_task).compile()
-    if not compiled_task.is_valid:
+    if compiled_task.compiled_payload.get("validation_errors"):
         return {}
     primitives = compiled_task.get_compiled_primitives()
     if navigation_task.task_subtype == "contract_navigation_time_controls":
