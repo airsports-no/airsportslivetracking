@@ -114,6 +114,11 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
           <span>Flight orders &amp; documents</span>
         </li>
         <li>
+          <Link to={generatePath('MISSION_DASHBOARD_PHOTOS', { contestId: String(contestId), navigationTaskId: String(navigationTaskId) })}>
+            Manage photos
+          </Link>
+        </li>
+        <li>
           <a href={reverse('navigationtask_flightordersprogress', navigationTaskId)}>Generate flight orders</a>
         </li>
         <li>

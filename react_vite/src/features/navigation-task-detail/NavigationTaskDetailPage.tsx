@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Calendar, Camera, Check, ClipboardList, MapPin, Plus, Trophy } from 'lucide-react';
+import { Calendar, Check, ClipboardList, MapPin, Plus, Trophy } from 'lucide-react';
 import { Loading } from '../route-editor/components/basicComponents';
 import { fetchNavigationTask } from '../competition-map/api';
 import { fetchRunningCalculators, shareNavigationTask, NavigationTaskVisibility } from './api';
@@ -126,13 +126,6 @@ const NavigationTaskDetailPage: React.FC = () => {
             >
               <Trophy size={14} />
               Results
-            </Link>
-            <Link
-              to={generatePath('MISSION_DASHBOARD_PHOTOS', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
-              className="btn btn-sm btn-ghost join-item gap-1"
-            >
-              <Camera size={14} />
-              Photos
             </Link>
             {canManage && (
               <Link
