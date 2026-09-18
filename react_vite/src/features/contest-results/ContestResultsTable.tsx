@@ -15,13 +15,11 @@ import { Test } from '../../store/contestResultsStore';
 import { fetchContest } from '../mission-dashboard/api';
 import { Contest } from '../mission-dashboard/types';
 
-// TaskViewSet/TaskTestViewSet (viewsets.py) unconditionally reject any update/delete once a
-// task/test is linked to a navigation task (edit the navigation task instead) - offering an
-// enabled Edit/Delete/Move button here just walks the user into a 400. A task counts as linked
-// if any of its tests are (matches TaskViewSet.update's own
-// tasktest_set.filter(navigation_task__isnull=False).exists() check).
+// TaskViewSet.destroy (viewsets.py) rejects deleting a task once it has a test linked to a
+// navigation task (delete the navigation task instead) - editing/reordering a linked task is
+// fine, only removing it is blocked. Matches destroy's own
+// tasktest_set.filter(navigation_task__isnull=False).exists() check.
 const isNavigationLinkedTask = (task: Task) => (task.tasktest_set || []).some((test) => test.navigation_task !== null);
-const NAVIGATION_LINKED_TITLE = 'Linked to a navigation task - edit or delete it there instead';
 
 const teamRankingTable = (team: any) => {
   if (!team) return 'N/A';
@@ -117,19 +115,20 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   };
 
   const handleMoveTask = async (task: Task, direction: 'left' | 'right') => {
-    if (!results || isNavigationLinkedTask(task)) return;
+    // Editing/reordering a navigation-linked task is allowed - only deleting one is blocked
+    // (TaskViewSet.destroy rejects it when it has a linked test), so no navigation-link guard
+    // here.
+    if (!results) return;
     const tasks = (results.task_set || []).sort((a, b) => ((a.index || 0) > (b.index || 0) ? 1 : -1));
     const currentIndex = tasks.findIndex((t) => t.id === task.id);
 
     if (direction === 'left' && currentIndex > 0) {
       const otherTask = tasks[currentIndex - 1];
-      if (isNavigationLinkedTask(otherTask)) return;
       const taskA = { ...task, index: task.index - 1 };
       const taskB = { ...otherTask, index: otherTask.index + 1 };
       await Promise.all([createOrUpdateTask(contestId, taskA), createOrUpdateTask(contestId, taskB)]);
     } else if (direction === 'right' && currentIndex < tasks.length - 1) {
       const otherTask = tasks[currentIndex + 1];
-      if (isNavigationLinkedTask(otherTask)) return;
       const taskA = { ...task, index: task.index + 1 };
       const taskB = { ...otherTask, index: otherTask.index - 1 };
       await Promise.all([createOrUpdateTask(contestId, taskA), createOrUpdateTask(contestId, taskB)]);
@@ -360,8 +359,8 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                       handleMoveTask(task, 'left');
                     }}
                     className="btn btn-xs btn-ghost"
-                    disabled={index === 0 || isNavigationLinkedTask(task)}
-                    title={isNavigationLinkedTask(task) ? NAVIGATION_LINKED_TITLE : 'Move task left'}
+                    disabled={index === 0}
+                    title="Move task left"
                   >
                     <ChevronLeftIcon size={12} />
                   </button>
@@ -371,8 +370,8 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                       handleMoveTask(task, 'right');
                     }}
                     className="btn btn-xs btn-ghost"
-                    disabled={index === tasksToRender.length - 1 || isNavigationLinkedTask(task)}
-                    title={isNavigationLinkedTask(task) ? NAVIGATION_LINKED_TITLE : 'Move task right'}
+                    disabled={index === tasksToRender.length - 1}
+                    title="Move task right"
                   >
                     <ChevronRightIcon size={12} />
                   </button>
@@ -382,8 +381,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                       handleEditTask(task);
                     }}
                     className="btn btn-xs btn-ghost"
-                    disabled={isNavigationLinkedTask(task)}
-                    title={isNavigationLinkedTask(task) ? NAVIGATION_LINKED_TITLE : 'Edit task'}
+                    title="Edit task"
                   >
                     <PencilIcon size={12} />
                   </button>
@@ -394,7 +392,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                     }}
                     className="btn btn-xs btn-ghost"
                     disabled={isNavigationLinkedTask(task)}
-                    title={isNavigationLinkedTask(task) ? NAVIGATION_LINKED_TITLE : 'Delete task'}
+                    title={isNavigationLinkedTask(task) ? 'Linked to a navigation task - cannot be deleted' : 'Delete task'}
                   >
                     <Trash2Icon size={12} />
                   </button>

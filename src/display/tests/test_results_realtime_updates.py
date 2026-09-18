@@ -531,7 +531,11 @@ class NavigationTaskResultsServiceTests(APITransactionTestCase):
         self.assertEqual(task_test.weight, 2.5)
         self.assertEqual(task_test.name, "Navigation")
 
-    def test_navigation_backed_task_cannot_be_updated_via_results_api(self, *_args):
+    def test_navigation_backed_task_can_still_be_updated_via_results_api(self, *_args):
+        # Unlike a navigation-backed TEST (name/heading locked, see
+        # test_navigation_backed_test_cannot_be_updated_via_results_api), a navigation-backed
+        # TASK has no such restriction - only deleting one is blocked. Renaming/reweighting/
+        # reordering it in the results table is a normal, allowed edit.
         linked_task = self.navigation_task.tasktest.task
         response = self.client.put(
             reverse("tasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": linked_task.id}),
@@ -540,16 +544,17 @@ class NavigationTaskResultsServiceTests(APITransactionTestCase):
                 "contest": self.contest.id,
                 "name": linked_task.name,
                 "heading": "Changed Task Heading",
-                "weight": linked_task.weight,
+                "weight": 3,
                 "index": linked_task.index,
                 "autosum_scores": linked_task.autosum_scores,
                 "summary_score_sorting_direction": linked_task.summary_score_sorting_direction,
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         linked_task.refresh_from_db()
-        self.assertEqual(linked_task.heading, self.navigation_task.name)
+        self.assertEqual(linked_task.heading, "Changed Task Heading")
+        self.assertEqual(linked_task.weight, 3)
 
 
 class ContestResultsEndpointBroadcastTests(APITransactionTestCase):

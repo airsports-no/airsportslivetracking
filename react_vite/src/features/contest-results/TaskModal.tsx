@@ -33,7 +33,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ show, onClose, onSubmit, t
   }, [task, show]);
 
   const handleSubmit = () => {
-    const isNavigationTask = task?.tasktest_set?.some(tt => tt.navigation_task !== null);
     const editedTask: Task = {
       ...task,
       id: task?.id || 0,
@@ -41,7 +40,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ show, onClose, onSubmit, t
       heading: name, // Ensure heading is always the same as name
       weight,
       autosum_scores: autosumScores,
-      summary_score_sorting_direction: isNavigationTask ? task.summary_score_sorting_direction : sortingDirection,
+      summary_score_sorting_direction: sortingDirection,
       index: task?.index || 0,
       tasksummary_set: task?.tasksummary_set || [],
       tasktest_set: task?.tasktest_set || [],
@@ -53,8 +52,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ show, onClose, onSubmit, t
   if (!show) {
     return null;
   }
-
-  const isNavigationTask = task?.tasktest_set?.some(tt => tt.navigation_task !== null);
 
   return (
     <dialog open className="modal">
@@ -72,7 +69,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ show, onClose, onSubmit, t
               setName(e.target.value);
             }}
             className="input input-bordered"
-            disabled={isNavigationTask}
           />
         </div>
 
@@ -84,7 +80,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ show, onClose, onSubmit, t
               checked={autosumScores}
               onChange={(e) => setAutosumScores(e.target.checked)}
               className="checkbox"
-              disabled={isNavigationTask}
             />
           </label>
         </div>
@@ -99,25 +94,22 @@ export const TaskModal: React.FC<TaskModalProps> = ({ show, onClose, onSubmit, t
             onChange={(e) => setWeight(parseFloat(e.target.value))}
             step="0.1"
             className="input input-bordered"
-            disabled={isNavigationTask}
           />
         </div>
 
-        {!isNavigationTask && (
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text">Score Sorting Direction</span>
-            </label>
-            <select
-              value={sortingDirection}
-              onChange={(e) => setSortingDirection(e.target.value)}
-              className="select select-bordered"
-            >
-              <option value="asc">Ascending</option>
-              <option value="desc">Descending</option>
-            </select>
-          </div>
-        )}
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text">Score Sorting Direction</span>
+          </label>
+          <select
+            value={sortingDirection}
+            onChange={(e) => setSortingDirection(e.target.value)}
+            className="select select-bordered"
+          >
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </div>
 
         <div className="modal-action">
           <button onClick={handleSubmit} className="btn btn-primary">
