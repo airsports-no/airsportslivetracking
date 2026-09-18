@@ -9,34 +9,24 @@ from django.db.models import Q
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.contestant_scheduling.contestant_scheduler import TeamDefinition, Solver
 from display.models import NavigationTask, ContestTeam, Contestant
-from display.services.task_compiler import TaskCompiler
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.utilities.navigation_task_type_definitions import LANDING
 
 logger = logging.getLogger(__name__)
 
-# Scheduler-created contract-navigation contestants are seeded with a conservative
-# placeholder declaration so downstream compilation has an explicit T contract.
-# Organizers are expected to review/edit the declaration in the dedicated editor
-# before using the contestant for real competition operations.
-DEFAULT_CONTRACT_NAVIGATION_T_SECONDS = 600
 
 def _build_default_declaration_payload(navigation_task: NavigationTask) -> dict:
-    if not navigation_task.requires_contestant_task_configuration():
-        return {}
-    compiled_task = TaskCompiler(navigation_task).compile()
-    if compiled_task.compiled_payload.get("validation_errors"):
-        return {}
-    primitives = compiled_task.get_compiled_primitives()
-    if navigation_task.task_subtype == "contract_navigation_time_controls":
-        catalogue_turnpoints = [name for name in primitives.get("catalogue_turnpoint", []) if name not in ("MP", "FP")]
-        if not catalogue_turnpoints:
-            return {}
-        declared_sequence = [catalogue_turnpoints[0], "MP"]
-        if len(catalogue_turnpoints) > 1:
-            declared_sequence.append(catalogue_turnpoints[1])
-        declared_sequence.append("FP")
-        return {"declared_sequence": declared_sequence, "declared_t_seconds": DEFAULT_CONTRACT_NAVIGATION_T_SECONDS}
+    """
+    Scheduler-created contestants requiring a contract-navigation declaration start genuinely
+    undeclared. This previously synthesized a placeholder using only the first two available
+    catalogue turnpoints - which silently looked like a real, valid declaration (hiding the
+    missing-declaration warning) even though no pilot or organizer had ever reviewed it, and per
+    the CIMA 2.A3 rules a pilot's choice of which catalogue turnpoints to declare isn't something
+    a sensible default can stand in for anyway. Kept as its own function (rather than inlining {}
+    at each call site) so the callers below stay declarative about what they're seeding, and so
+    existing tests can still mock it independent of schedule_and_create_contestants' other
+    behavior.
+    """
     return {}
 
 
