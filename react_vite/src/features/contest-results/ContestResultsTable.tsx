@@ -8,7 +8,7 @@ import { EditableCell } from '../../components/common/DataTable/EditableCell';
 import { useScoreUpdates } from '../../hooks/useScoreUpdates';
 import { TaskModal } from './TaskModal';
 import { TestModal } from './TestModal';
-import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon, DownloadIcon, ArrowLeftIcon } from 'lucide-react';
+import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon, DownloadIcon, ArrowLeftIcon, WifiOffIcon } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { generatePath, reverse } from '../../urls';
 import { Test } from '../../store/contestResultsStore';
@@ -45,6 +45,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   const results = useContestResultsStore((state) => state.results);
   const loading = useContestResultsStore((state) => state.loading);
   const error = useContestResultsStore((state) => state.error);
+  const wsConnected = useContestResultsStore((state) => state.wsConnected);
   const fetchResults = useContestResultsStore((state) => state.fetchResults);
   const createOrUpdateTask = useContestResultsStore((state) => state.createOrUpdateTask);
   const createOrUpdateTest = useContestResultsStore((state) => state.createOrUpdateTest);
@@ -511,6 +512,12 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
 
   return (
     <div>
+      {!wsConnected && (
+        <div role="alert" className="alert alert-warning mb-4 py-2">
+          <WifiOffIcon size={16} />
+          <span>Live updates disconnected - reconnecting...</span>
+        </div>
+      )}
       <div className="mb-8">
         {(contest?.header_image || contest?.logo) && (
           <img

@@ -273,3 +273,26 @@ describe('useContestResultsStore.applyRealtimeMessage', () => {
     expect(useContestResultsStore.getState().results?.contestsummary_set[0].total_score).toBe(55);
   });
 });
+
+describe('wsConnected', () => {
+  it('is a field independent of error - setWsConnected(false) does not touch error, and vice versa', () => {
+    // Regression coverage: a websocket disconnect used to call setError(...), which
+    // ContestResultsTable.tsx renders as a full-page "Error: ..." replacement in place of the
+    // whole results table - with nothing ever clearing it again even after the socket
+    // reconnected. useContestResultsWebSocket now only ever calls setWsConnected, and
+    // ContestResultsTable shows a small non-blocking banner for it instead.
+    useContestResultsStore.setState({ error: null, wsConnected: true });
+
+    useContestResultsStore.getState().setWsConnected(false);
+    expect(useContestResultsStore.getState().wsConnected).toBe(false);
+    expect(useContestResultsStore.getState().error).toBeNull();
+
+    useContestResultsStore.getState().setError('Failed to save task');
+    expect(useContestResultsStore.getState().error).toBe('Failed to save task');
+    expect(useContestResultsStore.getState().wsConnected).toBe(false);
+
+    useContestResultsStore.getState().setWsConnected(true);
+    expect(useContestResultsStore.getState().wsConnected).toBe(true);
+    expect(useContestResultsStore.getState().error).toBe('Failed to save task');
+  });
+});

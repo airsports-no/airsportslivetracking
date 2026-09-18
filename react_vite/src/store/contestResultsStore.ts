@@ -100,12 +100,20 @@ export interface ContestResultsState {
   results: ContestResults | null;
   loading: boolean;
   error: string | null;
+  // Separate from `error` on purpose: `error` drives ContestResultsTable's full-page
+  // "Error: ..." replacement (see the crash report this was added for - a websocket
+  // disconnect used to call setError, blanking the whole page, with nothing ever clearing it
+  // even after the socket successfully reconnected). Live-update connectivity is a much
+  // smaller concern than "the fetch that loaded this page failed" and must never hide the
+  // table - useContestResultsWebSocket only ever touches this field, never `error`.
+  wsConnected: boolean;
 
   fetchResults: (id: number) => Promise<void>;
   setContestId: (id: number) => void;
   setResults: (results: ContestResultsState['results']) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setWsConnected: (connected: boolean) => void;
   applyRealtimeMessage: (message: any) => void;
   createOrUpdateTask: (contestId: number, task: Task) => Promise<void>;
   createOrUpdateTest: (contestId: number, taskId: number, test: Test) => Promise<void>;
@@ -249,11 +257,13 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
   results: null,
   loading: false,
   error: null,
+  wsConnected: true,
 
   setContestId: (id) => set({ contestId: id }),
   setResults: (results) => set({ results }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+  setWsConnected: (wsConnected) => set({ wsConnected }),
 
   applyRealtimeMessage: (message) => {
     if (!message || typeof message !== 'object') {
