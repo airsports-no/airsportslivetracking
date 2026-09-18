@@ -99,6 +99,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ show, onClose, onSubmit, t
             onChange={(e) => setWeight(parseFloat(e.target.value))}
             step="0.1"
             className="input input-bordered"
+            disabled={isNavigationTask}
           />
         </div>
 

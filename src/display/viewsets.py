@@ -2670,9 +2670,18 @@ class TaskTestViewSet(ModelViewSet):
     def update(self, request, *args, **kwargs):
         task_test = self.get_object()
         if task_test.navigation_task_id is not None:
-            raise drf_exceptions.ValidationError(
-                "Cannot modify a test that is linked to a navigation task. Modify the navigation task instead."
-            )
+            # Only the name/heading are locked to the navigation task's own naming - weight
+            # (how much this test counts toward the task summary) and index (its column order)
+            # are still organiser-editable, matching TestModal.tsx's own field-level design
+            # (it already disables the name input and hides sorting for a navigation-linked
+            # test, but leaves weight editable). Comparing against the current stored value
+            # rather than outright rejecting the whole request lets those fields through.
+            new_name = request.data.get("name", task_test.name)
+            new_heading = request.data.get("heading", task_test.heading)
+            if new_name != task_test.name or new_heading != task_test.heading:
+                raise drf_exceptions.ValidationError(
+                    "Cannot rename a test that is linked to a navigation task. Rename the navigation task instead."
+                )
         contest_id = self.kwargs.get("contest_pk")
         new_task_id = request.data.get("task")
         if new_task_id is not None and not Task.objects.filter(pk=new_task_id, contest_id=contest_id).exists():

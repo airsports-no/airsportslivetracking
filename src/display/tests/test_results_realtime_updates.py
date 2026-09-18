@@ -506,6 +506,31 @@ class NavigationTaskResultsServiceTests(APITransactionTestCase):
         self.navigation_task.tasktest.refresh_from_db()
         self.assertEqual(self.navigation_task.tasktest.name, "Navigation")
 
+    def test_navigation_backed_test_weight_can_still_be_changed_via_results_api(self, *_args):
+        # Only renaming/deleting a navigation-linked test is blocked - TestModal.tsx's own
+        # design already locks the name field (and hides sorting) for one of these but leaves
+        # weight editable, so the backend must accept a weight-only change (name/heading
+        # unchanged) rather than rejecting the whole update outright.
+        task_test = self.navigation_task.tasktest
+        response = self.client.put(
+            reverse("tasktests-detail", kwargs={"contest_pk": self.contest.pk, "pk": task_test.id}),
+            data={
+                "id": task_test.id,
+                "task": task_test.task_id,
+                "name": task_test.name,
+                "heading": task_test.heading,
+                "weight": 2.5,
+                "sorting": task_test.sorting,
+                "index": task_test.index,
+                "navigation_task": self.navigation_task.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        task_test.refresh_from_db()
+        self.assertEqual(task_test.weight, 2.5)
+        self.assertEqual(task_test.name, "Navigation")
+
     def test_navigation_backed_task_cannot_be_updated_via_results_api(self, *_args):
         linked_task = self.navigation_task.tasktest.task
         response = self.client.put(

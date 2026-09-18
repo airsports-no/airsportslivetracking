@@ -137,13 +137,15 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   };
 
   const handleMoveTest = async (test: Test, task: Task, direction: 'left' | 'right') => {
-    if (!task.tasktest_set || test.navigation_task !== null) return;
+    // Reordering (index) and weight are still allowed for a navigation-linked test - only
+    // renaming/deleting it is blocked (TaskTestViewSet.update only rejects an actual name/
+    // heading change) - so no navigation_task guard here, unlike handleMoveTask.
+    if (!task.tasktest_set) return;
     const tests = [...task.tasktest_set].sort((a, b) => ((a.index || 0) > (b.index || 0) ? 1 : -1));
     const currentIndex = tests.findIndex((t) => t.id === test.id);
 
     if (direction === 'left' && currentIndex > 0) {
       const otherTest = tests[currentIndex - 1];
-      if (otherTest.navigation_task !== null) return;
       const testA = { ...test, index: test.index - 1 };
       const testB = { ...otherTest, index: otherTest.index + 1 };
       await Promise.all([
@@ -152,7 +154,6 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
       ]);
     } else if (direction === 'right' && currentIndex < tests.length - 1) {
       const otherTest = tests[currentIndex + 1];
-      if (otherTest.navigation_task !== null) return;
       const testA = { ...test, index: test.index + 1 };
       const testB = { ...otherTest, index: otherTest.index - 1 };
       await Promise.all([
@@ -276,8 +277,8 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                           handleMoveTest(test, task, 'left');
                         }}
                         className="btn btn-xs btn-ghost"
-                        disabled={testIndex === 0 || test.navigation_task !== null}
-                        title={test.navigation_task !== null ? NAVIGATION_LINKED_TITLE : 'Move test left'}
+                        disabled={testIndex === 0}
+                        title="Move test left"
                       >
                         <ChevronLeftIcon size={12} />
                       </button>
@@ -287,8 +288,8 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                           handleMoveTest(test, task, 'right');
                         }}
                         className="btn btn-xs btn-ghost"
-                        disabled={testIndex === tests.length - 1 || test.navigation_task !== null}
-                        title={test.navigation_task !== null ? NAVIGATION_LINKED_TITLE : 'Move test right'}
+                        disabled={testIndex === tests.length - 1}
+                        title="Move test right"
                       >
                         <ChevronRightIcon size={12} />
                       </button>
@@ -298,8 +299,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                           handleEditTest(test, task);
                         }}
                         className="btn btn-xs btn-ghost"
-                        disabled={test.navigation_task !== null}
-                        title={test.navigation_task !== null ? NAVIGATION_LINKED_TITLE : 'Edit test'}
+                        title="Edit test"
                       >
                         <PencilIcon size={12} />
                       </button>
@@ -310,7 +310,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                         }}
                         className="btn btn-xs btn-ghost"
                         disabled={test.navigation_task !== null}
-                        title={test.navigation_task !== null ? NAVIGATION_LINKED_TITLE : 'Delete test'}
+                        title={test.navigation_task !== null ? 'Linked to a navigation task - cannot be deleted' : 'Delete test'}
                       >
                         <Trash2Icon size={12} />
                       </button>
