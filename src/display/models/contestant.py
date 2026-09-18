@@ -988,6 +988,31 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             results.append((contestant, is_simulator))
         return results
 
+    def is_currently_visible_on_live_map(self) -> bool:
+        """
+        Whether this contestant's calculator is running AND enough real time has passed for its
+        delayed position data to have actually started appearing on the live map.
+
+        display.calculators.contestant_processor.py's ContestantProcessor withholds every
+        position until device_time + calculation_delay_minutes before processing/transmitting it
+        (self.delay) - calculator_started alone says nothing about whether that delay has
+        elapsed yet. Without this check, a "currently live"/"active now" indicator would tell
+        spectators a contestant can be watched the instant its calculator starts, even though
+        the map has nothing to show for calculation_delay_minutes more minutes.
+
+        tracker_start_time is used as the delay's anchor (rather than the actual first received
+        position's device_time, which isn't modeled relationally) - a reasonable proxy given
+        tracking is expected to begin at or close to that time.
+        """
+        track = getattr(self, "contestanttrack", None)
+        if track is None or not track.calculator_started or track.calculator_finished:
+            return False
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if self.finished_by_time <= now:
+            return False
+        delay = datetime.timedelta(minutes=self.navigation_task.calculation_delay_minutes)
+        return now >= self.tracker_start_time + delay
+
     def is_currently_tracked_by_device(self, device_id: str) -> bool:
         """
         Returns true unless tracking_device is TRACKING_PILOT_AND_COPILOT because the contestant cannot be tracked

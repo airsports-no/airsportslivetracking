@@ -2023,12 +2023,16 @@ class OngoingNavigationSerialiser(serializers.ModelSerializer):
 
     @extend_schema_field(ContestantTickerSerialiser(many=True))
     def get_active_contestants(self, navigation_task):
+        # Synchronize with the ongoing_navigation viewset action's own filtering - both must
+        # apply Contestant.is_currently_visible_on_live_map so a contestant can't appear as
+        # "active" in one place while the other still shows the raw, delay-unaware set.
         if hasattr(navigation_task, "prefetched_active_contestants"):
-            active_contestants = navigation_task.prefetched_active_contestants
+            candidates = navigation_task.prefetched_active_contestants
         else:
-            active_contestants = navigation_task.contestant_set.filter(
+            candidates = navigation_task.contestant_set.filter(
                 contestanttrack__calculator_started=True, contestanttrack__calculator_finished=False
-            )
+            ).select_related("contestanttrack", "navigation_task")
+        active_contestants = [c for c in candidates if c.is_currently_visible_on_live_map()]
         serialiser = ContestantTickerSerialiser(active_contestants, many=True, read_only=True)
         return serialiser.data
 

@@ -858,7 +858,14 @@ class ContestViewSet(ModelViewSet):
         # if request.META.get("HTTP_IF_NONE_MATCH") == etag:
         #     return Response(status=status.HTTP_304_NOT_MODIFIED)
 
-        # Synchronize with OngoingNavigationSerialiser definition of 'active'
+        # This DB-level filter is a cheap, deliberately loose narrowing pass (calculator
+        # started, not finished, not yet past nominal finish time) - it does not account for
+        # calculation_delay_minutes, since that requires adding a duration derived from a
+        # FloatField to a datetime, which isn't portable SQL. The stricter "is this contestant's
+        # delayed position data actually visible on the map yet" check
+        # (Contestant.is_currently_visible_on_live_map) is applied in Python below, on this
+        # already-small candidate set. Synchronize with OngoingNavigationSerialiser's own
+        # get_active_contestants, which applies the same method.
         navigation_tasks = (
             NavigationTask.get_visible_navigation_tasks(self.request.user)
             .filter(
@@ -876,13 +883,26 @@ class ContestViewSet(ModelViewSet):
                 finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
                 contestanttrack__calculator_started=True,
                 contestanttrack__calculator_finished=False,
-            ).select_related("team__crew__member1", "team__aeroplane", "contestanttrack"),
+            ).select_related("team__crew__member1", "team__aeroplane", "contestanttrack", "navigation_task"),
             to_attr="prefetched_active_contestants",
         )
 
         navigation_tasks = navigation_tasks.prefetch_related("contest", active_contestants_prefetch)
 
-        data = self.get_serializer_class()(navigation_tasks, many=True, context={"request": self.request}).data
+        # A task whose contestants are all still within their calculation_delay_minutes window
+        # has nothing visibly live yet - drop it entirely rather than showing a "live" task with
+        # zero active contestants.
+        visibly_live_tasks = []
+        for task in navigation_tasks:
+            task.prefetched_active_contestants = [
+                contestant
+                for contestant in task.prefetched_active_contestants
+                if contestant.is_currently_visible_on_live_map()
+            ]
+            if task.prefetched_active_contestants:
+                visibly_live_tasks.append(task)
+
+        data = self.get_serializer_class()(visibly_live_tasks, many=True, context={"request": self.request}).data
         response = Response(data)
         # This is a public-facing list of live tasks. No ETag available.
         # s-maxage=120: CDN shields origin by caching for 2 minutes.
