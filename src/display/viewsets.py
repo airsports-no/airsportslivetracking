@@ -1091,6 +1091,13 @@ class ContestViewSet(ModelViewSet):
         team_id = request.data["team_id"]
         ContestTeam.objects.filter(contest=contest, team__pk=team_id).delete()
         ContestSummary.objects.filter(contest=contest, team__pk=team_id).delete()
+        # TaskSummary/TeamTestScore used to survive this call (they're keyed on team, not
+        # ContestTeam/Contestant, per the results service's intentional decoupling - see
+        # scoring_table_models.py's module docstring), leaving orphaned rows that didn't
+        # display anywhere by themselves but meant a re-added team could inherit a stale
+        # prior score, and required manual DB cleanup to fully remove a team's history.
+        TaskSummary.objects.filter(task__contest=contest, team__pk=team_id).delete()
+        TeamTestScore.objects.filter(task_test__task__contest=contest, team__pk=team_id).delete()
         ws = WebsocketFacade()
         ws.transmit_contest_results(request.user, contest)
         return Response(status=status.HTTP_204_NO_CONTENT)

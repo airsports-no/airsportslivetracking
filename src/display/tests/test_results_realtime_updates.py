@@ -533,6 +533,29 @@ class ContestResultsEndpointBroadcastTests(APITransactionTestCase):
         self.assertEqual(transmit_teams.call_count, 1)
         transmit_teams.assert_called_with(self.contest)
 
+    @patch.object(WebsocketFacade, "transmit_contest_results")
+    @patch.object(WebsocketFacade, "transmit_teams")
+    def test_team_results_delete_also_clears_task_summary_and_team_test_score(self, transmit_teams, transmit_results):
+        # ContestTeam/ContestSummary alone aren't the whole "results" picture - TaskSummary/
+        # TeamTestScore are keyed on team, not ContestTeam/Contestant, so they used to survive
+        # this call and leave orphaned rows a re-added team could inherit a stale score from.
+        task = Task.objects.create(name="Navigation", heading="Navigation", contest=self.contest)
+        task_test = TaskTest.objects.create(task=task, name="Navigation", heading="Navigation")
+        contest_summary = ContestSummary.objects.create(team=self.team, contest=self.contest, points=42)
+        task_summary = TaskSummary.objects.create(team=self.team, task=task, points=42)
+        team_test_score = TeamTestScore.objects.create(team=self.team, task_test=task_test, points=42)
+
+        response = self.client.post(
+            reverse("contests-team-results-delete", kwargs={"pk": self.contest.pk}),
+            data={"team_id": self.team.pk},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT, response.content)
+        self.assertFalse(ContestSummary.objects.filter(pk=contest_summary.pk).exists())
+        self.assertFalse(TaskSummary.objects.filter(pk=task_summary.pk).exists())
+        self.assertFalse(TeamTestScore.objects.filter(pk=team_test_score.pk).exists())
+
 
 class ContestResultsRestMutationTests(APITransactionTestCase):
     @patch("display.models.contestant.get_traccar_instance")
