@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import { generatePath, reverse } from '../../../urls';
 import { deleteNavigationTask, refreshEditableRoute, removeAllContestants } from '../api';
+import { useMissionDashboardStore } from '../../mission-dashboard/store';
 import { NavigationTaskDetail } from '../types';
 import BatchUpdateContestantsModal from './BatchUpdateContestantsModal';
 import ContestantFormModal, { ContestantFormModalHandle } from './ContestantFormModal';
@@ -62,6 +63,11 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
     setDeleting(true);
     try {
       await deleteNavigationTask(contestId, navigationTaskId);
+      // The mission dashboard caches contest data (including its navigation task list) and
+      // only refetches on mount when nothing is cached yet - without a forced refresh here,
+      // landing back on it after this navigate() would still show the just-deleted task until
+      // a manual page reload evicted the stale cache entry.
+      await useMissionDashboardStore.getState().fetchContest(contestId, true);
       navigate(generatePath('MISSION_DASHBOARD_DETAIL', { contestId: String(contestId) }));
     } catch (err: any) {
       window.alert(err.message || 'Failed to delete navigation task');
