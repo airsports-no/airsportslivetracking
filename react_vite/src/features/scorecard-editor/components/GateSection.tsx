@@ -5,6 +5,7 @@ import {
     findGate,
     formatCardSummary,
     getGateFieldValue,
+    getOriginalGateFieldValue,
     isGateFieldOverridden,
     resetGateFieldToOriginal,
     resetGateToOriginal,
@@ -37,6 +38,7 @@ export const GateSection: React.FC<GateSectionProps> = ({ gateType, scorecard, s
             meta={GATE_FIELD_META[field]}
             value={getGateFieldValue(scorecard, state, gateType, field)}
             overridden={isGateFieldOverridden(scorecard, state, gateType, field)}
+            originalValue={getOriginalGateFieldValue(scorecard, gateType, field)}
             onChange={(value) => onChange(setGateFieldValue(state, gateType, field, value as number))}
             onResetToStandard={() => onChange(resetGateFieldToOriginal(scorecard, state, gateType, field))}
             disabled={disabled}

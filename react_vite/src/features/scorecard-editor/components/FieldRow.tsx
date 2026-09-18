@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { FieldMeta } from '../fieldMetadata';
+import { formatFieldValueForDisplay } from '../scorecardEditorLogic';
 
 interface FieldRowProps {
     fieldName: string;
     meta: FieldMeta;
     value: number | boolean | string | null | undefined;
     overridden: boolean;
+    originalValue: number | boolean | string | null | undefined;
     onChange: (value: number | boolean | string) => void;
     onResetToStandard: () => void;
     disabled?: boolean;
@@ -23,6 +25,7 @@ export const FieldRow: React.FC<FieldRowProps> = ({
     meta,
     value,
     overridden,
+    originalValue,
     onChange,
     onResetToStandard,
     disabled,
@@ -33,11 +36,13 @@ export const FieldRow: React.FC<FieldRowProps> = ({
         setText(value === null || value === undefined ? '' : String(value));
     }, [value]);
 
+    const overriddenTitle = `Differs from standard (default: ${formatFieldValueForDisplay(meta, originalValue)})`;
+
     const label = (
         <label className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase" htmlFor={fieldName}>
             {meta.label}
             {meta.unit ? <span className="normal-case text-gray-400">({meta.unit})</span> : null}
-            {overridden ? <span className="badge badge-xs badge-warning" title="Differs from standard" /> : null}
+            {overridden ? <span className="badge badge-xs badge-warning" title={overriddenTitle} /> : null}
         </label>
     );
 
@@ -58,7 +63,7 @@ export const FieldRow: React.FC<FieldRowProps> = ({
             <div className="flex items-center justify-between gap-2 py-1">
                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase" htmlFor={fieldName}>
                     {meta.label}
-                    {overridden ? <span className="badge badge-xs badge-warning" title="Differs from standard" /> : null}
+                    {overridden ? <span className="badge badge-xs badge-warning" title={overriddenTitle} /> : null}
                 </label>
                 <div className="flex items-center gap-1">
                     <input
