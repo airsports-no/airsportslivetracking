@@ -44,7 +44,6 @@ from display.models import (
 from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES, SCORECARD_CONFIG_FIELDS
 from display.models.user_uploaded_map import validate_file_size
 from display.models.my_user import MyUser
-from display.poker.poker_cards import PLAYING_CARDS
 from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
 from display.utilities.cima_task_type_definitions import (
     ANR_CATALOGUE,
@@ -684,24 +683,6 @@ class ContestantRecalculateWithStartTimeForm(forms.Form):
                 "<p class='text-error font-bold mb-4'>Warning: This will delete the current contestant and create a new one with the same positions but updated timing. All current scores for this contestant will be lost.</p>"
             ),
             ButtonHolder(Submit("submit", "Recalculate")),
-        )
-
-
-class AssignPokerCardForm(forms.Form):
-    waypoint = forms.ChoiceField(choices=())
-    playing_card = forms.ChoiceField(choices=[("random", "Random")] + PLAYING_CARDS, initial="random")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.form_class = "form"
-        self.helper.layout = Layout(
-            Fieldset(
-                "Assign Poker Card",
-                "waypoint",
-                "playing_card",
-            ),
-            ButtonHolder(Submit("submit", "Assign")),
         )
 
 

@@ -79,7 +79,6 @@ from display.forms import (
     ContestantMapForm,
     LANDSCAPE,
     MapForm,
-    AssignPokerCardForm,
     ChangePermissionsForm,
     AddPermissionsForm,
     ScorecardForm,
@@ -116,7 +115,6 @@ from display.models import (
     Person,
     ContestTeam,
     MyUser,
-    PlayingCard,
     EmailMapLink,
     EditableRoute,
     FlightOrderConfiguration,
@@ -317,67 +315,6 @@ def tracking_qr_code_view(request, pk):
         {
             "url": "https://app.airsports.no{}".format(url),
             "navigation_task": navigation_task,
-        },
-    )
-
-
-@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
-def contestant_card_remove(request, pk, card_pk):
-    """
-    Remove a poker card for a contestants. Return a view with the list of current cards.
-    """
-    contestant = get_object_or_404(Contestant, pk=pk)
-    PlayingCard.remove_contestant_card(contestant, card_pk)
-    return redirect(reverse("contestant_cards_list", kwargs={"pk": contestant.pk}))
-
-
-@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
-def contestant_cards_list(request, pk):
-    """
-    Render a view with the list of the current poker cards that belong to a contestant
-    """
-    contestant = get_object_or_404(Contestant, pk=pk)
-    waypoint_names = [waypoint.name for waypoint in contestant.navigation_task.route.waypoints]
-
-    if request.method == "POST":
-        form = AssignPokerCardForm(request.POST)
-        form.fields["waypoint"].choices = [
-            (str(index), item.name) for index, item in enumerate(contestant.navigation_task.route.waypoints)
-        ]
-        if form.is_valid():
-            waypoint_index = int(form.cleaned_data["waypoint"])
-            waypoint_name = waypoint_names[waypoint_index]
-            card = form.cleaned_data["playing_card"]
-            random_card = card == "random"
-            if random_card:
-                card = PlayingCard.get_random_unique_card(contestant)
-            PlayingCard.add_contestant_card(contestant, card, waypoint_name, waypoint_index)
-    cards = contestant.playingcard_set.all().order_by("pk")
-    try:
-        latest_waypoint_index = max([card.waypoint_index for card in cards])
-    except ValueError:
-        latest_waypoint_index = -1
-    try:
-        next_waypoint_name = waypoint_names[latest_waypoint_index + 1]
-    except IndexError:
-        next_waypoint_name = None
-    form = AssignPokerCardForm()
-    form.fields["waypoint"].choices = [
-        (str(index), item.name) for index, item in enumerate(contestant.navigation_task.route.waypoints)
-    ]
-    if next_waypoint_name is not None:
-        form.fields["waypoint"].initial = str(latest_waypoint_index + 1)
-    cards = sorted(cards, key=lambda c: c.waypoint_index)
-    relative_score, hand_description = PlayingCard.get_relative_score(contestant)
-    return render(
-        request,
-        "display/contestant_cards_list.html",
-        {
-            "cards": cards,
-            "contestant": contestant,
-            "form": form,
-            "current_relative_score": f"{relative_score:.2f}",
-            "current_hand": hand_description,
         },
     )
 

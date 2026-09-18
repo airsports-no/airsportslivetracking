@@ -36,6 +36,7 @@ export interface ContestantRow {
   overlap_warnings: string[];
   overlapping_tasks: { task_id: number; task_name: string; contest_id: number; reason: string }[];
   declaration_status: { required: boolean; complete: boolean };
+  compiled_effective_route_payload?: { waypoint_names?: string[] };
 }
 
 export interface GuestCapacityStatus {

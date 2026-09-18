@@ -150,6 +150,65 @@ export async function removeScoreLogEntry(
   }
 }
 
+export interface PlayingCardEntry {
+  id: number;
+  card: string;
+  waypoint_name: string | null;
+  waypoint_index: number;
+}
+
+export interface PlayingCardsResponse {
+  cards: PlayingCardEntry[];
+  current_relative_score: string;
+  current_hand: string;
+}
+
+export async function fetchPlayingCards(
+  contestId: number,
+  navigationTaskId: number,
+  contestantId: number
+): Promise<PlayingCardsResponse> {
+  const url = reverse('contestants-playing-cards', contestId, navigationTaskId, contestantId);
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to fetch playing cards: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+export async function assignPlayingCard(
+  contestId: number,
+  navigationTaskId: number,
+  contestantId: number,
+  payload: { waypoint_index: number; card: string }
+): Promise<void> {
+  const url = reverse('contestants-assign-playing-card', contestId, navigationTaskId, contestantId);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to assign playing card: ${errorMessages}`);
+  }
+}
+
+export async function removePlayingCard(
+  contestId: number,
+  navigationTaskId: number,
+  contestantId: number,
+  cardPk: number
+): Promise<void> {
+  const url = reverse('contestants-remove-playing-card', contestId, navigationTaskId, contestantId, cardPk);
+  const response = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to remove playing card: ${errorMessages}`);
+  }
+}
+
 export async function applyQuarantinePenalty(
   contestId: number,
   navigationTaskId: number,

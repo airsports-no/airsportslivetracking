@@ -5,6 +5,7 @@ import { reverse, generatePath } from '../../../urls';
 import { deleteContestant, recalculateTrack } from '../api';
 import { ContestantRow, supportsDeclarationEditing } from '../types';
 import GateTimesModal, { GateTimesModalHandle } from './GateTimesModal';
+import PlayingCardsModal, { PlayingCardsModalHandle } from './PlayingCardsModal';
 import RecalculateStartTimeModal from './RecalculateStartTimeModal';
 import UploadGpxModal from './UploadGpxModal';
 
@@ -40,6 +41,7 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
   const startTimeModalRef = useRef<HTMLDialogElement>(null);
   const gpxModalRef = useRef<HTMLDialogElement>(null);
   const gateTimesModalRef = useRef<GateTimesModalHandle>(null);
+  const playingCardsModalRef = useRef<PlayingCardsModalHandle>(null);
 
   const handleRecalculateTrack = async () => {
     if (recalculating || !window.confirm('Reset the track/score and reload it from the tracker?')) return;
@@ -126,7 +128,9 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
             </li>
             {isPokerRun && (
               <li>
-                <a href={reverse('contestant_cards_list', contestant.pk)}>Playing cards</a>
+                <button type="button" onClick={() => playingCardsModalRef.current?.open()} className="w-full text-left">
+                  Playing cards
+                </button>
               </li>
             )}
             <li>
@@ -166,6 +170,16 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
             contestantId={contestant.pk}
             onRecalculated={onRefresh}
           />
+          {isPokerRun && (
+            <PlayingCardsModal
+              ref={playingCardsModalRef}
+              contestId={contestId}
+              navigationTaskId={navigationTaskId}
+              contestant={contestant}
+              canManage={canManage}
+              onChanged={onRefresh}
+            />
+          )}
         </>
       )}
     </div>
