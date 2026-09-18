@@ -385,41 +385,6 @@ export async function fetchMapSourceOptions(contestId: number, navigationTaskId:
   return response.json();
 }
 
-export interface MapGenerationDefaults {
-  size: string;
-  orientation: string;
-  plot_track_between_waypoints: boolean;
-  include_meridians_and_parallels_lines: boolean;
-  scale: number;
-  map_source: string;
-  include_openaip_overlay: boolean;
-  zoom_level: number;
-  dpi: number;
-  line_width: number;
-  colour: string;
-}
-
-export interface MapGenerationOptions {
-  sources: MapSourceOption[];
-  defaults: MapGenerationDefaults;
-}
-
-// Scoped the same way as fetchMapSourceOptions above, but via map-generation-options - the
-// standalone "Navigation Map" generator is view_contest (any viewer), not change_contest
-// (organiser-only) like flight order configuration, so it needs its own, more permissive
-// backend action rather than reusing map-source-options. Also returns the seed defaults
-// (from the navigation task's flight order configuration) for the same reason - a plain
-// viewer can't call the change_contest-gated flight_order_configuration action to get them.
-export async function fetchMapGenerationOptions(contestId: number, navigationTaskId: number): Promise<MapGenerationOptions> {
-  const url = reverse('navigationtasks-map-generation-options', contestId, navigationTaskId);
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!response.ok) {
-    const errorMessages = await getErrorMessages(response);
-    throw new Error(`Failed to fetch map source options: ${errorMessages}`);
-  }
-  return response.json();
-}
-
 export interface GenerateMapPayload {
   size: string;
   orientation: string;

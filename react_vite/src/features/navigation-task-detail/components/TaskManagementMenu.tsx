@@ -7,6 +7,7 @@ import { NavigationTaskDetail } from '../types';
 import BatchUpdateContestantsModal from './BatchUpdateContestantsModal';
 import ContestantFormModal, { ContestantFormModalHandle } from './ContestantFormModal';
 import FlightOrderConfigurationModal, { FlightOrderConfigurationModalHandle } from './FlightOrderConfigurationModal';
+import GenerateNavigationMapModal, { GenerateNavigationMapModalHandle } from './GenerateNavigationMapModal';
 import UpdateTaskDetailsModal from './UpdateTaskDetailsModal';
 
 interface TaskManagementMenuProps {
@@ -23,6 +24,7 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
   const [deleting, setDeleting] = useState(false);
   const updateDetailsModalRef = useRef<HTMLDialogElement>(null);
   const flightOrderConfigModalRef = useRef<FlightOrderConfigurationModalHandle>(null);
+  const generateMapModalRef = useRef<GenerateNavigationMapModalHandle>(null);
   const addContestantModalRef = useRef<ContestantFormModalHandle>(null);
   const batchUpdateModalRef = useRef<HTMLDialogElement>(null);
 
@@ -127,6 +129,11 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
           </button>
         </li>
         <li>
+          <button type="button" onClick={() => generateMapModalRef.current?.open()} className="w-full text-left">
+            Navigation map
+          </button>
+        </li>
+        <li>
           <a href={reverse('navigationtask_qr', navigationTaskId)}>QR Code</a>
         </li>
         {task.allow_self_management && (
@@ -150,6 +157,7 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
       </ul>
       <UpdateTaskDetailsModal ref={updateDetailsModalRef} contestId={contestId} navigationTaskId={navigationTaskId} task={task} onUpdated={onRefresh} />
       <FlightOrderConfigurationModal ref={flightOrderConfigModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
+      <GenerateNavigationMapModal ref={generateMapModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
       <ContestantFormModal
         ref={addContestantModalRef}
         contestId={contestId}

@@ -1716,10 +1716,11 @@ class FlightOrderConfigurationSerialiser(serializers.ModelSerializer):
 
 class GenerateNavigationTaskMapSerialiser(serializers.Serializer):
     """
-    Mirrors MapForm's field set (forms.py) - the REST equivalent of the classic
-    get_navigation_task_map view's POST handling. Unlike FlightOrderConfigurationSerialiser,
-    this isn't backed by a model - it's a one-off action's input, not persisted state - so every
-    field is required with the same defaults MapForm itself used.
+    Mirrors the now-deleted classic MapForm's field set - the REST equivalent of the
+    now-deleted get_navigation_task_map view's POST handling. Unlike
+    FlightOrderConfigurationSerialiser, this isn't backed by a model - it's a one-off action's
+    input, not persisted state - so every field is required with the same defaults MapForm itself
+    used.
     """
 
     def create(self, validated_data):

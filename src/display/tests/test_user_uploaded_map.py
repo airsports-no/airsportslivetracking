@@ -744,44 +744,48 @@ class UnifiedMapSelectionViewTests(TestCase):
         self.assertNotContains(response, 'id="id_map_user_source"')
         self.assertContains(response, "user_uploaded:42")
 
-    @patch("display.views.get_available_map_source_definitions_for_navigation_task")
-    @patch("display.tasks.generate_map_async")
-    def test_navigation_task_map_post_uses_unified_map_source_without_user_map_source_id(self, generate_map_async_mock, mock_get_sources):
+    @patch("display.viewsets.get_available_map_source_definitions_for_navigation_task")
+    @patch("display.viewsets.generate_map_async")
+    def test_generate_map_rejects_a_map_source_not_in_the_unified_choices(self, generate_map_async_mock, mock_get_sources):
+        # REST equivalent of the now-deleted classic get_navigation_task_map view's POST
+        # handling - GenerateNavigationTaskMapSerialiser validates map_source the same way,
+        # against the same unified (built-in + user-uploaded) source list.
         mock_get_sources.return_value = [
             {"key": "osm", "label": "OSM", "min_zoom": 0, "max_zoom": 19, "default_zoom": 12},
             {"key": "user_uploaded:42", "label": "Uploaded map", "min_zoom": 7, "max_zoom": 13, "default_zoom": 10},
         ]
 
         response = self.client.post(
-            reverse("navigationtask_map", kwargs={"pk": self.navigation_task.pk}),
+            reverse("navigationtasks-generate-map", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk}),
             {
                 "size": "A4",
                 "orientation": "landscape",
                 "plot_track_between_waypoints": True,
                 "include_meridians_and_parallels_lines": True,
                 "include_openaip_overlay": True,
-                "scale": "100000",
-                "map_source": "user_uploaded:42",
+                "scale": "100",
+                "map_source": "not-in-the-mocked-choices",
                 "zoom_level": 10,
                 "dpi": 150,
                 "line_width": 0.5,
                 "colour": "#0000ff",
             },
+            content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Select a valid choice")
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("map_source", response.data)
         generate_map_async_mock.delay.assert_not_called()
 
-    @patch("display.tasks.generate_map_async")
-    @patch("display.views.get_available_map_source_definitions_for_navigation_task")
-    def test_navigation_task_map_includes_openaip_overlay_flag_in_async_payload(self, mock_get_sources, generate_map_async_mock):
+    @patch("display.viewsets.generate_map_async")
+    @patch("display.viewsets.get_available_map_source_definitions_for_navigation_task")
+    def test_generate_map_includes_openaip_overlay_flag_in_async_payload(self, mock_get_sources, generate_map_async_mock):
         mock_get_sources.return_value = [
             {"key": "osm", "label": "OSM", "min_zoom": 0, "max_zoom": 19, "default_zoom": 12},
         ]
 
         response = self.client.post(
-            reverse("navigationtask_map", kwargs={"pk": self.navigation_task.pk}),
+            reverse("navigationtasks-generate-map", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk}),
             {
                 "size": "A4",
                 "zoom_level": 12,
@@ -795,9 +799,10 @@ class UnifiedMapSelectionViewTests(TestCase):
                 "line_width": 0.5,
                 "colour": "#0000ff",
             },
+            content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 302, response.content)
+        self.assertEqual(response.status_code, 202, response.content)
         args = generate_map_async_mock.delay.call_args.args
         self.assertTrue(args[2]["include_openaip_overlay"])
 

@@ -77,8 +77,6 @@ from display.utilities.calculate_gate_times import calculate_and_get_relative_ga
 from display.forms import (
     ContestForm,
     ContestantMapForm,
-    LANDSCAPE,
-    MapForm,
     ChangePermissionsForm,
     AddPermissionsForm,
     ScorecardForm,
@@ -96,7 +94,7 @@ from display.services.task_type_visibility import can_user_see_cima_task_types, 
 from display.flight_order_and_maps.generate_flight_orders import (
     embed_map_in_pdf,
 )
-from display.flight_order_and_maps.map_constants import A4
+from display.flight_order_and_maps.map_constants import A4, LANDSCAPE
 from display.flight_order_and_maps.map_plotter import (
     plot_route,
     A4_WIDTH,
@@ -633,83 +631,6 @@ def old_tracking_map_redirect(request, pk):
     if query_string:
         target_url = f"{target_url}?{query_string}"
     return redirect(target_url, permanent=True)
-
-
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
-def get_navigation_task_map(request, pk):
-    """
-    Triggers async generation of the navigation task map pdf.
-    """
-    navigation_task = get_object_or_404(NavigationTask, pk=pk)
-    redirect_url = fe_url("NAVIGATION_TASK_DETAIL", contestId=navigation_task.contest_id, navigationTaskId=navigation_task.pk)
-    map_source_definitions = get_available_map_source_definitions_for_navigation_task(
-        navigation_task,
-        request.user,
-        uploaded_maps=navigation_task.get_available_user_maps(),
-    )
-    map_source_choices = [(item["key"], item["label"]) for item in map_source_definitions]
-    map_zoom_levels = get_map_zoom_levels_for_definitions(map_source_definitions)
-    if request.method == "POST":
-        form = MapForm(request.POST, redirect_url=redirect_url, map_source_choices=map_source_choices)
-        if form.is_valid():
-            map_params = {
-                "size": form.cleaned_data["size"],
-                "zoom_level": form.cleaned_data["zoom_level"],
-                "landscape": form.cleaned_data["orientation"] == LANDSCAPE,
-                "annotations": False,  # Generic map has no contestant annotations
-                "waypoints_only": not form.cleaned_data["plot_track_between_waypoints"],
-                "dpi": form.cleaned_data["dpi"],
-                "scale": int(form.cleaned_data["scale"]),
-                "map_source": form.cleaned_data["map_source"],
-                "line_width": form.cleaned_data["line_width"],
-                "colour": form.cleaned_data["colour"],
-                "include_meridians_and_parallels_lines": form.cleaned_data["include_meridians_and_parallels_lines"],
-                "include_openaip_overlay": form.cleaned_data["include_openaip_overlay"],
-                "margin": 10,
-            }
-
-            # Clear any old result
-            cache_key = f"map_gen_result_{navigation_task.pk}_None_{request.user.id}"
-            cache.delete(cache_key)
-
-            from display.tasks import generate_map_async
-
-            generate_map_async.delay(navigation_task.pk, None, map_params, request.user.id)
-
-            redirect_url_status = reverse(
-                "map_generation_status",
-                kwargs={"task_id": navigation_task.pk, "contestant_id": 0},  # Use 0 to represent None in URL
-            )
-            logger.info(f"Redirecting task map to: {redirect_url_status}")
-            return redirect(redirect_url_status)
-
-    else:
-        configuration = navigation_task.flightorderconfiguration
-        form = MapForm(
-            initial={
-                "zoom_level": configuration.map_zoom_level,
-                "orientation": configuration.map_orientation,
-                "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
-                "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
-                "include_openaip_overlay": configuration.map_include_openaip_overlay,
-                "scale": configuration.map_scale,
-                "map_source": configuration.map_source,
-                "dpi": configuration.map_dpi,
-                "line_width": configuration.map_line_width,
-                "colour": configuration.map_line_colour,
-            },
-            redirect_url=redirect_url,
-            map_source_choices=map_source_choices,
-        )
-    return render(
-        request,
-        "display/map_form.html",
-        {
-            "form": form,
-            "redirect": redirect_url,
-            "system_map_zoom_levels": json.dumps(map_zoom_levels),
-        },
-    )
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))

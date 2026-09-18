@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.forms import FlightOrderConfigurationForm, MapForm, ContestantMapForm, validate_map_zoom_level
+from display.forms import FlightOrderConfigurationForm, ContestantMapForm, validate_map_zoom_level
 from display.flight_order_and_maps.generate_flight_orders import (
     build_flight_order_map_plot_kwargs,
     get_flight_order_visual_waypoints,
@@ -131,11 +131,8 @@ class FlightOrderConfigurationFormTests(TestCase):
     def test_map_generation_forms_use_supplied_unified_map_choices(self):
         unified_choices = [("osm", "OSM"), ("user_uploaded:42", "Uploaded map")]
 
-        generic_form = MapForm(map_source_choices=unified_choices)
         contestant_form = ContestantMapForm(map_source_choices=unified_choices)
 
-        self.assertEqual(generic_form.fields["map_source"].choices, unified_choices)
-        self.assertNotIn("user_map_source", generic_form.fields)
         self.assertEqual(contestant_form.fields["map_source"].choices, unified_choices)
         self.assertNotIn("user_map_source", contestant_form.fields)
 

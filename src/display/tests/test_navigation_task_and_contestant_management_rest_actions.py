@@ -415,49 +415,12 @@ class TestNavigationTaskAndContestantManagementRestActions(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("map_zoom_level", response.data)
 
-    def test_map_generation_options_returns_sources_and_flight_order_configuration_defaults(self, *args):
-        # Unlike map_source_options above (organiser-only), map_generation_options backs the
-        # standalone "Navigation Map" generator - any viewer, not just an organiser - so it must
-        # return its own seed defaults rather than depending on the change_contest-gated
-        # flight_order_configuration/update_flight_order_configuration actions for them.
-        response = self.client.get(self._url("map-generation-options"))
-
-        self.assertEqual(response.status_code, 200, response.content)
-        keys = {item["key"] for item in response.data["sources"]}
-        self.assertIn("cyclosm", keys)
-        config = self.navigation_task.flightorderconfiguration
-        self.assertEqual(
-            response.data["defaults"],
-            {
-                "size": config.document_size,
-                "orientation": config.map_orientation,
-                "plot_track_between_waypoints": config.map_plot_track_between_waypoints,
-                "include_meridians_and_parallels_lines": config.map_include_meridians_and_parallels_lines,
-                "scale": config.map_scale,
-                "map_source": config.map_source,
-                "include_openaip_overlay": config.map_include_openaip_overlay,
-                "zoom_level": config.map_zoom_level,
-                "dpi": config.map_dpi,
-                "line_width": config.map_line_width,
-                "colour": config.map_line_colour,
-            },
-        )
-
-    def test_map_generation_options_allows_a_plain_viewer(self, *args):
-        viewer = get_user_model().objects.create(email="task-mgmt-map-generation-viewer@example.com")
-        assign_perm("view_contest", viewer, self.contest)
-        self.client.force_login(user=viewer)
-
-        response = self.client.get(self._url("map-generation-options"))
-
-        self.assertEqual(response.status_code, 200, response.content)
-
     @patch("display.viewsets.generate_map_async")
-    def test_generate_map_dispatches_async_task_for_a_plain_viewer(self, mock_generate_map_async, *args):
-        viewer = get_user_model().objects.create(email="task-mgmt-generate-map-viewer@example.com")
-        assign_perm("view_contest", viewer, self.contest)
-        self.client.force_login(user=viewer)
-
+    def test_generate_map_dispatches_async_task_for_a_contest_manager(self, mock_generate_map_async, *args):
+        # self.manager already has change_contest (assigned in setUp), matching the same
+        # manager-only gate as map_source_options/flight_order_configuration above - the
+        # standalone "Navigation Map" generator reuses those two actions for its source list
+        # and seed defaults rather than exposing its own.
         response = self.client.post(
             self._url("generate-map"),
             {
@@ -483,7 +446,32 @@ class TestNavigationTaskAndContestantManagementRestActions(APITestCase):
         self.assertEqual(call_args[0], self.navigation_task.pk)
         self.assertIsNone(call_args[1])
         self.assertEqual(call_args[2]["map_source"], "cyclosm")
-        self.assertEqual(call_args[3], viewer.pk)
+        self.assertEqual(call_args[3], self.manager.pk)
+
+    def test_generate_map_requires_change_contest_permission(self, *args):
+        viewer = get_user_model().objects.create(email="task-mgmt-generate-map-viewer@example.com")
+        assign_perm("view_contest", viewer, self.contest)
+        self.client.force_login(user=viewer)
+
+        response = self.client.post(
+            self._url("generate-map"),
+            {
+                "size": "A4",
+                "orientation": "landscape",
+                "plot_track_between_waypoints": True,
+                "include_meridians_and_parallels_lines": True,
+                "scale": 0,
+                "map_source": "cyclosm",
+                "include_openaip_overlay": False,
+                "zoom_level": 12,
+                "dpi": 150,
+                "line_width": 0.5,
+                "colour": "#0000ff",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
 
     def test_generate_map_rejects_unavailable_map_source(self, *args):
         response = self.client.post(
@@ -528,6 +516,6 @@ class TestNavigationTaskAndContestantManagementRestActions(APITestCase):
             format="json",
         )
 
-        # 401, not 403: IsAuthenticated (this action's permission override) rejects an
-        # unauthenticated request before any object-level view_contest check runs.
+        # 401, not 403: the class-level NavigationTaskContestPermissions requires
+        # IsAuthenticated before any object-level change_contest check runs.
         self.assertEqual(response.status_code, 401)

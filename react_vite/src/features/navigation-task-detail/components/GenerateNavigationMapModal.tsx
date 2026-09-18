@@ -1,6 +1,7 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import {
-  fetchMapGenerationOptions,
+  fetchFlightOrderConfiguration,
+  fetchMapSourceOptions,
   fetchMapGenerationStatus,
   generateNavigationTaskMap,
   GenerateMapPayload,
@@ -57,20 +58,23 @@ const GenerateNavigationMapModal = forwardRef<GenerateNavigationMapModalHandle, 
       setLoading(true);
       setError(null);
       try {
-        const { sources, defaults } = await fetchMapGenerationOptions(contestId, navigationTaskId);
+        const [sources, config] = await Promise.all([
+          fetchMapSourceOptions(contestId, navigationTaskId),
+          fetchFlightOrderConfiguration(contestId, navigationTaskId),
+        ]);
         setMapSourceOptions(sources);
         setPayload({
-          size: defaults.size,
-          orientation: defaults.orientation,
-          plot_track_between_waypoints: defaults.plot_track_between_waypoints,
-          include_meridians_and_parallels_lines: defaults.include_meridians_and_parallels_lines,
-          scale: defaults.scale,
-          map_source: defaults.map_source,
-          include_openaip_overlay: defaults.include_openaip_overlay,
-          zoom_level: defaults.zoom_level,
-          dpi: defaults.dpi,
-          line_width: defaults.line_width,
-          colour: defaults.colour,
+          size: config.document_size,
+          orientation: config.map_orientation,
+          plot_track_between_waypoints: config.map_plot_track_between_waypoints,
+          include_meridians_and_parallels_lines: config.map_include_meridians_and_parallels_lines,
+          scale: config.map_scale,
+          map_source: config.map_source,
+          include_openaip_overlay: config.map_include_openaip_overlay,
+          zoom_level: config.map_zoom_level,
+          dpi: config.map_dpi,
+          line_width: config.map_line_width,
+          colour: config.map_line_colour,
         });
       } catch (err: any) {
         setError(err.message || 'Failed to load map generation options');

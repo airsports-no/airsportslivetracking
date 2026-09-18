@@ -14,7 +14,6 @@ from django.utils.text import capfirst
 from display.flight_order_and_maps.map_constants import (
     MAP_SIZES,
     ORIENTATIONS,
-    LANDSCAPE,
     SCALES,
     SCALE_TO_FIT,
     A4,
@@ -88,73 +87,6 @@ class ShareForm(forms.Form):
             Field("publicity"),
             ButtonHolder(Submit("submit", "Save")),
         )
-
-
-class MapForm(forms.Form):
-    size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
-    orientation = forms.ChoiceField(
-        choices=ORIENTATIONS,
-        initial=LANDSCAPE,
-        help_text="WARNING: scale printing is currently only correct for landscape orientation",
-    )
-    plot_track_between_waypoints = forms.BooleanField(
-        initial=True,
-        required=False,
-        help_text="For precision and Air Sport competition types this will draw a line between the waypoints of the track. Without this the precision map will only contain the waypoints, and the Air Sport maps will only contain the corridor without a centreline.",
-    )
-    include_meridians_and_parallels_lines = forms.BooleanField(
-        initial=True,
-        required=False,
-        help_text="If true, navigation map is overlaid with meridians and parallels every 0.1 degrees. Disable if map source already has this",
-    )
-
-    scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=[], required=False)
-    include_openaip_overlay = forms.BooleanField(
-        initial=False,
-        required=False,
-        help_text="Render OpenAIP on top of the selected map source.",
-    )
-    zoom_level = forms.TypedChoiceField(initial=12, choices=[(x, x) for x in range(1, 15)], coerce=int, empty_value=12)
-    dpi = forms.IntegerField(initial=150, min_value=100, max_value=300)
-    line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
-    colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
-
-    def __init__(self, *args, **kwargs):
-        self.redirect_url = kwargs.pop("redirect_url", "#")
-        self.map_source_choices = kwargs.pop("map_source_choices", None)
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.form_class = "form mt-4"
-        self.helper.layout = Layout(
-            Fieldset(
-                "Map details",
-                "size",
-                "orientation",
-                "plot_track_between_waypoints",
-                "include_meridians_and_parallels_lines",
-                "scale",
-                "map_source",
-                "include_openaip_overlay",
-                "zoom_level",
-                "dpi",
-                "line_width",
-            ),
-            Field("colour", type="hidden"),
-            HTML(
-                '<h5 class="text-lg font-semibold mt-4">Pick a colour for the route</h5><div id="picker" class="mx-auto mt-2" style="margin-bottom: 15px"></div>'
-            ),
-            HTML(
-                """<div role="alert" class="alert alert-warning mt-4">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert stroke-current shrink-0 h-6 w-6"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                <span><b>Caution:</b> Map generation may require several minutes. Using large zoom levels (e.g., above 12) with significant scales (e.g., 1:200,000 or higher) could result in an out of memory error. If this occurs, kindly decrease the zoom level (use a lower number).</span>
-            </div>"""
-            ),
-            ButtonHolder(
-                Submit("submit", "Submit"), HTML(f'<a href="{self.redirect_url}" class="btn btn-secondary">Back</a>')
-            ),
-        )
-        self.fields["map_source"].choices = self.map_source_choices or get_map_choices()
 
 
 class ContestantMapForm(forms.Form):

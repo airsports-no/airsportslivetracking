@@ -11,7 +11,6 @@ from display.views import (
     manifest,
     tracking_qr_code_view,
     get_contestant_map,
-    get_navigation_task_map,
     MapGenerationStatusView,
     check_map_generation_status,
     old_tracking_map_redirect,
@@ -112,7 +111,6 @@ urlpatterns = [
         name="navigationtask_updategatescoreoverride",
     ),
     path("navigationtask/<int:pk>/qr/", tracking_qr_code_view, name="navigationtask_qr"),
-    path("navigationtask/<int:pk>/map/", get_navigation_task_map, name="navigationtask_map"),
     path(
         "navigationtask/<int:task_id>/mapstatus/<int:contestant_id>/",
         MapGenerationStatusView.as_view(),

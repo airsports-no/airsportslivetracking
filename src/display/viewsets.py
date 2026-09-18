@@ -2144,74 +2144,19 @@ class NavigationTaskViewSet(ModelViewSet):
             ]
         )
 
-    @action(detail=True, methods=["get"], url_path="map-generation-options", permission_classes=[permissions.IsAuthenticated])
-    def map_generation_options(self, request, *args, **kwargs):
-        """
-        The public equivalent of map_source_options above, for the standalone "Navigation Map"
-        generator (generate_map action below) - view_contest, not change_contest, matching the
-        classic get_navigation_task_map view's permission (any viewer can generate this map, not
-        just an organiser - unlike flight order configuration, which really is organiser-only).
-
-        Also returns the seed defaults the classic view's GET branch pre-filled MapForm with
-        (navigation_task.flightorderconfiguration's own fields) - reading them directly here,
-        rather than having the frontend call flight_order_configuration, keeps this whole feature
-        on one view_contest-scoped endpoint instead of depending on a change_contest-gated one
-        that a plain viewer can't reach.
-
-        permission_classes is overridden for the same reason as generate_map below: the class
-        default's has_permission hard-requires change_contest whenever contest_pk is present in
-        the URL, regardless of HTTP method - it would reject a plain view_contest-only viewer's
-        GET here before the view_contest check below even runs.
-        """
-        navigation_task = self.get_object()
-        if not request.user.has_perm("view_contest", navigation_task.contest):
-            raise drf_exceptions.PermissionDenied()
-        definitions = get_available_map_source_definitions_for_navigation_task(
-            navigation_task,
-            request.user,
-            uploaded_maps=navigation_task.get_available_user_maps(),
-        )
-        configuration = navigation_task.flightorderconfiguration
-        return Response(
-            {
-                "sources": [
-                    map_source_definition_to_payload(
-                        definition, origin="user_upload" if definition.get("provider") == "user_uploaded_mbtiles" else "builtin"
-                    )
-                    for definition in definitions
-                ],
-                "defaults": {
-                    "size": configuration.document_size,
-                    "orientation": configuration.map_orientation,
-                    "plot_track_between_waypoints": configuration.map_plot_track_between_waypoints,
-                    "include_meridians_and_parallels_lines": configuration.map_include_meridians_and_parallels_lines,
-                    "scale": configuration.map_scale,
-                    "map_source": configuration.map_source,
-                    "include_openaip_overlay": configuration.map_include_openaip_overlay,
-                    "zoom_level": configuration.map_zoom_level,
-                    "dpi": configuration.map_dpi,
-                    "line_width": configuration.map_line_width,
-                    "colour": configuration.map_line_colour,
-                },
-            }
-        )
-
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=["post"])
     def generate_map(self, request, *args, **kwargs):
         """
-        REST equivalent of the classic get_navigation_task_map view's POST handling (views.py) -
+        REST equivalent of the now-deleted classic get_navigation_task_map view's POST handling -
         dispatches the same async Celery task and reuses its cache-key convention exactly, so the
-        existing check_map_generation_status URL/polling contract needs no changes: the frontend
-        polls that classic JSON endpoint directly instead of a new REST action.
-
-        permission_classes is overridden here because the class-level default
-        (NavigationTaskContestPermissions.has_object_permission) hard-requires change_contest for
-        any POST - too strict for this action specifically, which (like the classic view's
-        view_contest guardian check) only needs view_contest, matching map_generation_options
-        above rather than update_flight_order_configuration below.
+        existing check_map_generation_status URL/polling contract needs no changes at all: the
+        frontend polls that plain JSON endpoint directly. Manager-only (change_contest), same as
+        every other navigation-task management action here - the frontend gets its map source
+        list and seed defaults from the existing map_source_options/flight_order_configuration
+        actions above rather than a dedicated one, since both are already change_contest-gated.
         """
         navigation_task = self.get_object()
-        if not request.user.has_perm("view_contest", navigation_task.contest):
+        if not request.user.has_perm("change_contest", navigation_task.contest):
             raise drf_exceptions.PermissionDenied()
         serialiser = self.get_serializer(data=request.data, context={**self.get_serializer_context(), "navigation_task": navigation_task})
         serialiser.is_valid(raise_exception=True)
