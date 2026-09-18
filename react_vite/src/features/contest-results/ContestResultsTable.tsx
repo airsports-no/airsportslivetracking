@@ -8,9 +8,9 @@ import { EditableCell } from '../../components/common/DataTable/EditableCell';
 import { useScoreUpdates } from '../../hooks/useScoreUpdates';
 import { TaskModal } from './TaskModal';
 import { TestModal } from './TestModal';
-import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon, DownloadIcon } from 'lucide-react';
-import { useParams } from 'react-router-dom';
-import { reverse } from '../../urls';
+import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon, DownloadIcon, ArrowLeftIcon } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
+import { generatePath, reverse } from '../../urls';
 import { Test } from '../../store/contestResultsStore';
 import { fetchContest } from '../mission-dashboard/api';
 import { Contest } from '../mission-dashboard/types';
@@ -520,7 +520,17 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
           />
         )}
         <div className="flex items-center justify-between mb-4">
-          <div className="flex-1" />
+          <div className="flex-1">
+            {contestId !== undefined && (
+              <Link
+                to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId })}
+                className="btn btn-sm btn-outline gap-2"
+              >
+                <ArrowLeftIcon size={16} />
+                Back to contest
+              </Link>
+            )}
+          </div>
           <h2 className="text-2xl font-bold text-center">{results.name}</h2>
           <div className="flex-1 flex justify-end">
             <a
