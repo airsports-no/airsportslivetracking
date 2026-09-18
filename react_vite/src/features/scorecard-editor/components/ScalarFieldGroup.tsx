@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SCALAR_FIELD_META } from '../fieldMetadata';
 import {
     formatCardSummary,
+    getOriginalScalarValue,
     getScalarValue,
     isScalarFieldOverridden,
     resetScalarFieldToOriginal,
@@ -39,6 +40,7 @@ export const ScalarFieldGroup: React.FC<ScalarFieldGroupProps> = ({
             meta={SCALAR_FIELD_META[field]}
             value={getScalarValue(scorecard, state, field)}
             overridden={isScalarFieldOverridden(scorecard, state, field)}
+            originalValue={getOriginalScalarValue(scorecard, field)}
             onChange={(value) => onChange(setScalarValue(state, field, value))}
             onResetToStandard={() => onChange(resetScalarFieldToOriginal(scorecard, state, field))}
             disabled={disabled}
