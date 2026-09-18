@@ -388,13 +388,20 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
   },
 
   deleteTeamResults: async (contestId: number, teamId: number) => {
-    const url = reverse('contestteams-detail', contestId, teamId);
+    // Was previously DELETE-ing contestteams-detail with the *team* id, but that viewset's
+    // pk is the ContestTeam row's own id (a separate model/id space from Team), so this always
+    // 404ed. contests-team-results-delete (ContestViewSet.team_results_delete, viewsets.py)
+    // is the correct endpoint - it removes both the ContestTeam signup and the team's
+    // ContestSummary row, and broadcasts the update over the results websocket.
+    const url = reverse('contests-team-results-delete', contestId);
     try {
       const response = await fetch(url, {
-        method: 'DELETE',
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'X-CSRFToken': getCookie('csrftoken')!,
         },
+        body: JSON.stringify({ team_id: teamId }),
       });
 
       if (!response.ok) {
