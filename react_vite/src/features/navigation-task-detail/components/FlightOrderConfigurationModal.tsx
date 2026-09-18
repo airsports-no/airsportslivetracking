@@ -94,6 +94,7 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
 
           {config && !loading && (
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+              <div className="divider my-0 text-xs">Document</div>
               <div className="flex gap-2">
                 <label className="form-control flex-1">
                   <span className="label-text text-xs">Document size</span>
@@ -118,6 +119,8 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
                   </select>
                 </label>
               </div>
+
+              <div className="divider my-0 text-xs">Map source</div>
               <label className="form-control">
                 <span className="label-text text-xs">Map source</span>
                 <select
@@ -132,11 +135,28 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
                   {!mapSourceOptions.some((option) => option.key === config.map_source) && (
                     <option value={config.map_source}>{config.map_source}</option>
                   )}
-                  {mapSourceOptions.map((option) => (
-                    <option key={option.key} value={option.key}>
-                      {option.label}
-                    </option>
-                  ))}
+                  {mapSourceOptions.some((option) => option.origin === 'builtin') && (
+                    <optgroup label="Built-in">
+                      {mapSourceOptions
+                        .filter((option) => option.origin === 'builtin')
+                        .map((option) => (
+                          <option key={option.key} value={option.key}>
+                            {option.label}
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
+                  {mapSourceOptions.some((option) => option.origin === 'user_upload') && (
+                    <optgroup label="Your uploaded maps">
+                      {mapSourceOptions
+                        .filter((option) => option.origin === 'user_upload')
+                        .map((option) => (
+                          <option key={option.key} value={option.key}>
+                            {option.label}
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
                 </select>
               </label>
               <div className="flex gap-2">
@@ -172,6 +192,8 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
                   />
                 </label>
               </div>
+
+              <div className="divider my-0 text-xs">Map style</div>
               <div className="flex gap-2">
                 <label className="form-control flex-1">
                   <span className="label-text text-xs">Scale</span>
@@ -223,51 +245,55 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
                   />
                 </label>
               </div>
-              <label className="label cursor-pointer justify-start gap-2">
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox-sm"
-                  checked={config.map_include_annotations}
-                  onChange={(e) => set('map_include_annotations', e.target.checked)}
-                />
-                <span className="label-text">Include annotations</span>
-              </label>
-              <label className="label cursor-pointer justify-start gap-2">
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox-sm"
-                  checked={config.map_include_contestant_declarations}
-                  onChange={(e) => set('map_include_contestant_declarations', e.target.checked)}
-                />
-                <span className="label-text">Include contestant declarations</span>
-              </label>
-              <label className="label cursor-pointer justify-start gap-2">
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox-sm"
-                  checked={config.map_plot_track_between_waypoints}
-                  onChange={(e) => set('map_plot_track_between_waypoints', e.target.checked)}
-                />
-                <span className="label-text">Plot track between waypoints</span>
-              </label>
-              <label className="label cursor-pointer justify-start gap-2">
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox-sm"
-                  checked={config.map_include_meridians_and_parallels_lines}
-                  onChange={(e) => set('map_include_meridians_and_parallels_lines', e.target.checked)}
-                />
-                <span className="label-text">Include meridians/parallels</span>
-              </label>
-              <label className="label cursor-pointer justify-start gap-2">
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox-sm"
-                  checked={config.map_include_openaip_overlay}
-                  onChange={(e) => set('map_include_openaip_overlay', e.target.checked)}
-                />
-                <span className="label-text">Include OpenAIP overlay</span>
-              </label>
+
+              <div className="divider my-0 text-xs">Map content</div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                <label className="label cursor-pointer justify-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm"
+                    checked={config.map_include_annotations}
+                    onChange={(e) => set('map_include_annotations', e.target.checked)}
+                  />
+                  <span className="label-text">Include annotations</span>
+                </label>
+                <label className="label cursor-pointer justify-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm"
+                    checked={config.map_include_contestant_declarations}
+                    onChange={(e) => set('map_include_contestant_declarations', e.target.checked)}
+                  />
+                  <span className="label-text">Include contestant declarations</span>
+                </label>
+                <label className="label cursor-pointer justify-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm"
+                    checked={config.map_plot_track_between_waypoints}
+                    onChange={(e) => set('map_plot_track_between_waypoints', e.target.checked)}
+                  />
+                  <span className="label-text">Plot track between waypoints</span>
+                </label>
+                <label className="label cursor-pointer justify-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm"
+                    checked={config.map_include_meridians_and_parallels_lines}
+                    onChange={(e) => set('map_include_meridians_and_parallels_lines', e.target.checked)}
+                  />
+                  <span className="label-text">Include meridians/parallels</span>
+                </label>
+                <label className="label cursor-pointer justify-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm"
+                    checked={config.map_include_openaip_overlay}
+                    onChange={(e) => set('map_include_openaip_overlay', e.target.checked)}
+                  />
+                  <span className="label-text">Include OpenAIP overlay</span>
+                </label>
+              </div>
 
               <div className="divider my-0 text-xs">Turning point photos</div>
               <label className="label cursor-pointer justify-start gap-2">

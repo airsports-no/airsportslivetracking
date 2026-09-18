@@ -368,6 +368,7 @@ export interface MapSourceOption {
   min_zoom: number;
   max_zoom: number;
   default_zoom: number;
+  origin: 'builtin' | 'user_upload';
 }
 
 // Scoped to this navigation task's route (and the requesting user's uploaded maps) - mirrors the
