@@ -461,11 +461,13 @@ const MissionDashboard = () => {
                 </div>
             </div>
 
-            {/* Live Now Section */}
+            {/* Live Now Section - sticky like the page header, so it stays visible while
+                scrolling the rest of the dashboard. Capped height (with its own scrollbar) so a
+                lot of simultaneously-live tasks can't grow tall enough to dominate the viewport. */}
             {ongoingNavigations.length > 0 && (
-                <div className="mb-8">
-                    <h2 className="text-2xl font-bold mb-4 text-error">🔴 Live Now</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="sticky top-0 z-20 bg-base-100 pb-4 mb-8 shadow-sm">
+                    <h2 className="text-2xl font-bold pt-2 pb-4 text-error">🔴 Live Now</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[50vh] overflow-y-auto">
                         {ongoingNavigations.map(live => (
                             <div key={live.pk} className="card bg-base-200 shadow-xl">
                                 <div className="card-body">
