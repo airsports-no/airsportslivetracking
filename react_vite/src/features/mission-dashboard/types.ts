@@ -51,6 +51,19 @@ export interface Contest {
     has_flown_contestants?: boolean;
     access_status?: AccessStatus;
     available_token_grants?: AvailableTokenGrant[];
+    current_token_assignment?: {
+        token_type_name: string;
+        assigned_at: string;
+        activated_at: string | null;
+        expires_at: string | null;
+        is_active_now: boolean;
+    } | null;
+    club_access_grants?: {
+        tier_label: string;
+        contestant_limit: number | null;
+        task_type_groups: string[];
+    }[];
+    club_manager_memberships?: { email: string; role: string }[];
 }
 
 export interface Route {
@@ -76,6 +89,7 @@ export interface NavigationTask {
         key: string;
         display_name: string;
         coarse_family: string;
+        coarse_family_label: string;
         requires_contestant_configuration: boolean;
     } | null;
     allow_self_management: boolean;
@@ -196,6 +210,7 @@ export interface Copilot {
     first_name: string;
     last_name: string;
     email: string;
+    picture: string | null;
 }
 
 export interface ScheduleFlightPayload {

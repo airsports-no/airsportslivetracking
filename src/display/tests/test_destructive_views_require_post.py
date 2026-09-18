@@ -7,11 +7,20 @@ the CSRF protection was missing.
 
 Covers: contestant_remove_score_item (delete_score_item), contestant_stop_calculator
 (terminate_contestant_calculator), contestant_restart_calculator (restart_contestant_calculator),
-clear_profile_image_background, remove_team, renewtoken (renew_token).
+renewtoken (renew_token).
 
 navigationtask_refresheditableroute (refresh_editable_route_navigation_task) is the same finding
 class, discovered separately while investigating the scorecard-system review roadmap's Phase 0
 follow-ups - missed by the original batch above.
+
+clear_profile_image_background and remove_team were covered here too, but both views (along with
+upload_profile_picture and RegisterTeamWizard's whole surface) were removed as part of the
+wizard->SPA migration (see display.services.team_registration): remove_team's "remove a team from
+a contest" behavior is now covered by test_contestteam_management.py's coverage of the
+ContestTeamViewSet DELETE endpoint the new admin UI actually calls, and
+clear_profile_image_background/upload_profile_picture had no reachable UI trigger left once the
+wizard's picture-upload templates were deleted (grep confirmed zero references anywhere outside
+those templates), so they were retired rather than kept as unreachable dead code.
 """
 
 import datetime
@@ -28,7 +37,6 @@ from display.models import (
     Aeroplane,
     Contest,
     Contestant,
-    ContestTeam,
     Crew,
     NavigationTask,
     Person,
@@ -64,7 +72,6 @@ class TestDestructiveViewsRequirePost(TestCase):
         self.member1 = Person.objects.create(first_name="A", last_name="B", email="csrf@example.com")
         crew = Crew.objects.create(member1=self.member1)
         self.team = Team.objects.create(crew=crew, aeroplane=Aeroplane.objects.create(registration="LN-CSRF"))
-        self.contest_team = ContestTeam.objects.create(contest=self.contest, team=self.team, air_speed=70)
         self.contestant = Contestant.objects.create(
             team=self.team,
             navigation_task=self.navigation_task,
@@ -122,32 +129,6 @@ class TestDestructiveViewsRequirePost(TestCase):
             response = self.client.post(url)
             self.assertEqual(response.status_code, 302)
             mock_terminate.assert_called_once()
-
-    def test_clear_profile_image_background_rejects_get(self, *args):
-        url = reverse("clear_profile_image_background", kwargs={"contest_pk": self.contest.pk, "pk": self.member1.pk})
-        with patch("display.models.team_structure.Person.remove_profile_picture_background") as mock_remove_bg:
-            response = self.client.get(url)
-            self.assertEqual(response.status_code, 405)
-            mock_remove_bg.assert_not_called()
-
-    def test_clear_profile_image_background_post_succeeds(self, *args):
-        url = reverse("clear_profile_image_background", kwargs={"contest_pk": self.contest.pk, "pk": self.member1.pk})
-        with patch("display.models.team_structure.Person.remove_profile_picture_background", return_value=None) as mock_remove_bg:
-            response = self.client.post(url)
-            self.assertEqual(response.status_code, 302)
-            mock_remove_bg.assert_called_once()
-
-    def test_remove_team_rejects_get(self, *args):
-        url = reverse("remove_team", kwargs={"contest_pk": self.contest.pk, "team_pk": self.team.pk})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 405)
-        self.assertTrue(ContestTeam.objects.filter(pk=self.contest_team.pk).exists())
-
-    def test_remove_team_post_succeeds(self, *args):
-        url = reverse("remove_team", kwargs={"contest_pk": self.contest.pk, "team_pk": self.team.pk})
-        response = self.client.post(url)
-        self.assertEqual(response.status_code, 302)
-        self.assertFalse(ContestTeam.objects.filter(pk=self.contest_team.pk).exists())
 
     def test_renew_token_rejects_get(self, *args):
         from django.contrib.auth.models import Permission

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo, useLayoutEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Contest, NavigationTask, ContestResults, MyContestTeam } from './types';
 import { Contestant } from '../competition-map/types';
 import { Loading } from '../route-editor/components/basicComponents';
@@ -14,11 +15,32 @@ import PublicityIcon from './components/PublicityIcon';
 import { HelpCircle } from 'lucide-react'; // Import HelpCircle
 import { reverse, generatePath } from '../../urls';
 import { useMissionDashboardStore } from './store';
+import { canManageContest, hasCapacityHeadroomForCurrentUsage } from './permissions';
 import { fetchNavigationTask } from '../competition-map/api';
 import { formatDateInterval } from '../../utils';
+import NavigationTaskCreationFlow from '../contest-management/components/NavigationTaskCreationFlow';
+import TeamRegistrationFlow from '../contest-management/components/TeamRegistrationFlow';
+import ImportTeamsPanel from '../contest-management/components/ImportTeamsPanel';
+import TeamList from '../contest-management/components/TeamList';
+import ContestSettingsForm from '../contest-management/components/ContestSettingsForm';
+import ContestTokenPanel from './components/ContestTokenPanel';
+import ContestPermissionsPanel from '../contest-management/components/ContestPermissionsPanel';
+import * as contestManagementApi from '../contest-management/api';
+import {
+    assignContestToken,
+    replaceContestToken,
+    deleteContest,
+    fetchContestPermissions,
+    addContestPermission,
+    changeContestPermission,
+    removeContestPermission,
+    ContestPermissionGrant,
+} from './api';
+import { ContestTeamListItem } from '../contest-management/types';
 
 const ContestDashboard = () => {
     const { contestId } = useParams<{ contestId: string }>();
+    const navigate = useNavigate();
     const {
         contestsById,
         myFutureFlights,
@@ -56,7 +78,89 @@ const ContestDashboard = () => {
     const [viewingScoresForTask, setViewingScoresForTask] = useState<NavigationTask | null>(null);
     const [loadingTaskScores, setLoadingTaskScores] = useState(false);
 
-    const canManageThisContest = contest?.is_editor || document.configuration.is_superuser;
+    // Owner-only management tools (task creation, team management) - rendered inline below
+    // instead of on a separate page, so there's a single contest view for every visitor.
+    const [showCreateTask, setShowCreateTask] = useState(false);
+    const [teams, setTeams] = useState<ContestTeamListItem[]>([]);
+    const [teamsLoading, setTeamsLoading] = useState(true);
+    const [teamsError, setTeamsError] = useState<string | null>(null);
+    const [editingContestTeam, setEditingContestTeam] = useState<ContestTeamListItem | 'new' | null>(null);
+    const [showImportTeams, setShowImportTeams] = useState(false);
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+    const [permissionGrants, setPermissionGrants] = useState<ContestPermissionGrant[]>([]);
+    const [permissionsLoading, setPermissionsLoading] = useState(false);
+    const [permissionsError, setPermissionsError] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const latestTeamsContestId = useRef(contestId);
+
+    const canManageThisContest = canManageContest(contest);
+    const hasTokenCapacityHeadroom = hasCapacityHeadroomForCurrentUsage(contest?.access_status);
+
+    const refreshTeams = async () => {
+        if (!contestId) return;
+        const requestedContestId = contestId;
+        setTeamsLoading(true);
+        setTeamsError(null);
+        try {
+            const result = await contestManagementApi.fetchContestTeams(Number(requestedContestId));
+            if (requestedContestId === latestTeamsContestId.current) setTeams(result);
+        } catch (err) {
+            if (requestedContestId === latestTeamsContestId.current) setTeamsError((err as Error).message);
+        } finally {
+            if (requestedContestId === latestTeamsContestId.current) setTeamsLoading(false);
+        }
+    };
+
+    const refreshPermissions = () => {
+        if (!contestId) return;
+        const requestedContestId = contestId;
+        // Clear the previous contest's rows immediately - otherwise they stay rendered (and
+        // actionable) under the new contest's heading until this fetch resolves.
+        setPermissionGrants([]);
+        setPermissionsLoading(true);
+        setPermissionsError(null);
+        fetchContestPermissions(Number(requestedContestId))
+            .then(result => {
+                if (requestedContestId === latestTeamsContestId.current) setPermissionGrants(result);
+            })
+            .catch(err => {
+                if (requestedContestId === latestTeamsContestId.current) setPermissionsError((err as Error).message);
+            })
+            .finally(() => {
+                if (requestedContestId === latestTeamsContestId.current) setPermissionsLoading(false);
+            });
+    };
+
+    useEffect(() => {
+        latestTeamsContestId.current = contestId;
+        // Reset unconditionally, even when the new contest isn't manageable by this user -
+        // otherwise navigating from a manageable contest to one this user can't manage would
+        // leave the previous contest's permission rows (and an already-open permissions modal)
+        // showing against the new, wrong contest.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPermissionGrants([]);
+        setShowPermissionsModal(false);
+        if (canManageThisContest) {
+            refreshTeams();
+            refreshPermissions();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [contestId, canManageThisContest]);
+
+    const handleDeleteContest = async () => {
+        if (!window.confirm(`Delete contest "${contest.name}"? This cannot be undone.`)) return;
+        setDeleting(true);
+        setDeleteError(null);
+        try {
+            await deleteContest(contest.id);
+            navigate('/');
+        } catch (err) {
+            setDeleteError((err as Error).message);
+            setDeleting(false);
+        }
+    };
 
 
     const hasFutureFlightsScheduled = useMemo(() => {
@@ -193,8 +297,119 @@ const ContestDashboard = () => {
                 </div>
             )}
             {/* Modals for forms */}
-            {showRegistrationForm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+            {showCreateTask && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                    <NavigationTaskCreationFlow
+                        entry={{ kind: 'contest', contestId: contest.id }}
+                        initialContest={contest}
+                        onCancel={() => setShowCreateTask(false)}
+                        onCreated={createdContestId => {
+                            setShowCreateTask(false);
+                            fetchContest(createdContestId, true);
+                        }}
+                    />
+                </div>,
+                document.body
+            )}
+            {editingContestTeam && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                    <TeamRegistrationFlow
+                        contestId={contest.id}
+                        editingContestTeam={editingContestTeam === 'new' ? undefined : editingContestTeam}
+                        onCancel={() => setEditingContestTeam(null)}
+                        onSaved={async () => {
+                            // A full reload, not an optimistic local merge: an edit doesn't just
+                            // replace the edited row's own ContestTeam (new id, old one deleted -
+                            // see Contest.replace_team) - if the edited pilot/aeroplane/club
+                            // combination now matches a DIFFERENT team that already has its own
+                            // separate registration in this contest, replace_team deletes *that*
+                            // row too, merging the two. Reconstructing the resulting list locally
+                            // would have to duplicate that matching logic; refetching from the
+                            // server is simpler and always correct. Awaited (not fire-and-forget)
+                            // so the modal doesn't close, letting Edit be reopened, until the list
+                            // it reads from is actually fresh.
+                            await refreshTeams();
+                            setEditingContestTeam(null);
+                            // The organizer may have just registered themselves (as pilot or
+                            // copilot) via this admin flow - without this, the visitor-facing
+                            // Register team button (driven by myContestTeams) would keep showing
+                            // as available until a full page reload.
+                            await fetchMyContestTeams(true);
+                        }}
+                    />
+                </div>,
+                document.body
+            )}
+            {showImportTeams && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                    <ImportTeamsPanel
+                        contestId={contest.id}
+                        onCancel={() => setShowImportTeams(false)}
+                        onImported={() => {
+                            setShowImportTeams(false);
+                            refreshTeams();
+                        }}
+                    />
+                </div>,
+                document.body
+            )}
+            {showSettingsModal && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                    <div className="card bg-base-100 shadow-xl max-w-2xl w-full mx-auto">
+                        <div className="card-body">
+                            <div className="flex items-center justify-between">
+                                <h2 className="card-title">Contest settings</h2>
+                                <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={() => setShowSettingsModal(false)}>
+                                    ✕
+                                </button>
+                            </div>
+                            <ContestSettingsForm
+                                contest={contest}
+                                onSaved={() => {
+                                    fetchContest(contest.id, true);
+                                    setShowSettingsModal(false);
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+            {showPermissionsModal && canManageThisContest && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                    <div className="card bg-base-100 shadow-xl max-w-2xl w-full mx-auto">
+                        <div className="card-body">
+                            <div className="flex items-center justify-between">
+                                <h2 className="card-title">Permissions</h2>
+                                <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={() => setShowPermissionsModal(false)}>
+                                    ✕
+                                </button>
+                            </div>
+                            {permissionsError && <div className="alert alert-error mb-2">{permissionsError}</div>}
+                            <ContestPermissionsPanel
+                                grants={permissionGrants}
+                                currentUserId={document.configuration.userId ?? -1}
+                                loading={permissionsLoading}
+                                onAdd={async (identifier, level) => {
+                                    await addContestPermission(contest.id, identifier, level);
+                                    refreshPermissions();
+                                }}
+                                onChange={async (userId, level) => {
+                                    await changeContestPermission(contest.id, userId, level);
+                                    refreshPermissions();
+                                }}
+                                onRemove={async userId => {
+                                    await removeContestPermission(contest.id, userId);
+                                    refreshPermissions();
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+            {showRegistrationForm && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
                     <ContestRegistrationForm
                         contest={contest}
                         myContestTeams={myContestTeams}
@@ -204,10 +419,11 @@ const ContestDashboard = () => {
                             await fetchContest(contest.id, true);
                         }}
                     />
-                </div>
+                </div>,
+                document.body
             )}
-            {showScheduleForm && (
-                 <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+            {showScheduleForm && createPortal(
+                 <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
                     <ScheduleFlightForm
                         contest={contest}
                         navigationTaskId={showScheduleForm.pk}
@@ -222,10 +438,11 @@ const ContestDashboard = () => {
                             await fetchContest(contest.id, true);
                         }}
                     />
-                </div>
+                </div>,
+                document.body
             )}
-            {viewingScoresForTask && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto p-4">
+            {viewingScoresForTask && createPortal(
+                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
                     <div className="card bg-base-100 shadow-xl max-w-4xl w-full">
                         <div className="card-body">
                             {loadingTaskScores ? (
@@ -238,7 +455,8 @@ const ContestDashboard = () => {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Contest Header */}
@@ -275,11 +493,19 @@ const ContestDashboard = () => {
                             )}
                         </div>
                     </div>
-                     <div className="flex flex-col items-stretch gap-2 w-full md:w-auto">
+                     <div className="flex flex-wrap items-center justify-end gap-2 w-full md:w-auto">
                         {canManageThisContest && (
-                            <a href={reverse('contest_details', contest.id)} className="btn btn-primary btn-sm">
-                                Manage Contest
-                            </a>
+                            <>
+                                <button className="btn btn-accent btn-sm" onClick={() => setShowCreateTask(true)}>
+                                    Add navigation task
+                                </button>
+                                <button className="btn btn-accent btn-outline btn-sm" onClick={() => setShowSettingsModal(true)}>
+                                    Contest settings
+                                </button>
+                                <button className="btn btn-accent btn-outline btn-sm" onClick={() => setShowPermissionsModal(true)}>
+                                    Permissions{permissionGrants.length > 0 ? ` (${permissionGrants.length})` : ''}
+                                </button>
+                            </>
                         )}
                         {(() => {
                             if (userContestTeam?.is_user_pilot) {
@@ -300,7 +526,7 @@ const ContestDashboard = () => {
                                 );
                             } else if (document.configuration.isAuthenticated) {
                                 return (
-                                    <button className="btn btn-success" onClick={() => setShowRegistrationForm(true)}>Register</button>
+                                    <button className="btn btn-primary" onClick={() => setShowRegistrationForm(true)}>Register team</button>
                                 );
                             } else {
                                 return (
@@ -342,10 +568,81 @@ const ContestDashboard = () => {
                         </h2>
                         <p className="text-sm text-gray-500">Times in {contest.time_zone}</p>
                     </div>
+                    {canManageThisContest && (
+                        <div className="mb-8">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {!hasTokenCapacityHeadroom && (
+                                    <ContestTokenPanel
+                                        grants={contest.available_token_grants}
+                                        currentTokenGrantId={contest.access_status?.token_grant_id}
+                                        onAssign={async tokenGrantId => {
+                                            await assignContestToken(contest.id, tokenGrantId);
+                                            fetchContest(contest.id, true);
+                                        }}
+                                        onReplace={async tokenGrantId => {
+                                            await replaceContestToken(contest.id, tokenGrantId);
+                                            fetchContest(contest.id, true);
+                                        }}
+                                    />
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                                {contest.current_token_assignment && !contest.current_token_assignment.is_active_now && (
+                                    <div className="alert alert-warning shadow-sm lg:col-span-2">
+                                        <div>
+                                            <div className="font-bold">Archive Mode</div>
+                                            <div className="text-sm">
+                                                This contest token ({contest.current_token_assignment.token_type_name}) expired on{' '}
+                                                {contest.current_token_assignment.expires_at &&
+                                                    new Date(contest.current_token_assignment.expires_at).toLocaleString()}
+                                                . Historical results remain readable, but creating new tasks or launching new
+                                                live sessions requires a new token or annual pass.
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!!contest.club_access_grants?.length && (
+                                    <div className="card bg-base-200 shadow-sm border border-base-300">
+                                        <div className="card-body p-5">
+                                            <h3 className="card-title text-lg">Club access</h3>
+                                            <div className="space-y-2">
+                                                {contest.club_access_grants.map((grant, index) => (
+                                                    <div key={index} className="rounded-lg bg-base-100 p-3 text-sm">
+                                                        <div className="font-semibold">{grant.tier_label}</div>
+                                                        <div className="opacity-70">
+                                                            Competing pilots: {grant.contestant_limit == null ? 'Unlimited' : grant.contestant_limit}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!!contest.club_manager_memberships?.length && (
+                                    <div className="card bg-base-200 shadow-sm border border-base-300">
+                                        <div className="card-body p-5">
+                                            <h3 className="card-title text-lg">Club managers</h3>
+                                            <div className="space-y-2">
+                                                {contest.club_manager_memberships.map(membership => (
+                                                    <div key={membership.email} className="rounded-lg bg-base-100 p-3 text-sm flex justify-between gap-2">
+                                                        <span>{membership.email}</span>
+                                                        <span className="badge badge-ghost badge-sm">{membership.role}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                     <div className="space-y-4">
                         {contest.navigationtask_set
                             .filter(task => {
-                                if (contest.is_editor || document.configuration.is_superuser) {
+                                if (canManageContest(contest)) {
                                     return true; // Editor OR Superuser sees all tasks
                                 } else {
                                     return task.is_featured && task.is_public; // Non-editor/non-superuser sees only public and featured tasks
@@ -375,6 +672,8 @@ const ContestDashboard = () => {
                                         timeZone={contest.time_zone}
                                         route={task.route}
                                         flown_contestants_count={task.flown_contestants_count}
+                                        canManage={canManageThisContest}
+                                        taskSubtypeDefinition={task.task_subtype_definition}
                                     />
                                 );
                             })}
@@ -388,8 +687,81 @@ const ContestDashboard = () => {
                         <Link to={generatePath('CONTEST_RESULTS_TABLE', { contestId: contestId })} className="btn btn-primary">View Full Results</Link>
                     </div>
                     <Leaderboard results={contestResults || null} />
+
+                    {canManageThisContest && (
+                        <div className="card bg-base-100 shadow mt-8">
+                            <div className="card-body">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="card-title">Registered teams</h3>
+                                    <div className="flex gap-2">
+                                        <button className="btn btn-accent btn-outline btn-sm" onClick={() => setShowImportTeams(true)}>
+                                            Import teams
+                                        </button>
+                                        <button className="btn btn-accent btn-sm" onClick={() => setEditingContestTeam('new')}>
+                                            Register team
+                                        </button>
+                                    </div>
+                                </div>
+                                {teamsLoading ? (
+                                    <Loading />
+                                ) : teamsError ? (
+                                    <div className="alert alert-error">
+                                        <span>Failed to load teams: {teamsError}</span>
+                                        <button type="button" className="btn btn-sm" onClick={refreshTeams}>
+                                            Retry
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <TeamList
+                                        contestId={contest.id}
+                                        teams={teams}
+                                        onEdit={contestTeam => setEditingContestTeam(contestTeam)}
+                                        onRemoved={contestTeamId => setTeams(prev => prev.filter(item => item.id !== contestTeamId))}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {canManageThisContest && (
+                <div className="mt-8 space-y-6">
+                    <div className="card bg-base-200 shadow-sm border border-base-300">
+                        <div className="card-body p-5">
+                            <h3 className="card-title text-lg">Access &amp; limits</h3>
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <span className="badge badge-info">{contest.access_status?.tier_label}</span>
+                                <span className="text-xs opacity-70">Source: {contest.access_status?.source_type}</span>
+                            </div>
+                            <div className="bg-base-100 rounded-lg p-3 text-sm">
+                                <div className="opacity-70">Competing pilots</div>
+                                <div className="font-semibold">
+                                    {contest.access_status?.contestants_used} /{' '}
+                                    {contest.access_status?.contestant_limit == null ? 'Unlimited' : contest.access_status.contestant_limit}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card bg-error/10 border border-error/30 shadow-sm">
+                        <div className="card-body p-5">
+                            <h3 className="card-title text-lg text-error">Danger zone</h3>
+                            <p className="text-sm opacity-80">
+                                Deleting a contest permanently removes it, its navigation tasks, and all results.
+                            </p>
+                            {deleteError && <div className="alert alert-error text-sm py-2">{deleteError}</div>}
+                            <div className="card-actions justify-end">
+                                <button className="btn btn-error btn-sm" disabled={deleting} onClick={handleDeleteContest}>
+                                    {deleting && <span className="loading loading-spinner"></span>}
+                                    Delete contest
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <Link to="/" className="btn btn-secondary mt-4">Back to Dashboard</Link>
         </div>
     );

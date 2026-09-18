@@ -125,7 +125,21 @@
                         {% else %}
                             <li>
                                 <details>
-                                    <summary>Profile</summary>
+                                    <summary class="p-1">
+                                        {% if user_profile_picture_url %}
+                                            <div class="avatar">
+                                                <div class="w-7 rounded-full ring ring-neutral-content/30">
+                                                    <img src="{{ user_profile_picture_url }}" alt="{{ user.email }}" />
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <div class="avatar avatar-placeholder">
+                                                <div class="bg-neutral-content/20 text-neutral-content w-7 rounded-full">
+                                                    <span class="text-xs">{{ user.email|slice:":1"|upper }}</span>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    </summary>
                                     <ul class="p-2 bg-neutral rounded-t-none z-[5001] right-0">
                                         <li>{{ user.email }}</li>
                                         <li><a href="{% url 'password_change' %}?next=/">Change password</a></li>

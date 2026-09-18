@@ -9,15 +9,18 @@ interface ContestCardProps {
     status: 'live' | 'upcoming' | 'past';
     isRegistered?: boolean;
     hasScheduledFlight?: boolean;
-    isEditorContest?: boolean;
     hasOpenTasksForScheduling?: boolean; // New prop
-    viewLink: string;
-    manageLink?: string;
+    // Omit when the caller wants to handle the click itself (e.g. PastFlights opening a results
+    // modal instead of navigating) - there's a single contest view now, so most callers just want
+    // the whole card to link there instead of a separate "View" button.
+    viewLink?: string;
 }
 
-const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight, isEditorContest, hasOpenTasksForScheduling, viewLink, manageLink }) => {
-    return (
-        <div className={`card bg-base-300 shadow-xl ${contest.header_image ? 'image-full' : ''} h-[260px] overflow-hidden`}>
+const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered, hasScheduledFlight, hasOpenTasksForScheduling, viewLink }) => {
+    const className = `card bg-base-300 shadow-xl ${contest.header_image ? 'image-full' : ''} h-[260px] overflow-hidden ${viewLink ? 'cursor-pointer hover:shadow-2xl transition-shadow' : ''}`;
+
+    const content = (
+        <>
             {contest.header_image && (
                 <figure><img src={contest.header_image} alt={contest.name} className="w-full h-full object-cover" /></figure>
             )}
@@ -39,24 +42,27 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
                         </p>
                     )}
                 </div>
-                
-                <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+
+                <div className="mt-auto flex items-end pt-2">
                     <div className="flex flex-col gap-1 mb-1">
                         {status === 'live' && <div className="badge badge-error badge-xs">LIVE</div>}
                         {hasScheduledFlight && <div className="badge badge-info badge-xs">Scheduled</div>}
                         {isRegistered && <div className="badge badge-success badge-xs">Registered</div>}
                         {hasOpenTasksForScheduling && <div className="badge badge-accent badge-xs">Tasks Open</div>}
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                        <Link to={viewLink} className="btn btn-primary btn-sm">View</Link>
-                        {isEditorContest && manageLink && (
-                            <a href={manageLink} className="btn btn-secondary btn-sm">Manage</a>
-                        )}
-                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
+
+    if (viewLink) {
+        return (
+            <Link to={viewLink} className={className}>
+                {content}
+            </Link>
+        );
+    }
+    return <div className={className}>{content}</div>;
 };
 
 export default ContestCard;
