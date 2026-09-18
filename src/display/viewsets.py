@@ -3404,14 +3404,6 @@ class TaskViewSet(ModelViewSet):
             )
         return super().destroy(request, *args, **kwargs)
 
-    def update(self, request, *args, **kwargs):
-        task = self.get_object()
-        if task.tasktest_set.filter(navigation_task__isnull=False).exists():
-            raise drf_exceptions.ValidationError(
-                "Cannot modify a task that is linked to a navigation task. Modify the navigation task instead."
-            )
-        return super().update(request, *args, **kwargs)
-
 
 _CONTEST_NESTED_PATH_PARAMETERS = [
     OpenApiParameter(name="contest_pk", type=OpenApiTypes.INT, location=OpenApiParameter.PATH),
