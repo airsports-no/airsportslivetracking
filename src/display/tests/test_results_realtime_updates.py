@@ -419,6 +419,40 @@ class NavigationTaskResultsServiceTests(APITransactionTestCase):
         self.assertEqual(TaskSummary.objects.get(task=task_test.task, team=team).points, 0)
         self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=team).points, 0)
 
+    def test_deleting_contestant_updates_results_service_score(self, *_args):
+        # Regression test: TeamTestScore/TaskSummary/ContestSummary are keyed on team, not
+        # Contestant, so deleting a contestant used to leave the team's score for this
+        # navigation task's auto-generated TaskTest (i.e. its penalties) stuck on the
+        # leaderboard forever - same class of bug as the restart case above, just for
+        # deletion instead of reset.
+        team = Team.objects.create(
+            crew=Crew.objects.create(
+                member1=_create_person(first_name="Pilot", last_name="Delete", email="delete@example.com")
+            ),
+            aeroplane=Aeroplane.objects.create(registration="LN-DEL"),
+        )
+        now = datetime.datetime.now(datetime.timezone.utc)
+        contestant = Contestant.objects.create(
+            navigation_task=self.navigation_task,
+            team=team,
+            takeoff_time=now,
+            finished_by_time=now + datetime.timedelta(hours=1),
+            tracker_start_time=now,
+            tracker_device_id="delete-test-device",
+            contestant_number=1,
+        )
+        contestant.contestanttrack.update_score(99)
+
+        task_test = self.navigation_task.tasktest
+        self.assertEqual(TaskSummary.objects.get(task=task_test.task, team=team).points, 99)
+        self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=team).points, 99)
+
+        contestant.delete()
+
+        self.assertFalse(TeamTestScore.objects.filter(task_test=task_test, team=team).exists())
+        self.assertEqual(TaskSummary.objects.get(task=task_test.task, team=team).points, 0)
+        self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=team).points, 0)
+
     def test_results_details_includes_navigation_task_results_service_entries(self, *_args):
         response = self.client.get(reverse("contests-results-details", kwargs={"pk": self.contest.pk}))
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
