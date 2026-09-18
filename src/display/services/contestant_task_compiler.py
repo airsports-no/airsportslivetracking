@@ -1281,6 +1281,16 @@ class ContestantTaskCompiler:
         # re-time them (schedule_contestants.py excludes schedule_locked contestants) - doing so
         # would invalidate gate times/timing the declaration already committed to. An invalid
         # config isn't a real declaration yet, so leave scheduling eligibility open until it is.
+        #
+        # Task types that don't require a contestant-specific declaration at all (the majority -
+        # everything except contract navigation/turnpoint hunt/etc.) have no "real declaration" to
+        # protect: config.is_valid is trivially True with zero validation errors regardless of
+        # what, if anything, was ever declared. Without this guard, every contestant on those
+        # tasks got auto-locked the instant compile() ran for them - including from the scheduler
+        # creating them in the first place, which defeated the organizer's ability to freely
+        # re-run it and adjust the schedule afterward.
+        if not self.contestant.navigation_task.requires_contestant_task_configuration():
+            return
         if not config.is_valid or self.contestant.schedule_locked:
             return
         self.contestant.schedule_locked = True

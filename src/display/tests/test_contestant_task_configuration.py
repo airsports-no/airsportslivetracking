@@ -174,6 +174,23 @@ class TestContestantTaskConfiguration(TestCase):
         self.contestant.refresh_from_db()
         self.assertFalse(self.contestant.schedule_locked)
 
+    def test_compiling_a_task_with_no_declaration_requirement_does_not_lock_the_schedule(self):
+        # Regression test: _lock_if_needed used to key off config.is_valid alone, which is
+        # trivially True (zero validation errors) for any task subtype that doesn't require a
+        # contestant-specific declaration at all - the vast majority, since CURVE_NAVIGATION_
+        # TIME_ESTIMATION (this test class's default) is one of the few CIMA subtypes that does.
+        # An empty task_subtype falls back to LEGACY_PRECISION (requires_contestant_configuration
+        # =False), reproducing that: compiling with no declaration at all must not lock, even
+        # though it compiles as trivially "valid".
+        self.navigation_task.task_subtype = ""
+        self.navigation_task.save(update_fields=["task_subtype"])
+
+        compiled = ContestantTaskCompiler(self.contestant).compile(force=True)
+
+        self.assertTrue(compiled.is_valid)
+        self.contestant.refresh_from_db()
+        self.assertFalse(self.contestant.schedule_locked)
+
     def test_contestant_gate_times_prefers_compiled_configuration(self):
         compiled = ContestantTaskCompiler(self.contestant).compile(
             declaration_payload={"known_time_gate_predictions": {"SP": "2020-08-01T08:11:00Z"}}
