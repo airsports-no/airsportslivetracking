@@ -239,7 +239,7 @@ const ContestantScheduling = () => {
                             </div>
                             {!isInfoCollapsed && (
                                 <ul className="list-disc list-inside space-y-1 mt-2">
-                                    <li>The scheduler manages all flights ending after the <strong>First Takeoff Time</strong>. Flights before this time are untouched.</li>
+                                    <li>The scheduler manages all flights ending after <strong>Reschedule From</strong>. Flights before this time are untouched.</li>
                                     <li><strong>Locked Flights (🔒 / 📡):</strong> 
                                         <ul className="list-disc list-inside ml-4 mt-1">
                                             <li><strong>Manual Lock (🔒):</strong> Double-click a flight in the timeline to lock/unlock. These are never moved or deleted by the scheduler.</li>
@@ -248,11 +248,11 @@ const ContestantScheduling = () => {
                                     </li>
                                     <li><strong>Unlocked Flights:</strong> Flights in the scheduling window will be overwritten. If a team is not selected, their unlocked future flight will be removed.</li>
                                     <li><strong>Manual Adjustment:</strong> After the automatic scheduling process, you can click and drag a contestant along the timeline to change its scheduling manually.</li>
-                                    <li><strong>Initial Scheduling:</strong> Determine the first takeoff time, select all teams that will be flying, and press "Run Scheduler". This will populate all contestants.</li>
+                                    <li><strong>Initial Scheduling:</strong> Set <strong>Takeoff Time</strong>, select all teams that will be flying, and press "Run Scheduler". This will populate all contestants.</li>
                                     <li><strong>Updates During Competition:</strong> If changes are needed (e.g. delays or roster changes):
                                         <ul className="list-disc list-inside ml-4 mt-1">
                                             <li>Lock all contestants that have already flown or whose time should not change.</li>
-                                            <li>Update the <strong>Next Takeoff Time</strong> to the desired time for the first <em>new</em> flight to be scheduled.</li>
+                                            <li>Update <strong>Takeoff Time</strong> to the desired time for the first <em>new</em> flight to be scheduled.</li>
                                             <li>Select/deselect any teams as required for the remaining flights.</li>
                                             <li>Run scheduler again.</li>
                                         </ul>
