@@ -10,15 +10,14 @@ import {
 } from '../api';
 
 export interface ContestantFormModalHandle {
-  open: () => void;
+  /** Pass a contestant id to edit it, or omit it to create a new one - the "advanced" alternative
+      to Quick Add for power users who need the full field set (tracker id, adaptive start, etc). */
+  open: (contestantId?: number) => void;
 }
 
 interface ContestantFormModalProps {
   contestId: number;
   navigationTaskId: number;
-  /** When set, edits this contestant. When omitted, creates a new one - the "advanced" alternative
-      to Quick Add for power users who need the full field set (tracker id, adaptive start, etc). */
-  contestantId?: number;
   /** Create-mode defaults, taken from the navigation task, mirroring quick_add_contestant's own defaults. */
   nextContestantNumber?: number;
   taskWindSpeed?: number;
@@ -53,9 +52,10 @@ const toLocalInputValue = (iso: string): string => {
 
 const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantFormModalProps>(
   (
-    { contestId, navigationTaskId, contestantId, nextContestantNumber, taskWindSpeed, taskWindDirection, taskMinutesToStartingPoint, onSaved },
+    { contestId, navigationTaskId, nextContestantNumber, taskWindSpeed, taskWindDirection, taskMinutesToStartingPoint, onSaved },
     ref
   ) => {
+    const [contestantId, setContestantId] = useState<number | undefined>(undefined);
     const isEditMode = contestantId !== undefined;
     const dialogRef = useRef<HTMLDialogElement>(null);
     const [teams, setTeams] = useState<ContestTeamOption[]>([]);
@@ -101,14 +101,17 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
       setFinishedByTime(toLocalInputValue(detail.finished_by_time));
     };
 
-    const load = async () => {
+    // Takes the target contestant id directly rather than reading it off the contestantId state
+    // set just above - setContestantId(id) doesn't take effect until the next render, so an
+    // immediate load() call here would otherwise still see the previous render's stale id.
+    const load = async (targetContestantId?: number) => {
       setLoading(true);
       setError(null);
       try {
         const teamOptions = await fetchContestTeams(contestId);
         setTeams(teamOptions);
-        if (contestantId !== undefined) {
-          const detail = await fetchContestantDetail(contestId, navigationTaskId, contestantId);
+        if (targetContestantId !== undefined) {
+          const detail = await fetchContestantDetail(contestId, navigationTaskId, targetContestantId);
           populateFromDetail(detail);
         } else {
           setContestantNumber(String(nextContestantNumber ?? 1));
@@ -129,9 +132,10 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
     };
 
     useImperativeHandle(ref, () => ({
-      open: () => {
+      open: (targetContestantId?: number) => {
+        setContestantId(targetContestantId);
         dialogRef.current?.showModal();
-        load();
+        load(targetContestantId);
       },
     }));
 

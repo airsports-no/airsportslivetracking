@@ -140,7 +140,7 @@ class FlightOrderConfigurationFormTests(TestCase):
         self.assertNotIn("user_map_source", contestant_form.fields)
 
     @patch(
-        "display.forms.resolve_map_source_definition",
+        "display.flight_order_and_maps.map_plotter_shared_utilities.resolve_map_source_definition",
         return_value={"label": "Uploaded map", "min_zoom": 7, "max_zoom": 13},
     )
     def test_flight_order_form_accepts_uploaded_token_from_supplied_choices_even_when_model_default_choices_do_not_include_it(self, mock_resolve_map_source_definition):
@@ -177,7 +177,7 @@ class FlightOrderConfigurationFormTests(TestCase):
         mock_resolve_map_source_definition.assert_called_once_with("user_uploaded:42", None)
 
     @patch(
-        "display.forms.resolve_map_source_definition",
+        "display.flight_order_and_maps.map_plotter_shared_utilities.resolve_map_source_definition",
         return_value={"label": "Norway 250k", "min_zoom": 8, "max_zoom": 14},
     )
     def test_validate_map_zoom_level_accepts_unified_builtin_mbtiles_source(self, mock_resolve_map_source_definition):
@@ -185,7 +185,7 @@ class FlightOrderConfigurationFormTests(TestCase):
         mock_resolve_map_source_definition.assert_called_once_with("Norway250k", None)
 
     @patch(
-        "display.forms.resolve_map_source_definition",
+        "display.flight_order_and_maps.map_plotter_shared_utilities.resolve_map_source_definition",
         return_value={"label": "OpenAIP", "min_zoom": 4, "max_zoom": 14},
     )
     def test_validate_map_zoom_level_accepts_unified_non_mbtiles_source(self, mock_resolve_map_source_definition):
@@ -193,7 +193,7 @@ class FlightOrderConfigurationFormTests(TestCase):
         mock_resolve_map_source_definition.assert_called_once_with("openaip", None)
 
     @patch(
-        "display.forms.resolve_map_source_definition",
+        "display.flight_order_and_maps.map_plotter_shared_utilities.resolve_map_source_definition",
         return_value={"label": "Uploaded map", "min_zoom": 7, "max_zoom": 13},
     )
     def test_validate_map_zoom_level_accepts_uploaded_token(self, mock_resolve_map_source_definition):

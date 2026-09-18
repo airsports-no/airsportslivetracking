@@ -51,7 +51,6 @@ from django.views.generic import (
     CreateView,
     DeleteView,
     TemplateView,
-    FormView,
 )
 import logging
 
@@ -76,7 +75,6 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import (
 )
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.forms import (
-    ContestantQuickAddForm,
     ContestForm,
     ContestantMapForm,
     LANDSCAPE,
@@ -95,7 +93,6 @@ from display.forms import (
 )
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import assert_can_self_register_contestant, _assert_can_reserve_task_slot
-from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.task_type_visibility import can_user_see_cima_task_types, get_visible_task_type_groups_for_user
 from display.flight_order_and_maps.generate_flight_orders import (
     embed_map_in_pdf,
@@ -952,104 +949,6 @@ class ContestCreateView(PermissionRequiredMixin, CreateView):
 
     def get_success_url(self):
         return fe_url("MISSION_DASHBOARD_DETAIL", contestId=self.object.pk)
-
-
-class ContestantQuickAddView(GuardianPermissionRequiredMixin, FormView):
-    form_class = ContestantQuickAddForm
-    template_name = "display/contestant_quick_create.html"
-    permission_required = ("display.change_contest",)
-
-    def setup(self, request, *args, **kwargs):
-        super().setup(request, *args, **kwargs)
-        self.navigation_task = get_object_or_404(NavigationTask, pk=self.kwargs.get("navigationtask_pk"))
-        timezone.activate(self.navigation_task.contest.time_zone)
-
-    def get_permission_object(self):
-        return self.navigation_task.contest
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs["navigation_task"] = self.navigation_task
-        return kwargs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["navigation_task"] = self.navigation_task
-        return context
-
-    def form_valid(self, form):
-        contest_team = form.cleaned_data["contest_team"]
-        resolution = resolve_contest_access(self.navigation_task.contest)
-        try:
-            _assert_can_reserve_task_slot(self.navigation_task, contest_team.team, resolution)
-        except (ValidationError, drf_exceptions.ValidationError) as exc:
-            form.add_error(None, exc)
-            return self.form_invalid(form)
-        starting_point_time = form.cleaned_data["starting_point_time"]
-        adaptive_start = form.cleaned_data["adaptive_start"]
-        existing_contestants = self.navigation_task.contestant_set.all()
-        contestant_number = (
-            (max([c.contestant_number for c in existing_contestants]) + 1) if existing_contestants.exists() else 1
-        )
-
-        takeoff_time = starting_point_time - datetime.timedelta(minutes=self.navigation_task.minutes_to_starting_point)
-
-        if adaptive_start:
-            tracker_start_time = starting_point_time - datetime.timedelta(hours=1)
-            takeoff_time = tracker_start_time
-        else:
-            tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
-
-        contestant = Contestant(
-            team=contest_team.team,
-            navigation_task=self.navigation_task,
-            contestant_number=contestant_number,
-            adaptive_start=adaptive_start,
-            takeoff_time=takeoff_time,
-            tracker_start_time=tracker_start_time,
-            finished_by_time=tracker_start_time + datetime.timedelta(hours=5),
-            minutes_to_starting_point=self.navigation_task.minutes_to_starting_point,
-            air_speed=contest_team.air_speed,
-            wind_speed=self.navigation_task.wind_speed,
-            wind_direction=self.navigation_task.wind_direction,
-            tracking_service=contest_team.tracking_service,
-            tracking_device=contest_team.tracking_device,
-            tracker_device_id=contest_team.tracker_device_id,
-        )
-
-        if adaptive_start:
-            final_gate_time = contestant.get_final_gate_time()
-            if final_gate_time:
-                duration_delta = datetime.timedelta(
-                    hours=final_gate_time.hour,
-                    minutes=final_gate_time.minute,
-                    seconds=final_gate_time.second,
-                )
-                final_time_abs = starting_point_time + datetime.timedelta(hours=1) + duration_delta
-            else:
-                final_time_abs = starting_point_time + datetime.timedelta(hours=1)
-
-            contestant.finished_by_time = final_time_abs + datetime.timedelta(
-                minutes=self.navigation_task.minutes_to_landing + 2
-            )
-        else:
-            contestant.finished_by_time = contestant.landing_time + datetime.timedelta(minutes=5)
-
-        max_finished_by_time = contestant.tracker_start_time + datetime.timedelta(hours=24)
-        if contestant.finished_by_time > max_finished_by_time:
-            contestant.finished_by_time = max_finished_by_time
-
-        contestant.save()
-        ContestantTaskCompiler(contestant).compile(force=True)
-        messages.success(self.request, "Contestant created successfully")
-        for warning in contestant.get_overlap_warnings():
-            messages.warning(self.request, warning)
-        return HttpResponseRedirect(self.get_success_url())
-
-    def get_success_url(self):
-        return fe_url(
-            "NAVIGATION_TASK_DETAIL", contestId=self.navigation_task.contest_id, navigationTaskId=self.navigation_task.pk
-        )
 
 
 @guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))

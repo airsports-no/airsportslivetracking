@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 from PIL import Image
 import qrcode
 
+from django.core.exceptions import ValidationError
 from guardian.shortcuts import get_objects_for_user
 
 from live_tracking_map.settings import MBTILES_PUBLIC_URL
@@ -267,6 +268,17 @@ def resolve_map_source_definition(map_source_key: str, user_uploaded_map=None) -
     if uploaded_map := resolve_uploaded_map_from_token(map_source_key):
         return source_definition_from_user_uploaded_map(uploaded_map)
     return get_map_source_definition(map_source_key)
+
+
+def validate_map_zoom_level(map_source: str, user_uploaded_map, zoom_level: int) -> None:
+    source = resolve_map_source_definition(map_source, user_uploaded_map)
+    min_zoom = source["min_zoom"]
+    max_zoom = source["max_zoom"]
+    if not min_zoom <= zoom_level <= max_zoom:
+        raise ValidationError(
+            f"The selected zoom level {zoom_level} is not in the valid range [{min_zoom}, "
+            f"{max_zoom}] for the map source {source['label']}"
+        )
 
 
 def map_source_definition_to_payload(definition: dict, origin: str = "builtin") -> dict:

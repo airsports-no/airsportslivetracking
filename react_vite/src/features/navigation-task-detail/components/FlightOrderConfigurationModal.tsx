@@ -1,5 +1,11 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
-import { fetchFlightOrderConfiguration, FlightOrderConfiguration, updateFlightOrderConfiguration } from '../api';
+import {
+  fetchFlightOrderConfiguration,
+  fetchMapSourceOptions,
+  FlightOrderConfiguration,
+  MapSourceOption,
+  updateFlightOrderConfiguration,
+} from '../api';
 
 export interface FlightOrderConfigurationModalHandle {
   open: () => void;
@@ -14,6 +20,7 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
   ({ contestId, navigationTaskId }, ref) => {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const [config, setConfig] = useState<FlightOrderConfiguration | null>(null);
+    const [mapSourceOptions, setMapSourceOptions] = useState<MapSourceOption[]>([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -22,8 +29,12 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchFlightOrderConfiguration(contestId, navigationTaskId);
+        const [data, sources] = await Promise.all([
+          fetchFlightOrderConfiguration(contestId, navigationTaskId),
+          fetchMapSourceOptions(contestId, navigationTaskId),
+        ]);
         setConfig(data);
+        setMapSourceOptions(sources);
       } catch (err: any) {
         setError(err.message || 'Failed to load flight order configuration');
       } finally {
@@ -94,18 +105,48 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
                   </select>
                 </label>
               </div>
+              <label className="form-control">
+                <span className="label-text text-xs">Map source</span>
+                <select
+                  className="select select-bordered select-sm"
+                  value={config.map_source}
+                  onChange={(e) => {
+                    const source = mapSourceOptions.find((option) => option.key === e.target.value);
+                    set('map_source', e.target.value);
+                    if (source) set('map_zoom_level', source.default_zoom);
+                  }}
+                >
+                  {!mapSourceOptions.some((option) => option.key === config.map_source) && (
+                    <option value={config.map_source}>{config.map_source}</option>
+                  )}
+                  {mapSourceOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div className="flex gap-2">
-                <label className="form-control flex-1">
-                  <span className="label-text text-xs">Map zoom level</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={19}
-                    className="input input-bordered input-sm w-full"
-                    value={config.map_zoom_level}
-                    onChange={(e) => set('map_zoom_level', Number(e.target.value))}
-                  />
-                </label>
+                {(() => {
+                  const selectedSource = mapSourceOptions.find((option) => option.key === config.map_source);
+                  const minZoom = selectedSource?.min_zoom ?? 1;
+                  const maxZoom = selectedSource?.max_zoom ?? 19;
+                  return (
+                    <label className="form-control flex-1">
+                      <span className="label-text text-xs">
+                        Map zoom level ({minZoom}-{maxZoom})
+                      </span>
+                      <input
+                        type="number"
+                        min={minZoom}
+                        max={maxZoom}
+                        className="input input-bordered input-sm w-full"
+                        value={config.map_zoom_level}
+                        onChange={(e) => set('map_zoom_level', Number(e.target.value))}
+                      />
+                    </label>
+                  );
+                })()}
                 <label className="form-control flex-1">
                   <span className="label-text text-xs">DPI</span>
                   <input

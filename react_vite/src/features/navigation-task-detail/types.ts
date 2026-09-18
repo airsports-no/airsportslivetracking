@@ -35,6 +35,7 @@ export interface ContestantRow {
   wind_direction: number;
   overlap_warnings: string[];
   overlapping_tasks: { task_id: number; task_name: string; contest_id: number; reason: string }[];
+  declaration_status: { required: boolean; complete: boolean };
 }
 
 export interface GuestCapacityStatus {
@@ -66,6 +67,7 @@ export interface NavigationTaskDetail {
   allow_self_management: boolean;
   calculation_delay_minutes: number;
   guest_capacity_status: GuestCapacityStatus;
+  is_poker_run: boolean;
 }
 
 const DECLARATION_EDITABLE_SUBTYPES = ['turnpoint_hunt', 'limited_fuel_turnpoint_hunt', 'contract_navigation_time_controls'];

@@ -84,7 +84,7 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
         </li>
         <li>
           <button type="button" disabled={removingContestants} onClick={handleRemoveContestants} className="text-error w-full text-left">
-            Remove contestants
+            Clear contestants
           </button>
         </li>
         {task.editable_route && (
@@ -126,14 +126,6 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
           <button type="button" onClick={() => flightOrderConfigModalRef.current?.open()} className="w-full text-left">
             Flight order configuration
           </button>
-        </li>
-        <li>
-          {/* TODO: still the classic Django form - it scopes map_source choices to this
-              specific navigation task's available maps (get_available_map_source_definitions_for_navigation_task),
-              which the REST action above doesn't replicate yet. See project memory. */}
-          <a href={reverse('navigationtask_flightorderconfiguration', navigationTaskId)}>
-            Flight order configuration (advanced)
-          </a>
         </li>
         <li>
           <hr className="my-1 border-base-200" />

@@ -39,6 +39,7 @@ from display.filters import ContestFilter, NavigationTaskFilter
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.flight_order_and_maps.map_plotter import build_effective_route_distance
 from display.flight_order_and_maps.map_plotter_shared_utilities import (
+    get_available_map_source_definitions_for_navigation_task,
     get_builtin_map_source_definitions,
     map_source_definition_to_payload,
     source_definition_from_user_uploaded_map,
@@ -2103,6 +2104,33 @@ class NavigationTaskViewSet(ModelViewSet):
             raise drf_exceptions.PermissionDenied()
         serialiser = self.get_serializer(navigation_task.flightorderconfiguration)
         return Response(serialiser.data)
+
+    @action(detail=True, methods=["get"], url_path="map-source-options")
+    def map_source_options(self, request, *args, **kwargs):
+        """
+        Returns the map sources actually available for this navigation task's flight order PDF -
+        mirrors the classic update_flight_order_configurations view's
+        get_available_map_source_definitions_for_navigation_task(...) call, which restricts
+        mbtiles-backed sources (built-in and user-uploaded) to ones whose bounds intersect the
+        task's route, and excludes the overlay-only "openaip" source entirely. Same permission
+        rationale as flight_order_configuration above.
+        """
+        navigation_task = self.get_object()
+        if not request.user.has_perm("change_contest", navigation_task.contest):
+            raise drf_exceptions.PermissionDenied()
+        definitions = get_available_map_source_definitions_for_navigation_task(
+            navigation_task,
+            request.user,
+            uploaded_maps=navigation_task.get_available_user_maps(),
+        )
+        return Response(
+            [
+                map_source_definition_to_payload(
+                    definition, origin="user_upload" if definition.get("provider") == "user_uploaded_mbtiles" else "builtin"
+                )
+                for definition in definitions
+            ]
+        )
 
     @action(detail=True, methods=["post"])
     def update_flight_order_configuration(self, request, *args, **kwargs):

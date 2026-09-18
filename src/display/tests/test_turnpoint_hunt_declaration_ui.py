@@ -8,7 +8,6 @@ from guardian.shortcuts import assign_perm
 from unittest.mock import patch
 
 from display.default_scorecards.create_scorecards import create_scorecards
-from display.forms import ContestantQuickAddForm
 from display.models import (
     Aeroplane,
     Contest,
@@ -86,7 +85,9 @@ class TestTurnpointHuntDeclarationUI(TestCase):
         self.create_url = reverse(
             "contestants-list", kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk}
         )
-        self.quick_add_url = reverse("contestant_quick_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
+        self.quick_add_url = reverse(
+            "navigationtasks-quick-add-contestant", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk}
+        )
 
     def _create_contestant(self):
         self.client.force_login(self.user)
@@ -116,11 +117,6 @@ class TestTurnpointHuntDeclarationUI(TestCase):
         contestant = self._create_contestant()
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
 
-    def test_turnpoint_hunt_quick_add_form_does_not_expose_declaration_fields(self):
-        form = ContestantQuickAddForm(navigation_task=self.navigation_task)
-        self.assertNotIn("predicted_sequence_1", form.fields)
-        self.assertNotIn("predicted_gate_time_CP1", form.fields)
-
     def test_turnpoint_hunt_quick_add_persists_empty_declaration_until_editor_is_used(self):
         self.client.force_login(self.user)
         response = self.client.post(
@@ -131,7 +127,7 @@ class TestTurnpointHuntDeclarationUI(TestCase):
                 "adaptive_start": False,
             },
         )
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(201, response.status_code, response.content)
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
 

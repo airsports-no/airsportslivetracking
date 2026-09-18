@@ -4,12 +4,12 @@ import { MapPin, Plus, Users } from 'lucide-react';
 import { Loading } from '../route-editor/components/basicComponents';
 import { fetchNavigationTask } from '../competition-map/api';
 import { fetchRunningCalculators, shareNavigationTask, NavigationTaskVisibility } from './api';
-import { NavigationTaskDetail, supportsDeclarationEditing } from './types';
+import { NavigationTaskDetail } from './types';
 import BatchUpdateContestantsModal from './components/BatchUpdateContestantsModal';
 import ContestantList from './components/ContestantList';
 import QuickAddContestantModal, { QuickAddContestantModalHandle } from './components/QuickAddContestantModal';
 import TaskManagementMenu from './components/TaskManagementMenu';
-import { generatePath, reverse } from '../../urls';
+import { generatePath } from '../../urls';
 import { formatDateInterval } from '../../utils';
 
 const visibilityOf = (task: NavigationTaskDetail): NavigationTaskVisibility => {
@@ -138,12 +138,6 @@ const NavigationTaskDetailPage: React.FC = () => {
             Quick Add
           </button>
         )}
-        {canManage && supportsDeclarationEditing(task.task_subtype) && (
-          <a href={reverse('contestant_quick_create', Number(navigationTaskId))} className="btn btn-sm gap-1">
-            <Plus size={14} />
-            Quick add (with declaration)
-          </a>
-        )}
         {canManage && (
           <button type="button" className="btn btn-sm gap-1" onClick={() => batchUpdateModalRef.current?.showModal()}>
             <Users size={14} />
@@ -202,6 +196,7 @@ const NavigationTaskDetailPage: React.FC = () => {
         contestId={Number(contestId)}
         navigationTaskId={Number(navigationTaskId)}
         taskSubtype={task.task_subtype}
+        isPokerRun={task.is_poker_run}
         canManage={canManage}
         timeZone={task.time_zone}
         runningStatus={runningStatus}

@@ -64,6 +64,10 @@ from display.models import (
     TrackAnnotation,
     UserTokenGrant,
 )
+from display.flight_order_and_maps.map_plotter_shared_utilities import (
+    get_available_map_source_definitions_for_navigation_task,
+    validate_map_zoom_level,
+)
 from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import (
@@ -1664,13 +1668,16 @@ class NavigationTaskDetailsUpdateSerialiser(serializers.ModelSerializer):
 
 class FlightOrderConfigurationSerialiser(serializers.ModelSerializer):
     """
-    Mirrors FlightOrderConfigurationForm's field set (views.py's
-    update_flight_order_configurations). map_source choices come from the model field's own
-    get_map_choices default (builtin sources + every UserUploadedMap) rather than the classic
-    form's per-navigation-task-scoped list (get_available_map_source_definitions_for_navigation_task)
-    - a reasonable simplification for now; the same source keys are already exposed to the
-    frontend via EditableRouteViewSet.global_map_sources.
+    Mirrors FlightOrderConfigurationForm's field set and validation (views.py's
+    update_flight_order_configurations/FlightOrderConfigurationForm.clean_map_source/clean).
+    map_source is declared as a plain CharField (not letting ModelSerializer auto-generate a
+    ChoiceField from the model field's static get_map_choices default) because the valid set is
+    per-navigation-task - see validate() below, which checks it against
+    get_available_map_source_definitions_for_navigation_task the same way the classic form did,
+    and cross-validates map_zoom_level against the resolved source's min/max zoom.
     """
+
+    map_source = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = FlightOrderConfiguration
@@ -1680,6 +1687,30 @@ class FlightOrderConfigurationSerialiser(serializers.ModelSerializer):
             for field in FlightOrderConfiguration._meta.get_fields()
             if field.name != "navigation_task" and not field.is_relation
         }
+
+    def validate(self, attrs):
+        map_source = attrs.get("map_source", getattr(self.instance, "map_source", None))
+        if not map_source:
+            return attrs
+        navigation_task = self.instance.navigation_task
+        request = self.context.get("request")
+        valid_keys = {
+            definition["key"]
+            for definition in get_available_map_source_definitions_for_navigation_task(
+                navigation_task,
+                getattr(request, "user", None),
+                uploaded_maps=navigation_task.get_available_user_maps(),
+            )
+        }
+        if map_source not in valid_keys:
+            raise ValidationError({"map_source": "Select a valid choice. That choice is not one of the available choices."})
+        map_zoom_level = attrs.get("map_zoom_level", getattr(self.instance, "map_zoom_level", None))
+        if map_zoom_level is not None:
+            try:
+                validate_map_zoom_level(map_source, None, map_zoom_level)
+            except CoreValidationError as exc:
+                raise ValidationError({"map_zoom_level": str(exc.message if hasattr(exc, "message") else exc)})
+        return attrs
 
 
 class BatchUpdateContestantsSerialiser(serializers.Serializer):
@@ -1787,9 +1818,38 @@ class ContestantSerialiser(serializers.ModelSerializer):
     first_position_time = SerializerMethodField("get_first_position_time", read_only=True)
     last_position_time = SerializerMethodField("get_last_position_time", read_only=True)
     calculator_finished = serializers.SerializerMethodField()
+    declaration_status = serializers.SerializerMethodField()
 
     def get_calculator_finished(self, obj) -> bool:
         return getattr(obj, "contestanttrack", None).calculator_finished if hasattr(obj, "contestanttrack") else False
+
+    def get_declaration_status(self, contestant) -> dict:
+        """
+        Lets the frontend highlight contestants missing a required declaration - e.g. a regular
+        ANR task never requires one, but turnpoint hunt/contract navigation/curve/precision
+        navigation (CIMA task types) do, and ContestantTaskCompilerStrategy.validate_declaration
+        is a no-op for every other subtype. Mirrors ContestantTaskCompiler._get_strategy's own
+        subtype dispatch so this list can't silently drift from what's actually validated.
+        """
+        from display.utilities.cima_task_type_definitions import (
+            CONTRACT_NAVIGATION_TIME_CONTROLS,
+            CURVE_NAVIGATION_TIME_ESTIMATION,
+            LIMITED_FUEL_TURNPOINT_HUNT,
+            PRECISION_NAVIGATION,
+            TURNPOINT_HUNT,
+        )
+
+        declaration_required_subtypes = {
+            CURVE_NAVIGATION_TIME_ESTIMATION,
+            PRECISION_NAVIGATION,
+            CONTRACT_NAVIGATION_TIME_CONTROLS,
+            TURNPOINT_HUNT,
+            LIMITED_FUEL_TURNPOINT_HUNT,
+        }
+        required = contestant.navigation_task.task_subtype in declaration_required_subtypes
+        config = getattr(contestant, "contestanttaskconfiguration", None)
+        complete = bool(config and config.is_valid)
+        return {"required": required, "complete": complete}
 
     def get_first_position_time(self, contestant) -> Optional[datetime.datetime]:
         first = contestant.contestantreceivedposition_set.order_by("time").first()
@@ -2041,6 +2101,8 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     user_has_change_permission = SerializerMethodField("get_user_has_change_permission")
     flown_contestants_count = serializers.SerializerMethodField()
     guest_capacity_status = serializers.SerializerMethodField()
+    is_poker_run = serializers.BooleanField(read_only=True)
+    tracking_link = serializers.CharField(read_only=True)
 
     def get_flown_contestants_count(self, obj) -> int:
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()

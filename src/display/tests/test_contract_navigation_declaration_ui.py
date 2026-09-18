@@ -119,6 +119,38 @@ class TestContractNavigationDeclarationUI(TestCase):
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {"declared_sequence": ["MP", "FP"]})
         self.assertFalse(contestant.contestanttaskconfiguration.is_valid)
 
+    def test_contestant_rest_payload_flags_missing_declaration_for_contract_navigation(self):
+        # ContestantList.tsx highlights a contestant's team name when declaration_status.required
+        # is true but declaration_status.complete is false - a regular ANR task never sets
+        # required, but contract navigation (like every other CIMA task type whose
+        # ContestantTaskCompilerStrategy actually validates a declaration) does.
+        self.client.force_login(self.user)
+        create_response = self.client.post(
+            self.create_url,
+            {
+                "contestant_number": 1,
+                "team": self.contest_team.team.pk,
+                "tracking_service": str(self.contest_team.tracking_service),
+                "tracking_device": self.contest_team.tracking_device or "",
+                "tracker_device_id": self.contest_team.tracker_device_id or "",
+                "takeoff_time": "2026-08-01T09:55",
+                "adaptive_start": False,
+                "tracker_start_time": "2026-08-01T09:45",
+                "finished_by_time": "2026-08-01T11:30",
+                "minutes_to_starting_point": 5,
+                "air_speed": 70,
+                "wind_direction": 0,
+                "wind_speed": 0,
+            },
+        )
+        self.assertEqual(200, create_response.status_code, create_response.content)
+
+        detail_response = self.client.get(
+            reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
+        )
+        contestant_payload = detail_response.json()["contestant_set"][0]
+        self.assertEqual(contestant_payload["declaration_status"], {"required": True, "complete": False})
+
     def test_create_view_persists_empty_curve_navigation_predictions_until_editor_is_used(self):
         curve_route = EditableRoute.objects.create(
             name="Curve declaration save primitives",

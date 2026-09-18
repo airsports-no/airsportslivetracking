@@ -75,13 +75,13 @@ const BatchUpdateContestantsModal = forwardRef<HTMLDialogElement, BatchUpdateCon
             Contestants whose calculator is currently running or about to be dispatched are skipped automatically.
           </p>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <div className="max-h-40 overflow-y-auto border border-base-300 rounded p-2">
-              <label className="label cursor-pointer justify-start gap-2 text-xs font-semibold">
+            <div className="max-h-40 overflow-y-auto border border-base-300 rounded p-2 flex flex-col">
+              <label className="label cursor-pointer justify-start gap-2 text-xs font-semibold w-full">
                 <input type="checkbox" className="checkbox checkbox-xs" checked={selected.size === contestants.length && contestants.length > 0} onChange={toggleAll} />
                 <span>Select all</span>
               </label>
               {contestants.map((contestant) => (
-                <label key={contestant.pk} className="label cursor-pointer justify-start gap-2 text-xs">
+                <label key={contestant.pk} className="label cursor-pointer justify-start gap-2 text-xs w-full">
                   <input
                     type="checkbox"
                     className="checkbox checkbox-xs"

@@ -1,6 +1,5 @@
 import datetime
 import json
-from typing import Optional
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, ButtonHolder, Submit, Fieldset, Field, HTML
@@ -25,7 +24,7 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_map_choices,
     get_available_map_source_choices_for_navigation_task,
     get_available_map_source_definitions_for_navigation_task,
-    resolve_map_source_definition,
+    validate_map_zoom_level,
 )
 from display.flight_order_and_maps.mbtiles_facade import get_map_details
 
@@ -34,7 +33,6 @@ from display.models import (
     Contest,
     Person,
     Team,
-    ContestTeam,
     Scorecard,
     FlightOrderConfiguration,
     UserUploadedMap,
@@ -259,17 +257,6 @@ class UserUploadedMapForm(forms.ModelForm):
             Fieldset("User map", "name", "default_zoom_level", "attribution", "map_file"),
             Field("user", type="hidden"),
             ButtonHolder(Submit("submit", "Submit")),
-        )
-
-
-def validate_map_zoom_level(map_source: str, user_uploaded_map: Optional[UserUploadedMap], zoom_level: int):
-    source = resolve_map_source_definition(map_source, user_uploaded_map)
-    min_zoom = source["min_zoom"]
-    max_zoom = source["max_zoom"]
-    if not min_zoom <= zoom_level <= max_zoom:
-        raise ValidationError(
-            f"The selected zoom level {zoom_level} is not in the valid range [{min_zoom}, "
-            f"{max_zoom}] for the map source {source['label']}"
         )
 
 
@@ -603,54 +590,12 @@ def _known_time_gate_names(navigation_task):
     return result
 
 
-class ContestantQuickAddForm(forms.Form):
-    contest_team = forms.ModelChoiceField(queryset=ContestTeam.objects.none(), label="Team")
-    starting_point_time = forms.DateTimeField(
-        label="Time at starting point",
-        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M"),
-        help_text="The time the contestant is expected to cross the starting point",
-    )
-    adaptive_start = forms.BooleanField(required=False, initial=False, label="Adaptive start")
-
-    def __init__(self, *args, **kwargs):
-        self.navigation_task = kwargs.pop("navigation_task")
-        super().__init__(*args, **kwargs)
-        self.fields["contest_team"].queryset = self.navigation_task.contest.contestteam_set.all()
-        task_start_local = timezone.localtime(
-            self.navigation_task.start_time,
-            timezone=self.navigation_task.contest.time_zone,
-        )
-        one_hour_from_now = timezone.localtime() + datetime.timedelta(hours=1)
-        self.fields["starting_point_time"].initial = max(one_hour_from_now, task_start_local)
-
-        declaration_fields = []
-
-        self.helper = FormHelper()
-        layout_items = [
-            Fieldset(
-                "Quick Add Contestant",
-                "contest_team",
-                "starting_point_time",
-                "adaptive_start",
-            )
-        ]
-        if declaration_fields:
-            layout_items.append(Fieldset("Task-specific declaration", *declaration_fields))
-        self.helper.layout = Layout(*layout_items, ButtonHolder(Submit("submit", "Create")))
-
-    def clean(self):
-        return super().clean()
-
-    def get_declaration_payload(self):
-        return {}
-
-
 from django import forms
 from django.db.models import QuerySet
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Submit, HTML, ButtonHolder, Row, Column
 from django.utils.translation import gettext_lazy as _
-from .models import ContestTeam, NavigationTask, ContestantTrack
+from .models import NavigationTask, ContestantTrack
 
 
 class BatchContestantUpdateForm(forms.Form):

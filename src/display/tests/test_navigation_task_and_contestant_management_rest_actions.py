@@ -362,3 +362,55 @@ class TestNavigationTaskAndContestantManagementRestActions(APITestCase):
         response = self.client.post(self._url("update-flight-order-configuration"), {"map_dpi": 200}, format="json")
 
         self.assertEqual(response.status_code, 403)
+
+    def test_map_source_options_excludes_openaip_and_includes_always_on_sources(self, *args):
+        # Mirrors get_available_map_source_definitions_for_navigation_task: openaip is
+        # overlay-only and deliberately excluded from base-map choices; non-mbtiles built-ins
+        # (osm/cyclosm) are always available regardless of the route's bounds.
+        response = self.client.get(self._url("map-source-options"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        keys = {item["key"] for item in response.data}
+        self.assertIn("cyclosm", keys)
+        self.assertNotIn("openaip", keys)
+
+    def test_map_source_options_requires_change_contest_permission(self, *args):
+        viewer = get_user_model().objects.create(email="task-mgmt-map-source-viewer@example.com")
+        assign_perm("view_contest", viewer, self.contest)
+        self.client.force_login(user=viewer)
+
+        response = self.client.get(self._url("map-source-options"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_update_flight_order_configuration_accepts_available_map_source(self, *args):
+        response = self.client.post(
+            self._url("update-flight-order-configuration"),
+            {"map_source": "cyclosm", "map_zoom_level": 12},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.navigation_task.flightorderconfiguration.refresh_from_db()
+        self.assertEqual(self.navigation_task.flightorderconfiguration.map_source, "cyclosm")
+        self.assertEqual(self.navigation_task.flightorderconfiguration.map_zoom_level, 12)
+
+    def test_update_flight_order_configuration_rejects_unavailable_map_source(self, *args):
+        response = self.client.post(
+            self._url("update-flight-order-configuration"),
+            {"map_source": "not-a-real-map-source"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("map_source", response.data)
+
+    def test_update_flight_order_configuration_rejects_out_of_range_zoom_level_for_map_source(self, *args):
+        response = self.client.post(
+            self._url("update-flight-order-configuration"),
+            {"map_source": "cyclosm", "map_zoom_level": 99},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("map_zoom_level", response.data)

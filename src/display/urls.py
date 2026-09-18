@@ -5,7 +5,6 @@ from display.views import (
     generate_hangar_flyer_pdf,
     quick_register,
     renew_token,
-    ContestantQuickAddView,
     ContestCreateView,
     PersonUpdateView,
     PersonList,
@@ -138,11 +137,6 @@ urlpatterns = [
         name="navigationtask_downloadflightorders",
     ),
     path("maplink/<uuid:key>/", get_contestant_email_flight_orders_link, name="email_map_link"),
-    path(
-        "contestant/<int:navigationtask_pk>/quickcreate/",
-        ContestantQuickAddView.as_view(),
-        name="contestant_quick_create",
-    ),
     path(
         "contestant/<int:pk>/processingstatistics/", get_contestant_processing_statistics, name="processingstatistics"
     ),

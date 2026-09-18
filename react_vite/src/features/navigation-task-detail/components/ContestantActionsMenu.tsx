@@ -4,7 +4,6 @@ import { EllipsisVertical } from 'lucide-react';
 import { reverse, generatePath } from '../../../urls';
 import { deleteContestant, recalculateTrack } from '../api';
 import { ContestantRow, supportsDeclarationEditing } from '../types';
-import ContestantFormModal, { ContestantFormModalHandle } from './ContestantFormModal';
 import GateTimesModal, { GateTimesModalHandle } from './GateTimesModal';
 import RecalculateStartTimeModal from './RecalculateStartTimeModal';
 import UploadGpxModal from './UploadGpxModal';
@@ -14,6 +13,7 @@ interface ContestantActionsMenuProps {
   contestId: number;
   navigationTaskId: number;
   taskSubtype?: string | null;
+  isPokerRun?: boolean;
   canManage: boolean;
   timeZone: string;
   onRefresh: () => void;
@@ -21,13 +21,15 @@ interface ContestantActionsMenuProps {
   iconTrigger?: boolean;
 }
 
-// GPX download, "processing statistics", and playing-card actions still link out to the classic
-// Django pages - see project memory for what's still pending.
+// GPX download and "processing statistics" still link out to the classic Django pages - see
+// project memory for what's still pending. Editing a contestant is triggered by clicking its
+// team name in ContestantList, not from this menu.
 const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
   contestant,
   contestId,
   navigationTaskId,
   taskSubtype,
+  isPokerRun,
   canManage,
   timeZone,
   onRefresh,
@@ -38,7 +40,6 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
   const startTimeModalRef = useRef<HTMLDialogElement>(null);
   const gpxModalRef = useRef<HTMLDialogElement>(null);
   const gateTimesModalRef = useRef<GateTimesModalHandle>(null);
-  const editModalRef = useRef<ContestantFormModalHandle>(null);
 
   const handleRecalculateTrack = async () => {
     if (recalculating || !window.confirm('Reset the track/score and reload it from the tracker?')) return;
@@ -98,11 +99,6 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
               <hr className="my-1 border-base-200" />
             </li>
             <li>
-              <button type="button" onClick={() => editModalRef.current?.open()} className="w-full text-left">
-                Edit contestant
-              </button>
-            </li>
-            <li>
               <a href={`${reverse('navigationtask_flightordersprogress', navigationTaskId)}?contestant_pk=${contestant.pk}`}>
                 Generate flight order
               </a>
@@ -128,12 +124,11 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
             <li>
               <a href={reverse('processingstatistics', contestant.pk)}>Processing statistics</a>
             </li>
-            <li>
-              {/* TODO: poker-run playing cards - still the classic Django page, no React
-                  equivalent yet. Shown unconditionally since the REST payload doesn't expose
-                  is_poker_run to gate it on. See project memory. */}
-              <a href={reverse('contestant_cards_list', contestant.pk)}>Playing cards</a>
-            </li>
+            {isPokerRun && (
+              <li>
+                <a href={reverse('contestant_cards_list', contestant.pk)}>Playing cards</a>
+              </li>
+            )}
             <li>
               <hr className="my-1 border-base-200" />
             </li>
@@ -170,13 +165,6 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
             navigationTaskId={navigationTaskId}
             contestantId={contestant.pk}
             onRecalculated={onRefresh}
-          />
-          <ContestantFormModal
-            ref={editModalRef}
-            contestId={contestId}
-            navigationTaskId={navigationTaskId}
-            contestantId={contestant.pk}
-            onSaved={onRefresh}
           />
         </>
       )}

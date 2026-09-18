@@ -106,6 +106,23 @@ class TestNavigationTaskDetailWarnings(TestCase):
         self.assertFalse(status["guest_capacity_full"])
         self.assertTrue(status["show_guest_capacity_warning"])
 
+    def test_navigation_task_rest_payload_carries_tracking_link_and_is_poker_run(self):
+        # tracking_link and is_poker_run are both plain NavigationTask @property values - unlike
+        # a real model field, ModelSerializer's Meta.fields = "__all__" doesn't pick these up on
+        # its own, so they must be declared explicitly on NavigationTaskNestedTeamRouteSerialiser.
+        # tracking_link silently missing meant NavigationTaskDetailPage.tsx's "Live Map" button
+        # rendered with no href at all.
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
+        )
+
+        self.assertEqual(200, response.status_code)
+        data = response.json()
+        self.assertEqual(data["tracking_link"], self.navigation_task.tracking_link)
+        self.assertIn("competition-map", data["tracking_link"])
+        self.assertFalse(data["is_poker_run"])
+
 
 class TestNavigationTaskDetailTurnpointDeclarationLink(TestCase):
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)

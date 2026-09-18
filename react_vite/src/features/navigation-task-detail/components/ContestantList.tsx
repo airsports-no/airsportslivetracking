@@ -1,11 +1,27 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { restartCalculator, terminateCalculator } from '../api';
 import { ContestantRow, TeamDisplay } from '../types';
 import { formatDateHeadingInZone, formatDateKeyInZone, formatTimeInZone, formatWholeNumber, formatWindDirection } from '../utils';
 import ContestantActionsMenu from './ContestantActionsMenu';
+import ContestantFormModal, { ContestantFormModalHandle } from './ContestantFormModal';
 
-const TeamDisplayLabel: React.FC<{ team: TeamDisplay }> = ({ team }) => (
-  <span className="leading-tight">
+const TeamDisplayLabel: React.FC<{ team: TeamDisplay; missingDeclaration?: boolean; onClick: () => void }> = ({
+  team,
+  missingDeclaration,
+  onClick,
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="leading-tight text-left hover:underline decoration-dotted"
+    title="Edit contestant"
+  >
+    {missingDeclaration && (
+      <span className="tooltip" data-tip="Missing required declaration">
+        <AlertTriangle size={12} className="inline text-warning align-text-top mr-1" />
+      </span>
+    )}
     {team.crew.member1.first_name} {team.crew.member1.last_name}
     {team.crew.member2 && (
       <>
@@ -15,7 +31,7 @@ const TeamDisplayLabel: React.FC<{ team: TeamDisplay }> = ({ team }) => (
     )}
     <br />
     <span className="text-[10px] opacity-70">{team.aeroplane.registration}</span>
-  </span>
+  </button>
 );
 
 interface ContestantListProps {
@@ -23,6 +39,7 @@ interface ContestantListProps {
   contestId: number;
   navigationTaskId: number;
   taskSubtype?: string | null;
+  isPokerRun?: boolean;
   canManage: boolean;
   timeZone: string;
   runningStatus: Record<number, boolean>;
@@ -125,12 +142,17 @@ const ContestantList: React.FC<ContestantListProps> = ({
   contestId,
   navigationTaskId,
   taskSubtype,
+  isPokerRun,
   canManage,
   timeZone,
   runningStatus,
   onRefresh,
 }) => {
   const groups = groupByDay(contestants, timeZone);
+  const editModalRef = useRef<ContestantFormModalHandle>(null);
+  const handleTeamNameClick = (contestantPk: number) => {
+    if (canManage) editModalRef.current?.open(contestantPk);
+  };
 
   if (contestants.length === 0) {
     return <p className="text-sm text-gray-500">No contestants yet.</p>;
@@ -151,7 +173,11 @@ const ContestantList: React.FC<ContestantListProps> = ({
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="badge badge-neutral font-mono font-bold shrink-0">#{contestant.contestant_number}</span>
                         <span className="font-bold text-lg break-words leading-tight">
-                          <TeamDisplayLabel team={contestant.team} />
+                          <TeamDisplayLabel
+                            team={contestant.team}
+                            missingDeclaration={contestant.declaration_status.required && !contestant.declaration_status.complete}
+                            onClick={() => handleTeamNameClick(contestant.pk)}
+                          />
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-2">
@@ -171,6 +197,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                       contestId={contestId}
                       navigationTaskId={navigationTaskId}
                       taskSubtype={taskSubtype}
+                      isPokerRun={isPokerRun}
                       canManage={canManage}
                       timeZone={timeZone}
                       onRefresh={onRefresh}
@@ -251,7 +278,11 @@ const ContestantList: React.FC<ContestantListProps> = ({
                   <tr key={contestant.pk} className="hover">
                     <td className="font-bold text-base-content/70">{contestant.contestant_number}</td>
                     <td className="whitespace-nowrap font-medium">
-                      <TeamDisplayLabel team={contestant.team} />
+                      <TeamDisplayLabel
+                        team={contestant.team}
+                        missingDeclaration={contestant.declaration_status.required && !contestant.declaration_status.complete}
+                        onClick={() => handleTeamNameClick(contestant.pk)}
+                      />
                     </td>
                     <td>
                       <LiveDot
@@ -312,6 +343,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                         contestId={contestId}
                         navigationTaskId={navigationTaskId}
                         taskSubtype={taskSubtype}
+                        isPokerRun={isPokerRun}
                         canManage={canManage}
                         timeZone={timeZone}
                         onRefresh={onRefresh}
@@ -324,6 +356,9 @@ const ContestantList: React.FC<ContestantListProps> = ({
           </tbody>
         </table>
       </div>
+      {canManage && (
+        <ContestantFormModal ref={editModalRef} contestId={contestId} navigationTaskId={navigationTaskId} onSaved={onRefresh} />
+      )}
     </div>
   );
 };

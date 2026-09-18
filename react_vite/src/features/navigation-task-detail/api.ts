@@ -297,6 +297,28 @@ export async function updateFlightOrderConfiguration(
   return response.json();
 }
 
+export interface MapSourceOption {
+  key: string;
+  label: string;
+  min_zoom: number;
+  max_zoom: number;
+  default_zoom: number;
+}
+
+// Scoped to this navigation task's route (and the requesting user's uploaded maps) - mirrors the
+// classic update_flight_order_configurations view's
+// get_available_map_source_definitions_for_navigation_task call, unlike a flat/static map source
+// list.
+export async function fetchMapSourceOptions(contestId: number, navigationTaskId: number): Promise<MapSourceOption[]> {
+  const url = reverse('navigationtasks-map-source-options', contestId, navigationTaskId);
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to fetch map source options: ${errorMessages}`);
+  }
+  return response.json();
+}
+
 export async function quickAddContestant(
   contestId: number,
   navigationTaskId: number,
