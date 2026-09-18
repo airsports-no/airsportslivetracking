@@ -55,6 +55,13 @@ export interface NavigationTaskDetail {
   tracking_link: string;
   time_zone: string;
   task_subtype?: string | null;
+  task_subtype_definition?: {
+    key: string;
+    display_name: string;
+    coarse_family: string;
+    coarse_family_label: string;
+    requires_contestant_configuration: boolean;
+  } | null;
   is_public: boolean;
   is_featured: boolean;
   user_has_change_permission: boolean;

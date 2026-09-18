@@ -107,6 +107,13 @@ const NavigationTaskDetailPage: React.FC = () => {
           Live Map
         </a>
       </div>
+      {task.task_subtype_definition && (
+        <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold">
+          {task.task_subtype_definition.coarse_family_label}
+          <span className="mx-1 opacity-50">·</span>
+          {task.task_subtype_definition.display_name}
+        </p>
+      )}
       <p className="text-sm text-gray-500 mb-4">{formatDateInterval(task.start_time, task.finish_time)}</p>
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6 bg-base-200/50 border border-base-300 rounded-box p-2">
