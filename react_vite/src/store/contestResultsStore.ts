@@ -2,6 +2,24 @@ import { create } from 'zustand';
 import { reverse } from '../urls';
 import { getCookie } from '../utils/csrf';
 
+// DRF's default exception handler serializes a bare ValidationError("some string") (e.g.
+// TaskViewSet/TaskTestViewSet's "linked to a navigation task" guards) as a JSON array of
+// strings, not {"detail": ...} - without this, those specific, helpful messages were being
+// discarded in favor of a generic "Failed to save task"/"Failed to save test".
+async function getErrorMessage(response: Response): Promise<string> {
+  try {
+    const errorData = await response.json();
+    if (Array.isArray(errorData) && errorData.every((item) => typeof item === 'string')) {
+      return errorData.join(' ');
+    } else if (typeof errorData === 'object' && errorData !== null && 'detail' in errorData) {
+      return String(errorData.detail);
+    }
+    return JSON.stringify(errorData);
+  } catch {
+    return response.statusText;
+  }
+}
+
 export interface ContestSummary {
   id: number;
   team_name: string;
@@ -313,7 +331,7 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save task');
+        throw new Error(await getErrorMessage(response));
       }
     } catch (error: any) {
       console.error('Error creating/updating task:', error);
@@ -341,7 +359,7 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save test');
+        throw new Error(await getErrorMessage(response));
       }
     } catch (error: any) {
       console.error('Error creating/updating test:', error);
@@ -360,7 +378,7 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete task');
+        throw new Error(await getErrorMessage(response));
       }
     } catch (error: any) {
       console.error('Error deleting task:', error);
@@ -379,7 +397,7 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete test');
+        throw new Error(await getErrorMessage(response));
       }
     } catch (error: any) {
       console.error('Error deleting test:', error);
