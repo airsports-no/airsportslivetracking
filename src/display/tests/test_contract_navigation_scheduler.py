@@ -4,7 +4,10 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
+from display.contestant_scheduling.schedule_contestants import (
+    _build_default_declaration_payload,
+    schedule_and_create_contestants,
+)
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import (
     Aeroplane,
@@ -157,3 +160,14 @@ class TestContractNavigationScheduler(TestCase):
             existing.contestanttaskconfiguration.declaration_payload,
             {"declared_sequence": ["B", "MP", "D", "FP"], "declared_t_seconds": 600},
         )
+
+    def test_build_default_declaration_payload_does_not_crash_on_a_real_compiled_task(self, *_args):
+        # Regression test: both tests above mock _build_default_declaration_payload entirely,
+        # so neither ever exercised its real body - which crashed with AttributeError
+        # ('CompiledNavigationTask' object has no attribute 'is_valid'; the real signal for
+        # "compilation failed" is a non-empty compiled_payload["validation_errors"], not an
+        # is_valid attribute that was never defined) every single time it ran for real,
+        # including from the schedule_contestants REST action a live user hit. The task's
+        # route here has no waypoints at all, so compilation is expected to fail and this
+        # should return {} - the point is that it returns rather than raising.
+        self.assertEqual(_build_default_declaration_payload(self.navigation_task), {})
