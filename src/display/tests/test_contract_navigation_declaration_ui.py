@@ -149,7 +149,10 @@ class TestContractNavigationDeclarationUI(TestCase):
             reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
         )
         contestant_payload = detail_response.json()["contestant_set"][0]
-        self.assertEqual(contestant_payload["declaration_status"], {"required": True, "complete": False})
+        self.assertEqual(
+            contestant_payload["declaration_status"],
+            {"required": True, "complete": False, "errors": ["Contract navigation requires declared_t_seconds."]},
+        )
 
     def test_create_view_persists_empty_curve_navigation_predictions_until_editor_is_used(self):
         curve_route = EditableRoute.objects.create(

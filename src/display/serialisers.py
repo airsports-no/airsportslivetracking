@@ -1856,7 +1856,13 @@ class ContestantSerialiser(serializers.ModelSerializer):
         required = contestant.navigation_task.task_subtype in declaration_required_subtypes
         config = getattr(contestant, "contestanttaskconfiguration", None)
         complete = bool(config and config.is_valid)
-        return {"required": required, "complete": complete}
+        # Without this, a contestant who saved a declaration that's still invalid for a reason
+        # other than "nothing was entered" (e.g. the route itself doesn't fit this subtype's
+        # structural requirements) looked identical to one who never declared at all - same
+        # generic "Missing required declaration" tooltip either way, with no way to tell why a
+        # just-saved declaration didn't fix it.
+        errors = list(config.validation_errors or []) if config else []
+        return {"required": required, "complete": complete, "errors": errors}
 
     def get_first_position_time(self, contestant) -> Optional[datetime.datetime]:
         first = contestant.contestantreceivedposition_set.order_by("time").first()

@@ -6,9 +6,10 @@ import { formatDateHeadingInZone, formatDateKeyInZone, formatTimeInZone, formatW
 import ContestantActionsMenu from './ContestantActionsMenu';
 import ContestantFormModal, { ContestantFormModalHandle } from './ContestantFormModal';
 
-const TeamDisplayLabel: React.FC<{ team: TeamDisplay; missingDeclaration?: boolean; onClick: () => void }> = ({
+const TeamDisplayLabel: React.FC<{ team: TeamDisplay; missingDeclaration?: boolean; declarationErrors?: string[]; onClick: () => void }> = ({
   team,
   missingDeclaration,
+  declarationErrors,
   onClick,
 }) => (
   <button
@@ -18,7 +19,14 @@ const TeamDisplayLabel: React.FC<{ team: TeamDisplay; missingDeclaration?: boole
     title="Edit contestant"
   >
     {missingDeclaration && (
-      <span className="tooltip" data-tip="Missing required declaration">
+      // Prefer the actual validation error(s) - e.g. a route that structurally can't satisfy
+      // this task subtype (wrong waypoint count for contract navigation, etc.) - over the
+      // generic message, so a declaration that was saved but is still invalid doesn't look
+      // identical to one that was never entered at all.
+      <span
+        className="tooltip"
+        data-tip={declarationErrors && declarationErrors.length > 0 ? declarationErrors.join('; ') : 'Missing required declaration'}
+      >
         <AlertTriangle size={12} className="inline text-warning align-text-top mr-1" />
       </span>
     )}
@@ -176,6 +184,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                           <TeamDisplayLabel
                             team={contestant.team}
                             missingDeclaration={contestant.declaration_status.required && !contestant.declaration_status.complete}
+                            declarationErrors={contestant.declaration_status.errors}
                             onClick={() => handleTeamNameClick(contestant.pk)}
                           />
                         </span>
@@ -281,6 +290,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                       <TeamDisplayLabel
                         team={contestant.team}
                         missingDeclaration={contestant.declaration_status.required && !contestant.declaration_status.complete}
+                        declarationErrors={contestant.declaration_status.errors}
                         onClick={() => handleTeamNameClick(contestant.pk)}
                       />
                     </td>

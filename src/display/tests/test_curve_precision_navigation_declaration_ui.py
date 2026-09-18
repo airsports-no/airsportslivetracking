@@ -128,7 +128,10 @@ class TestPrecisionNavigationDeclaration(CurvePrecisionNavigationDeclarationTest
             reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
         )
         contestant_payload = next(c for c in detail_response.json()["contestant_set"] if c["id"] == contestant.pk)
-        self.assertEqual(contestant_payload["declaration_status"], {"required": True, "complete": False})
+        self.assertEqual(
+            contestant_payload["declaration_status"],
+            {"required": True, "complete": False, "errors": ["Precision navigation requires known_time_gate_predictions."]},
+        )
 
     def test_declaring_predictions_for_every_waypoint_makes_declaration_valid(self):
         contestant = self._create_contestant()
@@ -148,7 +151,7 @@ class TestPrecisionNavigationDeclaration(CurvePrecisionNavigationDeclarationTest
             reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
         )
         contestant_payload = next(c for c in detail_response.json()["contestant_set"] if c["id"] == contestant.pk)
-        self.assertEqual(contestant_payload["declaration_status"], {"required": True, "complete": True})
+        self.assertEqual(contestant_payload["declaration_status"], {"required": True, "complete": True, "errors": []})
 
     def test_declaring_predictions_for_only_some_waypoints_stays_invalid(self):
         contestant = self._create_contestant()
@@ -198,7 +201,7 @@ class TestCurveNavigationDeclaration(CurvePrecisionNavigationDeclarationTestBase
             reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
         )
         contestant_payload = next(c for c in detail_response.json()["contestant_set"] if c["id"] == contestant.pk)
-        self.assertEqual(contestant_payload["declaration_status"], {"required": True, "complete": True})
+        self.assertEqual(contestant_payload["declaration_status"], {"required": True, "complete": True, "errors": []})
 
     def test_declaration_rejected_beyond_tmax(self):
         self.navigation_task.task_config = {"curve_navigation_tmax_seconds": 60}
