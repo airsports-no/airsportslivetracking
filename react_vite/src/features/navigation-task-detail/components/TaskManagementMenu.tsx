@@ -69,10 +69,14 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
 
   return (
     <div className="dropdown dropdown-end">
-      <label tabIndex={0} className="btn btn-sm btn-square btn-ghost" title="Management">
+      <label tabIndex={0} className="btn btn-sm btn-ghost gap-1" title="Management">
         <Settings size={16} />
+        Manage
       </label>
-      <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-64">
+      <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-72">
+        <li className="menu-title">
+          <span>Contestants</span>
+        </li>
         <li>
           {/* Advanced path for power users - Quick Add, scheduling, and contestant self-registration
               cover the common cases; this exposes the full field set (tracker id, adaptive start,
@@ -87,17 +91,14 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
           </button>
         </li>
         <li>
-          <hr className="my-1 border-base-200" />
-        </li>
-        <li>
           <button type="button" disabled={removingContestants} onClick={handleRemoveContestants} className="text-error w-full text-left">
             Clear contestants
           </button>
         </li>
         {task.editable_route && (
           <>
-            <li>
-              <hr className="my-1 border-base-200" />
+            <li className="menu-title">
+              <span>Route</span>
             </li>
             <li>
               <Link to={generatePath('ROUTE_EDITOR_EDIT', { routeId: String(task.editable_route) })}>Edit route</Link>
@@ -109,11 +110,16 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
             </li>
           </>
         )}
-        <li>
-          <hr className="my-1 border-base-200" />
+        <li className="menu-title">
+          <span>Flight orders &amp; documents</span>
         </li>
         <li>
           <a href={reverse('navigationtask_flightordersprogress', navigationTaskId)}>Generate flight orders</a>
+        </li>
+        <li>
+          <button type="button" onClick={() => flightOrderConfigModalRef.current?.open()} className="w-full text-left">
+            Flight order configuration
+          </button>
         </li>
         <li>
           <a href={reverse('navigationtask_qr', navigationTaskId)}>QR Code</a>
@@ -126,16 +132,8 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
         <li>
           <a href={reverse('navigationtask_map', navigationTaskId)}>Navigation Map</a>
         </li>
-        <li>
-          <hr className="my-1 border-base-200" />
-        </li>
-        <li>
-          <button type="button" onClick={() => flightOrderConfigModalRef.current?.open()} className="w-full text-left">
-            Flight order configuration
-          </button>
-        </li>
-        <li>
-          <hr className="my-1 border-base-200" />
+        <li className="menu-title">
+          <span>Task</span>
         </li>
         <li>
           <button type="button" onClick={() => updateDetailsModalRef.current?.showModal()} className="w-full text-left">

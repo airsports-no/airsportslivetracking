@@ -24,6 +24,16 @@ export default function PhotoManagementPage() {
     const [decoySaving, setDecoySaving] = useState(false);
     const [decoyError, setDecoyError] = useState<string | null>(null);
     const mapRef = useMapInit();
+    // useMapInit's ref is populated inside its own effect, after this component's initial
+    // render - reading mapRef.current directly in JSX (as ProhibitedRenderer/RouteRenderer's
+    // map prop used to) is a React rules-of-hooks violation (refs aren't meant to drive render
+    // output) and, worse, means those renderers never re-render when the map instance actually
+    // becomes available, since mutating a ref doesn't trigger one. Mirroring it into state here -
+    // set from an effect, not read during render - fixes both.
+    const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
+    useEffect(() => {
+        setMapInstance(mapRef.current);
+    }, [mapRef]);
     const tileLayerRef = useRef<L.TileLayer | null>(null);
     const photoMarkersRef = useRef<Record<number, L.Marker>>({});
     const isUnknownLegsTask = navTask?.task_subtype === 'unknown_legs';
@@ -434,11 +444,11 @@ export default function PhotoManagementPage() {
                 {/* Map */}
                 <div className="flex-1 relative">
                     <div id="map-container" className="h-full w-full" />
-                    {navTask && (
+                    {navTask && mapInstance && (
                         <>
-                            <ProhibitedRenderer map={mapRef.current} navTask={navTask} />
+                            <ProhibitedRenderer map={mapInstance} navTask={navTask} />
                             <RouteRenderer
-                                map={mapRef.current}
+                                map={mapInstance}
                                 route={navTask.route}
                                 taskCatalogueTargets={navTask.task_catalogue_targets ?? []}
                                 scorecard={navTask.scorecard}

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { MapPin, Plus } from 'lucide-react';
+import { Calendar, Camera, Check, ClipboardList, MapPin, Plus, Trophy } from 'lucide-react';
 import { Loading } from '../route-editor/components/basicComponents';
 import { fetchNavigationTask } from '../competition-map/api';
 import { fetchRunningCalculators, shareNavigationTask, NavigationTaskVisibility } from './api';
@@ -109,62 +109,74 @@ const NavigationTaskDetailPage: React.FC = () => {
       </div>
       <p className="text-sm text-gray-500 mb-4">{formatDateInterval(task.start_time, task.finish_time)}</p>
 
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        {/* Navigation: destinations that just show data about this task. */}
-        <div className="join">
-          <Link
-            to={generatePath('SCORECARD_EDITOR', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
-            className="btn btn-sm btn-outline join-item"
-          >
-            Scorecard
-          </Link>
-          <Link to={generatePath('CONTEST_RESULTS_TABLE', { contestId: contestId! })} className="btn btn-sm btn-outline join-item">
-            Results
-          </Link>
-          <Link
-            to={generatePath('MISSION_DASHBOARD_PHOTOS', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
-            className="btn btn-sm btn-outline join-item"
-          >
-            Photos
-          </Link>
-          {canManage && (
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6 bg-base-200/50 border border-base-300 rounded-box p-2">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Navigation: destinations that just show data about this task. */}
+          <div className="join">
             <Link
-              to={generatePath('CONTESTANT_SCHEDULING', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
-              className="btn btn-sm btn-outline join-item"
+              to={generatePath('SCORECARD_EDITOR', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
+              className="btn btn-sm btn-ghost join-item gap-1"
             >
-              Scheduling
+              <ClipboardList size={14} />
+              Scorecard
             </Link>
-          )}
+            <Link
+              to={generatePath('CONTEST_RESULTS_TABLE', { contestId: contestId! })}
+              className="btn btn-sm btn-ghost join-item gap-1"
+            >
+              <Trophy size={14} />
+              Results
+            </Link>
+            <Link
+              to={generatePath('MISSION_DASHBOARD_PHOTOS', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
+              className="btn btn-sm btn-ghost join-item gap-1"
+            >
+              <Camera size={14} />
+              Photos
+            </Link>
+            {canManage && (
+              <Link
+                to={generatePath('CONTESTANT_SCHEDULING', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
+                className="btn btn-sm btn-ghost join-item gap-1"
+              >
+                <Calendar size={14} />
+                Scheduling
+              </Link>
+            )}
+          </div>
         </div>
 
         {canManage && (
-          <>
-            <div className="divider divider-horizontal mx-0 hidden sm:flex" />
-            {/* Actions: the primary "do something" affordance stays a plain button; anything
+          <div className="flex items-center gap-2">
+            {/* Actions: the primary "do something" affordance stays a prominent button; anything
                 less frequent lives behind the management dropdown instead of crowding the bar. */}
             <button type="button" className="btn btn-sm btn-primary gap-1" onClick={() => quickAddModalRef.current?.open()}>
               <Plus size={14} />
               Quick Add
             </button>
             <TaskManagementMenu contestId={Number(contestId)} navigationTaskId={Number(navigationTaskId)} task={task} onRefresh={load} />
-          </>
+          </div>
         )}
       </div>
 
       {canManage && (
-        <div className="mb-6 flex items-center gap-2">
+        <div className="mb-6 flex items-center gap-3">
           <span className="font-semibold text-sm">Visibility:</span>
           <div className="join">
-            {VISIBILITY_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                disabled={sharingBusy}
-                onClick={() => handleShare(option.value)}
-                className={`btn btn-sm join-item ${visibility === option.value ? 'btn-primary' : 'btn-outline'}`}
-              >
-                {option.label}
-              </button>
-            ))}
+            {VISIBILITY_OPTIONS.map((option) => {
+              const isActive = visibility === option.value;
+              return (
+                <button
+                  key={option.value}
+                  disabled={sharingBusy}
+                  onClick={() => handleShare(option.value)}
+                  className={`btn btn-sm join-item gap-1 ${isActive ? 'btn-primary' : 'btn-ghost'}`}
+                >
+                  {isActive && <Check size={14} />}
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
