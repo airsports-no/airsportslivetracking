@@ -299,16 +299,18 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
                   </select>
                 </label>
               </div>
-              <label className="form-control">
-                <span className="label-text text-xs">Tracker device ID</span>
-                <input
-                  type="text"
-                  className="input input-bordered input-sm w-full"
-                  value={trackerDeviceId}
-                  onChange={(e) => setTrackerDeviceId(e.target.value)}
-                  placeholder="Leave blank if using the Air Sports Live Tracking app"
-                />
-              </label>
+              {trackingDevice === 'device' && (
+                <label className="form-control">
+                  <span className="label-text text-xs">Tracker device ID</span>
+                  <input
+                    type="text"
+                    className="input input-bordered input-sm w-full"
+                    value={trackerDeviceId}
+                    onChange={(e) => setTrackerDeviceId(e.target.value)}
+                    placeholder="Leave blank if using the Air Sports Live Tracking app"
+                  />
+                </label>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <label className="form-control">
                   <span className="label-text text-xs">Tracker start time</span>

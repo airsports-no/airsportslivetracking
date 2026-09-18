@@ -102,20 +102,26 @@ const BatchUpdateContestantsModal = forwardRef<HTMLDialogElement, BatchUpdateCon
               </label>
               {updateWind && (
                 <div className="flex gap-2 ml-6">
-                  <input
-                    type="number"
-                    className="input input-bordered input-sm w-24"
-                    placeholder="Speed (kt)"
-                    value={windSpeed}
-                    onChange={(e) => setWindSpeed(e.target.value)}
-                  />
-                  <input
-                    type="number"
-                    className="input input-bordered input-sm w-24"
-                    placeholder="Direction (°)"
-                    value={windDirection}
-                    onChange={(e) => setWindDirection(e.target.value)}
-                  />
+                  <label className="form-control">
+                    <span className="label-text text-xs">Wind speed (knots)</span>
+                    <input
+                      type="number"
+                      className="input input-bordered input-sm w-28"
+                      placeholder="e.g. 8"
+                      value={windSpeed}
+                      onChange={(e) => setWindSpeed(e.target.value)}
+                    />
+                  </label>
+                  <label className="form-control">
+                    <span className="label-text text-xs">Wind direction (0-360°, from)</span>
+                    <input
+                      type="number"
+                      className="input input-bordered input-sm w-28"
+                      placeholder="e.g. 270"
+                      value={windDirection}
+                      onChange={(e) => setWindDirection(e.target.value)}
+                    />
+                  </label>
                 </div>
               )}
             </div>
@@ -127,13 +133,16 @@ const BatchUpdateContestantsModal = forwardRef<HTMLDialogElement, BatchUpdateCon
               </label>
               {shiftTimes && (
                 <div className="ml-6">
-                  <input
-                    type="number"
-                    className="input input-bordered input-sm w-40"
-                    placeholder="Minutes (negative = earlier)"
-                    value={timeShiftMinutes}
-                    onChange={(e) => setTimeShiftMinutes(e.target.value)}
-                  />
+                  <label className="form-control">
+                    <span className="label-text text-xs">Time shift (minutes, negative = earlier)</span>
+                    <input
+                      type="number"
+                      className="input input-bordered input-sm w-48"
+                      placeholder="e.g. 15 or -15"
+                      value={timeShiftMinutes}
+                      onChange={(e) => setTimeShiftMinutes(e.target.value)}
+                    />
+                  </label>
                 </div>
               )}
             </div>
