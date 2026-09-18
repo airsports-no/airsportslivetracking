@@ -16,7 +16,19 @@ from guardian.shortcuts import assign_perm
 from rest_framework.test import APITestCase, APITransactionTestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Aeroplane, Contest, Contestant, Crew, NavigationTask, Person, Route, Team
+from display.models import (
+    Aeroplane,
+    Contest,
+    ContestSummary,
+    Contestant,
+    Crew,
+    NavigationTask,
+    Person,
+    Route,
+    Team,
+    TaskSummary,
+    TeamTestScore,
+)
 from display.utilities.calculator_termination_utilities import is_termination_requested, request_termination
 from utilities.mock_utilities import TraccarMock
 
@@ -346,3 +358,32 @@ class TestContestantRecalculateWithStartTimeRestAction(APITransactionTestCase):
         response = self.client.post(self.url, data={}, format="json")
         self.assertEqual(response.status_code, 400)
         self.assertTrue(Contestant.objects.filter(pk=self.contestant.pk).exists())
+
+    @patch("display.viewsets.recalculate_existing_positions")
+    @patch(
+        "display.models.contestant.Contestant.flight_duration",
+        new_callable=PropertyMock,
+        return_value=datetime.timedelta(hours=1),
+    )
+    def test_deleting_old_contestant_clears_its_team_test_score(self, _mock_flight_duration, mock_recalculate, *args):
+        # recalculate_with_start_time deletes the old contestant (a new one, with a new pk,
+        # takes over its positions/track) - before the pre_delete(Contestant) signal added for
+        # deleting a contestant outright, this was actually the worst case of that bug: the old
+        # contestant's score for this navigation task's TaskTest would survive forever as an
+        # orphan, since nothing about "replace this contestant" ever touched TeamTestScore.
+        team = self.contestant.team
+        self.contestant.contestanttrack.update_score(77)
+        task_test = self.navigation_task.tasktest
+        self.assertEqual(TeamTestScore.objects.get(task_test=task_test, team=team).points, 77)
+        self.assertEqual(TaskSummary.objects.get(task=task_test.task, team=team).points, 77)
+        self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=team).points, 77)
+
+        starting_point_time = self.navigation_task.start_time + datetime.timedelta(hours=3)
+        response = self.client.post(
+            self.url, data={"starting_point_time": starting_point_time.isoformat()}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertFalse(TeamTestScore.objects.filter(task_test=task_test, team=team).exists())
+        self.assertEqual(TaskSummary.objects.get(task=task_test.task, team=team).points, 0)
+        self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=team).points, 0)
