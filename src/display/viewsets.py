@@ -160,6 +160,13 @@ from display.serialisers import (
 )
 from display.services.access_resolver import resolve_contest_access
 from display.services.admin_flight_stats import BIN_GRANULARITIES, build_admin_flight_stats
+from display.services.admin_system_stats import (
+    ACTIVITY_BIN_GRANULARITIES,
+    get_activity_over_time,
+    get_country_stats,
+    get_retention_stats,
+    get_task_type_popularity,
+)
 from display.services.admin_upcoming_contestants import get_upcoming_contestants
 from display.services.administrative_penalties import (
     ADMINISTRATIVE_PENALTY_CATEGORIES,
@@ -1588,6 +1595,47 @@ class AdminUpcomingContestantsViewSet(ViewSet):
         if days <= 0 or days > 180:
             raise ValidationError({"days": "Must be between 1 and 180."})
         return Response(get_upcoming_contestants(days))
+
+
+class AdminSystemStatsViewSet(ViewSet):
+    """
+    Utilization/adoption statistics that don't need a time-range control: country breakdown,
+    task-type popularity, and team/pilot retention. See AdminActivityTrendsViewSet for the
+    time-series companion.
+    """
+
+    permission_classes = [IsSuperUser]
+
+    def list(self, request):
+        return Response(
+            {
+                "country": get_country_stats(),
+                "task_type_popularity": get_task_type_popularity(),
+                "retention": get_retention_stats(),
+            }
+        )
+
+
+class AdminActivityTrendsViewSet(ViewSet):
+    """Contests/tasks over time (by start_time) - the growth-trend companion to AdminSystemStatsViewSet."""
+
+    permission_classes = [IsSuperUser]
+
+    def list(self, request):
+        try:
+            days = int(request.query_params.get("days", 90))
+        except ValueError:
+            raise ValidationError({"days": "Must be an integer."})
+        if days <= 0 or days > 3660:
+            raise ValidationError({"days": "Must be between 1 and 3660."})
+
+        bin_granularity = request.query_params.get("bin", "month")
+        if bin_granularity not in ACTIVITY_BIN_GRANULARITIES:
+            raise ValidationError({"bin": f"Must be one of {sorted(ACTIVITY_BIN_GRANULARITIES)}."})
+
+        end = timezone.now()
+        start = end - datetime.timedelta(days=days)
+        return Response(get_activity_over_time(start, end, bin_granularity))
 
 
 class NavigationTaskViewSet(ModelViewSet):

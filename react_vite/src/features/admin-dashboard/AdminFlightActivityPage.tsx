@@ -11,8 +11,21 @@ import {
 } from 'recharts';
 import { Loading } from '../route-editor/components/basicComponents';
 import { useToast } from '../competition-map/hooks/useToast';
-import { fetchAdminFlightStats, fetchUpcomingContestants, FlightStatsBin, FlightStatsResponse, UpcomingContestant } from './api';
+import {
+    fetchAdminFlightStats,
+    fetchAdminSystemStats,
+    fetchUpcomingContestants,
+    FlightStatsBin,
+    FlightStatsResponse,
+    SystemStatsResponse,
+    UpcomingContestant,
+} from './api';
 import { groupUpcomingContestants, UpcomingGrouping } from './groupUpcoming';
+import { bucketFormatter } from './bucketFormatter';
+import CountryStatsPanel from './components/CountryStatsPanel';
+import ActivityTrendsPanel from './components/ActivityTrendsPanel';
+import TaskTypePopularityPanel from './components/TaskTypePopularityPanel';
+import RetentionPanel from './components/RetentionPanel';
 
 const BIN_OPTIONS: { value: FlightStatsBin; label: string }[] = [
     { value: 'hour', label: 'Hour' },
@@ -35,19 +48,6 @@ const STATUS_COLORS = {
     awaiting_start: 'var(--color-info)',
     flying: 'var(--color-warning)',
     finished: 'var(--color-success)',
-};
-
-const bucketFormatter = (bin: FlightStatsBin) => {
-    const options: Intl.DateTimeFormatOptions =
-        bin === 'hour'
-            ? { month: 'short', day: 'numeric', hour: 'numeric' }
-            : bin === 'day' || bin === 'week'
-              ? { month: 'short', day: 'numeric' }
-              : bin === 'month'
-                ? { month: 'short', year: 'numeric' }
-                : { year: 'numeric' };
-    const formatter = new Intl.DateTimeFormat(undefined, options);
-    return (isoString: string) => formatter.format(new Date(isoString));
 };
 
 function FlightStatusChart() {
@@ -325,7 +325,49 @@ function UpcomingContestantsList() {
     );
 }
 
+type Tab = 'flight-activity' | 'utilization';
+
+const TABS: { value: Tab; label: string }[] = [
+    { value: 'flight-activity', label: 'Flight activity' },
+    { value: 'utilization', label: 'Utilization & reach' },
+];
+
+function UtilizationTab() {
+    const { showToast } = useToast();
+    const [systemStats, setSystemStats] = useState<SystemStatsResponse | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        setLoading(true);
+        fetchAdminSystemStats()
+            .then((response) => {
+                if (!cancelled) setSystemStats(response);
+            })
+            .catch((err: any) => {
+                if (!cancelled) showToast(err.message ?? 'Failed to load utilization stats.', 'error');
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [showToast]);
+
+    return (
+        <>
+            <CountryStatsPanel rows={systemStats?.country ?? null} loading={loading} />
+            <ActivityTrendsPanel />
+            <TaskTypePopularityPanel rows={systemStats?.task_type_popularity ?? null} loading={loading} />
+            <RetentionPanel data={systemStats?.retention ?? null} loading={loading} />
+        </>
+    );
+}
+
 export default function AdminFlightActivityPage() {
+    const [tab, setTab] = useState<Tab>('flight-activity');
+
     if (!document.configuration.is_superuser) {
         return (
             <div className="container mx-auto p-4 md:p-8">
@@ -336,9 +378,29 @@ export default function AdminFlightActivityPage() {
 
     return (
         <div className="container mx-auto p-4 md:p-8 flex flex-col gap-6">
-            <h1 className="text-2xl font-bold">Flight activity</h1>
-            <FlightStatusChart />
-            <UpcomingContestantsList />
+            <h1 className="text-2xl font-bold">Statistics</h1>
+
+            <div role="tablist" className="tabs tabs-boxed w-fit">
+                {TABS.map((option) => (
+                    <a
+                        key={option.value}
+                        role="tab"
+                        className={`tab ${tab === option.value ? 'tab-active' : ''}`}
+                        onClick={() => setTab(option.value)}
+                    >
+                        {option.label}
+                    </a>
+                ))}
+            </div>
+
+            {tab === 'flight-activity' ? (
+                <>
+                    <FlightStatusChart />
+                    <UpcomingContestantsList />
+                </>
+            ) : (
+                <UtilizationTab />
+            )}
         </div>
     );
 }
