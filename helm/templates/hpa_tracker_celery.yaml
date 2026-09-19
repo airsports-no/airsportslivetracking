@@ -14,8 +14,20 @@ spec:
     resource:
       name: cpu
       target:
-        type: Utilization
-        averageUtilization: 60
+        # AverageValue (an absolute quantity), not Utilization (a percentage of the request) -
+        # HPA's Utilization metric is hardcoded to the pod's CPU *request* as its denominator,
+        # which has no fixed relationship to the limit. tracker-celery's request is deliberately
+        # kept low (250m, near the Autopilot ratio floor) while its limit is 1000m, specifically
+        # so a single heavy task (track recalculation, flight order generation) can burst to a
+        # full core without throttling - see deployment_tracker_celery.yaml. Against that request,
+        # a normal single-pod burst reads as 100%+ utilization and the zero-stabilization scaleUp
+        # policy below reacts by immediately jumping toward maxReplicas, even though it's really
+        # just one pod doing one ordinary task. 600m is 60% of the 1000m limit, expressed as an
+        # absolute value instead - so raising or lowering the request for cost reasons in the
+        # future can no longer silently change how trigger-happy this HPA is. Update this value
+        # if the limit above changes.
+        type: AverageValue
+        averageValue: 600m
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
