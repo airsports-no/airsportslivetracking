@@ -171,4 +171,32 @@ describe('splitSegments', () => {
     expect(result.dashed).toEqual([]);
     expect(result.solid).toHaveLength(1);
   });
+
+  it('keeps a steady 2-second reporting interval solid indefinitely, never bridging into a dashed run', () => {
+    // Many tracking apps report at a fixed interval slower than once a second. A 2-second
+    // interval makes contestant_processor.py's interpolate_track fill exactly one interpolated
+    // point per gap - real, interpolated(1), real, interpolated(1), ... forever. Every gap is
+    // separated by exactly one real point, so without a floor on bridgeable run length this
+    // would accumulate without limit and eventually cross MIN_DASHED_RUN_LENGTH, even though the
+    // device is reporting perfectly reliably (just not every second).
+    const positions: TrackPosition[] = [];
+    for (let t = 0; t <= 60; t += 2) {
+      positions.push(makePosition(60 + t * 0.0001, 11, false));
+      if (t < 60) {
+        positions.push(makePosition(60 + (t + 1) * 0.0001, 11, true));
+      }
+    }
+    const result = splitSegments(positions);
+    expect(result.dashed).toEqual([]);
+    expect(result.solid).toHaveLength(1);
+  });
+
+  it('still dashes several substantial bridged runs (a real outage), unaffected by the bridgeable-length floor', () => {
+    const real = (n: number) => makePosition(60 + n, 11);
+    const longRun = (base: number) => Array.from({ length: 8 }, (_, i) => makePosition(base + i * 0.01, 11, true));
+    const positions = [real(0), ...longRun(60), real(1), ...longRun(61), real(2)];
+    const result = splitSegments(positions);
+    expect(result.solid).toEqual([]);
+    expect(result.dashed).toHaveLength(1);
+  });
 });
