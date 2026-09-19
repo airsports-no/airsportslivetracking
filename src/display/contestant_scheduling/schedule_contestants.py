@@ -314,7 +314,23 @@ def schedule_and_create_contestants_navigation_tasks(
         # Sort results by start time for numbering
         solved_teams.sort(key=lambda t: t.start_time)
 
-        new_contestants_created = 0
+        # Temporary numbers below (overwritten by the real renumbering pass further down) used
+        # to just count up from 10001 - if a locked/frozen contestant on this task already held
+        # a number in that range (from history, or a manual edit), the very first new contestant
+        # collided with it and raised IntegrityError on the (navigation_task, contestant_number)
+        # unique constraint (Sentry PYTHON-DJANGO-17), deterministically on every retry. Mirrors
+        # the used_numbers approach schedule_and_create_contestants_landing_task already uses.
+        used_numbers = set(navigation_task.contestant_set.values_list("contestant_number", flat=True))
+        next_temp_number = 10001
+
+        def _next_free_temp_number() -> int:
+            nonlocal next_temp_number
+            while next_temp_number in used_numbers:
+                next_temp_number += 1
+            number = next_temp_number
+            used_numbers.add(number)
+            next_temp_number += 1
+            return number
 
         for team_def in solved_teams:
             contest_team = ContestTeam.objects.get(pk=team_def.pk)
@@ -363,9 +379,7 @@ def schedule_and_create_contestants_navigation_tasks(
                         contestant.tracker_device_id = contest_team.tracker_device_id
                         contestant.tracking_device = contest_team.tracking_device
                         contestant.tracker_start_time = tracking_start_time
-                        contestant.contestant_number = (
-                            10000 + new_contestants_created + 1
-                        )  # Temporary large numbercontestant
+                        contestant.contestant_number = _next_free_temp_number()  # Temporary large number
                         contestant.save()
                         ContestantTaskCompiler(contestant).compile(
                             declaration_payload=_build_default_declaration_payload(navigation_task),
@@ -391,14 +405,13 @@ def schedule_and_create_contestants_navigation_tasks(
                         tracker_device_id=contest_team.tracker_device_id,
                         tracking_device=contest_team.tracking_device,
                         tracker_start_time=tracking_start_time,
-                        contestant_number=10000 + new_contestants_created + 1,  # Temporary large number
+                        contestant_number=_next_free_temp_number(),  # Temporary large number
                     )
                     ContestantTaskCompiler(contestant).compile(
                         declaration_payload=_build_default_declaration_payload(navigation_task),
                         force=True,
                     )
                     optimisation_messages.extend(contestant.get_overlap_warnings())
-                new_contestants_created += 1
 
         # Delete any remaining mutable contestants that were not reused (i.e. team was deselected or schedule reduced)
         for unused_contestant in mutable_contestants:
