@@ -33,7 +33,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet, ViewSet
 
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.filters import ContestFilter, NavigationTaskFilter
@@ -84,6 +84,7 @@ from display.permissions import (
     ContestPublicPermissions,
     ContestTeamContestPermissions,
     EditableRoutePermission,
+    IsSuperUser,
     NavigationTaskContestPermissions,
     NavigationTaskPublicPermissions,
     NavigationTaskPublicPutDeletePermissions,
@@ -158,6 +159,8 @@ from display.serialisers import (
     TrackAnnotationSerialiser,
 )
 from display.services.access_resolver import resolve_contest_access
+from display.services.admin_flight_stats import BIN_GRANULARITIES, build_admin_flight_stats
+from display.services.admin_upcoming_contestants import get_upcoming_contestants
 from display.services.administrative_penalties import (
     ADMINISTRATIVE_PENALTY_CATEGORIES,
     AdministrativePenaltyService,
@@ -1542,6 +1545,49 @@ class GetScorecardsViewSet(ReadOnlyModelViewSet):
                 for scorecard in scorecards
             ]
         )
+
+
+class AdminFlightStatsViewSet(ViewSet):
+    """
+    Platform-wide (cross-contest) operational view for site admins - not a contest resource, so
+    it's a plain ViewSet rather than ModelViewSet/GenericViewSet.
+    """
+
+    permission_classes = [IsSuperUser]
+
+    def list(self, request):
+        try:
+            days = int(request.query_params.get("days", 30))
+        except ValueError:
+            raise ValidationError({"days": "Must be an integer."})
+        if days <= 0 or days > 3660:
+            raise ValidationError({"days": "Must be between 1 and 3660."})
+
+        bin_granularity = request.query_params.get("bin", "day")
+        if bin_granularity not in BIN_GRANULARITIES:
+            raise ValidationError({"bin": f"Must be one of {sorted(BIN_GRANULARITIES)}."})
+
+        end = timezone.now()
+        start = end - datetime.timedelta(days=days)
+        return Response(build_admin_flight_stats(start, end, bin_granularity))
+
+
+class AdminUpcomingContestantsViewSet(ViewSet):
+    """
+    Forward-looking companion to AdminFlightStatsViewSet - "what's coming up" rather than "what
+    already happened," for the same site-admin capacity-planning purpose.
+    """
+
+    permission_classes = [IsSuperUser]
+
+    def list(self, request):
+        try:
+            days = int(request.query_params.get("days", 14))
+        except ValueError:
+            raise ValidationError({"days": "Must be an integer."})
+        if days <= 0 or days > 180:
+            raise ValidationError({"days": "Must be between 1 and 180."})
+        return Response(get_upcoming_contestants(days))
 
 
 class NavigationTaskViewSet(ModelViewSet):

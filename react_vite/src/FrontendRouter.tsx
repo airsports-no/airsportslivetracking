@@ -17,6 +17,7 @@ const PhotoManagementPage = lazy(() => import("./features/competition-map/PhotoM
 const ScheduleFlightPage = lazy(() => import("./features/mission-dashboard/ScheduleFlightPage"));
 const UpgradeOrganizer = lazy(() => import("./features/mission-dashboard/UpgradeOrganizer"));
 const UpgradeSuccess = lazy(() => import("./features/mission-dashboard/UpgradeSuccess"));
+const AdminFlightActivityPage = lazy(() => import("./features/admin-dashboard/AdminFlightActivityPage"));
 
 export const FrontendRouter = () => {
     return (
@@ -40,6 +41,7 @@ export const FrontendRouter = () => {
                     <Route path={routes.CONTESTANT_DECLARATION} element={<ContestantDeclarationPage />} />
                     <Route path={routes.UPGRADE_ORGANIZER} element={<UpgradeOrganizer />} />
                     <Route path={routes.UPGRADE_SUCCESS} element={<UpgradeSuccess />} />
+                    <Route path={routes.ADMIN_FLIGHT_ACTIVITY} element={<AdminFlightActivityPage />} />
                     <Route path={routes.NOT_FOUND} element={
                         <div className="hero min-h-screen bg-base-200">
                             <div className="hero-content text-center">
