@@ -4,8 +4,6 @@ import {
     BarChart,
     CartesianGrid,
     Legend,
-    Line,
-    LineChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
@@ -24,7 +22,14 @@ const BIN_OPTIONS: { value: FlightStatsBin; label: string }[] = [
     { value: 'year', label: 'Year' },
 ];
 
-const RANGE_PRESETS = [14, 30, 90];
+const RANGE_PRESETS: { days: number; label: string }[] = [
+    { days: 14, label: '14d' },
+    { days: 30, label: '30d' },
+    { days: 90, label: '90d' },
+    { days: 365, label: '1y' },
+    { days: 3 * 365, label: '3y' },
+    { days: 5 * 365, label: '5y' },
+];
 
 const STATUS_COLORS = {
     awaiting_start: 'var(--color-info)',
@@ -107,11 +112,11 @@ function FlightStatusChart() {
                         <div className="join">
                             {RANGE_PRESETS.map((preset) => (
                                 <button
-                                    key={preset}
-                                    className={`btn btn-sm join-item ${days === preset ? 'btn-primary' : 'btn-ghost'}`}
-                                    onClick={() => setDays(preset)}
+                                    key={preset.days}
+                                    className={`btn btn-sm join-item ${days === preset.days ? 'btn-primary' : 'btn-ghost'}`}
+                                    onClick={() => setDays(preset.days)}
                                 >
-                                    {preset}d
+                                    {preset.label}
                                 </button>
                             ))}
                         </div>
@@ -176,7 +181,7 @@ function FlightStatusChart() {
                 ) : (
                     <div className="h-56">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={personsData}>
+                            <BarChart data={personsData} barCategoryGap="20%">
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-base-300)" />
                                 <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="var(--color-base-content)" />
                                 <YAxis allowDecimals={false} tick={{ fontSize: 12 }} stroke="var(--color-base-content)" />
@@ -187,15 +192,8 @@ function FlightStatusChart() {
                                         borderRadius: '0.5rem',
                                     }}
                                 />
-                                <Line
-                                    type="monotone"
-                                    dataKey="count"
-                                    name="Unique participants"
-                                    stroke="var(--color-primary)"
-                                    strokeWidth={2}
-                                    dot={{ r: 3 }}
-                                />
-                            </LineChart>
+                                <Bar dataKey="count" name="Unique participants" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+                            </BarChart>
                         </ResponsiveContainer>
                     </div>
                 )}
