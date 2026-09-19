@@ -9,6 +9,7 @@ import { GateSection } from './components/GateSection';
 import { ScalarFieldGroup } from './components/ScalarFieldGroup';
 import { buildSavePayload, emptyEditorState, isDirty } from './scorecardEditorLogic';
 import { ScorecardData, ScorecardEditorState } from './types';
+import { generatePath } from '../../urls';
 
 export default function ScorecardEditorPage() {
     const { contestId, navigationTaskId } = useParams<{ contestId: string; navigationTaskId: string }>();
@@ -66,10 +67,9 @@ export default function ScorecardEditorPage() {
         setSaving(true);
         try {
             const payload = buildSavePayload(editorState);
-            const updated = await saveScorecard(Number(contestId), Number(navigationTaskId), payload);
-            setScorecard(updated);
-            setEditorState(emptyEditorState());
+            await saveScorecard(Number(contestId), Number(navigationTaskId), payload);
             showToast('Scorecard saved.', 'success');
+            navigate(generatePath('NAVIGATION_TASK_DETAIL', { contestId, navigationTaskId }));
         } catch (err: any) {
             showToast(err.message ?? 'Failed to save scorecard.', 'error');
         } finally {
