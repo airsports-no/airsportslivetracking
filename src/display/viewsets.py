@@ -657,6 +657,21 @@ def get_contest_list_version():
         return int(timezone.now().timestamp())
 
 
+def _parse_points_from_request(request):
+    """
+    Coerce request.data["points"] to a float - every points field it ends up in
+    (ContestSummary/TaskSummary/TeamTestScore) is a FloatField, not an int, so scores with a
+    fractional part are legitimate. Raises a DRF ValidationError (-> 400) on anything that isn't
+    a valid number, rather than letting it crash into an unhandled 500: EditableCell.tsx's onBlur
+    fires whatever is currently in the input, including a partially-typed negative number (a lone
+    "-") if the field loses focus before the pilot/organizer finishes typing.
+    """
+    try:
+        return float(request.data["points"])
+    except (TypeError, ValueError, KeyError):
+        raise drf_exceptions.ValidationError({"points": "Points must be a number."})
+
+
 class ContestPagination(MyCursorPagination):
     page_size = 50
     ordering = ["-start_time", "-finish_time", "id"]
@@ -1168,13 +1183,14 @@ class ContestViewSet(ModelViewSet):
         """
         # I think this is required for the permissions to work
         contest = self.get_object()
+        points = _parse_points_from_request(request)
         summary, created = ContestSummary.objects.get_or_create(
             team_id=request.data["team"],
             contest=contest,
-            defaults={"points": request.data["points"]},
+            defaults={"points": points},
         )
         if not created:
-            summary.points = request.data["points"]
+            summary.points = points
             summary.save()
 
         return Response(status=status.HTTP_200_OK)
@@ -1195,13 +1211,14 @@ class ContestViewSet(ModelViewSet):
         # itself instead, so a task id from another contest 404s rather than
         # letting an organiser overwrite another contest's published results.
         task = get_object_or_404(Task, pk=request.data["task"], contest=contest)
+        points = _parse_points_from_request(request)
         summary, created = TaskSummary.objects.get_or_create(
             team_id=request.data["team"],
             task=task,
-            defaults={"points": request.data["points"]},
+            defaults={"points": points},
         )
         if not created:
-            summary.points = request.data["points"]
+            summary.points = points
             summary.save()
         return Response(status=status.HTTP_200_OK)
 
@@ -1219,13 +1236,14 @@ class ContestViewSet(ModelViewSet):
         # Same cross-contest scoping as update_task_summary above - TaskTest
         # only reaches the authorised contest via task__contest.
         task_test = get_object_or_404(TaskTest, pk=int(request.data["task_test"]), task__contest=contest)
+        points = _parse_points_from_request(request)
         results, created = TeamTestScore.objects.get_or_create(
             team_id=int(request.data["team"]),
             task_test=task_test,
-            defaults={"points": int(request.data["points"])},
+            defaults={"points": points},
         )
         if not created:
-            results.points = request.data["points"]
+            results.points = points
             results.save()
         return Response(status=status.HTTP_200_OK)
 

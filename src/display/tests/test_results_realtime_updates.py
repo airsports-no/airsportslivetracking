@@ -713,6 +713,54 @@ class ContestResultsRestMutationTests(APITransactionTestCase):
         matching_summary = next(summary for summary in payload["content"]["results"]["contestsummary_set"] if summary["team"]["id"] == self.team.pk)
         self.assertEqual(matching_summary["points"], 31.0)
 
+    def test_update_test_result_endpoint_accepts_fractional_points(self, *args):
+        # Regression test: this used to int()-cast points, silently truncating legitimate
+        # fractional scores even on a well-formed request (TeamTestScore.points is a FloatField).
+        response = self.client.put(
+            reverse("contests-update-test-result", kwargs={"pk": self.contest.pk}),
+            data={"team": self.team.pk, "task_test": self.task_test.pk, "points": 12.5},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.assertEqual(
+            TeamTestScore.objects.get(team=self.team, task_test=self.task_test).points, 12.5
+        )
+
+    def test_update_test_result_endpoint_rejects_malformed_points_with_400(self, *args):
+        # Regression test (Sentry PYTHON-DJANGO-19): EditableCell.tsx's onBlur used to be able to
+        # send a partially-typed negative number (a lone "-") straight through, which crashed
+        # int(request.data["points"]) into an unhandled 500 instead of a validation error.
+        response = self.client.put(
+            reverse("contests-update-test-result", kwargs={"pk": self.contest.pk}),
+            data={"team": self.team.pk, "task_test": self.task_test.pk, "points": "-"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        self.assertIn("points", response.data)
+        self.assertFalse(TeamTestScore.objects.filter(team=self.team, task_test=self.task_test).exists())
+
+    def test_update_task_summary_endpoint_rejects_malformed_points_with_400(self, *args):
+        response = self.client.put(
+            reverse("contests-update-task-summary", kwargs={"pk": self.contest.pk}),
+            data={"team": self.team.pk, "task": self.task.pk, "points": "-"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        self.assertIn("points", response.data)
+
+    def test_update_contest_summary_endpoint_rejects_malformed_points_with_400(self, *args):
+        response = self.client.put(
+            reverse("contests-update-contest-summary", kwargs={"pk": self.contest.pk}),
+            data={"team": self.team.pk, "points": "-"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        self.assertIn("points", response.data)
+
     @patch.object(WebsocketFacade, "_safe_group_send")
     def test_task_reorder_update_via_api_emits_tasks_message(self, safe_group_send):
         response = self.client.put(
