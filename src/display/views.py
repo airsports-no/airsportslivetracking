@@ -948,23 +948,6 @@ class PersonUpdateView(SuperuserRequiredMixin, UpdateView):
     form_class = PersonForm
 
 
-from display.utilities.statistics_utilities import get_system_statistics
-
-
-class StatisticsView(SuperuserRequiredMixin, TemplateView):
-    """
-    Displays a list of statistics for contestants and competitions registered in the system.
-    """
-
-    template_name = "display/statistics.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        stats = get_system_statistics()
-        context.update(stats)
-        return context
-
-
 class FrontEndView(TemplateView):
     """
     Render the react view

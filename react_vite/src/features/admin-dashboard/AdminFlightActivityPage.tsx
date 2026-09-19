@@ -26,6 +26,7 @@ import CountryStatsPanel from './components/CountryStatsPanel';
 import ActivityTrendsPanel from './components/ActivityTrendsPanel';
 import TaskTypePopularityPanel from './components/TaskTypePopularityPanel';
 import RetentionPanel from './components/RetentionPanel';
+import OverviewPanel from './components/OverviewPanel';
 
 const BIN_OPTIONS: { value: FlightStatsBin; label: string }[] = [
     { value: 'hour', label: 'Hour' },
@@ -325,14 +326,15 @@ function UpcomingContestantsList() {
     );
 }
 
-type Tab = 'flight-activity' | 'utilization';
+type Tab = 'overview' | 'flight-activity' | 'utilization';
 
 const TABS: { value: Tab; label: string }[] = [
+    { value: 'overview', label: 'Overview' },
     { value: 'flight-activity', label: 'Flight activity' },
     { value: 'utilization', label: 'Utilization & reach' },
 ];
 
-function UtilizationTab() {
+function useAdminSystemStats() {
     const { showToast } = useToast();
     const [systemStats, setSystemStats] = useState<SystemStatsResponse | null>(null);
     const [loading, setLoading] = useState(true);
@@ -345,7 +347,7 @@ function UtilizationTab() {
                 if (!cancelled) setSystemStats(response);
             })
             .catch((err: any) => {
-                if (!cancelled) showToast(err.message ?? 'Failed to load utilization stats.', 'error');
+                if (!cancelled) showToast(err.message ?? 'Failed to load system stats.', 'error');
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -355,18 +357,14 @@ function UtilizationTab() {
         };
     }, [showToast]);
 
-    return (
-        <>
-            <CountryStatsPanel rows={systemStats?.country ?? null} loading={loading} />
-            <ActivityTrendsPanel />
-            <TaskTypePopularityPanel rows={systemStats?.task_type_popularity ?? null} loading={loading} />
-            <RetentionPanel data={systemStats?.retention ?? null} loading={loading} />
-        </>
-    );
+    return { systemStats, loading };
 }
 
 export default function AdminFlightActivityPage() {
-    const [tab, setTab] = useState<Tab>('flight-activity');
+    const [tab, setTab] = useState<Tab>('overview');
+    // Shared across the Overview and Utilization tabs so switching between them doesn't
+    // re-fetch the same (cached server-side, but still a request) payload twice.
+    const { systemStats, loading: systemStatsLoading } = useAdminSystemStats();
 
     if (!document.configuration.is_superuser) {
         return (
@@ -393,13 +391,22 @@ export default function AdminFlightActivityPage() {
                 ))}
             </div>
 
-            {tab === 'flight-activity' ? (
+            {tab === 'overview' && <OverviewPanel overview={systemStats?.overview ?? null} loading={systemStatsLoading} />}
+
+            {tab === 'flight-activity' && (
                 <>
                     <FlightStatusChart />
                     <UpcomingContestantsList />
                 </>
-            ) : (
-                <UtilizationTab />
+            )}
+
+            {tab === 'utilization' && (
+                <>
+                    <CountryStatsPanel rows={systemStats?.country ?? null} loading={systemStatsLoading} />
+                    <ActivityTrendsPanel />
+                    <TaskTypePopularityPanel rows={systemStats?.task_type_popularity ?? null} loading={systemStatsLoading} />
+                    <RetentionPanel data={systemStats?.retention ?? null} loading={systemStatsLoading} />
+                </>
             )}
         </div>
     );

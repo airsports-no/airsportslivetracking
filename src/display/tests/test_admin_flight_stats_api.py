@@ -1,6 +1,7 @@
 import datetime
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -10,6 +11,10 @@ from display.models import Aeroplane, Contest, Contestant, ContestantTrack, Crew
 
 class TestAdminFlightStatsApi(TestCase):
     def setUp(self):
+        # AdminFlightStatsViewSet caches its response by (days, bin) - clear so a stale cached
+        # response from another test using the same params isn't served here (the cache doesn't
+        # roll back with the DB transaction the way everything else in this test does).
+        cache.clear()
         create_scorecards()
         self.superuser = get_user_model().objects.create(email="admin-flight-stats-super@example.com", is_superuser=True)
         self.regular_user = get_user_model().objects.create(email="admin-flight-stats-regular@example.com")

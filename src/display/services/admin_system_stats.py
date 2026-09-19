@@ -16,10 +16,22 @@ to alter its template's existing data contract.
 import datetime
 from collections import Counter, defaultdict
 
-from django.db.models import Count
+from django.db import connection
+from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncDay, TruncHour, TruncMonth, TruncWeek, TruncYear
 
-from display.models import Contest, Contestant, NavigationTask, Person, Team
+from display.models import (
+    ANOMALY,
+    Aeroplane,
+    Club,
+    Contest,
+    Contestant,
+    ContestantReceivedPosition,
+    NavigationTask,
+    Person,
+    ScoreLogEntry,
+    Team,
+)
 
 ACTIVITY_BIN_GRANULARITIES = {
     "hour": TruncHour,
@@ -30,6 +42,65 @@ ACTIVITY_BIN_GRANULARITIES = {
 }
 
 TEAM_CONTEST_COUNT_OVERFLOW_LABEL = "5+"
+
+
+def _approximate_row_count(model) -> int:
+    """
+    ContestantReceivedPosition alone is 11M+ rows (every GPS ping ever recorded) and growing -
+    an exact COUNT(*) took ~2.5s in local testing and only gets slower, which is not something to
+    run on every admin dashboard load just to show a "scale of the platform" headline number.
+    information_schema.tables.table_rows is an InnoDB estimate (refreshed periodically by MySQL,
+    not on every write) rather than an exact count, which is a fine trade for this use - falls
+    back to an exact count on a non-MySQL backend (e.g. a future test DB swap) where that table
+    doesn't exist.
+    """
+    if connection.vendor != "mysql":
+        return model.objects.count()
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT table_rows FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s",
+            [model._meta.db_table],
+        )
+        row = cursor.fetchone()
+    return int(row[0]) if row and row[0] is not None else 0
+
+
+def get_overview_stats() -> dict:
+    """
+    Headline scale/funnel numbers and top lists - the "impressive numbers for a marketing deck"
+    view, plus enough funnel detail (started -> crossed start) to sanity-check them. Mirrors
+    display.utilities.statistics_utilities.get_system_statistics's metric selection (the legacy
+    Django statistics page this is replacing) but is its own query set, not a call into that
+    function, so the legacy page's template contract is unaffected until it's deleted outright.
+    """
+    started_qs = Contestant.objects.filter(contestanttrack__calculator_started=True)
+    crossed_starting_qs = started_qs.filter(contestanttrack__passed_starting_gate=True)
+    country_rows = get_country_stats()
+
+    return {
+        "number_of_persons": Person.objects.count(),
+        "number_of_contests": Contest.objects.count(),
+        "number_of_tasks": NavigationTask.objects.count(),
+        "number_of_contestants": Contestant.objects.count(),
+        "number_of_countries_reached": len([row for row in country_rows if row["country_code"]]),
+        "total_gps_positions": _approximate_row_count(ContestantReceivedPosition),
+        "total_anomalies": ScoreLogEntry.objects.filter(type=ANOMALY).count(),
+        "average_air_speed": Contestant.objects.aggregate(value=Avg("air_speed"))["value"] or 0,
+        "number_of_started_contestants": started_qs.count(),
+        "number_of_contestants_crossed_starting": crossed_starting_qs.count(),
+        "number_of_persons_crossed_starting": Person.objects.filter(
+            Q(crewmember_one__team__contestant__in=crossed_starting_qs)
+            | Q(crewmember_two__team__contestant__in=crossed_starting_qs)
+        )
+        .distinct()
+        .count(),
+        "top_clubs": list(
+            Club.objects.values("name").annotate(count=Count("team")).order_by("-count").filter(count__gt=0)[:5]
+        ),
+        "top_aircraft_types": list(
+            Aeroplane.objects.exclude(type="").values("type").annotate(count=Count("id")).order_by("-count")[:5]
+        ),
+    }
 
 
 def get_country_stats() -> list[dict]:

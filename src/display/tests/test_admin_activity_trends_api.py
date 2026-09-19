@@ -1,6 +1,7 @@
 import datetime
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -10,6 +11,9 @@ from display.models import Contest, NavigationTask, Route, Scorecard
 
 class TestAdminActivityTrendsApi(TestCase):
     def setUp(self):
+        # AdminActivityTrendsViewSet caches its response by (days, bin) - see the matching note
+        # in test_admin_flight_stats_api.py.
+        cache.clear()
         create_scorecards()
         self.superuser = get_user_model().objects.create(email="admin-trends-super@example.com", is_superuser=True)
         self.regular_user = get_user_model().objects.create(email="admin-trends-regular@example.com")

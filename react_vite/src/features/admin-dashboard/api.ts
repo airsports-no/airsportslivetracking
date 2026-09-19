@@ -67,7 +67,24 @@ export interface RepeatParticipationStats {
     distribution: { contests: number | string; count: number }[];
 }
 
+export interface OverviewStats {
+    number_of_persons: number;
+    number_of_contests: number;
+    number_of_tasks: number;
+    number_of_contestants: number;
+    number_of_countries_reached: number;
+    total_gps_positions: number;
+    total_anomalies: number;
+    average_air_speed: number;
+    number_of_started_contestants: number;
+    number_of_contestants_crossed_starting: number;
+    number_of_persons_crossed_starting: number;
+    top_clubs: { name: string; count: number }[];
+    top_aircraft_types: { type: string; count: number }[];
+}
+
 export interface SystemStatsResponse {
+    overview: OverviewStats;
     country: CountryStatsRow[];
     task_type_popularity: { task_subtype: string; count: number }[];
     retention: {

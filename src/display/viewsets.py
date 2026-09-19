@@ -164,6 +164,7 @@ from display.services.admin_system_stats import (
     ACTIVITY_BIN_GRANULARITIES,
     get_activity_over_time,
     get_country_stats,
+    get_overview_stats,
     get_retention_stats,
     get_task_type_popularity,
 )
@@ -1561,6 +1562,9 @@ class AdminFlightStatsViewSet(ViewSet):
     """
 
     permission_classes = [IsSuperUser]
+    # Shorter than the other admin-stats caches: the awaiting_start/flying/finished split is
+    # meant to reflect near-real-time status, not just historical counts.
+    CACHE_TIMEOUT_SECONDS = 60
 
     def list(self, request):
         try:
@@ -1576,7 +1580,12 @@ class AdminFlightStatsViewSet(ViewSet):
 
         end = timezone.now()
         start = end - datetime.timedelta(days=days)
-        return Response(build_admin_flight_stats(start, end, bin_granularity))
+        payload = cache.get_or_set(
+            f"admin_flight_stats_v1_{days}_{bin_granularity}",
+            lambda: build_admin_flight_stats(start, end, bin_granularity),
+            timeout=self.CACHE_TIMEOUT_SECONDS,
+        )
+        return Response(payload)
 
 
 class AdminUpcomingContestantsViewSet(ViewSet):
@@ -1599,27 +1608,38 @@ class AdminUpcomingContestantsViewSet(ViewSet):
 
 class AdminSystemStatsViewSet(ViewSet):
     """
-    Utilization/adoption statistics that don't need a time-range control: country breakdown,
-    task-type popularity, and team/pilot retention. See AdminActivityTrendsViewSet for the
-    time-series companion.
+    Utilization/adoption statistics that don't need a time-range control: headline overview
+    numbers, country breakdown, task-type popularity, and team/pilot retention. See
+    AdminActivityTrendsViewSet for the time-series companion.
+
+    Cached: get_overview_stats() alone includes an 11M+ row approximate count plus several
+    full-table aggregates, and none of this changes fast enough for an admin dashboard to need
+    per-request freshness - repeatedly loading/switching tabs on this page shouldn't cost a fresh
+    scan every time.
     """
 
     permission_classes = [IsSuperUser]
+    CACHE_TIMEOUT_SECONDS = 600
 
     def list(self, request):
-        return Response(
-            {
+        payload = cache.get_or_set(
+            "admin_system_stats_v1",
+            lambda: {
+                "overview": get_overview_stats(),
                 "country": get_country_stats(),
                 "task_type_popularity": get_task_type_popularity(),
                 "retention": get_retention_stats(),
-            }
+            },
+            timeout=self.CACHE_TIMEOUT_SECONDS,
         )
+        return Response(payload)
 
 
 class AdminActivityTrendsViewSet(ViewSet):
     """Contests/tasks over time (by start_time) - the growth-trend companion to AdminSystemStatsViewSet."""
 
     permission_classes = [IsSuperUser]
+    CACHE_TIMEOUT_SECONDS = 300
 
     def list(self, request):
         try:
@@ -1635,7 +1655,12 @@ class AdminActivityTrendsViewSet(ViewSet):
 
         end = timezone.now()
         start = end - datetime.timedelta(days=days)
-        return Response(get_activity_over_time(start, end, bin_granularity))
+        payload = cache.get_or_set(
+            f"admin_activity_trends_v1_{days}_{bin_granularity}",
+            lambda: get_activity_over_time(start, end, bin_granularity),
+            timeout=self.CACHE_TIMEOUT_SECONDS,
+        )
+        return Response(payload)
 
 
 class NavigationTaskViewSet(ModelViewSet):

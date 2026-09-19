@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Loading } from '../../route-editor/components/basicComponents';
 import { RepeatParticipationStats } from '../api';
+import StatCard from './StatCard';
 
 const mergeDistributions = (teams: RepeatParticipationStats['distribution'], persons: RepeatParticipationStats['distribution']) => {
     const byContests = new Map<string, { contests: string; teams: number; persons: number }>();
@@ -24,16 +25,6 @@ const mergeDistributions = (teams: RepeatParticipationStats['distribution'], per
         return Number(a.contests) - Number(b.contests);
     });
 };
-
-function StatCard({ label, value, sublabel }: { label: string; value: string; sublabel: string }) {
-    return (
-        <div className="stat bg-base-200 rounded-box">
-            <div className="stat-title">{label}</div>
-            <div className="stat-value text-primary">{value}</div>
-            <div className="stat-desc">{sublabel}</div>
-        </div>
-    );
-}
 
 interface Props {
     data: { teams: RepeatParticipationStats; persons: RepeatParticipationStats } | null;

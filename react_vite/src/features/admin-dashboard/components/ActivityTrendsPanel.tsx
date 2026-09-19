@@ -19,10 +19,13 @@ const RANGE_PRESETS = [
     { days: 5 * 365, label: '5y' },
 ];
 
+type ViewMode = 'period' | 'cumulative';
+
 export default function ActivityTrendsPanel() {
     const { showToast } = useToast();
     const [days, setDays] = useState(365);
     const [bin, setBin] = useState<FlightStatsBin>('month');
+    const [viewMode, setViewMode] = useState<ViewMode>('period');
     const [rows, setRows] = useState<{ bucket_start: string; contests: number; tasks: number }[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -45,7 +48,17 @@ export default function ActivityTrendsPanel() {
     }, [days, bin, showToast]);
 
     const formatBucket = useMemo(() => bucketFormatter(bin), [bin]);
-    const chartData = useMemo(() => rows.map((row) => ({ ...row, label: formatBucket(row.bucket_start) })), [rows, formatBucket]);
+    const chartData = useMemo(() => {
+        const withLabels = rows.map((row) => ({ ...row, label: formatBucket(row.bucket_start) }));
+        if (viewMode === 'period') return withLabels;
+        let contestsRunningTotal = 0;
+        let tasksRunningTotal = 0;
+        return withLabels.map((row) => {
+            contestsRunningTotal += row.contests;
+            tasksRunningTotal += row.tasks;
+            return { ...row, contests: contestsRunningTotal, tasks: tasksRunningTotal };
+        });
+    }, [rows, formatBucket, viewMode]);
 
     return (
         <div className="card bg-base-100 shadow-xl">
@@ -59,6 +72,20 @@ export default function ActivityTrendsPanel() {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
+                        <div className="join">
+                            <button
+                                className={`btn btn-sm join-item ${viewMode === 'period' ? 'btn-primary' : 'btn-ghost'}`}
+                                onClick={() => setViewMode('period')}
+                            >
+                                Per period
+                            </button>
+                            <button
+                                className={`btn btn-sm join-item ${viewMode === 'cumulative' ? 'btn-primary' : 'btn-ghost'}`}
+                                onClick={() => setViewMode('cumulative')}
+                            >
+                                Cumulative
+                            </button>
+                        </div>
                         <div className="join">
                             {RANGE_PRESETS.map((preset) => (
                                 <button

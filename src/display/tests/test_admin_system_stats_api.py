@@ -1,6 +1,7 @@
 import datetime
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -12,6 +13,11 @@ from display.utilities.cima_task_type_definitions import PRECISION_NAVIGATION, T
 
 class AdminSystemStatsTestBase(TestCase):
     def setUp(self):
+        # AdminSystemStatsViewSet caches its response under a fixed key (no query params to vary
+        # it) - without clearing, a later test in the same run can read another test's DB
+        # fixtures back from Redis instead of seeing its own (the cache doesn't roll back with
+        # the DB transaction the way everything else in this test does).
+        cache.clear()
         create_scorecards()
         self.superuser = get_user_model().objects.create(email="admin-system-stats-super@example.com", is_superuser=True)
         self.regular_user = get_user_model().objects.create(email="admin-system-stats-regular@example.com")
@@ -75,9 +81,43 @@ class TestAdminSystemStatsApi(AdminSystemStatsTestBase):
         response = client.get("/api/v1/admin/system-stats/")
         self.assertEqual(200, response.status_code, response.content)
         payload = response.json()
+        self.assertIn("overview", payload)
         self.assertIn("country", payload)
         self.assertIn("task_type_popularity", payload)
         self.assertIn("retention", payload)
+
+    def test_response_is_cached_across_requests(self):
+        client = APIClient()
+        client.force_authenticate(self.superuser)
+        client.get("/api/v1/admin/system-stats/")
+
+        contest = self._make_contest("Cache test contest", datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc))
+        self._make_task(contest, "Cache test task")
+
+        second_response = client.get("/api/v1/admin/system-stats/")
+        # The second request must NOT reflect the contest/task created after the first request -
+        # if it does, the cache isn't actually being hit and every dashboard load is paying for
+        # the full query set again.
+        self.assertEqual(0, second_response.json()["overview"]["number_of_contests"])
+
+
+class TestOverviewStats(AdminSystemStatsTestBase):
+    def test_counts_reflect_created_data(self):
+        contest = self._make_contest("Overview contest", datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc))
+        task = self._make_task(contest, "Overview task", nominatim={"address": {"country": "Norway", "country_code": "no"}})
+        self._make_contestant(task, 1, "overview-1@example.com")
+
+        client = APIClient()
+        client.force_authenticate(self.superuser)
+        response = client.get("/api/v1/admin/system-stats/")
+
+        overview = response.json()["overview"]
+        self.assertEqual(1, overview["number_of_contests"])
+        self.assertEqual(1, overview["number_of_tasks"])
+        self.assertEqual(1, overview["number_of_contestants"])
+        self.assertEqual(1, overview["number_of_countries_reached"])
+        self.assertGreaterEqual(overview["total_gps_positions"], 0)
+        self.assertIsInstance(overview["total_gps_positions"], int)
 
 
 class TestCountryStats(AdminSystemStatsTestBase):
