@@ -95,7 +95,7 @@ class TestAdminFlightStatsApi(TestCase):
         # The non-started contestant contributed 0 to every category, not 1 to any of them.
         self.assertEqual(3, bucket["awaiting_start"] + bucket["flying"] + bucket["finished"])
 
-    def test_unique_persons_per_day_counts_both_crew_members_once_each(self):
+    def test_unique_persons_series_counts_both_crew_members_once_each(self):
         now = datetime.datetime.now(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
         shared_copilot = Person.objects.create(first_name="Shared", last_name="Copilot", email="shared-copilot@example.com")
         self._make_contestant(
@@ -111,9 +111,28 @@ class TestAdminFlightStatsApi(TestCase):
 
         self.assertEqual(200, response.status_code, response.content)
         payload = response.json()
-        self.assertEqual(1, len(payload["unique_persons_per_day"]))
+        self.assertEqual(1, len(payload["unique_persons_series"]))
         # pilot-a, pilot-b, shared_copilot (once, not twice) = 3 unique persons.
-        self.assertEqual(3, payload["unique_persons_per_day"][0]["count"])
+        self.assertEqual(3, payload["unique_persons_series"][0]["count"])
+
+    def test_unique_persons_series_follows_the_selected_bin_not_always_daily(self):
+        # Two contestants on different days of the same week - with weekly binning they must
+        # land in the same bucket (and their distinct pilots both counted), not one per day.
+        base = datetime.datetime.now(datetime.timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0)
+        monday = base - datetime.timedelta(days=base.weekday())
+        self._make_contestant(1, "week-pilot-a@example.com", monday, calculator_started=True, passed_start=False, passed_finish=False)
+        self._make_contestant(
+            2, "week-pilot-b@example.com", monday + datetime.timedelta(days=2), calculator_started=True, passed_start=False, passed_finish=False
+        )
+
+        client = APIClient()
+        client.force_authenticate(self.superuser)
+        response = client.get("/api/v1/admin/flight-stats/", {"days": 8, "bin": "week"})
+
+        self.assertEqual(200, response.status_code, response.content)
+        payload = response.json()
+        self.assertEqual(1, len(payload["unique_persons_series"]))
+        self.assertEqual(2, payload["unique_persons_series"][0]["count"])
 
     def test_invalid_bin_is_rejected_cleanly(self):
         client = APIClient()

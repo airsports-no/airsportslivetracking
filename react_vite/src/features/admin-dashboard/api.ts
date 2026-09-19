@@ -9,8 +9,8 @@ export interface FlightStatsBucket {
     finished: number;
 }
 
-export interface UniquePersonsDay {
-    date: string;
+export interface UniquePersonsBucket {
+    bucket_start: string;
     count: number;
 }
 
@@ -19,7 +19,7 @@ export interface FlightStatsResponse {
     start: string;
     end: string;
     series: FlightStatsBucket[];
-    unique_persons_per_day: UniquePersonsDay[];
+    unique_persons_series: UniquePersonsBucket[];
 }
 
 export const fetchAdminFlightStats = async (days: number, bin: FlightStatsBin): Promise<FlightStatsResponse> => {

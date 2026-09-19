@@ -50,8 +50,6 @@ const bucketFormatter = (bin: FlightStatsBin) => {
     return (isoString: string) => formatter.format(new Date(isoString));
 };
 
-const dayFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
-
 function FlightStatusChart() {
     const { showToast } = useToast();
     const [days, setDays] = useState(30);
@@ -90,11 +88,11 @@ function FlightStatusChart() {
 
     const personsData = useMemo(
         () =>
-            (data?.unique_persons_per_day ?? []).map((row) => ({
+            (data?.unique_persons_series ?? []).map((row) => ({
                 ...row,
-                label: dayFormatter.format(new Date(row.date)),
+                label: formatBucket(row.bucket_start),
             })),
-        [data],
+        [data, formatBucket],
     );
 
     return (
@@ -169,10 +167,10 @@ function FlightStatusChart() {
 
                 <div className="divider" />
 
-                <h3 className="font-semibold text-sm text-base-content/80">Unique participants per day</h3>
+                <h3 className="font-semibold text-sm text-base-content/80">Unique participants</h3>
                 <p className="text-xs text-base-content/60 mb-2">
-                    Distinct pilots and copilots among calculator-started contestants - always daily, independent of the
-                    binning above.
+                    Distinct pilots and copilots among calculator-started contestants, bucketed the same as the chart
+                    above.
                 </p>
                 {loading ? (
                     <Loading />
