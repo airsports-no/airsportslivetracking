@@ -64,6 +64,7 @@ from display.models import (
     TrackAnnotation,
     UserTokenGrant,
 )
+from display.convert_route import convert_legacy_json
 from display.flight_order_and_maps.map_constants import LANDSCAPE, MAP_SIZES, ORIENTATIONS, SCALES, SCALE_TO_FIT
 from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_available_map_source_definitions_for_navigation_task,
@@ -2772,6 +2773,30 @@ Prohibited, penalty, information zones
 
     """
     )
+
+    def validate_route(self, value):
+        """
+        EditableRoute's internal representation (and every model method that reads it - see
+        get_track()/get_feature_type()/calculate_number_of_waypoints()) has required the GeoJSON
+        FeatureCollection shape since the 0120_auto_20251228_2126 data migration converted every
+        stored row to it. The route field's own help_text above was never updated to match, so a
+        client (Sentry PYTHON-DJANGO-1B: an external script) still submitting the legacy list
+        format it documents got an unhandled 500 deep in a post_save signal instead of either a
+        clean error or actually working - convert_legacy_json() (used by that same migration) can
+        turn it into the same GeoJSON shape, so accept it here rather than just rejecting it.
+        """
+        if isinstance(value, dict) and value.get("type") == "FeatureCollection" and isinstance(value.get("features"), list):
+            return value
+        if isinstance(value, list):
+            try:
+                return convert_legacy_json(value)
+            except (KeyError, TypeError, IndexError) as exc:
+                raise serializers.ValidationError(f"Could not convert legacy route format: {exc}") from exc
+        raise serializers.ValidationError(
+            "route must be a GeoJSON FeatureCollection ({'type': 'FeatureCollection', 'features': [...]}) "
+            "or a list of legacy route layer objects (see this field's description)."
+        )
+
     settings = serializers.JSONField()
     editors = serializers.SerializerMethodField("get_editors", read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)
