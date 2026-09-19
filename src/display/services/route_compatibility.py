@@ -32,7 +32,7 @@ from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNP
 # Bump whenever the ruleset (required/forbidden primitives, or the primitive extraction itself)
 # changes in a way that could change the outcome for an already-saved route, so callers can tell a
 # stale EditableRoute.compatible_task_types apart from a freshly computed one.
-ROUTE_COMPATIBILITY_RULESET_VERSION = 1
+ROUTE_COMPATIBILITY_RULESET_VERSION = 2
 
 # The keys TaskCompiler._build_compiled_primitives has historically returned, in that order. Kept
 # here so the compiler can subset extract_route_primitives() without changing its persisted

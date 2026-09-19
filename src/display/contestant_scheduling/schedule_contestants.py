@@ -255,9 +255,24 @@ def schedule_and_create_contestants_navigation_tasks(
         gate_times = calculate_and_get_relative_gate_times(
             navigation_task.route, speed, navigation_task.wind_speed, navigation_task.wind_direction
         )
+        if gate_times:
+            flight_duration = gate_times[-1][1]
+        else:
+            # No route backbone (2.A6 Turnpoint hunt/2.B2 Limited fuel turnpoint hunt explicitly
+            # forbid one - see cima_task_type_definitions.py - so route.waypoints is empty and
+            # there's no route_waypoint chain to compute a flight duration from). Fall back to
+            # the scorecard's configured maximum task duration instead: the contestant is
+            # allotted this much time to hunt turnpoints, not a fixed route to fly.
+            maximum_task_duration_minutes = navigation_task.scorecard.maximum_task_duration_minutes
+            if maximum_task_duration_minutes is None:
+                raise ValueError(
+                    "This task has no route backbone to compute a flight duration from. Set "
+                    "'Maximum task duration' on the scorecard before scheduling contestants."
+                )
+            flight_duration = datetime.timedelta(minutes=maximum_task_duration_minutes)
         duration = (
             datetime.timedelta(minutes=navigation_task.minutes_to_starting_point + navigation_task.minutes_to_landing)
-            + gate_times[-1][1]
+            + flight_duration
         )
 
         frozen = False

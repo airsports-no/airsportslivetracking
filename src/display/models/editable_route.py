@@ -202,7 +202,29 @@ class EditableRoute(models.Model):
             return None
 
     def get_track(self) -> Optional[dict]:
-        return self.get_feature_type("route_path")
+        """
+        Returns the route_path feature, or None if there isn't one with an actual drawn line.
+
+        The route editor's canvas includes an empty route_path feature (a LineString with zero
+        coordinates) by default, even for task templates that never ask the user to draw one -
+        2.A6 Turnpoint hunt/2.B2 Limited fuel turnpoint hunt explicitly require no route backbone
+        at all. Mere feature presence therefore isn't a reliable "this route has a backbone"
+        signal: turnpoint_hunt_structural_errors (route_compatibility.py) checks exactly that to
+        reject routes with one, so without this guard every route - including ones correctly
+        built with no track - would always fail it, making those two subtypes permanently
+        unselectable for any route ever authored in the editor. A line needs at least two points
+        to represent any actual path, so anything short of that is treated as no track at all;
+        every other caller (calculate_number_of_waypoints/calculate_route_length/
+        extract_route_primitives's "route_path" primitive/validate_valid_corridor_route) already
+        handles None/empty identically to a coordinate-less track, so this is safe everywhere.
+        """
+        track = self.get_feature_type("route_path")
+        if track is None:
+            return None
+        coordinates = track.get("geometry", {}).get("coordinates") or []
+        if len(coordinates) < 2:
+            return None
+        return track
 
     def get_track_waypoints(self) -> list[dict]:
         return self.get_features_type("route_waypoint")

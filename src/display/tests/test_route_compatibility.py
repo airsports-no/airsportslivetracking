@@ -202,6 +202,44 @@ class TestRouteCompatibilityRuleset(TestCase):
         valid_route = turnpoint_hunt_route(with_backbone=False, known_time_gate_count=3)
         self.assertIn(LIMITED_FUEL_TURNPOINT_HUNT, get_compatible_task_subtypes(valid_route))
 
+    def test_turnpoint_hunt_is_not_blocked_by_the_route_editor_canvas_default_empty_track(self):
+        # Regression test: the route editor's canvas includes an empty route_path feature (a
+        # LineString with zero coordinates) by default, even for a route built entirely from the
+        # 2.A6 Turnpoint hunt wizard template, which never asks the user to draw a track at all.
+        # EditableRoute.get_track() used to treat that vestigial feature the same as a real,
+        # drawn backbone, so turnpoint_hunt_structural_errors' "no route backbone" check
+        # permanently rejected every route ever authored in the editor for this subtype - even
+        # ones with exactly the right primitives and genuinely no drawn track.
+        empty_track_feature = {
+            "type": "Feature",
+            "properties": {"featureType": "route_path"},
+            "geometry": {"type": "LineString", "coordinates": []},
+        }
+        features = [
+            empty_track_feature,
+            {
+                "type": "Feature",
+                "properties": {"id": "ctp-1", "name": "TP 1", "featureType": "catalogue_turnpoint"},
+                "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+            },
+        ]
+        for index in range(3):
+            features.append(
+                {
+                    "type": "Feature",
+                    "properties": {"id": f"ktg-{index}", "name": f"CP{index + 1}", "featureType": "known_time_gate"},
+                    "geometry": {"type": "Point", "coordinates": [11.1 + index * 0.1, 60.1 + index * 0.1]},
+                }
+            )
+        route = EditableRoute.objects.create(
+            name="Turnpoint hunt with vestigial empty route_path",
+            route={"type": "FeatureCollection", "features": features},
+        )
+
+        self.assertIsNone(route.get_track())
+        compatible = get_compatible_task_subtypes(route)
+        self.assertIn(LIMITED_FUEL_TURNPOINT_HUNT, compatible)
+
     def test_contract_navigation_structural_rules_apply_to_the_canonical_compatibility_set(self):
         # A route satisfying required_primitives alone (a track, one route waypoint, one
         # catalogue turnpoint) is not necessarily a valid contract-navigation route -
