@@ -662,9 +662,11 @@ def _parse_points_from_request(request):
     Coerce request.data["points"] to a float - every points field it ends up in
     (ContestSummary/TaskSummary/TeamTestScore) is a FloatField, not an int, so scores with a
     fractional part are legitimate. Raises a DRF ValidationError (-> 400) on anything that isn't
-    a valid number, rather than letting it crash into an unhandled 500: EditableCell.tsx's onBlur
-    fires whatever is currently in the input, including a partially-typed negative number (a lone
-    "-") if the field loses focus before the pilot/organizer finishes typing.
+    a valid number, rather than letting it crash into an unhandled 500: the results table used to
+    seed an ungraded cell's editable value with the literal string "-" (not an empty value with a
+    placeholder), so merely clicking into and back out of it - no typing at all - sent "-" as the
+    edit. Kept as a general guard (not just for that one case) since EditableCell.tsx's own fix
+    for it is a UX improvement on the frontend, not a substitute for backend validation.
     """
     try:
         return float(request.data["points"])
