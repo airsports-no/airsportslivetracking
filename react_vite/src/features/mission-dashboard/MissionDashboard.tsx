@@ -303,7 +303,10 @@ const MissionDashboard = () => {
 			
     useEffect(() => {
         const interval = setInterval(() => {
-            fetchOngoingNavigationFromStore(true);
+            // Fire-and-forget background refresh - a transient failure (e.g. mobile Safari
+            // losing connectivity while backgrounded) shouldn't surface as an unhandled promise
+            // rejection (Sentry JAVASCRIPT-REACT-B); the next interval tick retries anyway.
+            fetchOngoingNavigationFromStore(true).catch(() => {});
         }, 2 * 60 * 1000);
 
         return () => clearInterval(interval);
