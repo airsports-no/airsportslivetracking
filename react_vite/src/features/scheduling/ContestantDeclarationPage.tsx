@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { Loading } from '../route-editor/components/basicComponents';
 import { fetchContestant, fetchNavigationTask, updateContestantDeclaration } from './api';
@@ -876,6 +876,7 @@ function DeclarationPreview({
 
 const ContestantDeclarationPage: React.FC = () => {
     const { contestId, navigationTaskId, contestantId } = useParams();
+    const navigate = useNavigate();
     const [saving, setSaving] = useState(false);
     const { showToast, ToastContainer, toasts, removeToast } = useToast();
     const {
@@ -1027,6 +1028,11 @@ const ContestantDeclarationPage: React.FC = () => {
             setContestant(refreshedContestant);
             setFormState(buildFormState(refreshedContestant));
             showToast('Declaration saved.', 'success');
+            // Brief delay so the success toast is actually visible before this page (and its
+            // toast) unmounts - navigating away immediately would cut it off.
+            setTimeout(() => {
+                navigate(generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! }));
+            }, 800);
         } catch (err: any) {
             const message = err?.message || 'Failed to save declaration.';
             setError(message);
