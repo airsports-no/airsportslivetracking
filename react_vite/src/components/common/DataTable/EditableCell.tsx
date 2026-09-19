@@ -18,8 +18,19 @@ export const EditableCell = <TData, TValue>({
   };
 
   const onBlur = () => {
+    // Every column this is used for (contest/task/test scores) is numeric. Guard against
+    // sending a value that isn't a complete, valid number - e.g. a lone "-" left behind when the
+    // field loses focus mid-edit of a negative score - by reverting to the last saved value
+    // instead. Without this, the raw string reached the backend and crashed its int()/FloatField
+    // conversion into an unhandled 500 (Sentry PYTHON-DJANGO-19).
+    const trimmed = typeof value === 'string' ? value.trim() : value;
+    const numericValue = Number(trimmed);
+    if (trimmed === '' || trimmed === null || trimmed === undefined || Number.isNaN(numericValue)) {
+      setValue(initialValue);
+      return;
+    }
     if (updateMyData) {
-      updateMyData(index, id, value);
+      updateMyData(index, id, numericValue);
     }
   };
 
