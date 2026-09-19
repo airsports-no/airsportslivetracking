@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { Loading } from '../route-editor/components/basicComponents';
-import { fetchContestant, fetchNavigationTask, updateContestantDeclaration } from './api';
+import { clearContestantDeclaration, fetchContestant, fetchNavigationTask, updateContestantDeclaration } from './api';
 import { generatePath } from '../../urls';
 import { useToast } from '../competition-map/hooks/useToast';
 import {
@@ -1042,6 +1042,30 @@ const ContestantDeclarationPage: React.FC = () => {
         }
     };
 
+    const handleClearDeclaration = async () => {
+        if (!contestId || !navigationTaskId || !contestantId) return;
+        if (!window.confirm('Clear this declaration? The predicted times will be removed and the schedule unlocked, so takeoff/finish time can be changed again.')) {
+            return;
+        }
+        setSaving(true);
+        try {
+            const refreshedContestant = await clearContestantDeclaration(
+                Number(contestId),
+                Number(navigationTaskId),
+                Number(contestantId),
+            );
+            setContestant(refreshedContestant);
+            setFormState(buildFormState(refreshedContestant));
+            showToast('Declaration cleared.', 'success');
+        } catch (err: any) {
+            const message = err?.message || 'Failed to clear declaration.';
+            setError(message);
+            showToast(message, 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (loading) return <Loading />;
 
     if (error && !contestant) {
@@ -1061,10 +1085,29 @@ const ContestantDeclarationPage: React.FC = () => {
                     <h1 className="text-3xl font-bold">Contestant declaration</h1>
                     <p className="text-sm opacity-70">{contestant?.team?.crew?.member1?.first_name} {contestant?.team?.crew?.member1?.last_name} · {navigationTask?.name}</p>
                 </div>
-                <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-secondary btn-sm">
-                    Back to navigation task
-                </Link>
+                <div className="flex items-center gap-2">
+                    {contestant?.has_locked_absolute_declaration && (
+                        <button
+                            type="button"
+                            className="btn btn-outline btn-error btn-sm"
+                            onClick={handleClearDeclaration}
+                            disabled={saving}
+                        >
+                            Clear declaration
+                        </button>
+                    )}
+                    <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-secondary btn-sm">
+                        Back to navigation task
+                    </Link>
+                </div>
             </div>
+            {contestant?.has_locked_absolute_declaration && (
+                <div className="alert alert-warning text-sm mb-4">
+                    This contestant has declared predicted times that don't move with the schedule. Takeoff/finish
+                    time can only be changed as long as every declared predicted time still falls within the new
+                    window - otherwise, clear the declaration first.
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="card bg-base-100 shadow-xl">

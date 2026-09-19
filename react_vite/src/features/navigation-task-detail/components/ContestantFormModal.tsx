@@ -76,6 +76,7 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
     const [trackerDeviceId, setTrackerDeviceId] = useState('');
     const [trackerStartTime, setTrackerStartTime] = useState('');
     const [finishedByTime, setFinishedByTime] = useState('');
+    const [hasLockedAbsoluteDeclaration, setHasLockedAbsoluteDeclaration] = useState(false);
 
     const applyTeamDefaults = (option: ContestTeamOption) => {
       setTeamId(String(option.team.id));
@@ -99,6 +100,7 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
       setTrackerDeviceId(detail.tracker_device_id || '');
       setTrackerStartTime(toLocalInputValue(detail.tracker_start_time));
       setFinishedByTime(toLocalInputValue(detail.finished_by_time));
+      setHasLockedAbsoluteDeclaration(detail.has_locked_absolute_declaration);
     };
 
     // Takes the target contestant id directly rather than reading it off the contestantId state
@@ -122,6 +124,7 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
           setTakeoffTime('');
           setTrackerStartTime('');
           setFinishedByTime('');
+          setHasLockedAbsoluteDeclaration(false);
           if (teamOptions.length > 0) applyTeamDefaults(teamOptions[0]);
         }
       } catch (err: any) {
@@ -224,6 +227,14 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
                   </select>
                 </label>
               </div>
+
+              {hasLockedAbsoluteDeclaration && (
+                <div className="alert alert-warning text-sm py-2">
+                  This contestant has a saved declaration with predicted times. Takeoff/finish time can only be
+                  changed as long as every predicted time still falls within the new window - otherwise, clear the
+                  declaration first.
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <label className="form-control">

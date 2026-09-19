@@ -533,6 +533,8 @@ export interface ContestantEditDetail {
   air_speed: number;
   wind_direction: number;
   wind_speed: number;
+  schedule_locked: boolean;
+  has_locked_absolute_declaration: boolean;
 }
 
 // GET contestants-detail returns the nested-team serialiser (team.id is the underlying Team pk,

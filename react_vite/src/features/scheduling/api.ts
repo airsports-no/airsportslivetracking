@@ -162,6 +162,23 @@ export const updateContestantDeclaration = async (
     });
 };
 
+export const clearContestantDeclaration = async (contestId: number, navigationTaskId: number, contestantId: number) => {
+    const url = reverse("contestants-clear-declaration", contestId, navigationTaskId, contestantId);
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")!,
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to clear declaration");
+    }
+
+    return response.json();
+};
+
 export const deleteContestant = async (contestId: number, navigationTaskId: number, contestantId: number) => {
     const url = reverse("contestants-detail", contestId, navigationTaskId, contestantId);
     const response = await fetch(url, {

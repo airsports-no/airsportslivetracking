@@ -3209,6 +3209,23 @@ class ContestantViewSet(ModelViewSet):
         return Response({"detail": "Started loading track."})
 
     @action(detail=True, methods=["post"])
+    def clear_declaration(self, request, pk=None, **kwargs):
+        """
+        Wipes a contestant's declared predicted times and un-locks its schedule (see
+        Contestant.schedule_locked / ABSOLUTE_TIME_DECLARATION_SUBTYPES), so the organizer can
+        move takeoff/finish time again and re-declare afterward. This is the only way to move a
+        schedule-locked contestant's timing once Contestant.clean()'s window guard is rejecting
+        the edit because a declared time would fall outside the new window.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        if hasattr(contestant, "contestanttaskconfiguration"):
+            contestant.contestanttaskconfiguration.clear_declaration()
+        if contestant.schedule_locked:
+            contestant.schedule_locked = False
+            contestant.save(update_fields=["schedule_locked"])
+        return Response(ContestantSerialiser(contestant).data)
+
+    @action(detail=True, methods=["post"])
     def recalculate_with_start_time(self, request, pk=None, **kwargs):
         """
         Replaces the contestant with a new one sharing the same team/positions/uploaded track,

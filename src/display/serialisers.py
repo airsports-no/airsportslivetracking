@@ -1874,9 +1874,19 @@ class ContestantSerialiser(serializers.ModelSerializer):
     last_position_time = SerializerMethodField("get_last_position_time", read_only=True)
     calculator_finished = serializers.SerializerMethodField()
     declaration_status = serializers.SerializerMethodField()
+    has_locked_absolute_declaration = serializers.SerializerMethodField()
 
     def get_calculator_finished(self, obj) -> bool:
         return getattr(obj, "contestanttrack", None).calculator_finished if hasattr(obj, "contestanttrack") else False
+
+    def get_has_locked_absolute_declaration(self, contestant) -> bool:
+        """
+        Distinct from schedule_locked, which is also set for subtypes (e.g. known_circuit) whose
+        declaration doesn't necessarily contain any absolute time that could go stale - this is
+        specifically "does the takeoff/finish time edit guard actually apply right now," so the
+        frontend can show the warning/"Clear declaration" affordance only when it's meaningful.
+        """
+        return bool(contestant.get_declared_absolute_times())
 
     def get_declaration_status(self, contestant) -> dict:
         """
@@ -1885,11 +1895,16 @@ class ContestantSerialiser(serializers.ModelSerializer):
         navigation (CIMA task types) do, and ContestantTaskCompilerStrategy.validate_declaration
         is a no-op for every other subtype. Mirrors ContestantTaskCompiler._get_strategy's own
         subtype dispatch so this list can't silently drift from what's actually validated.
+
+        Limited fuel turnpoint hunt is deliberately excluded even though it uses the same
+        TurnpointHuntStrategy as plain turnpoint hunt - its declaration is entirely optional (the
+        contestant may have fuel for fewer than the usual three compulsory points, or none), and
+        TurnpointHuntStrategy.validate_declaration never errors on an empty declaration for this
+        subtype (minimum_required=0), so "required" here would never be backed by real enforcement.
         """
         from display.utilities.cima_task_type_definitions import (
             CONTRACT_NAVIGATION_TIME_CONTROLS,
             CURVE_NAVIGATION_TIME_ESTIMATION,
-            LIMITED_FUEL_TURNPOINT_HUNT,
             PRECISION_NAVIGATION,
             TURNPOINT_HUNT,
         )
@@ -1899,7 +1914,6 @@ class ContestantSerialiser(serializers.ModelSerializer):
             PRECISION_NAVIGATION,
             CONTRACT_NAVIGATION_TIME_CONTROLS,
             TURNPOINT_HUNT,
-            LIMITED_FUEL_TURNPOINT_HUNT,
         }
         required = contestant.navigation_task.task_subtype in declaration_required_subtypes
         config = getattr(contestant, "contestanttaskconfiguration", None)

@@ -22,6 +22,7 @@ from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
+from display.utilities.cima_task_type_definitions import ABSOLUTE_TIME_DECLARATION_SUBTYPES
 from display.utilities.navigation_task_type_definitions import (
     POKER,
     AIRSPORTS,
@@ -629,6 +630,26 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             logger.info(f"Terminating concurrent contestants for {self} (IDs: {tracker_ids}): {overlapping}")
             overlapping.update(finished_by_time=termination_time)
 
+    def get_declared_absolute_times(self) -> list[datetime.datetime]:
+        """
+        The contestant's manually declared absolute predicted/override times, for task subtypes
+        where those times don't move with the schedule (see ABSOLUTE_TIME_DECLARATION_SUBTYPES).
+        Empty for every other subtype, and for known_circuit whenever no point has actually been
+        overridden - the lock this backs is only meant to engage once there's something declared
+        that could actually go stale.
+        """
+        declaration_time_key = ABSOLUTE_TIME_DECLARATION_SUBTYPES.get(self.navigation_task.task_subtype)
+        if not declaration_time_key:
+            return []
+        config = getattr(self, "contestanttaskconfiguration", None)
+        if config is None:
+            return []
+        declared_times = []
+        for value in (config.declaration_payload or {}).get(declaration_time_key, {}).values():
+            if isinstance(value, str):
+                declared_times.append(dateutil.parser.parse(value))
+        return declared_times
+
     def clean(self):
         if not isinstance(self.tracker_start_time, datetime.datetime):
             raise ValidationError("Malformed tracker start time")
@@ -688,6 +709,23 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 if original.minutes_to_starting_point != self.minutes_to_starting_point:
                     raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change minutes to starting point"
+                    )
+            # Guard against silently stale absolute-time declarations. Keyed off the times
+            # actually declared (not original.schedule_locked, which for known_circuit is set
+            # once ANY valid config compiles, override or not) so this only engages when the
+            # contestant has genuinely declared absolute times that could go stale.
+            if self.takeoff_time != original.takeoff_time or self.finished_by_time != original.finished_by_time:
+                declared_times = original.get_declared_absolute_times()
+                out_of_window = [
+                    declared_time
+                    for declared_time in declared_times
+                    if declared_time < self.takeoff_time or declared_time > self.finished_by_time
+                ]
+                if out_of_window:
+                    raise ValidationError(
+                        f"Contestant {self} has declared predicted times that fall outside the new "
+                        f"takeoff time '{self.takeoff_time}' to finished by time '{self.finished_by_time}'. "
+                        "Clear the declaration before changing the schedule."
                     )
 
     @staticmethod
