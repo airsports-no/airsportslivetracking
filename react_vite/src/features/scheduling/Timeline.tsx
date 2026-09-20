@@ -5,6 +5,21 @@ import 'vis-timeline/styles/vis-timeline-graph2d.css';
 import './Timeline.css';
 import { v4 as uuidv4 } from 'uuid';
 
+// Shared by the overtake calculation and the bar itself, so "does #10's bar visually extend
+// past anyone else's" and "is #10 flagged as an overtake" always agree - adaptive-start
+// contestants use their scheduled finish (their actual takeoff isn't fixed either, so a real
+// landing time isn't a like-for-like comparison against everyone else's schedule), everyone
+// else uses their actual landing_time once it's known, falling back to finished_by_time before
+// that.
+export function getBlockEndTime(contestant: any): number {
+    if (contestant.adaptive_start) {
+        return new Date(contestant.finished_by_time).getTime();
+    }
+    return contestant.landing_time
+        ? new Date(contestant.landing_time).getTime()
+        : new Date(contestant.finished_by_time).getTime();
+}
+
 interface TimelineProps {
     navigationTask: any;
     firstTakeoffTime: Date;
@@ -74,12 +89,17 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
     // - it finishes before some contestant that departed before it (it does the overtaking).
     // Both directions reduce to one O(n) pass (after the existing takeoff-time sort) using a
     // suffix-min and a prefix-max of finish times.
+    //
+    // Uses getBlockEndTime (the same landing-time-preferring end used for the bar itself), not
+    // raw finished_by_time - a contestant who has actually landed shows a bar ending at their
+    // real landing_time, so comparing against everyone else's scheduled finished_by_time could
+    // flag (or miss) an overtake that the bars themselves don't visually show at all.
     const overtakeContestantIds = useMemo(() => {
         const n = contestants.length;
         const flagged = new Set<number>();
         if (n < 2) return flagged;
 
-        const finishTimes = contestants.map(c => new Date(c.finished_by_time).getTime());
+        const finishTimes = contestants.map(getBlockEndTime);
 
         const suffixMinAfter = new Array<number>(n).fill(Infinity);
         for (let i = n - 2; i >= 0; i--) {
@@ -106,12 +126,12 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             const trackerStart = new Date(contestant.tracker_start_time).getTime();
             const takeoff = new Date(contestant.takeoff_time).getTime();
             const finish = new Date(contestant.finished_by_time).getTime();
-            const landing = contestant.landing_time 
-                ? new Date(contestant.landing_time).getTime() 
+            const landing = contestant.landing_time
+                ? new Date(contestant.landing_time).getTime()
                 : finish;
 
             const blockStartTime = isAdaptive ? trackerStart : takeoff;
-            const blockEndTime = isAdaptive ? finish : landing;
+            const blockEndTime = getBlockEndTime(contestant);
             const isCalculatorLocked = contestant.contestanttrack?.calculator_started;
             const isScheduleLocked = contestant.schedule_locked;
             const isLocked = isCalculatorLocked || isScheduleLocked;
